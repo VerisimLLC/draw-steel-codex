@@ -3359,6 +3359,12 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    -- gui.DicePreview is a dedicated dice-preview cage panel type; fall back to a plain
+    -- gui.Panel on an older binary (Lua-only reload) that predates it. (gui is engine
+    -- userdata, so index via pcall rather than rawget.)
+    local diceCageCtor = gui.Panel
+    pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
+
     local mainPanel = gui.Panel {
         classes = { 'main-panel' },
         children = {
@@ -3410,7 +3416,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     },
                 },
 
-                gui.Panel{
+                diceCageCtor{
                     styles = {
                         gui.Style{
                             opacity = 0,
@@ -3465,7 +3471,6 @@ function GameHud.CreateEmbeddedRollDialog()
                     end,
 
                     dragging = function(element)
-                        print("DICE:: DOING DRAG")
                         pcall(function() element:DicePreviewDragThink() end)
                     end,
 
@@ -4791,7 +4796,6 @@ function GameHud.CreateEmbeddedRollDialog()
             create = function(element)
                 --element.data.hideactionbar = dmhub.GetSettingValue("hideactionbar")
                 --dmhub.SetSettingValue("hideactionbar", true)
-                print("PreviewDice:: hide action bar")
             end,
             destroy = function(element)
                 --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)

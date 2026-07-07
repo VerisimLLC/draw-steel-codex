@@ -1102,6 +1102,26 @@ function ActivatedAbility:VerticalTargeting()
 end
 
 function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
+    --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
+    --"teleport 5" may end up to 5 squares above or below the creature's current
+    --altitude, independently of the horizontal component (which the radius marker
+    --already bounds). Unlike the forced-movement calculators below, this returns
+    --ABSOLUTE altitudes; landing on the ground at the target tile is the lowest
+    --possible landing spot.
+    if (self.targetType == "emptyspace" or self.targetType == "anyspace") and self:try_get("behaviors") ~= nil and self:GetMovementType(casterToken, symbols) == "teleport" then
+        local range = symbols.range
+        if range == nil then
+            range = self:GetRange(casterToken.properties, symbols) / dmhub.unitsPerSquare
+        end
+        local casterAlt = casterToken.loc.altitude
+        return function(loc)
+            local groundAlt = loc.withGroundAltitude.altitude
+            local minAltitude = math.max(groundAlt, casterAlt - range)
+            local maxAltitude = math.max(minAltitude, casterAlt + range)
+            return minAltitude, maxAltitude
+        end
+    end
+
     if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
         local invoker = symbols.invoker
         if type(invoker) == "function" then

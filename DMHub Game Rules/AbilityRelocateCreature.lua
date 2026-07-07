@@ -247,7 +247,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 end)
             end
 
-        	casterToken:Teleport(destLoc.withGroundAltitude)
+            --The action bar's altitude controller resolves the target loc to an
+            --ABSOLUTE altitude (bounded by the teleport distance). Never land below
+            --the ground at the destination: locs from flows without the controller
+            --carry altitude 0 or the ground altitude, and both resolve to landing
+            --on the ground exactly as before.
+            local groundLoc = destLoc.withGroundAltitude
+            local teleportLoc = groundLoc:WithAltitude(math.max(groundLoc.altitude, destLoc.altitude))
+
+        	casterToken:Teleport(teleportLoc)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
 
@@ -300,6 +308,23 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         end
                     end
                 end
+            end
+
+            --Fall check: a creature that teleports into midair falls unless it
+            --can fly (TryFall is a no-op for grounded or flying creatures).
+            --Give the teleport a moment to breathe first: wait for a full game
+            --update to land with the creature in the air (plus a short beat so
+            --the teleport animation can resolve) before the falling rules
+            --engage. Time-capped so a stalled update can't hang the cast.
+            if teleportLoc.altitude > groundLoc.altitude then
+                local updateAtTeleport = dmhub.ngameupdate
+                local startTime = dmhub.Time()
+                while (dmhub.ngameupdate <= updateAtTeleport or dmhub.Time() < startTime + 0.5) and dmhub.Time() < startTime + 2 do
+                    coroutine.yield(0.1)
+                end
+            end
+            if casterToken.valid then
+                casterToken:TryFall()
             end
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)

@@ -147,7 +147,13 @@ CreateDicePanel = function()
 			-- labels are SIBLINGS drawn on top, so hiding a label never touches the cage and the
 			-- cage's opacity-0 invisibility never touches the labels. All engine calls are
 			-- pcall-guarded so a Lua-only reload against an older binary degrades gracefully.
-			local cage = gui.Panel{
+			-- gui.DicePreview is a dedicated dice-preview cage panel type. Fall back to a plain
+			-- gui.Panel on an older binary (Lua-only reload) that predates it; the dice field/
+			-- method calls below are already pcall-guarded so they no-op on the fallback.
+			-- (gui is engine userdata, so index via pcall rather than rawget.)
+			local diceCageCtor = gui.Panel
+			pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
+			local cage = diceCageCtor{
 				width = "100%",
 				height = "100%",
 				halign = "center",
@@ -444,7 +450,6 @@ CreateDicePanel = function()
 		end
 
 		local result = gui.Panel(args)
-		print ("dj", result.events)
 		return result
 	end
 	

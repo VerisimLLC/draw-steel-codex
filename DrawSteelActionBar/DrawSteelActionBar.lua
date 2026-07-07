@@ -217,7 +217,83 @@ local function GetHeroicResourceOrMaliceCost(ability, symbols)
     return heroicResourceEntry.quantity
 end
 
+--Movement cross-section diagram during ability movement targeting.
+--
+--For any ability-driven movement preview -- forced move (push/pull/slide,
+--"straightline"), regular movement/shift (pathfind), or teleport (direct) --
+--show the same floating tooltip the manual token-drag uses, including the
+--side-on movement cross-section diagram. We fire the SAME "tiletooltip" event
+--the drag flow uses (handled in GameHud.lua, which builds the tooltip +
+--CreateMovementDiagramPanel from movingToken/movingPath). GameHud gates the
+--diagram on whether the path has vertically interesting features (elevation
+--changes, walls climbed/flown over, falls, tokens crossed) -- see
+--DiagramProfileFromPath -- so flat moves show no diagram regardless of type. We
+--tear it down with GameHud.FinishTokenMoving.
+--
+--We deliberately do NOT call GameHud.TokenMoving to build the text: it reads
+--many path fields (difficultSteps, squeezeSteps, waterSteps, hazards, ...) that
+--are only populated on a real drag/move path. On a MarkMovementArrow move
+--PREVIEW path some of those engine getters NRE (return nil), and TokenMoving then
+--crashes on math.floor(nil). We only need movingToken/movingPath to reach the
+--diagram, so we build a minimal, preview-safe text ourselves. See
+--MOVEMENT_CROSS_SECTION_REFERENCE.md.
+local g_movementDiagramShown = false
+
+--- @param token CharacterToken the moving token
+--- @param path LuaPath the previewed movement path
+--- @param label nil|string already-translated movement-type noun ("Movement",
+---        "Shift", "Teleport", "Forced Movement"); defaults to "Movement".
+local function ShowMovementDiagram(token, path, label)
+    if token == nil or path == nil or GameHud.instance == nil then
+        return
+    end
+    local dialog = GameHud.instance.dialog
+    local sheet = dialog and dialog.sheet
+    if sheet == nil then
+        return
+    end
+
+    label = label or tr("Movement")
+
+    --Minimal, preview-path-safe movement text (numSteps / origin / destination
+    --are populated on a move preview path; the fields TokenMoving reads are not).
+    local text = label
+    if path.numSteps ~= nil then
+        local distance = path.numSteps * dmhub.FeetPerTile
+        text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+    end
+
+    if path.origin ~= nil and path.destination ~= nil then
+        local altitudeDelta = path.destination.altitude - path.origin.altitude
+        if altitudeDelta < 0 then
+            text = string.format(tr("%s (%d elevation)"), text, round(altitudeDelta))
+        elseif altitudeDelta > 0 then
+            text = string.format(tr("%s (+%d elevation)"), text, round(altitudeDelta))
+        end
+    end
+
+    sheet:FireEvent("tiletooltip", {
+        loc = path.destination,
+        text = text,
+        movingToken = token,
+        movingPath = path,
+    })
+    g_movementDiagramShown = true
+end
+
+local function ClearMovementDiagram()
+    if not g_movementDiagramShown then
+        return
+    end
+    g_movementDiagramShown = false
+    if GameHud.instance ~= nil then
+        GameHud.instance:FinishTokenMoving()
+    end
+end
+
 local function ClearPointTargeting()
+    ClearMovementDiagram()
+
     if g_pointTargeting.labelsAtPathEnd ~= nil then
         for _, label in ipairs(g_pointTargeting.labelsAtPathEnd) do
             label:Destroy()
@@ -3462,7 +3538,8 @@ end
 --- Switch the altitude controller into a given mode and reset its UI state when the
 --- mode actually changes. Pass nil to collapse it.
 --- @param mode nil|string  -- one of nil, "movement", "cube"
-local function SetAltitudeMode(mode)
+--- @param defaultTargetOverride nil|string|number  -- default target to use instead of the mode's standard default (e.g. "min" for teleports)
+local function SetAltitudeMode(mode, defaultTargetOverride)
     if m_altitudeMode == mode then
         --Mode unchanged: re-fire setAltitudeMode so any newly-created sub-panels sync,
         --but don't clobber the user's chosen target.
@@ -3480,11 +3557,13 @@ local function SetAltitudeMode(mode)
     m_altitudeController:FireEventTree("setAltitudeMode", mode)
 
     --Pick a sensible default target when entering a mode.
-    local defaultTarget = nil
-    if mode == "movement" then
-        defaultTarget = "max"
-    elseif mode == "cube" then
-        defaultTarget = "ground"
+    local defaultTarget = defaultTargetOverride
+    if defaultTarget == nil then
+        if mode == "movement" then
+            defaultTarget = "max"
+        elseif mode == "cube" then
+            defaultTarget = "ground"
+        end
     end
     if defaultTarget ~= nil then
         m_altitudeController.data.target = defaultTarget
@@ -5108,6 +5187,13 @@ CreateAbilityController = function()
                     end
                     g_pointTargeting.showingMovementArrow = true
                     clearMovementArrow = false
+
+                    --Show the movement cross-section diagram for regular movement and
+                    --shifts too, not just forced moves. GameHud gates it on vertical
+                    --interest, so flat paths still show nothing.
+                    if movementInfo ~= nil then
+                        ShowMovementDiagram(g_token, movementInfo.path, cond(shifting, tr("Shift"), tr("Movement")))
+                    end
                 elseif shape == "emptyspace" and targetingType == "direct" then
                     --Only draw the teleport arrow when the target is on the caster's floor.
                     --For cross-floor teleport the arrow would render on the caster's floor pointing
@@ -5129,6 +5215,24 @@ CreateAbilityController = function()
                                 g_pointTargeting.showingWarningArrows = true
                                 clearWarningArrows = false
                             end
+
+                            --Show the movement cross-section diagram for teleports (and
+                            --jumps) when the destination is vertically interesting. GameHud
+                            --gates on interest; the label reflects the movement type.
+                            local diagramLabel = tr("Movement")
+                            if movementType == "teleport" then
+                                diagramLabel = tr("Teleport")
+                                --The preview LuaPath is built at the default "walk" type, so the
+                                --cross-section would smooth an aimed-into-the-air landing back
+                                --down to the ground (see MovementCrossSection.cs -- the ground-
+                                --follow smoothing only skips airborne/teleport/forced paths).
+                                --Flag it as a teleport so the diagram keeps the dialed landing
+                                --altitude and synthesizes the arrival fall for a non-flyer.
+                                movementInfo.path.teleport = true
+                            elseif movementType == "jump" then
+                                diagramLabel = tr("Jump")
+                            end
+                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel)
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
@@ -5206,6 +5310,16 @@ CreateAbilityController = function()
                     if movementInfo ~= nil then
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
+                    end
+
+                    --Forced-move targeting (push/pull/slide): show the same floating
+                    --movement tooltip + cross-section diagram the manual token-drag
+                    --uses. Only for straightline (true forced movement) -- straightpath
+                    --(Charge) and other movement previews are left alone. Cleared below
+                    --when the movement arrow is cleared (mouse off a valid square) and on
+                    --targeting teardown via ClearPointTargeting.
+                    if targetingType == "straightline" and movementInfo ~= nil then
+                        ShowMovementDiagram(g_token, movementInfo.path, tr("Forced Movement"))
                     end
 
                     if movementInfo ~= nil then
@@ -5875,9 +5989,14 @@ CreateAbilityController = function()
                 end
             end
 
-            if clearMovementArrow and g_token ~= nil then
-                g_token:ClearMovementArrow()
-                g_pointTargeting.showingMovementArrow = false
+            if clearMovementArrow then
+                if g_token ~= nil then
+                    g_token:ClearMovementArrow()
+                    g_pointTargeting.showingMovementArrow = false
+                end
+                --tear down the movement cross-section tooltip whenever the movement
+                --arrow is cleared (no valid destination square under the cursor).
+                ClearMovementDiagram()
             end
 
             if clearWarningArrows and g_token ~= nil then
@@ -6678,7 +6797,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
 
                 m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
-                SetAltitudeMode(m_allowedAltitudeCalculator ~= nil and "movement" or nil)
+                --Teleports default to landing on the ground ("min"); forced movement keeps "max".
+                SetAltitudeMode(m_allowedAltitudeCalculator ~= nil and "movement" or nil,
+                    cond(movementType == "teleport", "min", nil))
                 print("ALT:: CALC ALT:", m_allowedAltitudeCalculator)
 
 
@@ -6741,9 +6862,14 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
                     --Cube targeting opts into the controller in "cube" mode (no min/max
                     --calculator; default is "On Ground"). Forced-movement abilities use
-                    --"movement" mode with a calculator that bounds min/max.
+                    --"movement" mode with a calculator that bounds min/max. Teleports also
+                    --use "movement" mode but default to landing on the ground ("min").
                     if m_allowedAltitudeCalculator ~= nil then
-                        SetAltitudeMode("movement")
+                        local defaultTarget = nil
+                        if g_currentAbility:GetMovementType(g_token, g_currentSymbols) == "teleport" then
+                            defaultTarget = "min"
+                        end
+                        SetAltitudeMode("movement", defaultTarget)
                     elseif g_currentAbility.targetType == "cube" then
                         SetAltitudeMode("cube")
                     else

@@ -340,6 +340,29 @@ function dmhub.CreateObjectImporter(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- @class BugReport An in-progress bug report created with dmhub.BeginBugReport(). Holds the screenshot captured when the report was begun and can upload the report with Submit.
+--- @field screenshotImage nil|string (Read-only) An image id for the screenshot captured when the report was begun, suitable for use as a panel bgimage. nil if the screenshot could not be captured.
+--- @field screenshotWidth number (Read-only) The width in pixels of the captured screenshot, or 0 if none.
+--- @field screenshotHeight number (Read-only) The height in pixels of the captured screenshot, or 0 if none.
+BugReport = {}
+
+--- Submit: Uploads the report. type is a short string categorizing the report ('bug', 'feature' or 'feedback'; defaults to 'bug'). includeLog defaults to true and also uploads the previous session's log (Player-prev.log) when present; includeScreenshot defaults to false; allowGameEntry defaults to true. attachments is a list of file paths to upload with the report. progress is called with 0-1 as uploads proceed; complete is called with the new report id; error is called with a message if the submission fails (after which Submit may be called again).
+--- @param options {description: string, type: nil|string, includeLog: nil|boolean, includeScreenshot: nil|boolean, allowGameEntry: nil|boolean, attachments: nil|string[], progress: nil|(fun(ratio: number): nil), complete: nil|(fun(reportid: string): nil), error: nil|(fun(message: string): nil)}
+function BugReport:Submit(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- Cancel: Abandons the report, releasing the captured screenshot.
+function BugReport:Cancel()
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginBugReport: Captures a screenshot of the current frame and begins a new bug report. The callback is invoked with a BugReport object once the screenshot has been captured. Call this before showing any bug report dialog so the screenshot shows the screen as the user saw it.
+--- @param callback fun(report: BugReport)
+function dmhub.BeginBugReport(callback)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
 --- @param options {id: string, extensions: string[], multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
 function dmhub.OpenFileDialog(options)

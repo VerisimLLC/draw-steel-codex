@@ -196,45 +196,76 @@ function GameHud.TokenMoving(self, token, path)
         text = path.properties.overrideText
     end
 
-	--Place the tooltip beyond the destination in the direction of travel -- past the arrowhead -- so the
-	--movement diagram (now much larger than the old text-only tooltip) sits clear of the arrow and both
-	--tokens instead of covering them. halign/valign here mean which side of the anchor tile the tooltip
-	--sits: 'top'/'bottom' = above/below, 'left'/'right' = left/right (see Panel.ShowTooltip).
-	local halign = 'center'
-	local valign = 'center'
+	--Place the movement tooltip so it can NEVER cover the moving token, the destination, or any part of
+	--the arrow. We build the axis-aligned bounding box of the WHOLE path -- every tile the mover steps
+	--through, each expanded by the mover's footprint (so both end tokens sit fully inside) plus a little
+	--for the arrow ribbon -- and then place the tooltip entirely OUTSIDE that box on one of its four
+	--sides. Anchoring at the box EDGE (rather than the old midpoint + perpendicular nudge) pins the
+	--tooltip's near, box-facing edge to the box boundary independent of the tooltip's size, so it clears
+	--the entire path at any move angle or length; it also removes the one-frame size-lag wobble the old
+	--version had (where the previously hovered tile appeared to influence the placement). We choose the
+	--side with the most room for the tooltip, computed from the camera's usable world bounds (the same
+	--rect Panel.ShowTooltip clamps to) so the on-screen clamp won't drag it back over the box. Everything
+	--here is in world coordinates: PosAtLoc, cameraUsableBounds and the ShowTooltip anchor share that
+	--space (valign 'top' = higher world y, halign 'right' = higher world x).
 
-	local dest = path.destination
-	local dx = dest.x - path.origin.x
-	local dy = dest.y - path.origin.y
-
-	if math.abs(dx) >= math.abs(dy) then
-		--primarily horizontal move: put it to the side, past the arrowhead.
-		halign = cond(dx < 0, 'left', 'right')
-	else
-		--primarily vertical move: put it above/below, past the arrowhead.
-		valign = cond(dy < 0, 'bottom', 'top')
-	end
-
-	--for large tokens push the anchor out to the far occupied tile (in the placement direction) so the
-	--tooltip clears the whole body, not just the min-corner tile.
-	local locsOccupied = token:LocsOccupyingWhenAt(dest)
-	if locsOccupied ~= nil and #locsOccupied > 1 then
-		for _,loc in ipairs(locsOccupied) do
-			if valign == "top" and loc.y > dest.y then
-				dest = loc
-			elseif valign == "bottom" and loc.y < dest.y then
-				dest = loc
-			elseif halign == "right" and loc.x > dest.x then
-				dest = loc
-			elseif halign == "left" and loc.x < dest.x then
-				dest = loc
-			end
+	--Bounding box of the whole path, expanded by the mover's footprint (+ a bit for the arrow ribbon).
+	local pad = (token.tileSize or 1)*0.5 + 0.15
+	local minx, miny, maxx, maxy = nil, nil, nil, nil
+	for _,step in ipairs(path.steps) do
+		local p = token:PosAtLoc(step)
+		if minx == nil then
+			minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+		else
+			if p.x < minx then minx = p.x elseif p.x > maxx then maxx = p.x end
+			if p.y < miny then miny = p.y elseif p.y > maxy then maxy = p.y end
 		end
 	end
+	if minx == nil then
+		local p = token:PosAtLoc(path.destination)
+		minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+	end
+	minx, miny, maxx, maxy = minx - pad, miny - pad, maxx + pad, maxy + pad
 
+	local cx = (minx + maxx)*0.5
+	local cy = (miny + maxy)*0.5
+	local gap = 0.3
+
+	--rough OVER-estimate of the tooltip's world size (text + diagram), used only to pick the roomiest
+	--side. Over-estimating is safe: it just biases us away from a side that is too tight.
+	local worldPerPixel = 0.1
+	local screenDims = dmhub.screenDimensions
+	if dmhub.cameraZoom ~= nil and screenDims ~= nil and screenDims.y > 0 then
+		worldPerPixel = (dmhub.cameraZoom*2) / screenDims.y
+	end
+	local ttW = 430 * worldPerPixel
+	local ttH = 640 * worldPerPixel
+
+	--Four candidate placements: tooltip fully outside the box, one per side. `slack` is how much room is
+	--left over after fitting the tooltip on that side (positive = fits without the clamp shoving it back).
+	local halign, valign, anchorx, anchory
+	local bounds = dmhub.cameraUsableBounds
+	if bounds == nil then
+		halign, valign, anchorx, anchory = 'right', 'center', maxx + gap, cy
+	else
+		local candidates = {
+			{ slack = (bounds.x2 - maxx) - ttW, halign = 'right',  valign = 'center', anchorx = maxx + gap, anchory = cy },
+			{ slack = (minx - bounds.x1) - ttW, halign = 'left',   valign = 'center', anchorx = minx - gap, anchory = cy },
+			{ slack = (bounds.y2 - maxy) - ttH, halign = 'center', valign = 'top',    anchorx = cx, anchory = maxy + gap },
+			{ slack = (miny - bounds.y1) - ttH, halign = 'center', valign = 'bottom', anchorx = cx, anchory = miny - gap },
+		}
+		local best = candidates[1]
+		for i = 2, #candidates do
+			if candidates[i].slack > best.slack then best = candidates[i] end
+		end
+		halign, valign, anchorx, anchory = best.halign, best.valign, best.anchorx, best.anchory
+	end
 
 	self.dialog.sheet:FireEvent("tiletooltip", {
-		loc = dest,
+		--anchor at the chosen edge of the path bounding box (a world-space point, which
+		--FloatTooltipNearTile accepts as well as a Loc); halign/valign then push the tooltip off that
+		--edge, away from the box.
+		loc = core.Vector2(anchorx, anchory),
 		text = text,
 		halign = halign,
 		valign = valign,

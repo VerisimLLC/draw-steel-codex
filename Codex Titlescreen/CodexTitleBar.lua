@@ -94,9 +94,20 @@ local function CreateCodexMenuItem(args)
         end
     end
 
+    --mainmenu = true shows the item only on the main menu; mainmenu = "always"
+    --shows it both on the main menu and in-game; otherwise in-game only.
+    local visibilityClass
+    if m_mainmenu == "always" then
+        visibilityClass = nil
+    elseif m_mainmenu then
+        visibilityClass = "mainmenuOnly"
+    else
+        visibilityClass = "ingameOnly"
+    end
+
 	local resultPanel = {
 
-        classes = {"menuItem", cond(m_mainmenu, "mainmenuOnly", "ingameOnly")},
+        classes = {"menuItem", visibilityClass},
 		popupPositioning = 'panel',
 
         width = "auto",
@@ -1433,6 +1444,445 @@ local function CreateTopBar()
 
     local g_bugReportLink = "https://discord.gg/x2yEdNFmUB"
 
+    --Shows the feedback dialog for a report begun with dmhub.BeginBugReport.
+    --The report already holds a screenshot captured before the dialog appeared.
+    --feedbackType is "bug", "feature" or "feedback"; the log file is only
+    --offered on bug reports.
+    local function CreateBugReportDialog(report, feedbackType)
+        local kinds = {
+            bug = {
+                title = "Report a Bug",
+                intro = "Describe the bug below and submit it directly to the Codex developers. Please make a separate report for each bug.",
+                placeholder = "Describe the bug: what happened, and what you expected to happen instead. If you can, include exact steps to reproduce it.",
+                thanks = "Your bug report has been submitted. Thank you!",
+            },
+            feature = {
+                title = "Request a Feature",
+                intro = "Describe the feature you would like below and it will be submitted directly to the Codex developers.",
+                placeholder = "Describe the feature you would like, and the problem it would solve for you.",
+                thanks = "Your feature request has been submitted. Thank you!",
+            },
+            feedback = {
+                title = "Send Feedback",
+                intro = "Share your feedback below and it will be submitted directly to the Codex developers.",
+                placeholder = "Tell us what you think: what is working well, and what could be better?",
+                thanks = "Your feedback has been submitted. Thank you!",
+            },
+        }
+
+        local kindInfo = kinds[feedbackType]
+        if kindInfo == nil then
+            feedbackType = "bug"
+            kindInfo = kinds.bug
+        end
+
+        local isBugReport = (feedbackType == "bug")
+
+        local m_dialog = nil
+        local m_titlescreenModal = nil
+        local m_attachments = {}
+        local m_submitting = false
+        local m_submitted = false
+
+        local m_includeLog = isBugReport
+        local m_includeScreenshot = false
+        local m_allowGameEntry = true
+
+        --the dialog is hosted in the gamehud modal stack in-game, or as a
+        --floating panel on the titlescreen root otherwise.
+        local function CloseDialog()
+            if m_titlescreenModal ~= nil then
+                if m_titlescreenModal.valid then
+                    m_titlescreenModal:DestroySelf()
+                end
+            elseif m_dialog ~= nil and m_dialog.valid then
+                m_dialog:FireEvent("close")
+            end
+        end
+
+        local descriptionInput = gui.Input{
+            width = 880,
+            height = 150,
+            fontSize = 16,
+            multiline = true,
+            characterLimit = 10000,
+            textAlignment = "topleft",
+            halign = "left",
+            tmargin = 4,
+            placeholderText = kindInfo.placeholder,
+        }
+
+        local screenshotSection = nil
+        if report.screenshotImage ~= nil then
+            local aspect = 9 / 16
+            if report.screenshotWidth > 0 then
+                aspect = report.screenshotHeight / report.screenshotWidth
+            end
+
+            screenshotSection = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 8,
+
+                gui.Panel{
+                    classes = {"bordered"},
+                    bgimage = report.screenshotImage,
+                    bgcolor = "white",
+                    width = 280,
+                    height = math.floor(280 * aspect),
+                    halign = "left",
+                    valign = "center",
+                },
+
+                gui.Check{
+                    text = "Include this screenshot of your screen",
+                    value = m_includeScreenshot,
+                    halign = "left",
+                    valign = "center",
+                    lmargin = 16,
+                    change = function(element)
+                        m_includeScreenshot = element.value
+                    end,
+                },
+            }
+        end
+
+        --the log file is only relevant to bug reports.
+        local logCheck = nil
+        if isBugReport then
+            logCheck = gui.Check{
+                text = "Include my log file (recommended)",
+                tooltip = "Your log file helps developers diagnose the problem. If a log from your previous session exists (for example after a crash and restart), it is included too. Logs contain a small amount of personal data, such as your system username, and are compressed before uploading.",
+                value = m_includeLog,
+                halign = "left",
+                tmargin = 12,
+                change = function(element)
+                    m_includeLog = element.value
+                end,
+            }
+        end
+
+        local gameEntryCheck = gui.Check{
+            text = "Allow Codex developers to enter my game if needed",
+            value = m_allowGameEntry,
+            halign = "left",
+            tmargin = cond(isBugReport, 4, 12),
+            change = function(element)
+                m_allowGameEntry = element.value
+            end,
+        }
+
+        local m_attachmentsList = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+        }
+
+        local function RefreshAttachments()
+            local children = {}
+            for i,path in ipairs(m_attachments) do
+                local index = i
+                local fileName = path
+                for j = #path, 1, -1 do
+                    local c = path:sub(j, j)
+                    if c == "/" or c == "\\" then
+                        fileName = path:sub(j + 1)
+                        break
+                    end
+                end
+
+                children[#children + 1] = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    vmargin = 2,
+
+                    gui.Label{
+                        fontSize = 15,
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        text = fileName,
+                    },
+
+                    gui.Button{
+                        classes = {"sizeXs"},
+                        text = "Remove",
+                        valign = "center",
+                        lmargin = 12,
+                        width = 60,
+                        click = function(element)
+                            if m_submitting or m_submitted then
+                                return
+                            end
+                            table.remove(m_attachments, index)
+                            RefreshAttachments()
+                        end,
+                    },
+                }
+            end
+
+            m_attachmentsList.children = children
+        end
+
+        local attachButton = gui.Button{
+            classes = {"sizeM"},
+            text = "Attach File...",
+            halign = "left",
+            tmargin = 12,
+            click = function(element)
+                if m_submitting or m_submitted then
+                    return
+                end
+                dmhub.OpenFileDialog{
+                    id = "bugreportattachment",
+                    prompt = "Choose files to attach to your bug report",
+                    extensions = {},
+                    multiFiles = true,
+                    openFiles = function(paths)
+                        for _,path in ipairs(paths) do
+                            local alreadyAdded = false
+                            for _,existing in ipairs(m_attachments) do
+                                if existing == path then
+                                    alreadyAdded = true
+                                end
+                            end
+                            if not alreadyAdded then
+                                m_attachments[#m_attachments + 1] = path
+                            end
+                        end
+                        RefreshAttachments()
+                    end,
+                }
+            end,
+        }
+
+        local statusLabel = gui.Label{
+            fontSize = 16,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            tmargin = 8,
+            text = "",
+        }
+
+        local cancelButton
+        local submitButton
+
+        submitButton = gui.Button{
+            classes = {"sizeL"},
+            text = "Submit Report",
+            halign = "right",
+            hmargin = 8,
+            click = function(element)
+                if m_submitting or m_submitted then
+                    return
+                end
+
+                local description = descriptionInput.text
+                if description == nil or description == "" then
+                    statusLabel.text = "Please enter a description before submitting."
+                    return
+                end
+
+                m_submitting = true
+                statusLabel.text = "Submitting..."
+
+                report:Submit{
+                    description = description,
+                    type = feedbackType,
+                    includeLog = m_includeLog,
+                    includeScreenshot = m_includeScreenshot,
+                    allowGameEntry = m_allowGameEntry,
+                    attachments = m_attachments,
+                    progress = function(ratio)
+                        if statusLabel.valid and not m_submitted then
+                            statusLabel.text = string.format("Submitting... %d%%", math.floor(ratio * 100 + 0.5))
+                        end
+                    end,
+                    complete = function(reportid)
+                        m_submitting = false
+                        m_submitted = true
+                        if statusLabel.valid then
+                            statusLabel.text = kindInfo.thanks
+                            submitButton:SetClass("hidden", true)
+                            cancelButton.text = "Close"
+                        end
+                    end,
+                    error = function(message)
+                        m_submitting = false
+                        if statusLabel.valid then
+                            statusLabel.text = "Could not submit: " .. message
+                        end
+                    end,
+                }
+            end,
+        }
+
+        cancelButton = gui.Button{
+            classes = {"sizeL"},
+            text = "Cancel",
+            halign = "right",
+            hmargin = 8,
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                if not m_submitted then
+                    report:Cancel()
+                end
+                CloseDialog()
+            end,
+        }
+
+        --assemble the form children explicitly; screenshotSection may be nil and
+        --a nil hole in a positional children list would truncate it.
+        local formChildren = {
+            gui.Label{
+                width = 880,
+                height = "auto",
+                fontSize = 15,
+                textWrap = true,
+                halign = "left",
+                vmargin = 4,
+                text = kindInfo.intro,
+            },
+
+            descriptionInput,
+        }
+
+        if logCheck ~= nil then
+            formChildren[#formChildren + 1] = logCheck
+        end
+
+        formChildren[#formChildren + 1] = gameEntryCheck
+
+        if screenshotSection ~= nil then
+            formChildren[#formChildren + 1] = screenshotSection
+        end
+
+        formChildren[#formChildren + 1] = attachButton
+        formChildren[#formChildren + 1] = m_attachmentsList
+
+        local bodyPanel = gui.Panel{
+                width = 940,
+                height = 620,
+                flow = "vertical",
+                halign = "center",
+
+                gui.Panel{
+                    width = "100%",
+                    height = 540,
+                    vscroll = true,
+                    flow = "vertical",
+                    halign = "center",
+
+                    children = formChildren,
+                },
+
+                statusLabel,
+
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "right",
+                    tmargin = 8,
+
+                    submitButton,
+                    cancelButton,
+                },
+
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    tmargin = 12,
+
+                    gui.Label{
+                        fontSize = 14,
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+                    },
+
+                    gui.Button{
+                        classes = {"sizeS"},
+                        text = "Open Discord",
+                        valign = "center",
+                        lmargin = 8,
+                        width = 180,
+                        click = function(element)
+                            dmhub.OpenURL(g_bugReportLink)
+                        end,
+                    },
+                },
+        }
+
+        if dmhub.inGame and not dmhub.isLobbyGame then
+            m_dialog = gamehud:ModalDialog{
+                title = kindInfo.title,
+
+                --we build our own buttons inside the body so Submit can stay open
+                --while the report uploads.
+                buttons = {},
+
+                bodyPanel,
+            }
+        else
+            --On the titlescreen there is no gamehud modal stack, so host the
+            --dialog as a floating framed panel on the titlescreen root, like
+            --the other titlescreen dialogs. The panel owns its own theme
+            --cascade, mirroring the frame that gamehud:ModalDialog builds.
+            local root = rawget(_G, "CodexTitlescreenRoot")
+            if root ~= nil and root.valid then
+                m_titlescreenModal = gui.Panel{
+                    classes = {"framedPanel"},
+                    floating = true,
+                    width = 1024,
+                    height = 768,
+                    halign = "center",
+                    valign = "center",
+                    styles = ThemeEngine.GetStyles(),
+
+                    gui.Panel{
+                        width = "100%-32",
+                        height = "100%-32",
+                        flow = "vertical",
+                        halign = "center",
+                        valign = "top",
+
+                        gui.Label{
+                            classes = {"dialogTitle"},
+                            text = kindInfo.title,
+                        },
+
+                        bodyPanel,
+                    },
+                }
+                root:AddChild(m_titlescreenModal)
+            else
+                --fallback: no titlescreen root available; use the gamehud modal.
+                local gh = rawget(_G, "gamehud")
+                if gh ~= nil then
+                    m_dialog = gh:ModalDialog{
+                        title = kindInfo.title,
+                        buttons = {},
+                        bodyPanel,
+                    }
+                else
+                    report:Cancel()
+                end
+            end
+        end
+    end
+
     local menuBar = gui.Panel{
         id = "menuBarPanel",
         classes = {"titleBarSurface"},
@@ -1611,142 +2061,26 @@ local function CreateTopBar()
         },
 
         CreateCodexMenuItem{
-            name = "Bug Reports",
+            name = "Report Feedback",
+            mainmenu = "always",
             menuItems = function()
-                return {
-                    {
-                        text = "How to Report a Bug",
+                --each entry captures the screenshot before the dialog appears,
+                --then shows the dialog for that kind of feedback.
+                local function FeedbackMenuItem(text, feedbackType)
+                    return {
+                        text = text,
                         click = function()
-                            gamehud:ModalDialog{
-                                styles = ThemeEngine.GetStyles(),
-                                title = "Reporting Bugs",
-                                gui.Panel{
-                                    width = 900,
-                                    height = 500,
-                                    vscroll = true,
-                                    flow = "vertical",
-
-                                    gui.Label{
-                                        width = 860,
-                                        height = "auto",
-                                        fontSize = 20,
-                                        bold = true,
-                                        textWrap = true,
-                                        text = "<b>You will be sent to the Draw Steel Codex Discord where you can report bugs.</b>",
-                                        vmargin = 10,
-                                    },
-
-                                    gui.Label{
-                                        width = 860,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        text = "When you encounter a bug, please follow these steps to make your report as helpful as possible:",
-                                        tmargin = 4,
-                                        bmargin = 8,
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Post each bug as a <b>separate post</b> in the #bug-reports channel (click Proceed to go there). This allows us to triage bugs and ensures they are tracked until fixed.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Check if you can <b>consistently reproduce</b> the bug. If so, post an exact set of steps to reproduce it.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Consider posting a video demonstrating the bug for added clarity.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- If a bug occurs, immediately press <b>~</b> (tilde) to open the Codex error log. Include any error message with your report -- a screenshot is usually sufficient and makes the full log file unnecessary.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- The Codex log file is at <b>C:\\Users\\(your username)\\AppData\\LocalLow\\MCDM\\Codex</b> on Windows (press <b>F1</b> in the Codex to open it in Notepad). On Mac it is at <b>Library/Logs/MCDM/Codex/Player.log</b>. The log can be zipped to reduce size. Note it contains a small amount of personal data, so you may prefer to send it privately to a developer.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- If a bug seems specific to one game, post the <b>game invite code</b>. Doing so implicitly gives permission for Codex developers to enter your game to investigate.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Please check back on your bug reports in case a developer asks for additional information.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- After a bug is resolved, please re-test and reply to confirm whether it is fixed. If not, include the version number you tested with so we can confirm you received the update.",
-                                    },
-                                },
-                                buttons = {
-                                    {
-                                        text = "Proceed",
-                                        click = function()
-                                            dmhub.OpenURL(g_bugReportLink)
-                                        end,
-                                    },
-                                    {
-                                        text = "Copy Link",
-                                        click = function()
-                                            dmhub.CopyToClipboard(g_bugReportLink)
-                                        end,
-                                    },
-                                    {
-                                        text = "Close",
-                                        escapeActivates = true,
-                                    },
-                                },
-                            }
+                            dmhub.BeginBugReport(function(report)
+                                CreateBugReportDialog(report, feedbackType)
+                            end)
                         end,
-                    },
+                    }
+                end
+
+                return {
+                    FeedbackMenuItem("Bug Report", "bug"),
+                    FeedbackMenuItem("Feature Request", "feature"),
+                    FeedbackMenuItem("General Feedback", "feedback"),
                 }
             end,
         },

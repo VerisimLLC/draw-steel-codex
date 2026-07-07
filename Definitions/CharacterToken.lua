@@ -308,7 +308,7 @@ end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number} jumpHeight (only with movementType='jump') is the jump distance in tiles; the mover clears height-limited walls up to this tall.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only

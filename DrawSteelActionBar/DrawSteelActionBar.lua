@@ -5201,36 +5201,48 @@ CreateAbilityController = function()
                     --and the radius shape preview (rendered on the target floor) is the indicator.
                     if loc.floor == g_token.floorIndex then
                         --Capture the preview path so jump abilities (targeting=direct,
-                        --movementType=jump) can also broadcast OA warning arrows. The
-                        --teleport-flag straight-line preview matches the actual jump path
-                        --that AbilityRelocateCreature uses (straightline+ignorecreatures).
-                        local movementInfo = g_token:MarkMovementArrow(loc, { teleport = true })
+                        --movementType=jump) can also broadcast OA warning arrows.
+                        local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+
+                        --A jump preview is built as a real jump (straightline + clears walls up to the
+                        --jump distance) so the cross-section can arc it over those walls; matches the
+                        --actual jump cast in AbilityRelocateCreature. Every other emptyspace/direct
+                        --ability (teleport) uses the teleport-flag straight-line preview.
+                        local markOptions = { teleport = true }
+                        if movementType == "jump" then
+                            local jumpHeight = math.floor((g_currentAbility:GetRange(g_token.properties, g_currentSymbols)/dmhub.unitsPerSquare) + 0.5)
+                            markOptions = { jump = true, jumpHeight = jumpHeight }
+                        end
+
+                        local movementInfo = g_token:MarkMovementArrow(loc, markOptions)
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
 
                         if movementInfo ~= nil then
-                            local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                             if movementType == "move" or movementType == "jump" then
                                 BroadcastMovementPlan(g_token, movementInfo.path, movementType)
                                 g_pointTargeting.showingWarningArrows = true
                                 clearWarningArrows = false
                             end
 
-                            --Show the movement cross-section diagram for teleports (and
-                            --jumps) when the destination is vertically interesting. GameHud
-                            --gates on interest; the label reflects the movement type.
+                            --Show the movement cross-section diagram for teleports and jumps. GameHud
+                            --always shows it for jumps (vertically interesting by definition) and gates
+                            --teleports on interest; the label reflects the movement type.
                             local diagramLabel = tr("Movement")
-                            if movementType == "teleport" then
-                                diagramLabel = tr("Teleport")
-                                --The preview LuaPath is built at the default "walk" type, so the
-                                --cross-section would smooth an aimed-into-the-air landing back
-                                --down to the ground (see MovementCrossSection.cs -- the ground-
-                                --follow smoothing only skips airborne/teleport/forced paths).
-                                --Flag it as a teleport so the diagram keeps the dialed landing
-                                --altitude and synthesizes the arrival fall for a non-flyer.
-                                movementInfo.path.teleport = true
-                            elseif movementType == "jump" then
+                            if movementType == "jump" then
                                 diagramLabel = tr("Jump")
+                                --The jump preview path already carries movementType=Jump and its
+                                --jumpHeight from the engine, so the diagram arcs it over walls and
+                                --rests it on the ground -- no teleport flag needed.
+                            elseif movementType == "teleport" then
+                                diagramLabel = tr("Teleport")
+                                --The teleport preview LuaPath is built at the default "walk" type, so
+                                --the cross-section would smooth an aimed-into-the-air landing back down
+                                --to the ground (see MovementCrossSection.cs -- the ground-follow
+                                --smoothing only skips airborne/teleport/forced paths). Flag the path as
+                                --a teleport so the diagram keeps the dialed landing altitude and
+                                --synthesizes the arrival fall for a non-flyer.
+                                movementInfo.path.teleport = true
                             end
                             ShowMovementDiagram(g_token, movementInfo.path, diagramLabel)
                         end

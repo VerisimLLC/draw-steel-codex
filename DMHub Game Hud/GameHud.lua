@@ -89,6 +89,7 @@ local function DiagramPathSignature(token, path)
 		tostring(path.valid),
 		tostring(path.teleport),
 		tostring(path.fallDistance),
+		tostring(path.jumpHeight),
 	}
 
 	local steps = path.steps
@@ -179,7 +180,9 @@ local function DiagramProfileFromPath(token, path)
 		end
 	end
 
-	local interesting = #others > 0 or path.fallDistance > 0
+	--A jump is vertically interesting by definition -- it arcs up over its start ground and
+	--clears walls up to its jump distance -- so always show its cross-section, even on flat ground.
+	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump"
 	for i = 1, n do
 		local e = entries[i]
 		if e.ground ~= entries[1].ground or e.alt ~= entries[1].alt or

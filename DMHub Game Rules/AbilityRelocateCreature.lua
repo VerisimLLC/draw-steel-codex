@@ -328,7 +328,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)
-		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })
+            --The jump distance (in tiles) is also the height the jump can clear: a "jump N" sails over
+            --any height-limited wall/block up to N tiles tall (engine wall-height model). Pass it as
+            --jumpHeight so the straight-line jump path clears those walls instead of being blocked.
+            local jumpHeight = math.floor((ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare) + 0.5)
+		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump", jumpHeight = jumpHeight })
             if path ~= nil then
                 options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
             end

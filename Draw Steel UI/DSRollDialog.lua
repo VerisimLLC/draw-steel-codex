@@ -12,6 +12,9 @@ RollDialog = {
     OnBeforeRoll = false,
     OnReroll = false,
     OnBeforeTableRoll = false,
+    --Fired (no args) when a roll dialog is cancelled, so intercepting mods
+    --(e.g. physical dice) can abandon any pending external roll request.
+    OnRollCancelled = false,
 }
 
 local g_activeRoll = nil
@@ -2073,6 +2076,11 @@ function GameHud.CreateRollDialog(self)
     }
 
     local CancelRollDialog = function()
+        --Tell intercepting mods (physical dice etc.) the roll was cancelled
+        --so they can abandon any pending external roll request.
+        if RollDialog.OnRollCancelled then
+            RollDialog.OnRollCancelled()
+        end
         RemoveTargetHints()
         if cancelRoll ~= nil then
             if not rollAllPromptsCheck:HasClass("collapseAnim") and rollAllPromptsCheck.value and rollAllPrompts ~= nil then
@@ -2109,10 +2117,10 @@ function GameHud.CreateRollDialog(self)
                 return
             end
 
-            local function doRerollAmend(rollFormula)
+            local function doRerollAmend(rollFormula, extraFields)
                 if g_activeRoll == nil then return end
                 local guid = dmhub.GenerateGuid()
-                g_activeRoll = g_activeRoll:Amend {
+                local amendArgs = {
                     guid = guid,
                     roll = tostring(rollFormula),
                     amendmentRerolls = true,
@@ -2127,7 +2135,20 @@ function GameHud.CreateRollDialog(self)
                         m_rollInfo = rollInfo
                         resultPanel:FireEventTree("beginRoll", rollInfo, guid)
                     end,
+                    -- Reuse the original roll's completion handler so the
+                    -- amended roll re-fires it with the REROLLED rollInfo:
+                    -- it updates m_rollInfo and rebinds Accept Result to
+                    -- commit the reroll's result instead of the original
+                    -- roll's captured one.
+                    complete = g_activeRollArgs.complete,
                 }
+                --extraFields lets an intercepting mod (RollDialog.OnReroll)
+                --supply additional roll fields -- e.g. forcedDice/instant/
+                --silent when physical dice drive the reroll.
+                for k, v in pairs(extraFields or {}) do
+                    amendArgs[k] = v
+                end
+                g_activeRoll = g_activeRoll:Amend(amendArgs)
             end
 
             -- Hook for external mods to intercept re-rolls

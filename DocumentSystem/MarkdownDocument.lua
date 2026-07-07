@@ -17,6 +17,14 @@ local g_markdownStyle = gui.MarkdownStyle {
     ["### "] = "<size=160%><b>", ["/### "] = "</b></size>",
     ["#### "] = "<size=140%><b>", ["/#### "] = "</b></size>",
     ["##### "] = "<size=120%><b>", ["/##### "] = "</b></size>",
+    --backtick code spans. The engine default is <mspace=2em>, which puts
+    --every glyph on a huge fixed advance and renders code as
+    --s p r e a d  o u t letters. Any mspace value is still a fixed grid,
+    --so we drop monospace emulation entirely: code reads as a soft gold
+    --tint at normal spacing. (True monospace needs a mono font face at
+    --the engine level - flagged upstream.)
+    ["`"] = "<color=#c8a45aCC>",
+    ["/`"] = "</color>",
 }
 
 -- =============================================================================
@@ -1266,6 +1274,17 @@ local showPreviewSetting = setting{
     storage = "preferences",
 }
 
+--Experimental Obsidian-style live editing for the journal: the document
+--renders as in display mode except the block the cursor is in, which shows
+--raw markdown in an inline input. Off by default while it matures; toggle
+--from the console with: dmhub.SetSettingValue("journalLiveEdit", true)
+local liveEditSetting = setting{
+    id = "journalLiveEdit",
+    name = "Journal: Live Block Editing (Experimental)",
+    default = false,
+    storage = "preferences",
+}
+
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
@@ -1484,8 +1503,14 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     -- line being parsed; textStartLine remembers the first line that fed visible text into
     -- the run currently accumulating in `text`, so the emitted text token is stamped at
     -- its START (where it begins rendering) rather than the line it happened to flush on.
+    -- textLastLine remembers the LAST line that fed visible content, so multi-line text
+    -- runs carry their full srcLine..srcLineEnd range; the live editor's block
+    -- partitioner (PartitionTokensIntoBlocks) relies on that range being complete.
+    -- Separator newlines appended between lines deliberately update neither, so a
+    -- construct on a following line is never claimed by the text flushed before it.
     local currentLine = 1
     local textStartLine = nil
+    local textLastLine = nil
 
     local EmitText = function(t, justification)
         local fromAccumulator = (t == nil)
@@ -1518,12 +1543,18 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 player = isPlayer,
                 --trace = debug.traceback(),
             }
-            -- Accumulator runs anchor at textStartLine; an explicitly-passed string
-            -- (e.g. a rich line's prefix) belongs to the line being parsed now.
-            StampLine(result[#result], (fromAccumulator and textStartLine) or currentLine)
+            -- Accumulator runs anchor at textStartLine and extend to textLastLine; an
+            -- explicitly-passed string (e.g. a rich line's prefix) belongs to the line
+            -- being parsed now.
+            if fromAccumulator then
+                StampLine(result[#result], textStartLine, textLastLine)
+            else
+                StampLine(result[#result], currentLine)
+            end
         end
         if fromAccumulator then
             textStartLine = nil
+            textLastLine = nil
         end
     end
 
@@ -1825,6 +1856,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 "^(?<prefix>.*?)((?<spoiler>\\{)|(?<justification>:(<>|><|<|>))|(?<embed>\\[:[^\\[\\]]+\\])|(?<tag>\\[[ xX]\\] *(?<checkname>[a-zA-Z0-9 ]*))|\\[\\[(?<tag>[^\\]]*)\\]\\])(?<suffix>.*)$")
             if match == nil then
                 if textStartLine == nil and str ~= "" then textStartLine = currentLine end
+                if str ~= "" then textLastLine = currentLine end
                 text = text .. str
                 if str ~= line:sub(#currentIndent + 1) and text ~= "" then
                     --we have emitted rich content this line, so emit this string now.
@@ -1872,6 +1904,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 end
 
                 text = text .. "{"
+                -- The brace (and any spoiler link injected above) is visible content:
+                -- anchor the accumulator run here if it is not already anchored, so
+                -- spoiler-leading text runs carry source ranges too.
+                if textStartLine == nil then textStartLine = currentLine end
+                textLastLine = currentLine
             elseif match.justification ~= nil then
                 result[#result + 1] = {
                     type = "justification",
@@ -1944,6 +1981,178 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     end
 
     return result
+end
+
+--Token types that continue a table when they appear on the line directly
+--after the current block (a table is one edit block even though each source
+--row emits its own row token).
+local g_tableBlockTokenTypes = {
+    rollable_table = true,
+    row = true,
+    cell = true,
+    end_row = true,
+}
+
+--Groups a trackPositions token stream into top-level edit blocks for the
+--live editor. Each block is a contiguous source line range (srcLine ..
+--srcLineEnd over the tokens it holds) that renders and edits as one unit:
+--  - tokens that share a source line always share a block.
+--  - table tokens on directly adjacent lines merge, so a whole table
+--    (including a rollable-table header) is a single block.
+--  - collapse wrappers claim every token until their matching end token,
+--    so a collapse node and its children form one block.
+--  - unstamped tokens (cell/end_row and cell-inner tokens, which the
+--    tokenizer deliberately leaves unstamped, plus whitespace-only text)
+--    attach to the currently open block and never extend its range; they
+--    never update the table-continuation type either, so a row's inner
+--    tokens do not break row-to-row merging.
+--  - blank lines and lines that emitted no tokens (false ??? conditional
+--    regions) belong to no block; the caller preserves them verbatim when
+--    splicing an edited block back into the document.
+--Returns an array of { lineStart, lineEnd, tokens = {...} } in source order.
+function MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local blocks = {}
+    local current = nil
+    local wrapperDepth = 0 --depth of open collapse wrappers.
+
+    for _, token in ipairs(tokens) do
+        if token.srcLine == nil then
+            if current ~= nil then
+                current.tokens[#current.tokens + 1] = token
+            end
+        else
+            local joinsCurrent = false
+            if current ~= nil then
+                if wrapperDepth > 0 then
+                    joinsCurrent = true
+                elseif token.srcLine <= current.lineEnd then
+                    --shares a line with the block.
+                    joinsCurrent = true
+                elseif token.srcLine == current.lineEnd + 1
+                       and g_tableBlockTokenTypes[token.type]
+                       and g_tableBlockTokenTypes[current.lastType] then
+                    --table continuation on the very next line.
+                    joinsCurrent = true
+                end
+            end
+
+            if not joinsCurrent then
+                current = {
+                    lineStart = token.srcLine,
+                    lineEnd = token.srcLineEnd or token.srcLine,
+                    tokens = {},
+                }
+                blocks[#blocks + 1] = current
+            end
+
+            current.tokens[#current.tokens + 1] = token
+            local tokenEnd = token.srcLineEnd or token.srcLine
+            if tokenEnd > current.lineEnd then
+                current.lineEnd = tokenEnd
+            end
+            current.lastType = token.type
+        end
+
+        if token.type == "collapse_node" then
+            wrapperDepth = wrapperDepth + 1
+        elseif token.type == "end_collapse_node" then
+            if wrapperDepth > 0 then
+                wrapperDepth = wrapperDepth - 1
+            end
+        end
+    end
+
+    for _, block in ipairs(blocks) do
+        block.lastType = nil
+    end
+
+    return blocks
+end
+
+--Dev-only verification for the live-edit line-range work: tokenize with
+--trackPositions and check the invariants the block partitioner relies on:
+--  1. every stamped range is ordered and within 1..#lines.
+--  2. stamped range starts never move backwards across the token stream.
+--  3. every non-blank source line is covered by a token range or sits
+--     inside a table row. Uncovered non-blank lines are reported; false ???
+--     conditional regions emit no tokens and are expected to appear there.
+--  4. unstamped text tokens outside table rows carry only whitespace.
+--  5. blocks from PartitionTokensIntoBlocks form strictly ascending,
+--     non-overlapping ranges.
+--Run from the dev console on a document's content, e.g.:
+--  MarkdownDocument.DebugCheckLineRanges(doc:GetTextContent())
+--Returns { errors, uncovered, blocks, tokenCount } and prints a summary.
+function MarkdownDocument.DebugCheckLineRanges(content)
+    local tokens = BreakdownRichTags(content, nil, { trackPositions = true })
+
+    local normalized = content:gsub("\v", "\n"):gsub("\r", "")
+    local lines = string.split_allow_duplicates(normalized, "\n")
+
+    local errors = {}
+    local covered = {}
+    local maxStart = 0
+    local inRow = false
+
+    for index, token in ipairs(tokens) do
+        if token.type == "row" then
+            inRow = true
+        elseif token.type == "end_row" then
+            inRow = false
+        end
+
+        if token.srcLine ~= nil then
+            local srcEnd = token.srcLineEnd or token.srcLine
+            if token.srcLine > srcEnd or token.srcLine < 1 or srcEnd > #lines then
+                errors[#errors + 1] = string.format("token %d (%s): bad range %s..%s (doc has %d lines)",
+                    index, token.type, tostring(token.srcLine), tostring(srcEnd), #lines)
+            else
+                if token.srcLine < maxStart then
+                    errors[#errors + 1] = string.format("token %d (%s): range start %d is before an earlier token's start %d",
+                        index, token.type, token.srcLine, maxStart)
+                end
+                maxStart = math.max(maxStart, token.srcLine)
+                for j = token.srcLine, srcEnd do
+                    covered[j] = true
+                end
+            end
+        elseif token.type == "text" and (not inRow)
+               and trim((token.text or ""):gsub("\n", "")) ~= "" then
+            errors[#errors + 1] = string.format("token %d: unstamped text token outside a table row with content %q",
+                index, token.text)
+        end
+    end
+
+    local uncovered = {}
+    for j, line in ipairs(lines) do
+        if (not covered[j]) and trim(line) ~= "" then
+            uncovered[#uncovered + 1] = j
+        end
+    end
+
+    local blocks = MarkdownDocument.PartitionTokensIntoBlocks(tokens)
+    local prevEnd = 0
+    for index, block in ipairs(blocks) do
+        if block.lineStart <= prevEnd then
+            errors[#errors + 1] = string.format("block %d: range %d..%d overlaps previous block ending at %d",
+                index, block.lineStart, block.lineEnd, prevEnd)
+        end
+        if block.lineEnd < block.lineStart then
+            errors[#errors + 1] = string.format("block %d: inverted range %d..%d",
+                index, block.lineStart, block.lineEnd)
+        end
+        prevEnd = math.max(prevEnd, block.lineEnd)
+    end
+
+    print(string.format("DebugCheckLineRanges: %d tokens, %d blocks over %d lines; %d errors; %d uncovered non-blank lines",
+        #tokens, #blocks, #lines, #errors, #uncovered))
+    for _, err in ipairs(errors) do
+        print("  ERROR: " .. err)
+    end
+    for _, j in ipairs(uncovered) do
+        print(string.format("  UNCOVERED line %d: %s", j, lines[j]))
+    end
+
+    return { errors = errors, uncovered = uncovered, blocks = blocks, tokenCount = #tokens }
 end
 
 --Returns the annotations that are actually referenced by a rich tag in the document
@@ -2337,6 +2546,996 @@ function MarkdownDocument.FormatRichText(text, options)
     return result
 end
 
+--Renders a token stream (from BreakdownRichTags with trackPositions) into an
+--array of child panels, reusing panels pooled from the previous render where
+--possible. ctx is a stable per-host-panel render context:
+--  ctx.doc            - the document being rendered. The caller updates this
+--                       before each render; pooled panels' event closures
+--                       read ctx.doc so they always act on the latest doc,
+--                       matching the old behavior of capturing DisplayPanel's
+--                       live self upvalue.
+--  ctx.embedDepth     - recursion depth for document embeds.
+--  ctx.tokenExtraInfo - extraOutput table from the tokenize pass (spoiler
+--                       locations, queries); replaced by the caller each render.
+--  ctx.pools          - panel pools carried between renders; swapped for the
+--                       new generation at the end of each call.
+--  ctx.render         - per-render skin values, set by the caller before each
+--                       call: skin, classes, ruledLevels, usesAlign, pageColor.
+--Each top-level child panel is stamped with data.srcLine (the source line of
+--the token that produced it) for content-aware preview scroll sync.
+--Returns the new children array for the host panel.
+local function RenderMarkdownTokens(ctx, tokens)
+    --read-side aliases for the panel pools; the new generation is written
+    --back into ctx.pools at the bottom.
+    local m_rollableTableRowLabels = ctx.pools.rollableTableRowLabels
+    local m_textPanels = ctx.pools.textPanels
+    local m_richPanels = ctx.pools.richPanels
+    local m_richFrames = ctx.pools.richFrames
+    local m_richRows = ctx.pools.richRows
+    local m_rollableTables = ctx.pools.rollableTables
+    local m_tables = ctx.pools.tables
+    local m_tableRows = ctx.pools.tableRows
+    local m_dividers = ctx.pools.dividers
+    local m_headingRules = ctx.pools.headingRules
+    local m_powerTables = ctx.pools.powerTables
+    local m_embeds = ctx.pools.embeds
+    local m_treeNodes = ctx.pools.treeNodes
+    local m_blockquotes = ctx.pools.blockquotes
+    local m_styleblocks = ctx.pools.styleblocks
+
+    local embedDepth = ctx.embedDepth
+
+    --per-render skin values resolved by the caller.
+    local resolvedSkin = ctx.render.skin
+    local resolvedClasses = ctx.render.classes
+    local ruledLevels = ctx.render.ruledLevels
+    local usesAlign = ctx.render.usesAlign
+    local pageColor = ctx.render.pageColor
+
+    local children = {}
+    local childrenStack = {} --stack used by collapse nodes.
+    local treeNodeStack = {}
+    local newRollableTables = {}
+    local newTables = {}
+    local newTableRows = {}
+    local newRollableTableRowLabels = {}
+    local newTextPanels = {}
+    local newRichPanels = {}
+    local newRichFrames = {}
+    local newRichRows = {}
+    local newPowerTables = {}
+    local newEmbeds = {}
+    local newTreeNodes = {}
+    local newBlockquotes = {}
+    local newStyleblocks = {}
+    local currentRichRow = nil
+
+    local rollableTablesByName = {}
+
+    local newDividers = {}
+    local newHeadingRules = {}
+
+    local currentRollableTable = nil --the panel controlling the current rollable table.
+    local currentTable = nil
+    local currentTableRow = nil
+
+    local tagsSeen = {}
+
+    -- Content-aware preview scroll: tag each top-level child with the source line
+    -- of the token that produced it. Capture the children array + length at the
+    -- start of each iteration and stamp whatever got appended at the end. This
+    -- survives the collapse-node array swap (the captured ref still points at the
+    -- table the appends went to) and rich-row batching (a row is appended once, in
+    -- its first tag's iteration, so it is stamped with that line). lastStampLine
+    -- carries the last known line forward for the rare token with none.
+    local lastStampLine = 1
+    for i, token in ipairs(tokens) do
+        local stampChildren = children
+        local stampFrom = #children + 1
+        local stampLine = token.srcLine or lastStampLine
+        if token.srcLine ~= nil then lastStampLine = token.srcLine end
+        if token.type == "justification" then
+            --pass, nothing needed here.
+        elseif token.type == "collapse_node" then
+            local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
+            if m_treeNodes[#newTreeNodes + 1] ~= nil then
+                panel:Unparent()
+            end
+            children[#children + 1] = panel
+            newTreeNodes[#newTreeNodes + 1] = panel
+            childrenStack[#childrenStack + 1] = children
+            children = {}
+            treeNodeStack[#treeNodeStack + 1] = panel
+
+            panel:FireEventTree("refreshTreeNode", token.title or "")
+        elseif token.type == "end_collapse_node" then
+            local panel = treeNodeStack[#treeNodeStack]
+            treeNodeStack[#treeNodeStack] = nil
+            panel:FireEventTree("refreshTreeChildren", children)
+            ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).collapse or {}).inner, "collapse")
+            children = childrenStack[#childrenStack]
+            childrenStack[#childrenStack] = nil
+        elseif token.type == "embed" then
+            local embed = trim(token.text:sub(3, -2))
+            local original = embed
+            local count = 0
+
+            while newEmbeds[embed] ~= nil and count < 8 do
+                count = count + 1
+                embed = string.format("%s|%d", original, count)
+            end
+
+            if m_embeds[embed] then
+                newEmbeds[embed] = m_embeds[embed]
+                newEmbeds[embed]:Unparent()
+            else
+                local doc = CustomDocument.ResolveLink(original)
+                if doc ~= nil then
+                    newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
+                    false
+                else
+                    newEmbeds[embed] = false
+                end
+            end
+
+            if newEmbeds[embed] ~= false then
+                ApplyBlockFrame(newEmbeds[embed], (resolvedSkin.embed or {}).box)
+                children[#children + 1] = newEmbeds[embed]
+            end
+        elseif token.type == "power_roll" then
+            currentRollableTable = nil
+            currentTable = nil
+            currentTableRow = nil
+            currentRichRow = nil
+
+            local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(ctx.doc)
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
+            panel:FireEventTree("refreshPowerRoll", token)
+            ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
+            newPowerTables[#newPowerTables + 1] = panel
+            children[#children + 1] = panel
+        elseif token.type == "divider" then
+            currentRollableTable = nil
+            currentTable = nil
+            currentTableRow = nil
+            currentRichRow = nil
+
+            local divider = m_dividers[#newDividers + 1] or gui.Divider {
+                tmargin = 0,
+                bmargin = 0,
+                valign = "top",
+                width = "100%",
+            }
+            -- Plan 2: apply rule skin (only spike-confirmed props).
+            -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
+            -- height works. Only thickness is applied here.
+            local rule = resolvedSkin.rule or {}
+            if rule.thickness then divider.selfStyle.height = rule.thickness end
+
+            newDividers[#newDividers + 1] = divider
+            children[#children + 1] = divider
+        elseif token.type == "rollable_table" then
+            local tableName = token.name
+            local count = rollableTablesByName[tableName] or 0
+            rollableTablesByName[tableName] = count + 1
+            if count > 0 then
+                tableName = string.format("%s|%d", tableName, count)
+            end
+
+            local panel = m_rollableTables[tableName] or gui.Label {
+                classes = { "bold", "link" },
+                data = {
+                    rolls = {},
+                    diceToRollId = {},
+
+                },
+                valign = "top",
+                fontSize = CustomDocument.ScaleFontSize(18),
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                text = string.format("%s (Roll %s)", token.name, token.dice),
+                textAlignment = "left",
+
+                diceface = function(element, guid, num, timeRemaining)
+                    local rollid = element.data.diceToRollId[guid]
+                    if rollid ~= nil and element.data.rolls[rollid] ~= nil and element.data.rolls[rollid].totals[guid] ~= nil then
+                        element.data.rolls[rollid].totals[guid] = num
+                        local total = 0
+                        for _,v in pairs(element.data.rolls[rollid].totals) do
+                            total = total + v
+                        end
+
+                        if element.data.rowList ~= nil then
+                            for i,row in ipairs(element.data.rowList) do
+                                if row.data.range ~= nil and total >= row.data.range.min and total <= row.data.range.max then
+                                    row:SetClassTree("highlight", true)
+                                else
+                                    row:SetClassTree("highlight", false)
+                                end
+                            end
+                        end
+
+                    end
+                end,
+
+                create = function(element)
+                    element.data.eventHandler = dmhub.RegisterEventHandler("DiceRoll", function(info)
+                        if info.properties ~= nil and rawget(info.properties, "tableRef") then
+                            local rollid = dmhub.GenerateGuid()
+                            element.data.rolls[rollid] = {
+                                info = info,
+                                totals = {},
+                                table = info.properties.tableRef:GetTable(),
+                                bonus = info.total - info.naturalRoll,
+                                total = info.total,
+                            }
+                            local ref = rawget(info.properties, "tableRef")
+                            if ref.docid == ctx.doc.id and ref.tableid == tableName then
+                                local rolls = info.rolls
+                                for i,roll in ipairs(rolls) do
+                                    local events = chat.DiceEvents(roll.guid)
+                                    events:Listen(element)
+                                    element.data.diceToRollId[roll.guid] = rollid
+                                    element.data.rolls[rollid].totals[roll.guid] = 0
+
+                                    if roll.partnerguid ~= nil then
+                                        local partnerEvents = chat.DiceEvents(roll.partnerguid)
+                                        partnerEvents:Listen(element)
+                                        element.data.diceToRollId[roll.partnerguid] = rollid
+                                        element.data.rolls[rollid].totals[roll.partnerguid] = 0
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end,
+
+                destroy = function(element)
+                    if element.data.eventHandler ~= nil then
+                        dmhub.DeregisterEventHandler(element.data.eventHandler)
+                        element.data.eventHandler = nil
+                    end
+                end,
+
+                press = function(element)
+
+                    local ref = RollTableReference.CreateDocumentReference(ctx.doc.id, tableName)
+                    if not ctx.doc:IsPlayerView(element) then
+                        LaunchablePanel.LaunchPanelByName("Request Rolls", {
+                            title = token.name,
+                            checkType = "Table",
+                            check = RollCheck.new{
+                                type = "table",
+                                id = "custom",
+                                group = "custom",
+                                text = token.name,
+                                tableRef = ref,
+                                rollProperties = RollOnTableProperties.new{
+                                    tableRef = ref,
+                                },
+                            }
+                            --characteristics = characteristics,
+                            --skills = skills,
+                        })
+                    else
+                        local charToken = dmhub.selectedOrPrimaryTokens[1]
+                        local rollArgs = {
+                            title = "Roll on Table",
+                            description = token.name,
+                            roll = token.dice,
+                            tableRef = ref,
+                            type = "table",
+                            creature = charToken and charToken.properties or nil,
+                            rollProperties = RollOnTableProperties.new{
+                                tableRef = ref,
+                            },
+                        }
+
+                        GameHud.instance.rollDialog.data.ShowDialog(rollArgs)
+                    end
+                end,
+            }
+
+            panel.data.tableData = ctx.doc:GetRollableTable(tableName)
+            panel.data.rollInfo = panel.data.tableData:CalculateRollInfo()
+            panel.data.table = nil
+            currentRollableTable = panel
+
+            ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
+
+            if m_rollableTables[tableName] ~= nil then
+                panel:Unparent()
+            end
+
+            newRollableTables[tableName] = panel
+
+            children[#children + 1] = panel
+        elseif token.type == "row" then
+            currentRichRow = nil
+            if currentTable == nil then
+                -- The frame (border/bg/pad) goes on a wrapper panel, NOT the
+                -- gui.Table itself: a gui.Table lays out its cells from its own
+                -- origin and ignores the panel's pad, so a frame applied directly
+                -- leaves the upper-left cells sitting outside the box. The wrapper
+                -- is a normal panel whose pad insets the Table correctly. m_tables
+                -- caches the wrapper; the Table persists inside it as
+                -- wrapper.data.tablePanel.
+                -- Pick the block (rollable tables share the row path) and its
+                -- inner config; row colors are applied via the Table's own
+                -- `styles`, which can only be set at construction -- so rebuild
+                -- the Table when the inner config changes (the journalStyles
+                -- monitor already re-renders the document on any style edit).
+                local blockKey = (currentRollableTable ~= nil) and "rollableTable" or "table"
+                local blockSkin = (resolvedSkin.blocks or {})[blockKey] or {}
+                local innerSig = TableInnerSig(blockSkin.inner)
+                local function NewInnerTable()
+                    return gui.Table {
+                        halign = "left",
+                        valign = "top",
+                        width = "auto",
+                        height = "auto",
+                        flow = "vertical",
+                        styles = TableInnerStyles(blockSkin.inner),
+                    }
+                end
+                local tableWrapper = m_tables[#newTables + 1]
+                if tableWrapper == nil then
+                    local tbl = NewInnerTable()
+                    tableWrapper = gui.Panel {
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "top",
+                        lmargin = 6,
+                        tbl,
+                    }
+                    tableWrapper.data.tablePanel = tbl
+                    tableWrapper.data.innerSig = innerSig
+                elseif tableWrapper.data.innerSig ~= innerSig then
+                    -- inner styling changed: rebuild the Table with new styles.
+                    local tbl = NewInnerTable()
+                    tableWrapper.data.tablePanel = tbl
+                    tableWrapper.children = { tbl }
+                    tableWrapper.data.innerSig = innerSig
+                end
+                currentTable = tableWrapper.data.tablePanel
+
+                currentTable.data.children = {}
+
+                ApplyBlockFrame(tableWrapper, blockSkin.box)
+
+                if currentRollableTable ~= nil then
+                    currentRollableTable.data.table = currentTable
+                    currentRollableTable.data.row = 1
+                end
+
+                newTables[#newTables + 1] = tableWrapper
+                currentTableRow = nil
+                children[#children + 1] = tableWrapper
+            end
+
+            currentTableRow = m_tableRows[#newTableRows + 1] or gui.TableRow {
+                width = "auto",
+                height = "auto",
+            }
+
+            if m_tableRows[#newTableRows + 1] ~= nil then
+                currentTableRow:Unparent()
+            end
+
+            currentTableRow.data.children = {}
+
+            -- First row of each table is the markdown header row (followed
+            -- by `|---|`). Toggle the headerRow class so the cascade's
+            -- {row, headerRow} / {label, parent:headerRow} rules apply.
+            -- SetClass with a boolean correctly clears the class on rows
+            -- that were previously a header row but got repositioned.
+            local isHeaderRow = #currentTable.data.children == 0
+            currentTableRow:SetClass("headerRow", isHeaderRow)
+
+            newTableRows[#newTableRows + 1] = currentTableRow
+
+            currentTable.data.children[#currentTable.data.children + 1] = currentTableRow
+
+            if currentRollableTable ~= nil then
+                local rollInfo = currentRollableTable.data.rollInfo
+                local range = rollInfo.rollRanges[currentRollableTable.data.row]
+                if range ~= nil then
+                    newRollableTableRowLabels[#newRollableTableRowLabels + 1] = m_rollableTableRowLabels[#newRollableTableRowLabels + 1] or gui.Label{
+                        classes = { "bold" },
+                        fontSize = 16,
+                        width = 70,
+                        halign = "left",
+                        height = "auto",
+                    }
+
+                    local label = newRollableTableRowLabels[#newRollableTableRowLabels]
+                    label:Unparent()
+                    label.text = RollTable.FormatRange(range) .. "."
+
+                    currentRollableTable.data.rowList = currentRollableTable.data.rowList or {}
+                    currentRollableTable.data.rowList[currentRollableTable.data.row] = currentTableRow
+                    currentTableRow.data.range = range
+
+                    currentTableRow.data.children[#currentTableRow.data.children + 1] = label
+                end
+
+                currentRollableTable.data.row = currentRollableTable.data.row + 1
+            end
+        elseif token.type == "end_row" then
+            currentTableRow = nil
+            currentRichRow = nil
+        elseif token.type == "cell" then
+            currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                flow = "horizontal",
+                height = "auto",
+                vmargin = 0,
+                pad = 4,
+            }
+            if m_richRows[#newRichRows + 1] ~= nil then
+                currentRichRow:Unparent()
+            end
+            currentRichRow.data.children = {}
+            currentRichRow.selfStyle.width = "auto"
+            currentRichRow.selfStyle.valign = "center"
+
+            --scan for the number of cells in this row.
+            local beginRowIndex = i
+            for j=i,1,-1 do
+                if tokens[j].type == "row" then
+                    beginRowIndex = j
+                    break
+                end
+            end
+
+            local cellCount = 0
+            for j=beginRowIndex,#tokens do
+                if tokens[j].type == "end_row" then
+                    break
+                elseif tokens[j].type == "cell" then
+                    cellCount = cellCount + 1
+                end
+            end
+
+            local cellWidth = math.floor(100 / cellCount)
+            local tableHeaderSpacing = 0
+            if currentRollableTable ~= nil then
+                tableHeaderSpacing = 80/cellCount
+            end
+
+            --currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
+            currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
+
+            newRichRows[#newRichRows + 1] = currentRichRow
+            if currentTableRow ~= nil then
+                currentTableRow.data.children[#currentTableRow.data.children + 1] = currentRichRow
+            end
+        elseif token.type == "text" and token.justification == nil and token.text == "\n" and currentRichRow ~= nil then
+            --this special case doesn't require inserting a text panel. Instead we just end the rich row of content.
+            currentRichRow = nil
+        elseif token.type == "text" then
+            if currentTable ~= nil and currentTableRow == nil then
+                --end of table.
+                currentRollableTable = nil
+                currentRichRow = nil
+                currentTable = nil
+            end
+
+            local function MakeTextLabel()
+                return gui.Label {
+                    classes = {"fg"},
+                    width = "auto",
+                    height = "auto",
+                    maxWidth = "100%",
+                    valign = "center",
+                    vmargin = 0,
+                    markdown = true,
+                    markdownStyle = g_markdownStyle,
+                    textAlignment = "topleft",
+                    fontSize = CustomDocument.ScaleFontSize(14),
+                    pad = 0,
+                    links = true,
+                    hoverLink = function(element, link)
+                        if string.starts_with(link, "spoiler:") then
+                            return
+                        end
+                        CustomDocument.PreviewLink(element, link)
+                    end,
+                    dehoverLink = function(element, link)
+                        element.tooltip = nil
+                    end,
+                    rightClick = function(element)
+                        if element.linkHovered == nil then return end
+                        local link = element.linkHovered
+                        if string.starts_with(link, "spoiler:") then return end
+                        local doc = CustomDocument.ResolveLink(link)
+                        if doc == nil then return end
+
+                        -- Only show context menu for navigable document types
+                        local isNavigable = false
+                        if type(doc) == "table" or type(doc) == "userdata" then
+                            if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                isNavigable = true
+                            elseif MarkdownRender.IsRenderable(doc) then
+                                isNavigable = true
+                            end
+                        end
+                        if not isNavigable then return end
+
+                        element.popup = gui.ContextMenu {
+                            entries = {
+                                {
+                                    text = "Open in New Tab",
+                                    click = function()
+                                        element.popup = nil
+                                        CustomDocument.OpenContent(doc)
+                                    end,
+                                },
+                            },
+                        }
+                    end,
+                    press = function(element)
+                        if element.popup then
+                            element.popup = nil
+                            return
+                        end
+                        if element.linkHovered ~= nil then
+                            local link = element.linkHovered
+                            if string.starts_with(link, "spoiler:") then
+                                local spoilerValue = link:sub(9)
+                                local spoilerInfo = (ctx.tokenExtraInfo.spoilers or {})[spoilerValue]
+                                if spoilerInfo == nil then
+                                    return
+                                end
+
+                                local lines = table.shallow_copy(spoilerInfo.lines)
+                                local line = spoilerInfo.lines[spoilerInfo.lineIndex]
+                                for i=spoilerInfo.linepos,#line do
+                                    if line:sub(i,i) == "{" then
+                                        local nextChar = line:sub(i+1,i+1)
+                                        if nextChar == "!" then
+                                            line = line:sub(1,i) .. line:sub(i+2)
+                                        else
+                                            line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                        end
+                                        lines[spoilerInfo.lineIndex] = line
+                                        ctx.doc:SetTextContent(table.concat(lines, "\n"))
+                                        ctx.doc:Upload()
+                                        break
+                                    end
+                                end
+
+                                return
+                            end
+
+                            local doc = CustomDocument.ResolveLink(element.linkHovered)
+                            if doc ~= nil then
+                                -- Try in-place navigation for real document types only.
+                                -- Renderable content (e.g. an item/spell link) wraps into a
+                                -- transient MarkdownDocument that is never written to the
+                                -- table, so navigateToDocument (which looks up by id) can't
+                                -- resolve it -- let those fall through to OpenContent instead.
+                                local navigableDocId = nil
+                                if type(doc) == "table" or type(doc) == "userdata" then
+                                    if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                        navigableDocId = doc.id
+                                    end
+                                end
+
+                                if navigableDocId then
+                                    local dialogPanel = element:FindParentWithClass("framedPanel")
+                                    if dialogPanel and dialogPanel.data and dialogPanel.data.history then
+                                        dialogPanel:FireEvent("navigateToDocument", navigableDocId)
+                                        return
+                                    end
+                                end
+
+                                -- Fall back to opening in new window
+                                CustomDocument.OpenContent(doc)
+                            else
+                                local guid = dmhub.GenerateGuid()
+                                local markdownDoc = MarkdownDocument.new {
+                                    id = guid,
+                                    description = element.linkHovered,
+                                    content = "# " .. element.linkHovered,
+                                    annotations = {},
+                                }
+
+                                dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
+                                markdownDoc:ShowDocument { edit = true }
+                            end
+                        end
+                    end,
+                }
+            end
+            if ruledLevels == nil or not TextHasRuledHeading(token.text, ruledLevels) then
+                -- Fast path: skin has no ruled headings, or this run
+                -- contains no ruled heading line -> single label, unchanged.
+                local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+
+                textPanel.selfStyle.halign = token.justification or "left"
+
+                if m_textPanels[#newTextPanels + 1] ~= nil then
+                    textPanel:Unparent()
+                end
+
+                local text = token.text
+                if string.starts_with(text, "\n") then
+                    text = text:sub(2)
+                end
+
+                --make it so that leading or trailing spaces are non-breaking
+                if string.starts_with(text, " ") then
+                    text = "<color=#00000000>.</color>" .. text:sub(2)
+                end
+
+                if string.ends_with(text, " ") then
+                    text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                end
+
+                textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
+                newTextPanels[#newTextPanels + 1] = textPanel
+
+                --find if the string only has a newline at the end or no newline,
+                --in which case it can go inline.
+                if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
+                    if currentRichRow == nil then
+                        currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                            flow = "horizontal",
+                            height = "auto",
+                            vmargin = 0,
+                        }
+                        if m_richRows[#newRichRows + 1] ~= nil then
+                            currentRichRow:Unparent()
+                        end
+                        currentRichRow.selfStyle.width = "100%"
+                        currentRichRow.selfStyle.valign = "top"
+                        currentRichRow.selfStyle.maxWidth = nil
+                        currentRichRow.data.children = {}
+                        newRichRows[#newRichRows + 1] = currentRichRow
+                        children[#children + 1] = currentRichRow
+                    end
+
+                    if token.justification then
+                        currentRichRow.selfStyle.width = "100%"
+                    end
+
+                    textPanel.selfStyle.width = "auto"
+                    textPanel.selfStyle.valign = "center"
+                    currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
+                else
+                    -- Only widen for stylesheet alignment when the author did not set an explicit
+                    -- :>/:<> justification (which positions an auto-width label via panel halign).
+                    textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    textPanel.selfStyle.valign = "top"
+                    children[#children + 1] = textPanel
+                end
+
+                if currentRichRow ~= nil and string.find(token.text, "\n") then
+                    currentRichRow = nil
+                end
+            else
+                -- Split path: ruled headings present; emit one label per
+                -- segment and a rule panel after each ruled-heading segment.
+                -- Does NOT use the rich-row inline branch (block content).
+                currentRichRow = nil
+                local text = token.text
+                if string.starts_with(text, "\n") then
+                    text = text:sub(2)
+                end
+                if string.starts_with(text, " ") then
+                    text = "<color=#00000000>.</color>" .. text:sub(2)
+                end
+                if string.ends_with(text, " ") then
+                    text = text:sub(1, -2) .. "<color=#00000000>.</color>"
+                end
+                local segments = SplitRunAtRuledHeadings(text, ruledLevels)
+                for _, seg in ipairs(segments) do
+                    local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
+                    label.selfStyle.halign = token.justification or "left"
+                    if m_textPanels[#newTextPanels + 1] ~= nil then
+                        label:Unparent()
+                    end
+                    -- Only widen for stylesheet alignment when the author did not set an explicit
+                    -- :>/:<> justification (which positions an auto-width label via panel halign).
+                    label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    label.selfStyle.valign = "top"
+                    label.text = ApplySkinToText(
+                        ApplyInlineClasses(seg.text, resolvedClasses),
+                        resolvedSkin,
+                        { ruledLevels = ruledLevels })
+                    newTextPanels[#newTextPanels + 1] = label
+                    children[#children + 1] = label
+                    if seg.ruleLevel ~= nil then
+                        local h = (resolvedSkin.headings or {})[seg.ruleLevel]
+                        local rulePanel = m_headingRules[#newHeadingRules + 1]
+                        if rulePanel == nil then
+                            rulePanel = BuildHeadingRulePanel(nil, h)
+                        else
+                            BuildHeadingRulePanel(rulePanel, h)
+                            rulePanel:Unparent()
+                        end
+                        newHeadingRules[#newHeadingRules + 1] = rulePanel
+                        children[#children + 1] = rulePanel
+                    end
+                end
+            end
+        elseif token.type == "blockquote" then
+            currentRichRow = nil
+            local blockquote = m_blockquotes[#newBlockquotes + 1] or gui.Panel {
+                classes = {"blockQuote"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                flow = "horizontal",
+                savedoc = function(element)
+                    element:HaltEventPropagation()
+                end,
+                refreshDocument = function(element)
+                    element:HaltEventPropagation()
+                end,
+                editDocument = function(element)
+                    element:HaltEventPropagation()
+                end,
+                refreshTag = function(element)
+                    element:HaltEventPropagation()
+                end,
+
+                gui.MarkdownLabel{
+                    width = "100%-20",
+                    halign = "right",
+                    markdownText = function(element, text)
+                        element:HaltEventPropagation()
+                        element.text = text
+                    end,
+                }
+            }
+
+            if m_blockquotes[#newBlockquotes + 1] ~= nil then
+                blockquote:Unparent()
+            end
+
+            blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
+
+            ApplyQuoteFrame(blockquote, resolvedSkin.quote)
+
+            newBlockquotes[#newBlockquotes + 1] = blockquote
+
+            children[#children+1] = blockquote
+
+        elseif token.type == "styleblock" then
+            currentRichRow = nil
+            local cls = resolvedClasses[token.className]
+            local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                flow = "vertical",
+                borderBox = true,
+                savedoc = function(element) element:HaltEventPropagation() end,
+                refreshDocument = function(element) element:HaltEventPropagation() end,
+                editDocument = function(element) element:HaltEventPropagation() end,
+                refreshTag = function(element) element:HaltEventPropagation() end,
+                gui.MarkdownLabel{
+                    width = "100%",
+                    markdownText = function(element, text)
+                        element:HaltEventPropagation()
+                        element.text = text
+                    end,
+                }
+            }
+
+            -- Apply the class box props (graceful when class is missing or
+            -- not a block class -> renders as a plain unstyled panel).
+            local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
+            ApplyBlockFrame(styleblock, box)
+
+            if m_styleblocks[#newStyleblocks + 1] ~= nil then
+                styleblock:Unparent()
+            end
+
+            local innerText = token.text
+            if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
+                innerText = SkinClassTextMarkup(cls.text, token.text)
+            end
+            styleblock:FireEventTree("markdownText", innerText)
+
+            newStyleblocks[#newStyleblocks + 1] = styleblock
+            children[#children + 1] = styleblock
+
+        elseif token.type == "tag" then
+            if currentTable ~= nil and currentTableRow == nil then
+                --end of table.
+                currentRollableTable = nil
+                currentRichRow = nil
+                currentTable = nil
+            end
+
+            local text, suffix
+            local match = regex.MatchGroups(token.text, "^(?<text>.+?):(?<name>.+)$")
+            if match ~= nil then
+                text = match.text
+                suffix = match.name
+            end
+
+            local text, suffix = token.text:match("^(.-):(.*)$")
+            if suffix == nil then
+                text = token.text
+            end
+
+            local fullname = token.text
+            local richTagFromPattern = nil
+
+            local patternMatch = nil
+
+            for key, richTag in pairs(MarkdownDocument.RichTagRegistry) do
+                if richTag.pattern then
+                    patternMatch = regex.MatchGroups(token.text, richTag.pattern)
+                    if patternMatch ~= nil then
+                        fullname = key
+                        text = key
+                        richTagFromPattern = richTag
+                        break
+                    end
+                end
+            end
+
+            local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
+
+            if richTagInfo ~= nil then
+                local candidate = fullname
+                local index = 1
+                while tagsSeen[candidate] do
+                    candidate = fullname .. '-' .. index
+                    index = index + 1
+                end
+
+                tagsSeen[candidate] = true
+
+                local richTag
+                
+                if richTagFromPattern then
+                    richTag = DeepCopy(richTagFromPattern)
+                else
+                    richTag = ctx.doc.annotations[candidate]
+
+                    --patch over any possible bugs where the saved annotation is not a proper table.
+                    if richTag ~= nil and getmetatable(richTag) == nil then
+                        richTag = nil
+                        ctx.doc.annotations[candidate] = nil
+                    end
+                end
+
+                
+                if richTag ~= nil then
+                    local panel = m_richPanels[candidate] or richTag:CreateDisplay()
+
+                    if currentRichRow == nil then
+                        currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+                            flow = "horizontal",
+                            height = "auto",
+                            vmargin = 0,
+                        }
+                        if m_richRows[#newRichRows + 1] ~= nil then
+                            currentRichRow:Unparent()
+                        end
+                        currentRichRow.selfStyle.width = "100%"
+                        currentRichRow.selfStyle.valign = "top"
+                        currentRichRow.selfStyle.maxWidth = nil
+                        currentRichRow.data.children = {}
+                        newRichRows[#newRichRows + 1] = currentRichRow
+                        children[#children + 1] = currentRichRow
+                    end
+
+                    if m_richPanels[candidate] ~= nil and panel.parent ~= currentRichRow then
+                        panel:Unparent()
+                    end
+
+                    if token.justification then
+                        currentRichRow.selfStyle.width = "100%"
+                    end
+
+                    richTag._tmp_document = ctx.doc
+                    panel:FireEventTree("refreshTag", richTag, patternMatch or match, token)
+
+                    newRichPanels[candidate] = panel
+                    local embedBox = (resolvedSkin.embed or {}).box
+                    if g_standaloneEmbedTags[string.lower(text)] and embedBox ~= nil and next(embedBox) ~= nil then
+                        -- Wrap so the rich-tag's own look is preserved inside
+                        -- the stylesheet frame (do NOT ApplyBlockFrame the
+                        -- component panel directly).
+                        local frame = m_richFrames[candidate] or gui.Panel { width = "auto", height = "auto", valign = "top" }
+                        ApplyBlockFrame(frame, embedBox)
+                        frame.children = { panel }
+                        newRichFrames[candidate] = frame
+                        currentRichRow.data.children[#currentRichRow.data.children + 1] = frame
+                    else
+                        currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
+                    end
+                end
+            end
+        end
+
+        -- Stamp the source line onto whatever top-level children this token
+        -- appended (overwrite, so reused/cached panels refresh each render).
+        for k = stampFrom, #stampChildren do
+            stampChildren[k].data.srcLine = stampLine
+        end
+    end
+
+    for i, row in ipairs(newRichRows) do
+        row.children = row.data.children
+        row.data.children = nil
+    end
+
+    for i, row in ipairs(newTableRows) do
+        row.children = row.data.children
+        row.data.children = nil
+    end
+
+    for i, t in ipairs(newTables) do
+        -- t is the wrapper; commit rows onto the gui.Table it holds. The
+        -- wrapper carries the block FRAME and the Table carries its inner row
+        -- colors via `styles` (both set in the table render branch), so no
+        -- post-build styling is needed here.
+        local tbl = t.data.tablePanel
+        tbl.children = tbl.data.children
+        tbl.data.children = nil
+    end
+
+    ctx.pools.rollableTableRowLabels = newRollableTableRowLabels
+    ctx.pools.rollableTables = newRollableTables
+    ctx.pools.richRows = newRichRows
+    ctx.pools.richPanels = newRichPanels
+    ctx.pools.richFrames = newRichFrames
+    ctx.pools.textPanels = newTextPanels
+    ctx.pools.tableRows = newTableRows
+    ctx.pools.tables = newTables
+    ctx.pools.dividers = newDividers
+    ctx.pools.headingRules = newHeadingRules
+    ctx.pools.powerTables = newPowerTables
+    ctx.pools.embeds = newEmbeds
+    ctx.pools.treeNodes = newTreeNodes
+    ctx.pools.blockquotes = newBlockquotes
+    ctx.pools.styleblocks = newStyleblocks
+
+    return children
+end
+
+--Creates a fresh render context for RenderMarkdownTokens. One context per
+--host panel; it persists across renders so panel pools and closure state
+--carry over.
+local function CreateMarkdownRenderContext(doc, embedDepth)
+    return {
+        doc = doc,
+        embedDepth = embedDepth or 0,
+        tokenExtraInfo = {},
+        render = {},
+        pools = {
+            rollableTableRowLabels = {},
+            textPanels = {},
+            richPanels = {},
+            richFrames = {},
+            richRows = {},
+            rollableTables = {},
+            tables = {},
+            tableRows = {},
+            dividers = {},
+            headingRules = {},
+            powerTables = {},
+            embeds = {},
+            treeNodes = {},
+            blockquotes = {},
+            styleblocks = {},
+        },
+    }
+end
+
 function MarkdownDocument.DisplayPanel(self, args)
     args = args or {}
     local embedDepth = args.embedDepth or 0
@@ -2356,22 +3555,7 @@ function MarkdownDocument.DisplayPanel(self, args)
 
     local resultPanel
 
-    local m_rollableTableRowLabels = {}
-    local m_textPanels = {}
-    local m_richPanels = {}
-    local m_richFrames = {}
-    local m_richRows = {}
-    local m_rollableTables = {}
-    local m_tables = {}
-    local m_tableRows = {}
-    local m_dividers = {}
-    local m_headingRules = {}
-    local m_powerTables = {}
-    local m_embeds = {}
-    local m_treeNodes = {}
-    local m_blockquotes = {}
-    local m_styleblocks = {}
-    local m_tokenExtraInfo = {}
+    local ctx = CreateMarkdownRenderContext(self, embedDepth)
 
     local params = {
         styles = ThemeEngine.GetStyles(),
@@ -2406,45 +3590,17 @@ function MarkdownDocument.DisplayPanel(self, args)
             if doc ~= nil then
                 self = doc
             end
+            ctx.doc = self
 
-            local children = {}
-            local childrenStack = {} --stack used by collapse nodes.
-            local treeNodeStack = {}
-            local newRollableTables = {}
-            local newTables = {}
-            local newTableRows = {}
-            local newRollableTableRowLabels = {}
-            local newTextPanels = {}
-            local newRichPanels = {}
-            local newRichFrames = {}
-            local newRichRows = {}
-            local newPowerTables = {}
-            local newEmbeds = {}
-            local newTreeNodes = {}
-            local newBlockquotes = {}
-            local newStyleblocks = {}
-            local currentRichRow = nil
-
-            local rollableTablesByName = {}
-
-            local newDividers = {}
-            local newHeadingRules = {}
-
-            local currentRollableTable = nil --the panel controlling the current rollable table.
-            local currentTable = nil
-            local currentTableRow = nil
-
-            local tagsSeen = {}
-
-            m_tokenExtraInfo = {}
+            ctx.tokenExtraInfo = {}
             -- trackPositions stamps each token's source line (purely additive; rendering
             -- ignores srcLine) so the rendered blocks below can be tagged for the preview's
             -- content-aware scroll sync (SyncPreviewScroll).
-            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, m_tokenExtraInfo)
+            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, ctx.tokenExtraInfo)
 
-            if m_tokenExtraInfo.queries ~= nil then
+            if ctx.tokenExtraInfo.queries ~= nil then
                 element.thinkTime = 0.2
-                element.data.queries = m_tokenExtraInfo.queries
+                element.data.queries = ctx.tokenExtraInfo.queries
             else
                 element.thinkTime = nil
                 element.data.queries = nil
@@ -2455,11 +3611,6 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- hoist it for clarity and to thread into text/divider/quote.
             local resolvedStylesheet = self:GetResolvedStylesheet()
             local resolvedSkin = resolvedStylesheet.base
-            local resolvedClasses = resolvedStylesheet.classes
-            -- Compute once per render: which heading levels (1..5) carry a rule.
-            -- nil means no ruled headings -> every text run uses the fast path.
-            local ruledLevels = HeadingRuleLevels(resolvedSkin)
-            local usesAlign = SkinUsesAlign(resolvedSkin)
             -- Page background: paint the content container from the resolved skin.
             -- Re-runs every render (including live stylesheet edits via the monitor).
             -- Unset clears it so a reused panel keeps no stale background and the
@@ -2497,889 +3648,18 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.vpad = nil
                 element.borderBox = nil
             end
-            -- Content-aware preview scroll: tag each top-level child with the source line
-            -- of the token that produced it. Capture the children array + length at the
-            -- start of each iteration and stamp whatever got appended at the end. This
-            -- survives the collapse-node array swap (the captured ref still points at the
-            -- table the appends went to) and rich-row batching (a row is appended once, in
-            -- its first tag's iteration, so it is stamped with that line). lastStampLine
-            -- carries the last known line forward for the rare token with none.
-            local lastStampLine = 1
-            for i, token in ipairs(tokens) do
-                local stampChildren = children
-                local stampFrom = #children + 1
-                local stampLine = token.srcLine or lastStampLine
-                if token.srcLine ~= nil then lastStampLine = token.srcLine end
-                if token.type == "justification" then
-                    --pass, nothing needed here.
-                elseif token.type == "collapse_node" then
-                    local panel = m_treeNodes[#newTreeNodes + 1] or CreateTreeNodePanel()
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).collapse or {}).box)
-                    if m_treeNodes[#newTreeNodes + 1] ~= nil then
-                        panel:Unparent()
-                    end
-                    children[#children + 1] = panel
-                    newTreeNodes[#newTreeNodes + 1] = panel
-                    childrenStack[#childrenStack + 1] = children
-                    children = {}
-                    treeNodeStack[#treeNodeStack + 1] = panel
 
-                    panel:FireEventTree("refreshTreeNode", token.title or "")
-                elseif token.type == "end_collapse_node" then
-                    local panel = treeNodeStack[#treeNodeStack]
-                    treeNodeStack[#treeNodeStack] = nil
-                    panel:FireEventTree("refreshTreeChildren", children)
-                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).collapse or {}).inner, "collapse")
-                    children = childrenStack[#childrenStack]
-                    childrenStack[#childrenStack] = nil
-                elseif token.type == "embed" then
-                    local embed = trim(token.text:sub(3, -2))
-                    local original = embed
-                    local count = 0
-
-                    while newEmbeds[embed] ~= nil and count < 8 do
-                        count = count + 1
-                        embed = string.format("%s|%d", original, count)
-                    end
-
-                    if m_embeds[embed] then
-                        newEmbeds[embed] = m_embeds[embed]
-                        newEmbeds[embed]:Unparent()
-                    else
-                        local doc = CustomDocument.ResolveLink(original)
-                        if doc ~= nil then
-                            newEmbeds[embed] = CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = embedDepth, hostPageColor = pageColor }) or
-                            false
-                        else
-                            newEmbeds[embed] = false
-                        end
-                    end
-
-                    if newEmbeds[embed] ~= false then
-                        ApplyBlockFrame(newEmbeds[embed], (resolvedSkin.embed or {}).box)
-                        children[#children + 1] = newEmbeds[embed]
-                    end
-                elseif token.type == "power_roll" then
-                    currentRollableTable = nil
-                    currentTable = nil
-                    currentTableRow = nil
-                    currentRichRow = nil
-
-                    local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(self)
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
-                    panel:FireEventTree("refreshPowerRoll", token)
-                    ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
-                    newPowerTables[#newPowerTables + 1] = panel
-                    children[#children + 1] = panel
-                elseif token.type == "divider" then
-                    currentRollableTable = nil
-                    currentTable = nil
-                    currentTableRow = nil
-                    currentRichRow = nil
-
-                    local divider = m_dividers[#newDividers + 1] or gui.Divider {
-                        tmargin = 0,
-                        bmargin = 0,
-                        valign = "top",
-                        width = "100%",
-                    }
-                    -- Plan 2: apply rule skin (only spike-confirmed props).
-                    -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
-                    -- height works. Only thickness is applied here.
-                    local rule = resolvedSkin.rule or {}
-                    if rule.thickness then divider.selfStyle.height = rule.thickness end
-
-                    newDividers[#newDividers + 1] = divider
-                    children[#children + 1] = divider
-                elseif token.type == "rollable_table" then
-                    local tableName = token.name
-                    local count = rollableTablesByName[tableName] or 0
-                    rollableTablesByName[tableName] = count + 1
-                    if count > 0 then
-                        tableName = string.format("%s|%d", tableName, count)
-                    end
-
-                    local panel = m_rollableTables[tableName] or gui.Label {
-                        classes = { "bold", "link" },
-                        data = {
-                            rolls = {},
-                            diceToRollId = {},
-
-                        },
-                        valign = "top",
-                        fontSize = CustomDocument.ScaleFontSize(18),
-                        width = "auto",
-                        height = "auto",
-                        halign = "left",
-                        text = string.format("%s (Roll %s)", token.name, token.dice),
-                        textAlignment = "left",
-
-                        diceface = function(element, guid, num, timeRemaining)
-                            local rollid = element.data.diceToRollId[guid]
-                            if rollid ~= nil and element.data.rolls[rollid] ~= nil and element.data.rolls[rollid].totals[guid] ~= nil then
-                                element.data.rolls[rollid].totals[guid] = num
-                                local total = 0
-                                for _,v in pairs(element.data.rolls[rollid].totals) do
-                                    total = total + v
-                                end
-
-                                if element.data.rowList ~= nil then
-                                    for i,row in ipairs(element.data.rowList) do
-                                        if row.data.range ~= nil and total >= row.data.range.min and total <= row.data.range.max then
-                                            row:SetClassTree("highlight", true)
-                                        else
-                                            row:SetClassTree("highlight", false)
-                                        end
-                                    end
-                                end
-
-                            end
-                        end,
-
-                        create = function(element)
-                            element.data.eventHandler = dmhub.RegisterEventHandler("DiceRoll", function(info)
-                                if info.properties ~= nil and rawget(info.properties, "tableRef") then
-                                    local rollid = dmhub.GenerateGuid()
-                                    element.data.rolls[rollid] = {
-                                        info = info,
-                                        totals = {},
-                                        table = info.properties.tableRef:GetTable(),
-                                        bonus = info.total - info.naturalRoll,
-                                        total = info.total,
-                                    }
-                                    local ref = rawget(info.properties, "tableRef")
-                                    if ref.docid == self.id and ref.tableid == tableName then
-                                        local rolls = info.rolls
-                                        for i,roll in ipairs(rolls) do
-                                            local events = chat.DiceEvents(roll.guid)
-                                            events:Listen(element)
-                                            element.data.diceToRollId[roll.guid] = rollid
-                                            element.data.rolls[rollid].totals[roll.guid] = 0
-
-                                            if roll.partnerguid ~= nil then
-                                                local partnerEvents = chat.DiceEvents(roll.partnerguid)
-                                                partnerEvents:Listen(element)
-                                                element.data.diceToRollId[roll.partnerguid] = rollid
-                                                element.data.rolls[rollid].totals[roll.partnerguid] = 0
-                                            end
-                                        end
-                                    end
-                                end
-                            end)
-                        end,
-
-                        destroy = function(element)
-                            if element.data.eventHandler ~= nil then
-                                dmhub.DeregisterEventHandler(element.data.eventHandler)
-                                element.data.eventHandler = nil
-                            end
-                        end,
-
-                        press = function(element)
-
-                            local ref = RollTableReference.CreateDocumentReference(self.id, tableName)
-                            if not self:IsPlayerView(element) then
-                                LaunchablePanel.LaunchPanelByName("Request Rolls", {
-                                    title = token.name,
-                                    checkType = "Table",
-                                    check = RollCheck.new{
-                                        type = "table",
-                                        id = "custom",
-                                        group = "custom",
-                                        text = token.name,
-                                        tableRef = ref,
-                                        rollProperties = RollOnTableProperties.new{
-                                            tableRef = ref,
-                                        },
-                                    }
-                                    --characteristics = characteristics,
-                                    --skills = skills,
-                                })
-                            else
-                                local charToken = dmhub.selectedOrPrimaryTokens[1]
-                                local rollArgs = {
-                                    title = "Roll on Table",
-                                    description = token.name,
-                                    roll = token.dice,
-                                    tableRef = ref,
-                                    type = "table",
-                                    creature = charToken and charToken.properties or nil,
-                                    rollProperties = RollOnTableProperties.new{
-                                        tableRef = ref,
-                                    },
-                                }
-
-                                GameHud.instance.rollDialog.data.ShowDialog(rollArgs)
-                            end
-                        end,
-                    }
-
-                    panel.data.tableData = self:GetRollableTable(tableName)
-                    panel.data.rollInfo = panel.data.tableData:CalculateRollInfo()
-                    panel.data.table = nil
-                    currentRollableTable = panel
-
-                    ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).rollableTable or {}).box)
-
-                    if m_rollableTables[tableName] ~= nil then
-                        panel:Unparent()
-                    end
-
-                    newRollableTables[tableName] = panel
-
-                    children[#children + 1] = panel
-                elseif token.type == "row" then
-                    currentRichRow = nil
-                    if currentTable == nil then
-                        -- The frame (border/bg/pad) goes on a wrapper panel, NOT the
-                        -- gui.Table itself: a gui.Table lays out its cells from its own
-                        -- origin and ignores the panel's pad, so a frame applied directly
-                        -- leaves the upper-left cells sitting outside the box. The wrapper
-                        -- is a normal panel whose pad insets the Table correctly. m_tables
-                        -- caches the wrapper; the Table persists inside it as
-                        -- wrapper.data.tablePanel.
-                        -- Pick the block (rollable tables share the row path) and its
-                        -- inner config; row colors are applied via the Table's own
-                        -- `styles`, which can only be set at construction -- so rebuild
-                        -- the Table when the inner config changes (the journalStyles
-                        -- monitor already re-renders the document on any style edit).
-                        local blockKey = (currentRollableTable ~= nil) and "rollableTable" or "table"
-                        local blockSkin = (resolvedSkin.blocks or {})[blockKey] or {}
-                        local innerSig = TableInnerSig(blockSkin.inner)
-                        local function NewInnerTable()
-                            return gui.Table {
-                                halign = "left",
-                                valign = "top",
-                                width = "auto",
-                                height = "auto",
-                                flow = "vertical",
-                                styles = TableInnerStyles(blockSkin.inner),
-                            }
-                        end
-                        local tableWrapper = m_tables[#newTables + 1]
-                        if tableWrapper == nil then
-                            local tbl = NewInnerTable()
-                            tableWrapper = gui.Panel {
-                                flow = "vertical",
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "top",
-                                lmargin = 6,
-                                tbl,
-                            }
-                            tableWrapper.data.tablePanel = tbl
-                            tableWrapper.data.innerSig = innerSig
-                        elseif tableWrapper.data.innerSig ~= innerSig then
-                            -- inner styling changed: rebuild the Table with new styles.
-                            local tbl = NewInnerTable()
-                            tableWrapper.data.tablePanel = tbl
-                            tableWrapper.children = { tbl }
-                            tableWrapper.data.innerSig = innerSig
-                        end
-                        currentTable = tableWrapper.data.tablePanel
-
-                        currentTable.data.children = {}
-
-                        ApplyBlockFrame(tableWrapper, blockSkin.box)
-
-                        if currentRollableTable ~= nil then
-                            currentRollableTable.data.table = currentTable
-                            currentRollableTable.data.row = 1
-                        end
-
-                        newTables[#newTables + 1] = tableWrapper
-                        currentTableRow = nil
-                        children[#children + 1] = tableWrapper
-                    end
-
-                    currentTableRow = m_tableRows[#newTableRows + 1] or gui.TableRow {
-                        width = "auto",
-                        height = "auto",
-                    }
-
-                    if m_tableRows[#newTableRows + 1] ~= nil then
-                        currentTableRow:Unparent()
-                    end
-
-                    currentTableRow.data.children = {}
-
-                    -- First row of each table is the markdown header row (followed
-                    -- by `|---|`). Toggle the headerRow class so the cascade's
-                    -- {row, headerRow} / {label, parent:headerRow} rules apply.
-                    -- SetClass with a boolean correctly clears the class on rows
-                    -- that were previously a header row but got repositioned.
-                    local isHeaderRow = #currentTable.data.children == 0
-                    currentTableRow:SetClass("headerRow", isHeaderRow)
-
-                    newTableRows[#newTableRows + 1] = currentTableRow
-
-                    currentTable.data.children[#currentTable.data.children + 1] = currentTableRow
-
-                    if currentRollableTable ~= nil then
-                        local rollInfo = currentRollableTable.data.rollInfo
-                        local range = rollInfo.rollRanges[currentRollableTable.data.row]
-                        if range ~= nil then
-                            newRollableTableRowLabels[#newRollableTableRowLabels + 1] = m_rollableTableRowLabels[#newRollableTableRowLabels + 1] or gui.Label{
-                                classes = { "bold" },
-                                fontSize = 16,
-                                width = 70,
-                                halign = "left",
-                                height = "auto",
-                            }
-
-                            local label = newRollableTableRowLabels[#newRollableTableRowLabels]
-                            label:Unparent()
-                            label.text = RollTable.FormatRange(range) .. "."
-
-                            currentRollableTable.data.rowList = currentRollableTable.data.rowList or {}
-                            currentRollableTable.data.rowList[currentRollableTable.data.row] = currentTableRow
-                            currentTableRow.data.range = range
-
-                            currentTableRow.data.children[#currentTableRow.data.children + 1] = label
-                        end
-
-                        currentRollableTable.data.row = currentRollableTable.data.row + 1
-                    end
-                elseif token.type == "end_row" then
-                    currentTableRow = nil
-                    currentRichRow = nil
-                elseif token.type == "cell" then
-                    currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                        flow = "horizontal",
-                        height = "auto",
-                        vmargin = 0,
-                        pad = 4,
-                    }
-                    if m_richRows[#newRichRows + 1] ~= nil then
-                        currentRichRow:Unparent()
-                    end
-                    currentRichRow.data.children = {}
-                    currentRichRow.selfStyle.width = "auto"
-                    currentRichRow.selfStyle.valign = "center"
-
-                    --scan for the number of cells in this row.
-                    local beginRowIndex = i
-                    for j=i,1,-1 do
-                        if tokens[j].type == "row" then
-                            beginRowIndex = j
-                            break
-                        end
-                    end
-
-                    local cellCount = 0
-                    for j=beginRowIndex,#tokens do
-                        if tokens[j].type == "end_row" then
-                            break
-                        elseif tokens[j].type == "cell" then
-                            cellCount = cellCount + 1
-                        end
-                    end
-
-                    local cellWidth = math.floor(100 / cellCount)
-                    local tableHeaderSpacing = 0
-                    if currentRollableTable ~= nil then
-                        tableHeaderSpacing = 80/cellCount
-                    end
-
-                    --currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
-                    currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
-
-                    newRichRows[#newRichRows + 1] = currentRichRow
-                    if currentTableRow ~= nil then
-                        currentTableRow.data.children[#currentTableRow.data.children + 1] = currentRichRow
-                    end
-                elseif token.type == "text" and token.justification == nil and token.text == "\n" and currentRichRow ~= nil then
-                    --this special case doesn't require inserting a text panel. Instead we just end the rich row of content.
-                    currentRichRow = nil
-                elseif token.type == "text" then
-                    if currentTable ~= nil and currentTableRow == nil then
-                        --end of table.
-                        currentRollableTable = nil
-                        currentRichRow = nil
-                        currentTable = nil
-                    end
-
-                    local function MakeTextLabel()
-                        return gui.Label {
-                            classes = {"fg"},
-                            width = "auto",
-                            height = "auto",
-                            maxWidth = "100%",
-                            valign = "center",
-                            vmargin = 0,
-                            markdown = true,
-                            markdownStyle = g_markdownStyle,
-                            textAlignment = "topleft",
-                            fontSize = CustomDocument.ScaleFontSize(14),
-                            pad = 0,
-                            links = true,
-                            hoverLink = function(element, link)
-                                if string.starts_with(link, "spoiler:") then
-                                    return
-                                end
-                                CustomDocument.PreviewLink(element, link)
-                            end,
-                            dehoverLink = function(element, link)
-                                element.tooltip = nil
-                            end,
-                            rightClick = function(element)
-                                if element.linkHovered == nil then return end
-                                local link = element.linkHovered
-                                if string.starts_with(link, "spoiler:") then return end
-                                local doc = CustomDocument.ResolveLink(link)
-                                if doc == nil then return end
-
-                                -- Only show context menu for navigable document types
-                                local isNavigable = false
-                                if type(doc) == "table" or type(doc) == "userdata" then
-                                    if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                        isNavigable = true
-                                    elseif MarkdownRender.IsRenderable(doc) then
-                                        isNavigable = true
-                                    end
-                                end
-                                if not isNavigable then return end
-
-                                element.popup = gui.ContextMenu {
-                                    entries = {
-                                        {
-                                            text = "Open in New Tab",
-                                            click = function()
-                                                element.popup = nil
-                                                CustomDocument.OpenContent(doc)
-                                            end,
-                                        },
-                                    },
-                                }
-                            end,
-                            press = function(element)
-                                if element.popup then
-                                    element.popup = nil
-                                    return
-                                end
-                                if element.linkHovered ~= nil then
-                                    local link = element.linkHovered
-                                    if string.starts_with(link, "spoiler:") then
-                                        local spoilerValue = link:sub(9)
-                                        local spoilerInfo = (m_tokenExtraInfo.spoilers or {})[spoilerValue]
-                                        if spoilerInfo == nil then
-                                            return
-                                        end
-
-                                        local lines = table.shallow_copy(spoilerInfo.lines)
-                                        local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                        for i=spoilerInfo.linepos,#line do
-                                            if line:sub(i,i) == "{" then
-                                                local nextChar = line:sub(i+1,i+1)
-                                                if nextChar == "!" then
-                                                    line = line:sub(1,i) .. line:sub(i+2)
-                                                else
-                                                    line = line:sub(1,i) .. "!" .. line:sub(i+1)
-                                                end
-                                                lines[spoilerInfo.lineIndex] = line
-                                                self:SetTextContent(table.concat(lines, "\n"))
-                                                self:Upload()
-                                                break
-                                            end
-                                        end
-
-                                        return
-                                    end
-
-                                    local doc = CustomDocument.ResolveLink(element.linkHovered)
-                                    if doc ~= nil then
-                                        -- Try in-place navigation for real document types only.
-                                        -- Renderable content (e.g. an item/spell link) wraps into a
-                                        -- transient MarkdownDocument that is never written to the
-                                        -- table, so navigateToDocument (which looks up by id) can't
-                                        -- resolve it -- let those fall through to OpenContent instead.
-                                        local navigableDocId = nil
-                                        if type(doc) == "table" or type(doc) == "userdata" then
-                                            if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
-                                                navigableDocId = doc.id
-                                            end
-                                        end
-
-                                        if navigableDocId then
-                                            local dialogPanel = element:FindParentWithClass("framedPanel")
-                                            if dialogPanel and dialogPanel.data and dialogPanel.data.history then
-                                                dialogPanel:FireEvent("navigateToDocument", navigableDocId)
-                                                return
-                                            end
-                                        end
-
-                                        -- Fall back to opening in new window
-                                        CustomDocument.OpenContent(doc)
-                                    else
-                                        local guid = dmhub.GenerateGuid()
-                                        local markdownDoc = MarkdownDocument.new {
-                                            id = guid,
-                                            description = element.linkHovered,
-                                            content = "# " .. element.linkHovered,
-                                            annotations = {},
-                                        }
-
-                                        dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
-                                        markdownDoc:ShowDocument { edit = true }
-                                    end
-                                end
-                            end,
-                        }
-                    end
-                    if ruledLevels == nil or not TextHasRuledHeading(token.text, ruledLevels) then
-                        -- Fast path: skin has no ruled headings, or this run
-                        -- contains no ruled heading line -> single label, unchanged.
-                        local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
-
-                        textPanel.selfStyle.halign = token.justification or "left"
-
-                        if m_textPanels[#newTextPanels + 1] ~= nil then
-                            textPanel:Unparent()
-                        end
-
-                        local text = token.text
-                        if string.starts_with(text, "\n") then
-                            text = text:sub(2)
-                        end
-
-                        --make it so that leading or trailing spaces are non-breaking
-                        if string.starts_with(text, " ") then
-                            text = "<color=#00000000>.</color>" .. text:sub(2)
-                        end
-
-                        if string.ends_with(text, " ") then
-                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
-                        end
-
-                        textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
-                        newTextPanels[#newTextPanels + 1] = textPanel
-
-                        --find if the string only has a newline at the end or no newline,
-                        --in which case it can go inline.
-                        if (currentRichRow ~= nil and token.text:match("^[^\n]*\n?$") ~= nil) or (currentRichRow == nil and string.find(token.text, "\n") == nil) then
-                            if currentRichRow == nil then
-                                currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                                    flow = "horizontal",
-                                    height = "auto",
-                                    vmargin = 0,
-                                }
-                                if m_richRows[#newRichRows + 1] ~= nil then
-                                    currentRichRow:Unparent()
-                                end
-                                currentRichRow.selfStyle.width = "100%"
-                                currentRichRow.selfStyle.valign = "top"
-                                currentRichRow.selfStyle.maxWidth = nil
-                                currentRichRow.data.children = {}
-                                newRichRows[#newRichRows + 1] = currentRichRow
-                                children[#children + 1] = currentRichRow
-                            end
-
-                            if token.justification then
-                                currentRichRow.selfStyle.width = "100%"
-                            end
-
-                            textPanel.selfStyle.width = "auto"
-                            textPanel.selfStyle.valign = "center"
-                            currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
-                        else
-                            -- Only widen for stylesheet alignment when the author did not set an explicit
-                            -- :>/:<> justification (which positions an auto-width label via panel halign).
-                            textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
-                            textPanel.selfStyle.valign = "top"
-                            children[#children + 1] = textPanel
-                        end
-
-                        if currentRichRow ~= nil and string.find(token.text, "\n") then
-                            currentRichRow = nil
-                        end
-                    else
-                        -- Split path: ruled headings present; emit one label per
-                        -- segment and a rule panel after each ruled-heading segment.
-                        -- Does NOT use the rich-row inline branch (block content).
-                        currentRichRow = nil
-                        local text = token.text
-                        if string.starts_with(text, "\n") then
-                            text = text:sub(2)
-                        end
-                        if string.starts_with(text, " ") then
-                            text = "<color=#00000000>.</color>" .. text:sub(2)
-                        end
-                        if string.ends_with(text, " ") then
-                            text = text:sub(1, -2) .. "<color=#00000000>.</color>"
-                        end
-                        local segments = SplitRunAtRuledHeadings(text, ruledLevels)
-                        for _, seg in ipairs(segments) do
-                            local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
-                            label.selfStyle.halign = token.justification or "left"
-                            if m_textPanels[#newTextPanels + 1] ~= nil then
-                                label:Unparent()
-                            end
-                            -- Only widen for stylesheet alignment when the author did not set an explicit
-                            -- :>/:<> justification (which positions an auto-width label via panel halign).
-                            label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
-                            label.selfStyle.valign = "top"
-                            label.text = ApplySkinToText(
-                                ApplyInlineClasses(seg.text, resolvedClasses),
-                                resolvedSkin,
-                                { ruledLevels = ruledLevels })
-                            newTextPanels[#newTextPanels + 1] = label
-                            children[#children + 1] = label
-                            if seg.ruleLevel ~= nil then
-                                local h = (resolvedSkin.headings or {})[seg.ruleLevel]
-                                local rulePanel = m_headingRules[#newHeadingRules + 1]
-                                if rulePanel == nil then
-                                    rulePanel = BuildHeadingRulePanel(nil, h)
-                                else
-                                    BuildHeadingRulePanel(rulePanel, h)
-                                    rulePanel:Unparent()
-                                end
-                                newHeadingRules[#newHeadingRules + 1] = rulePanel
-                                children[#children + 1] = rulePanel
-                            end
-                        end
-                    end
-                elseif token.type == "blockquote" then
-                    currentRichRow = nil
-                    local blockquote = m_blockquotes[#newBlockquotes + 1] or gui.Panel {
-                        classes = {"blockQuote"},
-                        width = "100%",
-                        height = "auto",
-                        halign = "left",
-                        valign = "top",
-                        flow = "horizontal",
-                        savedoc = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        refreshDocument = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        editDocument = function(element)
-                            element:HaltEventPropagation()
-                        end,
-                        refreshTag = function(element)
-                            element:HaltEventPropagation()
-                        end,
-
-                        gui.MarkdownLabel{
-                            width = "100%-20",
-                            halign = "right",
-                            markdownText = function(element, text)
-                                element:HaltEventPropagation()
-                                element.text = text
-                            end,
-                        }
-                    }
-
-                    if m_blockquotes[#newBlockquotes + 1] ~= nil then
-                        blockquote:Unparent()
-                    end
-
-                    blockquote:FireEventTree("markdownText", SkinQuoteText(resolvedSkin.quote, token.text))
-
-                    ApplyQuoteFrame(blockquote, resolvedSkin.quote)
-
-                    newBlockquotes[#newBlockquotes + 1] = blockquote
-
-                    children[#children+1] = blockquote
-
-                elseif token.type == "styleblock" then
-                    currentRichRow = nil
-                    local cls = resolvedClasses[token.className]
-                    local styleblock = m_styleblocks[#newStyleblocks + 1] or gui.Panel {
-                        width = "100%",
-                        height = "auto",
-                        halign = "left",
-                        valign = "top",
-                        flow = "vertical",
-                        borderBox = true,
-                        savedoc = function(element) element:HaltEventPropagation() end,
-                        refreshDocument = function(element) element:HaltEventPropagation() end,
-                        editDocument = function(element) element:HaltEventPropagation() end,
-                        refreshTag = function(element) element:HaltEventPropagation() end,
-                        gui.MarkdownLabel{
-                            width = "100%",
-                            markdownText = function(element, text)
-                                element:HaltEventPropagation()
-                                element.text = text
-                            end,
-                        }
-                    }
-
-                    -- Apply the class box props (graceful when class is missing or
-                    -- not a block class -> renders as a plain unstyled panel).
-                    local box = (type(cls) == "table" and cls.kind == "block" and cls.box) or {}
-                    ApplyBlockFrame(styleblock, box)
-
-                    if m_styleblocks[#newStyleblocks + 1] ~= nil then
-                        styleblock:Unparent()
-                    end
-
-                    local innerText = token.text
-                    if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil then
-                        innerText = SkinClassTextMarkup(cls.text, token.text)
-                    end
-                    styleblock:FireEventTree("markdownText", innerText)
-
-                    newStyleblocks[#newStyleblocks + 1] = styleblock
-                    children[#children + 1] = styleblock
-
-                elseif token.type == "tag" then
-                    if currentTable ~= nil and currentTableRow == nil then
-                        --end of table.
-                        currentRollableTable = nil
-                        currentRichRow = nil
-                        currentTable = nil
-                    end
-
-                    local text, suffix
-                    local match = regex.MatchGroups(token.text, "^(?<text>.+?):(?<name>.+)$")
-                    if match ~= nil then
-                        text = match.text
-                        suffix = match.name
-                    end
-
-                    local text, suffix = token.text:match("^(.-):(.*)$")
-                    if suffix == nil then
-                        text = token.text
-                    end
-
-                    local fullname = token.text
-                    local richTagFromPattern = nil
-
-                    local patternMatch = nil
-
-                    for key, richTag in pairs(MarkdownDocument.RichTagRegistry) do
-                        if richTag.pattern then
-                            patternMatch = regex.MatchGroups(token.text, richTag.pattern)
-                            if patternMatch ~= nil then
-                                fullname = key
-                                text = key
-                                richTagFromPattern = richTag
-                                break
-                            end
-                        end
-                    end
-
-                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
-
-                    if richTagInfo ~= nil then
-                        local candidate = fullname
-                        local index = 1
-                        while tagsSeen[candidate] do
-                            candidate = fullname .. '-' .. index
-                            index = index + 1
-                        end
-
-                        tagsSeen[candidate] = true
-
-                        local richTag
-                        
-                        if richTagFromPattern then
-                            richTag = DeepCopy(richTagFromPattern)
-                        else
-                            richTag = self.annotations[candidate]
-
-                            --patch over any possible bugs where the saved annotation is not a proper table.
-                            if richTag ~= nil and getmetatable(richTag) == nil then
-                                richTag = nil
-                                self.annotations[candidate] = nil
-                            end
-                        end
-
-                        
-                        if richTag ~= nil then
-                            local panel = m_richPanels[candidate] or richTag:CreateDisplay()
-
-                            if currentRichRow == nil then
-                                currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
-                                    flow = "horizontal",
-                                    height = "auto",
-                                    vmargin = 0,
-                                }
-                                if m_richRows[#newRichRows + 1] ~= nil then
-                                    currentRichRow:Unparent()
-                                end
-                                currentRichRow.selfStyle.width = "100%"
-                                currentRichRow.selfStyle.valign = "top"
-                                currentRichRow.selfStyle.maxWidth = nil
-                                currentRichRow.data.children = {}
-                                newRichRows[#newRichRows + 1] = currentRichRow
-                                children[#children + 1] = currentRichRow
-                            end
-
-                            if m_richPanels[candidate] ~= nil and panel.parent ~= currentRichRow then
-                                panel:Unparent()
-                            end
-
-                            if token.justification then
-                                currentRichRow.selfStyle.width = "100%"
-                            end
-
-                            richTag._tmp_document = self
-                            panel:FireEventTree("refreshTag", richTag, patternMatch or match, token)
-
-                            newRichPanels[candidate] = panel
-                            local embedBox = (resolvedSkin.embed or {}).box
-                            if g_standaloneEmbedTags[string.lower(text)] and embedBox ~= nil and next(embedBox) ~= nil then
-                                -- Wrap so the rich-tag's own look is preserved inside
-                                -- the stylesheet frame (do NOT ApplyBlockFrame the
-                                -- component panel directly).
-                                local frame = m_richFrames[candidate] or gui.Panel { width = "auto", height = "auto", valign = "top" }
-                                ApplyBlockFrame(frame, embedBox)
-                                frame.children = { panel }
-                                newRichFrames[candidate] = frame
-                                currentRichRow.data.children[#currentRichRow.data.children + 1] = frame
-                            else
-                                currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
-                            end
-                        end
-                    end
-                end
-
-                -- Stamp the source line onto whatever top-level children this token
-                -- appended (overwrite, so reused/cached panels refresh each render).
-                for k = stampFrom, #stampChildren do
-                    stampChildren[k].data.srcLine = stampLine
-                end
-            end
-
-            for i, row in ipairs(newRichRows) do
-                row.children = row.data.children
-                row.data.children = nil
-            end
-
-            for i, row in ipairs(newTableRows) do
-                row.children = row.data.children
-                row.data.children = nil
-            end
-
-            for i, t in ipairs(newTables) do
-                -- t is the wrapper; commit rows onto the gui.Table it holds. The
-                -- wrapper carries the block FRAME and the Table carries its inner row
-                -- colors via `styles` (both set in the table render branch), so no
-                -- post-build styling is needed here.
-                local tbl = t.data.tablePanel
-                tbl.children = tbl.data.children
-                tbl.data.children = nil
-            end
-
-            m_rollableTableRowLabels = newRollableTableRowLabels
-            m_rollableTables = newRollableTables
-            m_richRows = newRichRows
-            m_richPanels = newRichPanels
-            m_richFrames = newRichFrames
-            m_textPanels = newTextPanels
-            m_tableRows = newTableRows
-            m_tables = newTables
-            m_dividers = newDividers
-            m_headingRules = newHeadingRules
-            m_powerTables = newPowerTables
-            m_embeds = newEmbeds
-            m_treeNodes = newTreeNodes
-            m_blockquotes = newBlockquotes
-            m_styleblocks = newStyleblocks
-            element.children = children
+            ctx.render = {
+                skin = resolvedSkin,
+                classes = resolvedStylesheet.classes,
+                -- Compute once per render: which heading levels (1..5) carry a rule.
+                -- nil means no ruled headings -> every text run uses the fast path.
+                ruledLevels = HeadingRuleLevels(resolvedSkin),
+                usesAlign = SkinUsesAlign(resolvedSkin),
+                pageColor = pageColor,
+            }
+
+            element.children = RenderMarkdownTokens(ctx, tokens)
         end,
         monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,
         refreshGame = function(element)
@@ -3405,176 +3685,41 @@ function MarkdownDocument.DisplayPanel(self, args)
     return resultPanel
 end
 
-local MarkdownReferenceTooltip
+--Creates the link/rich-tag autocomplete + link-info service used by the
+--journal editors. One instance per editor surface (it keeps popup and
+--suppression state); entry points are input-agnostic and take the input
+--element to inspect. opts:
+--  GetDocument()          - returns the MarkdownDocument being edited
+--                           (annotations feed rich-tag previews); called at
+--                           use time so live document swaps are respected.
+--  OnTextChanged(newText) - optional; fired after the service rewrites the
+--                           input's text (accepting a completion, link
+--                           suggestion fixups) so the host can refresh
+--                           previews and character counts.
+--Returns { Update, Dismiss, UpdateLinkInfo, FindLinkContext, state }.
+local function CreateMarkdownAutocomplete(opts)
+    local function NotifyTextChanged(newText)
+        if opts.OnTextChanged ~= nil then
+            opts.OnTextChanged(newText)
+        end
+    end
 
-function MarkdownDocument:EditPanel(args)
-    local resultPanel
-
-    local markdownReferenceLabel = gui.Label {
-        classes = { "link" },
-        width = "auto",
-        height = "auto",
-        text = "Formatting Guide",
-        fontSize = CustomDocument.ScaleFontSize(16),
-        halign = "left",
-        valign = "top",
-        hover = function(element)
-            element.tooltip = MarkdownReferenceTooltip()
-        end,
-    }
-
-    local editInput
-
-    local savePanel = gui.Panel{
-        flow = "horizontal",
-        width = 160,
-        height = 16,
-        halign = "right",
-
-        gui.Label{
-
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"saveError"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Changes Saved",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            classes = { "fgMuted" },
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"~savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Saving...",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            text = "Unsaved Changes",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Button{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            inputEvents = { "save" },
-            text = "Save",
-            width = 40,
-            height = 16,
-            fontSize = 12,
-            save = function(element)
-                if element:HasClass("changes") then
-                    element:FireEvent("press")
-                end
-            end,
-            press = function(element)
-                local documentPanel = element:FindParentWithClass("documentPanel")
-                if documentPanel ~= nil then
-                    resultPanel:SetClassTree("savePending", true)
-                    documentPanel:FireEvent("saveDocument")
-                end
-            end,
-
-            saveConfirmed = function(element)
-                resultPanel:SetClassTree("savePending", false)
-            end,
-        },
-
-        gui.Label{
-            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
-            --after a delta save AND a full-write retry both go unconfirmed by the server.
-            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
-            --again as soon as the user edits (changes) or a new save is in flight
-            --(savePending), and cleared automatically by a late server confirmation.
-            styles = {
-                {
-                    selectors = {"~saveError"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            color = "#ff5b5b",
-            text = "Save failed!",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-            hover = function(element)
-                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
-            end,
-        },
-    }
-
-    local charactersUsedLabel = gui.Label {
-        classes = {"fg"},
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        rmargin = 246,
-        fontSize = CustomDocument.ScaleFontSize(16),
-        refreshLength = function(element, text)
-            local len = #text
-            local remaining = CustomDocument.MaxLength - len
-            if remaining < 1000 then
-                element:SetClass("danger", remaining < 200)
-
-                element.text = string.format("%d characters remaining...", remaining)
-                element:SetClass("hidden", false)
-            else
-                element:SetClass("hidden", true)
-            end
-        end,
-        refreshDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-        editDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-    }
+    --Positions a popup for the given input. Hosts can override placement via
+    --opts.GetPopupPositioning(inputElement, bracketPos) (the live editor
+    --anchors popups below the whole block input); the default anchors at the
+    --opening bracket so the popup stays stable as the user types.
+    local function ApplyPopupPositioning(inputElement, bracketPos)
+        if opts.GetPopupPositioning ~= nil then
+            inputElement.popupPositioning = opts.GetPopupPositioning(inputElement, bracketPos)
+            return
+        end
+        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
+        if anchorPos ~= nil then
+            inputElement.popupPositioning = anchorPos
+        else
+            inputElement.popupPositioning = "panel"
+        end
+    end
 
     -- Link autocomplete helpers
     local autocompleteState = {
@@ -4027,10 +4172,7 @@ function MarkdownDocument:EditPanel(args)
                                     end
                                     local newText = before .. insertion .. after
                                     local targetCaret = #before + #insertion
-                                    if resultPanel ~= nil then
-                                        resultPanel:FireEventTree("editDocument", newText)
-                                    end
-                                    charactersUsedLabel:FireEvent("refreshLength", newText)
+                                    NotifyTextChanged(newText)
                                     DismissLinkInfo(inputElement)
                                     inputElement:SetTextAndCaret(targetCaret, newText)
                                 end
@@ -4072,13 +4214,7 @@ function MarkdownDocument:EditPanel(args)
                 children = children,
             },
         }
-        -- Position at the opening [ bracket
-        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
@@ -4127,10 +4263,11 @@ function MarkdownDocument:EditPanel(args)
         -- from the current document so tags like [[encounter]] render properly
         local tagContent = string.format("[[%s]]", tagText)
         local previewAnnotations = {}
-        if self.annotations ~= nil then
+        local doc = opts.GetDocument()
+        if doc ~= nil and doc.annotations ~= nil then
             -- The tag key in annotations is the tagText itself (e.g. "encounter:Name")
             -- Also check with disambiguation suffixes (-1, -2, etc.)
-            for k, v in pairs(self.annotations) do
+            for k, v in pairs(doc.annotations) do
                 if k == tagText or string.starts_with(k, tagText .. "-") then
                     previewAnnotations[k] = v
                 end
@@ -4161,12 +4298,7 @@ function MarkdownDocument:EditPanel(args)
             },
         }
 
-        local anchorPos = bracketPos and inputElement:GetCharWorldPosition(bracketPos) or nil
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popupsInheritStyles = true
         inputElement.popup = popup
     end
@@ -4235,10 +4367,7 @@ function MarkdownDocument:EditPanel(args)
             local after = string.sub(text, replaceEnd + 1)
             local newText = before .. result.link .. after
             local targetCaretPos = #before + #result.link
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             DismissAutocomplete(inputElement)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
@@ -4252,10 +4381,7 @@ function MarkdownDocument:EditPanel(args)
             DismissAutocomplete(inputElement)
             local newText = before .. "[[" .. after
             local targetCaretPos = #before + 2
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -4267,10 +4393,7 @@ function MarkdownDocument:EditPanel(args)
             local newText = before .. insertion .. after
             -- Place caret after the insertion
             local targetCaretPos = #before + #insertion
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -4305,10 +4428,7 @@ function MarkdownDocument:EditPanel(args)
             local newText = before .. insertion .. after
             -- Place caret before ]] so the user can add or edit content
             local targetCaretPos = #before + #insertion - 2
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
         end
@@ -4319,10 +4439,7 @@ function MarkdownDocument:EditPanel(args)
             DismissAutocomplete(inputElement)
             local newText = before .. "[" .. result.link .. after
             local targetCaretPos = #before + 1 + #result.link
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", newText)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", newText)
+            NotifyTextChanged(newText)
             -- Use engine-side SetTextAndCaret which defers the caret
             -- positioning until after TMP's activation processing.
             -- The 'caretReady' event fires once the caret is stable.
@@ -4342,10 +4459,7 @@ function MarkdownDocument:EditPanel(args)
         end
         local newText = before .. insertion .. after
         local targetCaretPos = #before + #insertion
-        if resultPanel ~= nil then
-            resultPanel:FireEventTree("editDocument", newText)
-        end
-        charactersUsedLabel:FireEvent("refreshLength", newText)
+        NotifyTextChanged(newText)
         DismissAutocomplete(inputElement)
         inputElement:SetTextAndCaret(targetCaretPos, newText)
     end
@@ -4428,8 +4542,9 @@ function MarkdownDocument:EditPanel(args)
                         end
                         if tagContent then
                             local previewAnnotations = {}
-                            if self.annotations ~= nil and result.link then
-                                for k, v in pairs(self.annotations) do
+                            local doc = opts.GetDocument()
+                            if doc ~= nil and doc.annotations ~= nil and result.link then
+                                for k, v in pairs(doc.annotations) do
                                     if k == result.link or string.starts_with(k, result.link .. "-") then
                                         previewAnnotations[k] = v
                                     end
@@ -4717,21 +4832,146 @@ function MarkdownDocument:EditPanel(args)
         autocompleteState.results = results
         autocompleteState.selectedIndex = 1
         local popup = BuildAutocompletePopup(inputElement, results)
-        -- Position the popup at the opening bracket so it stays stable
-        -- as the user types. bracketPos is 1-based from FindLinkContext.
-        local anchorPos = inputElement:GetCharWorldPosition(bracketPos)
-        if anchorPos ~= nil then
-            inputElement.popupPositioning = anchorPos
-        else
-            inputElement.popupPositioning = "panel"
-        end
+        ApplyPopupPositioning(inputElement, bracketPos)
         inputElement.popup = popup
     end
 
-    local function InsertAction(input, action)
+    return {
+        Update = UpdateAutocomplete,
+        Dismiss = DismissAutocomplete,
+        UpdateLinkInfo = UpdateLinkInfo,
+        FindLinkContext = FindLinkContext,
+        state = autocompleteState,
+    }
+end
+
+--Bottom strip of rich-tag annotation editors (encounter pickers, dice
+--configs, image selectors, ...). Scans the content for [[tags]] whose
+--registry entry has hasEdit, CREATES any missing annotation object on the
+--document (this is what backs a freshly typed tag: display renders nothing
+--for a tag with no annotation), and shows each tag's editor widget.
+--Shared by the classic and live editors. Drive it by firing "editDocument"
+--with the current content, or "refreshDocument" with a doc to pull from.
+--opts.GetDocument() returns the MarkdownDocument being edited.
+local function CreateAnnotationsPanel(opts)
+    local m_richPanels = {}
+
+    return gui.Panel {
+        width = "98%",
+        height = "auto",
+        maxHeight = 200,
+        vscroll = true,
+        vmargin = 8,
+        flow = "horizontal",
+        wrap = true,
+
+        refreshDocument = function(element, doc)
+            if doc ~= nil then
+                element:FireEvent("editDocument", doc:GetTextContent())
+            end
+        end,
+
+        editDocument = function(element, content)
+            local doc = opts.GetDocument()
+            if doc == nil then
+                return
+            end
+
+            local tagsSeen = {}
+
+            local newRichPanels = {}
+            local children = {}
+            local tokens = BreakdownRichTags(content)
+            for i, token in ipairs(tokens) do
+                if token.type == "tag" then
+                    local text, suffix = token.text:match("^(.-):(.*)$")
+                    if suffix == nil then
+                        text = token.text
+                    end
+
+                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
+
+                    if richTagInfo ~= nil and richTagInfo.hasEdit then
+                        local candidate = token.text
+                        local index = 1
+                        while tagsSeen[candidate] do
+                            candidate = token.text .. '-' .. index
+                            index = index + 1
+                        end
+
+                        tagsSeen[candidate] = true
+
+                        local richTag = doc.annotations[candidate]
+                        --patch over any possible bugs where the saved annotation is not a proper table.
+                        if richTag ~= nil and getmetatable(richTag) == nil then
+                            richTag = nil
+                            doc.annotations[candidate] = nil
+                        end
+
+                        if richTag == nil then
+                            richTag = richTagInfo.Create()
+                            richTag.identifier = suffix or false
+                            doc.annotations[candidate] = richTag
+                        end
+
+                        if richTagInfo.hasEdit ~= "hidden" then
+                            local richPanel = m_richPanels[candidate] or gui.Panel {
+                                width = "auto",
+                                height = 120,
+                                flow = "vertical",
+                                halign = "left",
+                                valign = "top",
+                                hmargin = 4,
+                                gui.Panel {
+                                    width = "auto",
+                                    height = 96,
+                                    richTag:CreateEditor(),
+                                },
+                                gui.Label {
+                                    text = candidate,
+                                    fontSize = CustomDocument.ScaleFontSize(12),
+                                    textAlignment = "center",
+                                    width = 96,
+                                    height = "auto",
+                                    halign = "center",
+                                    valign = "center",
+                                },
+                            }
+
+                            newRichPanels[candidate] = richPanel
+                            children[#children + 1] = richPanel
+
+                            richPanel:FireEventTree("refreshEditor", richTag)
+                        end
+                    end
+                end
+            end
+
+            m_richPanels = newRichPanels
+            element.children = children
+        end,
+    }
+end
+
+--Formatting toolbar shared by the classic and live editors: inline wraps
+--(bold/italic/...), heading and list line prefixes, spoilers, link/divider
+--inserts, media/widget rich tags, and the stylesheet picker. opts:
+--  GetInput()               - returns the input to apply an action to. May
+--                             activate an editor first (the live editor
+--                             reactivates the last edited block, since
+--                             clicking a button defocuses and commits it).
+--                             Return nil to make the action a no-op.
+--  GetStylesheetId()        - current stylesheet id ("" for none).
+--  OnStylesheetChanged(id)  - host-specific stylesheet application.
+local function CreateMarkdownToolbar(opts)
+    --caretOverride: hosts that had to reactivate an editor pass the intended
+    --caret explicitly, because SetTextAndCaret defers actual caret placement
+    --across the input's focus acquisition and input.caretPosition cannot be
+    --trusted yet. Overrides collapse the selection at that position.
+    local function InsertAction(input, action, caretOverride)
         local text = input.text or ""
-        local caret = input.caretPosition or #text
-        local anchor = input.selectionAnchorPosition or caret
+        local caret = caretOverride or input.caretPosition or #text
+        local anchor = caretOverride or input.selectionAnchorPosition or caret
         local selStart = math.min(caret, anchor)
         local selEnd   = math.max(caret, anchor)
         local selected = text:sub(selStart + 1, selEnd)
@@ -4763,30 +5003,1694 @@ function MarkdownDocument:EditPanel(args)
         input:FireEvent("edit")
     end
 
+    local function ApplyAction(action)
+        local input, caretOverride = opts.GetInput()
+        if input == nil or not input.valid then
+            return
+        end
+        InsertAction(input, action, caretOverride)
+    end
+
     local function WrapHandler(prefix, suffix)
-        return function() InsertAction(editInput, {
+        return function() ApplyAction{
             mode = "wrap", prefix = prefix, suffix = suffix,
-        }) end
+        } end
     end
 
     local function LineHandler(prefix)
-        return function() InsertAction(editInput, {
+        return function() ApplyAction{
             mode = "linePrefix", prefix = prefix,
-        }) end
+        } end
     end
 
     local function InsertHandler(text, caretOffset)
-        return function() InsertAction(editInput, {
+        return function() ApplyAction{
             mode = "insert", text = text, caretOffset = caretOffset,
-        }) end
+        } end
     end
 
     local function RichTagHandler(tagName)
-        return function() InsertAction(editInput, {
+        return function() ApplyAction{
             mode = "insert",
             text = string.format("[[%s]]\n", tagName),
-        }) end
+        } end
     end
+
+    --Codex Design System treatment (tokens/colors.css + effects.css and the
+    --Button/Select specs): controls are bordered ghosts on the warm-black
+    --surface ladder with the single gold accent at graded alphas. Hover
+    --brightens the border 0.28 -> 0.6 and steps the surface, and nothing
+    --moves, fades, or casts a shadow.
+    --accent updated from gold (#c8a45a) to white by request; the graded
+    --alphas are unchanged so the design's weights are preserved.
+    local DS_SURFACE_2   = "#1a1a1e"   --buttons / inputs
+    local DS_SURFACE_3   = "#222228"   --hover surface
+    local DS_TEXT        = "#e4ddd0"   --parchment body text
+    local DS_GOLD_BD     = "#ffffff47" --white @ 0.28: control border
+    local DS_GOLD_BD_HI  = "#ffffff99" --white @ 0.6: hover/active border
+    local DS_GOLD        = "#ffffff"   --the single accent
+    local DS_GOLD_DIM    = "#ffffff1f" --white @ 0.12: selected/accent fill
+    local DS_GOLD_FILL_HI = "#ffffff59" --white @ 0.35: accent hover fill
+    local DS_GOLD_BD_LO  = "#ffffff26" --white @ 0.15: hairline dividers
+    local DS_SURFACE     = "#131315"   --popover surface
+    local DS_TEXT_SOFT   = "#7a7468"   --warm-muted secondary labels
+
+    --Applied to the toolbar root via ThemeEngine.MergeTokens, the documented
+    --path for overriding inherited theme styling on one control subtree.
+    --These are hardcoded Codex Design System values rather than theme tokens
+    --by explicit decision: the design language is being trialed on this one
+    --surface before deciding whether to author it as a real theme.
+    --NOTE: no cornerRadius in these rules, deliberately. The user's theme
+    --choice (default vs default-rounded) owns corner radii; our design
+    --treatment only overrides color and border weight, so squared/rounded
+    --preference is honored throughout the toolbar.
+    --selector arity matters: the theme styles text buttons via
+    --{label, button}, so these rules must carry both selectors (plus
+    --states) to outrank the theme's whiteish border and fill.
+    local dsToolbarStyles = {
+        {
+            selectors = { "label", "button" },
+            bgimage = "panels/square.png",
+            bgcolor = DS_SURFACE_2,
+            borderColor = DS_GOLD_BD,
+            border = 1,
+            color = DS_TEXT,
+        },
+        {
+            selectors = { "label", "button", "hover" },
+            bgcolor = DS_SURFACE_3,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "label", "button", "press" },
+            bgcolor = DS_SURFACE,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "dropdown" },
+            bgimage = "panels/square.png",
+            bgcolor = DS_SURFACE_2,
+            borderColor = DS_GOLD_BD,
+            border = 1,
+        },
+        {
+            selectors = { "dropdown", "hover" },
+            bgcolor = DS_SURFACE_3,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            selectors = { "label", "dropdownLabel" },
+            color = DS_TEXT,
+            fontSize = 14,
+        },
+        {
+            selectors = { "label", "dropdownOption" },
+            fontSize = 14,
+        },
+        --the one gold-accented button (Draw Steel!): gold-dim fill, bright
+        --gold border and text; hover deepens the fill, never moves.
+        {
+            selectors = { "label", "button", "dsAccent" },
+            bgcolor = DS_GOLD_DIM,
+            borderColor = DS_GOLD_BD_HI,
+            color = DS_GOLD,
+        },
+        {
+            selectors = { "label", "button", "dsAccent", "hover" },
+            bgcolor = DS_GOLD_FILL_HI,
+            borderColor = DS_GOLD_BD_HI,
+        },
+    }
+
+    local function ToolbarButton(label, fontSize, width, handler)
+        return gui.Button{
+            text = label,
+            width = width or 30,
+            height = 30,
+            fontSize = fontSize or 15,
+            valign = "center",
+            hmargin = 3,
+            press = handler,
+        }
+    end
+
+    --hairline between control groups (design: 1px x 20px, gold @ 0.15,
+    --with the design's wider inter-group gap).
+    local function GroupDivider()
+        return gui.Panel{
+            width = 1,
+            height = 20,
+            valign = "center",
+            hmargin = 9,
+            bgimage = "panels/square.png",
+            bgcolor = DS_GOLD_BD_LO,
+        }
+    end
+
+    --the curated "earned" text-color palette from the design system; the
+    --free color wheel is deliberately gone. Picking a swatch wraps the
+    --selection in <color=hex>.
+    local dsPalette = {
+        { name = "Gold",      hex = "#c8a45a" },
+        { name = "Parchment", hex = "#e4ddd0" },
+        { name = "Healthy",   hex = "#2D6A4F" },
+        { name = "Winded",    hex = "#7A4A18" },
+        { name = "Dying",     hex = "#6B2020" },
+        { name = "Success",   hex = "#4db88c" },
+        { name = "Warning",   hex = "#e8a030" },
+        { name = "Failure",   hex = "#c94040" },
+    }
+
+    local function ColorSwatch(entry, host)
+        return gui.Panel{
+            width = 26,
+            height = 26,
+            hmargin = 4,
+            vmargin = 4,
+            bgimage = "panels/square.png",
+            bgcolor = entry.hex,
+            cornerRadius = 13,
+            border = 2,
+            borderColor = "#0a0a0b",
+            styles = {
+                {
+                    selectors = { "hover" },
+                    borderColor = DS_GOLD_BD_HI,
+                },
+            },
+            press = function(element)
+                host.popup = nil
+                WrapHandler(string.format("<color=%s>", entry.hex), "</color>")()
+            end,
+        }
+    end
+
+    local function ColorButton()
+        local button
+        button = gui.Button{
+            text = "Color",
+            width = 64,
+            height = 30,
+            fontSize = 14,
+            valign = "center",
+            hmargin = 3,
+            press = function(element)
+                if element.popup ~= nil then
+                    element.popup = nil
+                    return
+                end
+                local rows = {}
+                for rowIndex = 0, 1 do
+                    local swatches = {}
+                    for col = 1, 4 do
+                        local entry = dsPalette[rowIndex * 4 + col]
+                        if entry ~= nil then
+                            swatches[#swatches + 1] = ColorSwatch(entry, element)
+                        end
+                    end
+                    rows[#rows + 1] = gui.Panel{
+                        flow = "horizontal",
+                        width = "auto",
+                        height = "auto",
+                        children = swatches,
+                    }
+                end
+                element.popupPositioning = "panel"
+                element.popup = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "bottom",
+                    halign = "right",
+                    --themed surface classes (same as the autocomplete popup)
+                    --so the menu chrome, including corner radius, follows
+                    --the user's theme.
+                    gui.Panel{
+                        classes = { "bordered", "bg" },
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        pad = 8,
+                        borderBox = false,
+                        children = rows,
+                    },
+                }
+            end,
+        }
+        return button
+    end
+
+    local headingOptions = {
+        { id = "",       text = "Heading" },
+        { id = "# ",     text = "H1" },
+        { id = "## ",    text = "H2" },
+        { id = "### ",   text = "H3" },
+        { id = "#### ",  text = "H4" },
+        { id = "##### ", text = "H5" },
+        { id = "> ",     text = "Quote" },
+    }
+
+    local mediaTags  = { "image", "sound", "ability", "scene",
+                         "encounter", "party", "follower" }
+    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
+                         "reminder", "timer", "setting" }
+
+    local mediaOptions = { { id = "", text = "Insert Media" } }
+    for _, t in ipairs(mediaTags) do
+        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
+    end
+
+    local widgetOptions = { { id = "", text = "Insert Widget" } }
+    for _, t in ipairs(widgetTags) do
+        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
+    end
+
+    local toolbarRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        valign = "top",
+        halign = "left",
+        borderBox = true,
+        --design metrics: 11px vertical breathing room, 16px edge inset.
+        hpad = 16,
+        vpad = 10,
+
+        --group: history. Only hosts that supply an undo implementation get
+        --these (the live editor); the classic editor relies on the input's
+        --native undo. The wrapper keeps the positional children list free of
+        --nil holes when the group is absent.
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            children = (opts.OnUndo ~= nil) and {
+                ToolbarButton("Undo", 14, 52, function() opts.OnUndo() end),
+                ToolbarButton("Redo", 14, 52, function()
+                    if opts.OnRedo ~= nil then opts.OnRedo() end
+                end),
+                GroupDivider(),
+            } or {},
+        },
+
+        --group: text style (typographic glyphs per the design).
+        ToolbarButton("<b>B</b>", 15, 30, WrapHandler("**", "**")),
+        ToolbarButton("<i>I</i>", 15, 30, WrapHandler("*", "*")),
+        ToolbarButton("<u>U</u>", 15, 30, WrapHandler("__", "__")),
+        ToolbarButton("<s>S</s>", 15, 30, WrapHandler("~~", "~~")),
+
+        GroupDivider(),
+
+        --group: marks.
+        ColorButton(),
+        ToolbarButton("Spoiler", 14, 66, WrapHandler("{", "}")),
+        gui.Dropdown{
+            width = 118, height = 30, idChosen = "", hmargin = 3,
+            options = headingOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    LineHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        GroupDivider(),
+
+        --group: blocks.
+        ToolbarButton("List",    14, 52, LineHandler("* ")),
+        ToolbarButton("Divider", 14, 68, InsertHandler("\n---\n", 5)),
+        ToolbarButton("Link",    14, 50, InsertHandler("[]", 1)),
+
+        --push the insert group to the right edge, per the design.
+        gui.Panel{
+            width = "100% available",
+            height = 1,
+        },
+
+        --group: insert (right-aligned). Draw Steel! is the one gold-accented
+        --control on the bar.
+        gui.Button{
+            classes = { "dsAccent" },
+            text = "Draw Steel!",
+            width = 92,
+            height = 30,
+            fontSize = 14,
+            valign = "center",
+            hmargin = 3,
+            press = InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]'),
+        },
+
+        gui.Dropdown{
+            width = 118, height = 30, idChosen = "", hmargin = 3,
+            options = mediaOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+        gui.Dropdown{
+            width = 118, height = 30, idChosen = "", hmargin = 3,
+            options = widgetOptions,
+            change = function(element)
+                if element.idChosen ~= "" then
+                    RichTagHandler(element.idChosen)()
+                    element.idChosen = ""
+                end
+            end,
+        },
+
+    }
+
+    --Bar 4 per the handoff: the stylesheet picker is its own row with an
+    --uppercase tracked label, not a tail entry on the format bar.
+    local stylesheetRow = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        halign = "left",
+        borderBox = true,
+        hpad = 16,
+        vpad = 8,
+        gui.Label{
+            text = "STYLESHEET",
+            fontSize = 11,
+            bold = true,
+            color = DS_TEXT_SOFT,
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            rmargin = 14,
+        },
+        gui.Dropdown{
+            width = 220,
+            height = 30,
+            halign = "left",
+            options = JournalStylesheet.PickerOptions(),
+            idChosen = opts.GetStylesheetId() or "",
+            change = function(element)
+                opts.OnStylesheetChanged(element.idChosen)
+            end,
+        },
+    }
+
+    local function ToolbarHairline()
+        return gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = DS_GOLD_BD_LO,
+        }
+    end
+
+    --the design separates every chrome row with a gold hairline; the
+    --toolbar carries its own rules so both editors get them. The design
+    --styles live on this wrapper so the stylesheet row's dropdown inherits
+    --them too.
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        bmargin = 6,
+        styles = ThemeEngine.MergeTokens(dsToolbarStyles),
+        toolbarRow,
+        ToolbarHairline(),
+        stylesheetRow,
+        ToolbarHairline(),
+    }
+end
+
+--Obsidian-style live edit surface (experimental, behind liveEditSetting).
+--The document is partitioned into blocks (PartitionTokensIntoBlocks); each
+--block renders through RenderMarkdownTokens exactly like display mode, with
+--a floating click-guard over it. Clicking a block swaps it for a multiline
+--input seeded with that block's source lines; deactivating (click away,
+--escape, focus loss) splices the edited lines back into the document and
+--re-renders. Gap lines between blocks (blanks, false ??? regions) are
+--preserved verbatim across splices.
+--v1 limitations (see JOURNAL_EDITOR_PLAN.md in the dmhubclient repo):
+--selection is confined to the active block; interactive widgets inside
+--blocks are inert while this surface is up (the guard captures clicks);
+--remote edits are ignored while a block is actively being edited.
+function MarkdownDocument:LiveEditPanel(args)
+    args = args or {}
+
+    local resultPanel
+    local m_doc = self
+
+    local m_lines = {}       --master document state, as normalized lines.
+    local m_blocks = {}      --current partition of m_lines into edit blocks.
+    local m_blockPanels = {} --pooled per-block wrapper panels, by block index.
+    local m_activeIndex = nil
+    local m_editInput = nil  --single input reused for whichever block is active.
+    local m_activateTime = 0 --guards the focus watchdog against the focus race.
+    local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
+                             --toolbar reactivate where the user was typing.
+    local m_savedContent = nil --the doc content as of the last load/save;
+                             --distinguishes local unsaved work from a clean
+                             --view so remote refreshes never clobber edits.
+    local m_renderGeneration = 0 --bumped when blocks must re-render even
+                             --with unchanged source (saves adopt merged
+                             --content and annotation configs; stylesheet
+                             --changes; remote adoption).
+    local m_undoStack = {}   --content snapshots, one per committed change;
+                             --drives Ctrl+Z / the toolbar Undo button.
+    local m_redoStack = {}   --snapshots popped by undo, replayed by Ctrl+Y.
+
+    --link/rich-tag autocomplete + link-info popups on the active block input,
+    --shared machinery with the classic editor.
+    local m_autocomplete = CreateMarkdownAutocomplete{
+        GetDocument = function()
+            return m_doc
+        end,
+        OnTextChanged = function(newText)
+            --the service just rewrote the input's text and will re-focus it;
+            --renew the watchdog grace period so the block is not committed
+            --mid-completion.
+            m_activateTime = dmhub.Time()
+        end,
+        --no GetPopupPositioning override: use the service default, which
+        --anchors the popup at the typed bracket (GetCharWorldPosition) so
+        --suggestions appear at the caret rather than pinned to the block's
+        --frame at the end of the line.
+    }
+
+    --rich-tag annotation editor strip (encounter pickers, dice configs...),
+    --shared machinery with the classic editor. Its scan also CREATES missing
+    --annotation objects for typed tags, which the block renderer needs: a
+    --tag with no annotation renders as nothing. Therefore the scan must run
+    --after every content change and BEFORE blocks re-render.
+    local m_annotationsPanel = CreateAnnotationsPanel{
+        GetDocument = function()
+            return m_doc
+        end,
+    }
+
+    local function RefreshAnnotations(content)
+        m_annotationsPanel:FireEvent("editDocument", content)
+    end
+
+    local m_listPanel
+    local m_pagePanel --the scrollable page surface; painted with the
+                      --stylesheet's page color each refresh, like DisplayPanel.
+
+    --forward declarations: these reference each other from closures.
+    local ActivateBlock
+    local DeactivateBlock
+    local RefreshBlockPanels
+
+    local function GetContent()
+        return table.concat(m_lines, "\n")
+    end
+
+    local function SetLinesFromContent(content)
+        content = (content or ""):gsub("\v", "\n"):gsub("\r", "")
+        m_lines = string.split_allow_duplicates(content, "\n")
+    end
+
+    local function BlockSource(block)
+        return table.concat(m_lines, "\n", block.lineStart, block.lineEnd)
+    end
+
+    --Snapshot the pre-change content so Ctrl+Z can restore it. One entry per
+    --committed change (block granularity); any new change invalidates redo.
+    local UNDO_LIMIT = 50
+    local function PushUndo(content)
+        if m_undoStack[#m_undoStack] == content then
+            return
+        end
+        m_undoStack[#m_undoStack + 1] = content
+        if #m_undoStack > UNDO_LIMIT then
+            table.remove(m_undoStack, 1)
+        end
+        m_redoStack = {}
+    end
+
+    local function IsHeadingLine(line)
+        return line ~= nil and line:match("^#+[ \t]") ~= nil
+    end
+
+    --Long prose runs tokenize as one text token, so the partitioner hands
+    --back blocks that can span a heading plus everything around it. Split
+    --those so each heading line edits as its own block (letting the input
+    --mirror the heading's rendered size; see BlockEditFont) while the prose
+    --between headings stays one block. Only blocks whose stamped tokens are
+    --all plain text are split - tables, widgets, styleblocks, and collapse
+    --wrappers keep their existing grouping. Sub-blocks re-tokenize their own
+    --source; per-block token line stamps are only used for rendering, so
+    --relative positions are fine.
+    local function SplitHeadingBlocks(blocks)
+        local result = {}
+        for _, block in ipairs(blocks) do
+            local textOnly = true
+            for _, token in ipairs(block.tokens) do
+                if token.srcLine ~= nil and token.type ~= "text" and token.type ~= "justification" then
+                    textOnly = false
+                    break
+                end
+            end
+            local hasHeading = false
+            if textOnly and block.lineEnd > block.lineStart then
+                for i = block.lineStart, block.lineEnd do
+                    if IsHeadingLine(m_lines[i]) then
+                        hasHeading = true
+                        break
+                    end
+                end
+            end
+
+            if not (textOnly and hasHeading) then
+                result[#result + 1] = block
+            else
+                --blank edge lines belong to no block (the splice model
+                --preserves them verbatim), so trim them off each run.
+                local function EmitRun(s, e)
+                    while s <= e and trim(m_lines[s] or "") == "" do s = s + 1 end
+                    while e >= s and trim(m_lines[e] or "") == "" do e = e - 1 end
+                    if s > e then
+                        return
+                    end
+                    local src = table.concat(m_lines, "\n", s, e)
+                    result[#result + 1] = {
+                        lineStart = s,
+                        lineEnd = e,
+                        tokens = BreakdownRichTags(src, nil, { player = false }),
+                    }
+                end
+                local runStart = nil
+                for i = block.lineStart, block.lineEnd do
+                    if IsHeadingLine(m_lines[i]) then
+                        if runStart ~= nil then
+                            EmitRun(runStart, i - 1)
+                            runStart = nil
+                        end
+                        EmitRun(i, i)
+                    elseif runStart == nil then
+                        runStart = i
+                    end
+                end
+                if runStart ~= nil then
+                    EmitRun(runStart, block.lineEnd)
+                end
+            end
+        end
+        return result
+    end
+
+    --Tokenize and partition the current content. Note player=false: ranges
+    --must map to the true source (StripSpoilers rewrites the string, which
+    --would corrupt splicing), and anyone on this surface can already see the
+    --raw source in the input, exactly like the classic edit tab.
+    local function RebuildBlockData()
+        local tokens = BreakdownRichTags(GetContent(), nil, { player = false, trackPositions = true })
+        m_blocks = SplitHeadingBlocks(MarkdownDocument.PartitionTokensIntoBlocks(tokens))
+
+        if #m_blocks == 0 then
+            --empty document: synthesize one block covering everything so
+            --there is something to click on.
+            m_blocks = {
+                {
+                    lineStart = 1,
+                    lineEnd = math.max(1, #m_lines),
+                    tokens = {},
+                    placeholder = true,
+                },
+            }
+        end
+    end
+
+    --If the doc grows past its limit the input refuses further characters;
+    --budget = whatever the rest of the document is not using.
+    local function ActiveCharacterBudget(blockSourceLength)
+        return math.max(1, CustomDocument.MaxLength - (#GetContent() - blockSourceLength))
+    end
+
+    --Splices the active block's input text back into m_lines. Returns the
+    --resulting change in total line count (0 if nothing was active).
+    local function CommitActiveBlock()
+        if m_activeIndex == nil or m_editInput == nil then
+            return 0
+        end
+        local block = m_blocks[m_activeIndex]
+        if block == nil then
+            return 0
+        end
+
+        local oldCount = block.lineEnd - block.lineStart + 1
+        local editedText = (m_editInput.text or ""):gsub("\v", "\n"):gsub("\r", "")
+        local edited = string.split_allow_duplicates(editedText, "\n")
+
+        local oldContent = GetContent()
+
+        local newLines = {}
+        for i = 1, block.lineStart - 1 do
+            newLines[#newLines + 1] = m_lines[i]
+        end
+        for _, line in ipairs(edited) do
+            newLines[#newLines + 1] = line
+        end
+        for i = block.lineEnd + 1, #m_lines do
+            newLines[#newLines + 1] = m_lines[i]
+        end
+        m_lines = newLines
+
+        if GetContent() ~= oldContent then
+            PushUndo(oldContent)
+        end
+
+        return #edited - oldCount
+    end
+
+    --Master content with the active block's uncommitted input text spliced
+    --in virtually; used for save/dirty checks without disturbing the edit.
+    local function GetContentIncludingActive()
+        if m_activeIndex == nil or m_editInput == nil then
+            return GetContent()
+        end
+        local block = m_blocks[m_activeIndex]
+        if block == nil then
+            return GetContent()
+        end
+
+        local parts = {}
+        if block.lineStart > 1 then
+            parts[#parts + 1] = table.concat(m_lines, "\n", 1, block.lineStart - 1)
+        end
+        parts[#parts + 1] = m_editInput.text or ""
+        if block.lineEnd < #m_lines then
+            parts[#parts + 1] = table.concat(m_lines, "\n", block.lineEnd + 1, #m_lines)
+        end
+        return table.concat(parts, "\n")
+    end
+
+    --1-based line the caret is on within the input's text (same counting
+    --technique as SyncPreviewScroll; caretPosition is 0-based).
+    local function CaretLine(input)
+        local text = input.text or ""
+        local caret = input.caretPosition or 0
+        local line = 1
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                line = line + 1
+            end
+        end
+        return line
+    end
+
+    local function CountLines(text)
+        local _, newlines = (text or ""):gsub("\n", "")
+        return newlines + 1
+    end
+
+    --Heading level (1-6) when the block's source is a single heading line,
+    --nil otherwise. Used to mirror the rendered heading treatment while the
+    --block is being edited.
+    local function BlockHeadingLevel(src)
+        local line = trim(src or "")
+        if line == "" or line:find("\n", 1, true) ~= nil then
+            return nil
+        end
+        local hashes = line:match("^(#+)[ \t]")
+        if hashes ~= nil and #hashes <= 6 then
+            return #hashes
+        end
+        return nil
+    end
+
+    --The font size the live-edit input should use for a block, plus the
+    --skin's heading entry when the block is a heading: body size normally,
+    --scaled by the heading's sizePct so entering edit mode keeps the text
+    --at the size it renders at. The default skin mirrors g_markdownStyle
+    --(200%..120%), so unskinned headings match too.
+    local function BlockEditFont(src, skin)
+        local size = CustomDocument.ScaleFontSize(14)
+        local heading = nil
+        local level = BlockHeadingLevel(src)
+        if level ~= nil then
+            heading = ((skin or {}).headings or {})[level] or {}
+            local pct = heading.sizePct or 100
+            if pct ~= 100 then
+                size = size * pct / 100
+            end
+        end
+        return size, heading
+    end
+
+    local function EnsureEditInput()
+        if m_editInput ~= nil and m_editInput.valid then
+            return m_editInput
+        end
+
+        m_editInput = gui.Input{
+            --match the rendered document: body text renders at
+            --ScaleFontSize(14) in the theme's label face (inputs default to
+            --the @input face, so re-point the base face at @label), so the
+            --block barely changes appearance when it swaps to the input.
+            --The default input chrome (dark @bg fill + border) is stripped
+            --so the stylesheet's page color shows through the edit area,
+            --exactly like the rendered blocks around it. The stylesheet's
+            --body/heading font face, size, and ink color are applied
+            --per-activation in RefreshBlockPanels (they change with the
+            --skin and with the block being a heading).
+            --pad/margin zeroed to match the rendered labels (pad 0), so the
+            --block's height barely changes when it swaps to the input;
+            --minHeight is set per-activation to one line of the block's
+            --edit font rather than a fixed 30px for the same reason.
+            styles = ThemeEngine.MergeTokens({
+                {
+                    selectors = { "input" },
+                    fontFace = "@label",
+                    bgcolor = "#00000000",
+                    border = 0,
+                    pad = 0,
+                    margin = 0,
+                },
+            }),
+            width = "100%",
+            height = "auto",
+            multiline = true,
+            textAlignment = "topleft",
+            fontSize = CustomDocument.ScaleFontSize(14),
+            selectAllOnFocus = false,
+
+            thinkTime = 0.2,
+            editlag = 0.3,
+
+            edit = function(element)
+                --track the live caret while it is trustworthy (focused);
+                --this is what the toolbar reactivates after its click
+                --defocuses and commits the block.
+                if m_activeIndex ~= nil then
+                    local block = m_blocks[m_activeIndex]
+                    if block ~= nil then
+                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
+                    end
+                end
+                m_autocomplete.Update(element)
+                --keep the annotation strip live while typing, like the
+                --classic editor; this also pre-creates annotations so the
+                --widget renders the moment the block commits.
+                RefreshAnnotations(GetContentIncludingActive())
+            end,
+
+            caretReady = function(element)
+                m_autocomplete.Update(element)
+            end,
+
+            --autocomplete dismissal + link-info refresh, mirroring the
+            --classic editor's input think handler.
+            think = function(element)
+                if m_activeIndex ~= nil and element.hasInputFocus then
+                    local block = m_blocks[m_activeIndex]
+                    if block ~= nil then
+                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
+                    end
+                end
+                if #m_autocomplete.state.results > 0 then
+                    local searchText, bracketPos, contextType = m_autocomplete.FindLinkContext(element.text or "", element.caretPosition or 0)
+                    if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
+                        m_autocomplete.Dismiss(element)
+                    end
+                else
+                    m_autocomplete.UpdateLinkInfo(element)
+                end
+            end,
+
+            --fires when the input loses focus after edits.
+            change = function(element)
+                if element.popup ~= nil then
+                    --an autocomplete/link popup is mid-interaction; the
+                    --service re-focuses the input itself after accepting.
+                    return
+                end
+                DeactivateBlock()
+            end,
+
+            escape = function(element)
+                DeactivateBlock()
+            end,
+
+            --arrow keys at the block's edge flow into the neighboring block,
+            --so the cursor travels the document like a single continuous
+            --editor. The engine fires these on every keypress while focused;
+            --we only act at the boundary lines.
+            uparrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex > 1
+                   and CaretLine(element) <= 1 then
+                    ActivateBlock(m_activeIndex - 1, "end")
+                end
+            end,
+
+            downarrow = function(element)
+                if m_activeIndex ~= nil and m_activeIndex < #m_blocks
+                   and CaretLine(element) >= CountLines(element.text) then
+                    ActivateBlock(m_activeIndex + 1, "start")
+                end
+            end,
+        }
+        return m_editInput
+    end
+
+    local function CreateBlockPanel()
+        local ctx = CreateMarkdownRenderContext(m_doc, 0)
+
+        local contentPanel = gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+        }
+
+        local inputHost = gui.Panel{
+            classes = { "collapsed" },
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+        }
+
+        --The wrapper itself is the click target: it carries a hit-testable
+        --transparent background and the press handler, and the rendered
+        --content is made non-interactive after each render
+        --(MakeNonInteractiveRecursive in RefreshBlockPanels). This makes the
+        --whole block clickable, leaves widgets inside inert while live
+        --editing, and avoids overlay geometry entirely (a floating
+        --height="100%" child of an auto-height parent does not track the
+        --block's real bounds). bgcolor lives in styles, never inline, so the
+        --hover highlight can apply; the editing class suppresses it while
+        --the block hosts the input.
+        local wrapper
+        wrapper = gui.Panel{
+            classes = { "liveEditBlock" },
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+            vmargin = 2,
+            --I-beam over editable chunks: signals click-to-type like any
+            --text editor, alongside the (deliberately faint) hover wash.
+            hoverCursor = "text",
+            bgimage = "panels/square.png",
+            --selector arity: the theme paints bare panels with its dark
+            --surface via a {panel} rule, so these must carry
+            --{panel, liveEditBlock} to stay transparent and let the
+            --stylesheet's page color show through. Hover wash is gold-dim
+            --so it reads on both dark and parchment pages.
+            styles = {
+                {
+                    selectors = { "panel", "liveEditBlock" },
+                    bgcolor = "#00000000",
+                },
+                {
+                    selectors = { "panel", "liveEditBlock", "hover" },
+                    --deliberately faint: just enough to signal the block is
+                    --clickable without strobing as the mouse travels the page.
+                    bgcolor = "#ffffff0a",
+                },
+                {
+                    selectors = { "panel", "liveEditBlock", "hover", "editing" },
+                    bgcolor = "#00000000",
+                },
+            },
+            press = function(element)
+                --map the click's position within the block to a source line
+                --and column so the caret lands near where the user aimed.
+                --mousePoint is normalized within the panel with y running
+                --bottom-up (Unity convention); invert for a from-top
+                --fraction. Approximate (rendered heights vary per line and
+                --the face is proportional), but far better than always
+                --landing at the end.
+                local fraction = nil
+                local xFraction = nil
+                local point = element.mousePoint
+                if point ~= nil then
+                    fraction = 1 - point.y
+                    xFraction = point.x
+                end
+                ActivateBlock(element.data.index, {
+                    fraction = fraction,
+                    xFraction = xFraction,
+                    pixelWidth = element.renderedWidth,
+                })
+            end,
+            data = {
+                index = nil,
+                ctx = ctx,
+                contentPanel = contentPanel,
+                inputHost = inputHost,
+                placeholderLabel = nil,
+            },
+            contentPanel,
+            inputHost,
+        }
+        return wrapper
+    end
+
+    RefreshBlockPanels = function()
+        --resolve the skin once per refresh and share it into every block's
+        --render context, mirroring what DisplayPanel does per render.
+        local resolvedStylesheet = m_doc:GetResolvedStylesheet()
+        local resolvedSkin = resolvedStylesheet.base
+        local render = {
+            skin = resolvedSkin,
+            classes = resolvedStylesheet.classes,
+            ruledLevels = HeadingRuleLevels(resolvedSkin),
+            usesAlign = SkinUsesAlign(resolvedSkin),
+            pageColor = SkinColor((resolvedSkin.page or {}).bgcolor),
+        }
+
+        --paint the stylesheet's page onto the live-edit surface, exactly as
+        --DisplayPanel does: page color behind all blocks so skinned content
+        --sits on its intended background, and the page margin inset.
+        --Cleared when the skin sets none so the default look is untouched.
+        if m_pagePanel ~= nil then
+            if render.pageColor then
+                m_pagePanel.bgimage = "panels/square.png"
+                m_pagePanel.bgcolor = render.pageColor
+            else
+                m_pagePanel.bgimage = nil
+                m_pagePanel.bgcolor = nil
+            end
+            local pageMargin = (resolvedSkin.page or {}).margin
+            if type(pageMargin) == "number" and pageMargin > 0 then
+                m_pagePanel.hpad = pageMargin
+                m_pagePanel.vpad = pageMargin
+                m_pagePanel.borderBox = true
+            else
+                m_pagePanel.hpad = nil
+                m_pagePanel.vpad = nil
+                m_pagePanel.borderBox = nil
+            end
+        end
+
+        local children = {}
+        for index, block in ipairs(m_blocks) do
+            local wrapper = m_blockPanels[index]
+            if wrapper == nil then
+                wrapper = CreateBlockPanel()
+                m_blockPanels[index] = wrapper
+            end
+            wrapper.data.index = index
+            wrapper.data.ctx.doc = m_doc
+            wrapper.data.ctx.render = render
+
+            local active = (index == m_activeIndex)
+            wrapper.data.inputHost:SetClass("collapsed", not active)
+            wrapper.data.contentPanel:SetClass("collapsed", active)
+            wrapper:SetClass("editing", active)
+
+            if active then
+                local input = EnsureEditInput()
+                --match the input to what the block renders as: the
+                --stylesheet's body face and size normally, the heading
+                --face/size/weight when the block is a heading line, so
+                --entering edit mode does not jar the text. Unset or
+                --unavailable faces fall back to the default face (same
+                --rule as SkinFont).
+                local size, heading = BlockEditFont(BlockSource(block), resolvedSkin)
+                local face = (resolvedSkin.body or {}).font
+                local bold = false
+                --the stylesheet's ink: heading color when the block is a
+                --heading and sets one, else the body color. nil falls back
+                --to the theme's default input color - right for dark pages,
+                --while light-page stylesheets set an explicit dark ink.
+                local ink = SkinColor((resolvedSkin.body or {}).color)
+                if heading ~= nil then
+                    if type(heading.font) == "string" and heading.font ~= "" then
+                        face = heading.font
+                    end
+                    bold = (heading.weight == "bold" or heading.weight == "black")
+                    ink = SkinColor(heading.color) or ink
+                end
+                input.selfStyle.fontSize = size
+                input.selfStyle.bold = bold
+                input.selfStyle.color = ink
+                --one line of the edit font, so an empty block still shows a
+                --caret without padding the block taller than its render.
+                input.selfStyle.minHeight = math.ceil(size * 1.4)
+                if type(face) == "string" and face ~= "" and FontAvailable(face) then
+                    input.selfStyle.fontFace = face
+                else
+                    input.selfStyle.fontFace = nil
+                end
+                if input.parent ~= wrapper.data.inputHost then
+                    if input.parent ~= nil then
+                        input:Unparent()
+                    end
+                    wrapper.data.inputHost.children = { input }
+                end
+            elseif block.placeholder then
+                if wrapper.data.placeholderLabel == nil or not wrapper.data.placeholderLabel.valid then
+                    wrapper.data.placeholderLabel = gui.Label{
+                        classes = { "fg" },
+                        text = "Click to start writing...",
+                        fontSize = CustomDocument.ScaleFontSize(14),
+                        opacity = 0.5,
+                        width = "auto",
+                        height = "auto",
+                        vpad = 8,
+                    }
+                end
+                wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
+                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                wrapper.data.renderedSource = nil
+            else
+                --only re-render blocks whose source, stylesheet, or render
+                --generation changed; on a typical commit every other block
+                --is byte-identical and reuses its rendered panels as-is.
+                --resolvedStylesheet is memoized, so identity comparison
+                --detects stylesheet edits (ClearCache yields a new table).
+                local source = BlockSource(block)
+                if wrapper.data.renderedSource ~= source
+                   or wrapper.data.renderedStylesheet ~= resolvedStylesheet
+                   or wrapper.data.renderedGeneration ~= m_renderGeneration then
+                    wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
+                    --clicks anywhere on the block must reach the wrapper's
+                    --press handler; rendered widgets are inert on this
+                    --surface (v1).
+                    wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                    wrapper.data.renderedSource = source
+                    wrapper.data.renderedStylesheet = resolvedStylesheet
+                    wrapper.data.renderedGeneration = m_renderGeneration
+                end
+            end
+
+            children[#children + 1] = wrapper
+        end
+
+        for i = #m_blocks + 1, #m_blockPanels do
+            m_blockPanels[i] = nil
+        end
+
+        m_listPanel.children = children
+    end
+
+    DeactivateBlock = function()
+        if m_activeIndex == nil then
+            return
+        end
+        if m_editInput ~= nil and m_editInput.valid then
+            m_autocomplete.Dismiss(m_editInput)
+            m_editInput.popup = nil
+        end
+        --m_lastEdit (where the toolbar reactivates) is tracked while the
+        --input is focused - the caret is not reliable after defocus, so it
+        --is deliberately NOT re-read here.
+        CommitActiveBlock()
+        m_activeIndex = nil
+        RebuildBlockData()
+        RefreshAnnotations(GetContent())
+        RefreshBlockPanels()
+    end
+
+    --caretPlacement: "start" puts the caret at the beginning of the block's
+    --source (arriving from above), anything else at the end (default; also
+    --used when arriving from below).
+    ActivateBlock = function(index, caretPlacement)
+        if index == nil or index == m_activeIndex then
+            return
+        end
+        local target = m_blocks[index]
+        if target == nil then
+            return
+        end
+        local targetLine = target.lineStart
+
+        if m_activeIndex ~= nil then
+            --commit the current edit first; the target block's lines may
+            --shift if the edit changed the line count above it.
+            local active = m_blocks[m_activeIndex]
+            local delta = CommitActiveBlock()
+            if active ~= nil and targetLine > active.lineEnd then
+                targetLine = targetLine + delta
+            end
+            m_activeIndex = nil
+            RebuildBlockData()
+            RefreshAnnotations(GetContent())
+
+            index = nil
+            for i, block in ipairs(m_blocks) do
+                if targetLine <= block.lineEnd then
+                    index = i
+                    break
+                end
+            end
+            if index == nil and #m_blocks > 0 then
+                index = #m_blocks
+            end
+        end
+
+        m_activeIndex = index
+        RefreshBlockPanels()
+
+        if m_activeIndex ~= nil then
+            local block = m_blocks[m_activeIndex]
+            local src = BlockSource(block)
+            m_activateTime = dmhub.Time()
+            m_editInput.characterLimit = ActiveCharacterBudget(#src)
+            local caret = #src
+            if caretPlacement == "start" then
+                caret = 0
+            elseif type(caretPlacement) == "table" and caretPlacement.fraction ~= nil then
+                --caret on the source line nearest the click's vertical
+                --position within the block, at the column nearest its
+                --horizontal position.
+                local lineCount = CountLines(src)
+                local targetLine = math.floor(caretPlacement.fraction * lineCount) + 1
+                if targetLine < 1 then targetLine = 1 end
+                if targetLine > lineCount then targetLine = lineCount end
+
+                --1-based [first, last] char span of the target line in src.
+                local lineFirst = 1
+                if targetLine > 1 then
+                    local seen = 0
+                    for i = 1, #src do
+                        if src:sub(i, i) == "\n" then
+                            seen = seen + 1
+                            if seen == targetLine - 1 then
+                                lineFirst = i + 1
+                                break
+                            end
+                        end
+                    end
+                end
+                local lineLast = #src
+                local nl = src:find("\n", lineFirst, true)
+                if nl ~= nil then
+                    lineLast = nl - 1
+                end
+
+                caret = lineLast --caret is 0-based; this is end-of-line.
+                if caretPlacement.xFraction ~= nil
+                   and caretPlacement.pixelWidth ~= nil
+                   and caretPlacement.pixelWidth > 0 then
+                    --approximate a column from the click's pixel offset,
+                    --assuming an average glyph is about half the font size
+                    --wide (using the size the block will actually edit at,
+                    --which is larger for heading blocks). Proportional
+                    --faces and markdown syntax make this inexact; clamping
+                    --to the line keeps it sane.
+                    local editFontSize = BlockEditFont(src, m_doc:GetResolvedStylesheet().base)
+                    local approxCharWidth = editFontSize * 0.5
+                    local px = caretPlacement.xFraction * caretPlacement.pixelWidth
+                    local col = math.floor(px / approxCharWidth + 0.5)
+                    local lineLen = lineLast - lineFirst + 1
+                    if col < 0 then col = 0 end
+                    if col > lineLen then col = lineLen end
+                    caret = (lineFirst - 1) + col
+                end
+            end
+            m_editInput:SetTextAndCaret(caret, src)
+            m_editInput.hasInputFocus = true
+            m_lastEdit = { line = block.lineStart, caret = caret }
+        end
+    end
+
+    --Appends a fresh empty paragraph after the last block and opens it for
+    --editing; the click-below-the-document affordance. The new paragraph
+    --gets a synthetic block over a fresh blank line (blank lines belong to
+    --no block, so the partitioner cannot produce one); once the user types
+    --and the block commits, it becomes a real content block.
+    local function AppendParagraph()
+        DeactivateBlock()
+
+        if #m_lines == 0 or trim(m_lines[#m_lines] or "") ~= "" then
+            m_lines[#m_lines + 1] = "" --separator from the last content line.
+        end
+        m_lines[#m_lines + 1] = ""     --the new paragraph's home line.
+
+        RebuildBlockData()
+        if m_blocks[#m_blocks] == nil or not m_blocks[#m_blocks].placeholder then
+            m_blocks[#m_blocks + 1] = {
+                lineStart = #m_lines,
+                lineEnd = #m_lines,
+                tokens = {},
+                placeholder = true,
+            }
+        end
+        RefreshBlockPanels()
+        ActivateBlock(#m_blocks)
+    end
+
+    --Adopt restored content wholesale (undo/redo): rebuild everything and
+    --refresh the changes indicator against the last saved content.
+    local function RestoreContent(content)
+        SetLinesFromContent(content)
+        m_lastEdit = nil
+        m_renderGeneration = m_renderGeneration + 1
+        RebuildBlockData()
+        RefreshAnnotations(GetContent())
+        RefreshBlockPanels()
+        if resultPanel ~= nil then
+            resultPanel:SetClassTree("changes", GetContent() ~= m_savedContent)
+        end
+    end
+
+    --Ctrl+Z / the toolbar Undo button. A mid-edit block is committed first
+    --(pushing its own snapshot), so undo reverts the thing the user just did.
+    local function PerformUndo()
+        if m_activeIndex ~= nil then
+            DeactivateBlock()
+        end
+        local prev = m_undoStack[#m_undoStack]
+        if prev == nil then
+            return
+        end
+        m_undoStack[#m_undoStack] = nil
+        m_redoStack[#m_redoStack + 1] = GetContent()
+        RestoreContent(prev)
+    end
+
+    local function PerformRedo()
+        --deactivating a dirty block commits a fresh change, which clears the
+        --redo stack via PushUndo; that is the correct outcome (a new edit
+        --invalidates redo history).
+        if m_activeIndex ~= nil then
+            DeactivateBlock()
+        end
+        local nxt = m_redoStack[#m_redoStack]
+        if nxt == nil then
+            return
+        end
+        m_redoStack[#m_redoStack] = nil
+        --push directly (not PushUndo) so the redo stack survives.
+        m_undoStack[#m_undoStack + 1] = GetContent()
+        RestoreContent(nxt)
+    end
+
+    --the formatting toolbar, shared with the classic editor. Toolbar clicks
+    --defocus the input, which commits and deactivates the block before the
+    --button handler runs; GetInput reactivates the last edited block (line
+    --anchored, caret restored) so the action lands where the user was typing.
+    local m_toolbar = CreateMarkdownToolbar{
+        OnUndo = PerformUndo,
+        OnRedo = PerformRedo,
+        GetInput = function()
+            if m_activeIndex ~= nil then
+                return m_editInput
+            end
+            if m_lastEdit == nil then
+                return nil
+            end
+            local index = nil
+            for i, block in ipairs(m_blocks) do
+                if m_lastEdit.line <= block.lineEnd then
+                    index = i
+                    break
+                end
+            end
+            if index == nil then
+                return nil
+            end
+            ActivateBlock(index)
+            if m_activeIndex == nil or m_editInput == nil or not m_editInput.valid then
+                return nil
+            end
+            --hand the intended caret to the action explicitly: the caret set
+            --during activation is still pending (deferred across the focus
+            --race), so reading input.caretPosition here would act on a stale
+            --position.
+            local caret = nil
+            if m_lastEdit ~= nil and m_lastEdit.caret ~= nil then
+                caret = math.min(m_lastEdit.caret, #(m_editInput.text or ""))
+            end
+            return m_editInput, caret
+        end,
+        GetStylesheetId = function()
+            return m_doc.styleSheetId or ""
+        end,
+        OnStylesheetChanged = function(chosen)
+            m_doc.styleSheetId = (chosen ~= "" and chosen) or false
+            ResolveStylesheet.ClearCache()
+            m_doc._tmp_styleDirty = true
+            m_renderGeneration = m_renderGeneration + 1
+            RefreshBlockPanels()
+            if resultPanel ~= nil then
+                resultPanel:SetClassTree("changes", true)
+            end
+        end,
+    }
+
+    m_listPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        valign = "top",
+    }
+
+    m_pagePanel = gui.Panel{
+        width = "98%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+        vscroll = true,
+        flow = "vertical",
+        m_listPanel,
+
+        --click below the last block to append a new paragraph
+        --(hairline-free: this is content space, not chrome). Same selector
+        --arity note as the block wrappers: {panel, class} keeps the theme's
+        --panel fill from painting this dark.
+        gui.Panel{
+            classes = { "liveEditAppend" },
+            width = "100%",
+            height = 48,
+            hoverCursor = "text",
+            bgimage = "panels/square.png",
+            styles = {
+                {
+                    selectors = { "panel", "liveEditAppend" },
+                    bgcolor = "#00000000",
+                },
+                {
+                    selectors = { "panel", "liveEditAppend", "hover" },
+                    --kept in step with the block hover wash above.
+                    bgcolor = "#ffffff0a",
+                },
+            },
+            press = function(element)
+                AppendParagraph()
+            end,
+        },
+    }
+
+    resultPanel = gui.Panel{
+        classes = { "collapsed" },
+        styles = ThemeEngine.GetStyles(),
+        width = "100%",
+        height = "100%-0",
+        valign = "top",
+        tmargin = 2,
+        flow = "vertical",
+
+        --document-level history: Ctrl+Z/Ctrl+Y route here when the engine
+        --dispatches them as input events (the focused block input handles
+        --its own in-edit undo natively).
+        inputEvents = { "undo", "redo" },
+        undo = function(element)
+            PerformUndo()
+        end,
+        redo = function(element)
+            PerformRedo()
+        end,
+
+        --focus watchdog: if the active input silently lost focus (clicked
+        --into another panel entirely) commit and re-render. The grace period
+        --covers the input's multi-frame focus acquisition.
+        thinkTime = 0.25,
+        think = function(element)
+            if m_activeIndex == nil then
+                return
+            end
+            if dmhub.Time() - m_activateTime < 0.5 then
+                return
+            end
+            if m_editInput ~= nil and m_editInput.valid and m_editInput.popup ~= nil then
+                --an autocomplete/link popup owns the interaction right now.
+                return
+            end
+            if m_editInput == nil or (not m_editInput.valid) or (not m_editInput.hasInputFocus) then
+                DeactivateBlock()
+            end
+        end,
+
+        refreshDocument = function(element, doc)
+            if doc ~= nil then
+                m_doc = doc
+            end
+
+            local hasLocalWork = (m_activeIndex ~= nil)
+                or (m_savedContent ~= nil and GetContent() ~= m_savedContent)
+            if hasLocalWork then
+                --an active edit or committed-but-unsaved local changes:
+                --never clobber them with a refresh. TextStorage merges
+                --disjoint-region edits when we save; if the stored content
+                --has moved on, surface it through the changes indicator so
+                --the user knows a save will merge.
+                local remote = (m_doc:GetTextContent() or ""):gsub("\v", "\n"):gsub("\r", "")
+                if remote ~= GetContentIncludingActive() then
+                    resultPanel:SetClassTree("changes", true)
+                end
+                return
+            end
+
+            m_lastEdit = nil
+            SetLinesFromContent(m_doc:GetTextContent())
+            m_savedContent = GetContent()
+            m_renderGeneration = m_renderGeneration + 1
+            RebuildBlockData()
+            RefreshAnnotations(GetContent())
+            RefreshBlockPanels()
+        end,
+
+        needsave = function(element, result)
+            if m_doc:GetTextContent() ~= GetContentIncludingActive() then
+                result.save = true
+            end
+        end,
+
+        savedoc = function(element)
+            DeactivateBlock()
+            m_doc:SetTextContent(GetContent())
+            --re-read: SetTextContent routes through TextStorage, which may
+            --have merged concurrent remote edits into the stored result.
+            SetLinesFromContent(m_doc:GetTextContent())
+            m_savedContent = GetContent()
+            m_renderGeneration = m_renderGeneration + 1
+            RebuildBlockData()
+            RefreshAnnotations(GetContent())
+            RefreshBlockPanels()
+        end,
+
+        checkChanges = function(element, baseDoc)
+            resultPanel:SetClassTree("changes", GetContentIncludingActive() ~= baseDoc:GetTextContent())
+        end,
+
+        m_toolbar,
+
+        m_pagePanel,
+
+        --hairline above the annotation strip, continuing the design's
+        --row-separation rhythm.
+        gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffff26",
+        },
+
+        m_annotationsPanel,
+    }
+
+    SetLinesFromContent(m_doc:GetTextContent())
+    m_savedContent = GetContent()
+    RebuildBlockData()
+    RefreshAnnotations(GetContent())
+    RefreshBlockPanels()
+
+    return resultPanel
+end
+
+local MarkdownReferenceTooltip
+
+function MarkdownDocument:EditPanel(args)
+    if liveEditSetting:Get() then
+        return self:LiveEditPanel(args)
+    end
+
+    local resultPanel
+
+    local markdownReferenceLabel = gui.Label {
+        classes = { "link" },
+        width = "auto",
+        height = "auto",
+        text = "Formatting Guide",
+        fontSize = CustomDocument.ScaleFontSize(16),
+        halign = "left",
+        valign = "top",
+        hover = function(element)
+            element.tooltip = MarkdownReferenceTooltip()
+        end,
+    }
+
+    local editInput
+
+    local savePanel = gui.Panel{
+        flow = "horizontal",
+        width = 160,
+        height = 16,
+        halign = "right",
+
+        gui.Label{
+
+            styles = {
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"saveError"},
+                    collapsed = 1,
+                },
+            },
+
+            text = "Changes Saved",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Label{
+            classes = { "fgMuted" },
+            styles = {
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"~savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            text = "Saving...",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Label{
+            styles = {
+                {
+                    selectors = {"~changes"},
+                    collapsed = 1,
+                }
+            },
+            text = "Unsaved Changes",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+        },
+
+        gui.Button{
+            styles = {
+                {
+                    selectors = {"~changes"},
+                    collapsed = 1,
+                }
+            },
+            inputEvents = { "save" },
+            text = "Save",
+            width = 40,
+            height = 16,
+            fontSize = 12,
+            save = function(element)
+                if element:HasClass("changes") then
+                    element:FireEvent("press")
+                end
+            end,
+            press = function(element)
+                local documentPanel = element:FindParentWithClass("documentPanel")
+                if documentPanel ~= nil then
+                    resultPanel:SetClassTree("savePending", true)
+                    documentPanel:FireEvent("saveDocument")
+                end
+            end,
+
+            saveConfirmed = function(element)
+                resultPanel:SetClassTree("savePending", false)
+            end,
+        },
+
+        gui.Label{
+            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
+            --after a delta save AND a full-write retry both go unconfirmed by the server.
+            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
+            --again as soon as the user edits (changes) or a new save is in flight
+            --(savePending), and cleared automatically by a late server confirmation.
+            styles = {
+                {
+                    selectors = {"~saveError"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"changes"},
+                    collapsed = 1,
+                },
+                {
+                    selectors = {"savePending"},
+                    collapsed = 1,
+                },
+            },
+
+            color = "#ff5b5b",
+            text = "Save failed!",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            hover = function(element)
+                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
+            end,
+        },
+    }
+
+    local charactersUsedLabel = gui.Label {
+        classes = {"fg"},
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        rmargin = 246,
+        fontSize = CustomDocument.ScaleFontSize(16),
+        refreshLength = function(element, text)
+            local len = #text
+            local remaining = CustomDocument.MaxLength - len
+            if remaining < 1000 then
+                element:SetClass("danger", remaining < 200)
+
+                element.text = string.format("%d characters remaining...", remaining)
+                element:SetClass("hidden", false)
+            else
+                element:SetClass("hidden", true)
+            end
+        end,
+        refreshDocument = function(element)
+            element:FireEvent("refreshLen", #self:GetTextContent())
+        end,
+        editDocument = function(element)
+            element:FireEvent("refreshLen", #self:GetTextContent())
+        end,
+    }
+
+    -- Link autocomplete + link-info service (shared with LiveEditPanel; see
+    -- CreateMarkdownAutocomplete). Aliases keep the historical local names
+    -- used by the handlers below.
+    local m_autocomplete = CreateMarkdownAutocomplete{
+        GetDocument = function()
+            return self
+        end,
+        OnTextChanged = function(newText)
+            NotifyTextChanged(newText)
+        end,
+    }
+    local autocompleteState = m_autocomplete.state
+    local FindLinkContext = m_autocomplete.FindLinkContext
+    local UpdateAutocomplete = m_autocomplete.Update
+    local DismissAutocomplete = m_autocomplete.Dismiss
+    local UpdateLinkInfo = m_autocomplete.UpdateLinkInfo
 
     local lastSyncedCaret = -1
     -- Scroll the live preview so the block under the editor caret stays in view. A flat
@@ -5184,241 +7088,33 @@ function MarkdownDocument:EditPanel(args)
         },
     }
 
-    local m_richPanels = {}
-
-    local annotationsPanel = gui.Panel {
-        width = "98%",
-        height = "auto",
-        maxHeight = 200,
-        vscroll = true,
-        vmargin = 8,
-        flow = "horizontal",
-        wrap = true,
-
-        refreshDocument = function(element, doc)
-            if doc ~= nil then
-                element:FireEvent("editDocument", doc:GetTextContent())
-            end
-        end,
-
-        editDocument = function(element, content)
-            local tagsSeen = {}
-
-            local newRichPanels = {}
-            local children = {}
-            local tokens = BreakdownRichTags(content)
-            for i, token in ipairs(tokens) do
-                if token.type == "tag" then
-                    local text, suffix = token.text:match("^(.-):(.*)$")
-                    if suffix == nil then
-                        text = token.text
-                    end
-
-                    local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(text)]
-
-                    if richTagInfo ~= nil and richTagInfo.hasEdit then
-                        local candidate = token.text
-                        local index = 1
-                        while tagsSeen[candidate] do
-                            candidate = token.text .. '-' .. index
-                            index = index + 1
-                        end
-
-                        tagsSeen[candidate] = true
-
-                        local richTag = self.annotations[candidate]
-                        --patch over any possible bugs where the saved annotation is not a proper table.
-                        if richTag ~= nil and getmetatable(richTag) == nil then
-                            richTag = nil
-                            self.annotations[candidate] = nil
-                        end
-
-                        if richTag == nil then
-                            richTag = richTagInfo.Create()
-                            richTag.identifier = suffix or false
-                            self.annotations[candidate] = richTag
-                        end
-
-                        if richTagInfo.hasEdit ~= "hidden" then
-                            local richPanel = m_richPanels[candidate] or gui.Panel {
-                                width = "auto",
-                                height = 120,
-                                flow = "vertical",
-                                halign = "left",
-                                valign = "top",
-                                hmargin = 4,
-                                gui.Panel {
-                                    width = "auto",
-                                    height = 96,
-                                    richTag:CreateEditor(),
-                                },
-                                gui.Label {
-                                    text = candidate,
-                                    fontSize = CustomDocument.ScaleFontSize(12),
-                                    textAlignment = "center",
-                                    width = 96,
-                                    height = "auto",
-                                    halign = "center",
-                                    valign = "center",
-                                },
-                            }
-
-                            newRichPanels[candidate] = richPanel
-                            children[#children + 1] = richPanel
-
-                            richPanel:FireEventTree("refreshEditor", richTag)
-                        end
-                    end
-                end
-            end
-
-            m_richPanels = newRichPanels
-            element.children = children
+    --rich-tag annotation editor strip, shared with the live editor.
+    local annotationsPanel = CreateAnnotationsPanel{
+        GetDocument = function()
+            return self
         end,
     }
 
-    local function ToolbarButton(label, fontSize, width, handler)
-        return gui.Button{
-            text = label,
-            width = width or 28,
-            height = 24,
-            fontSize = fontSize or 14,
-            valign = "center",
-            press = handler,
-        }
-    end
-
-    local headingOptions = {
-        { id = "",       text = "Heading" },
-        { id = "# ",     text = "H1" },
-        { id = "## ",    text = "H2" },
-        { id = "### ",   text = "H3" },
-        { id = "#### ",  text = "H4" },
-        { id = "##### ", text = "H5" },
-    }
-
-    local spoilerOptions = {
-        { id = "",  text = "Spoiler" },
-        { id = "h", text = "Hidden" },
-        { id = "r", text = "Redacted" },
-        { id = "v", text = "Revealed" },
-    }
-
-    local mediaTags  = { "image", "sound", "ability", "scene",
-                         "encounter", "party", "follower" }
-    local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
-                         "reminder", "timer", "setting" }
-
-    local mediaOptions = { { id = "", text = "Insert Media" } }
-    for _, t in ipairs(mediaTags) do
-        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
-    end
-
-    local widgetOptions = { { id = "", text = "Insert Widget" } }
-    for _, t in ipairs(widgetTags) do
-        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
-    end
-
-    local toolbar = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        wrap = true,
-        valign = "top",
-        halign = "left",
-        borderBox = true,
-        hpad = 4,
-        bmargin = 4,
-
-        ToolbarButton("B", 16, 28, WrapHandler("**", "**")),
-        ToolbarButton("I", 16, 28, WrapHandler("*", "*")),
-        ToolbarButton("U", 16, 28, WrapHandler("__", "__")),
-        ToolbarButton("S", 16, 28, WrapHandler("~~", "~~")),
-
-        ToolbarButton("Color", 12, 44,
-            WrapHandler("<color=red>", "</color>")),
-
-        gui.Dropdown{
-            width = 90, height = 24, idChosen = "",
-            options = spoilerOptions,
-            change = function(element)
-                local id = element.idChosen
-                if id == "h" then
-                    WrapHandler("{", "}")()
-                elseif id == "r" then
-                    WrapHandler("{#", "}")()
-                elseif id == "v" then
-                    WrapHandler("{!", "}")()
-                end
-                element.idChosen = ""
-            end,
-        },
-
-        gui.Dropdown{
-            width = 80, height = 24, idChosen = "",
-            options = headingOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    LineHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        ToolbarButton("List",    12, 44, LineHandler("* ")),
-        ToolbarButton("Divider", 12, 56, InsertHandler("\n---\n", 5)),
-        ToolbarButton("Link",    12, 40, InsertHandler("[]", 1)),
-
-        ToolbarButton("Draw Steel!", 12, 80,
-            InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
-
-        gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
-            options = mediaOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    RichTagHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        gui.Dropdown{
-            width = 110, height = 24, idChosen = "",
-            options = widgetOptions,
-            change = function(element)
-                if element.idChosen ~= "" then
-                    RichTagHandler(element.idChosen)()
-                    element.idChosen = ""
-                end
-            end,
-        },
-
-        gui.Panel{
-            classes = { "formStackedRow" },
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            gui.Label{ classes = { "formStacked" }, text = "Stylesheet:" },
-            gui.Dropdown{
-                classes = { "formStacked" },
-                options = JournalStylesheet.PickerOptions(),
-                idChosen = self.styleSheetId or "",
-                change = function(element)
-                    local chosen = element.idChosen
-                    self.styleSheetId = (chosen ~= "" and chosen) or false
-                    previewDoc.styleSheetId = self.styleSheetId
-                    ResolveStylesheet.ClearCache()
-                    if previewPanel ~= nil then
-                        previewPanel:FireEventTree("refreshDocument", previewDoc)
-                    end
-                    self._tmp_styleDirty = true
-                    if resultPanel ~= nil then
-                        resultPanel:SetClassTree("changes", true)
-                    end
-                end,
-            },
-        },
+    --formatting toolbar, shared with the live editor.
+    local toolbar = CreateMarkdownToolbar{
+        GetInput = function()
+            return editInput
+        end,
+        GetStylesheetId = function()
+            return self.styleSheetId or ""
+        end,
+        OnStylesheetChanged = function(chosen)
+            self.styleSheetId = (chosen ~= "" and chosen) or false
+            previewDoc.styleSheetId = self.styleSheetId
+            ResolveStylesheet.ClearCache()
+            if previewPanel ~= nil then
+                previewPanel:FireEventTree("refreshDocument", previewDoc)
+            end
+            self._tmp_styleDirty = true
+            if resultPanel ~= nil then
+                resultPanel:SetClassTree("changes", true)
+            end
+        end,
     }
 
     -- Find bar: a small overlay at the top of the editor. The search field is a plain

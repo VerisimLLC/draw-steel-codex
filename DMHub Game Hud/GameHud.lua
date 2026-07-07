@@ -180,9 +180,30 @@ local function DiagramProfileFromPath(token, path)
 		end
 	end
 
+	--A creature that is airborne (its altitude sits above the ground beneath it) while its
+	--path crosses an aura is a vertically interesting event on its own -- the cross-section
+	--shows the flyer passing over or into the aura band even on otherwise flat ground.
+	--game.GetAurasAtLoc is footprint-based (altitude ignored), so an aura the flyer passes
+	--over or under still counts; it is a superset of the bands the C# harness draws (see
+	--MovementCrossSection.cs), so this never suppresses a diagram that would have a band.
+	local airborne = false
+	local crossesAura = false
+	for i = 1, n do
+		if entries[i].alt > entries[i].ground then
+			airborne = true
+		end
+		if not crossesAura then
+			local auras = game.GetAurasAtLoc(steps[i])
+			if auras ~= nil and #auras > 0 then
+				crossesAura = true
+			end
+		end
+	end
+
 	--A jump is vertically interesting by definition -- it arcs up over its start ground and
 	--clears walls up to its jump distance -- so always show its cross-section, even on flat ground.
-	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump"
+	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump" or
+	                    (airborne and crossesAura)
 	for i = 1, n do
 		local e = entries[i]
 		if e.ground ~= entries[1].ground or e.alt ~= entries[1].alt or

@@ -760,7 +760,11 @@ local function CreateMonsterEntry(nodeid)
                     end,
                     refreshAssets = function(element)
                         local props = monster.properties
-                        if props == nil or props.GetImplementationStatus == nil then
+                        --Reading an undefined field on a game-type object raises
+                        --rather than returning nil, so feature-detect the
+                        --monster-only implementation-status API via IsMonster()
+                        --(defined on the base creature type) instead of a field read.
+                        if props == nil or not props:IsMonster() then
                             element:SetClass("hidden", true)
                             return
                         end
@@ -771,7 +775,7 @@ local function CreateMonsterEntry(nodeid)
                     end,
                     hover = function(element)
                         local props = monster.properties
-                        if props == nil or props.RenderImplementationSummaryPanel == nil then
+                        if props == nil or not props:IsMonster() then
                             return
                         end
                         local halign = "right"

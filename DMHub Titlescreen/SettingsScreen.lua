@@ -544,6 +544,29 @@ local function CreateLocalAssetsSection()
 		end
 	end
 
+	--When local-assets mode is already active for this game AND the current
+	--directory has files, populating again just re-exports the in-memory
+	--assets (which were themselves loaded from that same directory) back over
+	--the files -- redundant, and it reformats/overwrites them. Grey the button
+	--out in that case: the "disabled" class drives the dimmed look (the theme
+	--gates hover feedback with ~disabled), while `interactable = false` blocks
+	--the click -- `interactable` alone has no visual effect. It stays enabled
+	--while the directory is only "set but not active" (pre-reload) so you can
+	--still fill it immediately, and while a newly-chosen directory is empty.
+	local function PopulateDisabled()
+		local status = dmhub.LocalAssetsStatus()
+		if status == nil or not status.active then
+			return false
+		end
+		local dir = CurrentDir()
+		if dir == "" or dmhub.GetDirectoryInfo == nil then
+			return false
+		end
+		local info = dmhub.GetDirectoryInfo(dir)
+		return info ~= nil and info.exists and info.fileCount > 0
+	end
+
+	local populateDisabled = PopulateDisabled()
 	local populateButton = gui.Button{
 		width = 200,
 		height = 32,
@@ -551,6 +574,16 @@ local function CreateLocalAssetsSection()
 		halign = "left",
 		valign = "center",
 		text = "Populate Directory",
+		classes = {cond(populateDisabled, "disabled")},
+		interactable = not populateDisabled,
+		multimonitor = {"localassets:dir"},
+		events = {
+			monitor = function(element)
+				local disabled = PopulateDisabled()
+				element:SetClass("disabled", disabled)
+				element.interactable = not disabled
+			end,
+		},
 		click = function(element)
 			local dir = CurrentDir()
 			if dir == "" then

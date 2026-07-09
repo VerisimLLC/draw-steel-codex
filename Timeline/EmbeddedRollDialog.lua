@@ -3368,6 +3368,7 @@ function GameHud.CreateEmbeddedRollDialog()
             },
         },
         classes = { 'buttonPanel' },
+        flow = "none",
         valign = "top",
         children = {
             m_triggerProgressDice,

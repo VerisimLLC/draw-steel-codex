@@ -2289,6 +2289,7 @@ ThemeEngine.RegisterTheme{
         { selectors = {"modalDialog"},         cornerRadius = 0 },
         { selectors = {"framedPanel"},         cornerRadius = 0 },
         { selectors = {"contextMenu"},         cornerRadius = 0 },
+        { selectors = {"featureCard"},         cornerRadius = 0 },
         { selectors = {"featureCardHeader"},   cornerRadius = 0 },
         { selectors = {"featureCardHeader", "expanded"}, cornerRadius = 0 },
         { selectors = {"featureCardBody"},     cornerRadius = 0 },
@@ -2332,6 +2333,10 @@ ThemeEngine.RegisterTheme{
         { selectors = {"modalDialog"},         cornerRadius = 10 },
         { selectors = {"framedPanel"},         cornerRadius = 10 },
         { selectors = {"contextMenu"},         cornerRadius = 10 },
+        -- the card root paints the @bgAlt fill (and any accent border), so
+        -- it must round along with its header/body children or its square
+        -- corners peek out from behind them.
+        { selectors = {"featureCard"},         cornerRadius = 10 },
         { selectors = {"featureCardHeader"},   cornerRadius = 10 },
         {
             selectors = {"featureCardHeader", "expanded"},

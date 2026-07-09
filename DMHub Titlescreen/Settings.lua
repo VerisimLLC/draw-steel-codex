@@ -1806,6 +1806,16 @@ setting{
 }
 
 setting{
+	id = "dice:motionblur",
+	description = "Dice Motion Blur",
+	help = "Blurs fast-moving dice so a hard throw reads as a continuous streak instead of a series of discrete stamps. The dice roll is rendered several times per frame at sub-frame positions and averaged; resting and slow dice are unaffected. Slightly more GPU work while dice are in flight.",
+	storage = "preference",
+	section = "Graphics",
+	editor = "check",
+	default = false,
+}
+
+setting{
 	id = "module:lastpublished",
 	description = "The ID of the last module you published",
 	storage = "preference",

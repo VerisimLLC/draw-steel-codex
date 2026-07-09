@@ -271,6 +271,61 @@ local function CreateStatusBar()
             }
         end,
 
+        -- Dev-only note: when this game is loading its assets from a local
+        -- directory (the "local assets" developer feature -- a custom data
+        -- directory that replaces the game's cloud assets), flag it here so it
+        -- is obvious at a glance that this is a dev game. Hovering shows the
+        -- source directory; clicking reveals it in the OS file browser. Empty
+        -- (zero-width) for every normal game. LocalAssetsStatus /
+        -- RevealInFileBrowser are read-and-compared-to-nil so an older engine
+        -- build (before the bridge exists) simply shows nothing.
+        gui.Label{
+            minFontSize = 10,
+            bold = true,
+            color = "#f0a030",
+            width = "auto",
+            height = "100%",
+            valign = "center",
+            rmargin = 10,
+            text = "",
+            data = { dir = nil },
+            linger = function(element)
+                local dir = element.data.dir
+                if dir == nil or dir == "" then
+                    return
+                end
+                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open it in your file browser.", dir))(element)
+            end,
+            click = function(element)
+                local dir = element.data.dir
+                if dir ~= nil and dir ~= "" and dmhub.RevealInFileBrowser ~= nil then
+                    dmhub.RevealInFileBrowser(dir)
+                end
+            end,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil)
+                element.data.dir = nil
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil),
+            think = function(element)
+                if (not dmhub.inGame) or dmhub.isLobbyGame or dmhub.LocalAssetsStatus == nil then
+                    element.data.dir = nil
+                    element.text = ""
+                    return
+                end
+                local status = dmhub.LocalAssetsStatus()
+                if status ~= nil and status.active and status.directory ~= nil and status.directory ~= "" then
+                    element.data.dir = status.directory
+                    element.text = "Dev Game"
+                else
+                    element.data.dir = nil
+                    element.text = ""
+                end
+            end,
+        },
+
         gui.Label{
             minFontSize = 10,
             width = 160,
@@ -1845,6 +1900,8 @@ local function CreateTopBar()
         local m_includeLog = isBugReport
         local m_includeScreenshot = false
         local m_allowGameEntry = true
+        local m_contactOnDiscord = true
+        local m_mood = nil
 
         --the dialog is hosted in the gamehud modal stack in-game, or as a
         --floating panel on the titlescreen root otherwise.
@@ -1931,6 +1988,33 @@ local function CreateTopBar()
                 m_allowGameEntry = element.value
             end,
         }
+
+        --Discord follow-up: if the Discord desktop client is running we know the
+        --user's Discord handle and can offer to contact them about the report.
+        --Otherwise explain that we cannot follow up.
+        local discordSection
+        if report.discordUsername ~= nil then
+            discordSection = gui.Check{
+                text = "Contact me on Discord (" .. report.discordUsername .. ") to follow up on this report",
+                tooltip = "If checked, your Discord username is included with the report so a Codex developer can reach out to you about it. Leave unchecked to keep your Discord username private.",
+                value = m_contactOnDiscord,
+                halign = "left",
+                tmargin = 12,
+                change = function(element)
+                    m_contactOnDiscord = element.value
+                end,
+            }
+        else
+            discordSection = gui.Label{
+                fontSize = 15,
+                width = 880,
+                height = "auto",
+                textWrap = true,
+                halign = "left",
+                tmargin = 12,
+                text = "Discord isn't linked, so we won't be able to follow up with you about this report. Run the Discord app alongside Codex if you would like us to be able to reach out.",
+            }
+        end
 
         local m_attachmentsList = gui.Panel{
             width = "100%",
@@ -2029,7 +2113,6 @@ local function CreateTopBar()
             text = "",
         }
 
-        local cancelButton
         local submitButton
 
         submitButton = gui.Button{
@@ -2057,6 +2140,8 @@ local function CreateTopBar()
                     includeLog = m_includeLog,
                     includeScreenshot = m_includeScreenshot,
                     allowGameEntry = m_allowGameEntry,
+                    contactOnDiscord = m_contactOnDiscord,
+                    mood = m_mood,
                     attachments = m_attachments,
                     progress = function(ratio)
                         if statusLabel.valid and not m_submitted then
@@ -2069,7 +2154,6 @@ local function CreateTopBar()
                         if statusLabel.valid then
                             statusLabel.text = kindInfo.thanks
                             submitButton:SetClass("hidden", true)
-                            cancelButton.text = "Close"
                         end
                     end,
                     error = function(message)
@@ -2082,11 +2166,15 @@ local function CreateTopBar()
             end,
         }
 
-        cancelButton = gui.Button{
-            classes = {"sizeL"},
-            text = "Cancel",
+        --Standard X close button pinned to the dialog's top-right corner. It
+        --doubles as the cancel action: cancels the in-flight report (unless it
+        --already submitted) and closes the dialog. Attached to the dialog frame
+        --below (in-game modal / titlescreen panel / fallback modal).
+        local closeButton = gui.Button{
+            classes = {"closeButton"},
+            floating = true,
             halign = "right",
-            hmargin = 8,
+            valign = "top",
             escapeActivates = true,
             escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
             click = function(element)
@@ -2095,6 +2183,76 @@ local function CreateTopBar()
                 end
                 CloseDialog()
             end,
+        }
+
+        --Optional mood picker: five Fluent emoji (angry -> delighted) so the
+        --user can convey how they feel; stored on the report as `mood`. The art
+        --lives at Assets/UIImages/emotes/<mood>.png (run import-ui-images.ps1 +
+        --build for these to resolve).
+        local m_moodButtons = {}
+        local function RefreshMoodSelection()
+            for _,entry in ipairs(m_moodButtons) do
+                entry.panel:SetClass("selected", entry.id == m_mood)
+            end
+        end
+
+        local moodOrder = {
+            { id = "angry", label = "Angry" },
+            { id = "frustrated", label = "Frustrated" },
+            { id = "sad", label = "Sad" },
+            { id = "happy", label = "Happy" },
+            { id = "delighted", label = "Delighted" },
+        }
+
+        local moodButtonPanels = {}
+        for _,opt in ipairs(moodOrder) do
+            local optid = opt.id
+            local btn = gui.Panel{
+                classes = {"moodButton"},
+                bgimage = "emotes/" .. optid .. ".png",
+                bgcolor = "white",
+                --raw gui.Panel does not auto-wrap a string tooltip the way
+                --gui.Check/Button do, so attach the lazy hover handler directly
+                --(a bare `tooltip = string` eagerly creates an orphan panel).
+                hover = gui.Tooltip(opt.label),
+                press = function(element)
+                    m_mood = cond(m_mood == optid, nil, optid)
+                    RefreshMoodSelection()
+                end,
+            }
+            m_moodButtons[#m_moodButtons + 1] = { panel = btn, id = optid }
+            moodButtonPanels[#moodButtonPanels + 1] = btn
+        end
+
+        local moodPickerSection = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            vmargin = 4,
+
+            styles = {
+                { selectors = {"moodButton"}, width = 44, height = 44, hmargin = 6, valign = "center", bgcolor = "white", opacity = 0.5 },
+                { selectors = {"moodButton", "hover"}, opacity = 0.85 },
+                { selectors = {"moodButton", "selected"}, opacity = 1.0, scale = 1.15 },
+            },
+
+            gui.Label{
+                fontSize = 15,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                text = "How are you feeling? (optional)",
+            },
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 4,
+                children = moodButtonPanels,
+            },
         }
 
         --assemble the form children explicitly; screenshotSection may be nil and
@@ -2110,6 +2268,8 @@ local function CreateTopBar()
                 text = kindInfo.intro,
             },
 
+            moodPickerSection,
+
             descriptionInput,
         }
 
@@ -2118,6 +2278,7 @@ local function CreateTopBar()
         end
 
         formChildren[#formChildren + 1] = gameEntryCheck
+        formChildren[#formChildren + 1] = discordSection
 
         if screenshotSection ~= nil then
             formChildren[#formChildren + 1] = screenshotSection
@@ -2134,7 +2295,7 @@ local function CreateTopBar()
 
                 gui.Panel{
                     width = "100%",
-                    height = 540,
+                    height = 560,
                     vscroll = true,
                     flow = "vertical",
                     halign = "center",
@@ -2144,42 +2305,43 @@ local function CreateTopBar()
 
                 statusLabel,
 
+                --Single bottom bar: Open Discord pinned to the bottom-left
+                --corner, Submit Report pinned to the bottom-right corner.
                 gui.Panel{
                     width = "100%",
                     height = "auto",
                     flow = "horizontal",
-                    halign = "right",
-                    tmargin = 8,
-
-                    submitButton,
-                    cancelButton,
-                },
-
-                gui.Panel{
-                    width = "100%",
-                    height = "auto",
-                    flow = "horizontal",
-                    halign = "left",
+                    valign = "bottom",
                     tmargin = 12,
 
-                    gui.Label{
-                        fontSize = 14,
+                    gui.Panel{
                         width = "auto",
                         height = "auto",
+                        flow = "horizontal",
+                        halign = "left",
                         valign = "center",
-                        text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+
+                        gui.Label{
+                            fontSize = 14,
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+                        },
+
+                        gui.Button{
+                            classes = {"sizeS"},
+                            text = "Open Discord",
+                            valign = "center",
+                            lmargin = 8,
+                            width = 180,
+                            click = function(element)
+                                dmhub.OpenURL(g_bugReportLink)
+                            end,
+                        },
                     },
 
-                    gui.Button{
-                        classes = {"sizeS"},
-                        text = "Open Discord",
-                        valign = "center",
-                        lmargin = 8,
-                        width = 180,
-                        click = function(element)
-                            dmhub.OpenURL(g_bugReportLink)
-                        end,
-                    },
+                    submitButton,
                 },
         }
 
@@ -2193,6 +2355,7 @@ local function CreateTopBar()
 
                 bodyPanel,
             }
+            m_dialog:AddChild(closeButton)
         else
             --On the titlescreen there is no gamehud modal stack, so host the
             --dialog as a floating framed panel on the titlescreen root, like
@@ -2225,6 +2388,7 @@ local function CreateTopBar()
                     },
                 }
                 root:AddChild(m_titlescreenModal)
+                m_titlescreenModal:AddChild(closeButton)
             else
                 --fallback: no titlescreen root available; use the gamehud modal.
                 local gh = rawget(_G, "gamehud")
@@ -2234,6 +2398,7 @@ local function CreateTopBar()
                         buttons = {},
                         bodyPanel,
                     }
+                    m_dialog:AddChild(closeButton)
                 else
                     report:Cancel()
                 end

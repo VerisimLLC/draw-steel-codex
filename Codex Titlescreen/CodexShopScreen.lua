@@ -671,6 +671,13 @@ local g_diceBannerDefaults = {
 --changing direction never changes how fast the die turns.
 local g_bannerBaseSpinSpeed = 30
 
+--Number of live shop screens (titlescreen-hosted or in-game). Maintained by
+--CreateShopScreen's dialog create/destroy and exposed through
+--ShopDiceBanner.ShopScreenOpen so surfaces reusing shop components outside
+--the shop (the titlescreen store banner's mini carousel) can yield the
+--shared "#DicePreview" scene while a real shop screen is up.
+local g_openShopScreens = 0
+
 --One-time capability flag: scene.spinAxisAngle is a new C# bridge property
 --shipped alongside this code. It is set false the first time the engine binary
 --predates it (Lua hot-reloaded against an older build) so the per-frame think
@@ -842,6 +849,14 @@ end
 --the real component for a live preview.
 local MakeDiceBanner = function(opts)
 	opts = opts or {}
+
+	--opts.pause: optional predicate(bannerPanel). While it returns true the
+	--banner leaves the shared "#DicePreview" scene completely alone: the
+	--per-frame think driver early-outs and the auto-cycle timer reschedules
+	--without advancing (a cross-fade would PlayExit the shared scene's die
+	--out from under whoever else is driving it). Used by the titlescreen
+	--store banner's mini carousel so it yields the scene to a real shop
+	--screen while one is open and sleeps while it is offscreen.
 	--Solid pixel dimensions; height preserves the 1232x706 art aspect so the
 	--full image is shown uncropped. (See g_bannerDisplayWidth/Height.)
 	local bannerWidth = g_bannerDisplayWidth
@@ -1207,7 +1222,7 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
-			if m_suspended then
+			if m_suspended or (opts.pause ~= nil and opts.pause(resultPanel)) then
 				ScheduleAutoCycle()
 				return
 			end
@@ -1460,6 +1475,12 @@ local MakeDiceBanner = function(opts)
 				return
 			end
 
+			--Externally paused (opts.pause): someone else owns the shared
+			--preview scene right now, or we are offscreen. Leave it alone.
+			if opts.pause ~= nil and opts.pause(element) then
+				return
+			end
+
 			--Cart/inventory/redeem views hide the top featured banner; the details
 			--showcase still drives the scene in those views.
 			if not opts.detailsMode and (element:HasClass("showingCart") or element:HasClass("inventory") or element:HasClass("redeemingCoupon")) then
@@ -1708,6 +1729,12 @@ ShopDiceBanner = {
 	artHeight = ShopDiceBannerArtHeight,
 	displayWidth = g_bannerDisplayWidth,
 	displayHeight = g_bannerDisplayHeight,
+
+	--True while any real shop screen is open (see g_openShopScreens); used
+	--as an opts.pause input by banners living outside the shop.
+	ShopScreenOpen = function()
+		return g_openShopScreens > 0
+	end,
 }
 
 --Monotonic id handed to each shop-image display so dice tiles can request their
@@ -2336,8 +2363,19 @@ local MakeShopItemText = function(options)
 				if shoppingCart[m_itemId] then
 					element:SetClass("collapsed", true)
 				else
-					element.text = cond(shop:ItemInInventory(m_itemId), "Add as Gift", "Add to Cart")
+					local isGift = shop:ItemInInventory(m_itemId)
+					--The cart icon (below) only makes sense for "Add to Cart";
+					--a gift needs no cart, so hide the icon and drop the leading
+					--spaces in that case. The leading spaces nudge the centered
+					--"Add to Cart" label right so it clears the icon anchored at
+					--the button's left edge (the button keeps its default width).
+					element.text = cond(isGift, "Add as Gift", "   Add to Cart")
 					element:SetClass("collapsed", false)
+					for _,child in ipairs(element.children or {}) do
+						if child:HasClass("itemButtonIcon") then
+							child:SetClass("collapsed", isGift)
+						end
+					end
 				end
 			end,
 
@@ -2349,6 +2387,16 @@ local MakeShopItemText = function(options)
 				}
 
 			end,
+
+			--Cart icon anchored at the button's left edge (shown for "Add to
+			--Cart" only -- see refreshCart). Uses the shared itemButtonIcon class
+			--so it recolors in tandem with the button (white -> black on
+			--parent:hover, same as the "Auto Install" check icon).
+			gui.Panel{
+				classes = {"itemButtonIcon"},
+				bgimage = "icons/icon_shopping/shopping-cart.png",
+				hmargin = 12,
+			},
 		},
 
 	}
@@ -2663,6 +2711,10 @@ local ShowItemDetailsInternal = function(args)
 					--Pull a pair of try-dice a little closer together than the default
 					--embedded spacing. Tunable: lower = closer, 1 = default.
 					pcall(function() dice.SetPreviewDiceSpacing(0.78) end)
+					--Pick up + drag lifts the die a little; a gentle release (no hurl) then
+					--drops it from that altitude so it falls and lands with an impact instead
+					--of just snapping back to rest. A quick flick still tosses a full roll.
+					pcall(function() element.dicePreviewLiftDrop = true end)
 				end,
 				destroy = function(element)
 					pcall(function() element:CancelDicePreviewRoll() end)
@@ -5078,7 +5130,12 @@ function CreateShopScreen(arguments)
 		},
 
 		create = function(element)
+			g_openShopScreens = g_openShopScreens + 1
 			element:FireEvent("showshop", true)
+		end,
+
+		destroy = function(element)
+			g_openShopScreens = math.max(0, g_openShopScreens - 1)
 		end,
 
 		showshop = function(element, firstTime)

@@ -26,6 +26,27 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--Mirror of CodexTitleBar.lua's "dev:storepreview" setting. Settings are
+--keyed by id, so re-declaring it here just gives read access to the same
+--value. Gates the store banner on the selection screen along with the rest
+--of the shop UI.
+local g_devStorePreviewSetting = setting{
+    id = "dev:storepreview",
+    default = false,
+    storage = "preference",
+}
+
+--Selection-screen layout when the store banner is shown: the Director/Player
+--card container (normally 1200 wide = two 500-wide cards + a 200 gap) narrows
+--to pull the cards closer together, shrinks, and shifts up. The banner's
+--width is derived from the container's scaled width so its edges always align
+--exactly with the cards' outer edges.
+local g_selectionCardsBannerWidth = 1133 --500+500 cards + 133 gap (2/3 of the normal 200)
+local g_selectionCardsBannerScale = 0.92
+local g_selectionCardsBannerY = -86
+local g_selectionBannerWidth = math.floor(g_selectionCardsBannerWidth * g_selectionCardsBannerScale + 0.5)
+local g_selectionBannerHeight = 200
+
 local function ScaleDimensions(dim)
     return dim * math.max(1, (dmhub.screenDimensions.x / dmhub.screenDimensions.y) / (1920 / 1080))
 end
@@ -4841,12 +4862,14 @@ function CreateTitlescreen(dialog, options)
 
             gui.Panel {
 
-                classes = { 'king-panel' },
+                classes = { 'king-panel', cond(g_devStorePreviewSetting:Get(), "makeRoomForShopBanner") },
 
                 bgimage = true,
                 --bgcolor = "white",
 
-                width = 1200,
+                --width lives in the styles below (not inline) so the
+                --makeRoomForShopBanner variant can narrow it; inline
+                --properties always override styles.
                 height = 700,
 
                 floating = true,
@@ -4854,16 +4877,32 @@ function CreateTitlescreen(dialog, options)
                 halign = "center",
                 valign = "center",
 
+                --When the store banner is shown at the bottom of the screen,
+                --pull the Director/Player cards closer together, shrink them
+                --a little, and shift them to make room for it.
+                multimonitor = { "dev:storepreview" },
+                monitor = function(element)
+                    element:SetClass("makeRoomForShopBanner", g_devStorePreviewSetting:Get())
+                end,
+
                 styles = {
 
                     {
                         classes = { 'king-panel' },
                         hidden = 1,
+                        width = 1200,
                     },
 
                     {
                         classes = { 'parent:selection-screen', 'king-panel' },
                         hidden = 0,
+                    },
+
+                    {
+                        classes = { 'king-panel', 'makeRoomForShopBanner' },
+                        width = g_selectionCardsBannerWidth,
+                        scale = g_selectionCardsBannerScale,
+                        y = g_selectionCardsBannerY,
                     },
 
 
@@ -5059,6 +5098,100 @@ function CreateTitlescreen(dialog, options)
 
 
                 }
+
+            },
+
+            --Store banner across the bottom of the selection screen. Plain
+            --white placeholder for now until real advertising art is ready.
+            --Gated behind the same dev:storepreview flag as the rest of the
+            --shop UI; the Director/Player card container above makes room for
+            --it (makeRoomForShopBanner) under the same gate.
+            gui.Panel {
+
+                classes = { 'king-panel', 'shop-banner', cond(g_devStorePreviewSetting:Get(), nil, "collapsed") },
+
+                bgimage = true,
+                bgcolor = "white",
+
+                width = g_selectionBannerWidth,
+                height = g_selectionBannerHeight,
+
+                floating = true,
+
+                halign = "center",
+                valign = "bottom",
+                bmargin = 60,
+
+                multimonitor = { "dev:storepreview" },
+                monitor = function(element)
+                    element:SetClass("collapsed", not g_devStorePreviewSetting:Get())
+                end,
+
+                --Featured-dice mini carousel docked at the strip's left edge:
+                --the shop's real featured banner component (ShopDiceBanner in
+                --CodexShopScreen.lua), shrunk so the banner image plus the
+                --carousel dots hanging below it exactly fit the strip's
+                --height. Built deferred: the featured-dice selection needs
+                --the shop items, which arrive with the core assets (and
+                --ShopDiceBanner itself may not be loaded yet at create time).
+                create = function(element)
+                    element:FireEvent("buildCarousel")
+                end,
+
+                buildCarousel = function(element)
+                    if rawget(_G, "ShopDiceBanner") == nil or not assets.coreAssetsDownloaded then
+                        element:ScheduleEvent("buildCarousel", 0.5)
+                        return
+                    end
+
+                    --The dots row floats this far below the banner image
+                    --(mirrors the dots panel's y offset in CodexShopScreen).
+                    local dotsOverhang = 31
+
+                    element:AddChild(gui.Panel{
+                        floating = true,
+                        halign = "left",
+                        valign = "top",
+                        width = ShopDiceBanner.displayWidth,
+                        height = ShopDiceBanner.displayHeight,
+                        uiscale = g_selectionBannerHeight / (ShopDiceBanner.displayHeight + dotsOverhang),
+
+                        --The carousel's "View Dice" button fires this. There
+                        --is no product-details page on the titlescreen, so
+                        --just open the shop screen.
+                        showItemDetails = function(element, item)
+                            titlescreen:AddChild(CreateShopScreen{ titlescreen = titlescreen })
+                        end,
+
+                        ShopDiceBanner.Create{
+                            spinnable = true,
+
+                            --Yield the shared "#DicePreview" scene to any real
+                            --shop screen, and sleep while the banner is not
+                            --actually visible (not on the selection screen, or
+                            --shop access disabled).
+                            pause = function(bannerPanel)
+                                return ShopDiceBanner.ShopScreenOpen()
+                                    or (not titlescreen:HasClass("selection-screen"))
+                                    or (not g_devStorePreviewSetting:Get())
+                            end,
+                        },
+                    })
+                end,
+
+                styles = {
+
+                    {
+                        classes = { 'king-panel' },
+                        hidden = 1,
+                    },
+
+                    {
+                        classes = { 'parent:selection-screen', 'king-panel' },
+                        hidden = 0,
+                    },
+
+                },
 
             },
 

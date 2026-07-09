@@ -44,6 +44,8 @@ status.json
 
 Definitions/version.txt
 
+.mcp.json 
+
 # Compendium content 
 compendium/*
 

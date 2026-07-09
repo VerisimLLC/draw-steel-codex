@@ -180,6 +180,13 @@ local panelVar
 panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
 ```
 
+**Reading a missing method on a game-typed instance raises.** Instances created with `RegisterGameType` error on reads of undefined fields AND undefined methods (e.g. `props.GetImplementationStatus` raises "Attempt to read unknown field ... in type creature" when props is creature-typed). Do not use the `props.SomeMethod == nil` presence-check pattern unless the instance's type is guaranteed. The stored `typeName` field is NOT a reliable gate either -- some compendium monster assets report `typeName == "monster"` while their properties actually bind as plain `creature`. The dependable guard is `pcall`:
+```lua
+local value = nil
+pcall(function() value = props:SomeMonsterOnlyMethod() end)
+if value == nil then --[[ not available ]] end
+```
+
 **`cond(a, b, c)` is a function, not a ternary -- it does NOT short-circuit.** It is defined as `function cond(a,b,c) if a then return b else return c end`, so Lua evaluates `a`, `b`, AND `c` before the call. Never put an expression that can error in the branch you expect to be skipped:
 ```lua
 -- WRONG: "The " .. token.name is evaluated even when canSeeName is false,
@@ -208,4 +215,23 @@ Key stubs:
 
 ## Editing Files
 
-Always edit files in the **main copy** of the repository (`C:\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
+Always edit files in the **main copy** of the repository (`C:\MCDM\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
+
+Do NOT edit `C:\MCDM\dmhubclient\draw-steel-codex\` -- that is a separate, stale fork of the codex embedded in the DMHub client project. It is not what the app loads and changes there go nowhere.
+
+## Deploying Changes to the Running Codex
+
+**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (currently `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
+
+```
+<gitfolder>\Draw Steel V\EncounterPanel.lua
+```
+
+Verify what the app actually loaded by searching `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\Player.log` for `MOD:: READ CONTENTS FOR MOD` lines.
+
+**Use `deploy.ps1` at the repo root**: `.\deploy.ps1` copies every git-modified `.lua` file into its module folder in the git folder; `-Check` dry-runs it; passing repo-relative paths deploys specific files. Run it after any Lua change, then restart or reload the Codex. Rules:
+
+- **Deploy ALL changed files together.** A partial deploy is worse than none: if a UI file is deployed without the rules file it now depends on, the feature errors at runtime with a nil function call and silently fails to appear.
+- A module the app has never checked out may not load from the git folder even after its folder is created; if the app still runs the old version after a restart, check the module out for git editing in the Codex's mod tools, then re-run the script.
+- Do NOT deploy to `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\<Module_XXXX>\` -- that is the app's own cache, written by the app, and copying files there does nothing.
+- The git folder does not sync back to the repo; the repo remains the source of truth for git history.

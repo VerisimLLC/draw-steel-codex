@@ -1217,8 +1217,10 @@ end
 --priority over the readied/open-journal inference. Used by the journal RichEncounter
 --"Draw Steel!" button so the dialog opens scoped to that encounter.
 local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
-    local m_encounterStrength = 0
-    local m_encounterStrengthSingleHero = 0
+    --The party strength computed from the hero pool (see Encounter.PartyStrengthFromTokens),
+    --or nil while the pool is empty. Shared between the hero and monster status labels so
+    --the monster EV readout can classify against the current party.
+    local m_partyStrength = nil
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
 
     local CreateTokenPoolPanel = function(args)
@@ -1340,68 +1342,42 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
                 maxWidth = 300,
                 fontSize = 14,
                 refreshSurprise = function(element)
-                    local encounterStrength = 0
-                    local children = args.pool.children
-                    local numTokens = 0
-                    local totalVictories = 0
-                    local numHeroes = 0
-                    local minLevel = nil
-                    local maxLevel = nil
-                    for i,child in ipairs(children) do
+                    local tokens = {}
+                    for i,child in ipairs(args.pool.children) do
                         local group = child.data.group
                         for _,tok in ipairs(group.tokens) do
-                            if minLevel == nil or tok.properties:CharacterLevel() < minLevel then
-                                minLevel = tok.properties:CharacterLevel()
-                            end
-                            if maxLevel == nil or tok.properties:CharacterLevel() > maxLevel then
-                                maxLevel = tok.properties:CharacterLevel()
-                            end
-                            encounterStrength = encounterStrength + 4 + tok.properties:CharacterLevel()*2
-                            local victories = tok.properties:GetVictories()
-                            totalVictories = totalVictories + victories
-                            if tok.properties:IsHero() then
-                                numHeroes = numHeroes + 1
-                            end
-                            numTokens = numTokens + 1
+                            tokens[#tokens+1] = tok
                         end
                     end
-                    if numTokens == 0 then
+
+                    local strength = Encounter.PartyStrengthFromTokens(tokens)
+                    m_partyStrength = strength
+                    if strength == nil then
                         element.text = ""
-                        m_encounterStrength = 0
-                        m_encounterStrengthSingleHero = 0
                         element.data.tooltip = nil
                         return
                     end
 
-                    local averageVictories = math.floor(totalVictories / numTokens)
-                    local tokenAverage = math.floor(encounterStrength/numTokens)
-                    local baseEncounterStrength = encounterStrength
+                    element.text = string.format("Encounter Strength: %d", strength.total)
 
-                    m_encounterStrengthSingleHero = tokenAverage
-
-                    local victoriesAdditionalHeroes = math.floor(averageVictories / 2)
-
-                    encounterStrength = encounterStrength + math.floor(victoriesAdditionalHeroes * tokenAverage)
-                    element.text = string.format("Encounter Strength: %d", encounterStrength)
-                    m_encounterStrength = encounterStrength
-
-                    local tooltip = string.format("%d Heroes", numHeroes)
-                    if numTokens ~= numHeroes then
-                        tooltip = string.format("%s, %d %s", tooltip, numTokens - numHeroes, cond(numTokens - numHeroes == 1, "Ally", "Allies"))
+                    local tooltip = string.format("%d Heroes", strength.numHeroes)
+                    local numAllies = strength.numTokens - strength.numHeroes
+                    if numAllies > 0 then
+                        tooltip = string.format("%s, %d %s", tooltip, numAllies, cond(numAllies == 1, "Ally", "Allies"))
                     end
 
-                    if minLevel == maxLevel then
-                        tooltip = string.format("%s, Level %d", tooltip, minLevel)
+                    if strength.minLevel == strength.maxLevel then
+                        tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
                     else
-                        tooltip = string.format("%s, Levels %d-%d", tooltip, minLevel, maxLevel)
+                        tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
                     end
 
-                    tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, baseEncounterStrength)
+                    tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, strength.base)
 
-                    tooltip = string.format("%s\nAverage Victories: %d", tooltip, averageVictories)
-                    tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, victoriesAdditionalHeroes)
-                    tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, m_encounterStrengthSingleHero)
-                    tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, encounterStrength)
+                    tooltip = string.format("%s\nAverage Victories: %d", tooltip, strength.averageVictories)
+                    tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, strength.victoryHeroes)
+                    tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, strength.singleHero)
+                    tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, strength.total)
 
                     element.data.tooltip = tooltip
                 end,
@@ -1455,16 +1431,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
 
                     local tooltip = nil
 
-                    local description = "Extreme"
-                    if ev < m_encounterStrength - m_encounterStrengthSingleHero then
-                        description = "Trivial"
-                    elseif ev < m_encounterStrength then
-                        description = "Easy"
-                    elseif ev < m_encounterStrength + m_encounterStrengthSingleHero then
-                        description = "Standard"
-                    elseif ev <= m_encounterStrength + m_encounterStrengthSingleHero * 3 then
-                        description = "Hard"
-                    end
+                    local description = Encounter.DifficultyTier(ev, m_partyStrength)
 
                     element.text = string.format("EV: %s (%s)", round(ev), description)
 

@@ -251,11 +251,19 @@ function Encounter.MainMonster(encounter)
 end
 
 --Returns the number of monsters of the given type that should actually be placed
---for a group at a given number of heroes, applying any per-monster-type balancing
---adjustment configured on the group. Clamped to >= 0. This is the single source of
---truth shared by CloneForNumberOfHeroes (placement/EV/describe) and RichEncounter's
---despawn index walk, so spawn and despawn stay aligned.
+--for a group at a given number of heroes, applying the monster's "appears at N+
+--heroes" gate (group.monsterMinHeroes[monsterid]) and any per-monster-type
+--balancing adjustment configured on the group. Clamped to >= 0. This is the
+--single source of truth shared by CloneForNumberOfHeroes (placement/EV/describe)
+--and RichEncounter's despawn index walk, so spawn and despawn stay aligned.
 function Encounter.AdjustedMonsterQuantity(group, monsterid, baseQuantity, numHeroes)
+    --per-monster "appears at N+ heroes" gate: below the gate the monster
+    --contributes nothing, regardless of balancing deltas.
+    local monsterMinHeroes = group.monsterMinHeroes
+    if monsterMinHeroes ~= nil and monsterMinHeroes[monsterid] ~= nil and numHeroes < monsterMinHeroes[monsterid] then
+        return 0
+    end
+
     local balancing = group.balancing
     local heroBalancing = balancing ~= nil and balancing[numHeroes] or nil
     if heroBalancing ~= nil and heroBalancing.monsters ~= nil then
@@ -325,6 +333,141 @@ function Encounter.CountEDS(self)
     end
 
     return EDSTotal
+end
+
+-- ===========================================================================
+-- Encounter strength / difficulty budget
+--
+-- The Draw Steel encounter budget: each hero contributes an Encounter Strength
+-- of 4 + 2 x level, and every 2 average Victories the party carries add one
+-- "virtual hero" of average strength to the budget. A monster roster's EV total
+-- is classified against that budget into the difficulty tiers below. This is
+-- the single source of truth used by both the encounter builder (budget meter)
+-- and the combat setup dialog (DSInitiativeRoll.lua).
+-- ===========================================================================
+
+--The ordered difficulty tiers, weakest to strongest.
+Encounter.DifficultyTiers = { "Trivial", "Easy", "Standard", "Hard", "Extreme" }
+
+--The encounter strength contributed by a single hero of the given level.
+function Encounter.HeroStrength(level)
+    return 4 + (level or 1) * 2
+end
+
+--Compute a party's encounter strength from explicit party parameters:
+--  numHeroes : number of heroes (defaults to the "numheroes" setting)
+--  level     : the party's level (defaults to 1)
+--  victories : the party's average Victories per hero (defaults to 0)
+--Returns a strength table:
+--  total        : the party's total encounter strength (the standard budget)
+--  base         : strength before the victories bonus
+--  singleHero   : encounter strength of a single (average) hero
+--  victoryBonus : strength added by victories (floor(victories/2) virtual heroes)
+--  victoryHeroes: how many virtual heroes the victories added
+--  numHeroes    : the hero count used
+function Encounter.PartyStrength(args)
+    args = args or {}
+    local numHeroes = args.numHeroes or g_numHeroesSetting:Get()
+    local singleHero = Encounter.HeroStrength(args.level)
+    local base = singleHero * numHeroes
+    local victoryHeroes = math.floor((args.victories or 0) / 2)
+    local victoryBonus = victoryHeroes * singleHero
+    return {
+        total = base + victoryBonus,
+        base = base,
+        singleHero = singleHero,
+        victoryBonus = victoryBonus,
+        victoryHeroes = victoryHeroes,
+        numHeroes = numHeroes,
+    }
+end
+
+--Compute a party's encounter strength from a list of hero/ally tokens (each
+--contributing 4 + 2 x their level; victories are averaged across the tokens).
+--Returns nil when the list is empty; otherwise a strength table as in
+--PartyStrength, plus:
+--  numTokens        : how many tokens contributed (heroes + allies)
+--  averageVictories : the averaged Victories used for the bonus
+--  minLevel/maxLevel: the level range across the tokens
+function Encounter.PartyStrengthFromTokens(tokens)
+    local base = 0
+    local numTokens = 0
+    local totalVictories = 0
+    local numHeroes = 0
+    local minLevel = nil
+    local maxLevel = nil
+    for _, tok in ipairs(tokens or {}) do
+        local level = tok.properties:CharacterLevel()
+        if minLevel == nil or level < minLevel then
+            minLevel = level
+        end
+        if maxLevel == nil or level > maxLevel then
+            maxLevel = level
+        end
+        base = base + Encounter.HeroStrength(level)
+        totalVictories = totalVictories + tok.properties:GetVictories()
+        if tok.properties:IsHero() then
+            numHeroes = numHeroes + 1
+        end
+        numTokens = numTokens + 1
+    end
+
+    if numTokens == 0 then
+        return nil
+    end
+
+    local averageVictories = math.floor(totalVictories / numTokens)
+    local singleHero = math.floor(base / numTokens)
+    local victoryHeroes = math.floor(averageVictories / 2)
+    local victoryBonus = math.floor(victoryHeroes * singleHero)
+    return {
+        total = base + victoryBonus,
+        base = base,
+        singleHero = singleHero,
+        victoryBonus = victoryBonus,
+        victoryHeroes = victoryHeroes,
+        numHeroes = numHeroes,
+        numTokens = numTokens,
+        averageVictories = averageVictories,
+        minLevel = minLevel,
+        maxLevel = maxLevel,
+    }
+end
+
+--Classify a monster EV total against a party strength table (from PartyStrength
+--or PartyStrengthFromTokens). Returns one of Encounter.DifficultyTiers. With no
+--party at all (nil strength) any roster is unwinnable, so it reads as Extreme.
+function Encounter.DifficultyTier(ev, strength)
+    if strength == nil or strength.total <= 0 then
+        return "Extreme"
+    end
+
+    if ev < strength.total - strength.singleHero then
+        return "Trivial"
+    elseif ev < strength.total then
+        return "Easy"
+    elseif ev < strength.total + strength.singleHero then
+        return "Standard"
+    elseif ev <= strength.total + strength.singleHero * 3 then
+        return "Hard"
+    end
+    return "Extreme"
+end
+
+--The EV boundaries between the difficulty tiers for a party strength table.
+--Useful for drawing a budget meter. Returns:
+--  trivialBelow  : EV below this is Trivial
+--  easyBelow     : EV at/above trivialBelow but below this is Easy
+--  standardBelow : EV at/above easyBelow but below this is Standard
+--  hardMax       : EV at/above standardBelow up to and including this is Hard;
+--                  anything above is Extreme
+function Encounter.DifficultyBands(strength)
+    return {
+        trivialBelow = strength.total - strength.singleHero,
+        easyBelow = strength.total,
+        standardBelow = strength.total + strength.singleHero,
+        hardMax = strength.total + strength.singleHero * 3,
+    }
 end
 
 --Count the non-minion monsters across the WHOLE encounter (start groups + every
@@ -954,7 +1097,7 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                     if token ~= nil then
                         token.properties.initiativeGrouping = groupid
                         token.properties:OnCreateFromBestiary(token, groupid)
-                        token.properties.minHeroes = group.minHeroes
+                        token.properties.minHeroes = (group.monsterMinHeroes or {})[monsterid] or group.minHeroes
 
                         --Tag the token so RichEncounter's "Save and Remove" can find it
                         --on the map and bank its position back into the authored

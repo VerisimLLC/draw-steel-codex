@@ -502,6 +502,28 @@ function creature:GetFallType(height)
     return "clumsy"
 end
 
+--- The maximum number of squares this creature can fall without taking damage
+--- or being knocked prone. From the Falling rule a fall of N squares is unsafe
+--- iff (N - Fall Reduction) >= 2, so the safe distance is Fall Reduction + 1.
+--- Landing in water lowers the effective height by a further 4 squares, so pass
+--- inWater = true for a drop that ends in water. A creature immune to fall
+--- damage (Stop Fall Damage >= 1) can safely drop any distance.
+--- The engine uses this to climb down the unsafe part of a descent and only
+--- drop the distance that is safe.
+--- @param inWater boolean|nil true if the drop lands in water
+--- @return number
+function creature:SafeFallDistance(inWater)
+    if self:CalculateNamedCustomAttribute("Stop Fall Damage", 0) >= 1 then
+        return 1000000
+    end
+    local safe = self:CalculateNamedCustomAttribute("Fall Reduction", 0) + 1
+    --inWater may arrive as a boolean (from Lua) or as 1/0 (marshalled from the engine).
+    if inWater == true or inWater == 1 then
+        safe = safe + 4
+    end
+    return safe
+end
+
 --- Plays a single footstep sound matching the landing surface type.
 --- Called by the engine for on-feet landings on solid ground.
 --- @param surfaceType number The surface type ID from TileGameRules
@@ -525,27 +547,30 @@ end
 
 
 --- Calculates the movement cost to climb a height difference.
---- Positive heightDifference is an ascent (with one tile of free climb at the
---- base, matching normal walking onto a step). Negative heightDifference is a
---- descent (climbing down): every tile down costs movement, with no free tile.
+--- Positive heightDifference is an ascent: a single step up (a slope) is free,
+--- but a climb of 2 or more pays the full cost for EVERY square of height gained
+--- (no free first tile) -- 1 per square for a climber, 2 per square otherwise.
+--- Negative heightDifference is a descent (climbing down): every tile down costs
+--- movement, with no free tile.
 --- @param heightDifference number
 --- @return number
 function creature:CostToClimb(heightDifference)
     if heightDifference < 0 then
         local descent = -heightDifference
-        if self:CanClimb() then
+        if self:IsClimber() then
             return descent
         else
             return descent*2
         end
     end
 
-    heightDifference = heightDifference - 1
-    if heightDifference <= 0 then
+    --A single step up (a slope) is free; a climb of 2 or more pays the full cost
+    --for every square of height gained, with no free first tile.
+    if heightDifference <= 1 then
         return 0
     end
 
-    if self:CanClimb() then
+    if self:IsClimber() then
         return heightDifference
     else
         return heightDifference*2

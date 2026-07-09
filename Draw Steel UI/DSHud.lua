@@ -96,11 +96,21 @@ function GameHud.TokenMoving(self, token, path)
     end
 
     if path.fallDistance > 0 and not path.forced and not path.teleport then
-        statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>You will fall %d squares. Hold shift to climb down instead.</color>"), path.fallDistance)
+        local safe = token.properties ~= nil and token.properties:SafeFallDistance(path.landsInWater) or 0
+        if path.fallDistance <= safe then
+            statusText = statusText .. "\n" .. string.format(tr("<color=#4d9fff>Safely drops %d squares.</color>"), path.fallDistance)
+        else
+            statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
+        end
     end
 
 	if path.teleport then
         local distance = path.origin:DistanceInTiles(path.destination)
+        --Teleport cost is the largest single dimension of the jump. DistanceInTiles only
+        --covers the lateral (x/y) dimensions, so fold in the vertical (altitudeDelta was
+        --computed above): a purely upward teleport is charged for its climb instead of
+        --reading as near-zero distance.
+        distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
 	end
 
@@ -126,7 +136,18 @@ function GameHud.TokenMoving(self, token, path)
 
 	local creature = token.properties
 	if creature ~= nil and (not path.teleport) and (not path.forced) and (not path.shifting) then
-		text = string.format(tr('%s\n%s %s %s %s per round'), text, creature.GetTokenDescription(token), string.lower(creature:CurrentMoveTypeInfo().tense), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+		--How much this move actually spends. Mirror creature:CreatureMove exactly (path.cost/10
+		--with the same diagonal rounding) so the reported "Uses N" matches what will be deducted,
+		--INCLUDING climbing and difficult terrain -- neither of which is visible in the top-line
+		--square count (that uses path.numSteps, the flat tile count).
+		local usedTiles = path.cost/10
+		local newDiagonals = cond(usedTiles > math.floor(usedTiles), 1, 0)
+		usedTiles = math.floor(usedTiles)
+		if dmhub.GetSettingValue("truediagonals") and newDiagonals > 0 and (creature:DiagonalsMovedThisTurn()%2) == 1 then
+			usedTiles = usedTiles + 1
+		end
+
+		text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(usedTiles*dmhub.FeetPerTile), creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
 
 		if walkAndSwim then
 			local otherMode = "walk"

@@ -13,6 +13,47 @@ end
 
 CharacterPanel = {}
 
+--Remembers which party folders the local user has collapsed, on a per-user-per-game
+--basis. Value is a map of party key -> collapsed boolean.
+setting{
+    id = "characterpanel:partycollapsed",
+    description = "Remembers which party folders are collapsed in the character list.",
+    storage = "pergamepreference",
+    default = {},
+}
+
+local function PartyCollapsedKey(partyid)
+    if partyid == nil then
+        return "__unaffiliated__"
+    end
+    return partyid
+end
+
+--Returns the stored collapsed state for a party, or fallback if none has been stored.
+local function GetPartyCollapsed(partyid, fallback)
+    local t = dmhub.GetSettingValue("characterpanel:partycollapsed")
+    if type(t) ~= "table" then
+        return fallback
+    end
+    local v = t[PartyCollapsedKey(partyid)]
+    if v == nil then
+        return fallback
+    end
+    return v
+end
+
+local function SetPartyCollapsed(partyid, value)
+    local t = dmhub.GetSettingValue("characterpanel:partycollapsed")
+    local newTable = {}
+    if type(t) == "table" then
+        for k, val in pairs(t) do
+            newTable[k] = val
+        end
+    end
+    newTable[PartyCollapsedKey(partyid)] = value
+    dmhub.SetSettingValue("characterpanel:partycollapsed", newTable)
+end
+
 local CreateCharacterPanel
 local CreateBestiaryPanel
 
@@ -1809,7 +1850,7 @@ end
 CharacterPanel.CreatePartyCharacters = function(partyid)
     local resultPanel
 
-    local isCollapsed = partyid == nil or partyid == "graveyard"
+    local isCollapsed = GetPartyCollapsed(partyid, partyid == nil or partyid == "graveyard")
 
     local party
     local partyMembers
@@ -1878,6 +1919,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 end
 
                 isCollapsed = not isCollapsed
+                SetPartyCollapsed(partyid, isCollapsed)
 
                 triangle:SetClass('expanded', not isCollapsed)
                 folderPane:FireEvent("refreshCollapsed")

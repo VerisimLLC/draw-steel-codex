@@ -871,3 +871,441 @@ DockablePanel.Register {
         return CreateCampaignTrackerPanel()
     end,
 }
+
+----------------------------------------------------------------------
+-- The Run panel
+-- -------------
+-- A Director-only dockable panel holding the session agenda: an ordered
+-- checklist of loadable items of mixed types. Clicking an item loads it:
+--   - journal documents and prepped montage tests open in the document
+--     viewer (montage tests carry their own "Begin Montage" button).
+--   - negotiations launch the Negotiation panel for the referenced token.
+-- The first item not yet checked off is highlighted as the current one.
+--
+-- The agenda lives in the "runagenda" shared document so it syncs across
+-- clients and persists with the game. Items are plain tables:
+--   { id, itemType ("document"|"montagetest"|"negotiation"), name,
+--     tableName, docid, charid, done }
+----------------------------------------------------------------------
+
+local RUN_AGENDA_DOC = "runagenda"
+
+mod:RegisterDocumentForCheckpointBackups(RUN_AGENDA_DOC)
+
+local RUN_ITEM_ICONS = {
+    document = "icons/standard/Icon_App_Journal.png",
+    montagetest = "icons/standard/Icon_App_Respite.png",
+    negotiation = "icons/standard/Icon_App_Negotiation.png",
+}
+
+local function GetRunItems()
+    local doc = mod:GetDocumentSnapshot(RUN_AGENDA_DOC)
+    return doc.data.items or {}
+end
+
+local function SaveRunItems(items, description)
+    local doc = mod:GetDocumentSnapshot(RUN_AGENDA_DOC)
+    doc:BeginChange()
+    doc.data.items = items
+    doc:CompleteChange(description)
+end
+
+local function AddRunItem(item)
+    local items = DeepCopy(GetRunItems())
+    items[#items + 1] = item
+    SaveRunItems(items, "Add to the run")
+end
+
+--Find the item by id and hand (items, index) to fn to mutate, then persist.
+local function MutateRunItems(itemid, description, fn)
+    local items = DeepCopy(GetRunItems())
+    for i, item in ipairs(items) do
+        if item.id == itemid then
+            fn(items, i)
+            SaveRunItems(items, description)
+            return
+        end
+    end
+end
+
+--Load dispatch: what "clicking an agenda item" does for each item type.
+local function LoadRunItem(item)
+    if item.itemType == "negotiation" then
+        local token = dmhub.GetTokenById(item.charid)
+        if token == nil then
+            gui.ModalMessage {
+                title = "Token not found",
+                message = "The token this negotiation refers to is not available on the current map.",
+            }
+            return
+        end
+        LaunchablePanel.LaunchPanelByName("Negotiation", { charid = item.charid })
+    else
+        local doc = (dmhub.GetTable(item.tableName) or {})[item.docid]
+        if doc == nil or doc:try_get("hidden", false) then
+            gui.ModalMessage {
+                title = "Not found",
+                message = "This entry refers to a document that no longer exists.",
+            }
+            return
+        end
+        doc:ShowDocument()
+    end
+end
+
+----------------------------------------------------------------------
+-- A single agenda row: type icon + name (click to load) + done check.
+-- Rows rebuild wholesale on any agenda change, so they carry no state.
+----------------------------------------------------------------------
+
+local function CreateRunItemRow(item, isCurrent)
+    --for document-backed items prefer the live document name over the
+    --name cached at add time, so renames show through.
+    local displayName = item.name or "Untitled"
+    if item.itemType ~= "negotiation" and item.tableName ~= nil then
+        local doc = (dmhub.GetTable(item.tableName) or {})[item.docid]
+        if doc ~= nil then
+            displayName = doc.description or displayName
+        end
+    end
+
+    local rowClasses = { "bordered", "hoverable" }
+    if item.done then
+        rowClasses[#rowClasses + 1] = "bgDisabled"
+    else
+        rowClasses[#rowClasses + 1] = "bgAlt"
+    end
+    if isCurrent then
+        rowClasses[#rowClasses + 1] = "borderAccent"
+    end
+
+    local labelClasses = {}
+    if item.done then
+        labelClasses[#labelClasses + 1] = "fgMuted"
+    end
+
+    return gui.Panel {
+        classes = rowClasses,
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        pad = 6,
+        borderBox = true,
+        vmargin = 3,
+
+        rightClick = function(element)
+            local items = GetRunItems()
+            local pos = nil
+            for i, it in ipairs(items) do
+                if it.id == item.id then
+                    pos = i
+                end
+            end
+
+            element.popup = gui.ContextMenu {
+                entries = {
+                    {
+                        text = "Move Up",
+                        hidden = pos == nil or pos <= 1,
+                        click = function()
+                            element.popup = nil
+                            MutateRunItems(item.id, "Reorder the run", function(list, i)
+                                if i > 1 then
+                                    list[i], list[i - 1] = list[i - 1], list[i]
+                                end
+                            end)
+                        end,
+                    },
+                    {
+                        text = "Move Down",
+                        hidden = pos == nil or pos >= #items,
+                        click = function()
+                            element.popup = nil
+                            MutateRunItems(item.id, "Reorder the run", function(list, i)
+                                if i < #list then
+                                    list[i], list[i + 1] = list[i + 1], list[i]
+                                end
+                            end)
+                        end,
+                    },
+                    {
+                        text = "Remove",
+                        click = function()
+                            element.popup = nil
+                            MutateRunItems(item.id, "Remove from the run", function(list, i)
+                                table.remove(list, i)
+                            end)
+                        end,
+                    },
+                },
+            }
+        end,
+
+        --icon + name: the clickable "load" area.
+        gui.Panel {
+            flow = "horizontal",
+            width = "100%-30",
+            height = "auto",
+            valign = "center",
+
+            press = function(element)
+                LoadRunItem(item)
+            end,
+
+            gui.Panel {
+                width = 16,
+                height = 16,
+                valign = "center",
+                bgimage = RUN_ITEM_ICONS[item.itemType] or RUN_ITEM_ICONS.document,
+                bgcolor = "white", --image-tint-neutral
+            },
+
+            gui.Label {
+                classes = labelClasses,
+                width = "100%-32",
+                height = "auto",
+                hmargin = 8,
+                valign = "center",
+                text = displayName,
+            },
+        },
+
+        --done check: ticking an item off must not also load it, so it sits
+        --outside the load area.
+        gui.Check {
+            text = "",
+            value = item.done == true,
+            halign = "right",
+            valign = "center",
+            --bare box (empty text): hug the check mark instead of reserving
+            --the default label width.
+            width = "auto",
+            change = function(element)
+                MutateRunItems(item.id, "Mark run item", function(list, i)
+                    list[i].done = element.value == true
+                end)
+            end,
+        },
+    }
+end
+
+----------------------------------------------------------------------
+-- The "+" menu: pick what to add to the run. Documents and montage
+-- tests come from their data tables; a negotiation references the
+-- currently selected token.
+----------------------------------------------------------------------
+
+local function CreateAddMenuEntries(element)
+    local entries = {}
+
+    local docEntries = {}
+    for id, docItem in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
+        local docName = docItem.description or "Untitled"
+        docEntries[#docEntries + 1] = {
+            text = docName,
+            click = function()
+                element.popup = nil
+                AddRunItem {
+                    id = dmhub.GenerateGuid(),
+                    itemType = "document",
+                    tableName = CustomDocument.tableName,
+                    docid = id,
+                    name = docName,
+                    done = false,
+                }
+            end,
+        }
+    end
+    table.sort(docEntries, function(a, b) return a.text < b.text end)
+    if #docEntries == 0 then
+        docEntries[1] = {
+            text = "(no documents)",
+            click = function()
+                element.popup = nil
+            end,
+        }
+    end
+    entries[#entries + 1] = {
+        text = "Document",
+        submenu = docEntries,
+    }
+
+    --the prepped MontageTest type does not exist in every build; only offer
+    --the submenu when it does. (rawget: reading an unset global errors.)
+    local montageTestType = rawget(_G, "MontageTest")
+    if montageTestType ~= nil then
+        local montageEntries = {}
+        for id, test in unhidden_pairs(dmhub.GetTable(montageTestType.tableName) or {}) do
+            local testName = test.description or "Untitled"
+            montageEntries[#montageEntries + 1] = {
+                text = testName,
+                click = function()
+                    element.popup = nil
+                    AddRunItem {
+                        id = dmhub.GenerateGuid(),
+                        itemType = "montagetest",
+                        tableName = montageTestType.tableName,
+                        docid = id,
+                        name = testName,
+                        done = false,
+                    }
+                end,
+            }
+        end
+        table.sort(montageEntries, function(a, b) return a.text < b.text end)
+        if #montageEntries == 0 then
+            montageEntries[1] = {
+                text = "(no montage tests)",
+                click = function()
+                    element.popup = nil
+                end,
+            }
+        end
+        entries[#entries + 1] = {
+            text = "Montage Test",
+            submenu = montageEntries,
+        }
+    end
+
+    --negotiation: snapshot the selected token at add time.
+    local token = dmhub.currentToken
+    local negotiationText = "Negotiation with Selected Token"
+    if token ~= nil and token.name ~= nil and token.name ~= "" then
+        negotiationText = "Negotiation: " .. token.name
+    end
+    entries[#entries + 1] = {
+        text = negotiationText,
+        click = function()
+            element.popup = nil
+            local tok = dmhub.currentToken
+            if tok == nil then
+                gui.ModalMessage {
+                    title = "No token selected",
+                    message = "Select the NPC's token on the map, then add the negotiation to the run.",
+                }
+                return
+            end
+            local name = "Negotiation"
+            if tok.name ~= nil and tok.name ~= "" then
+                name = "Negotiation: " .. tok.name
+            end
+            AddRunItem {
+                id = dmhub.GenerateGuid(),
+                itemType = "negotiation",
+                charid = tok.charid,
+                name = name,
+                done = false,
+            }
+        end,
+    }
+
+    return entries
+end
+
+----------------------------------------------------------------------
+-- The panel body: the agenda list plus a single "+" at the bottom.
+----------------------------------------------------------------------
+
+local function CreateRunPanel()
+    local listPanel
+
+    listPanel = gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        monitorGame = mod:GetDocumentPath(RUN_AGENDA_DOC),
+
+        refreshGame = function(element)
+            element:FireEvent("refreshRun")
+        end,
+
+        create = function(element)
+            element:FireEvent("refreshRun")
+        end,
+
+        refreshRun = function(element)
+            local children = {}
+            local currentSeen = false
+            for _, item in ipairs(GetRunItems()) do
+                local isCurrent = false
+                if (not item.done) and (not currentSeen) then
+                    isCurrent = true
+                    currentSeen = true
+                end
+                children[#children + 1] = CreateRunItemRow(item, isCurrent)
+            end
+
+            if #children == 0 then
+                children[1] = gui.Label {
+                    classes = { "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    vmargin = 8,
+                    text = "Nothing on the run yet. Use + to add documents, montage tests, or negotiations.",
+                }
+            end
+
+            element.children = children
+        end,
+    }
+
+    local addButton = gui.Button {
+        classes = { "addButton", "sizeS" },
+        valign = "center",
+        hmargin = 4,
+        hover = function(element)
+            gui.Tooltip("Add to the run")(element)
+        end,
+        press = function(element)
+            element.popup = gui.ContextMenu {
+                entries = CreateAddMenuEntries(element),
+            }
+        end,
+    }
+
+    local footer = gui.Panel {
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        tmargin = 6,
+        bmargin = 4,
+
+        addButton,
+    }
+
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+
+        --Same first-open settle quirk as the Campaign Tracker footer above:
+        --force a restyle so the icon-only add button resolves its
+        --style-driven "+" image during the dock panel's initial
+        --collapse-then-expand.
+        create = function(element)
+            for _, delay in ipairs({ 0.05, 0.2, 0.5 }) do
+                dmhub.Schedule(delay, function()
+                    if mod.unloaded or footer == nil or not footer.valid then return end
+                    footer:SetClassTree("settleLayout", true)
+                    footer:SetClassTree("settleLayout", false)
+                end)
+            end
+        end,
+
+        listPanel,
+        footer,
+    }
+end
+
+DockablePanel.Register {
+    name = "Run",
+    icon = "icons/standard/Icon_App_GameControls.png",
+    vscroll = true,
+    dmonly = true,
+    minHeight = 200,
+    content = function()
+        return CreateRunPanel()
+    end,
+}

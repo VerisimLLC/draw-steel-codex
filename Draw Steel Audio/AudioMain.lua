@@ -967,6 +967,8 @@ DiceImpactFamilies.families = {
     { id = "Stone",      text = "Stone",            suffix = "Stone"      },
     { id = "MetalTiny",  text = "Metal (Small)",    suffix = "MetalTiny"  },
     { id = "MetalBlade", text = "Metal Blade",      suffix = "MetalBlade" },
+    { id = "MetalSparkle",text = "Metal Sparkle",  suffix = "MetalSparkle" },
+    { id = "GlassSparkle",text = "Glass Sparkle",  suffix = "GlassSparkle" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1061,12 +1063,11 @@ audio.SoundEvent{
     pitchRand = 0.1,
 }
 
---TO DO
---Black Ash Dice Impacts
 
 
 
---TO DO
+
+
 --Black Ash Dice Impacts
 
 audio.SoundEvent{
@@ -1119,6 +1120,32 @@ audio.SoundEvent{
     name = "DiceImp.Soft_Glass",
     mixgroup = "dice",
     sounds = {"dice/glass/DiceImp_Glass_Soft_01.wav","dice/glass/DiceImp_Glass_Soft_02.wav","dice/glass/DiceImp_Glass_Soft_03.wav","dice/glass/DiceImp_Glass_Soft_04.wav","dice/glass/DiceImp_Glass_Soft_05.wav","dice/glass/DiceImp_Glass_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+--glassSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Hard_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Mild_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_06.wav"},
+    volume = 0.07,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Soft_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_06.wav"},
     volume = 0.05,
     pitchRand = 0.01,
 }
@@ -1207,6 +1234,31 @@ audio.SoundEvent{
 
 
 
+--MetalSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Hard_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Mild_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Soft_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
 

@@ -81,8 +81,10 @@ local g_diagramHeight = 120
 local g_diagramMaxWidth = 340
 
 --A cheap identity for the proposed move so the diagram only rebuilds when the
---path actually changes, not every time the tooltip event fires.
-local function DiagramPathSignature(token, path)
+--path actually changes, not every time the tooltip event fires. Includes the
+--lower-tier jump alternates (if any) so a hover that changes only the
+--shortfall outcomes still re-renders.
+local function DiagramPathSignature(token, path, alternates)
 	local parts = {
 		token.charid,
 		path.movementType,
@@ -99,12 +101,25 @@ local function DiagramPathSignature(token, path)
 		end
 	end
 
+	if alternates ~= nil then
+		for _,alt in ipairs(alternates) do
+			local landing = ""
+			if alt.path ~= nil and alt.path.destination ~= nil then
+				landing = alt.path.destination.str
+			end
+			parts[#parts+1] = string.format("alt:%s:%s", tostring(alt.label), landing)
+		end
+	end
+
 	return table.concat(parts, "|")
 end
 
 --Extracts the vertical profile of the path. Returns nil when the path has no
 --vertical interest (flat ground, no climbing/walls/falls and no other tokens
---encountered) or when it spans multiple floors (no single cross-section).
+--encountered), or when it spans multiple floors WITHOUT ending in a downward
+--fall and WITHOUT being a stairs traversal (an ordinary cross-floor move has no
+--single cross-section -- the tooltip's floor-delta arrow covers it; a fall off a
+--ledge to a lower floor is drawn, and so is a walk up/down a stairway).
 local function DiagramProfileFromPath(token, path)
 	local steps = path.steps
 	if steps == nil or #steps < 2 then
@@ -112,8 +127,62 @@ local function DiagramProfileFromPath(token, path)
 	end
 
 	local n = #steps
+
+	local multiFloor = false
 	for i = 2, n do
 		if steps[i].floor ~= steps[1].floor then
+			multiFloor = true
+			break
+		end
+	end
+
+	--A STAIRS traversal (ObjectComponentStairs): every floor change enters the new floor
+	--through a stairway portal, marked by the UpFloor/DownFloor cost flag on the entering
+	--step. The C# harness stacks the involved floors and draws a staircase glyph at each
+	--transition (see MovementCrossSection.cs), so these are allowed -- and inherently
+	--vertically interesting.
+	local stairsTraversal = false
+
+	if multiFloor then
+		stairsTraversal = true
+		for i = 2, n do
+			if steps[i].floor ~= steps[i-1].floor then
+				local hasStair = false
+				--path.steps is 1-based in lua; the engine's per-step tables are 0-based.
+				local flags = path:GetStepFlags(i-1)
+				if flags ~= nil then
+					for _,f in ipairs(flags) do
+						if f == "UpFloor" or f == "DownFloor" then
+							hasStair = true
+						end
+					end
+				end
+				if not hasStair then
+					stairsTraversal = false
+					break
+				end
+			end
+		end
+	end
+
+	if multiFloor and not stairsTraversal then
+		--A cross-floor FALL (walk/pushed along one floor, then fall to a lower floor -- e.g.
+		--shoved off a balcony) still has a meaningful vertical cross-section: the C# harness
+		--stacks the floors and draws the drop with the upper floor as a thin platform and a
+		--dotted, labeled guide line per floor plane (see MovementCrossSection.cs). Allow it only
+		--when the path ends in a downward fall; any OTHER multi-floor shape has no single
+		--cross-section and is left to the tooltip's floor-delta arrow.
+		local endsInFall = false
+		local lastFlags = path:GetStepFlags(n-1)
+		if lastFlags ~= nil then
+			for _,f in ipairs(lastFlags) do
+				if f == "Fall" then
+					endsInFall = true
+				end
+			end
+		end
+
+		if not (endsInFall and steps[1]:FloorDifference(steps[n]) < 0) then
 			return nil
 		end
 	end
@@ -201,9 +270,10 @@ local function DiagramProfileFromPath(token, path)
 	end
 
 	--A jump is vertically interesting by definition -- it arcs up over its start ground and
-	--clears walls up to its jump distance -- so always show its cross-section, even on flat ground.
+	--clears walls up to its jump distance -- so always show its cross-section, even on flat
+	--ground. So is a stairs traversal: the mover changes floors up/down a staircase.
 	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump" or
-	                    (airborne and crossesAura)
+	                    stairsTraversal or (airborne and crossesAura)
 	for i = 1, n do
 		local e = entries[i]
 		if e.ground ~= entries[1].ground or e.alt ~= entries[1].alt or
@@ -228,8 +298,20 @@ end
 --uniformly to fit g_diagramMaxWidth so tiles stay square. Returns true if a
 --diagram is shown, false if the move has no drawable cross-section (the caller
 --collapses in that case).
-local function DiagramRender(diagramPanel, token, path)
-	local result = dmhub.SetMovementCrossSection{token = token, path = path}
+local function DiagramRender(diagramPanel, token, path, alternates)
+	--Lower-tier jump alternates -> secondaryPaths ghost outcomes. The arg is
+	--simply ignored by engine builds that predate secondaryPaths support.
+	local secondaryPaths = nil
+	if alternates ~= nil then
+		for _, alt in ipairs(alternates) do
+			if alt.path ~= nil then
+				secondaryPaths = secondaryPaths or {}
+				secondaryPaths[#secondaryPaths + 1] = { path = alt.path, label = alt.label }
+			end
+		end
+	end
+
+	local result = dmhub.SetMovementCrossSection{token = token, path = path, secondaryPaths = secondaryPaths}
 	if result == nil then
 		diagramPanel:SetClass("collapsed", true)
 		dmhub.ClearMovementCrossSection()
@@ -287,7 +369,7 @@ local function CreateMovementDiagramPanel()
 				return
 			end
 
-			local sig = DiagramPathSignature(args.movingToken, args.movingPath)
+			local sig = DiagramPathSignature(args.movingToken, args.movingPath, args.movingPathAlternates)
 			if sig == element.data.signature then
 				return
 			end
@@ -302,7 +384,7 @@ local function CreateMovementDiagramPanel()
 				return
 			end
 
-			DiagramRender(element, args.movingToken, args.movingPath)
+			DiagramRender(element, args.movingToken, args.movingPath, args.movingPathAlternates)
 		end,
 	}
 end

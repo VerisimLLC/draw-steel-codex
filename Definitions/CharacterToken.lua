@@ -491,6 +491,14 @@ function CharacterToken:CalculateMovementPerimeter(movementAllowance, args)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CalculateJumpReachable: Returns every tile a straight-line jump of the given distance (Chebyshev, in tiles) and jump height could land on: within distance of the token, no full-height wall or too-tall height-limited wall/block on the line, and no ground along the line rising more than jumpHeight above the takeoff ground. Landing lower is always allowed. Mirrors Move with movementType="jump", so the set matches where such a jump can actually go.
+--- @param distance integer
+--- @param jumpHeight integer
+--- @return Loc[]
+function CharacterToken:CalculateJumpReachable(distance, jumpHeight)
+	-- dummy implementation for documentation purposes only
+end
+
 --- MarkMovementArrow: Draw a movement arrow. @see ClearMovementArrow to clear the movement arrow.
 --- @param targetLoc Loc
 --- @param options nil|table

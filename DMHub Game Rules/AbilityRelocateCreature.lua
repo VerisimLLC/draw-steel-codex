@@ -141,6 +141,18 @@ ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 
+--Movement type used by targeting previews (ActivatedAbility:GetMovementType).
+--A shift the user has overridden to be a regular move reports "move".
+function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
+    if symbols ~= nil and symbols.shiftingOverride ~= nil then
+        if self.movementType == "shift" and (not symbols.shiftingOverride) then
+            return "move"
+        end
+    end
+
+    return self.movementType
+end
+
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 

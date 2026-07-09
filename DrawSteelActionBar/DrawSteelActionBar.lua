@@ -243,7 +243,12 @@ local g_movementDiagramShown = false
 --- @param path LuaPath the previewed movement path
 --- @param label nil|string already-translated movement-type noun ("Movement",
 ---        "Shift", "Teleport", "Forced Movement"); defaults to "Movement".
-local function ShowMovementDiagram(token, path, label)
+--- @param alternates nil|{path: LuaPath, label: string, tier: integer, loc: Loc, color: string}[]
+---        lower-tier shortfall outcomes for tiered jumps; forwarded through the
+---        tiletooltip event as movingPathAlternates so the movement diagram can
+---        render ghost outcomes (multi-outcome rendering is engine work; the
+---        GameHud handler ignores the arg until then).
+local function ShowMovementDiagram(token, path, label, alternates)
     if token == nil or path == nil or GameHud.instance == nil then
         return
     end
@@ -277,6 +282,7 @@ local function ShowMovementDiagram(token, path, label)
         text = text,
         movingToken = token,
         movingPath = path,
+        movingPathAlternates = alternates,
     })
     g_movementDiagramShown = true
 end
@@ -291,8 +297,26 @@ local function ClearMovementDiagram()
     end
 end
 
+--Tiered-jump hover state: markers on the tiles where lower-tier (shortfall)
+--jumps land, plus the tier the hovered tile requires (read by the confirm
+--label) and whether even the top tier cannot reach it. Rebuilt on every
+--hover; cleared when the hover moves or targeting ends.
+local g_jumpShortfallMarkers = {}
+local g_jumpHoverRequiredTier = nil
+local g_jumpHoverUnreachable = false
+
+local function ClearJumpShortfallMarkers()
+    for _, marker in ipairs(g_jumpShortfallMarkers) do
+        marker:Destroy()
+    end
+    g_jumpShortfallMarkers = {}
+    g_jumpHoverRequiredTier = nil
+    g_jumpHoverUnreachable = false
+end
+
 local function ClearPointTargeting()
     ClearMovementDiagram()
+    ClearJumpShortfallMarkers()
 
     if g_pointTargeting.labelsAtPathEnd ~= nil then
         for _, label in ipairs(g_pointTargeting.labelsAtPathEnd) do
@@ -2978,6 +3002,26 @@ local function ClearRadiusMarkers()
     g_forcedMoveLegalLocs = nil
 end
 
+--Distance in tiles from the casting token to a tile (min over the squares the
+--token occupies, so size > 1 tokens measure from their nearest edge). Used to
+--slice tiered targeting rings into annuli.
+local function DistanceFromCasterInTiles(loc)
+    local tokenCasting = g_token
+    if g_currentAbility ~= nil then
+        tokenCasting = g_currentAbility:GetRangeSource(g_token)
+    end
+
+    local best = nil
+    for _, occLoc in ipairs(tokenCasting.locsOccupying) do
+        local dist = occLoc:DistanceInTiles(loc)
+        if best == nil or dist < best then
+            best = dist
+        end
+    end
+
+    return best or 0
+end
+
 --Strict movement: capture the EXACT legal forced-move destination tiles into
 --g_forcedMoveLegalLocs (keyed by loc.xyfloorOnly.str), using the SAME range + args
 --passed to MarkMovementRadius. CalculateMovementPerimeter runs the identical engine
@@ -5075,6 +5119,9 @@ CreateAbilityController = function()
             element.data.lastHoverLoc = loc
             element.data.lastHoverPoint = point
 
+            --tiered-jump shortfall markers are per-hovered-tile; rebuild below.
+            ClearJumpShortfallMarkers()
+
             --diagnostic: cross-floor targeting trace. Throttled to changes only.
             if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                 local k = string.format("%s|%s", tostring(loc and loc.str or "nil"), tostring(loc and loc.floor or "nil"))
@@ -5199,19 +5246,106 @@ CreateAbilityController = function()
                     --For cross-floor teleport the arrow would render on the caster's floor pointing
                     --at the wrong place; leave clearMovementArrow=true so any prior arrow is removed
                     --and the radius shape preview (rendered on the target floor) is the indicator.
-                    if loc.floor == g_token.floorIndex then
-                        --Capture the preview path so jump abilities (targeting=direct,
-                        --movementType=jump) can also broadcast OA warning arrows.
-                        local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+                    --
+                    --JUMPS are exempt: the engine resolves cross-floor jump targets (the jump line
+                    --is walked on the caster's floor and the landing lifted onto the target floor),
+                    --draws per-floor arrows, and the cross-section renders the ascend -- so the
+                    --full jump preview works across floors.
+                    local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+                    if loc.floor == g_token.floorIndex or movementType == "jump" then
 
                         --A jump preview is built as a real jump (straightline + clears walls up to the
                         --jump distance) so the cross-section can arc it over those walls; matches the
                         --actual jump cast in AbilityRelocateCreature. Every other emptyspace/direct
                         --ability (teleport) uses the teleport-flag straight-line preview.
                         local markOptions = { teleport = true }
+                        local jumpAlternates = nil
                         if movementType == "jump" then
-                            local jumpHeight = math.floor((g_currentAbility:GetRange(g_token.properties, g_currentSymbols)/dmhub.unitsPerSquare) + 0.5)
-                            markOptions = { jump = true, jumpHeight = jumpHeight }
+                            local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
+                            local jumpBehaviorType = rawget(_G, "ActivatedAbilityJumpBehavior")
+                            if tierRadii ~= nil and jumpBehaviorType ~= nil then
+                                --Tiered jump (roll-to-target): find the lowest tier whose
+                                --jump actually lands on the hovered tile (distance AND
+                                --height -- a tall wall or pillar inside a tier's distance
+                                --still blocks it). When a ring carries a reachability set
+                                --(ring.locSet, from CalculateJumpReachable) membership
+                                --decides directly; otherwise a movement-arrow probe does.
+                                --Lower tiers that fall short become shortfall previews: a
+                                --marker on the tile they'd land on, and an alternate path
+                                --for the movement diagram. Each probe's MarkMovementArrow
+                                --replaces the last, so the final call below draws the
+                                --arrow the player should see.
+                                local distToTarget = g_token.loc:DistanceInTiles(loc)
+                                local hoverKey = loc.xyfloorOnly.str
+                                local requiredRing = nil
+                                local alternates = {}
+                                for _, ring in ipairs(tierRadii) do
+                                    if ring.locSet ~= nil and ring.locSet[hoverKey] then
+                                        requiredRing = ring
+                                        break
+                                    end
+
+                                    local attemptLoc = jumpBehaviorType.ShortLandingLoc(g_token.loc, loc, ring.tiles)
+                                    local info = g_token:MarkMovementArrow(attemptLoc, { jump = true, jumpHeight = ring.height })
+                                    local landLoc = attemptLoc
+                                    local path = nil
+                                    if info ~= nil and info.path ~= nil then
+                                        path = info.path
+                                        if path.destination ~= nil then
+                                            landLoc = path.destination
+                                        end
+                                    end
+
+                                    --The probe decides in fallback mode (no reachability sets) and
+                                    --for CROSS-FLOOR tiles, which the source-floor sets never contain.
+                                    --Reach: arrive at the tile's x,y; for a SAME-floor target that is
+                                    --enough (a jump into a chasm tile that falls through still reached
+                                    --it), but a target on ANOTHER floor also demands landing on that
+                                    --floor -- a jump that can't make the rise lands at the same x,y on
+                                    --the caster's own floor (under the ledge), which is not a reach.
+                                    local probeDecides = ring.locSet == nil or loc.floor ~= g_token.floorIndex
+                                    local landsOnTarget = landLoc.x == loc.x and landLoc.y == loc.y and
+                                        (loc.floor == g_token.floorIndex or landLoc.floor == loc.floor)
+                                    if probeDecides and ring.tiles >= distToTarget and landsOnTarget then
+                                        requiredRing = ring
+                                        break
+                                    end
+
+                                    --An invisible ring's tier cannot be rolled (e.g. tier 1
+                                    --under the Fury's Mighty Leaps), so it never lands short
+                                    --there: no shortfall preview for it.
+                                    if not ring.invisible then
+                                        alternates[#alternates + 1] = { path = path, label = ring.label, tier = ring.tier, loc = landLoc, color = ring.color }
+                                    end
+                                end
+
+                                if requiredRing == nil then
+                                    --not reachable even at the top tier (too far or a
+                                    --too-tall wall): the top tier's attempt IS the main
+                                    --arrow; keep the lower tiers as shortfall previews.
+                                    requiredRing = tierRadii[#tierRadii]
+                                    g_jumpHoverUnreachable = true
+                                    if #alternates > 0 then
+                                        table.remove(alternates)
+                                    end
+                                end
+
+                                for _, alternate in ipairs(alternates) do
+                                    g_jumpShortfallMarkers[#g_jumpShortfallMarkers + 1] = dmhub.MarkLocs {
+                                        locs = { alternate.loc },
+                                        color = alternate.color,
+                                    }
+                                end
+
+                                g_jumpHoverRequiredTier = requiredRing.tier
+                                if #alternates > 0 then
+                                    jumpAlternates = alternates
+                                end
+                                markOptions = { jump = true, jumpHeight = requiredRing.height }
+                            else
+                                local jumpHeight = math.floor((g_currentAbility:GetRange(g_token.properties, g_currentSymbols)/dmhub.unitsPerSquare) + 0.5)
+                                markOptions = { jump = true, jumpHeight = jumpHeight }
+                            end
                         end
 
                         local movementInfo = g_token:MarkMovementArrow(loc, markOptions)
@@ -5231,6 +5365,11 @@ CreateAbilityController = function()
                             local diagramLabel = tr("Movement")
                             if movementType == "jump" then
                                 diagramLabel = tr("Jump")
+                                if g_jumpHoverUnreachable then
+                                    diagramLabel = tr("Jump (cannot reach)")
+                                elseif g_jumpHoverRequiredTier ~= nil and g_jumpHoverRequiredTier > 1 then
+                                    diagramLabel = string.format(tr("Jump (needs Tier %d)"), g_jumpHoverRequiredTier)
+                                end
                                 --The jump preview path already carries movementType=Jump and its
                                 --jumpHeight from the engine, so the diagram arcs it over walls and
                                 --rests it on the ground -- no teleport flag needed.
@@ -5244,7 +5383,7 @@ CreateAbilityController = function()
                                 --synthesizes the arrival fall for a non-flyer.
                                 movementInfo.path.teleport = true
                             end
-                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel)
+                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates)
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
@@ -5919,6 +6058,15 @@ CreateAbilityController = function()
                         end
                     elseif g_pointTargeting.shapeRequiresConfirm then
                         clickText = g_currentAbility:DescribeTargetText(g_currentSymbols)
+                    end
+
+                    --Tiered jump: tell the player this tile needs a test (lower
+                    --tiers land short -- on the marked shortfall tiles), or that
+                    --no tier reaches it at all.
+                    if g_jumpHoverUnreachable and clickText ~= "" then
+                        clickText = tr("Cannot Reach")
+                    elseif g_jumpHoverRequiredTier ~= nil and g_jumpHoverRequiredTier > 1 and clickText ~= "" then
+                        clickText = string.format(tr("Needs Tier %d - Click to Roll"), g_jumpHoverRequiredTier)
                     end
 
                     local locs = g_pointTargeting.shape.locations
@@ -6868,8 +7016,56 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
 
-                    print("MovementRadius:: MARK", range)
-                    AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+                    local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
+                    if tierRadii ~= nil then
+                        --Tiered targeting (e.g. Jump): one ring per tier. When the
+                        --ring carries a reachability-accurate tile set (ring.locs,
+                        --from CalculateJumpReachable) it is drawn as a white
+                        --solid/dashed/dotted outline of exactly the tiles that
+                        --tier can land on. Fallback (older engine): colored
+                        --distance annuli.
+                        local prevTiles = 0
+                        for _, ring in ipairs(tierRadii) do
+                            --An invisible ring (e.g. the tier 1 ring of a caster
+                            --who cannot roll below tier 2) exists only for the
+                            --hover required-tier logic: draw nothing, and leave
+                            --prevTiles alone so the next visible ring's annulus
+                            --covers its zone.
+                            if ring.invisible then
+                            elseif ring.locs ~= nil then
+                                local ringLocs = ring.locs
+                                if filterTargetPredicate ~= nil then
+                                    local filtered = {}
+                                    for _, l in ipairs(ringLocs) do
+                                        if filterTargetPredicate(l) then
+                                            filtered[#filtered + 1] = l
+                                        end
+                                    end
+                                    ringLocs = filtered
+                                end
+                                if #ringLocs > 0 then
+                                    g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
+                                        locs = ringLocs,
+                                        color = ring.color,
+                                        style = ring.style,
+                                    }
+                                end
+                                prevTiles = ring.tiles
+                            else
+                                local minTiles = prevTiles
+                                AddRadiusMarker(loc, ring.radius, ring.color, function(l)
+                                    if filterTargetPredicate ~= nil and (not filterTargetPredicate(l)) then
+                                        return false
+                                    end
+                                    return DistanceFromCasterInTiles(l) > minTiles
+                                end)
+                                prevTiles = ring.tiles
+                            end
+                        end
+                    else
+                        print("MovementRadius:: MARK", range)
+                        AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+                    end
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
                     --Cube targeting opts into the controller in "cube" mode (no min/max

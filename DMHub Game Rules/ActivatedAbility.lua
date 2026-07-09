@@ -2695,19 +2695,53 @@ function ActivatedAbility.CountActiveCasts()
     return count
 end
 
---- Returns the movement type for relocate-creature behaviors ("move", "shift", etc.), or nil if none.
+--- The movement type this behavior imparts on the ability ("move", "shift",
+--- "jump", "teleport", ...), or nil if it isn't a movement behavior. Behaviors
+--- that move the caster override this so targeting previews key off it.
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorMovementType(symbols)
+    return nil
+end
+
+--- Returns the movement type for movement behaviors ("move", "shift", etc.), or nil if none.
 --- @param token CharacterToken
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
     for _,behavior in ipairs(self.behaviors) do
-        if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
-            if symbols ~= nil and symbols.shiftingOverride ~= nil then
-                if behavior.movementType == "shift" and (not symbols.shiftingOverride) then
-                    return "move"
-                end
-            end
-            return behavior.movementType
+        local movementType = behavior:BehaviorMovementType(symbols)
+        if movementType ~= nil then
+            return movementType
+        end
+    end
+
+    return nil
+end
+
+--- Per-tier targeting rings drawn while this behavior's ability is being
+--- targeted, or nil for ordinary single-ring targeting. Each entry:
+--- {tier: integer, tiles: integer, height: integer, radius: number,
+---  color: string, label: string}, ordered by ascending tiles.
+--- @param ability ActivatedAbility
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbilityBehavior:GetTargetingTierRadii(ability, token, symbols)
+    return nil
+end
+
+--- Per-tier targeting rings for this ability ({tier, tiles, height, radius,
+--- color, label}[]), or nil if no behavior provides them. The action bar draws
+--- one colored ring per entry instead of the single white range ring.
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbility:GetTargetingTierRadii(token, symbols)
+    for _,behavior in ipairs(self.behaviors) do
+        local radii = behavior:GetTargetingTierRadii(self, token, symbols)
+        if radii ~= nil then
+            return radii
         end
     end
 

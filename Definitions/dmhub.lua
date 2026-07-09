@@ -151,8 +151,8 @@ function dmhub.TestFunction()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move (a token plus its movement path) and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it.
---- @param args {token: any, path: any}
+--- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move (a token plus its movement path) and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors without ending in a fall, or there is no active map). For jump previews, secondaryPaths optionally supplies lower-tier hypothetical outcomes (each a LuaPath or {path, label} sharing the primary path's start along the same line); they are drawn as faded ghost arcs with a dim landing avatar, a dashed drop when they fall into a chasm, and the label ("Tier 1") above the landing. Invalid secondary entries are skipped. While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it.
+--- @param args {token: any, path: any, secondaryPaths: nil|{path: any, label: nil|string}[]}
 --- @return nil|{image: string, width: number, height: number}
 function dmhub.SetMovementCrossSection(args)
 	-- dummy implementation for documentation purposes only
@@ -724,9 +724,10 @@ function dmhub.MarkRadius(table)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLocs: Mark a set of locations on the map. Call Destroy() on the returned object when you want to destroy the marker.
+--- MarkLocs: Mark a set of locations on the map by outlining their perimeter. style: "solid" draws a plain continuous line, "dashed"/"dotted" draw a patterned line; nil keeps the legacy border strip with its inner fade. Call Destroy() on the returned object when you want to destroy the marker.
 --- @param color Color
 --- @param locs Loc[]
+--- @param style nil|"solid"|"dashed"|"dotted"
 --- @return LuaMultiObjectReference
 function dmhub.MarkLocs(args)
 	-- dummy implementation for documentation purposes only

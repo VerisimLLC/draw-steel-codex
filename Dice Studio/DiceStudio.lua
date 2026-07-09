@@ -1945,14 +1945,17 @@ CreateDiceStudioPanel = function()
 	-- fall back to the engine's built-in behavior (Throw keeps its default; the spawn/teleport/
 	-- settle events are silent unless bound). "ThrowStart" is a per-roll sound; the rest fire per
 	-- die. "Teleport" fires when a teleport-movement die begins its jump and "Reappear" when it
-	-- arrives -- "Disappear" is now end-of-roll removal only. Labels are author-friendly (Exit ->
-	-- "Settle"). The "Impact" (BounceHit) row is special: instead of a raw sound dropdown it is a
-	-- family picker (see MakeImpactFamilyRow) drawn from the audio mod's DiceImpactFamilies
+	-- arrives -- "Disappear" is now end-of-roll removal only. "Number Glow" fires per die when the
+	-- result number lights up after the die settles; unlike the other silent-by-default events it
+	-- falls back to the built-in "Dice.Numglow_Generic" when unbound. Labels are author-friendly
+	-- (Exit -> "Settle"). The "Impact" (BounceHit) row is special: instead of a raw sound dropdown
+	-- it is a family picker (see MakeImpactFamilyRow) drawn from the audio mod's DiceImpactFamilies
 	-- registry, and the runtime dispatches it through the single "Dice.Impact" sound event.
 	local diceSoundEventList = {
 		{ event = "ThrowStart", label = "Throw:"      },
 		{ event = "Appearance", label = "Appearance:" },
 		{ event = "BounceHit",  label = "Impact:"     },
+		{ event = "NumberGlow", label = "Number Glow:"},
 		{ event = "Disappear",  label = "Disappear:"  },
 		{ event = "Teleport",   label = "Teleport:"   },
 		{ event = "Reappear",   label = "Reappear:"   },
@@ -2757,6 +2760,162 @@ end
 					},
 				},
 			},
+		},
+	}
+
+	-- Physics "feel": per-set overrides of the global dice physics (gravity/velocity/drag/etc).
+	-- When "Custom Physics" is off the set rolls with the global dice:* settings (today's feel).
+	-- The Plastic preset reproduces that default feel exactly; Metal/Stone are heavier + less bouncy.
+	-- physicsControls is forward-declared so the preset buttons can refresh the sliders after
+	-- writing new values to the bridge.
+	local physicsControls
+
+	local function ApplyPhysicsPreset(gravity, velocity, drag, angulardrag, bounciness)
+		dicestudio.physicsEnabled = true
+		dicestudio.physicsGravity = gravity
+		dicestudio.physicsVelocity = velocity
+		dicestudio.physicsDrag = drag
+		dicestudio.physicsAngularDrag = angulardrag
+		dicestudio.physicsBounciness = bounciness
+		if physicsControls ~= nil then
+			physicsControls:FireEventTree("newmaterial")
+		end
+		RefreshDice()
+	end
+
+	local function MakePhysicsSlider(labelText, minValue, maxValue, getFn, setFn)
+		return gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = labelText,
+			},
+			gui.Slider{
+				style = { height = 26, width = 240, fontSize = 14 },
+				sliderWidth = 180,
+				labelWidth = 50,
+				minValue = minValue,
+				maxValue = maxValue,
+				value = getFn(),
+				newmaterial = function(element)
+					element.value = getFn()
+				end,
+				change = function(element)
+					setFn(element.value)
+					RefreshDice()
+				end,
+			},
+		}
+	end
+
+	-- Sliders + presets, collapsed while "Custom Physics" is unchecked.
+	physicsControls = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		create = function(element)
+			element:SetClass("collapsed", dicestudio.physicsEnabled == false)
+		end,
+		refreshDice = function(element)
+			element:SetClass("collapsed", dicestudio.physicsEnabled == false)
+		end,
+		newmaterial = function(element)
+			element:SetClass("collapsed", dicestudio.physicsEnabled == false)
+		end,
+
+		gui.Panel{
+			classes = {"formPanel"},
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Presets:",
+			},
+			gui.Panel{
+				width = "100%-24",
+				height = "auto",
+				flow = "horizontal",
+				gui.Button{
+					text = "Plastic",
+					width = "32%",
+					height = 24,
+					fontSize = 16,
+					click = function(element)
+						ApplyPhysicsPreset(22, 5, 1.5, 1, 0.8)
+					end,
+				},
+				gui.Button{
+					text = "Metal",
+					width = "32%",
+					height = 24,
+					fontSize = 16,
+					click = function(element)
+						ApplyPhysicsPreset(30, 5, 2.5, 2, 0.45)
+					end,
+				},
+				gui.Button{
+					text = "Stone",
+					width = "32%",
+					height = 24,
+					fontSize = 16,
+					click = function(element)
+						ApplyPhysicsPreset(26, 4.5, 3.5, 3, 0.15)
+					end,
+				},
+			},
+		},
+
+		MakePhysicsSlider("Gravity:", 0.1, 30, function() return dicestudio.physicsGravity or 22 end, function(v) dicestudio.physicsGravity = v end),
+		MakePhysicsSlider("Velocity:", 1, 30, function() return dicestudio.physicsVelocity or 5 end, function(v) dicestudio.physicsVelocity = v end),
+		MakePhysicsSlider("Drag:", 0, 5, function() return dicestudio.physicsDrag or 1.5 end, function(v) dicestudio.physicsDrag = v end),
+		MakePhysicsSlider("Angular Drag:", 0, 5, function() return dicestudio.physicsAngularDrag or 1 end, function(v) dicestudio.physicsAngularDrag = v end),
+		MakePhysicsSlider("Bounciness:", 0, 1, function() return dicestudio.physicsBounciness or 0.8 end, function(v) dicestudio.physicsBounciness = v end),
+	}
+
+	local physicsSection = gui.TreeNode{
+		text = "Physics",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Overrides the global dice physics for this set only. Plastic matches the default feel; Metal and Stone are heavier and less bouncy. Off = use the global settings.",
+			},
+
+			-- Enabled
+			gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = "Custom Physics:",
+				},
+				gui.Check{
+					text = "",
+					halign = "left",
+					width = "auto",
+					minWidth = 0,
+					value = dicestudio.physicsEnabled,
+					newmaterial = function(element)
+						element.value = dicestudio.physicsEnabled
+					end,
+					change = function(element)
+						dicestudio.physicsEnabled = element.value
+						RefreshDice()
+						element.root:FireEventTree("refreshDice")
+					end,
+				},
+			},
+
+			physicsControls,
 		},
 	}
 
@@ -3813,6 +3972,8 @@ end
 				}
 			},
 		},
+
+		physicsSection,
 
 		haloSection,
 

@@ -20,6 +20,12 @@
 --- @field billboardSize number The billboard quad's size as a fraction of the die's bounding-box size (1 == die-sized). 0 == effectively off.
 --- @field billboardFalloff number The billboard gradient's falloff exponent (higher = tighter, more concentrated core). Only used in gradient mode.
 --- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
+--- @field physicsEnabled boolean Whether this dice set overrides the global dice physics settings with its own per-set 'feel' (see physicsGravity/physicsVelocity/physicsDrag/physicsAngularDrag/physicsBounciness). When false the set rolls with the global dice:* settings.
+--- @field physicsGravity number Per-set gravity multiplier (dice 'heft'); only used when physicsEnabled is true. Higher = the die falls and settles harder. Matches the global dice:gravity default (22) for a plastic feel.
+--- @field physicsVelocity number Per-set launch-velocity scale (throw energy); only used when physicsEnabled is true. Matches the global dice:velocity default (5).
+--- @field physicsDrag number Per-set linear drag (skitter damping); only used when physicsEnabled is true. Higher = the die stops sooner. Matches the global dice:drag default (1.5).
+--- @field physicsAngularDrag number Per-set angular drag (tumble damping); only used when physicsEnabled is true. Higher = the die's spin dies sooner. Matches the global dice:angulardrag default (1).
+--- @field physicsBounciness number Per-set bounciness / restitution (0..1); only used when physicsEnabled is true. Higher = bouncier. Matches the global dice:bounciness default (0.8).
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').

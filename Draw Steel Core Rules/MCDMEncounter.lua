@@ -236,6 +236,35 @@ function Encounter.WaveRoundText(wave)
     return string.format("Round %d", wave.round)
 end
 
+--Scene cues an encounter can carry: authored moments that surface a
+--Director banner in the initiative bar when their round arrives (a floor
+--collapse, a building demolition, competitive demons breaking rank...).
+--Unlike waves they spawn nothing themselves; firing one is a Director
+--action the banner walks through. Each entry is a table:
+--  id    : string   stable guid
+--  name  : string   display name, e.g. "The Floor Collapses"
+--  round : number|string  the round the banner becomes available (2-6), or
+--                         "every" -- same semantics as wave rounds.
+--  text  : string   Director-facing summary of what happens on firing.
+--  check : nil|table  optional one-tap group test the banner can launch:
+--      { title: string, characteristics: {attrid=true,...}, tiers: {t1,t2,t3} }
+--  steps : nil|list  optional ordered walkthrough rendered in the fire popup.
+--      Each step is { type, ... }:
+--        { type = "note",        text }  -- a manual checklist line
+--        { type = "activations", text }  -- like note, plus a live count of
+--                                        -- heroes who have not yet acted
+--        { type = "grouptest",   title, characteristics, tiers }
+--                                        -- one-tap pre-filled Request Rolls
+--        { type = "malice",      value, text }  -- one-tap set Malice to value
+--        { type = "opendoc",     docid, text }  -- open a journal page
+Encounter.cues = {}
+
+--Human-readable description of when a cue fires. Cues share wave
+--round semantics.
+function Encounter.CueRoundText(cue)
+    return Encounter.WaveRoundText(cue)
+end
+
 function Encounter.MainMonster(encounter)
     local mainmonster = nil
     for i, group in ipairs(encounter.groups) do
@@ -1021,6 +1050,41 @@ function LiveEncounter:GetAvailableWaves(currentRound)
             local arrived = (wave.round == "every") or (type(wave.round) == "number" and currentRound >= wave.round)
             if arrived then
                 result[#result + 1] = wave
+            end
+        end
+    end
+    return result
+end
+
+-- Set of cue ids that have already been fired (or dismissed) during this live
+-- encounter. A fired cue's banner no longer shows. Mirrors deployedWaves,
+-- including the copy-on-write so the shared default is never touched.
+LiveEncounter.firedCues = {}
+
+-- True if the given cue has already been fired/dismissed.
+function LiveEncounter:IsCueFired(cueid)
+    local fired = self:try_get("firedCues")
+    return fired ~= nil and fired[cueid] == true
+end
+
+-- Mark a cue as fired/dismissed so its banner stops showing. Callers must
+-- network the change (e.g. info.UploadInitiative()) afterwards, since the live
+-- encounter rides along inside the initiative queue.
+function LiveEncounter:MarkCueFired(cueid)
+    self.firedCues = DeepCopy(self:try_get("firedCues", {}))
+    self.firedCues[cueid] = true
+end
+
+-- Returns the list of cues whose banner should currently show: not already
+-- fired, and whose round has been reached (numeric round arrives when
+-- currentRound >= that round; "every" is available on any round).
+function LiveEncounter:GetAvailableCues(currentRound)
+    local result = {}
+    for _, cue in ipairs(self:try_get("cues", {})) do
+        if not self:IsCueFired(cue.id) then
+            local arrived = (cue.round == "every") or (type(cue.round) == "number" and currentRound >= cue.round)
+            if arrived then
+                result[#result + 1] = cue
             end
         end
     end

@@ -1984,6 +1984,344 @@ local function CreateReinforcementsStrip(self, info)
     }
 end
 
+-- A single scene-cue banner button. Reuses the villain-action drawer chrome
+-- so cues read as the same family as reinforcements. Clicking opens the
+-- cue's fire popup (description + optional one-tap group test + Mark Fired);
+-- right-click dismisses without firing.
+local function CreateCueButton(info, cue)
+    local function MarkFiredAndRefresh(element)
+        local q = info.initiativeQueue
+        if q == nil then return end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then return end
+
+        liveEncounter:MarkCueFired(cue.id)
+        info.UploadInitiative()
+
+        local strip = element:FindParentWithClass("cuesStrip")
+        if strip ~= nil then
+            strip:FireEvent("refresh")
+        end
+    end
+
+    return gui.Panel{
+        classes = {"vaDrawer", "available", "cueButton"},
+        data = { cueid = cue.id },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            text = cue.name,
+        },
+        gui.Label{
+            classes = {"vaDrawerSummary"},
+            text = Encounter.CueRoundText(cue),
+        },
+
+        hover = function(element)
+            gui.Tooltip{
+                text = string.format("Fire %s (%s). Right-click to dismiss.", cue.name, Encounter.CueRoundText(cue)),
+            }(element)
+        end,
+
+        click = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+
+            --count living heroes who have not yet acted this round, for the
+            --"activations" step (mid-round collapses activate that many
+            --monster groups). Mirrors CalculateMaliceGain's entry walk.
+            local function CountHeroesYetToAct()
+                local q = info.initiativeQueue
+                if q == nil then return 0 end
+                local count = 0
+                local allTokens = dmhub.allTokens
+                for k, v in pairs(q.entries) do
+                    if q:IsEntryPlayer(k) and v.round <= q.round then
+                        local tokens = q.GetTokensForInitiativeId(k, allTokens)
+                        for _, tok in ipairs(tokens) do
+                            if tok.properties:IsHero() and not tok.properties:IsDead() then
+                                count = count + 1
+                            end
+                        end
+                    end
+                end
+                return count
+            end
+
+            local function GroupTestButton(step)
+                return gui.Button{
+                    classes = {"sizeM"},
+                    halign = "left",
+                    text = step.title or "Roll the Group Test",
+                    click = function()
+                        LaunchablePanel.LaunchPanelByName("Request Rolls", {
+                            title = step.title,
+                            powerRollTable = PowerRollTable.Create{
+                                tiers = step.tiers or {},
+                            },
+                            characteristics = step.characteristics or {},
+                            skills = {},
+                        })
+                    end,
+                }
+            end
+
+            --one step row: number + content. Manual steps get a checkbox the
+            --Director can tick as they work down the list (visual only; the
+            --popup is the worksheet, firing is what persists).
+            local function StepRow(index, contentPanel)
+                return gui.Panel{
+                    flow = "horizontal",
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 6,
+
+                    gui.Label{
+                        classes = {"fgMuted", "bold"},
+                        width = 22,
+                        height = "auto",
+                        fontSize = 13,
+                        text = string.format("%d.", index),
+                    },
+                    contentPanel,
+                }
+            end
+
+            local function StepLabel(text)
+                return gui.Label{
+                    classes = {"fg"},
+                    width = "100%-22",
+                    height = "auto",
+                    fontSize = 13,
+                    text = text,
+                }
+            end
+
+            local children = {}
+
+            children[#children + 1] = gui.Label{
+                classes = {"fgStrong", "bold"},
+                width = "100%",
+                height = "auto",
+                fontSize = 16,
+                text = cue.name,
+            }
+
+            if cue.text ~= nil and cue.text ~= "" then
+                children[#children + 1] = gui.Label{
+                    classes = {"fg"},
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 13,
+                    tmargin = 6,
+                    text = cue.text,
+                }
+            end
+
+            --steps walkthrough. The legacy single "check" field renders as a
+            --lone grouptest step so older cues keep working.
+            local steps = cue.steps
+            if steps == nil and cue.check ~= nil then
+                steps = { { type = "grouptest",
+                    title = cue.check.title,
+                    characteristics = cue.check.characteristics,
+                    tiers = cue.check.tiers } }
+            end
+
+            for i, step in ipairs(steps or {}) do
+                local content = nil
+                if step.type == "note" then
+                    content = StepLabel(step.text or "")
+                elseif step.type == "activations" then
+                    local n = CountHeroesYetToAct()
+                    content = StepLabel(string.format("%s (heroes yet to act: %d)", step.text or "", n))
+                elseif step.type == "grouptest" then
+                    content = GroupTestButton(step)
+                elseif step.type == "malice" then
+                    local value = step.value or 0
+                    content = gui.Panel{
+                        flow = "vertical",
+                        width = "100%-22",
+                        height = "auto",
+                        step.text ~= nil and StepLabel(step.text) or nil,
+                        gui.Button{
+                            classes = {"sizeM"},
+                            halign = "left",
+                            tmargin = 4,
+                            text = string.format("Set Malice to %d", value),
+                            click = function(btn)
+                                CharacterResource.SetMalice(value, string.format("%s: Malice set to %d", cue.name, value))
+                                btn.text = string.format("Malice set to %d", value)
+                                btn.interactable = false
+                            end,
+                        },
+                    }
+                elseif step.type == "opendoc" then
+                    content = gui.Button{
+                        classes = {"sizeM"},
+                        halign = "left",
+                        text = step.text or "Open the page",
+                        click = function()
+                            local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[step.docid]
+                            if doc ~= nil then
+                                doc:ShowDocument()
+                            end
+                        end,
+                    }
+                else
+                    content = StepLabel(step.text or "")
+                end
+                children[#children + 1] = StepRow(i, content)
+            end
+
+            children[#children + 1] = gui.Button{
+                classes = {"sizeM"},
+                halign = "center",
+                tmargin = 10,
+                text = "Mark Fired",
+                click = function()
+                    element.popup = nil
+                    MarkFiredAndRefresh(element)
+                end,
+            }
+
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                width = "auto",
+                height = "auto",
+                gui.Panel{
+                    classes = {"bordered", "bg"},
+                    flow = "vertical",
+                    width = 420,
+                    height = "auto",
+                    borderBox = true,
+                    pad = 10,
+                    children = children,
+                },
+            }
+        end,
+
+        rightClick = function(element)
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Dismiss",
+                        click = function()
+                            element.popup = nil
+                            MarkFiredAndRefresh(element)
+                        end,
+                    },
+                },
+            }
+        end,
+    }
+end
+
+-- Cues strip: a DM-only band below the reinforcements strip that surfaces a
+-- banner for each scene cue whose round has been reached and that has not yet
+-- been fired/dismissed. Mirrors the reinforcements strip: polls the queue and
+-- rebuilds its buttons only when the available set changes.
+local function CreateCuesStrip(self, info)
+    local buttonsRow = gui.Panel{
+        classes = {"vaDrawerRow"},
+    }
+
+    return gui.Panel{
+        classes = {"cuesStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "CUES",
+            },
+        },
+
+        buttonsRow,
+
+        data = {
+            currentSignature = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local available = liveEncounter:GetAvailableCues(q.round or 0)
+            if #available == 0 then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                buttonsRow.children = {}
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            local sig = ""
+            for _, cue in ipairs(available) do
+                sig = string.format("%s%s|%s;", sig, cue.id, cue.name)
+            end
+            if sig == element.data.currentSignature then
+                return
+            end
+            element.data.currentSignature = sig
+
+            local buttons = {}
+            for _, cue in ipairs(available) do
+                buttons[#buttons + 1] = CreateCueButton(info, cue)
+            end
+            buttonsRow.children = buttons
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
 -- Eye icon that toggles whether players can see the objective. Mirrors the character
 -- sheet's privacyIcon: closed eye when hidden (director only), open eye ("shown"
 -- class) when revealed to players. @fgStrong is resolved via MergeTokens.
@@ -3541,6 +3879,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			CreateVillainActionStrip(self, info),
 			CreateReinforcementsStrip(self, info),
+			CreateCuesStrip(self, info),
 		},
 
 		-- Player-side strip container: mirror of the monster-side container,

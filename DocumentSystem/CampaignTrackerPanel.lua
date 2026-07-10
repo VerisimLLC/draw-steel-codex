@@ -916,6 +916,23 @@ local function AddRunItem(item)
     SaveRunItems(items, "Add to the run")
 end
 
+--Public hook: other modules add to the run through this global (the
+--journal tree and viewer-tab "Add to Run" context entries use it; they
+--guard with rawget(_G, "RunAgenda") since this file loads late).
+RunAgenda = rawget(_G, "RunAgenda") or {}
+
+--Add a journal document (a CustomDocument-derived instance) to the run.
+function RunAgenda.AddDocument(doc)
+    AddRunItem {
+        id = dmhub.GenerateGuid(),
+        itemType = "document",
+        tableName = CustomDocument.tableName,
+        docid = doc.id,
+        name = doc.description or "Untitled",
+        done = false,
+    }
+end
+
 --Find the item by id and hand (items, index) to fn to mutate, then persist.
 local function MutateRunItems(itemid, description, fn)
     local items = DeepCopy(GetRunItems())
@@ -954,20 +971,30 @@ local function LoadRunItem(item)
 end
 
 ----------------------------------------------------------------------
--- A single agenda row: type icon + name (click to load) + done check.
--- Rows rebuild wholesale on any agenda change, so they carry no state.
+-- A single agenda row: expando arrow + type icon + name (click to
+-- load) + done check, with an accordion body that renders the backing
+-- document inline. Rows rebuild wholesale on any agenda change, so
+-- expansion state lives in g_runRowExpanded (local UI state keyed by
+-- item id) rather than on the panels.
 ----------------------------------------------------------------------
+
+local g_runRowExpanded = {}
 
 local function CreateRunItemRow(item, isCurrent)
     --for document-backed items prefer the live document name over the
     --name cached at add time, so renames show through.
     local displayName = item.name or "Untitled"
+    local doc = nil
     if item.itemType ~= "negotiation" and item.tableName ~= nil then
-        local doc = (dmhub.GetTable(item.tableName) or {})[item.docid]
+        doc = (dmhub.GetTable(item.tableName) or {})[item.docid]
         if doc ~= nil then
             displayName = doc.description or displayName
         end
     end
+
+    --only journal documents have page content to show inline.
+    local expandable = item.itemType == "document" and doc ~= nil
+    local expanded = expandable and g_runRowExpanded[item.id] == true
 
     local rowClasses = { "bordered", "hoverable" }
     if item.done then
@@ -984,14 +1011,67 @@ local function CreateRunItemRow(item, isCurrent)
         labelClasses[#labelClasses + 1] = "fgMuted"
     end
 
-    return gui.Panel {
-        classes = rowClasses,
+    --the accordion body. Content is built lazily on first expand: the
+    --embedded page render is heavy, and most rows stay closed.
+    local bodyPanel = nil
+    local arrow = nil
+    if expandable then
+        local bodyClasses = {}
+        if not expanded then
+            bodyClasses[#bodyClasses + 1] = "collapsed"
+        end
+        bodyPanel = gui.Panel {
+            classes = bodyClasses,
+            width = "100%",
+            height = "auto",
+            maxHeight = 500,
+            vscroll = true,
+            tmargin = 4,
+
+            create = function(element)
+                if expanded then
+                    element:FireEvent("buildContent")
+                end
+            end,
+
+            buildContent = function(element)
+                if #element.children > 0 then
+                    return
+                end
+                local embed = CustomDocument.CreateEmbeddablePanel(doc, {})
+                if embed ~= nil then
+                    element.children = { embed }
+                end
+            end,
+        }
+
+        local function Toggle()
+            local nowExpanded = not (g_runRowExpanded[item.id] == true)
+            g_runRowExpanded[item.id] = nowExpanded or nil
+            arrow:SetClass("expanded", nowExpanded)
+            bodyPanel:SetClass("collapsed", not nowExpanded)
+            if nowExpanded then
+                bodyPanel:FireEvent("buildContent")
+            end
+        end
+
+        --NOTE: do not pass classes = {} here: gui.CombineFields replaces
+        --(not merges) when either list is empty, which would strip the
+        --"triangle" theme class and with it the arrow's 12x12 sizing.
+        --click, not press: rows are draggable, and press fires when a
+        --drag gesture starts on a child; click only fires on a true click.
+        arrow = gui.ExpandoArrow {
+            click = Toggle,
+            create = function(element)
+                element:SetClass("expanded", g_runRowExpanded[item.id] == true)
+            end,
+        }
+    end
+
+    local headerRow = gui.Panel {
         flow = "horizontal",
         width = "100%",
         height = "auto",
-        pad = 6,
-        borderBox = true,
-        vmargin = 3,
 
         rightClick = function(element)
             local items = GetRunItems()
@@ -1041,14 +1121,20 @@ local function CreateRunItemRow(item, isCurrent)
             }
         end,
 
+        --accordion arrow slot: real arrow for documents, a spacer for
+        --other item types so icons line up across rows (the triangle is
+        --12 wide plus 4 hmargin per side).
+        arrow or gui.Panel { width = 20, height = 1 },
+
         --icon + name: the clickable "load" area.
         gui.Panel {
             flow = "horizontal",
-            width = "100%-30",
+            width = "100%-50",
             height = "auto",
             valign = "center",
 
-            press = function(element)
+            --click, not press: see the expando arrow note above.
+            click = function(element)
                 LoadRunItem(item)
             end,
 
@@ -1087,119 +1173,322 @@ local function CreateRunItemRow(item, isCurrent)
             end,
         },
     }
+
+    rowClasses[#rowClasses + 1] = "runRow"
+
+    return gui.Panel {
+        classes = rowClasses,
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        pad = 6,
+        borderBox = true,
+        vmargin = 3,
+
+        --drag a row onto another row to reorder: dragging down lands the
+        --row after the target, dragging up lands it before. The engine
+        --paints eligible targets while the drag is in flight.
+        draggable = true,
+        dragTarget = true,
+        canDragOnto = function(element, target)
+            return target:HasClass("runRow")
+        end,
+        drag = function(element, target)
+            if target ~= nil then
+                target:FireEvent("dropRunItem", item.id)
+            end
+        end,
+        dropRunItem = function(element, draggedId)
+            if draggedId == item.id then
+                return
+            end
+            local items = DeepCopy(GetRunItems())
+            local from, to = nil, nil
+            for i, it in ipairs(items) do
+                if it.id == draggedId then from = i end
+                if it.id == item.id then to = i end
+            end
+            if from == nil or to == nil then
+                return
+            end
+            local moved = table.remove(items, from)
+            table.insert(items, to, moved)
+            SaveRunItems(items, "Reorder the run")
+        end,
+
+        headerRow,
+        bodyPanel,
+    }
 end
 
 ----------------------------------------------------------------------
--- The "+" menu: pick what to add to the run. Documents and montage
--- tests come from their data tables; a negotiation references the
--- currently selected token.
+-- The "+" picker: a popup listing documents grouped into their journal
+-- folders (expandable), montage tests, and a negotiation with the
+-- selected token. This replaces the old nested context submenu, which
+-- opened toward the screen edge from the right-hand dock and got
+-- constrained back over its own parent menu, leaving only the top
+-- entry clickable.
 ----------------------------------------------------------------------
 
-local function CreateAddMenuEntries(element)
-    local entries = {}
+local function CreateAddPopup(element)
+    local function Close()
+        element.popup = nil
+    end
 
-    local docEntries = {}
+    --indentation inside the picker is done with leading spaces: the engine
+    --has no per-side padding (pad/hpad/vpad only), and margins on
+    --width-100% rows overflow.
+    local function Indent(indent)
+        return string.rep("      ", indent or 0)
+    end
+
+    --a clickable row that adds one item to the run and closes the picker.
+    local function PickRow(text, indent, onPick)
+        return gui.Label {
+            classes = { "fg", "hoverable" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            width = "100%",
+            height = "auto",
+            fontSize = 14,
+            borderBox = true,
+            hpad = 8,
+            vpad = 4,
+            text = Indent(indent) .. text,
+            press = function()
+                Close()
+                onPick()
+            end,
+        }
+    end
+
+    local function SectionLabel(text)
+        return gui.Label {
+            classes = { "fgMuted", "bold" },
+            width = "100%",
+            height = "auto",
+            fontSize = 11,
+            borderBox = true,
+            hpad = 6,
+            tmargin = 8,
+            bmargin = 2,
+            text = text,
+        }
+    end
+
+    local rows = {}
+
+    ------------------------------------------------------------------
+    -- documents, grouped into the journal folder tree.
+    ------------------------------------------------------------------
+    rows[#rows + 1] = SectionLabel("DOCUMENTS")
+
+    local foldersTable = assets.documentFoldersTable or {}
+
+    --docs bucketed by their folder ("" = journal root).
+    local docsByFolder = {}
     for id, docItem in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
-        local docName = docItem.description or "Untitled"
-        docEntries[#docEntries + 1] = {
-            text = docName,
-            click = function()
-                element.popup = nil
+        local parent = docItem:try_get("parentFolder", "")
+        if parent == nil or parent == false or foldersTable[parent] == nil then
+            parent = ""
+        end
+        docsByFolder[parent] = docsByFolder[parent] or {}
+        local list = docsByFolder[parent]
+        list[#list + 1] = { id = id, name = docItem.description or "Untitled" }
+    end
+    for _, list in pairs(docsByFolder) do
+        table.sort(list, function(a, b) return a.name < b.name end)
+    end
+
+    --folder hierarchy ("" = root level).
+    local childFolders = {}
+    for fid, folder in pairs(foldersTable) do
+        local parent = folder.parentFolder
+        if parent == nil or parent == false or foldersTable[parent] == nil then
+            parent = ""
+        end
+        childFolders[parent] = childFolders[parent] or {}
+        local list = childFolders[parent]
+        list[#list + 1] = fid
+    end
+    for _, list in pairs(childFolders) do
+        table.sort(list, function(a, b)
+            return (foldersTable[a].description or "") < (foldersTable[b].description or "")
+        end)
+    end
+
+    local function AddDocRows(target, folderid, indent)
+        for _, doc in ipairs(docsByFolder[folderid] or {}) do
+            target[#target + 1] = PickRow(doc.name, indent, function()
                 AddRunItem {
                     id = dmhub.GenerateGuid(),
                     itemType = "document",
                     tableName = CustomDocument.tableName,
-                    docid = id,
-                    name = docName,
+                    docid = doc.id,
+                    name = doc.name,
                     done = false,
                 }
-            end,
-        }
+            end)
+        end
     end
-    table.sort(docEntries, function(a, b) return a.text < b.text end)
-    if #docEntries == 0 then
-        docEntries[1] = {
-            text = "(no documents)",
-            click = function()
-                element.popup = nil
-            end,
-        }
-    end
-    entries[#entries + 1] = {
-        text = "Document",
-        submenu = docEntries,
-    }
 
-    --the prepped MontageTest type does not exist in every build; only offer
-    --the submenu when it does. (rawget: reading an unset global errors.)
+    --a folder renders as a header row that expands/collapses a container
+    --holding its documents and subfolders.
+    local function BuildFolderPanel(folderid, indent)
+        local contents = {}
+        AddDocRows(contents, folderid, indent + 1)
+        for _, sub in ipairs(childFolders[folderid] or {}) do
+            contents[#contents + 1] = BuildFolderPanel(sub, indent + 1)
+        end
+        if #contents == 0 then
+            contents[1] = gui.Label {
+                classes = { "fgMuted" },
+                width = "100%",
+                height = "auto",
+                fontSize = 12,
+                borderBox = true,
+                hpad = 8,
+                text = Indent(indent + 1) .. "(empty)",
+            }
+        end
+
+        local bodyPanel = gui.Panel {
+            classes = { "collapsed" },
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            children = contents,
+        }
+
+        local arrow
+        local function Toggle()
+            arrow:SetClass("expanded", not arrow:HasClass("expanded"))
+            bodyPanel:SetClass("collapsed", not arrow:HasClass("expanded"))
+        end
+        arrow = gui.ExpandoArrow {
+            press = Toggle,
+        }
+
+        local headerRow = gui.Panel {
+            classes = { "hoverable" },
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            borderBox = true,
+            hpad = 4,
+            vpad = 3,
+            press = Toggle,
+            gui.Panel { width = 4 + indent * 16, height = 1 },
+            arrow,
+            gui.Label {
+                classes = { "fg", "bold" },
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+                lmargin = 4,
+                text = foldersTable[folderid].description or "Folder",
+            },
+        }
+
+        return gui.Panel {
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            headerRow,
+            bodyPanel,
+        }
+    end
+
+    --folders first, then loose root documents.
+    for _, fid in ipairs(childFolders[""] or {}) do
+        rows[#rows + 1] = BuildFolderPanel(fid, 0)
+    end
+    AddDocRows(rows, "", 0)
+
+    ------------------------------------------------------------------
+    -- montage tests. (The prepped MontageTest type does not exist in
+    -- every build; rawget because reading an unset global errors.)
+    ------------------------------------------------------------------
     local montageTestType = rawget(_G, "MontageTest")
     if montageTestType ~= nil then
-        local montageEntries = {}
+        rows[#rows + 1] = SectionLabel("MONTAGE TESTS")
+        local montages = {}
         for id, test in unhidden_pairs(dmhub.GetTable(montageTestType.tableName) or {}) do
-            local testName = test.description or "Untitled"
-            montageEntries[#montageEntries + 1] = {
-                text = testName,
-                click = function()
-                    element.popup = nil
-                    AddRunItem {
-                        id = dmhub.GenerateGuid(),
-                        itemType = "montagetest",
-                        tableName = montageTestType.tableName,
-                        docid = id,
-                        name = testName,
-                        done = false,
-                    }
-                end,
-            }
+            montages[#montages + 1] = { id = id, name = test.description or "Untitled" }
         end
-        table.sort(montageEntries, function(a, b) return a.text < b.text end)
-        if #montageEntries == 0 then
-            montageEntries[1] = {
+        table.sort(montages, function(a, b) return a.name < b.name end)
+        for _, test in ipairs(montages) do
+            rows[#rows + 1] = PickRow(test.name, 0, function()
+                AddRunItem {
+                    id = dmhub.GenerateGuid(),
+                    itemType = "montagetest",
+                    tableName = montageTestType.tableName,
+                    docid = test.id,
+                    name = test.name,
+                    done = false,
+                }
+            end)
+        end
+        if #montages == 0 then
+            rows[#rows + 1] = gui.Label {
+                classes = { "fgMuted" },
+                width = "100%", height = "auto", fontSize = 12, borderBox = true, hpad = 8,
                 text = "(no montage tests)",
-                click = function()
-                    element.popup = nil
-                end,
             }
         end
-        entries[#entries + 1] = {
-            text = "Montage Test",
-            submenu = montageEntries,
-        }
     end
 
-    --negotiation: snapshot the selected token at add time.
+    ------------------------------------------------------------------
+    -- negotiation with the currently selected token.
+    ------------------------------------------------------------------
+    rows[#rows + 1] = SectionLabel("NEGOTIATION")
     local token = dmhub.currentToken
     local negotiationText = "Negotiation with Selected Token"
     if token ~= nil and token.name ~= nil and token.name ~= "" then
         negotiationText = "Negotiation: " .. token.name
     end
-    entries[#entries + 1] = {
-        text = negotiationText,
-        click = function()
-            element.popup = nil
-            local tok = dmhub.currentToken
-            if tok == nil then
-                gui.ModalMessage {
-                    title = "No token selected",
-                    message = "Select the NPC's token on the map, then add the negotiation to the run.",
-                }
-                return
-            end
-            local name = "Negotiation"
-            if tok.name ~= nil and tok.name ~= "" then
-                name = "Negotiation: " .. tok.name
-            end
-            AddRunItem {
-                id = dmhub.GenerateGuid(),
-                itemType = "negotiation",
-                charid = tok.charid,
-                name = name,
-                done = false,
+    rows[#rows + 1] = PickRow(negotiationText, 0, function()
+        local tok = dmhub.currentToken
+        if tok == nil then
+            gui.ModalMessage {
+                title = "No token selected",
+                message = "Select the NPC's token on the map, then add the negotiation to the run.",
             }
-        end,
-    }
+            return
+        end
+        local name = "Negotiation"
+        if tok.name ~= nil and tok.name ~= "" then
+            name = "Negotiation: " .. tok.name
+        end
+        AddRunItem {
+            id = dmhub.GenerateGuid(),
+            itemType = "negotiation",
+            charid = tok.charid,
+            name = name,
+            done = false,
+        }
+    end)
 
-    return entries
+    --themed surface (same treatment as other picker popups); scrolls when
+    --the journal outgrows the height cap.
+    return gui.Panel {
+        width = "auto",
+        height = "auto",
+        constrainToScreen = true,
+        gui.Panel {
+            classes = { "bordered", "bg" },
+            flow = "vertical",
+            width = 340,
+            height = "auto",
+            maxHeight = 480,
+            vscroll = true,
+            borderBox = true,
+            pad = 6,
+            children = rows,
+        },
+    }
 end
 
 ----------------------------------------------------------------------
@@ -1249,30 +1538,30 @@ local function CreateRunPanel()
         end,
     }
 
-    local addButton = gui.Button {
-        classes = { "addButton", "sizeS" },
-        valign = "center",
-        hmargin = 4,
-        hover = function(element)
-            gui.Tooltip("Add to the run")(element)
-        end,
-        press = function(element)
-            element.popup = gui.ContextMenu {
-                entries = CreateAddMenuEntries(element),
-            }
-        end,
-    }
-
-    local footer = gui.Panel {
-        flow = "horizontal",
-        width = "auto",
+    --a full-width labeled bar rather than a bare "+" icon: always visible,
+    --obvious, and immune to the style-settle quirk the icon button needed
+    --the settleLayout hack for.
+    local addBar = gui.Label {
+        classes = { "bordered", "hoverable", "bgAlt", "fgMuted" },
+        width = "100%",
         height = "auto",
-        halign = "right",
-        valign = "center",
+        textAlignment = "center",
+        text = "+  Add to the run",
+        borderBox = true,
+        vpad = 6,
         tmargin = 6,
         bmargin = 4,
-
-        addButton,
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            element.popupPositioning = "panel"
+            --popups re-root the style cascade; inherit the panel's theme
+            --styles so bordered/bg/fg/hoverable/collapsed resolve.
+            element.popupsInheritStyles = true
+            element.popup = CreateAddPopup(element)
+        end,
     }
 
     return gui.Panel {
@@ -1280,22 +1569,8 @@ local function CreateRunPanel()
         width = "100%",
         height = "auto",
 
-        --Same first-open settle quirk as the Campaign Tracker footer above:
-        --force a restyle so the icon-only add button resolves its
-        --style-driven "+" image during the dock panel's initial
-        --collapse-then-expand.
-        create = function(element)
-            for _, delay in ipairs({ 0.05, 0.2, 0.5 }) do
-                dmhub.Schedule(delay, function()
-                    if mod.unloaded or footer == nil or not footer.valid then return end
-                    footer:SetClassTree("settleLayout", true)
-                    footer:SetClassTree("settleLayout", false)
-                end)
-            end
-        end,
-
         listPanel,
-        footer,
+        addBar,
     }
 end
 

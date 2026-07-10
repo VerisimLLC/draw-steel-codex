@@ -2322,6 +2322,29 @@ local function CreateCuesStrip(self, info)
     }
 end
 
+-- Public hook: mount the cues strip outside the initiative bar (the Run
+-- panel's Rail surfaces cue banners in its NOW zone). The shim info
+-- resolves the initiative queue dynamically on every poll, mirroring
+-- what the bar's own info table provides.
+Cues = rawget(_G, "Cues") or {}
+
+local g_railCueInfo = setmetatable({
+    UploadInitiative = function()
+        dmhub:UploadInitiativeQueue()
+    end,
+}, {
+    __index = function(t, k)
+        if k == "initiativeQueue" then
+            return dmhub.initiativeQueue
+        end
+        return nil
+    end,
+})
+
+function Cues.CreateRailStrip()
+    return CreateCuesStrip(nil, g_railCueInfo)
+end
+
 -- Eye icon that toggles whether players can see the objective. Mirrors the character
 -- sheet's privacyIcon: closed eye when hidden (director only), open eye ("shown"
 -- class) when revealed to players. @fgStrong is resolved via MergeTokens.

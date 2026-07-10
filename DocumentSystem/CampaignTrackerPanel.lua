@@ -1020,12 +1020,15 @@ local function CreateRunItemRow(item, isCurrent)
         if not expanded then
             bodyClasses[#bodyClasses + 1] = "collapsed"
         end
+        --no inner scroll region: nesting a vscroll around a single tall
+        --auto-height embed makes the engine mis-measure the scroll area
+        --and cull the content to blank page background (the "can't see
+        --the checkboxes" bug). The page renders full-length inline and
+        --the dock panel itself provides the scrolling.
         bodyPanel = gui.Panel {
             classes = bodyClasses,
             width = "100%",
             height = "auto",
-            maxHeight = 500,
-            vscroll = true,
             tmargin = 4,
 
             create = function(element)
@@ -1052,6 +1055,16 @@ local function CreateRunItemRow(item, isCurrent)
             bodyPanel:SetClass("collapsed", not nowExpanded)
             if nowExpanded then
                 bodyPanel:FireEvent("buildContent")
+            else
+                --drop the embedded page and rebuild the whole list. When the
+                --row shrinks back from a page-tall embed, the engine does not
+                --re-evaluate its offscreen culling for the siblings that had
+                --been pushed out of view, so everything below the collapsed
+                --row stays invisible (and with the content now shorter than
+                --the dock there is no scroll event to trigger a re-cull).
+                --A full refreshRun lays the list out fresh.
+                bodyPanel.children = {}
+                bodyPanel:FireEventOnParents("refreshRun")
             end
         end
 
@@ -1512,16 +1525,112 @@ local function CreateRunPanel()
             element:FireEvent("refreshRun")
         end,
 
+        --The Rail: the agenda zoned into NOW (the current item, plus any
+        --live cue banners), NEXT (what is queued behind it), and LOG
+        --(checked-off items and the campaign ledger, newest first).
+        --Tracker chips from campaign state pin above NOW (Director-only;
+        --the whole panel is dmonly).
         refreshRun = function(element)
-            local children = {}
-            local currentSeen = false
+            local undone, done = {}, {}
             for _, item in ipairs(GetRunItems()) do
-                local isCurrent = false
-                if (not item.done) and (not currentSeen) then
-                    isCurrent = true
-                    currentSeen = true
+                if item.done then
+                    done[#done + 1] = item
+                else
+                    undone[#undone + 1] = item
                 end
-                children[#children + 1] = CreateRunItemRow(item, isCurrent)
+            end
+
+            local function ZoneHeader(text)
+                return gui.Label {
+                    classes = { "fgMuted", "bold" },
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 11,
+                    tmargin = 10,
+                    bmargin = 2,
+                    text = text,
+                }
+            end
+
+            local children = {}
+
+            --tracker chips: every counter, and every flag currently set.
+            local state = rawget(_G, "CampaignState") ~= nil and CampaignState.Get() or nil
+            if state ~= nil then
+                local chips = {}
+                for key, value in pairs(state.counters) do
+                    chips[#chips + 1] = string.format("%s: %d", key, value)
+                end
+                for key, value in pairs(state.flags) do
+                    if value == true then
+                        chips[#chips + 1] = key
+                    end
+                end
+                table.sort(chips)
+                if #chips > 0 then
+                    local chipPanels = {}
+                    for _, text in ipairs(chips) do
+                        chipPanels[#chipPanels + 1] = gui.Label {
+                            classes = { "bordered", "fgMuted" },
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 12,
+                            borderBox = true,
+                            hpad = 6,
+                            vpad = 2,
+                            rmargin = 4,
+                            bmargin = 4,
+                            text = text,
+                        }
+                    end
+                    children[#children + 1] = gui.Panel {
+                        flow = "horizontal",
+                        wrap = true,
+                        width = "100%",
+                        height = "auto",
+                        children = chipPanels,
+                    }
+                end
+            end
+
+            --NOW: the current item, with live cue banners mounted below it
+            --so round moments are confirmable from the Rail.
+            if #undone > 0 then
+                children[#children + 1] = ZoneHeader("NOW")
+                children[#children + 1] = CreateRunItemRow(undone[1], true)
+                if rawget(_G, "Cues") ~= nil then
+                    children[#children + 1] = Cues.CreateRailStrip()
+                end
+            end
+
+            --NEXT: everything queued behind the current item.
+            if #undone > 1 then
+                children[#children + 1] = ZoneHeader("NEXT")
+                for i = 2, #undone do
+                    children[#children + 1] = CreateRunItemRow(undone[i], false)
+                end
+            end
+
+            --LOG: checked-off items, then the campaign ledger newest-first.
+            local ledger = state ~= nil and state.ledger or {}
+            if #done > 0 or #ledger > 0 then
+                children[#children + 1] = ZoneHeader("LOG")
+                for _, item in ipairs(done) do
+                    children[#children + 1] = CreateRunItemRow(item, false)
+                end
+                local shown = 0
+                for i = #ledger, 1, -1 do
+                    shown = shown + 1
+                    if shown > 20 then break end
+                    children[#children + 1] = gui.Label {
+                        classes = { "fgMuted" },
+                        width = "100%",
+                        height = "auto",
+                        fontSize = 12,
+                        tmargin = 4,
+                        text = "- " .. (ledger[i].text or ""),
+                    }
+                end
             end
 
             if #children == 0 then
@@ -1535,6 +1644,22 @@ local function CreateRunPanel()
             end
 
             element.children = children
+        end,
+    }
+
+    --campaign state lives in its own shared doc; a sibling monitor (it
+    --cannot live inside listPanel, whose children are rebuilt wholesale)
+    --re-zones the Rail when trackers or the ledger change.
+    local stateMonitor = gui.Panel {
+        width = 1,
+        height = 1,
+        --the campaign state doc id; must match CAMPAIGN_STATE_DOC below
+        --(that local is declared later in this file, out of scope here).
+        monitorGame = mod:GetDocumentPath("campaignstate"),
+        refreshGame = function(element)
+            if listPanel ~= nil and listPanel.valid then
+                listPanel:FireEvent("refreshRun")
+            end
         end,
     }
 
@@ -1571,6 +1696,7 @@ local function CreateRunPanel()
 
         listPanel,
         addBar,
+        stateMonitor,
     }
 end
 
@@ -1582,5 +1708,691 @@ DockablePanel.Register {
     minHeight = 200,
     content = function()
         return CreateRunPanel()
+    end,
+}
+
+----------------------------------------------------------------------
+-- Campaign state: a shared document holding the campaign's generic
+-- state kit -- flags (booleans), counters (numbers, including the
+-- shared "victories" counter), taken exits, and an append-only ledger
+-- of what happened. Scene exits write here; the Rail's LOG zone will
+-- read the ledger.
+----------------------------------------------------------------------
+
+local CAMPAIGN_STATE_DOC = "campaignstate"
+
+mod:RegisterDocumentForCheckpointBackups(CAMPAIGN_STATE_DOC)
+
+CampaignState = rawget(_G, "CampaignState") or {}
+
+--The monitorGame path for panels that react to state changes.
+function CampaignState.Path()
+    return mod:GetDocumentPath(CAMPAIGN_STATE_DOC)
+end
+
+--Read-only snapshot of the state tables (never mutate the result).
+function CampaignState.Get()
+    local doc = mod:GetDocumentSnapshot(CAMPAIGN_STATE_DOC)
+    local data = doc.data
+    return {
+        flags = data.flags or {},
+        counters = data.counters or {},
+        exits = data.exits or {},
+        ledger = data.ledger or {},
+    }
+end
+
+function CampaignState.GetFlag(key)
+    return CampaignState.Get().flags[key] == true
+end
+
+function CampaignState.GetCounter(key)
+    return CampaignState.Get().counters[key] or 0
+end
+
+function CampaignState.IsExitTaken(exitid)
+    return CampaignState.Get().exits[exitid] == true
+end
+
+--Dev/reset utility: wipe the campaign state back to empty. Appends
+--nothing; the ledger is cleared too.
+function CampaignState.Reset()
+    local doc = mod:GetDocumentSnapshot(CAMPAIGN_STATE_DOC)
+    doc:BeginChange()
+    doc.data.flags = {}
+    doc.data.counters = {}
+    doc.data.exits = {}
+    doc.data.ledger = {}
+    doc:CompleteChange("Reset campaign state")
+end
+
+--Apply a list of writes atomically and append a ledger line describing
+--them. Each write is a table:
+--  { kind = "flag",    key, value }         -- set a boolean flag
+--  { kind = "counter", key, delta | set }   -- adjust or set a counter
+--  { kind = "exit",    key }                -- record an exit as taken
+function CampaignState.Apply(writes, ledgerText)
+    local doc = mod:GetDocumentSnapshot(CAMPAIGN_STATE_DOC)
+    doc:BeginChange()
+    local data = doc.data
+    data.flags = data.flags or {}
+    data.counters = data.counters or {}
+    data.exits = data.exits or {}
+    data.ledger = data.ledger or {}
+
+    for _, w in ipairs(writes or {}) do
+        if w.kind == "flag" then
+            data.flags[w.key] = w.value
+        elseif w.kind == "counter" then
+            if w.set ~= nil then
+                data.counters[w.key] = w.set
+            else
+                data.counters[w.key] = (data.counters[w.key] or 0) + (w.delta or 0)
+            end
+        elseif w.kind == "exit" then
+            data.exits[w.key] = true
+        end
+    end
+
+    data.ledger[#data.ledger + 1] = {
+        t = dmhub.serverTimeMilliseconds,
+        text = ledgerText or "",
+    }
+
+    doc:CompleteChange(ledgerText or "Campaign state change")
+end
+
+----------------------------------------------------------------------
+-- RichExit: the [[exit]] tag -- a scene card's exit block. Renders as
+-- a Director-only framed block proposing this exit's writes (each with
+-- a confirm checkbox; "ask" counters get a stepper); taking the exit
+-- applies the confirmed writes to campaign state, appends the ledger
+-- line, records the exit as taken, and queues the next scene on the
+-- Run. Players never see it: exits are run furniture.
+--
+-- Annotation fields (authored data):
+--  id       : string   stable guid; keys the taken-state in campaign state
+--  label    : string   the exit's name, e.g. "The safehouse is secured"
+--  writes   : list of {kind="flag", key, value, label}
+--                     | {kind="counter", key, delta|set, ask, min, max, label}
+--                     | {kind="victory", count, label}   (sugar: counter "victories")
+--  nextDocid: string|false   journal doc to queue on the Run when taken
+--  nextLabel: string|false   display name for the next scene
+----------------------------------------------------------------------
+
+---@class RichExit
+RichExit = RegisterGameType("RichExit", "RichTag")
+RichExit.tag = "exit"
+RichExit.hasEdit = false
+RichExit.id = false
+RichExit.label = "Exit"
+RichExit.writes = {}
+RichExit.nextDocid = false
+RichExit.nextLabel = false
+
+function RichExit.Create()
+    return RichExit.new {
+        id = dmhub.GenerateGuid(),
+    }
+end
+
+function RichExit.CreateDisplay(self)
+    local resultPanel
+
+    --per-write confirm state and ask-counter values, local to this render.
+    local m_confirm = {}
+    local m_counterValues = {}
+    for i, w in ipairs(self:try_get("writes", {})) do
+        m_confirm[i] = true
+        if w.kind == "counter" and w.ask then
+            m_counterValues[i] = w.set or 0
+        end
+    end
+
+    --normalize a write to (writeTable, ledgerFragment) at take time.
+    local function ResolveWrite(i, w)
+        if w.kind == "victory" then
+            local count = w.count or 1
+            return { kind = "counter", key = "victories", delta = count },
+                string.format("%s (+%d Victory)", w.label or "Victory", count)
+        elseif w.kind == "counter" and w.ask then
+            return { kind = "counter", key = w.key, set = m_counterValues[i] },
+                string.format("%s = %d", w.label or w.key, m_counterValues[i])
+        elseif w.kind == "counter" then
+            local frag
+            if w.set ~= nil then
+                frag = string.format("%s = %d", w.label or w.key, w.set)
+            else
+                frag = string.format("%s %+d", w.label or w.key, w.delta or 0)
+            end
+            return { kind = "counter", key = w.key, set = w.set, delta = w.delta }, frag
+        else
+            return { kind = "flag", key = w.key, value = w.value },
+                string.format("%s", w.label or w.key)
+        end
+    end
+
+    local function BuildWriteRows()
+        local rows = {}
+        for i, w in ipairs(self:try_get("writes", {})) do
+            local rowChildren = {}
+
+            --explicit sizing: inside the document render context the themed
+            --check's proportional sizing blows up against auto-sized rows.
+            rowChildren[#rowChildren + 1] = gui.Check {
+                text = w.label or w.key or "write",
+                value = m_confirm[i],
+                width = 360,
+                height = 22,
+                fontSize = 14,
+                valign = "center",
+                change = function(element)
+                    m_confirm[i] = element.value == true
+                end,
+            }
+
+            if w.kind == "counter" and w.ask then
+                local valueLabel
+                local function Bump(delta)
+                    local v = (m_counterValues[i] or 0) + delta
+                    if w.min ~= nil then v = math.max(w.min, v) end
+                    if w.max ~= nil then v = math.min(w.max, v) end
+                    m_counterValues[i] = v
+                    valueLabel.text = tostring(v)
+                end
+                rowChildren[#rowChildren + 1] = gui.Button {
+                    classes = { "sizeXxs" },
+                    lmargin = 8,
+                    text = "-",
+                    press = function() Bump(-1) end,
+                }
+                valueLabel = gui.Label {
+                    classes = { "fgStrong", "bold" },
+                    width = 26,
+                    height = "auto",
+                    fontSize = 15,
+                    textAlignment = "center",
+                    valign = "center",
+                    text = tostring(m_counterValues[i] or 0),
+                }
+                rowChildren[#rowChildren + 1] = valueLabel
+                rowChildren[#rowChildren + 1] = gui.Button {
+                    classes = { "sizeXxs" },
+                    text = "+",
+                    press = function() Bump(1) end,
+                }
+            end
+
+            rows[#rows + 1] = gui.Panel {
+                flow = "horizontal",
+                width = "100%",
+                height = 26,
+                tmargin = 4,
+                children = rowChildren,
+            }
+        end
+        return rows
+    end
+
+    local exitid = self:try_get("id") or "exit"
+
+    local m_taken = CampaignState.IsExitTaken(exitid)
+
+    local takeButton
+    local statusLabel
+
+    local function RefreshTakenState()
+        m_taken = CampaignState.IsExitTaken(exitid)
+        if takeButton ~= nil and takeButton.valid then
+            takeButton:SetClass("collapsed", m_taken)
+        end
+        if statusLabel ~= nil and statusLabel.valid then
+            statusLabel:SetClass("collapsed", not m_taken)
+        end
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel:SetClassTree("exitTaken", m_taken)
+        end
+    end
+
+    takeButton = gui.Button {
+        classes = { "sizeM" },
+        halign = "left",
+        tmargin = 8,
+        text = "Take this exit",
+        click = function(element)
+            local writes = { { kind = "exit", key = exitid } }
+            local frags = {}
+            for i, w in ipairs(self:try_get("writes", {})) do
+                if m_confirm[i] then
+                    local write, frag = ResolveWrite(i, w)
+                    writes[#writes + 1] = write
+                    frags[#frags + 1] = frag
+                end
+            end
+
+            local ledgerText = string.format("EXIT: %s", self:try_get("label", "Exit"))
+            if #frags > 0 then
+                ledgerText = ledgerText .. " -- " .. table.concat(frags, "; ")
+            end
+
+            local nextDocid = self:try_get("nextDocid")
+            if type(nextDocid) == "string" and rawget(_G, "RunAgenda") ~= nil then
+                local nextDoc = (dmhub.GetTable(CustomDocument.tableName) or {})[nextDocid]
+                if nextDoc ~= nil then
+                    RunAgenda.AddDocument(nextDoc)
+                    ledgerText = ledgerText .. string.format(" -> %s", nextDoc.description or "next scene")
+                end
+            end
+
+            CampaignState.Apply(writes, ledgerText)
+            RefreshTakenState()
+        end,
+    }
+
+    statusLabel = gui.Label {
+        classes = { "fgMuted", "collapsed" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        tmargin = 8,
+        text = "Exit taken.",
+    }
+
+    local children = {}
+
+    children[#children + 1] = gui.Label {
+        classes = { "fgStrong", "bold" },
+        width = "100%",
+        height = "auto",
+        fontSize = 15,
+        text = string.format("EXIT - %s", self:try_get("label", "Exit")),
+    }
+
+    for _, row in ipairs(BuildWriteRows()) do
+        children[#children + 1] = row
+    end
+
+    local nextLabel = self:try_get("nextLabel")
+    if type(nextLabel) == "string" and nextLabel ~= "" then
+        children[#children + 1] = gui.Label {
+            classes = { "fgMuted" },
+            width = "100%",
+            height = "auto",
+            fontSize = 13,
+            tmargin = 6,
+            text = string.format("Then: %s (queued on the Run)", nextLabel),
+        }
+    end
+
+    children[#children + 1] = takeButton
+    children[#children + 1] = statusLabel
+
+    resultPanel = gui.Panel {
+        classes = { "bordered" },
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        borderBox = true,
+        pad = 10,
+        vmargin = 6,
+        children = children,
+
+        --exits are run furniture: players never see them.
+        refreshTag = function(element, tag, match, token)
+            self = tag or self
+            element:SetClass("collapsed", token ~= nil and token.player == true)
+            RefreshTakenState()
+        end,
+
+        --track cross-client state so a co-Director taking the exit
+        --updates this render too.
+        monitorGame = CampaignState.Path(),
+        refreshGame = function(element)
+            RefreshTakenState()
+        end,
+
+        create = function(element)
+            RefreshTakenState()
+        end,
+    }
+
+    return resultPanel
+end
+
+MarkdownDocument.RegisterRichTag(RichExit)
+
+----------------------------------------------------------------------
+-- The Flow lens: the chapter rendered as a graph. Nodes are the pages
+-- of the chapter folder (the folder of the first document on the run);
+-- edges are parsed from each page's "## Exit" links plus its [[exit]]
+-- annotation's nextDocid. Tense comes from live state: a page whose
+-- run item is checked off (or whose exit was taken) reads as
+-- "happened"; the Rail's NOW item gets the accent edge; everything
+-- else is "planned". Pure read-view; clicking a node opens the page.
+----------------------------------------------------------------------
+
+local FLOW_NODE_W = 150
+local FLOW_NODE_H = 38
+local FLOW_LEVEL_H = 68
+local FLOW_COL_W = 162
+local FLOW_MARGIN = 8
+
+--the scene type letter, parsed from the page's italic subtitle line
+--("*combat - Chapter 1: ...*" and friends).
+local function FlowSceneType(doc)
+    local content = doc:GetTextContent()
+    local italic = string.match(content, "\n%*([^%*\n]+)%*")
+    if italic == nil then
+        return "?", ""
+    end
+    local word = string.lower(string.match(italic, "^(%a+)") or "")
+    local letters = {
+        combat = "C", montage = "M", negotiation = "N", interlude = "I",
+        choice = "?", transition = ">", skill = "S",
+    }
+    return letters[word] or "-", italic
+end
+
+--Collect the chapter's nodes and edges and assign each node a level
+--(BFS depth from the root nodes) and a column within its level.
+local function BuildFlowGraph(folderid)
+    local nodes = {}
+    local byId = {}
+    for id, doc in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
+        if doc:try_get("parentFolder") == folderid then
+            local node = { id = id, doc = doc, name = doc.description or "Untitled", edges = {}, incoming = 0 }
+            nodes[#nodes + 1] = node
+            byId[id] = node
+        end
+    end
+    table.sort(nodes, function(a, b) return a.name < b.name end)
+
+    --map "C1-NN"-style name prefixes to nodes for exit-link resolution.
+    local byPrefix = {}
+    for _, node in ipairs(nodes) do
+        local prefix = string.match(node.name, "^(C%d+%-%d+)")
+        if prefix ~= nil then
+            byPrefix[prefix] = node
+        end
+    end
+
+    for _, node in ipairs(nodes) do
+        local seen = {}
+        local function AddEdge(targetid)
+            if targetid ~= nil and targetid ~= node.id and byId[targetid] ~= nil and not seen[targetid] then
+                seen[targetid] = true
+                node.edges[#node.edges + 1] = targetid
+                byId[targetid].incoming = byId[targetid].incoming + 1
+            end
+        end
+
+        local exitSection = string.match(node.doc:GetTextContent(), "## Exit(.*)$")
+        if exitSection ~= nil then
+            for target in string.gmatch(exitSection, "%[(C%d+%-%d+)") do
+                local t = byPrefix[target]
+                AddEdge(t ~= nil and t.id or nil)
+            end
+        end
+
+        local ann = node.doc:try_get("annotations")
+        local exitAnn = ann ~= nil and ann.exit or nil
+        if exitAnn ~= nil and type(exitAnn) == "table" and exitAnn.typeName == "RichExit" then
+            local nd = exitAnn:try_get("nextDocid")
+            if type(nd) == "string" then
+                AddEdge(nd)
+            end
+            node.exitId = exitAnn:try_get("id")
+        end
+    end
+
+    --BFS levels from the roots (no incoming edges; fall back to the
+    --first node so a cyclic or single-page folder still renders).
+    local queue = {}
+    for _, node in ipairs(nodes) do
+        if node.incoming == 0 then
+            node.level = 0
+            queue[#queue + 1] = node
+        end
+    end
+    if #queue == 0 and #nodes > 0 then
+        nodes[1].level = 0
+        queue[1] = nodes[1]
+    end
+    local head = 1
+    while head <= #queue do
+        local node = queue[head]
+        head = head + 1
+        for _, targetid in ipairs(node.edges) do
+            local target = byId[targetid]
+            if target.level == nil then
+                target.level = node.level + 1
+                queue[#queue + 1] = target
+            end
+        end
+    end
+    for _, node in ipairs(nodes) do
+        node.level = node.level or 0
+    end
+
+    --column within level, in name order.
+    local levels = {}
+    for _, node in ipairs(nodes) do
+        levels[node.level] = levels[node.level] or {}
+        local list = levels[node.level]
+        list[#list + 1] = node
+        node.col = #list - 1
+    end
+
+    local maxLevel = 0
+    local maxCols = 1
+    for level, list in pairs(levels) do
+        maxLevel = math.max(maxLevel, level)
+        maxCols = math.max(maxCols, #list)
+    end
+
+    return nodes, byId, maxLevel, maxCols
+end
+
+--The folder the lens renders: the first REAL journal folder (builtin
+--roots like "private"/"public" do not count) holding a document on the
+--run, so the lens follows whatever chapter is being played.
+local function FlowFolder()
+    local foldersTable = assets.documentFoldersTable or {}
+    for _, item in ipairs(GetRunItems()) do
+        if item.itemType == "document" and item.tableName ~= nil then
+            local doc = (dmhub.GetTable(item.tableName) or {})[item.docid]
+            if doc ~= nil then
+                local parent = doc:try_get("parentFolder")
+                if type(parent) == "string" and foldersTable[parent] ~= nil then
+                    return parent
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function CreateFlowPanel()
+    local canvas
+
+    local function Rebuild()
+        local folderid = FlowFolder()
+        if folderid == nil then
+            canvas.selfStyle.height = 60
+            canvas.children = {
+                gui.Label {
+                    classes = { "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    vmargin = 8,
+                    text = "Add a chapter page to the Run and the flow appears here.",
+                },
+            }
+            return
+        end
+
+        local nodes, byId, maxLevel, maxCols = BuildFlowGraph(folderid)
+
+        --tense sources: the run agenda and the campaign state.
+        local doneDocids = {}
+        local nowDocid = nil
+        for _, item in ipairs(GetRunItems()) do
+            if item.itemType == "document" then
+                if item.done then
+                    doneDocids[item.docid] = true
+                elseif nowDocid == nil then
+                    nowDocid = item.docid
+                end
+            end
+        end
+        local exitsTaken = CampaignState.Get().exits
+
+        local function NodePos(node)
+            local x = FLOW_MARGIN + node.col * FLOW_COL_W
+            local y = FLOW_MARGIN + node.level * FLOW_LEVEL_H
+            return x, y
+        end
+
+        local children = {}
+
+        --edges first so nodes draw over them. Each edge is a thin
+        --rotated panel from the source's bottom-center to the target's
+        --top-center.
+        for _, node in ipairs(nodes) do
+            local x1, y1 = NodePos(node)
+            x1 = x1 + FLOW_NODE_W / 2
+            y1 = y1 + FLOW_NODE_H
+            for _, targetid in ipairs(node.edges) do
+                local target = byId[targetid]
+                local x2, y2 = NodePos(target)
+                x2 = x2 + FLOW_NODE_W / 2
+                local dx = x2 - x1
+                local dy = y2 - y1
+                local len = math.sqrt(dx * dx + dy * dy)
+                if len > 1 then
+                    children[#children + 1] = gui.Panel {
+                        bgimage = "panels/square.png",
+                        bgcolor = "#ffffff26", --hairline, per the design system
+                        width = len,
+                        height = 2,
+                        halign = "left",
+                        valign = "top",
+                        x = (x1 + x2) / 2 - len / 2,
+                        y = (y1 + y2) / 2 - 1,
+                        rotate = -math.deg(math.atan(dy, dx)),
+                    }
+                end
+            end
+        end
+
+        for _, node in ipairs(nodes) do
+            local x, y = NodePos(node)
+            local letter, sceneType = FlowSceneType(node.doc)
+
+            local happened = doneDocids[node.id] == true
+                or (node.exitId ~= nil and exitsTaken[node.exitId] == true)
+            local isNow = (node.id == nowDocid)
+
+            local nodeClasses = { "bordered", "hoverable" }
+            if happened then
+                nodeClasses[#nodeClasses + 1] = "bgDisabled"
+            else
+                nodeClasses[#nodeClasses + 1] = "bgAlt"
+            end
+            if isNow then
+                nodeClasses[#nodeClasses + 1] = "borderAccent"
+            end
+
+            local labelClasses = {}
+            if happened then
+                labelClasses[#labelClasses + 1] = "fgMuted"
+            end
+
+            children[#children + 1] = gui.Panel {
+                classes = nodeClasses,
+                flow = "horizontal",
+                width = FLOW_NODE_W,
+                height = FLOW_NODE_H,
+                halign = "left",
+                valign = "top",
+                x = x,
+                y = y,
+                borderBox = true,
+                pad = 5,
+
+                click = function(element)
+                    node.doc:ShowDocument()
+                end,
+                hover = function(element)
+                    gui.Tooltip(string.format("%s\n%s", node.name, sceneType))(element)
+                end,
+
+                gui.Label {
+                    classes = { "fgMuted", "bold" },
+                    width = 16,
+                    height = "auto",
+                    fontSize = 13,
+                    valign = "center",
+                    textAlignment = "center",
+                    text = letter,
+                },
+                gui.Label {
+                    classes = labelClasses,
+                    width = FLOW_NODE_W - 34,
+                    height = "auto",
+                    fontSize = 11,
+                    valign = "center",
+                    lmargin = 4,
+                    maxWidth = FLOW_NODE_W - 34,
+                    text = node.name,
+                },
+            }
+        end
+
+        canvas.selfStyle.height = FLOW_MARGIN * 2 + (maxLevel + 1) * FLOW_LEVEL_H
+        canvas.selfStyle.width = math.max(FLOW_MARGIN * 2 + maxCols * FLOW_COL_W, 330)
+        canvas.children = children
+    end
+
+    canvas = gui.Panel {
+        flow = "none",
+        width = 330,
+        height = 60,
+
+        monitorGame = mod:GetDocumentPath(RUN_AGENDA_DOC),
+        refreshGame = function(element)
+            Rebuild()
+        end,
+        create = function(element)
+            Rebuild()
+        end,
+    }
+
+    --second monitor: campaign state (exits taken recolor nodes).
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+
+        canvas,
+        gui.Panel {
+            width = 1,
+            height = 1,
+            monitorGame = mod:GetDocumentPath("campaignstate"),
+            refreshGame = function(element)
+                Rebuild()
+            end,
+        },
+    }
+end
+
+DockablePanel.Register {
+    name = "Flow",
+    icon = "icons/standard/Icon_App_Journal.png",
+    vscroll = true,
+    dmonly = true,
+    minHeight = 260,
+    content = function()
+        return CreateFlowPanel()
     end,
 }

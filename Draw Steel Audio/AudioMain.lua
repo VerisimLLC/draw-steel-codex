@@ -967,8 +967,9 @@ DiceImpactFamilies.families = {
     { id = "Stone",      text = "Stone",            suffix = "Stone"      },
     { id = "MetalTiny",  text = "Metal (Small)",    suffix = "MetalTiny"  },
     { id = "MetalBlade", text = "Metal Blade",      suffix = "MetalBlade" },
-    { id = "MetalSparkle",text = "Metal Sparkle",  suffix = "MetalSparkle" },
-    { id = "GlassSparkle",text = "Glass Sparkle",  suffix = "GlassSparkle" },
+    { id = "MetalSparkle",text = "Metal Sparkle",  suffix = "MetalSparkle"},
+    { id = "GlassSparkle",text = "Glass Sparkle",  suffix = "GlassSparkle"},
+    { id = "MetalShield", text = "Metal Shield",      suffix = "MetalShield" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1227,6 +1228,33 @@ audio.SoundEvent{
     name = "DiceImp.Soft_MetalBlade",
     mixgroup = "dice",
     sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+--metalshield Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Hard_01.wav","dice/metalshield/DiceImp_metalshield_Hard_02.wav","dice/metalshield/DiceImp_metalshield_Hard_03.wav","dice/metalshield/DiceImp_metalshield_Hard_04.wav","dice/metalshield/DiceImp_metalshield_Hard_05.wav","dice/metalshield/DiceImp_metalshield_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Mild_01.wav","dice/metalshield/DiceImp_metalshield_Mild_02.wav","dice/metalshield/DiceImp_metalshield_Mild_03.wav","dice/metalshield/DiceImp_metalshield_Mild_04.wav","dice/metalshield/DiceImp_metalshield_Mild_05.wav","dice/metalshield/DiceImp_metalshield_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Soft_01.wav","dice/metalshield/DiceImp_metalshield_Soft_02.wav","dice/metalshield/DiceImp_metalshield_Soft_03.wav","dice/metalshield/DiceImp_metalshield_Soft_04.wav","dice/metalshield/DiceImp_metalshield_Soft_05.wav","dice/metalshield/DiceImp_metalshield_Soft_06.wav"},
     volume = 0.05,
     pitchRand = 0.01,
 }

@@ -50,7 +50,19 @@ function RichCheckbox.CreateDisplay(self)
         value = false,
         text = "",
         width = "auto",
+        --the themed checkbox class has minWidth = 200 and height = 30, sized for
+        --app UI. In a document that leaves a wide dead column after a short label
+        --and a box that dwarfs the 14pt body text. Size to the page type instead:
+        --height 20 yields a 14px box (checkBackground is 70% height), matching
+        --the body font.
+        minWidth = 0,
+        height = 20,
+        fontSize = CustomDocument.ScaleFontSize(14),
         halign = "left",
+        --the live-edit surface flattens rendered widgets to click-to-edit;
+        --this flag opts the checkbox back in so it can be ticked in place
+        --(see RefreshBlockPanels in MarkdownDocument).
+        data = { editorInteractive = true },
         refreshTag = function(element, tag, match, token)
             self = tag or self
             m_token = token

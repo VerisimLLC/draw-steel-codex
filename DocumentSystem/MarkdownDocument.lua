@@ -1934,7 +1934,13 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 StampLine(result[#result], i)
             else
                 local linepos = (#line - #str) + #match.prefix
-                local len = #line - (#match.prefix + #match.suffix)
+                --measure the tag's span against str, NOT line: inside a collapse
+                --card the body indent has been stripped from str, so #line
+                --over-counts by the indent width and PatchToken would then
+                --replace that many extra characters AFTER the tag (a tick on
+                --"  [ ] - text" ate the "- "; tick+untick then ate the ". " at
+                --the label boundary too).
+                local len = #str - (#match.prefix + #match.suffix)
 
                 if options.linePrefix then
                     linepos = linepos + #options.linePrefix
@@ -2979,6 +2985,8 @@ local function RenderMarkdownTokens(ctx, tokens)
                 currentRichRow:Unparent()
             end
             currentRichRow.data.children = {}
+            currentRichRow.data.tagInRow = false
+            currentRichRow.selfStyle.wrap = false
             currentRichRow.selfStyle.width = "auto"
             currentRichRow.selfStyle.valign = "center"
 
@@ -3195,6 +3203,8 @@ local function RenderMarkdownTokens(ctx, tokens)
                         currentRichRow.selfStyle.valign = "top"
                         currentRichRow.selfStyle.maxWidth = nil
                         currentRichRow.data.children = {}
+                        currentRichRow.data.tagInRow = false
+                        currentRichRow.selfStyle.wrap = false
                         newRichRows[#newRichRows + 1] = currentRichRow
                         children[#children + 1] = currentRichRow
                     end
@@ -3204,12 +3214,23 @@ local function RenderMarkdownTokens(ctx, tokens)
                     end
 
                     textPanel.selfStyle.width = "auto"
+                    if currentRichRow.data.tagInRow and token.justification == nil then
+                        --text following a rich tag: a %-maxWidth is measured from
+                        --the label's own left edge, so "100%" overflows the row by
+                        --the tag's width. Pull it in so text fits beside a small
+                        --tag (a bare checkbox is ~34px); when the tag is wider the
+                        --row's wrap drops the text to its own near-full-width line.
+                        textPanel.selfStyle.maxWidth = "100%-40"
+                    else
+                        textPanel.selfStyle.maxWidth = "100%"
+                    end
                     textPanel.selfStyle.valign = "center"
                     currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
                 else
                     -- Only widen for stylesheet alignment when the author did not set an explicit
                     -- :>/:<> justification (which positions an auto-width label via panel halign).
                     textPanel.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    textPanel.selfStyle.maxWidth = "100%"
                     textPanel.selfStyle.valign = "top"
                     children[#children + 1] = textPanel
                 end
@@ -3242,6 +3263,7 @@ local function RenderMarkdownTokens(ctx, tokens)
                     -- Only widen for stylesheet alignment when the author did not set an explicit
                     -- :>/:<> justification (which positions an auto-width label via panel halign).
                     label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
+                    label.selfStyle.maxWidth = "100%"
                     label.selfStyle.valign = "top"
                     label.text = ApplySkinToText(
                         ApplyInlineClasses(seg.text, resolvedClasses),
@@ -3428,6 +3450,8 @@ local function RenderMarkdownTokens(ctx, tokens)
                         currentRichRow.selfStyle.valign = "top"
                         currentRichRow.selfStyle.maxWidth = nil
                         currentRichRow.data.children = {}
+                        currentRichRow.data.tagInRow = false
+                        currentRichRow.selfStyle.wrap = false
                         newRichRows[#newRichRows + 1] = currentRichRow
                         children[#children + 1] = currentRichRow
                     end
@@ -3457,6 +3481,15 @@ local function RenderMarkdownTokens(ctx, tokens)
                     else
                         currentRichRow.data.children[#currentRichRow.data.children + 1] = panel
                     end
+
+                    currentRichRow.data.tagInRow = true
+                    --a rich tag with same-line text: an auto-width label's maxWidth
+                    --of 100% is the full row width, but the label starts after the
+                    --tag panel, so long text overflows the row by the tag's width
+                    --(clips in narrow embeds like the Run panel accordion). Let the
+                    --row wrap so text that cannot fit beside the tag drops to its
+                    --own full-width line instead of clipping.
+                    currentRichRow.selfStyle.wrap = true
                 end
             end
         end
@@ -5992,10 +6025,21 @@ function MarkdownDocument:LiveEditPanel(args)
             end
         end
 
+        --the editor surface itself can be destroyed out from under a queued
+        --refresh (dialog closed, Lua reload); writing children to a dead
+        --panel is useless and the pooled wrappers below are dead too.
+        if m_listPanel == nil or not m_listPanel.valid then
+            return
+        end
+
         local children = {}
         for index, block in ipairs(m_blocks) do
             local wrapper = m_blockPanels[index]
-            if wrapper == nil then
+            --a pooled wrapper can be invalidated out from under us (the same
+            --hazard the placeholderLabel guard below covers): reads on a
+            --destroyed panel return nil, so wrapper.data.index would crash
+            --the whole refresh. Rebuild the wrapper instead.
+            if wrapper == nil or not wrapper.valid then
                 wrapper = CreateBlockPanel()
                 m_blockPanels[index] = wrapper
             end
@@ -6075,9 +6119,20 @@ function MarkdownDocument:LiveEditPanel(args)
                    or wrapper.data.renderedGeneration ~= m_renderGeneration then
                     wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
                     --clicks anywhere on the block must reach the wrapper's
-                    --press handler; rendered widgets are inert on this
-                    --surface (v1).
+                    --press handler, so the rendered content is flattened to
+                    --non-interactive -- EXCEPT rich-tag widgets that declare
+                    --data.editorInteractive (checkboxes): those stay live so
+                    --they can be ticked in place without entering edit mode.
+                    --Their PatchToken splices against full-document token
+                    --positions, so a tick saves exactly as in the plain
+                    --viewer; a non-interactable parent does not block events
+                    --reaching an interactable child.
                     wrapper.data.contentPanel:MakeNonInteractiveRecursive()
+                    for _, tagPanel in pairs(wrapper.data.ctx.pools.richPanels or {}) do
+                        if tagPanel.valid and tagPanel.data ~= nil and tagPanel.data.editorInteractive then
+                            tagPanel.interactable = true
+                        end
+                    end
                     wrapper.data.renderedSource = source
                     wrapper.data.renderedStylesheet = resolvedStylesheet
                     wrapper.data.renderedGeneration = m_renderGeneration

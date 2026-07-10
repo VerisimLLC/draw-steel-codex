@@ -662,6 +662,16 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     end,
                                 },
                                 {
+                                    text = "Add to Run",
+                                    --documents only; the Run panel is Director-side, and the
+                                    --RunAgenda hook loads late (DocumentSystem), hence rawget.
+                                    hidden = member.nodeType ~= "custom" or not dmhub.isDM or rawget(_G, "RunAgenda") == nil,
+                                    click = function()
+                                        element.popup = nil
+                                        RunAgenda.AddDocument(member)
+                                    end,
+                                },
+                                {
                                     text = "Rename",
                                     hidden = not member:HaveEditPermissions(),
                                     click = function()

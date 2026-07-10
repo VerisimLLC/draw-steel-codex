@@ -1647,6 +1647,28 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
         press = function(element)
             tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
+        rightClick = function(element)
+            --Director-side: add the tab's document to the Run panel. rawget
+            --because the RunAgenda hook lives in CampaignTrackerPanel.
+            if not dmhub.isDM or rawget(_G, "RunAgenda") == nil then
+                return
+            end
+            local tabDoc = (dmhub.GetTable(CustomDocument.tableName) or {})[element.data.docId]
+            if tabDoc == nil then
+                return
+            end
+            element.popup = gui.ContextMenu {
+                entries = {
+                    {
+                        text = "Add to Run",
+                        click = function()
+                            element.popup = nil
+                            RunAgenda.AddDocument(tabDoc)
+                        end,
+                    },
+                },
+            }
+        end,
         children = children,
     }
     return tabButton

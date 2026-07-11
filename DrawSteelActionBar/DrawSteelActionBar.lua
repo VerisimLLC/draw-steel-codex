@@ -1451,20 +1451,12 @@ local function CreateActionBar()
             end
 
             g_resources = g_token.properties:GetResources()
+            --Dual Melee+Ranged abilities (e.g. Doorkicker's Dynamic Entry) stay as a
+            --single meleeAndRanged entry here instead of being split into two buttons.
+            --Selecting it sets g_currentAbility to the still-dual-keyword ability,
+            --which CalculateSpellTargeting/CreateSynthesizedSpellsPanel already detect
+            --to show the melee/ranged chip picker (same path used for invoked abilities).
             g_abilities = g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
-
-            --break out melee and ranged.
-            local abilities = {}
-            for _, ability in ipairs(g_abilities) do
-                if ability.meleeAndRanged then
-                    abilities[#abilities + 1] = ability.meleeVariation
-                    abilities[#abilities + 1] = ability.rangedVariation
-                else
-                    abilities[#abilities + 1] = ability
-                end
-            end
-
-            g_abilities = abilities
 
             g_initiative = dmhub.initiativeQueue
             if g_initiative ~= nil and g_initiative.hidden then

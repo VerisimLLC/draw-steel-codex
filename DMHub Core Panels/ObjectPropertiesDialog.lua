@@ -1055,7 +1055,9 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 								val = val - 360
 							end
 
-							slider.value = val
+							--data.setValue fires change (which applies the value
+							--to the field); plain .value assignment is silent.
+							slider.data.setValue(val)
 							slider:FireEvent("confirm")
 						end,
 					},
@@ -1072,7 +1074,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 								val = val + 360
 							end
 
-							slider.value = val
+							slider.data.setValue(val)
 							slider:FireEvent("confirm")
 						end,
 					},

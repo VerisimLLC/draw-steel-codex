@@ -1328,12 +1328,16 @@ function gui.Check(args)
 		return checked
 	end
 
+	--Programmatic assignment (element.value = x) must NOT fire change: refresh
+	--handlers sync controls from the model, and echoing change back mutates the
+	--model (see the ShopAdmin dicePreview wipe). Only an explicit
+	--SetValue(val, true) -- or real user interaction via press below -- fires.
 	options.SetValue = function(element, val, firechange)
 		checkMark:SetClass('hidden', not val)
 
 		if checked ~= val then
 			checked = val
-			if firechange ~= false then
+			if firechange == true then
 				element:FireEvent('change')
 			end
 		end
@@ -1378,7 +1382,9 @@ function gui.Check(args)
 		if resultPanel:HasClass("disabled") then
 			return
 		end
+		--Value assignment is silent; a user click is the one place change fires.
 		element.value = not checked
+		element:FireEvent('change')
 	end
 
 	options.events.keybind = function(element, key)
@@ -1547,10 +1553,10 @@ end
 --- @field fillColor nil|string|Color
 --- @field notchAlign nil|string
 
---- Slider. Fires 'change' whenever the value changes and 'confirm' when a change is completed
+--- Slider. Fires 'change' whenever the user changes the value and 'confirm' when a change is completed
 --- through editing (through dragging and finishing the drag or through editing the label).
---- change is fired if the value is changed programmatically but data.setValueNoEvent() is provided
---- to allow calling without firing change.
+--- Programmatic assignment (element.value = x) does NOT fire change; it repositions the
+--- handle/label silently. Use data.setValue(x) to change the value AND fire change.
 --- also fires 'preview' specifically when dragging, and guaranteed to have a 'confirm' once dragging finishes.
 --- @param args SliderArgs
 --- @return Panel
@@ -1680,7 +1686,8 @@ function gui.Slider(args)
 
 		options.doubleclick = function(element)
 			if defaultValue ~= nil then
-				element.value = defaultValue
+				--Reset-to-default is a user action, so it fires change.
+				mainPanel.data.setValue(defaultValue)
 			end
 		end
 	end
@@ -1739,7 +1746,17 @@ function gui.Slider(args)
 	end
 
 	mainPanel.GetValue = mainPanel.data.getValue
-	mainPanel.SetValue = function(element, val, fireevent) mainPanel.data.setValue(val, fireevent) end
+	--Programmatic assignment (element.value = x) arrives here with fireevent nil
+	--and must NOT fire change (only reposition the handle/label); an explicit
+	--SetValue(val, true) or user interaction (drag/click/label edit/doubleclick,
+	--which call data.setValue directly) fires change.
+	mainPanel.SetValue = function(element, val, fireevent)
+		if fireevent == true then
+			mainPanel.data.setValue(val)
+		else
+			mainPanel.data.setValueNoEvent(val)
+		end
+	end
 
 	handleItem = gui.Panel{
 		height = handleSize,

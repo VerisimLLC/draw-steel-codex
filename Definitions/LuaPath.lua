@@ -1,8 +1,10 @@
---- @class LuaPath 
---- @field hasCollision boolean 
---- @field freeMovementSteps number 
---- @field wallBreaks nil|table[] 
+--- @class LuaPath
+--- @field hasCollision boolean
+--- @field freeMovementSteps number
+--- @field collisionForce number Forced movement only: the force remaining at the moment of collision, after deducting distance travelled AND stamina spent breaking walls along the way (the true impact momentum). -1 = no collision was recorded on this path.
+--- @field wallBreaks nil|table[]
 --- @field movementType string 
+--- @field jumpHeight number For a jump, the jump distance in tiles -- the mover clears height-limited walls up to this tall. Zero for every other movement type.
 --- @field shifting boolean 
 --- @field forced boolean 
 --- @field forcedDest nil|Loc 
@@ -11,6 +13,7 @@
 --- @field collisionSpeed number 
 --- @field hasClimbing boolean 
 --- @field fallDistance number Number of tiles of altitude the token would fall when executing this path. Zero when there's no fall (or when shift-held descent has converted the move into a climb-down).
+--- @field landsInWater boolean True if the tile this path ends on has the water rule -- a fall that lands in water is safer (larger safe-fall distance). False when there is no destination or no water.
 --- @field mount any 
 --- @field waterSteps any 
 --- @field difficultSteps any 
@@ -68,6 +71,20 @@ end
 --- @param nstep number
 --- @return any
 function LuaPath:GetStepFlags(nstep)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetClimbOverWallHeight: If step nstep enters its tile by climbing over a climbable wall, returns the wall's height in tiles above the floor's zero altitude (full-height walls resolve to the floor's height). Returns nil when the step doesn't climb a wall. Step indexes are 0-based, matching GetStepFlags.
+--- @param nstep number
+--- @return nil|number
+function LuaPath:GetClimbOverWallHeight(nstep)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetStepWallHeight: Height in tiles above the floor's zero altitude of the tallest height-limited wall or solid block crossed moving from step nstep-1 to step nstep, or nil when none is crossed. Full-height walls never yield a height (they can't be crossed except by breaking). Lets a flying path illustrate walls the token passes over.
+--- @param nstep number
+--- @return nil|number
+function LuaPath:GetStepWallHeight(nstep)
 	-- dummy implementation for documentation purposes only
 end
 

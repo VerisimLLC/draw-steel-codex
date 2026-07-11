@@ -37,6 +37,27 @@ function LuaObjectInstance:SetBaseImageFromAsset(imageAssetId)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CenterCamera: Centre the camera on this map object. Pass {smooth=true} to pan instead of jump.
+--- @param args any
+--- @return nil
+function LuaObjectInstance:CenterCamera(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ShowRadiusMarker: Show a falloff radius ring centred on this map object (single shared marker; replaces any existing). Optional args {color="#rrggbb"}.
+--- @param radius number
+--- @param args any
+--- @return nil
+function LuaObjectInstance:ShowRadiusMarker(radius, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearRadiusMarker: Clear the shared falloff radius ring shown by ShowRadiusMarker.
+--- @return nil
+function LuaObjectInstance:ClearRadiusMarker()
+	-- dummy implementation for documentation purposes only
+end
+
 --- AddComponentFromJson
 --- @param id any
 --- @param json any

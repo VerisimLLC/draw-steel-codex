@@ -1,6 +1,6 @@
 ---
 name: implement-content
-description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as importable YAML.
+description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as YAML data.
 metadata:
   author: draw-steel-codex
   version: "1.0.0"
@@ -9,97 +9,59 @@ metadata:
 
 # Compendium Content Implementation
 
-You implement Draw Steel game content as importable YAML files for DMHub. This includes monsters, ongoing effects, items, conditions, abilities, and anything else stored in the compendium.
+You implement Draw Steel game content as YAML files in DMHub's live `data/` content store.
+This includes monsters, ongoing effects, items, conditions, abilities, and anything else
+stored in the compendium.
 
 ## Workflow
 
 1. **Discuss**: When the user asks to implement content, first discuss the design. What should the abilities do? What's the best player experience? What behaviors/modifiers will achieve the desired automation?
-2. **Generate**: Write YAML files to `compendium/import/<name>.yaml` for all importable
-   content. Use `compendium/temp/` for working files like extracted PDF content, analysis
-   reports, and implementation plans that aren't meant for direct import.
-3. **Validate**: Run `python validate_yaml.py <name>.yaml` from the repo root to check for
-   errors. Fix ALL errors before proceeding. The validator catches missing required fields,
-   wrong table names, malformed UUIDs, and structural issues. Zero errors required.
-4. **Auto-import**: Import the file directly via the DMHub MCP server (`mcp__dmhub__execute_lua`)
-   by calling `dmhub.ImportFile(filename)` for each file. Report the results to the user
-   (`monstersImported`, `itemsImported`, and any `errors` from the result). Do NOT ask the
-   user to type `/import` -- you have the MCP tool, use it. See "Auto-Import Pattern" below
-   for the canonical Lua snippet. The MCP import path skips the macro's pre-validation,
-   so step 3 above (running `validate_yaml.py`) is mandatory before this step.
-5. **Iterate**: The user tests in-app, reports issues, and you refine the YAML, then re-import.
+2. **Implement directly in `data/`**: `data/` is the live content store (see "Where Content
+   Lives" below). Create or edit the YAML file directly in the correct `data/` subfolder.
+   There is NO import step -- the file you write IS the content.
+3. **Validate**: Run `python validate_yaml.py --base-dir . data/<path>/<file>.yaml` from the
+   repo root to check for errors. Fix ALL errors before proceeding. The validator catches
+   missing required fields, wrong table names, malformed UUIDs, and structural issues. Zero
+   errors required.
+4. **It applies live**: Editing a file in `data/` takes effect in the running DMHub instance
+   automatically -- no `/import`, no `dmhub.ImportFile`, no upload. Do NOT tell the user to
+   import anything.
+5. **Iterate**: The user tests in-app, reports issues, and you refine the same file in
+   `data/`, then they test again.
 
-### Auto-Import Pattern
+## Where Content Lives: the `data/` Submodule
 
-After validation passes (step 3), invoke this via `mcp__dmhub__execute_lua`:
+`data/` is a **git submodule** (the standalone `draw-steel-data` repo -- the export of the
+master "Great Library" game). It holds ALL compendium content as human-readable YAML, and
+the running dev instance reads it live. **Editing a file here is completely safe:** because
+it is its own git repo, any change can be reverted with `git -C data checkout <file>` (or
+inspected with `git -C data diff`). Edit freely.
 
-```lua
-local files = {
-    "wild-nature-prowler.yaml",
-    "wild-nature-punisher.yaml",
-}
+**Layout:**
 
-local totalMonsters, totalItems, totalErrors = 0, 0, {}
+| Content | Location |
+|---|---|
+| Monsters/creatures | `data/monsters/<uuid>.yaml` (one MonsterAsset per file) |
+| Table entries (conditions, ongoing effects, items, abilities, classes, kits, titles, etc.) | `data/objectTables/<tablefolder>/<slug-or-uuid>.yaml` |
+| Reference documentation | `data/docs/` (see "Key References" below) |
 
-for _, filename in ipairs(files) do
-    print("Importing:", filename)
-    local result = dmhub.ImportFile(filename)
-    if result == nil then
-        print("  FAILED to resolve:", filename)
-        totalErrors[#totalErrors+1] = "Failed to resolve: " .. filename
-    else
-        print("  monstersImported =", result.monstersImported or 0,
-              "itemsImported =", result.itemsImported or 0)
-        totalMonsters = totalMonsters + (result.monstersImported or 0)
-        totalItems = totalItems + (result.itemsImported or 0)
-        for _, err in ipairs(result.errors or {}) do
-            print("  ERROR:", tostring(err))
-            totalErrors[#totalErrors+1] = tostring(err)
-        end
-    end
-end
+**Folder name vs `_table:` casing.** Under `data/objectTables/`, folder names are
+**lowercased** (e.g. `characterongoingeffects/`, `charconditions/`, `tbl-gear/`), but the
+`_table:` metadata field inside each file keeps the **canonical mixed-case** name
+(`characterOngoingEffects`, `charConditions`, `tbl_Gear`). Always set `_table:` to the
+canonical name from `data/docs/reference/CORE.md`, not the lowercased folder name.
 
-print("--- SUMMARY ---")
-print("Monsters:", totalMonsters, "Items:", totalItems, "Errors:", #totalErrors)
-```
+**Creating vs editing:**
+- **New content**: The most reliable way is to **copy the nearest existing file in the
+  target folder as a template** and modify it (fresh `id`, name, stats, behaviors) -- this
+  guarantees you carry the full envelope (all required fields) correctly. Name the new file
+  with a human slug (`my-monster.yaml`) or a UUID; the authoritative id is the `id:` field
+  inside, not the filename.
+- **Editing existing content**: Find the file in `data/` (by slug filename, or grep for its
+  `id:`/name) and edit it in place. It is already the live content.
 
-If `dmhub.ImportFile` returns nil, the file path is wrong (it resolves relative to
-`compendium/import/`, so pass just the basename). If `result.errors` contains entries, surface
-each one to the user verbatim. If MCP isn't connected, fall back to telling the user to type
-`/import <files>` -- but only after attempting via MCP first.
-
-## File Placement Rules
-
-**CRITICAL: Always write importable YAML to `compendium/import/`, never edit files in
-`compendium/tables/` directly.** The `tables/` directory is the canonical export of what's
-already in the cloud database. The `import/` directory is the staging area for new or
-updated content that gets loaded via `/import`.
-
-- **New content**: Write to `compendium/import/<name>.yaml`
-- **Updates to existing content**: Copy the file from `compendium/tables/<category>/<name>.yaml`
-  to `compendium/import/<name>.yaml`, make changes there, then import
-- **Batch imports**: Create a manifest file (e.g., `complications-all.yaml`) using `_bundle`
-  with `_include` directives referencing other files in `import/`
-- **Working files**: Use `compendium/temp/` for PDFs, analysis, plans, drafts
-
-**Bundle include syntax** (for manifest files that pull in multiple YAML files):
-```yaml
-_bundle:
-  - _include: "outlaw.yaml"
-  - _include: "mundane.yaml"
-  - _include: "vow-of-duty.yaml"
-```
-
-Each `_include` resolves relative to `compendium/import/`. The included file can be a
-single entry or a bundle itself. Circular includes are detected and skipped.
-
-**The `/import` macro** supports multiple space-separated files:
-```
-/import outlaw.yaml mundane.yaml vow-of-duty.yaml
-```
-Or use a manifest:
-```
-/import complications-all.yaml
-```
+**Working files** (extracted PDF text, analysis, implementation plans -- NOT content): keep
+these OUT of the `data/` submodule. Use `compendium/temp/` or your scratchpad.
 
 ## Automation Principle
 
@@ -301,8 +263,8 @@ list all of these in a single prompt):**
 |---|---|
 | Is there a trigger for event X? | `RegisterTrigger` calls in `Draw Steel Core Rules/*.lua`, `DMHub Game Rules/*.lua` |
 | Is there a GoblinScript symbol Y on object Z? | `RegisterSymbol` / `helpSymbols` in `MCDMActivatedAbility.lua`, `ActivatedAbility.lua`, `MCDMCreature.lua`, `Creature.lua`, `ActivatedAbilityCast.lua`, `MCDMActivatedAbilityCast.lua`, `MCDMAbilityRollBehavior.lua`, `Condition.lua` |
-| Does a custom attribute control mechanic X? | `compendium/tables/customattributes/_table.yaml` |
-| Does similar content already solve this? | `compendium/bestiary/`, `compendium/tables/` |
+| Does a custom attribute control mechanic X? | `data/objectTables/customattributes/` |
+| Does similar content already solve this? | `data/monsters/`, `data/objectTables/` |
 | What event fires at point X? | `DispatchEvent` calls in `DMHub Game Rules/*.lua` |
 | What symbols are passed to a modifier formula? | `LookupSymbol` calls in the relevant modifier/behavior code |
 
@@ -370,28 +332,30 @@ symbol like `Ability.InflictsBasedOnPotency("Frightened")` via Lua.
 
 Read SELECTIVELY based on what you're implementing:
 
+All reference docs live in the `data/` submodule under `data/docs/`.
+
 **Always read:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/CORE.md` | **READ FIRST.** Common pitfalls, UUID maps, table names, GoblinScript booleans, import workflow |
+| `data/docs/reference/CORE.md` | **READ FIRST.** Common pitfalls, UUID maps, table names, GoblinScript booleans |
 
 **For monsters/abilities:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/MONSTERS.md` | Monster YAML, all behavior types, targeting, power rolls, auras, modifiers, triggers, ongoing effects, rules engine commands |
+| `data/docs/reference/MONSTERS.md` | Monster YAML, all behavior types, targeting, power rolls, auras, modifiers, triggers, ongoing effects, rules engine commands |
 
 **For character options (classes, ancestries, kits, etc.):**
 | File | What it contains |
 |---|---|
-| `compendium/reference/CHARACTERS.md` | Classes, subclasses, ancestries, kits, complications, titles, treasures -- YAML structures and feature types |
+| `data/docs/reference/CHARACTERS.md` | Classes, subclasses, ancestries, kits, complications, titles, treasures -- YAML structures and feature types |
 
 **For GoblinScript formulas:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/GOBLINSCRIPT-SYMBOLS.md` | **ALL creature symbols** (200+): stats, characteristics, resources, conditions, movement, custom attributes |
-| `compendium/reference/GOBLINSCRIPT-ABILITY-SYMBOLS.md` | **ALL non-creature symbols**: Ability, Cast, Kit, Equipment, Attack (100+ across 14 types) |
-| `compendium/reference/GOBLINSCRIPT-CONTEXTS.md` | **Which symbols are available WHERE**: maps every YAML formula field to its available symbols |
-| `GoblinScript_Guide.md` | GoblinScript syntax, operators, evaluation model |
+| `data/docs/reference/GOBLINSCRIPT-SYMBOLS.md` | **ALL creature symbols** (200+): stats, characteristics, resources, conditions, movement, custom attributes |
+| `data/docs/reference/GOBLINSCRIPT-ABILITY-SYMBOLS.md` | **ALL non-creature symbols**: Ability, Cast, Kit, Equipment, Attack (100+ across 14 types) |
+| `data/docs/reference/GOBLINSCRIPT-CONTEXTS.md` | **Which symbols are available WHERE**: maps every YAML formula field to its available symbols |
+| `data/GoblinScript_Guide.md` | GoblinScript syntax, operators, evaluation model |
 
 **CRITICAL:** When writing ANY GoblinScript formula, ALWAYS:
 1. Check GOBLINSCRIPT-CONTEXTS.md to know what symbols are available in that specific field
@@ -402,15 +366,15 @@ Read SELECTIVELY based on what you're implementing:
 **Other references (read as needed):**
 | File | What it contains |
 |---|---|
-| `compendium/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
-| `compendium/bestiary/<name>.yaml` | Example monster files -- study for exact YAML patterns |
-| `compendium/tables/` | Example compendium entries by type |
+| `data/docs/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
+| `data/monsters/<uuid>.yaml` | Example monster files -- study for exact YAML patterns |
+| `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
 ## Critical Rules
 
 ### Critical Pitfalls (Read First!)
 
-Before generating any YAML, review the "Common Pitfalls" section in `compendium/REFERENCE.md`.
+Before generating any YAML, review the "Common Pitfalls" section in `data/docs/reference/CORE.md`.
 The most common errors:
 
 1. **Table names are case-sensitive** -- `characterOngoingEffects` not `characterongoingeffects`
@@ -478,27 +442,39 @@ feature heading.
 ### ASCII Only
 All YAML content must be pure ASCII (bytes 0-127). No em dashes, curly quotes, ellipses, or Unicode. Use `-` not `--`, `"` not curly quotes, `...` not ellipsis.
 
+**Caveat for existing `data/` files:** some exported content already contains Unicode (e.g.
+curly apostrophes in ability names), so `validate_yaml.py` may report a non-ASCII error on a
+line you never touched when you edit an existing file. That's a pre-existing export artifact,
+not something your edit introduced -- keep your OWN additions ASCII, and don't churn unrelated
+Unicode lines just to silence the check.
+
 ### UUID Generation
 Generate fresh UUIDs for all new entities. Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` (lowercase hex). Maintain internal consistency -- if an ability references an ongoing effect, the UUIDs must match.
 
 ### Reference Existing UUIDs
-For standard conditions, damage types, action resources, and common ongoing effects, use the UUIDs from the reference maps in `compendium/REFERENCE.md`. Never generate new UUIDs for these -- always reference the existing ones.
+For standard conditions, damage types, action resources, and common ongoing effects, use the UUIDs from the reference maps in `data/docs/reference/CORE.md`. Never generate new UUIDs for these -- always reference the existing ones.
 
 ### Monster YAML Format
-Monsters use the `MonsterAsset` C# struct format with `info:` at the top level. Study existing monsters in `compendium/bestiary/` for exact structure. Key fields:
+Monsters live in `data/monsters/<uuid>.yaml`, one `MonsterAsset` per file, with `info:` at the
+top level. **Copy an existing `data/monsters/*.yaml` as a template** for a new monster -- the
+envelope has many required fields, and copying guarantees you get them all. Key fields:
+- `info.properties.monster_type` -- **the monster's display name** (e.g. `Sprite Olyender`).
+  NOTE: in the live `data/` format, the top-level `description` is `null` -- the name is here,
+  not in `description`.
 - `info.properties.innateActivatedAbilities` -- the monster's abilities
 - `info.properties.characterFeatures` -- traits (passive features using CharacterModifier)
 - `info.properties.attributes` -- characteristic scores
 - `info.properties.keywords` -- creature keywords
-- `description` -- the monster's display name
-- `id` -- unique UUID for this monster
+- `parentFolder` -- UUID of the containing folder under `data/monsterFolders/` (carry over
+  the template's value, or set to an existing monster folder's id)
+- `id` -- unique UUID for this monster (also used as the filename when UUID-named)
 
 ### Table Entry YAML Format
 Table entries (ongoing effects, conditions, items, etc.) must include a `_table:` metadata field.
 
 **CRITICAL: Table names are case-sensitive.** Always look up the exact name from
-`compendium/REFERENCE.md` "Common Table Names". Do NOT guess from directory names
-(directories are lowercased, but table names have mixed casing).
+`data/docs/reference/CORE.md` "Table Names". Do NOT guess from the `data/objectTables/`
+folder names (those folders are lowercased, but the `_table:` value has mixed casing).
 
 Common table names: `characterOngoingEffects`, `charConditions`, `standardAbilities`,
 `tbl_Gear`, `MonsterGroup`, `Skills`, `globalRuleMods`, `customAttributes`, `Deities`.
@@ -510,19 +486,14 @@ id: <uuid>
 ...
 ```
 
-### Bundle Format
-For content that requires multiple entries (e.g., a monster + custom ongoing effects):
-```yaml
-_bundle:
-  - info:
-      ...
-    description: "Monster Name"
-    id: <uuid>
-  - _table: characterOngoingEffects
-    __typeName: CharacterOngoingEffect
-    id: <uuid>
-    ...
-```
+### Multiple Related Entries
+When content requires more than one entry (e.g., a monster plus a custom ongoing effect it
+applies), each entry is its **own file in its own `data/` folder** -- there is no `_bundle`
+wrapper in the direct-edit workflow. Keep the cross-referenced UUIDs consistent between them:
+
+- Monster -> `data/monsters/<monster-uuid>.yaml` (references the effect's UUID in its ability)
+- Custom ongoing effect -> `data/objectTables/characterongoingeffects/<effect-slug>.yaml`
+  (with `_table: characterOngoingEffects` and matching `id: <effect-uuid>`)
 
 ## Power Roll Tiers
 
@@ -822,7 +793,7 @@ Use `ActivatedAbilityAuraBehavior` to create persistent map zones with terrain e
 custom object to the Auras folder in DMHub and update the ability to use it.
 
 Other aura options: `movedamage`/`damage` (damage per square moved), `blocks_line_of_effect`
-(cover), `blocks_movement` (wall). See `compendium/REFERENCE.md` for full field list.
+(cover), `blocks_movement` (wall). See `data/docs/reference/MONSTERS.md` for full field list.
 
 ## Power Table Effects (DrawSteelCommandBehavior)
 
@@ -846,7 +817,7 @@ against the caster, `applyto: caster_companion` against the companion, etc.
 
 **Compound rules:** Separate with `;` -- e.g., `2 damage; A<2 prone; push 3`.
 
-See `compendium/REFERENCE.md` "Power Table Effect / Rules Engine Commands" for full syntax.
+See `data/docs/reference/MONSTERS.md` "Power Table Effect / Rules Engine Commands" for full syntax.
 
 ### Movement: ALWAYS Prefer Rule Strings Over RelocateCreatureBehavior / ForcedMovementBehavior
 

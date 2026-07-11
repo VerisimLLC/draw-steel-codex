@@ -270,6 +270,10 @@ ActivatedAbility.sequentialTargeting = false
 --for emptyspace targetType, this is the type of targeting used.
 ActivatedAbility.targeting = "direct"
 
+--for contiguous_wall targeting: whether wall squares may be stacked on top of each
+--other (re-clicking a chosen square adds another cube there instead of deselecting).
+ActivatedAbility.wallStacking = false
+
 --when true, forced movement continues through creatures instead of stopping on collision.
 ActivatedAbility.forcedMovementThroughCreatures = false
 
@@ -1102,6 +1106,26 @@ function ActivatedAbility:VerticalTargeting()
 end
 
 function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
+    --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
+    --"teleport 5" may end up to 5 squares above or below the creature's current
+    --altitude, independently of the horizontal component (which the radius marker
+    --already bounds). Unlike the forced-movement calculators below, this returns
+    --ABSOLUTE altitudes; landing on the ground at the target tile is the lowest
+    --possible landing spot.
+    if (self.targetType == "emptyspace" or self.targetType == "anyspace") and self:try_get("behaviors") ~= nil and self:GetMovementType(casterToken, symbols) == "teleport" then
+        local range = symbols.range
+        if range == nil then
+            range = self:GetRange(casterToken.properties, symbols) / dmhub.unitsPerSquare
+        end
+        local casterAlt = casterToken.loc.altitude
+        return function(loc)
+            local groundAlt = loc.withGroundAltitude.altitude
+            local minAltitude = math.max(groundAlt, casterAlt - range)
+            local maxAltitude = math.max(minAltitude, casterAlt + range)
+            return minAltitude, maxAltitude
+        end
+    end
+
     if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
         local invoker = symbols.invoker
         if type(invoker) == "function" then
@@ -1175,6 +1199,21 @@ end
 function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 
     print("MARKER:: PASSES FILTER...")
+
+    --transient whitelist of allowed squares (a list of Locs). Set on temporary
+    --ability clones that prompt for a pick restricted to specific squares, e.g.
+    --shift_wall_voxel choosing which vacated square a wall moves into.
+    local restrictLocs = self:try_get("_tmp_restrictLocs")
+    if restrictLocs ~= nil then
+        return function(loc)
+            for _,allowed in ipairs(restrictLocs) do
+                if loc.x == allowed.x and loc.y == allowed.y and loc.floor == allowed.floor then
+                    return true
+                end
+            end
+            return false
+        end
+    end
     if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
         local originLoc = symbols.forcedMovementOrigin
 
@@ -1638,6 +1677,57 @@ end
 function ActivatedAbility:CommitToPaying(casterToken, options)
     options.pay = true
 	self:FireUseAbility(casterToken, options)
+end
+
+--Begin recording destructive map edits (heightmap/terrain changes) made by this
+--ability into a persistent, revertible record. Behaviors that modify the map call
+--this around their edits; edits from multiple behaviors of the same cast merge
+--into one record via the cast's castid. Nil-guarded so the codex still loads on
+--engine builds that predate the recording API.
+--- @param ability ActivatedAbility
+--- @param casterToken nil|CharacterToken
+--- @param options table
+--- @param loc nil|Loc|{x: number, y: number} A representative location for jump-to.
+function ActivatedAbility.BeginMapModificationRecording(ability, casterToken, options, loc)
+    if rawget(_G, "game") == nil or game.BeginRecordingMapModification == nil then
+        return
+    end
+
+    local key = nil
+    if options ~= nil and options.symbols ~= nil then
+        key = options.symbols.castid
+    end
+
+    local casterid = nil
+    local casterName = nil
+    if casterToken ~= nil and casterToken.valid then
+        casterid = casterToken.charid
+        casterName = creature.GetTokenDescription(casterToken)
+    end
+
+    local locArg = nil
+    if loc ~= nil then
+        locArg = { x = loc.x, y = loc.y }
+    end
+
+    game.BeginRecordingMapModification{
+        key = key,
+        name = ability.name,
+        casterid = casterid,
+        casterName = casterName,
+        floorid = game.currentFloorId,
+        loc = locArg,
+    }
+end
+
+--Ends the active map modification recording. Safe to call when no recording is
+--active, so FinishCast calls it defensively.
+function ActivatedAbility.EndMapModificationRecording()
+    if rawget(_G, "game") == nil or game.EndRecordingMapModification == nil then
+        return
+    end
+
+    game.EndRecordingMapModification()
 end
 
 function ActivatedAbility:FireUseAbility(casterToken, options)
@@ -2212,6 +2302,11 @@ function ActivatedAbility:FinishCast(casterToken, options)
         return
     end
     options.executedFinish = true
+
+    --defensive: make sure an errored map-modifying behavior can never leave a
+    --map modification recording active past the end of its cast.
+    ActivatedAbility.EndMapModificationRecording()
+
     DestroyLineOfSight(options)
 
 	if options ~= nil then
@@ -2664,6 +2759,82 @@ function ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
     return false
 end
 
+--Actions deferred until the ability casts currently resolving on this client
+--have finished. Used to hold back remote invokes generated mid-cast (e.g. a
+--triggered reaction activated from the roll dialog that grants the target a
+--teleport) so the remote player is not prompted to move a token that the
+--in-progress cast is still resolving a forced move against: riders resolve
+--"after the triggering effect resolves".
+--Each entry: { casts = {co -> true}, fn = function }.
+local g_deferredCastCompleteActions = {}
+local g_deferredCastSweepScheduled = false
+
+local function ScheduleDeferredCastSweep()
+    --backstop in case a cast coroutine dies without its atexit running.
+    if g_deferredCastSweepScheduled then
+        return
+    end
+    g_deferredCastSweepScheduled = true
+    dmhub.Schedule(2, function()
+        g_deferredCastSweepScheduled = false
+        if mod.unloaded then
+            return
+        end
+        ActivatedAbility.FlushCastCompleteActions()
+        if #g_deferredCastCompleteActions > 0 then
+            ScheduleDeferredCastSweep()
+        end
+    end)
+end
+
+--Runs fn once every ability cast that was active when this was called has
+--finished, including the calling cast if invoked from inside one. Runs fn
+--immediately when no casts are active.
+function ActivatedAbility.RunWhenCastsComplete(fn)
+    local casts = {}
+    for co,_ in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" then
+            casts[co] = true
+        end
+    end
+
+    if next(casts) == nil then
+        fn()
+        return
+    end
+
+    g_deferredCastCompleteActions[#g_deferredCastCompleteActions+1] = {
+        casts = casts,
+        fn = fn,
+    }
+
+    ScheduleDeferredCastSweep()
+end
+
+function ActivatedAbility.FlushCastCompleteActions()
+    local i = 1
+    while i <= #g_deferredCastCompleteActions do
+        local entry = g_deferredCastCompleteActions[i]
+        local ready = true
+        for co,_ in pairs(entry.casts) do
+            if ActivatedAbility.coroutineStorage[co] ~= nil and coroutine.status(co) ~= "dead" then
+                ready = false
+                break
+            end
+        end
+
+        if ready then
+            table.remove(g_deferredCastCompleteActions, i)
+            local ok, err = pcall(entry.fn)
+            if not ok then
+                printf("RunWhenCastsComplete:: error in deferred action: %s", tostring(err))
+            end
+        else
+            i = i + 1
+        end
+    end
+end
+
 function ActivatedAbility.CountActiveCasts()
     local count = 0
     for co,_ in pairs(ActivatedAbility.coroutineStorage) do
@@ -2675,19 +2846,53 @@ function ActivatedAbility.CountActiveCasts()
     return count
 end
 
---- Returns the movement type for relocate-creature behaviors ("move", "shift", etc.), or nil if none.
+--- The movement type this behavior imparts on the ability ("move", "shift",
+--- "jump", "teleport", ...), or nil if it isn't a movement behavior. Behaviors
+--- that move the caster override this so targeting previews key off it.
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorMovementType(symbols)
+    return nil
+end
+
+--- Returns the movement type for movement behaviors ("move", "shift", etc.), or nil if none.
 --- @param token CharacterToken
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
     for _,behavior in ipairs(self.behaviors) do
-        if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
-            if symbols ~= nil and symbols.shiftingOverride ~= nil then
-                if behavior.movementType == "shift" and (not symbols.shiftingOverride) then
-                    return "move"
-                end
-            end
-            return behavior.movementType
+        local movementType = behavior:BehaviorMovementType(symbols)
+        if movementType ~= nil then
+            return movementType
+        end
+    end
+
+    return nil
+end
+
+--- Per-tier targeting rings drawn while this behavior's ability is being
+--- targeted, or nil for ordinary single-ring targeting. Each entry:
+--- {tier: integer, tiles: integer, height: integer, radius: number,
+---  color: string, label: string}, ordered by ascending tiles.
+--- @param ability ActivatedAbility
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbilityBehavior:GetTargetingTierRadii(ability, token, symbols)
+    return nil
+end
+
+--- Per-tier targeting rings for this ability ({tier, tiles, height, radius,
+--- color, label}[]), or nil if no behavior provides them. The action bar draws
+--- one colored ring per entry instead of the single white range ring.
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbility:GetTargetingTierRadii(token, symbols)
+    for _,behavior in ipairs(self.behaviors) do
+        local radii = behavior:GetTargetingTierRadii(self, token, symbols)
+        if radii ~= nil then
+            return radii
         end
     end
 
@@ -2735,6 +2940,10 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
         end
         options.atexit = true
 	    self:FinishCast(casterToken, options)
+
+        --deliver any remote invokes that were held back until casts finished
+        --resolving (see RunWhenCastsComplete).
+        ActivatedAbility.FlushCastCompleteActions()
     end)
 
     if co ~= nil then

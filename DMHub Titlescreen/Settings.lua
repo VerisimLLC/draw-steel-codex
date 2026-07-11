@@ -116,6 +116,16 @@ setting{
 }
 
 setting{
+    id = "showmovementcrosssection",
+    description = "Show Movement Cross-Section",
+    help = "When dragging a token, show a small side-on cross-section diagram in the movement tooltip illustrating the vertical profile of the move (slopes, walls climbed or flown over, falls, and other tokens the path crosses). Turn this off to always show the plain text tooltip.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
     id = "redactdirectorlocation",
     description = "Redact Director Location",
     help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",
@@ -1793,6 +1803,16 @@ setting{
 			text = "Instant",
 		},
 	}
+}
+
+setting{
+	id = "dice:motionblur",
+	description = "Dice Motion Blur",
+	help = "Blurs fast-moving dice so a hard throw reads as a continuous streak instead of a series of discrete stamps. The dice roll is rendered several times per frame at sub-frame positions and averaged; resting and slow dice are unaffected. Slightly more GPU work while dice are in flight.",
+	storage = "preference",
+	section = "Graphics",
+	editor = "check",
+	default = false,
 }
 
 setting{

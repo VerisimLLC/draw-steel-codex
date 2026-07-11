@@ -20,6 +20,27 @@ function RichEncounter.CreateDisplay(self)
     local m_open = false
     local m_palSignature = nil --page-skin palette applied to the chrome (nil = app theme)
 
+    --True when every non-reinforcement group has a recorded spawn location for
+    --each of its monsters, i.e. the encounter has a saved setup that "Place on
+    --Map" can drop straight onto the map. Reinforcement (wave) groups arrive
+    --later and are not placed up front, so they do not gate this. When false,
+    --"Place on Map" instead enters interactive placement mode.
+    local function EncounterHasRecordedSetup()
+        for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
+            if group.wave == nil then
+                local nmonsters = 0
+                for monsterid,quantity in pairs(group.monsters) do
+                    nmonsters = nmonsters + quantity
+                end
+
+                if nmonsters > 0 and (group.spawnlocs == nil or #group.spawnlocs < nmonsters) then
+                    return false
+                end
+            end
+        end
+        return true
+    end
+
     --party strength for the difficulty pill and EV/budget readout. This must
     --agree with the encounter builder: the hero COUNT comes from the numheroes
     --setting (the same count the roster is balanced for via
@@ -457,22 +478,7 @@ function RichEncounter.CreateDisplay(self)
             element:FireEvent("refreshTag")
         end,
         refreshTag = function(element)
-            --check we have spawn locations for all monsters.
-            local canspawn = true
-            for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
-                --reinforcement groups arrive later and are not placed up front, so
-                --they do not need spawn locations to enable "Place on Map".
-                if group.wave == nil then
-                    local nmonsters = 0
-                    for monsterid,quantity in pairs(group.monsters) do
-                        nmonsters = nmonsters + quantity
-                    end
-
-                    if nmonsters > 0 and (group.spawnlocs == nil or #group.spawnlocs < nmonsters) then
-                        canspawn = false
-                    end
-                end
-            end
+            local canspawn = EncounterHasRecordedSetup()
 
             local children = element.children
 
@@ -487,14 +493,12 @@ function RichEncounter.CreateDisplay(self)
                 end
             end
 
-            if canspawn then
-                children[1]:SetClass("collapsed", false)
-                children[2]:SetClass("collapsed", true)
-                children[3]:SetClass("collapsed", true)
-                return
-            end
-
-            children[1]:SetClass("collapsed", true)
+            --No monsters from this encounter are on the map. Always offer
+            --"Place on Map": with a recorded setup it batch-places the monsters
+            --at their saved positions; without one, its press handler enters
+            --interactive placement mode instead. Reset re-spawns at recorded
+            --positions, so it is only meaningful once a setup exists.
+            children[1]:SetClass("collapsed", false)
             children[2]:SetClass("collapsed", true)
             children[3]:SetClass("collapsed", true)
         end,
@@ -509,7 +513,22 @@ function RichEncounter.CreateDisplay(self)
             swallowPress = true,
 
             press = function(element)
-                resultPanel:FireEventTree("spawn")
+                if EncounterHasRecordedSetup() then
+                    resultPanel:FireEventTree("spawn")
+                    return
+                end
+
+                --No recorded positions, so we cannot batch-place. Enter the
+                --engine's native encounter placement mode: focus the widget
+                --(the engine reads data.encounter off the focused panel and
+                --spawns the monsters on the next map click) and show a prompt.
+                --The widget's create handler catches the resulting
+                --spawnFromBestiary and records the spawns. watch = resultPanel
+                --keeps the banner passive since the widget, not the banner, is
+                --the placement focus target.
+                resultPanel.data.encounter = self.encounter
+                gui.SetFocus(resultPanel)
+                gui.ShowPlacementBanner{name = "the encounter", watch = resultPanel}
             end,
         },
         gui.Button{

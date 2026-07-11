@@ -24,6 +24,56 @@ dmhub.CreateTargetableComponent = function()
     }
 end
 
+--Wall voxels spawned by abilities are stamped with the creating creature's
+--charid in the "wallcreator" property (see AbilityBuildWall.lua). Expose it to
+--GoblinScript hashed the same way as creature ids, so targeting filters can
+--say e.g. "Target.WallCreator = Caster.ID" (the Wallmaster targeting only
+--walls made by its own Living Labyrinth trait). Registered on creature (the
+--base type of TargetableObject); non-walls return 0, which never matches an id.
+GameSystem.RegisterGoblinScriptField{
+    name = "Wall Creator",
+
+    type = "number",
+    desc = "The id of the creature that created this wall object, or 0 if it was not created by a creature. Compare against a creature's ID field.",
+    examples = {"Target.WallCreator = Caster.ID"},
+
+    calculate = function(c)
+        return Utils.HashGuidToNumber(c:try_get("wallcreator", ""))
+    end,
+}
+
+--True for the topmost wall voxel of its tile's column. Wall abilities that
+--detach/topple "a square of wall" (e.g. the Wallmaster's Wall Slam) use this
+--to only offer the exposed top cube of a stacked column as a target.
+GameSystem.RegisterGoblinScriptField{
+    name = "Wall Top",
+
+    type = "boolean",
+    desc = "True if this object is the topmost wall voxel on its tile. Also true for anything that is not a wall voxel.",
+    examples = {"Target.WallCreator = Caster.ID and Target.WallTop"},
+
+    calculate = function(c)
+        local token = dmhub.LookupToken(c)
+        if token == nil or not token.valid or token.objectInstance == nil then
+            return true
+        end
+
+        local loc = token.loc
+        local voxelFloor = game.currentMap:GetFloorFromLoc(loc)
+        if voxelFloor == nil then
+            return true
+        end
+
+        local voxels = voxelFloor:GetWallVoxelsAt(loc)
+        if voxels == nil or #voxels == 0 then
+            return true
+        end
+
+        local top = voxels[#voxels]
+        return top ~= nil and top.objid == token.objectInstance.objid
+    end,
+}
+
 function TargetableObject:OnCollide(collidingToken, symbols)
     if self:has_key("custom_collision") then
         local token = dmhub.LookupToken(self)

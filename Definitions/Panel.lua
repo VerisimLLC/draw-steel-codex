@@ -9,6 +9,7 @@
 --- @field monitorAssets AssetCategory|AssetCategory[] (write-only) A list of asset categories to monitor. When the asset categories are updated, the refreshAssets event will be fired on this panel.
 --- @field constrainToScreen boolean (default=false) If true, the panel will be constrained to the screen area.
 --- @field floating boolean (default=false) A floating panel does not respect the **flow** of its parent. @see Panel.flow
+--- @field renderOnTop boolean (default=false) When true this panel renders on its own top-most sorting canvas at a very high sorting order, drawing above its sibling panels within the same sorting layer. Set it back to false to return the panel to normal sorting.
 --- @field data table An arbitrary table of user data that is attached to the panel. Store any interesting fields here that you want to have associated with the panel.
 --- @field root Panel The root panel of the hierarchy this Panel is within.
 --- @field parent Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.
@@ -375,13 +376,6 @@ function Panel:HaltEventPropagation()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetAsDicePreviewPanel
---- @param val boolean
---- @return nil
-function Panel:SetAsDicePreviewPanel(val)
-	-- dummy implementation for documentation purposes only
-end
-
 --- @class PanelArgs:PanelArgsBase 
 --- @field id nil|string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
 --- @field debugSnapshot nil|@return table Diagnostic: returns a state-snapshot table for this panel (bgimage/raw-image/lifecycle/hierarchy fields). Returns nil if the panel has been recycled out from under this wrapper.
@@ -393,6 +387,7 @@ end
 --- @field monitorAssets nil|AssetCategory|AssetCategory[] (write-only) A list of asset categories to monitor. When the asset categories are updated, the refreshAssets event will be fired on this panel.
 --- @field constrainToScreen nil|boolean (default=false) If true, the panel will be constrained to the screen area.
 --- @field floating nil|boolean (default=false) A floating panel does not respect the **flow** of its parent. @see Panel.flow
+--- @field renderOnTop nil|boolean (default=false) When true this panel renders on its own top-most sorting canvas at a very high sorting order, drawing above its sibling panels within the same sorting layer. Set it back to false to return the panel to normal sorting.
 --- @field data nil|table An arbitrary table of user data that is attached to the panel. Store any interesting fields here that you want to have associated with the panel.
 --- @field root nil|Panel The root panel of the hierarchy this Panel is within.
 --- @field parent nil|Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.

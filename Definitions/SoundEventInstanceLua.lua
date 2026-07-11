@@ -1,6 +1,7 @@
 --- @class SoundEventInstanceLua 
 --- @field volume number 
 --- @field playing boolean 
+--- @field mixGroupId any 
 --- @field solo boolean 
 --- @field pitch number 
 --- @field delay number 

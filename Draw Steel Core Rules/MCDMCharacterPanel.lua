@@ -5977,7 +5977,7 @@ function TacPanel.Features()
 
         --Minion "With Captain": a standalone chip outside the grouped list.
         if m_withCaptainWrap ~= nil then
-            if m_withCaptainChip ~= nil and m_withCaptainChip.data.active then
+            if m_withCaptainChip ~= nil and m_withCaptainChip.data ~= nil and m_withCaptainChip.data.active then
                 local match = not filtering
                     or Search.MatchesLoweredText(m_withCaptainChip.data.searchLower, needle)
                 m_withCaptainChip:SetClass("collapsed", not match)
@@ -6037,7 +6037,10 @@ function TacPanel.Features()
         --so the categoriser never sees it). Built once, then reused.
         if creature.withCaptain and creature.minion then
             local captainText = creature.withCaptain
-            if m_withCaptainChip == nil then
+            -- Rebuild if the cached chip was destroyed/orphaned by a prior
+            -- children reassignment: the engine clears .data on a dead panel, so
+            -- a non-nil handle with nil .data would crash the .active write below.
+            if m_withCaptainChip == nil or m_withCaptainChip.data == nil then
                 m_withCaptainChip = TacPanel.FeatureChip(token, "With Captain",
                     function() return captainText end, lockFilterOnOpen)
                 m_withCaptainWrap = gui.Panel{
@@ -6052,7 +6055,14 @@ function TacPanel.Features()
             m_withCaptainChip.data.active = true
             children[#children+1] = m_withCaptainWrap
         elseif m_withCaptainChip ~= nil then
-            m_withCaptainChip.data.active = false
+            --The wrap is not in the new children set, so the children
+            --reassignment below orphans it and the engine destroys it. Drop the
+            --cached references (cache handoff, same as the group-panel cache
+            --below) so the chip is rebuilt fresh if the captain returns.
+            --Keeping the destroyed panel cached made the next reconcile (and
+            --applyFilter) index nil .data and crash.
+            m_withCaptainChip = nil
+            m_withCaptainWrap = nil
         end
 
         --Group panels, reused by bucket id, in the index's bucket order.

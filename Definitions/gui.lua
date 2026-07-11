@@ -65,6 +65,13 @@ function gui.TextEditor(table)
 	-- dummy implementation for documentation purposes only
 end
 
+--- DicePreview: Create a DicePreview panel: a cage that resting preview dice anchor to. Register it with SetAsDicePreviewPanel(true), seed dice with dmhub.Roll{preview = true, previewPanel = <panel>}, and route input through its DicePreview* methods.
+--- @param args PanelArgs
+--- @return DicePreview
+function gui.DicePreview(table)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RegisterTheme: Registers style overrides for a theme section.
 --- @param themeid string The theme ID.
 --- @param sectionid string The section within the theme.

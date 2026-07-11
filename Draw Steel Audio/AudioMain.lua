@@ -3,27 +3,76 @@ local mod = dmhub.GetModLoading()
 --Register Audio Mod
 audio.RegisterAudioMod(mod)
 
+--Local (this-client-only) mute. Read per-frame by the engine (AudioController
+--folds it into globalSliderVolume); driven by the player-facing mute buttons
+--in the Audio dock panel and the top-bar mini mixer. Distinct from audio.muted,
+--which is the GAME-WIDE mute synced to every client.
+setting{
+    id = "localmuted",
+    default = false,
+    storage = "preference",
+}
+
 --Mix Groups
 
+--Parent bus for the app's own feedback SFX (UI clicks, dice, gameplay, damage).
+audio.MixGroup{
+    id = "uisounds",
+    name = tr("UI Sounds"),
+}
+
+--Library category buses: the DM's uploaded sounds.
+audio.MixGroup{
+    id = "music",
+    name = tr("Music"),
+}
+
+audio.MixGroup{
+    id = "ambience",
+    name = tr("Ambience"),
+}
+
+audio.MixGroup{
+    id = "effects",
+    name = tr("Effects"),
+}
+
+--App feedback SFX, parented under UI Sounds.
 audio.MixGroup{
     id = "gameplay",
+    parent = "uisounds",
     name = tr("Gameplay"),
 }
 
 audio.MixGroup{
     id = "ui",
+    parent = "uisounds",
     name = tr("UI"),
 }
 
 audio.MixGroup{
     id = "dice",
+    parent = "uisounds",
     name = tr("Dice"),
 }
 
 audio.MixGroup{
+    id = "damage",
+    parent = "uisounds",
+    name = tr("Damage"),
+}
+
+--Footsteps: standalone (Settings-only slider; carved out after a user complaint).
+audio.MixGroup{
     id = "footsteps",
-    parent = "gameplay",
     name = tr("Footsteps"),
+}
+
+--Anthem: its own top-level bus so the Anthem panel fader scales all anthems. NOT a duck
+--target (anthems ride full over the ducked music bed), so nothing ever DuckGroups it.
+audio.MixGroup{
+    id = "anthem",
+    name = tr("Anthem"),
 }
 
 
@@ -663,7 +712,7 @@ audio.SoundEvent{
 --Implemented: plays when a creature *takes damage* from any source/reason. (Should review if this is best)
 audio.SoundEvent{
     name = "Attack.Hit",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Gnrc_v1_01.wav","Atk_Hit/Atk_Hit_Gnrc_v1_02.wav","Atk_Hit/Atk_Hit_Gnrc_v1_03.wav","Atk_Hit/Atk_Hit_Gnrc_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -672,7 +721,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_acid",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Acid_v1_01.wav","Atk_Hit/Atk_Hit_Acid_v1_02.wav","Atk_Hit/Atk_Hit_Acid_v1_03.wav","Atk_Hit/Atk_Hit_Acid_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -681,7 +730,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_cold",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Cold_v1_01.wav","Atk_Hit/Atk_Hit_Cold_v1_02.wav","Atk_Hit/Atk_Hit_Cold_v1_03.wav","Atk_Hit/Atk_Hit_Cold_v1_04.wav","Atk_Hit/Atk_Hit_Cold_v1_05.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -690,7 +739,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_corruption",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Corruption_v1_01.wav","Atk_Hit/Atk_Hit_Corruption_v1_02.wav","Atk_Hit/Atk_Hit_Corruption_v1_03.wav","Atk_Hit/Atk_Hit_Corruption_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -699,7 +748,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_fire",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Fire_v1_01.wav","Atk_Hit/Atk_Hit_Fire_v1_02.wav","Atk_Hit/Atk_Hit_Fire_v1_03.wav","Atk_Hit/Atk_Hit_Fire_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -708,7 +757,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_holy",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Holy_v2_01.wav","Atk_Hit/Atk_Hit_Holy_v2_02.wav","Atk_Hit/Atk_Hit_Holy_v2_03.wav","Atk_Hit/Atk_Hit_Holy_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -717,7 +766,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_lightning",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Lightning_v1_01.wav","Atk_Hit/Atk_Hit_Lightning_v1_02.wav","Atk_Hit/Atk_Hit_Lightning_v1_03.wav","Atk_Hit/Atk_Hit_Lightning_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -726,7 +775,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_poison",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Poison_v1_01.wav","Atk_Hit/Atk_Hit_Poison_v1_02.wav","Atk_Hit/Atk_Hit_Poison_v1_03.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -735,7 +784,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_psychic",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Psychic_v2_01.wav","Atk_Hit/Atk_Hit_Psychic_v2_02.wav","Atk_Hit/Atk_Hit_Psychic_v2_03.wav","Atk_Hit/Atk_Hit_Psychic_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -744,7 +793,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_sonic",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Sonic_v1_01.wav","Atk_Hit/Atk_Hit_Sonic_v1_02.wav","Atk_Hit/Atk_Hit_Sonic_v1_03.wav","Atk_Hit/Atk_Hit_Sonic_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -755,7 +804,7 @@ audio.SoundEvent{
 --plays when creature takes environmental damage
 audio.SoundEvent{
     name = "Attack.Enviro",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Enviro_Gnrc_v1_01.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -918,6 +967,9 @@ DiceImpactFamilies.families = {
     { id = "Stone",      text = "Stone",            suffix = "Stone"      },
     { id = "MetalTiny",  text = "Metal (Small)",    suffix = "MetalTiny"  },
     { id = "MetalBlade", text = "Metal Blade",      suffix = "MetalBlade" },
+    { id = "MetalSparkle",text = "Metal Sparkle",  suffix = "MetalSparkle"},
+    { id = "GlassSparkle",text = "Glass Sparkle",  suffix = "GlassSparkle"},
+    { id = "MetalShield", text = "Metal Shield",      suffix = "MetalShield" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1012,12 +1064,11 @@ audio.SoundEvent{
     pitchRand = 0.1,
 }
 
---TO DO
---Black Ash Dice Impacts
 
 
 
---TO DO
+
+
 --Black Ash Dice Impacts
 
 audio.SoundEvent{
@@ -1070,6 +1121,32 @@ audio.SoundEvent{
     name = "DiceImp.Soft_Glass",
     mixgroup = "dice",
     sounds = {"dice/glass/DiceImp_Glass_Soft_01.wav","dice/glass/DiceImp_Glass_Soft_02.wav","dice/glass/DiceImp_Glass_Soft_03.wav","dice/glass/DiceImp_Glass_Soft_04.wav","dice/glass/DiceImp_Glass_Soft_05.wav","dice/glass/DiceImp_Glass_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+--glassSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Hard_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Mild_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_06.wav"},
+    volume = 0.07,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Soft_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_06.wav"},
     volume = 0.05,
     pitchRand = 0.01,
 }
@@ -1156,8 +1233,60 @@ audio.SoundEvent{
 }
 
 
+--metalshield Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Hard_01.wav","dice/metalshield/DiceImp_metalshield_Hard_02.wav","dice/metalshield/DiceImp_metalshield_Hard_03.wav","dice/metalshield/DiceImp_metalshield_Hard_04.wav","dice/metalshield/DiceImp_metalshield_Hard_05.wav","dice/metalshield/DiceImp_metalshield_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Mild_01.wav","dice/metalshield/DiceImp_metalshield_Mild_02.wav","dice/metalshield/DiceImp_metalshield_Mild_03.wav","dice/metalshield/DiceImp_metalshield_Mild_04.wav","dice/metalshield/DiceImp_metalshield_Mild_05.wav","dice/metalshield/DiceImp_metalshield_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Soft_01.wav","dice/metalshield/DiceImp_metalshield_Soft_02.wav","dice/metalshield/DiceImp_metalshield_Soft_03.wav","dice/metalshield/DiceImp_metalshield_Soft_04.wav","dice/metalshield/DiceImp_metalshield_Soft_05.wav","dice/metalshield/DiceImp_metalshield_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
+
+
+--MetalSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Hard_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Mild_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Soft_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
 

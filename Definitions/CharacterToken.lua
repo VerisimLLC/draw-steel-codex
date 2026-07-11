@@ -308,7 +308,8 @@ end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number}
+--- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only
@@ -488,6 +489,14 @@ end
 --- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
 --- @return Loc[]
 function CharacterToken:CalculateMovementPerimeter(movementAllowance, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CalculateJumpReachable: Returns every tile a straight-line jump of the given distance and jump height could land on: within distance of the token, no full-height wall or too-tall height-limited wall/block on the line, and no ground along the line rising more than jumpHeight above the takeoff ground. Landing lower is always allowed. Mirrors Move with movementType='jump', so the set matches where such a jump can actually go.
+--- @param distance jump distance in tiles (Chebyshev).
+--- @param jumpHeight the height in tiles the jump clears; also the most the ground may rise above the takeoff along the line or at the landing tile.
+--- @return Loc[]
+function CharacterToken:CalculateJumpReachable(distance, jumpHeight)
 	-- dummy implementation for documentation purposes only
 end
 

@@ -58,7 +58,6 @@
 --- @field GetHeightEditingInfo fun(): {opacity: number, blend: number, height: number, directional: boolean} Editor callback function: Used to determine what height editing options the user has selected in the UI.
 --- @field SelectHeight fun(height: number): nil Editor callback function: Used when the user uses the eyedropper tool to select a height to notify the interface what height they selected.
 --- @field GetWallHeight fun(): number Editor callback function: Used to determine the height the user is currently editing walls at.
---- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
 --- @field CreateTargetableComponent fun(): table A function that creates a targetable component table for attaching to an object.
 --- @field CreateCorpseComponent fun(): table A function that creates a corpse component table for attaching to an object.
 --- @field TokenMovingOnPath fun(args: {token: CharacterToken, path: Path, position: vector3, delta: vector3, distanceMoved: number}): nil A function that is called each frame while a token is moving along a path, receiving movement details.
@@ -67,6 +66,7 @@
 --- @field ObjectDirectImport fun(string, vector3): nil A function that is called when we directly import an object.
 --- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change was detected, uploaded, reverted, or closed).
 --- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
+--- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
@@ -151,14 +151,6 @@ function dmhub.TestFunction()
 	-- dummy implementation for documentation purposes only
 end
 
---- CreateInfoBubble: Creates a new info bubble on the current map floor at the given location. Info bubbles are DM-only markers that open a journal document when clicked. 'options' optionally supplies the bubble's icon glyph and description; both are auto-generated (next free number icon, "Room N" description) when omitted. Returns the new bubble's id, or nil on failure (no active map, or the info document could not be created). The bubble is applied asynchronously once the change round-trips to the server; read it back afterwards via dmhub.infoBubbles[id] to edit its icon/description/document.
---- @param loc Loc
---- @param options nil|{icon: nil|string, description: nil|string}
---- @return nil|string
-function dmhub.CreateInfoBubble(loc, options)
-	-- dummy implementation for documentation purposes only
-end
-
 --- DetectImageEditors: Returns the image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full path to the executable on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows (via the registry uninstall and 'App Paths' keys) and macOS (by scanning /Applications and ~/Applications for known editor bundles); Linux returns an empty list. Intended to populate an editor chooser so the user can pick an installed editor without browsing for it.
 --- @return {name: string, path: string}[]
 function dmhub.DetectImageEditors()
@@ -203,14 +195,6 @@ end
 --- StartLiveEditImage: Starts a generic live-edit session on the image with the given id ('guid'), opening it in the configured external editor and listing it in the live-edit dialog alongside object sessions. 'name' is the dialog label. When the user clicks Upload Changes, the edited image is uploaded and 'commit' is called with the new raw image id (prefix it with 'md5:' to use as a bgimage); the session stays active so further edits can be made. 'revert' (optional) is called when the user reverts (use it to restore the original image); 'close' (optional) when they close the session. 'id' optionally sets a stable session id (defaults to a fresh guid). Does nothing if the image cannot be opened for editing. Check dmhub.ImageEditorNeedsSetup() first and show dmhub.PromptImageEditorSetup if needed.
 --- @param options {guid: string, name: nil|string, id: nil|string, commit: fun(newImageId: string), revert: nil|fun(), close: nil|fun()}
 function dmhub.StartLiveEditImage(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- SetImageAssetImage: Repoints the editable image asset with the given asset id at a newly committed image (imageid), persisting the change and refreshing the asset's sprite. Used by the IconEditor live-edit feature to commit an 'edit in place': the asset keeps its id but now references the new image, so every use of it updates. Only ObjectAsset/GenericImageAsset (the plain image-container types) are repointed. Returns true if such an asset was found and repointed; false otherwise (e.g. the id is a raw image id rather than an asset, or the asset is read-only).
---- @param assetid string
---- @param imageid string
---- @return boolean
-function dmhub.SetImageAssetImage(assetid, imageid)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -324,6 +308,12 @@ end
 --- @param options {path: string[], threshold: number|nil, breakup: boolean|nil}
 --- return ObjectImportLua
 function dmhub.CreateObjectImporter(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginBugReport: Captures a screenshot of the current frame and begins a new bug report. The callback is invoked with a BugReport object once the screenshot has been captured. Call this before showing any bug report dialog so the screenshot shows the screen as the user saw it.
+--- @param callback fun(report: BugReport)
+function dmhub.BeginBugReport(callback)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -458,15 +448,30 @@ function dmhub.OptimizeImageAsset(imageid, targetWidth, targetHeight)
 	-- dummy implementation for documentation purposes only
 end
 
---- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
---- @return nil
-function dmhub.DumpRenderTextures()
+--- SetImageAssetImage: Repoints the editable image asset with the given asset id at a newly committed image (imageid), persisting the change to the editable asset store and refreshing the asset's sprite. Used by the IconEditor live-edit feature to commit an 'edit in place': the asset keeps its id but now references the new image, so every use of it updates. Only the plain image-container types (ObjectAsset / GenericImageAsset) are repointed -- dimension-sensitive types (tilesheets/walls/atlases) are left untouched. Returns true if such an asset was found and repointed; false otherwise (e.g. the id is a raw image id rather than an asset, or the asset is read-only).
+--- @param assetid string
+--- @param imageid string
+--- @return boolean
+function dmhub.SetImageAssetImage(assetid, imageid)
 	-- dummy implementation for documentation purposes only
 end
 
---- DumpWallSorting: Diagnostic: logs the sorting layer/order of every WallMesh (including sprite-stack children) and every CharacterToken, plus the wall height fraction and the token's flying altitude. Used to debug flying-token vs wall draw-order problems (the "Set Wall Height" feature sorts flying tokens into the WallsParallax band between wall layers). Reusable tool.
+--- DumpWallSorting: Diagnostic: logs the sorting layer/order of every WallMesh (including sprite-stack children) and every CharacterToken, plus the wall height fraction and the token's flying altitude. Used to debug flying-token vs wall draw-order problems (the 'Set Wall Height' feature sorts flying tokens into the WallsParallax band between wall layers). Reusable tool.
 --- @return nil
 function dmhub.DumpWallSorting()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DebugTokenVisibility: Diagnostic: explains why the token whose name or charid contains the search string is or isn't visible. Logs the target's visibility state (canSee, vision-loc set membership, shader vision-min) and a verbose line-of-sight replay from every token that has line-of-sight data, showing the matched vision sweep entry and its wall height. Used to debug seeing tokens over height-limited walls. Call with an empty string to list all tokens. Reusable tool.
+--- @param search string
+--- @return nil
+function dmhub.DebugTokenVisibility(search)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
+--- @return nil
+function dmhub.DumpRenderTextures()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -579,6 +584,32 @@ function dmhub.ExportAllTables(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ExportAllAssets: Exports ALL asset categories of the current game (compendium tables, monsters, images, audio, objects, tilesheets, etc.) to a YAML directory tree -- the format used by the local-assets developer feature. By default exports the game's own assets (the CurrentGame store); pass merged=true to export the fully merged view including core and module assets. The directory option is resolved beneath the compendium folder unless it is an absolute path (dev mode only); with no directory, exports to the active local-assets directory if local assets mode is on, else to the 'assets' compendium subfolder. Dev only.
+--- @param options nil|{ directory: string, merged: boolean }
+--- @return { categoriesExported: number, itemsExported: number, directory: string }|nil
+function dmhub.ExportAllAssets(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetDirectoryInfo: Returns information about a directory on disk: whether it exists and how many files it contains recursively (count capped at 10000). Available in dev mode only; returns nil otherwise. Used by the local-assets developer UI to warn before populating a non-empty directory.
+--- @param path string The directory path to inspect.
+--- @return { exists: boolean, fileCount: number }|nil
+function dmhub.GetDirectoryInfo(path)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether a local asset directory is active (replacing the game's cloud assets), and if so which directory.
+--- @return { active: boolean, directory: string|nil }
+function dmhub.LocalAssetsStatus()
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevealInFileBrowser: Reveals the given file or directory in the operating system's file browser (Windows Explorer / macOS Finder). Dev mode only; does nothing otherwise.
+--- @param path string The directory or file to reveal.
+function dmhub.RevealInFileBrowser(path)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ImportTable: Imports a single object table from YAML files on disk into memory. Reads _table.yaml from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
 --- @param tableName string The name of the table to import into.
 --- @param options nil|{ directory: string }
@@ -622,26 +653,6 @@ function dmhub.UploadAllMonsters(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExportAllAssets: Exports ALL asset categories of the current game (compendium tables, monsters, images, audio, objects, tilesheets, etc.) to a YAML directory tree -- the format used by the local-assets developer feature. By default exports the game's own assets; pass merged=true to export the fully merged view including core and module assets. The directory option is resolved beneath the compendium folder unless it is an absolute path (dev mode only); with no directory, exports to the active local-assets directory if local assets mode is on, else to the 'assets' compendium subfolder. Dev only.
---- @param options nil|{ directory: string, merged: boolean }
---- @return { categoriesExported: number, itemsExported: number, directory: string }|nil
-function dmhub.ExportAllAssets(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether a local asset directory is active (replacing the game's cloud assets), and if so which directory.
---- @return { active: boolean, directory: string|nil }
-function dmhub.LocalAssetsStatus()
-	-- dummy implementation for documentation purposes only
-end
-
---- GetDirectoryInfo: Returns information about a directory on disk: whether it exists and how many files it contains recursively (count capped at 10000). Available in dev mode only; returns nil otherwise.
---- @param path string The directory path to inspect.
---- @return { exists: boolean, fileCount: number }|nil
-function dmhub.GetDirectoryInfo(path)
-	-- dummy implementation for documentation purposes only
-end
-
 --- ImportFile: Imports a single YAML file from the compendium/import/ directory. Detects whether the file contains a monster (has 'info' key), a table entry (has '__typeName' key with '_table' metadata), or a bundle (has '_bundle' key) and imports accordingly. Also uploads imported data to the cloud.
 --- @param filename string The name of the YAML file to import from compendium/import/.
 --- @return { monstersImported: number, itemsImported: number, errors: string[] }
@@ -681,9 +692,10 @@ function dmhub.MarkRadius(table)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLocs: Mark a set of locations on the map. Call Destroy() on the returned object when you want to destroy the marker.
+--- MarkLocs: Mark a set of locations on the map by outlining their perimeter. style: 'solid' draws a plain continuous line, 'dashed'/'dotted' draw a patterned line; nil keeps the legacy border strip with its inner fade. Call Destroy() on the returned object when you want to destroy the marker.
 --- @param color Color
 --- @param locs Loc[]
+--- @param style nil|'solid'|'dashed'|'dotted' border line style; nil keeps the legacy strip with inner fade
 --- @return LuaMultiObjectReference
 function dmhub.MarkLocs(args)
 	-- dummy implementation for documentation purposes only
@@ -709,10 +721,63 @@ function dmhub.ClearRollBonusTypes()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move -- a token plus its movement path (LuaPath) -- and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it. Used by the token-drag movement tooltip.
+--- @param args {token: any, path: any, secondaryPaths: nil|{path: any, label: nil|string}[]}
+--- @return nil|{image: string, width: number, height: number}
+function dmhub.SetMovementCrossSection(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearMovementCrossSection: Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
+--- @return nil
+function dmhub.ClearMovementCrossSection()
+	-- dummy implementation for documentation purposes only
+end
+
 --- Roll: Execute a dice roll. Returns an object that manages the roll.
+
+The rolldef table accepts a `forcedDice` field for integrations driving rolls from an
+external source (e.g. Bluetooth GoDice, webcam dice readers). When supplied, the virtual
+dice tumble normally but land showing the listed face values, which become the natural
+roll. Each entry is `{ numFaces = <int>, result = <int 1..numFaces> }`, ordered
+to match the dice in the roll expression. Out-of-range or unmatched entries are dropped
+with a Debug.LogWarning. The resulting ChatMessageDiceRollInfo's `rolls`, `naturalRoll`,
+`nat1`, `nat20`, and tier/crit detection populate exactly as if the engine had rolled
+the dice itself, so OnBeforeRoll interceptors no longer have to collapse the dice
+expression to a numeric literal. Example:
+
+    dmhub.Roll{
+        roll = '2d10 1 bane',
+        instant = true, silent = true,
+        forcedDice = {{numFaces=10, result=7}, {numFaces=10, result=4}},
+        complete = function(rollInfo) ... end,
+    }
 --- @param rolldef RollDefinition
 --- @return nil|ActiveRollLua
 function dmhub.Roll(rolldef)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartDiceBridge: Start the external physical-dice bridge process (e.g. the GoDice
+Bluetooth bridge) if it isn't already running. The executable is resolved engine-side --
+from the 'externaldice:bridgepath' preference, falling back to godice-bridge.exe next to
+the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
+bridge is running when the call returns. The bridge exits on its own if it stops
+receiving /v1/heartbeat POSTs for 60 seconds, and is force-killed when DMHub exits.
+--- @return boolean
+function dmhub.StartDiceBridge()
+	-- dummy implementation for documentation purposes only
+end
+
+--- StopDiceBridge: Stop the external physical-dice bridge process if it is running. See StartDiceBridge.
+--- @return nil
+function dmhub.StopDiceBridge()
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsDiceBridgeRunning: True if the external physical-dice bridge process started by StartDiceBridge is currently running.
+--- @return boolean
+function dmhub.IsDiceBridgeRunning()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -726,7 +791,7 @@ end
 --- @param text string
 --- @param lookupFunction function
 --- @param nil|table options
---- @return {exploding = nil|boolean, minroll = nil|integer, reroll = nil|integer, critical = nil|integer, tiers = nil|integer, dmonly = nil|boolean, dicetower = nil|boolean, categories = table<string, {mod=number, primary=nil|boolean, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
+--- @return {exploding = nil|boolean, categories = table<string, {mod=number, groups={numDice=number, numFaces=number, numKeep=number,subtract=nil|boolean}[]}>}
 function dmhub.ParseRoll(text, lookupFunction, options)
 	-- dummy implementation for documentation purposes only
 end
@@ -1247,6 +1312,13 @@ function dmhub.IsSteamOverlayRunning()
 	-- dummy implementation for documentation purposes only
 end
 
+--- InviteToGameViaSteam: Opens the Steam overlay's 'invite a friend' dialog so a Steam friend can be invited to join the given game. The friend sees a 'Join Game' button that drops them into the game (handled by SteamJoinHandler). No-op when not running under Steam (e.g. dev builds).
+--- @param gameid string
+--- @return nil
+function dmhub.InviteToGameViaSteam(gameid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ElevateToDM: Elevates the user to GM status or removes their GM status. Only works on admin accounts.
 --- @param isDM any
 --- @return nil
@@ -1556,6 +1628,14 @@ function dmhub.FormatTimestamp(timestamp, formatstr)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CreateInfoBubble: Creates a new info bubble on the current map floor at the given location. DM only. Returns the new bubble's id, or nil on failure. The bubble is applied asynchronously once the change round-trips; read it back via dmhub.infoBubbles[id] afterwards.
+--- @param loc Loc The map location to place the bubble at.
+--- @param options nil|{icon: string, description: string} Optional icon glyph and description; auto-generated when omitted.
+--- @return nil|string
+function dmhub:CreateInfoBubble(loc, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ViewSign: Shows the given image as a modal that fills most of the screen.
 --- @param imageid string
 function dmhub.ViewSign(imageid)
@@ -1581,6 +1661,15 @@ end
 --- @param callback (fun(): nil)
 --- @return boolean
 function dmhub.CenterOnToken(tokenid, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CenterOnLoc: Center the camera on a tile location, switching map and floor first if needed.
+--- mapid defaults to the current map; a missing or deleted floorid falls back to the current or
+--- first floor. Returns false if the map could not be found.
+--- @param args {x: number, y: number, mapid: nil|string, floorid: nil|string, smooth: nil|boolean, callback: nil|(fun(): nil)}
+--- @return boolean
+function dmhub.CenterOnLoc(args)
 	-- dummy implementation for documentation purposes only
 end
 

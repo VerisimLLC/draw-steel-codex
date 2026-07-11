@@ -24,6 +24,21 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
     local height = dmhub.EvalGoblinScript(self.height, casterToken.properties:LookupSymbol(options.symbols), string.format("Height for %s", ability.name))
     local hasChanges = false
 
+    --record the elevation edits below into a revertible map modification record,
+    --grouped with any other map edits made by this cast.
+    local recordLoc = nil
+    if options.targetArea ~= nil then
+        recordLoc = options.targetArea.origin
+    else
+        for _,target in ipairs(targets) do
+            if target.loc ~= nil then
+                recordLoc = target.loc
+                break
+            end
+        end
+    end
+    ActivatedAbility.BeginMapModificationRecording(ability, casterToken, options, recordLoc)
+
     if options.targetArea ~= nil and options.targetArea.shape == "Cube" then
 
         game.currentFloor:ChangeElevation{
@@ -85,6 +100,8 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
             end
         end
     end
+
+    ActivatedAbility.EndMapModificationRecording()
 
     if hasChanges and self.testFalling then
         for _,token in ipairs(dmhub.allTokens) do

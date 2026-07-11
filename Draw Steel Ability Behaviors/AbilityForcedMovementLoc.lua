@@ -24,7 +24,20 @@ end
 
 
 function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, targets, options)
-    if self.type == "aura" then
+    if self.type == "target" then
+        --the ability's current (first) target is the origin. Run this while the
+        --targets are still e.g. a wall square object -- before a later
+        --manipulate_targets behavior replaces them with creatures -- so pushes
+        --originate from the object (e.g. the Wallmaster's Dead End).
+        local target = targets ~= nil and targets[1] or nil
+        if target == nil or target.token == nil or not target.token.valid then
+            print("ORIGIN:: no target to use as origin")
+            return
+        end
+
+        options.symbols.forcedMovementOrigin = target.token.loc
+        print("ORIGIN:: set origin =", target.token.loc.str)
+    elseif self.type == "aura" then
         local aura = options.symbols.aura
         if aura == nil or aura:GetArea() == nil then
             print("Origin: aura not found")
@@ -123,6 +136,7 @@ function ActivatedAbilityForcedMovementLocBehavior:EditorItems(parentPanel)
             options = {
                 { id = 'aura', text = 'Center of Aura' },
                 { id = 'creature', text = 'A Creature' },
+                { id = 'target', text = 'First Target' },
             },
             change = function(element)
                 self.type = element.idChosen

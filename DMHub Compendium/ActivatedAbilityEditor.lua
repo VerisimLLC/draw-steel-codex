@@ -1145,6 +1145,18 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self:try_get("targeting") ~= "contiguous_wall" or (self.targetType ~= "emptyspace" and self.targetType ~= "anyspace"), "collapsed")},
+			text = "Allow Stacking",
+			value = self:try_get("wallStacking", false),
+			change = function(element)
+				self.wallStacking = element.value
+			end,
+			refreshAbility = function(element)
+				element:SetClass("collapsed", self:try_get("targeting") ~= "contiguous_wall" or (self.targetType ~= "emptyspace" and self.targetType ~= "anyspace"))
+			end,
+		},
+
 		gui.Panel{
 			classes = {"formPanel", cond(self:try_get("targeting") ~= "straightline", 'collapsed')},
 			gui.Label{

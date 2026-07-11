@@ -2,6 +2,7 @@
 --- @field events EventSourceLua An event source for subscribing to audio-related events.
 --- @field muted boolean Whether all game audio is currently muted.
 --- @field masterVolume number The master volume level for all game audio, from 0 to 1.
+--- @field normalizeLoudness boolean Whether library/anthem track loudness is automatically normalized for this game.
 --- @field currentlyPlaying table A table of currently playing game sound events.
 --- @field numPlayingSounds number The number of sound instances currently playing.
 --- @field numActiveSoundEvents number The number of active sound events in the current game.
@@ -17,6 +18,12 @@ end
 --- UploadMasterVolume: Uploads the current master volume to the server.
 --- @return nil
 function audio.UploadMasterVolume()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadNormalizeLoudness: Uploads the current loudness-normalization toggle to the server.
+--- @return nil
+function audio.UploadNormalizeLoudness()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -48,9 +55,17 @@ function audio.SetSoundEventVolume(guid, volume)
 end
 
 --- PlaySoundEvent: Starts playing a sound event from the given options table. Returns the guid of the playing sound event.
---- @param options table Options with keys: asset (AudioAssetLua), volume (number).
+--- @param options table Options with keys: asset (AudioAssetLua), volume (number), pitch (number).
 --- @return nil|string
 function audio.PlaySoundEvent(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CrossfadeSoundEvents: Crossfades between two sound events: fades stopAssetId out and startAssetId in over the given duration. Either side may be nil to just fade one in or out.
+--- @param stopAssetId nil|string The asset id (guid) of the sound event to fade out, or nil.
+--- @param startAssetId nil|string The asset id (guid) of the sound event to fade in, or nil.
+--- @param seconds nil|number Crossfade duration in seconds; defaults to 3.0, minimum 0.05.
+function audio.CrossfadeSoundEvents(stopAssetId, startAssetId, seconds)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -81,6 +96,30 @@ end
 --- MixGroup: Registers a mix group for volume control. The args table must contain name, id, and optionally parent.
 --- @param args table The mix group definition with keys: name, id, parent.
 function audio.MixGroup(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DuckGroup: Ducks a mix group's volume to a target level. Refcounted: pair each DuckGroup with a ReleaseDuck. fadeDown ramps into the duck; fadeUp (optional, defaults to fadeDown) ramps back out -- pass a slower fadeUp so the bed swells back gently.
+--- @param id string The mix group id to duck (e.g. "music"). @param level number Target volume multiplier 0..1. @param fadeDown number Fade-in (duck) duration in seconds. @param fadeUp number Optional fade-out (release) duration in seconds; defaults to fadeDown.
+function audio.DuckGroup(id, level, fadeDown, fadeUp)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetGroupShared: Sets a mix group's shared broadcast level (0..1) -- the DM-controlled layer synced to all clients via the shared audio-mix document. Folds up the parent chain; defaults to 1.0 (transparent) for untouched groups.
+--- @param id string The mix group id (e.g. "music", "uisounds"). @param value number Broadcast level 0..1.
+function audio.SetGroupShared(id, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReleaseDuck: Releases a duck previously applied to a mix group with DuckGroup. Refcounted.
+--- @param id string The mix group id to release.
+function audio.ReleaseDuck(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ResetMixState: Clears all mix-group duck and shared-broadcast state. Normally happens automatically on game load/switch; exposed here as a manual escape hatch for recovering from a leaked duck or testing.
+--- @return nil
+function audio.ResetMixState()
 	-- dummy implementation for documentation purposes only
 end
 

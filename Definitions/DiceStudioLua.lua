@@ -2,18 +2,19 @@
 --- @field canSave boolean True if the current dice set has a file and can be saved.
 --- @field uploaded boolean True if the current dice set has been uploaded to the cloud.
 --- @field dicePanelStyles table Gets or sets the dice panel style table containing bgcolor, trimcolor, and color fields.
+--- @field displayName string Gets or sets the player-facing display name for this dice set. This is the name shown to end users wherever a dice set is presented (e.g. the 'Dice Set' setting dropdown); it is independent of the internal/authoring name (which identifies the local file and cloud document). An empty string means 'no override -- fall back to the internal name'.
 --- @field font string Gets or sets the font name used for the dice face numbers.
 --- @field fontOptions string[] Gets a list of available font names for dice faces.
 --- @field border string Gets or sets the border style name for the dice. Returns 'None' if no border is set.
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
 --- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
---- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity). A dice script can also toggle this per-die via die.halo.
+--- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity for its look). A dice script can also toggle this per-die via die.halo.
 --- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
 --- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
 --- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
---- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. A dice script can also toggle this per-die via die.billboard.
+--- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. See billboardImage/billboardColorInner/billboardColorOuter/billboardSize/billboardFalloff/billboardIntensity for its look. A dice script can also toggle this per-die via die.billboard.
 --- @field billboardImage string The image asset id of an artist-supplied billboard glow image, or an empty string to render the procedural radial gradient instead. In image mode the image is tinted by billboardColorInner and its own alpha is its coverage.
 --- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.
 --- @field billboardColorOuter Color The billboard gradient's outer/edge color (HDR). Only used in gradient mode (no image set).
@@ -22,6 +23,12 @@
 --- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
 --- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
+--- @field physicsEnabled boolean Whether this dice set overrides the global dice physics settings with its own per-set 'feel' (see physicsGravity/physicsVelocity/physicsDrag/physicsAngularDrag/physicsBounciness). When false the set rolls with the global dice:* settings.
+--- @field physicsGravity number Per-set gravity multiplier (dice 'heft'); only used when physicsEnabled is true. Higher = the die falls and settles harder. Matches the global dice:gravity default (22) for a plastic feel.
+--- @field physicsVelocity number Per-set launch-velocity scale (throw energy); only used when physicsEnabled is true. Matches the global dice:velocity default (5).
+--- @field physicsDrag number Per-set linear drag (skitter damping); only used when physicsEnabled is true. Higher = the die stops sooner. Matches the global dice:drag default (1.5).
+--- @field physicsAngularDrag number Per-set angular drag (tumble damping); only used when physicsEnabled is true. Higher = the die's spin dies sooner. Matches the global dice:angulardrag default (1).
+--- @field physicsBounciness number Per-set bounciness / restitution (0..1); only used when physicsEnabled is true. Higher = bouncier. Matches the global dice:bounciness default (0.8).
 --- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
 --- @field teleportDistance number For teleporting dice: how far the die jumps, as a fraction (0-1) of the playfield width.
 --- @field teleportDuration number For teleporting dice: how long the jump slide takes, in seconds (lower = faster).
@@ -74,7 +81,7 @@ function DiceStudioLua:SaveAs(name)
 	-- dummy implementation for documentation purposes only
 end
 
---- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs (which copies the currently-loaded dice), New discards the current edits and starts from a clean slate.
+--- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs -- which copies the currently-loaded dice -- New discards the current edits and starts from a clean slate.
 --- @param name string
 --- @return nil
 function DiceStudioLua:New(name)
@@ -194,7 +201,7 @@ function DiceStudioLua:GetEventSound(eventName)
 end
 
 --- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
---- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
 --- @param soundEventName string|nil
 function DiceStudioLua:SetEventSound(eventName, soundEventName)
 	-- dummy implementation for documentation purposes only
@@ -215,8 +222,38 @@ function DiceStudioLua:SetEventSoundVolume(eventName, volume)
 end
 
 --- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
---- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
 function DiceStudioLua:FirePreviewSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetImpactFamily: Gets the dice impact-sound family id bound to the set, or an empty string for the default (copper) family.
+--- @return string
+function DiceStudioLua:GetImpactFamily()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetImpactFamily: Sets the dice impact-sound family id. Pass an empty string for the default (copper) family. Clears any legacy generic Impact (BounceHit) sound binding, which the family choice supersedes.
+--- @param id string
+function DiceStudioLua:SetImpactFamily(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetImpactFamilyVolume: Gets the impact family volume multiplier (1 = the family's authored volume).
+--- @return number
+function DiceStudioLua:GetImpactFamilyVolume()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetImpactFamilyVolume: Sets the impact family volume multiplier (0..2; 1 = the family's authored volume).
+--- @param volume number
+function DiceStudioLua:SetImpactFamilyVolume(volume)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewImpact: Test-plays the set's chosen impact family at a hard-hit speed (through the Dice.Impact dispatcher).
+--- @return nil
+function DiceStudioLua:FirePreviewImpact()
 	-- dummy implementation for documentation purposes only
 end
 

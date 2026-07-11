@@ -141,6 +141,18 @@ ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 
+--Movement type used by targeting previews (ActivatedAbility:GetMovementType).
+--A shift the user has overridden to be a regular move reports "move".
+function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
+    if symbols ~= nil and symbols.shiftingOverride ~= nil then
+        if self.movementType == "shift" and (not symbols.shiftingOverride) then
+            return "move"
+        end
+    end
+
+    return self.movementType
+end
+
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 
@@ -247,7 +259,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 end)
             end
 
-        	casterToken:Teleport(destLoc.withGroundAltitude)
+            --The action bar's altitude controller resolves the target loc to an
+            --ABSOLUTE altitude (bounded by the teleport distance). Never land below
+            --the ground at the destination: locs from flows without the controller
+            --carry altitude 0 or the ground altitude, and both resolve to landing
+            --on the ground exactly as before.
+            local groundLoc = destLoc.withGroundAltitude
+            local teleportLoc = groundLoc:WithAltitude(math.max(groundLoc.altitude, destLoc.altitude))
+
+        	casterToken:Teleport(teleportLoc)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
 
@@ -301,9 +321,30 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
                 end
             end
+
+            --Fall check: a creature that teleports into midair falls unless it
+            --can fly (TryFall is a no-op for grounded or flying creatures).
+            --Give the teleport a moment to breathe first: wait for a full game
+            --update to land with the creature in the air (plus a short beat so
+            --the teleport animation can resolve) before the falling rules
+            --engage. Time-capped so a stalled update can't hang the cast.
+            if teleportLoc.altitude > groundLoc.altitude then
+                local updateAtTeleport = dmhub.ngameupdate
+                local startTime = dmhub.Time()
+                while (dmhub.ngameupdate <= updateAtTeleport or dmhub.Time() < startTime + 0.5) and dmhub.Time() < startTime + 2 do
+                    coroutine.yield(0.1)
+                end
+            end
+            if casterToken.valid then
+                casterToken:TryFall()
+            end
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)
-		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })
+            --The jump distance (in tiles) is also the height the jump can clear: a "jump N" sails over
+            --any height-limited wall/block up to N tiles tall (engine wall-height model). Pass it as
+            --jumpHeight so the straight-line jump path clears those walls instead of being blocked.
+            local jumpHeight = math.floor((ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare) + 0.5)
+		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump", jumpHeight = jumpHeight })
             if path ~= nil then
                 options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
             end
@@ -346,7 +387,25 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
                     local hasCollision = freeMovement < requestDist
                     local collisionSpeed = requestDist - freeMovement
-                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed)
+
+                    -- The engine reports the true force remaining at the moment of
+                    -- collision (path.collisionForce >= 0): distance travelled AND
+                    -- stamina spent breaking earlier walls (e.g. targetable wall
+                    -- voxels) are already deducted, so a second wall or creature is
+                    -- hit with reduced momentum. -1 means the engine recorded no
+                    -- collision -- force spent purely on wall breaks is not a
+                    -- collision, so a clean smash-through deals no collision damage.
+                    local collisionForce = path.collisionForce
+                    if collisionForce ~= nil then
+                        if collisionForce >= 0 then
+                            hasCollision = true
+                            collisionSpeed = collisionForce
+                        elseif not path.hasCollision then
+                            hasCollision = false
+                            collisionSpeed = 0
+                        end
+                    end
+                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed, "collisionForce=", collisionForce)
 
 					if hasCollision then
 						collisionInfo = {

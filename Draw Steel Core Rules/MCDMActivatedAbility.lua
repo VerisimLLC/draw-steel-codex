@@ -2382,6 +2382,44 @@ function ActivatedAbility:Render(options, params)
         reminderPanel,
 
         footerPanel,
+
+        --Close (X) button pinned to the top-right of the ability card. Only
+        --revealed while the real interactive roll dialog is embedded (it carries
+        --data.Cancel); read-only remote roll mirrors pass a plain panel with no
+        --Cancel, so spectators never get a cancel affordance. Clicking it cancels
+        --the embedded roll -- this replaces the old in-dialog "Cancel" button
+        --(see Timeline/EmbeddedRollDialog). ESC still cancels via the roll
+        --dialog's own captureEscape handler.
+        gui.CloseButton{
+            floating = true,
+            halign = "right",
+            valign = "top",
+            escapeActivates = false,
+            classes = { "collapsed" },
+            data = { rollDialog = nil },
+            embedRollDialog = function(element, dialog)
+                if dialog ~= nil and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                    element.data.rollDialog = dialog
+                    element:SetClass("collapsed", false)
+                    --The ability tooltip is made non-interactive as a whole
+                    --(AbilitySidebar MakeNonInteractiveRecursive). interactable is
+                    --per-element and does not cascade to descendants, so re-enable
+                    --this button on its own to make the click register.
+                    element.interactable = true
+                else
+                    element.data.rollDialog = nil
+                    element:SetClass("collapsed", true)
+                end
+            end,
+            click = function(element)
+                local dialog = element.data.rollDialog
+                if dialog ~= nil and dialog.valid and dialog.data ~= nil
+                    and dialog.data.Cancel ~= nil and dialog.data.IsShown ~= nil
+                    and dialog.data.IsShown() then
+                    dialog.data.Cancel()
+                end
+            end,
+        },
     }
 
 

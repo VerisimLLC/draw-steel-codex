@@ -6422,12 +6422,12 @@ local function GroupingHud(groupid)
             think = function(element)
                 local removes = nil
                 local count = 0
-                for _, token in pairs(g_initiativeGroupings[groupid].tokens) do
-                    if token ~= nil and token.valid and token.floorid == floorid then
+                for charid, token in pairs(g_initiativeGroupings[groupid].tokens) do
+                    if token ~= nil and token.valid and token.floorid == floorid and token.properties.initiativeGrouping == groupid then
                         count = count + 1
                     else
                         removes = removes or {}
-                        removes[#removes + 1] = token.charid
+                        removes[#removes + 1] = charid
                     end
                 end
 

@@ -105,7 +105,7 @@ Compose three classes on three nested panels:
 
 #### Button
 
-`{label, button}` is a text button — 31x129 default (size M), `@bg` rest fill, `@border` frame, `@fg` text. The hover rule swaps the body to inverse (`@bgInverse` / `@fgInverse` / `@borderInverse`); the press rule dims by 70% and plays `Mouse.Click`.
+`{label, button}` is a text button — 31x129 default (size M), `@bg` rest fill, `@border` frame, `@fg` text. Button text never wraps; it shrinks (down to 10pt via `minFontSize`) to fit the fixed button width. The hover rule swaps the body to inverse (`@bgInverse` / `@fgInverse` / `@borderInverse`); the press rule dims by 70% and plays `Mouse.Click`.
 
 - **Sizes** — `sizeXxs..sizeXxl` set both width/height and font size in one go.
 - `{button, hasIcon}` — icon-only button: square (100% height), no border, transparent fill, hover restores `@bg`. The `gui.Button{ icon = ... }` factory composes this for you.
@@ -285,7 +285,7 @@ Engine-emitted around `gui.Dialog` — match verbatim:
 
 - `{modalDialog}` — modal body. `@bgInverse` fill, `@bg` frame, 8px corner radius.
 - `{label, modalTitle}` — centered, 28pt bold, `@fgStrong`.
-- `{label, modalMessage}` — 18pt body text.
+- `{label, modalMessage}` — 18pt center-aligned body text.
 
 #### Framed panel
 

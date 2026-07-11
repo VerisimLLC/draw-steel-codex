@@ -217,12 +217,24 @@ CreateLanguageEditor = function()
 	}
 end
 
+--True when this client may operate game-wide audio controls: the Director, or a
+--player granted DJ (audio-DJ-delegation, full-parity decision 3). Routed through
+--the audio module's narrow export since this screen cannot see its module locals;
+--falls back to plain isDM if the export is not loaded.
+local function CanControlAudioForSettings()
+	local bar = rawget(_G, "g_drawSteelAudioBar")
+	if bar ~= nil and bar.CanControlAudio ~= nil then
+		return bar.CanControlAudio()
+	end
+	return dmhub.isDM
+end
+
 --A slider that controls the game-wide master volume -- the same value as the
 --master slider in the Audio panel (audio.masterVolume / gameDetails.audio).
---Only shown to the Director, and only while in a game, since the value lives
---on the game's shared audio state rather than a per-machine preference.
+--Only shown to the Director or a DJ, and only while in a game, since the value
+--lives on the game's shared audio state rather than a per-machine preference.
 local CreateGameWideMasterVolumeEditor = function()
-	if (not dmhub.inGame) or (not dmhub.isDM) then
+	if (not dmhub.inGame) or (not CanControlAudioForSettings()) then
 		return nil
 	end
 
@@ -262,6 +274,32 @@ local CreateGameWideMasterVolumeEditor = function()
 			text = "Game-Wide Master Volume",
 		},
 		slider,
+	}
+end
+
+--A checkbox that controls whether library/anthem track loudness is automatically
+--normalized for this game (audio.normalizeLoudness / gameDetails.audio). Only shown
+--to the Director or a DJ, and only while in a game, since the value lives on the
+--game's shared audio state rather than a per-machine preference. Mirrors
+--CreateGameWideMasterVolumeEditor's guard.
+local CreateNormalizeLoudnessToggle = function()
+	if (not dmhub.inGame) or (not CanControlAudioForSettings()) then
+		return nil
+	end
+
+	return gui.Panel{
+		classes = {"formRow"},
+		width = "90%",
+		halign = "center",
+		gui.Check{
+			value = audio.normalizeLoudness,
+			text = "Normalize track loudness",
+			tooltip = "Automatically balances volume across tracks so quiet and loud clips play at a similar level. Does not affect sound effects.",
+			change = function(element)
+				audio.normalizeLoudness = element.value
+				audio.UploadNormalizeLoudness()
+			end,
+		},
 	}
 end
 
@@ -506,6 +544,29 @@ local function CreateLocalAssetsSection()
 		end
 	end
 
+	--When local-assets mode is already active for this game AND the current
+	--directory has files, populating again just re-exports the in-memory
+	--assets (which were themselves loaded from that same directory) back over
+	--the files -- redundant, and it reformats/overwrites them. Grey the button
+	--out in that case: the "disabled" class drives the dimmed look (the theme
+	--gates hover feedback with ~disabled), while `interactable = false` blocks
+	--the click -- `interactable` alone has no visual effect. It stays enabled
+	--while the directory is only "set but not active" (pre-reload) so you can
+	--still fill it immediately, and while a newly-chosen directory is empty.
+	local function PopulateDisabled()
+		local status = dmhub.LocalAssetsStatus()
+		if status == nil or not status.active then
+			return false
+		end
+		local dir = CurrentDir()
+		if dir == "" or dmhub.GetDirectoryInfo == nil then
+			return false
+		end
+		local info = dmhub.GetDirectoryInfo(dir)
+		return info ~= nil and info.exists and info.fileCount > 0
+	end
+
+	local populateDisabled = PopulateDisabled()
 	local populateButton = gui.Button{
 		width = 200,
 		height = 32,
@@ -513,6 +574,16 @@ local function CreateLocalAssetsSection()
 		halign = "left",
 		valign = "center",
 		text = "Populate Directory",
+		classes = {cond(populateDisabled, "disabled")},
+		interactable = not populateDisabled,
+		multimonitor = {"localassets:dir"},
+		events = {
+			monitor = function(element)
+				local disabled = PopulateDisabled()
+				element:SetClass("disabled", disabled)
+				element.interactable = not disabled
+			end,
+		},
 		click = function(element)
 			local dir = CurrentDir()
 			if dir == "" then
@@ -687,9 +758,12 @@ local CreateEmailConfirmationPanel = function()
 	local m_pendingEmail = nil  --the address we last submitted.
 	local m_monitor = nil       --realtime listener handle.
 	local m_sending = false     --guards against overlapping/duplicate requests.
+	local m_changingEmail = false --true while the user is re-registering a different address over an already-confirmed one.
 
 	local emailInput
 	local submitButton
+	local RefreshSubmitButton
+	local cancelChangeButton
 	local statusLabel
 	local inputRow
 	local waitingRow
@@ -705,11 +779,30 @@ local CreateEmailConfirmationPanel = function()
 	local RefreshState = function()
 		local confirmed = IsConfirmed()
 
-		inputRow:SetClass("collapsed", confirmed or m_waiting)
-		waitingRow:SetClass("collapsed", confirmed or (m_waiting == false))
-		confirmedRow:SetClass("collapsed", confirmed == false)
+		--"registering" means the enter-email/confirm flow is active: either the
+		--user has no confirmed address yet, or they've chosen to change the one
+		--they have (m_changingEmail).
+		local registering = (confirmed == false) or m_changingEmail
 
-		--the opt-in checkbox is only interactable once the address is confirmed.
+		inputRow:SetClass("collapsed", (registering == false) or m_waiting)
+		waitingRow:SetClass("collapsed", (registering == false) or (m_waiting == false))
+		confirmedRow:SetClass("collapsed", (confirmed == false) or m_changingEmail)
+
+		--the Cancel button only appears when backing out of a change to an
+		--already-confirmed address.
+		if cancelChangeButton ~= nil then
+			cancelChangeButton:SetClass("collapsed", m_changingEmail == false)
+		end
+
+		--reflect any prefilled/known address in the submit button's visibility.
+		if RefreshSubmitButton ~= nil then
+			RefreshSubmitButton()
+		end
+
+		--the opt-in checkbox only appears once the user has a confirmed email
+		--on file (and isn't mid-change); until then there's no registered
+		--address to send updates to.
+		allowEmailsCheck:SetClass("collapsed", (confirmed == false) or m_changingEmail)
 		allowEmailsCheck.interactable = confirmed
 		if m_state ~= nil then
 			allowEmailsCheck.value = (m_state.allowEmails == true)
@@ -754,6 +847,10 @@ local CreateEmailConfirmationPanel = function()
 				submitButton.interactable = true
 
 				if result ~= nil and result.ok and result.status == "sent" then
+					--the change has committed to the server; hand off to the
+					--normal waiting/confirm flow (the cloud record now holds the
+					--new, unconfirmed address).
+					m_changingEmail = false
 					m_waiting = true
 					SetStatus(nil, false)
 					RefreshState()
@@ -775,17 +872,29 @@ local CreateEmailConfirmationPanel = function()
 		}
 	end
 
+	--basic sanity check for a plausible email address (has length, an '@', and a '.').
+	local LooksLikeEmail = function(email)
+		email = email or ""
+		return string.len(email) >= 4 and string.find(email, "@") ~= nil and string.find(email, "%.") ~= nil
+	end
+
+	--show the submit button only once the entered text looks like a valid address.
+	RefreshSubmitButton = function()
+		if submitButton ~= nil then
+			submitButton:SetClass("collapsed", LooksLikeEmail(emailInput.text) == false)
+		end
+	end
+
 	local TrySubmit = function()
 		if m_sending then
 			return
 		end
 
-		local email = emailInput.text or ""
-		if string.len(email) < 4 or string.find(email, "@") == nil or string.find(email, "%.") == nil then
+		if LooksLikeEmail(emailInput.text) == false then
 			SetStatus("Please enter a valid email address.", true)
 			return
 		end
-		SendRequest(email)
+		SendRequest(emailInput.text)
 	end
 
 	emailInput = gui.Input{
@@ -800,9 +909,13 @@ local CreateEmailConfirmationPanel = function()
 		borderColor = "#c8a45a",
 		halign = "left",
 		valign = "center",
+		edit = function(element)
+			RefreshSubmitButton()
+		end,
 	}
 
 	submitButton = gui.Button{
+		classes = {"collapsed"},
 		text = "Send Confirmation Email",
 		width = 260,
 		height = 40,
@@ -814,6 +927,24 @@ local CreateEmailConfirmationPanel = function()
 		end,
 	}
 
+	cancelChangeButton = gui.Button{
+		classes = {"collapsed"},
+		text = "Cancel",
+		width = 180,
+		height = 36,
+		fontSize = 16,
+		halign = "left",
+		vmargin = 4,
+		click = function(element)
+			--back out of a change to an already-confirmed address, leaving the
+			--existing confirmed email untouched.
+			m_changingEmail = false
+			m_pendingEmail = nil
+			SetStatus(nil, false)
+			RefreshState()
+		end,
+	}
+
 	inputRow = gui.Panel{
 		id = "emailInputRow",
 		flow = "vertical",
@@ -821,6 +952,7 @@ local CreateEmailConfirmationPanel = function()
 		height = "auto",
 		emailInput,
 		submitButton,
+		cancelChangeButton,
 	}
 
 	waitingLabel = gui.Label{
@@ -891,6 +1023,31 @@ local CreateEmailConfirmationPanel = function()
 		width = "100%",
 		height = "auto",
 		confirmedLabel,
+		gui.Button{
+			text = "Change Email",
+			width = 180,
+			height = 36,
+			fontSize = 16,
+			halign = "left",
+			vmargin = 4,
+			click = function(element)
+				--reopen the registration form so the user can register a
+				--different address. The cloud record isn't touched until they
+				--submit a new address (the Worker overwrites it and the
+				--confirmed flag only becomes true again once the new link is
+				--clicked); Cancel backs out with no change.
+				m_changingEmail = true
+				m_waiting = false
+				m_pendingEmail = nil
+				SetStatus(nil, false)
+				if m_state ~= nil and m_state.email ~= nil then
+					emailInput.text = m_state.email
+				else
+					emailInput.text = ""
+				end
+				RefreshState()
+			end,
+		},
 	}
 
 	statusLabel = gui.Label{
@@ -907,6 +1064,7 @@ local CreateEmailConfirmationPanel = function()
 
 	allowEmailsCheck = gui.Check{
 		id = "allowEmailsCheck",
+		classes = {"collapsed"},
 		text = "Send me occasional email updates",
 		value = false,
 		interactable = false,
@@ -936,6 +1094,10 @@ local CreateEmailConfirmationPanel = function()
 				m_state = state
 				if state ~= nil and state.emailConfirmed then
 					m_waiting = false
+					--clear any lingering status/error (e.g. a "too many
+					--attempts" rate-limit message) now that the address is
+					--confirmed.
+					SetStatus(nil, false)
 				end
 
 				--prefill the input with the known address while we're still collecting it.
@@ -1446,6 +1608,7 @@ function CreateSettingsScreen(dialog, args)
 						build = function() return {
 						SettingsSection("Audio"),
 						CreateGameWideMasterVolumeEditor(),
+						CreateNormalizeLoudnessToggle(),
 						} end,
 					},
 
@@ -1979,12 +2142,22 @@ function CreateSettingsScreen(dialog, args)
 	--stay a sheet root; if we parented the real sheet into the hud, the
 	--container's DestroySheet would tear it down without unlinking it from
 	--its hud parent, leaving a stale dead child that corrupts the next open.
+	--
+	--This hud-hosting is only correct in a real game, where the game hud is the
+	--topmost thing on screen. On the titlescreen/lobby the game hud's canvas is
+	--BEHIND the titlescreen, so hosting there buries the settings dialog out of
+	--sight. There we keep the original behavior of assigning the sheet directly
+	--to the C# container, whose topmost canvas renders above the titlescreen and
+	--uses ordinary screen coordinates (the titlescreen root itself is wider than
+	--the screen, so parenting into it would mis-centre the dialog).
 	local hudDialogPanel = nil
-	local ghud = rawget(_G, "gamehud")
-	if ghud ~= nil then
-		local candidate = ghud:try_get("mainDialogPanel")
-		if candidate ~= nil and candidate.valid then
-			hudDialogPanel = candidate
+	if dmhub.inGame and not dmhub.isLobbyGame then
+		local ghud = rawget(_G, "gamehud")
+		if ghud ~= nil then
+			local candidate = ghud:try_get("mainDialogPanel")
+			if candidate ~= nil and candidate.valid then
+				hudDialogPanel = candidate
+			end
 		end
 	end
 

@@ -61,6 +61,14 @@ local g_actionBar = nil
 --- @type string[]
 local g_targetsChosen = {}
 
+--- @type boolean True once the player has manually clicked a target during the
+--- current cast. Distinguishes interactively-chosen targets from targets that
+--- arrived pre-selected (e.g. inherited into an invoked ability): a cast with a
+--- promptOverride waits for an explicit Confirm when its targets were
+--- pre-selected, but completes normally at the target cap when the player
+--- chose the targets by clicking.
+local g_manualTargetChosen = false
+
 --- @type nil|string The first target chosen by the player, the charid of this token.
 local g_firstTarget = nil
 
@@ -217,7 +225,107 @@ local function GetHeroicResourceOrMaliceCost(ability, symbols)
     return heroicResourceEntry.quantity
 end
 
+--Movement cross-section diagram during ability movement targeting.
+--
+--For any ability-driven movement preview -- forced move (push/pull/slide,
+--"straightline"), regular movement/shift (pathfind), or teleport (direct) --
+--show the same floating tooltip the manual token-drag uses, including the
+--side-on movement cross-section diagram. We fire the SAME "tiletooltip" event
+--the drag flow uses (handled in GameHud.lua, which builds the tooltip +
+--CreateMovementDiagramPanel from movingToken/movingPath). GameHud gates the
+--diagram on whether the path has vertically interesting features (elevation
+--changes, walls climbed/flown over, falls, tokens crossed) -- see
+--DiagramProfileFromPath -- so flat moves show no diagram regardless of type. We
+--tear it down with GameHud.FinishTokenMoving.
+--
+--We deliberately do NOT call GameHud.TokenMoving to build the text: it reads
+--many path fields (difficultSteps, squeezeSteps, waterSteps, hazards, ...) that
+--are only populated on a real drag/move path. On a MarkMovementArrow move
+--PREVIEW path some of those engine getters NRE (return nil), and TokenMoving then
+--crashes on math.floor(nil). We only need movingToken/movingPath to reach the
+--diagram, so we build a minimal, preview-safe text ourselves. See
+--MOVEMENT_CROSS_SECTION_REFERENCE.md.
+local g_movementDiagramShown = false
+
+--- @param token CharacterToken the moving token
+--- @param path LuaPath the previewed movement path
+--- @param label nil|string already-translated movement-type noun ("Movement",
+---        "Shift", "Teleport", "Forced Movement"); defaults to "Movement".
+--- @param alternates nil|{path: LuaPath, label: string, tier: integer, loc: Loc, color: string}[]
+---        lower-tier shortfall outcomes for tiered jumps; forwarded through the
+---        tiletooltip event as movingPathAlternates so the movement diagram can
+---        render ghost outcomes (multi-outcome rendering is engine work; the
+---        GameHud handler ignores the arg until then).
+local function ShowMovementDiagram(token, path, label, alternates)
+    if token == nil or path == nil or GameHud.instance == nil then
+        return
+    end
+    local dialog = GameHud.instance.dialog
+    local sheet = dialog and dialog.sheet
+    if sheet == nil then
+        return
+    end
+
+    label = label or tr("Movement")
+
+    --Minimal, preview-path-safe movement text (numSteps / origin / destination
+    --are populated on a move preview path; the fields TokenMoving reads are not).
+    local text = label
+    if path.numSteps ~= nil then
+        local distance = path.numSteps * dmhub.FeetPerTile
+        text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+    end
+
+    if path.origin ~= nil and path.destination ~= nil then
+        local altitudeDelta = path.destination.altitude - path.origin.altitude
+        if altitudeDelta < 0 then
+            text = string.format(tr("%s (%d elevation)"), text, round(altitudeDelta))
+        elseif altitudeDelta > 0 then
+            text = string.format(tr("%s (+%d elevation)"), text, round(altitudeDelta))
+        end
+    end
+
+    sheet:FireEvent("tiletooltip", {
+        loc = path.destination,
+        text = text,
+        movingToken = token,
+        movingPath = path,
+        movingPathAlternates = alternates,
+    })
+    g_movementDiagramShown = true
+end
+
+local function ClearMovementDiagram()
+    if not g_movementDiagramShown then
+        return
+    end
+    g_movementDiagramShown = false
+    if GameHud.instance ~= nil then
+        GameHud.instance:FinishTokenMoving()
+    end
+end
+
+--Tiered-jump hover state: markers on the tiles where lower-tier (shortfall)
+--jumps land, plus the tier the hovered tile requires (read by the confirm
+--label) and whether even the top tier cannot reach it. Rebuilt on every
+--hover; cleared when the hover moves or targeting ends.
+local g_jumpShortfallMarkers = {}
+local g_jumpHoverRequiredTier = nil
+local g_jumpHoverUnreachable = false
+
+local function ClearJumpShortfallMarkers()
+    for _, marker in ipairs(g_jumpShortfallMarkers) do
+        marker:Destroy()
+    end
+    g_jumpShortfallMarkers = {}
+    g_jumpHoverRequiredTier = nil
+    g_jumpHoverUnreachable = false
+end
+
 local function ClearPointTargeting()
+    ClearMovementDiagram()
+    ClearJumpShortfallMarkers()
+
     if g_pointTargeting.labelsAtPathEnd ~= nil then
         for _, label in ipairs(g_pointTargeting.labelsAtPathEnd) do
             label:Destroy()
@@ -2707,6 +2815,11 @@ end
 
 
 
+--guards against a single physical click on stacked object tokens (wall voxel
+--columns) being dispatched once per overlapping token: {time, key}, where key
+--identifies the tile and time is the frame timestamp of the last object add.
+local m_objectClickGuard = nil
+
 local function CreateTargetInfo(spell)
     local targetInfo = {
         type = string.lower(spell.typeName),
@@ -2757,6 +2870,50 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            -- Stacked object tokens (wall voxel columns): the engine dispatches a
+            -- single physical click to EVERY overlapping token's reticule, so one
+            -- click on a 2-high wall column arrives here once per cube. Swallow
+            -- ALL duplicate dispatches for the same tile within the same frame --
+            -- unconditionally, or the duplicate dispatch for a token the first
+            -- dispatch just selected would toggle it straight back off. When the
+            -- clicked token is unselected, redirect the click to the TOPMOST
+            -- not-yet-chosen voxel on the tile (clicking again on a later frame
+            -- selects the next cube down, and deselect clicks on a fully-chosen
+            -- column fall through to the toggle path). The synthetic deselect
+            -- click fired by the over-cap swap below is unaffected: it targets a
+            -- tile that was not clicked this frame, so the guard passes it.
+            if targetToken.isObject then
+                local loc = targetToken.loc
+                if loc ~= nil then
+                    local clickKey = string.format("%d,%d,%d", loc.x, loc.y, loc.floor)
+                    local now = dmhub.Time()
+                    if m_objectClickGuard == nil or m_objectClickGuard.time ~= now then
+                        m_objectClickGuard = { time = now, keys = {} }
+                    end
+                    if m_objectClickGuard.keys[clickKey] then
+                        return
+                    end
+                    m_objectClickGuard.keys[clickKey] = true
+
+                    if not list_contains(g_targetsChosen, targetToken.id) then
+                        local voxelFloor = game.currentMap:GetFloorFromLoc(loc)
+                        local voxels = voxelFloor ~= nil and voxelFloor:GetWallVoxelsAt(loc) or nil
+                        if voxels ~= nil and #voxels > 0 then
+                            for i = #voxels, 1, -1 do
+                                local targetable = voxels[i]:GetComponent("Targetable")
+                                if targetable ~= nil and targetable.properties ~= nil then
+                                    local voxelToken = dmhub.LookupToken(targetable.properties)
+                                    if voxelToken ~= nil and voxelToken.valid and not list_contains(g_targetsChosen, voxelToken.id) then
+                                        targetToken = voxelToken
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
             -- Strict-targeting: players cannot select invalid targets (out of
             -- range, forbidden, etc). The reticule still lights up with the
             -- invalid styling so they get feedback on why, but the click is
@@ -2785,7 +2942,32 @@ local function CreateTargetInfo(spell)
                 effect:SetClass('three', false)
             end
             if not exists then
+                -- Enforce the target cap at selection time. Normally reaching the
+                -- cap auto-casts so this is unreachable, but abilities with a
+                -- promptOverride (e.g. invoked manipulate_targets picks) wait for
+                -- an explicit Confirm instead of auto-casting, so extra clicks
+                -- land here: swap out the most recent selection by re-dispatching
+                -- a click on it (which runs the deselect path and clears its
+                -- styling), keeping the selection within the cap.
+                local maxTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
+                print("TARGET:: add", targetToken.id, "ability =", g_currentAbility.name, "chosen =", #g_targetsChosen, "max =", tostring(maxTargets), "(", type(maxTargets), ")")
+                if type(maxTargets) == "number" and maxTargets >= 1 and #g_targetsChosen >= maxTargets then
+                    print("TARGET:: at capacity; swapping out most recent selection")
+                    local lastId = g_targetsChosen[#g_targetsChosen]
+                    local lastToken = dmhub.GetTokenById(lastId)
+                    if lastToken ~= nil and lastToken.valid and lastToken.sheet ~= nil then
+                        lastToken.sheet:FireEvent("tokenClick")
+                    end
+                    while #g_targetsChosen >= maxTargets do
+                        table.remove(g_targetsChosen)
+                    end
+                    if g_firstTarget ~= nil and not list_contains(g_targetsChosen, g_firstTarget) then
+                        g_firstTarget = g_targetsChosen[1]
+                    end
+                end
+
                 g_targetsChosen[#g_targetsChosen + 1] = targetToken.id
+                g_manualTargetChosen = true
                 if g_firstTarget == nil then
                     g_firstTarget = targetToken.id
                 end
@@ -2794,6 +2976,7 @@ local function CreateTargetInfo(spell)
             else
                 if spell:CanTargetAdditionalTimes(g_token, g_currentSymbols, g_targetsChosen, targetToken) then
                     g_targetsChosen[#g_targetsChosen + 1] = targetToken.id
+                    g_manualTargetChosen = true
                     local ntargets = 0
                     for _, tokenid in ipairs(g_targetsChosen) do
                         if tokenid == targetToken.id then
@@ -2900,6 +3083,26 @@ local function ClearRadiusMarkers()
 
     g_radiusMarkers = {}
     g_forcedMoveLegalLocs = nil
+end
+
+--Distance in tiles from the casting token to a tile (min over the squares the
+--token occupies, so size > 1 tokens measure from their nearest edge). Used to
+--slice tiered targeting rings into annuli.
+local function DistanceFromCasterInTiles(loc)
+    local tokenCasting = g_token
+    if g_currentAbility ~= nil then
+        tokenCasting = g_currentAbility:GetRangeSource(g_token)
+    end
+
+    local best = nil
+    for _, occLoc in ipairs(tokenCasting.locsOccupying) do
+        local dist = occLoc:DistanceInTiles(loc)
+        if best == nil or dist < best then
+            best = dist
+        end
+    end
+
+    return best or 0
 end
 
 --Strict movement: capture the EXACT legal forced-move destination tiles into
@@ -3462,7 +3665,8 @@ end
 --- Switch the altitude controller into a given mode and reset its UI state when the
 --- mode actually changes. Pass nil to collapse it.
 --- @param mode nil|string  -- one of nil, "movement", "cube"
-local function SetAltitudeMode(mode)
+--- @param defaultTargetOverride nil|string|number  -- default target to use instead of the mode's standard default (e.g. "min" for teleports)
+local function SetAltitudeMode(mode, defaultTargetOverride)
     if m_altitudeMode == mode then
         --Mode unchanged: re-fire setAltitudeMode so any newly-created sub-panels sync,
         --but don't clobber the user's chosen target.
@@ -3480,11 +3684,13 @@ local function SetAltitudeMode(mode)
     m_altitudeController:FireEventTree("setAltitudeMode", mode)
 
     --Pick a sensible default target when entering a mode.
-    local defaultTarget = nil
-    if mode == "movement" then
-        defaultTarget = "max"
-    elseif mode == "cube" then
-        defaultTarget = "ground"
+    local defaultTarget = defaultTargetOverride
+    if defaultTarget == nil then
+        if mode == "movement" then
+            defaultTarget = "max"
+        elseif mode == "cube" then
+            defaultTarget = "ground"
+        end
     end
     if defaultTarget ~= nil then
         m_altitudeController.data.target = defaultTarget
@@ -4380,6 +4586,16 @@ CreateAbilityController = function()
         end,
 
         beginCasting = function(element, ability, args)
+            --if a wall live-placement session from previous targeting is still
+            --uncommitted (e.g. the player picked another ability mid-targeting
+            --without cancelling), tear those wall squares down now.
+            do
+                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                if buildWall ~= nil then
+                    buildWall.CancelPlacement()
+                end
+            end
+
             if g_invokerInfo ~= nil and g_invokerInfo.oncast ~= nil then
                 g_invokerInfo.oncast()
             end
@@ -4431,6 +4647,7 @@ CreateAbilityController = function()
 
             g_currentAbility = ability
             g_targetsChosen = {}
+            g_manualTargetChosen = false
             g_firstTarget = nil
 
             --transfer any packaged targets over. Token targets go in g_targetsChosen;
@@ -4996,6 +5213,9 @@ CreateAbilityController = function()
             element.data.lastHoverLoc = loc
             element.data.lastHoverPoint = point
 
+            --tiered-jump shortfall markers are per-hovered-tile; rebuild below.
+            ClearJumpShortfallMarkers()
+
             --diagnostic: cross-floor targeting trace. Throttled to changes only.
             if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                 local k = string.format("%s|%s", tostring(loc and loc.str or "nil"), tostring(loc and loc.floor or "nil"))
@@ -5108,27 +5328,156 @@ CreateAbilityController = function()
                     end
                     g_pointTargeting.showingMovementArrow = true
                     clearMovementArrow = false
+
+                    --Show the movement cross-section diagram for regular movement and
+                    --shifts too, not just forced moves. GameHud gates it on vertical
+                    --interest, so flat paths still show nothing.
+                    if movementInfo ~= nil then
+                        ShowMovementDiagram(g_token, movementInfo.path, cond(shifting, tr("Shift"), tr("Movement")))
+                    end
                 elseif shape == "emptyspace" and targetingType == "direct" then
                     --Only draw the teleport arrow when the target is on the caster's floor.
                     --For cross-floor teleport the arrow would render on the caster's floor pointing
                     --at the wrong place; leave clearMovementArrow=true so any prior arrow is removed
                     --and the radius shape preview (rendered on the target floor) is the indicator.
-                    if loc.floor == g_token.floorIndex then
-                        --Capture the preview path so jump abilities (targeting=direct,
-                        --movementType=jump) can also broadcast OA warning arrows. The
-                        --teleport-flag straight-line preview matches the actual jump path
-                        --that AbilityRelocateCreature uses (straightline+ignorecreatures).
-                        local movementInfo = g_token:MarkMovementArrow(loc, { teleport = true })
+                    --
+                    --JUMPS are exempt: the engine resolves cross-floor jump targets (the jump line
+                    --is walked on the caster's floor and the landing lifted onto the target floor),
+                    --draws per-floor arrows, and the cross-section renders the ascend -- so the
+                    --full jump preview works across floors.
+                    local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
+                    if loc.floor == g_token.floorIndex or movementType == "jump" then
+
+                        --A jump preview is built as a real jump (straightline + clears walls up to the
+                        --jump distance) so the cross-section can arc it over those walls; matches the
+                        --actual jump cast in AbilityRelocateCreature. Every other emptyspace/direct
+                        --ability (teleport) uses the teleport-flag straight-line preview.
+                        local markOptions = { teleport = true }
+                        local jumpAlternates = nil
+                        if movementType == "jump" then
+                            local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
+                            local jumpBehaviorType = rawget(_G, "ActivatedAbilityJumpBehavior")
+                            if tierRadii ~= nil and jumpBehaviorType ~= nil then
+                                --Tiered jump (roll-to-target): find the lowest tier whose
+                                --jump actually lands on the hovered tile (distance AND
+                                --height -- a tall wall or pillar inside a tier's distance
+                                --still blocks it). When a ring carries a reachability set
+                                --(ring.locSet, from CalculateJumpReachable) membership
+                                --decides directly; otherwise a movement-arrow probe does.
+                                --Lower tiers that fall short become shortfall previews: a
+                                --marker on the tile they'd land on, and an alternate path
+                                --for the movement diagram. Each probe's MarkMovementArrow
+                                --replaces the last, so the final call below draws the
+                                --arrow the player should see.
+                                local distToTarget = g_token.loc:DistanceInTiles(loc)
+                                local hoverKey = loc.xyfloorOnly.str
+                                local requiredRing = nil
+                                local alternates = {}
+                                for _, ring in ipairs(tierRadii) do
+                                    if ring.locSet ~= nil and ring.locSet[hoverKey] then
+                                        requiredRing = ring
+                                        break
+                                    end
+
+                                    local attemptLoc = jumpBehaviorType.ShortLandingLoc(g_token.loc, loc, ring.tiles)
+                                    local info = g_token:MarkMovementArrow(attemptLoc, { jump = true, jumpHeight = ring.height })
+                                    local landLoc = attemptLoc
+                                    local path = nil
+                                    if info ~= nil and info.path ~= nil then
+                                        path = info.path
+                                        if path.destination ~= nil then
+                                            landLoc = path.destination
+                                        end
+                                    end
+
+                                    --The probe decides in fallback mode (no reachability sets) and
+                                    --for CROSS-FLOOR tiles, which the source-floor sets never contain.
+                                    --Reach: arrive at the tile's x,y; for a SAME-floor target that is
+                                    --enough (a jump into a chasm tile that falls through still reached
+                                    --it), but a target on ANOTHER floor also demands landing on that
+                                    --floor -- a jump that can't make the rise lands at the same x,y on
+                                    --the caster's own floor (under the ledge), which is not a reach.
+                                    local probeDecides = ring.locSet == nil or loc.floor ~= g_token.floorIndex
+                                    local landsOnTarget = landLoc.x == loc.x and landLoc.y == loc.y and
+                                        (loc.floor == g_token.floorIndex or landLoc.floor == loc.floor)
+                                    if probeDecides and ring.tiles >= distToTarget and landsOnTarget then
+                                        requiredRing = ring
+                                        break
+                                    end
+
+                                    --An invisible ring's tier cannot be rolled (e.g. tier 1
+                                    --under the Fury's Mighty Leaps), so it never lands short
+                                    --there: no shortfall preview for it.
+                                    if not ring.invisible then
+                                        alternates[#alternates + 1] = { path = path, label = ring.label, tier = ring.tier, loc = landLoc, color = ring.color }
+                                    end
+                                end
+
+                                if requiredRing == nil then
+                                    --not reachable even at the top tier (too far or a
+                                    --too-tall wall): the top tier's attempt IS the main
+                                    --arrow; keep the lower tiers as shortfall previews.
+                                    requiredRing = tierRadii[#tierRadii]
+                                    g_jumpHoverUnreachable = true
+                                    if #alternates > 0 then
+                                        table.remove(alternates)
+                                    end
+                                end
+
+                                for _, alternate in ipairs(alternates) do
+                                    g_jumpShortfallMarkers[#g_jumpShortfallMarkers + 1] = dmhub.MarkLocs {
+                                        locs = { alternate.loc },
+                                        color = alternate.color,
+                                    }
+                                end
+
+                                g_jumpHoverRequiredTier = requiredRing.tier
+                                if #alternates > 0 then
+                                    jumpAlternates = alternates
+                                end
+                                markOptions = { jump = true, jumpHeight = requiredRing.height }
+                            else
+                                local jumpHeight = math.floor((g_currentAbility:GetRange(g_token.properties, g_currentSymbols)/dmhub.unitsPerSquare) + 0.5)
+                                markOptions = { jump = true, jumpHeight = jumpHeight }
+                            end
+                        end
+
+                        local movementInfo = g_token:MarkMovementArrow(loc, markOptions)
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
 
                         if movementInfo ~= nil then
-                            local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                             if movementType == "move" or movementType == "jump" then
                                 BroadcastMovementPlan(g_token, movementInfo.path, movementType)
                                 g_pointTargeting.showingWarningArrows = true
                                 clearWarningArrows = false
                             end
+
+                            --Show the movement cross-section diagram for teleports and jumps. GameHud
+                            --always shows it for jumps (vertically interesting by definition) and gates
+                            --teleports on interest; the label reflects the movement type.
+                            local diagramLabel = tr("Movement")
+                            if movementType == "jump" then
+                                diagramLabel = tr("Jump")
+                                if g_jumpHoverUnreachable then
+                                    diagramLabel = tr("Jump (cannot reach)")
+                                elseif g_jumpHoverRequiredTier ~= nil and g_jumpHoverRequiredTier > 1 then
+                                    diagramLabel = string.format(tr("Jump (needs Tier %d)"), g_jumpHoverRequiredTier)
+                                end
+                                --The jump preview path already carries movementType=Jump and its
+                                --jumpHeight from the engine, so the diagram arcs it over walls and
+                                --rests it on the ground -- no teleport flag needed.
+                            elseif movementType == "teleport" then
+                                diagramLabel = tr("Teleport")
+                                --The teleport preview LuaPath is built at the default "walk" type, so
+                                --the cross-section would smooth an aimed-into-the-air landing back down
+                                --to the ground (see MovementCrossSection.cs -- the ground-follow
+                                --smoothing only skips airborne/teleport/forced paths). Flag the path as
+                                --a teleport so the diagram keeps the dialed landing altitude and
+                                --synthesizes the arrival fall for a non-flyer.
+                                movementInfo.path.teleport = true
+                            end
+                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates)
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
@@ -5206,6 +5555,16 @@ CreateAbilityController = function()
                     if movementInfo ~= nil then
                         g_pointTargeting.showingMovementArrow = true
                         clearMovementArrow = false
+                    end
+
+                    --Forced-move targeting (push/pull/slide): show the same floating
+                    --movement tooltip + cross-section diagram the manual token-drag
+                    --uses. Only for straightline (true forced movement) -- straightpath
+                    --(Charge) and other movement previews are left alone. Cleared below
+                    --when the movement arrow is cleared (mouse off a valid square) and on
+                    --targeting teardown via ClearPointTargeting.
+                    if targetingType == "straightline" and movementInfo ~= nil then
+                        ShowMovementDiagram(g_token, movementInfo.path, tr("Forced Movement"))
                     end
 
                     if movementInfo ~= nil then
@@ -5596,7 +5955,14 @@ CreateAbilityController = function()
                     token = g_token,
                     range = range,
                     radius = radius,
-                    checklos = true,
+                    --contiguous selection ("locations" shape): do NOT line-of-sight
+                    --filter the preview. The shape's LOS origin is the first chosen
+                    --square, and with live wall building that square contains the
+                    --wall cube just built -- its own walls gave Full cover to every
+                    --orthogonally adjacent square, silently filtering the chosen and
+                    --legal squares out of the outline. Adjacency/range are validated
+                    --on click instead.
+                    checklos = (shape ~= "locations"),
                     locOverride = locOverride or g_currentAbility:try_get("casterLocOverride"),
                     requireEmpty = requireEmpty,
                     emptyMayIncludeSelf = requireEmpty and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures"),
@@ -5795,6 +6161,15 @@ CreateAbilityController = function()
                         clickText = g_currentAbility:DescribeTargetText(g_currentSymbols)
                     end
 
+                    --Tiered jump: tell the player this tile needs a test (lower
+                    --tiers land short -- on the marked shortfall tiles), or that
+                    --no tier reaches it at all.
+                    if g_jumpHoverUnreachable and clickText ~= "" then
+                        clickText = tr("Cannot Reach")
+                    elseif g_jumpHoverRequiredTier ~= nil and g_jumpHoverRequiredTier > 1 and clickText ~= "" then
+                        clickText = string.format(tr("Needs Tier %d - Click to Roll"), g_jumpHoverRequiredTier)
+                    end
+
                     local locs = g_pointTargeting.shape.locations
                     if locs == nil or #locs == 0 then
                         locs = { { withGroundAltitude = { point3 = point } } }
@@ -5875,9 +6250,14 @@ CreateAbilityController = function()
                 end
             end
 
-            if clearMovementArrow and g_token ~= nil then
-                g_token:ClearMovementArrow()
-                g_pointTargeting.showingMovementArrow = false
+            if clearMovementArrow then
+                if g_token ~= nil then
+                    g_token:ClearMovementArrow()
+                    g_pointTargeting.showingMovementArrow = false
+                end
+                --tear down the movement cross-section tooltip whenever the movement
+                --arrow is cleared (no valid destination square under the cursor).
+                ClearMovementDiagram()
             end
 
             if clearWarningArrows and g_token ~= nil then
@@ -5980,7 +6360,11 @@ CreateAbilityController = function()
 
                     --For multi-target emptyspace/anyspace abilities, clicking an already
                     --selected space deselects it instead of adding a duplicate.
+                    --contiguous_wall targeting with wallStacking is the exception:
+                    --re-clicking a chosen square STACKS another wall cube on it, so
+                    --duplicates are welcome.
                     if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace')
+                        and not (g_currentAbility.targeting == "contiguous_wall" and g_currentAbility.wallStacking)
                         and g_currentAbility:GetNumTargets(g_token, g_currentSymbols) > 1 and loc ~= nil then
                         local deselectedIndex = nil
                         for i, t in ipairs(targets) do
@@ -5992,10 +6376,24 @@ CreateAbilityController = function()
                         if deselectedIndex ~= nil then
                             local removed = targets[deselectedIndex]
                             table.remove(targets, deselectedIndex)
+
+                            --wall abilities build live: deselecting a square removes
+                            --the voxel that was placed there during targeting.
+                            if g_currentAbility.targeting == "contiguous_wall" then
+                                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                                if buildWall ~= nil then
+                                    buildWall.RemoveSquare(loc)
+                                end
+                            end
+
+                            --only destroy the marker if we still track it: contiguous
+                            --targeting calls ClearRadiusMarkers after every click, so
+                            --the reference stored on the target may already be dead
+                            --and destroying it again errors.
                             if removed.marker ~= nil then
-                                removed.marker:Destroy()
                                 for i = #g_radiusMarkers, 1, -1 do
                                     if g_radiusMarkers[i] == removed.marker then
+                                        removed.marker:Destroy()
                                         table.remove(g_radiusMarkers, i)
                                         break
                                     end
@@ -6008,7 +6406,50 @@ CreateAbilityController = function()
                         end
                     end
 
+                    --contiguous targeting ("wall N" and connected-spaces abilities):
+                    --each square after the first must share a side with a square
+                    --already chosen; the first square must be within the ability's
+                    --range of the caster.
+                    if loc ~= nil and (g_currentAbility.targeting == "contiguous" or g_currentAbility.targeting == "contiguous_wall") then
+                        if #targets == 0 then
+                            local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                            if g_token:Distance(loc) > range then
+                                return
+                            end
+                        else
+                            local adjacent = false
+                            for _,t in ipairs(targets) do
+                                if t.loc ~= nil and t.loc.floor == loc.floor then
+                                    local dx = math.abs(t.loc.x - loc.x)
+                                    local dy = math.abs(t.loc.y - loc.y)
+                                    --same square (dx+dy == 0) means stacking another
+                                    --cube there; allowed for wall targeting with stacking.
+                                    if dx + dy == 1 or (dx + dy == 0 and g_currentAbility.targeting == "contiguous_wall" and g_currentAbility.wallStacking) then
+                                        adjacent = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not adjacent then
+                                return
+                            end
+                        end
+                    end
+
                     targets[#targets + 1] = { loc = loc }
+
+                    --wall abilities build live: place the voxel for this square
+                    --immediately so the wall rises as squares are chosen. A casting
+                    --destructor tears the placed squares down if targeting is
+                    --cancelled; a committed cast keeps them (see CommitPlacement).
+                    if g_currentAbility.targeting == "contiguous_wall" then
+                        local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                        if buildWall ~= nil and buildWall.PlaceSquare(g_currentAbility, g_token, g_currentSymbols, loc) then
+                            g_castingDestructors[#g_castingDestructors + 1] = function()
+                                buildWall.CancelPlacement()
+                            end
+                        end
+                    end
                 else
                     for k, target in pairs(g_pointForceTargets) do
                         if g_currentAbility.targetType ~= 'all' or target ~= g_token or g_currentAbility.selfTarget then
@@ -6184,6 +6625,16 @@ CreateAbilityController = function()
                 AppendImprovementCosts(g_currentCostProposal)
 
                 local clearAbility = g_currentAbility
+
+                --wall live-placement: mark the session committed so the casting
+                --destructors (run by finishCasting, BEFORE behaviors execute on
+                --their coroutine) don't tear down the already-built wall.
+                if g_currentAbility.targeting == "contiguous_wall" then
+                    local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                    if buildWall ~= nil then
+                        buildWall.CommitPlacement(g_currentAbility)
+                    end
+                end
 
                 --Fire pre-cast controls (e.g. Acolyte Invoke: deal Presence to caster,
                 --add Patron's Gaze, set Cast.Invoked = 1). Must happen before Cast()
@@ -6490,11 +6941,15 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         g_skipButton:SetClass("collapsed", not g_currentAbility:try_get("skippable", false))
 
         -- Don't auto-cast on initial setup unless requested.
-        -- When a promptOverride is set (e.g. an invoke-ability prompt), always fall through to the
-        -- confirmation UI so the player can read the prompt and click Confirm, even if all
-        -- targets are already pre-selected via the inherited target list. An explicit Confirm
-        -- click (forceCast = true) always goes through regardless of promptOverride.
-        local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil
+        -- When a promptOverride is set (e.g. an invoke-ability prompt), fall through to the
+        -- confirmation UI so the player can read the prompt and click Confirm when the
+        -- targets arrived PRE-SELECTED via the inherited target list. If the player chose
+        -- the targets by clicking them (g_manualTargetChosen), reaching the target cap
+        -- completes the cast normally -- the prompt was visible throughout targeting, and
+        -- requiring an extra Confirm after an explicit click just adds friction (e.g. the
+        -- one-creature picks invoked per wall square by manipulate_targets). An explicit
+        -- Confirm click (forceCast = true) always goes through regardless.
+        local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil and not g_manualTargetChosen
         if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
@@ -6567,6 +7022,16 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             end
 
             local clearAbility = g_currentAbility
+
+            --wall live-placement: mark the session committed so the casting
+            --destructors don't tear down the already-built wall (behaviors run on
+            --a coroutine after finishCasting fires the destructors).
+            if g_currentAbility.targeting == "contiguous_wall" then
+                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                if buildWall ~= nil then
+                    buildWall.CommitPlacement(g_currentAbility)
+                end
+            end
 
             --Fire pre-cast controls (e.g. Acolyte Invoke). See FireCastControlsOnCommit
             --for the rationale on ordering: it must run before Cast() so symbols (e.g.
@@ -6678,7 +7143,9 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
 
                 m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
-                SetAltitudeMode(m_allowedAltitudeCalculator ~= nil and "movement" or nil)
+                --Teleports default to landing on the ground ("min"); forced movement keeps "max".
+                SetAltitudeMode(m_allowedAltitudeCalculator ~= nil and "movement" or nil,
+                    cond(movementType == "teleport", "min", nil))
                 print("ALT:: CALC ALT:", m_allowedAltitudeCalculator)
 
 
@@ -6735,15 +7202,68 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
 
-                    print("MovementRadius:: MARK", range)
-                    AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+                    local tierRadii = g_currentAbility:GetTargetingTierRadii(g_token, g_currentSymbols)
+                    if tierRadii ~= nil then
+                        --Tiered targeting (e.g. Jump): one ring per tier. When the
+                        --ring carries a reachability-accurate tile set (ring.locs,
+                        --from CalculateJumpReachable) it is drawn as a white
+                        --solid/dashed/dotted outline of exactly the tiles that
+                        --tier can land on. Fallback (older engine): colored
+                        --distance annuli.
+                        local prevTiles = 0
+                        for _, ring in ipairs(tierRadii) do
+                            --An invisible ring (e.g. the tier 1 ring of a caster
+                            --who cannot roll below tier 2) exists only for the
+                            --hover required-tier logic: draw nothing, and leave
+                            --prevTiles alone so the next visible ring's annulus
+                            --covers its zone.
+                            if ring.invisible then
+                            elseif ring.locs ~= nil then
+                                local ringLocs = ring.locs
+                                if filterTargetPredicate ~= nil then
+                                    local filtered = {}
+                                    for _, l in ipairs(ringLocs) do
+                                        if filterTargetPredicate(l) then
+                                            filtered[#filtered + 1] = l
+                                        end
+                                    end
+                                    ringLocs = filtered
+                                end
+                                if #ringLocs > 0 then
+                                    g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
+                                        locs = ringLocs,
+                                        color = ring.color,
+                                        style = ring.style,
+                                    }
+                                end
+                                prevTiles = ring.tiles
+                            else
+                                local minTiles = prevTiles
+                                AddRadiusMarker(loc, ring.radius, ring.color, function(l)
+                                    if filterTargetPredicate ~= nil and (not filterTargetPredicate(l)) then
+                                        return false
+                                    end
+                                    return DistanceFromCasterInTiles(l) > minTiles
+                                end)
+                                prevTiles = ring.tiles
+                            end
+                        end
+                    else
+                        print("MovementRadius:: MARK", range)
+                        AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+                    end
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)
                     --Cube targeting opts into the controller in "cube" mode (no min/max
                     --calculator; default is "On Ground"). Forced-movement abilities use
-                    --"movement" mode with a calculator that bounds min/max.
+                    --"movement" mode with a calculator that bounds min/max. Teleports also
+                    --use "movement" mode but default to landing on the ground ("min").
                     if m_allowedAltitudeCalculator ~= nil then
-                        SetAltitudeMode("movement")
+                        local defaultTarget = nil
+                        if g_currentAbility:GetMovementType(g_token, g_currentSymbols) == "teleport" then
+                            defaultTarget = "min"
+                        end
+                        SetAltitudeMode("movement", defaultTarget)
                     elseif g_currentAbility.targetType == "cube" then
                         SetAltitudeMode("cube")
                     else

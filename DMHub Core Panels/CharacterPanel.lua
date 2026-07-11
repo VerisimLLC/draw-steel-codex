@@ -13,6 +13,47 @@ end
 
 CharacterPanel = {}
 
+--Remembers which party folders the local user has collapsed, on a per-user-per-game
+--basis. Value is a map of party key -> collapsed boolean.
+setting{
+    id = "characterpanel:partycollapsed",
+    description = "Remembers which party folders are collapsed in the character list.",
+    storage = "pergamepreference",
+    default = {},
+}
+
+local function PartyCollapsedKey(partyid)
+    if partyid == nil then
+        return "__unaffiliated__"
+    end
+    return partyid
+end
+
+--Returns the stored collapsed state for a party, or fallback if none has been stored.
+local function GetPartyCollapsed(partyid, fallback)
+    local t = dmhub.GetSettingValue("characterpanel:partycollapsed")
+    if type(t) ~= "table" then
+        return fallback
+    end
+    local v = t[PartyCollapsedKey(partyid)]
+    if v == nil then
+        return fallback
+    end
+    return v
+end
+
+local function SetPartyCollapsed(partyid, value)
+    local t = dmhub.GetSettingValue("characterpanel:partycollapsed")
+    local newTable = {}
+    if type(t) == "table" then
+        for k, val in pairs(t) do
+            newTable[k] = val
+        end
+    end
+    newTable[PartyCollapsedKey(partyid)] = value
+    dmhub.SetSettingValue("characterpanel:partycollapsed", newTable)
+end
+
 local CreateCharacterPanel
 local CreateBestiaryPanel
 
@@ -760,7 +801,11 @@ local function CreateMonsterEntry(nodeid)
                     end,
                     refreshAssets = function(element)
                         local props = monster.properties
-                        if props == nil or props.GetImplementationStatus == nil then
+                        --Reading an undefined field on a game-type object raises
+                        --rather than returning nil, so feature-detect the
+                        --monster-only implementation-status API via IsMonster()
+                        --(defined on the base creature type) instead of a field read.
+                        if props == nil or not props:IsMonster() then
                             element:SetClass("hidden", true)
                             return
                         end
@@ -771,7 +816,7 @@ local function CreateMonsterEntry(nodeid)
                     end,
                     hover = function(element)
                         local props = monster.properties
-                        if props == nil or props.RenderImplementationSummaryPanel == nil then
+                        if props == nil or not props:IsMonster() then
                             return
                         end
                         local halign = "right"
@@ -1805,7 +1850,7 @@ end
 CharacterPanel.CreatePartyCharacters = function(partyid)
     local resultPanel
 
-    local isCollapsed = partyid == nil or partyid == "graveyard"
+    local isCollapsed = GetPartyCollapsed(partyid, partyid == nil or partyid == "graveyard")
 
     local party
     local partyMembers
@@ -1874,6 +1919,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 end
 
                 isCollapsed = not isCollapsed
+                SetPartyCollapsed(partyid, isCollapsed)
 
                 triangle:SetClass('expanded', not isCollapsed)
                 folderPane:FireEvent("refreshCollapsed")
@@ -2107,8 +2153,272 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 end
 
 
+--Creates the "Map Modifications" folder, which lists destructive map edits
+--recorded from ability casts (pits dug, terrain changed - see
+--game.GetMapModifications). Double-click an entry to jump to it; right-click
+--to jump or revert. Returns nil on engine builds without the recording API.
+CharacterPanel.CreateMapModificationsFolder = function()
+    if game.GetMapModifications == nil then
+        return nil
+    end
+
+    local collapsedKey = "mapmodifications"
+    local isCollapsed = GetPartyCollapsed(collapsedKey, true)
+
+    local folderPane
+    local resultPanel
+    local modPanels = {}
+
+    local triangle
+    triangle = gui.ExpandoArrow{
+        halign = "left",
+        margin = 5,
+        valign = "center",
+
+        swallowPress = true,
+
+        events = {
+            create = function(element)
+                element:SetClass("expanded", not isCollapsed)
+                element:SetClass("empty", #game.GetMapModifications() < 1)
+            end,
+            refresh = function(element)
+                element:SetClass("empty", #game.GetMapModifications() < 1)
+            end,
+            press = function(element)
+                if element:HasClass("collapsed") then
+                    --the triangle itself isn't usable.
+                    return
+                end
+
+                if #game.GetMapModifications() == 0 then
+                    return
+                end
+
+                isCollapsed = not isCollapsed
+                SetPartyCollapsed(collapsedKey, isCollapsed)
+
+                triangle:SetClass("expanded", not isCollapsed)
+                folderPane:FireEvent("refreshCollapsed")
+
+                if not isCollapsed then
+                    folderPane:FireEvent("expand")
+                end
+            end,
+        },
+    }
+
+    local CreateModificationEntry = function(modInfo)
+        local clickTime = nil
+
+        local JumpToModification = function()
+            dmhub.CenterOnLoc{
+                x = modInfo.x,
+                y = modInfo.y,
+                floorid = modInfo.floorid,
+                smooth = true,
+            }
+        end
+
+        local text = modInfo.name
+        if modInfo.casterName ~= nil and modInfo.casterName ~= "" then
+            text = string.format("%s (%s)", modInfo.name, modInfo.casterName)
+        end
+
+        return gui.Panel{
+            classes = { "characterEntry" },
+            bgimage = true,
+            valign = "top",
+            width = "100%-6",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+
+            events = {
+                press = function(element)
+                    if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
+                        --double-click
+                        clickTime = nil
+                        JumpToModification()
+                        return
+                    end
+
+                    clickTime = dmhub.Time()
+                end,
+
+                rightClick = function(element)
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Jump to Location",
+                                click = function()
+                                    element.popup = nil
+                                    JumpToModification()
+                                end,
+                            },
+                            {
+                                text = "Revert Modification",
+                                click = function()
+                                    element.popup = nil
+                                    gamehud:ModalMessage{
+                                        title = "Revert Map Modification?",
+                                        message = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", text),
+                                        options = {
+                                            {
+                                                text = "Revert",
+                                                execute = function()
+                                                    game.DeleteMapModification(modInfo.id)
+                                                    resultPanel:FireEventTree("refresh")
+                                                end,
+                                            },
+                                            {
+                                                text = "Cancel",
+                                                execute = function()
+                                                end,
+                                            },
+                                        },
+                                    }
+                                end,
+                            },
+                        },
+                    }
+                end,
+            },
+
+            gui.Label{
+                text = text,
+                classes = { "bestiaryLabel" },
+            },
+        }
+    end
+
+    local headerPanel = gui.Panel{
+        bgimage = true,
+        classes = { "headerPanel" },
+
+        selfStyle = {
+            valign = "top",
+            halign = "left",
+            width = "100%",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+        },
+
+        events = {
+            rightClick = function(element)
+                if #game.GetMapModifications() == 0 then
+                    return
+                end
+
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Clear All Map Modifications",
+                            click = function()
+                                element.popup = nil
+                                gamehud:ModalMessage{
+                                    title = "Revert All Map Modifications?",
+                                    message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
+                                    options = {
+                                        {
+                                            text = "Revert All",
+                                            execute = function()
+                                                for _,m in ipairs(game.GetMapModifications()) do
+                                                    game.DeleteMapModification(m.id)
+                                                end
+                                                resultPanel:FireEventTree("refresh")
+                                            end,
+                                        },
+                                        {
+                                            text = "Cancel",
+                                            execute = function()
+                                            end,
+                                        },
+                                    },
+                                }
+                            end,
+                        },
+                    },
+                }
+            end,
+        },
+
+        children = {
+            triangle,
+
+            gui.Label{
+                text = "Map Modifications",
+                classes = { "bestiaryLabel", "folder" },
+            },
+        },
+    }
+
+    folderPane = gui.Panel{
+        classes = { cond(isCollapsed, "collapsed"), "ignoreDrag" },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        refreshCollapsed = function(element)
+            element:SetClass("collapsed", isCollapsed)
+        end,
+
+        create = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        refresh = function(element)
+            if isCollapsed then
+                return
+            end
+
+            local mods = game.GetMapModifications()
+            local newModPanels = {}
+            local children = {}
+            for _,m in ipairs(mods) do
+                newModPanels[m.id] = modPanels[m.id] or CreateModificationEntry(m)
+                children[#children+1] = newModPanels[m.id]
+            end
+
+            modPanels = newModPanels
+            element.children = children
+        end,
+
+        expand = function(element)
+            element:FireEvent("refresh")
+        end,
+    }
+
+    resultPanel = gui.Panel{
+        classes = { "partyPanel", "ignoreDrag" },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        bgimage = true,
+        bgcolor = "clear",
+
+        data = {
+            parentCollapsed = false,
+            ord = function()
+                return 9999999
+            end,
+            header = headerPanel,
+        },
+
+        refresh = function(element)
+            --hide the folder entirely when there are no modifications.
+            element:SetClass("collapsed", #game.GetMapModifications() == 0)
+        end,
+
+        headerPanel,
+        folderPane,
+    }
+
+    return resultPanel
+end
+
 local CreateBestiaryAndPartyPanel = function(noBestiary)
     local partyPanels = {}
+    local mapModificationsPanel = nil
 
     local bestiaryPanel = nil
     if not noBestiary then
@@ -2144,6 +2454,14 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
 
             table.sort(children, function(a, b) return a.data.ord() < b.data.ord() end)
 
+            --the Map Modifications folder goes directly beneath the party folders
+            --(after the sort so it always lands below Dead Monsters).
+            if mapModificationsPanel == nil then
+                mapModificationsPanel = CharacterPanel.CreateMapModificationsFolder()
+            end
+            if mapModificationsPanel ~= nil then
+                children[#children + 1] = mapModificationsPanel
+            end
 
             children[#children + 1] = gui.Panel {
                 width = "auto",
@@ -2484,84 +2802,11 @@ local function EditBestiaryMonster(monsterid, capName, categorization)
     end
 end
 
-local g_placementBanner = nil
-
---Focus a floating banner panel carrying the given data table, putting the
---engine into its native placement mode: it polls dmhub.GetSelectedMonster /
---dmhub.GetSelectedCharacters (top of this file) against the focused panel,
---so a focused panel carrying data.monsterid spawns that monster on each map
---click (bestiary behaviour: cursor preview, naming, minion squads, repeat
---placement) and one carrying data.charid deploys that existing character
---(character-panel behaviour). Right-click, escape, or focusing anything else
---exits placement; the banner removes itself when it loses focus.
---
---placementComplete (optional) is polled alongside the focus watch: when it
---returns true the banner exits placement itself (clears focus + destroys).
---Characters use it because they are single-placement - the click MOVES the
---one token rather than stamping copies, so the mode should end on landing.
---Monsters omit it and keep the bestiary's repeat placement.
-local function ShowPlacementBanner(bannerData, name, placementComplete)
-    if g_placementBanner ~= nil and g_placementBanner.valid then
-        g_placementBanner:DestroySelf()
-    end
-    g_placementBanner = nil
-
-    --the title bar is a stable fullscreen-width surface to float the banner
-    --from; floating means it does not participate in the bar's layout.
-    local topBar = gui.GetSheetById("topBar")
-    if topBar == nil then
-        return
-    end
-
-    local banner
-    banner = gui.Label{
-        id = "searchPlacementBanner",
-        floating = true,
-        text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", name),
-        width = "auto",
-        height = "auto",
-        maxWidth = 700,
-        halign = "center",
-        valign = "top",
-        y = 60,
-        fontSize = 20,
-        color = "#ffffff",
-        bgimage = true,
-        bgcolor = "#000000dd",
-        pad = 12,
-
-        --the engine's placement hooks read monsterid/charid off the focused
-        --panel; this is what makes the engine enter placement mode.
-        data = bannerData,
-
-        --the engine exits placement when focus moves elsewhere (escape and
-        --right-click both clear focus natively); follow it by removing the
-        --banner.
-        thinkTime = 0.1,
-        think = function(element)
-            if mod.unloaded or gui.GetFocus() ~= element then
-                if g_placementBanner == element then
-                    g_placementBanner = nil
-                end
-                element:DestroySelf()
-                return
-            end
-            if placementComplete ~= nil and placementComplete() then
-                if g_placementBanner == element then
-                    g_placementBanner = nil
-                end
-                gui.SetFocus(nil)
-                element:DestroySelf()
-            end
-        end,
-    }
-
-    topBar:AddChild(banner)
-    g_placementBanner = banner
-    gui.SetFocus(banner)
-end
-
---Enter the engine's bestiary placement mode for a monster.
+--Enter the engine's bestiary placement mode for a monster. gui.ShowPlacementBanner
+--focuses a banner carrying data.monsterid; the engine polls dmhub.GetSelectedMonster
+--(top of this file) against the focused panel and spawns that monster on each map
+--click (cursor preview, naming, minion squads, repeat placement). Monsters omit the
+--completion predicate so they keep the bestiary's repeat placement.
 local function BeginPlacingMonster(monsterid)
     if not dmhub.inGame then
         return
@@ -2572,7 +2817,7 @@ local function BeginPlacingMonster(monsterid)
         return
     end
 
-    ShowPlacementBanner({monsterid = monsterid}, monster.name)
+    gui.ShowPlacementBanner{name = monster.name, data = {monsterid = monsterid}}
 end
 
 --Enter the engine's character placement mode for an existing (unplaced)
@@ -2591,14 +2836,20 @@ local function BeginPlacingCharacter(charid)
     --exit placement once the token lands on the map. Membership of allTokens
     --matches the provider's definition of "unplaced" (hasTokenOnThisMap is
     --true for despawned tokens, which would end the mode before the click).
-    ShowPlacementBanner({charid = charid}, tok.name, function()
-        for _,token in ipairs(dmhub.allTokens) do
-            if token.id == charid then
-                return true
+    --Characters are single-placement (the click MOVES the one token rather than
+    --stamping copies), so the mode ends on landing via the completion predicate.
+    gui.ShowPlacementBanner{
+        name = tok.name,
+        data = {charid = charid},
+        complete = function()
+            for _,token in ipairs(dmhub.allTokens) do
+                if token.id == charid then
+                    return true
+                end
             end
-        end
-        return false
-    end)
+            return false
+        end,
+    }
 end
 
 --Global-search provider: party characters NOT placed on the current map (the

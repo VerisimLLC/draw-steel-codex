@@ -122,7 +122,14 @@ local selectionCheck = function(element, t)
 		return
 	end
 
-	element.value = (t == "all")
+	--Programmatic value sets are silent, but bulk selection must still run the
+	--change handler (selectasset) to update the export model, so fire it
+	--explicitly when the value actually flips.
+	local val = (t == "all")
+	if element.value ~= val then
+		element.value = val
+		element:FireEvent("change")
+	end
 end
 
 local collectManifestCheck = function(element, entries)
@@ -209,7 +216,12 @@ CreateMapNodePanel = function(map)
 				val = true
 			end
 
-			element.value = val
+			--See selectionCheck: fire change explicitly so the export model
+			--updates; plain .value assignment no longer echoes change.
+			if element.value ~= val then
+				element.value = val
+				element:FireEvent("change")
+			end
 		end,
 		data = {
 			assetid = map.id,

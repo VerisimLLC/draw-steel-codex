@@ -1223,6 +1223,14 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
     local m_partyStrength = nil
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
 
+    --Forward-declared so the per-group "Ungroup" button and "Group With" right-click
+    --menu (built in CreateGroupPanel, below) can call back into the group/ungroup
+    --logic. They are assigned later, once the pools and monsterGroups state they need
+    --are in scope. BuildGroupWithSubmenu(group, panel) returns the context-menu
+    --submenu entries listing the other groups on the same side.
+    local UngroupGroup
+    local BuildGroupWithSubmenu
+
     local CreateTokenPoolPanel = function(args)
         local sideline = args.sideline or false
         args.sideline = nil
@@ -1696,6 +1704,53 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
             }
         }
 
+        --A grouping of more than one non-minion creature (as opposed to a minion
+        --squad, or a captain leading a squad of minions) can be split back apart.
+        --Offer an "Ungroup" button that gives each creature its own initiative slot
+        --and rebuilds the list in place.
+        local nonMinionCount = 0
+        for _,tok in ipairs(group.tokens) do
+            if not tok.properties.minion then
+                nonMinionCount = nonMinionCount + 1
+            end
+        end
+
+        if nonMinionCount > 1 then
+            resultPanel:AddChild(gui.Button{
+                classes = {"sizeS"},
+                floating = true,
+                text = "Ungroup",
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "bottom",
+                margin = 4,
+                press = function(element)
+                    UngroupGroup(group, resultPanel)
+                end,
+            })
+        end
+
+        --Right-click a group row to fold it together with another group on the same
+        --side ("Group With" -> pick a creature/group). The submenu is built fresh on
+        --each right-click so it reflects the current pools after any earlier
+        --group/ungroup edits.
+        resultPanel.events.rightClick = function(element)
+            local entries = BuildGroupWithSubmenu(group, resultPanel)
+            if #entries == 0 then
+                return
+            end
+
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Group With",
+                        submenu = entries,
+                    },
+                },
+            }
+        end
+
         return resultPanel
     end
 
@@ -1783,6 +1838,151 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
             monstersAvailablePool:FireEventTree("add", panel)
             monsterGroups[#monsterGroups + 1] = group
         end
+    end
+
+    --Split a multi-creature (non-minion) initiative group back into individual
+    --creatures. Assigned here (not at its forward declaration) so it closes over
+    --monsterGroups and CreateGroupPanel, which do not exist yet where the per-group
+    --"Ungroup" button that calls it is built.
+    UngroupGroup = function(group, panel)
+        local pool = panel.parent
+
+        --Give each creature its own initiative id so GetInitiativeId stops returning
+        --the shared grouping id. A fresh guid per token matches the "Ungroup
+        --Initiative" button on the character panel.
+        for _,tok in ipairs(group.tokens) do
+            tok:ModifyProperties{
+                description = "Ungroup Initiative",
+                execute = function()
+                    tok.properties.initiativeGrouping = dmhub.GenerateGuid()
+                end,
+            }
+        end
+
+        panel:DestroySelf()
+
+        --Drop the combined group from monsterGroups so a later encounter-dropdown
+        --change (ApplyEncounterToMonsters) does not try to reparent the dead panel.
+        for i,g in ipairs(monsterGroups) do
+            if g == group then
+                table.remove(monsterGroups, i)
+                break
+            end
+        end
+
+        --Rebuild one panel per creature in the same pool, keeping monsterGroups in
+        --sync so the new panels continue to route on encounter changes.
+        for _,tok in ipairs(group.tokens) do
+            local newGroup = { playerSide = group.playerSide, selected = group.selected, tokens = { tok } }
+            local newPanel = CreateGroupPanel(newGroup)
+            newGroup.panel = newPanel
+            if pool ~= nil then
+                pool:FireEvent("add", newPanel)
+            end
+            if not group.playerSide then
+                monsterGroups[#monsterGroups + 1] = newGroup
+            end
+        end
+    end
+
+    local function RemoveFromMonsterGroups(g)
+        for i,mg in ipairs(monsterGroups) do
+            if mg == g then
+                table.remove(monsterGroups, i)
+                break
+            end
+        end
+    end
+
+    --Fold otherGroup into targetGroup: put every token of both on a single shared
+    --initiative id, then replace both rows with one combined row in targetGroup's
+    --pool. Reuses an existing grouping id if either side already has one so we do not
+    --churn ids needlessly (matches GetInitiativeId, where initiativeGrouping wins).
+    local function MergeGroups(targetGroup, targetPanel, otherGroup, otherPanel)
+        local groupingId = nil
+        for _,tok in ipairs(targetGroup.tokens) do
+            if tok.properties.initiativeGrouping then
+                groupingId = tok.properties.initiativeGrouping
+                break
+            end
+        end
+        if groupingId == nil then
+            for _,tok in ipairs(otherGroup.tokens) do
+                if tok.properties.initiativeGrouping then
+                    groupingId = tok.properties.initiativeGrouping
+                    break
+                end
+            end
+        end
+        if groupingId == nil then
+            groupingId = dmhub.GenerateGuid()
+        end
+
+        local allTokens = {}
+        for _,tok in ipairs(targetGroup.tokens) do
+            allTokens[#allTokens + 1] = tok
+        end
+        for _,tok in ipairs(otherGroup.tokens) do
+            allTokens[#allTokens + 1] = tok
+        end
+
+        for _,tok in ipairs(allTokens) do
+            tok:ModifyProperties{
+                description = "Group Initiative",
+                execute = function()
+                    tok.properties.initiativeGrouping = groupingId
+                end,
+            }
+        end
+
+        --The combined row lands in the right-clicked row's pool (its participation
+        --state wins over the group it absorbs).
+        local pool = targetPanel.parent
+
+        targetPanel:DestroySelf()
+        otherPanel:DestroySelf()
+        RemoveFromMonsterGroups(targetGroup)
+        RemoveFromMonsterGroups(otherGroup)
+
+        local combined = { playerSide = targetGroup.playerSide, selected = targetGroup.selected, tokens = allTokens }
+        local combinedPanel = CreateGroupPanel(combined)
+        combined.panel = combinedPanel
+        if pool ~= nil then
+            pool:FireEvent("add", combinedPanel)
+        end
+        if not combined.playerSide then
+            monsterGroups[#monsterGroups + 1] = combined
+        end
+    end
+
+    --Build the "Group With" submenu for a group: one entry per other group on the
+    --same side (heroes vs monsters), across both the participating and non-combatant
+    --pools. Read live from the pools so it reflects any earlier group/ungroup edits.
+    BuildGroupWithSubmenu = function(group, panel)
+        local pools
+        if group.playerSide then
+            pools = { heroesSelectedPool, heroesAvailablePool }
+        else
+            pools = { monstersSelectedPool, monstersAvailablePool }
+        end
+
+        local entries = {}
+        for _,pool in ipairs(pools) do
+            for _,child in ipairs(pool.children) do
+                local otherGroup = child.data ~= nil and child.data.group or nil
+                if otherGroup ~= nil and otherGroup ~= group then
+                    entries[#entries + 1] = {
+                        text = otherGroup.name,
+                        click = function()
+                            panel.popup = nil
+                            MergeGroups(group, panel, otherGroup, child)
+                        end,
+                    }
+                end
+            end
+        end
+
+        return entries
     end
 
     local m_initiativeResult = "roll"

@@ -215,13 +215,13 @@ Key stubs:
 
 ## Editing Files
 
-Always edit files in the **main copy** of the repository (`C:\MCDM\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
+Always edit files in the **main copy** of the repository (the clone this file lives in), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
 
 Do NOT edit `C:\MCDM\dmhubclient\draw-steel-codex\` -- that is a separate, stale fork of the codex embedded in the DMHub client project. It is not what the app loads and changes there go nowhere.
 
 ## Deploying Changes to the Running Codex
 
-**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (currently `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
+**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (e.g. `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
 
 ```
 <gitfolder>\Draw Steel V\EncounterPanel.lua

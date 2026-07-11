@@ -3588,6 +3588,24 @@ local function _buildTargetingSection(ability, fireChange)
         },
     }
 
+    -- 12w. Allow stacking wall squares (targeting == contiguous_wall)
+    local function isWallTargeting()
+        return isSpaceTargeting() and ability:try_get("targeting", "direct") == "contiguous_wall"
+    end
+    children[#children + 1] = gui.Check{
+        classes = {"nae-toggle-check",
+                   cond(isWallTargeting(), nil, "collapsed-anim")},
+        text = "Allow Stacking",
+        value = ability:try_get("wallStacking", false),
+        change = function(element)
+            ability.wallStacking = element.value
+            fireChange()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", not isWallTargeting())
+        end,
+    }
+
     -- 12a + 12b. Forced Movement subgroup (targeting == straightline)
     local function isForcedMovement()
         return isSpaceTargeting() and ability:try_get("targeting", "direct") == "straightline"

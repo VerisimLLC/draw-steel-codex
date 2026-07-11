@@ -52,6 +52,343 @@ function GameHud.ClearMapTooltip(self)
 	self.dialog.sheet.tooltip = nil
 end
 
+-------------------------------------------------------------------------------
+-- Movement cross-section diagram.
+--
+-- A small side-on schematic shown inside the token-drag movement tooltip that
+-- illustrates the vertical profile of the proposed move: terraced ground built
+-- from per-tile altitudes, a square tile grid, walls climbed over or flown
+-- over, the movement arrow, the mover's token avatar plus a ghost at the
+-- resting spot, any other tokens the path crosses (red ring when passed
+-- through), and a fall at the end of the move.
+--
+-- The diagram is rendered by a C#/Unity offscreen scene into a RenderTexture
+-- (see MovementCrossSection.cs); the Lua side just asks the engine to build it
+-- and displays the returned image key. dmhub.SetMovementCrossSection builds/
+-- updates the scene and returns { image, width, height } (or nil for a move
+-- with no drawable cross-section); dmhub.ClearMovementCrossSection releases it.
+--
+-- Driven entirely by the LuaPath in the "tiletooltip" event args: TokenMoving
+-- adds movingToken/movingPath to the args it fires (see DSHud.lua). Events
+-- without those fields (e.g. the ruler tool) just collapse the diagram.
+-------------------------------------------------------------------------------
+
+local g_diagramWidth = 300
+local g_diagramHeight = 120
+
+--The diagram never displays wider than this; a wider render texture is scaled
+--down uniformly (x and y together) so tiles stay square on screen.
+local g_diagramMaxWidth = 340
+
+--A cheap identity for the proposed move so the diagram only rebuilds when the
+--path actually changes, not every time the tooltip event fires. Includes the
+--lower-tier jump alternates (if any) so a hover that changes only the
+--shortfall outcomes still re-renders.
+local function DiagramPathSignature(token, path, alternates)
+	local parts = {
+		token.charid,
+		path.movementType,
+		tostring(path.valid),
+		tostring(path.teleport),
+		tostring(path.fallDistance),
+		tostring(path.jumpHeight),
+	}
+
+	local steps = path.steps
+	if steps ~= nil then
+		for _,step in ipairs(steps) do
+			parts[#parts+1] = step.str .. "@" .. tostring(step.altitude)
+		end
+	end
+
+	if alternates ~= nil then
+		for _,alt in ipairs(alternates) do
+			local landing = ""
+			if alt.path ~= nil and alt.path.destination ~= nil then
+				landing = alt.path.destination.str
+			end
+			parts[#parts+1] = string.format("alt:%s:%s", tostring(alt.label), landing)
+		end
+	end
+
+	return table.concat(parts, "|")
+end
+
+--Extracts the vertical profile of the path. Returns nil when the path has no
+--vertical interest (flat ground, no climbing/walls/falls and no other tokens
+--encountered), or when it spans multiple floors WITHOUT ending in a downward
+--fall and WITHOUT being a stairs traversal (an ordinary cross-floor move has no
+--single cross-section -- the tooltip's floor-delta arrow covers it; a fall off a
+--ledge to a lower floor is drawn, and so is a walk up/down a stairway).
+local function DiagramProfileFromPath(token, path)
+	local steps = path.steps
+	if steps == nil or #steps < 2 then
+		return nil
+	end
+
+	local n = #steps
+
+	local multiFloor = false
+	for i = 2, n do
+		if steps[i].floor ~= steps[1].floor then
+			multiFloor = true
+			break
+		end
+	end
+
+	--A STAIRS traversal (ObjectComponentStairs): every floor change enters the new floor
+	--through a stairway portal, marked by the UpFloor/DownFloor cost flag on the entering
+	--step. The C# harness stacks the involved floors and draws a staircase glyph at each
+	--transition (see MovementCrossSection.cs), so these are allowed -- and inherently
+	--vertically interesting.
+	local stairsTraversal = false
+
+	if multiFloor then
+		stairsTraversal = true
+		for i = 2, n do
+			if steps[i].floor ~= steps[i-1].floor then
+				local hasStair = false
+				--path.steps is 1-based in lua; the engine's per-step tables are 0-based.
+				local flags = path:GetStepFlags(i-1)
+				if flags ~= nil then
+					for _,f in ipairs(flags) do
+						if f == "UpFloor" or f == "DownFloor" then
+							hasStair = true
+						end
+					end
+				end
+				if not hasStair then
+					stairsTraversal = false
+					break
+				end
+			end
+		end
+	end
+
+	if multiFloor and not stairsTraversal then
+		--A cross-floor FALL (walk/pushed along one floor, then fall to a lower floor -- e.g.
+		--shoved off a balcony) still has a meaningful vertical cross-section: the C# harness
+		--stacks the floors and draws the drop with the upper floor as a thin platform and a
+		--dotted, labeled guide line per floor plane (see MovementCrossSection.cs). Allow it only
+		--when the path ends in a downward fall; any OTHER multi-floor shape has no single
+		--cross-section and is left to the tooltip's floor-delta arrow.
+		local endsInFall = false
+		local lastFlags = path:GetStepFlags(n-1)
+		if lastFlags ~= nil then
+			for _,f in ipairs(lastFlags) do
+				if f == "Fall" then
+					endsInFall = true
+				end
+			end
+		end
+
+		if not (endsInFall and steps[1]:FloorDifference(steps[n]) < 0) then
+			return nil
+		end
+	end
+
+	local entries = {}
+	for i = 1, n do
+		local step = steps[i]
+		local entry = {
+			alt = step.altitude,
+			ground = step.withGroundAltitude.altitude,
+			flags = {},
+		}
+
+		if i > 1 then
+			--path.steps is 1-based in lua; the engine's per-step tables are 0-based.
+			local flags = path:GetStepFlags(i-1)
+			if flags ~= nil then
+				for _,f in ipairs(flags) do
+					entry.flags[f] = true
+				end
+			end
+
+			entry.climbWall = path:GetClimbOverWallHeight(i-1)
+			entry.wall = path:GetStepWallHeight(i-1)
+		end
+
+		entries[i] = entry
+	end
+
+	--other tokens whose columns the path passes through, deduped so a token
+	--occupying several path tiles gets one marker at the middle of its overlap
+	--with the path.
+	local othersByCharid = {}
+	local others = {}
+	for i = 1, n do
+		local toks = game.GetTokensAtLoc(steps[i])
+		if toks ~= nil then
+			for _,tok in ipairs(toks) do
+				if tok.charid ~= token.charid then
+					local record = othersByCharid[tok.charid]
+					if record == nil then
+						record = {
+							token = tok,
+							alt = tok.loc.altitude,
+							firstStep = i,
+							lastStep = i,
+							through = false,
+						}
+						othersByCharid[tok.charid] = record
+						others[#others+1] = record
+					else
+						record.lastStep = i
+					end
+
+					--the path passes through this token's space when their
+					--vertical extents overlap at this step; passing above or
+					--below is conveyed by the marker's vertical position.
+					local moverAlt = entries[i].alt
+					if moverAlt < record.alt + 1 and record.alt < moverAlt + 1 then
+						record.through = true
+					end
+				end
+			end
+		end
+	end
+
+	--A creature that is airborne (its altitude sits above the ground beneath it) while its
+	--path crosses an aura is a vertically interesting event on its own -- the cross-section
+	--shows the flyer passing over or into the aura band even on otherwise flat ground.
+	--game.GetAurasAtLoc is footprint-based (altitude ignored), so an aura the flyer passes
+	--over or under still counts; it is a superset of the bands the C# harness draws (see
+	--MovementCrossSection.cs), so this never suppresses a diagram that would have a band.
+	local airborne = false
+	local crossesAura = false
+	for i = 1, n do
+		if entries[i].alt > entries[i].ground then
+			airborne = true
+		end
+		if not crossesAura then
+			local auras = game.GetAurasAtLoc(steps[i])
+			if auras ~= nil and #auras > 0 then
+				crossesAura = true
+			end
+		end
+	end
+
+	--A jump is vertically interesting by definition -- it arcs up over its start ground and
+	--clears walls up to its jump distance -- so always show its cross-section, even on flat
+	--ground. So is a stairs traversal: the mover changes floors up/down a staircase.
+	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump" or
+	                    stairsTraversal or (airborne and crossesAura)
+	for i = 1, n do
+		local e = entries[i]
+		if e.ground ~= entries[1].ground or e.alt ~= entries[1].alt or
+		   e.climbWall ~= nil or e.wall ~= nil or e.flags.Fall then
+			interesting = true
+		end
+	end
+
+	if not interesting then
+		return nil
+	end
+
+	return {
+		entries = entries,
+		others = others,
+	}
+end
+
+--Rebuilds the diagram from the current move by asking the engine to build the
+--offscreen cross-section scene (see MovementCrossSection.cs) and displaying the
+--returned render texture. The panel is sized to the render texture, scaled down
+--uniformly to fit g_diagramMaxWidth so tiles stay square. Returns true if a
+--diagram is shown, false if the move has no drawable cross-section (the caller
+--collapses in that case).
+local function DiagramRender(diagramPanel, token, path, alternates)
+	--Lower-tier jump alternates -> secondaryPaths ghost outcomes. The arg is
+	--simply ignored by engine builds that predate secondaryPaths support.
+	local secondaryPaths = nil
+	if alternates ~= nil then
+		for _, alt in ipairs(alternates) do
+			if alt.path ~= nil then
+				secondaryPaths = secondaryPaths or {}
+				secondaryPaths[#secondaryPaths + 1] = { path = alt.path, label = alt.label }
+			end
+		end
+	end
+
+	local result = dmhub.SetMovementCrossSection{token = token, path = path, secondaryPaths = secondaryPaths}
+	if result == nil then
+		diagramPanel:SetClass("collapsed", true)
+		dmhub.ClearMovementCrossSection()
+		return false
+	end
+
+	local scale = 1
+	if result.width > g_diagramMaxWidth then
+		scale = g_diagramMaxWidth / result.width
+	end
+
+	diagramPanel:SetClass("collapsed", false)
+	diagramPanel.selfStyle.width = result.width * scale
+	diagramPanel.selfStyle.height = result.height * scale
+	diagramPanel.selfStyle.bgcolor = "white"
+	diagramPanel.bgimage = result.image
+	return true
+end
+
+--The diagram panel that lives inside the map tooltip. Updates (or collapses)
+--in response to the "args" event fired on the tooltip tree by the tiletooltip
+--handler below.
+local function CreateMovementDiagramPanel()
+	return gui.Panel{
+		classes = {"collapsed"},
+		width = g_diagramWidth,
+		height = g_diagramHeight,
+		halign = "center",
+		flow = "none",
+		interactable = false,
+		bgimage = "panels/square.png",
+		bgcolor = "#000000aa",
+		cornerRadius = 4,
+		vmargin = 2,
+		styles = {
+			{
+				selectors = {"collapsed"},
+				collapsed = 1,
+			},
+		},
+		data = {
+			signature = nil,
+		},
+		destroy = function(element)
+			--the tooltip (and this panel) is torn down by FinishTokenMoving; release
+			--the offscreen render texture so nothing stays resident while idle.
+			dmhub.ClearMovementCrossSection()
+		end,
+		args = function(element, args)
+			if args == nil or args.movingToken == nil or args.movingPath == nil or
+			   not dmhub.GetSettingValue("showmovementcrosssection") then
+				element.data.signature = nil
+				element:SetClass("collapsed", true)
+				dmhub.ClearMovementCrossSection()
+				return
+			end
+
+			local sig = DiagramPathSignature(args.movingToken, args.movingPath, args.movingPathAlternates)
+			if sig == element.data.signature then
+				return
+			end
+			element.data.signature = sig
+
+			--DiagramProfileFromPath is the interest gate (skips flat moves and
+			--multi-floor paths); the C# harness re-derives what it needs to draw.
+			local profile = DiagramProfileFromPath(args.movingToken, args.movingPath)
+			if profile == nil then
+				element:SetClass("collapsed", true)
+				dmhub.ClearMovementCrossSection()
+				return
+			end
+
+			DiagramRender(element, args.movingToken, args.movingPath, args.movingPathAlternates)
+		end,
+	}
+end
+
 --functions called by dmhud to indicate that a token is moving or has finished moving.
 --[==[ DEAD_CODE - overridden by Draw Steel UI\DSHud.lua:4
 function GameHud.TokenMoving(self, token, path)
@@ -968,11 +1305,18 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				element:FloatTooltipNearTile(loc,
 					gui.TooltipFrame(
 						gui.Panel{
-							flow = "horizontal",
+							flow = "vertical",
 							width = "auto",
 							height = "auto",
-							floorDeltaArrow,
-							m_tilelabel,
+							gui.Panel{
+								flow = "horizontal",
+								width = "auto",
+								height = "auto",
+								halign = "center",
+								floorDeltaArrow,
+								m_tilelabel,
+							},
+							CreateMovementDiagramPanel(),
 						},
 						{
 							interactable = false,
@@ -983,6 +1327,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 				)
 
 				m_tiletooltip = element.tooltip
+
+				--let the diagram (and the floor arrow) see the initial args;
+				--on reuse the FireEventTree above keeps them updated.
+				m_tiletooltip:FireEventTree("args", args)
 
 			end,
 		},

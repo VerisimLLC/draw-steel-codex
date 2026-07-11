@@ -94,9 +94,20 @@ local function CreateCodexMenuItem(args)
         end
     end
 
+    --mainmenu = true shows the item only on the main menu; mainmenu = "always"
+    --shows it both on the main menu and in-game; otherwise in-game only.
+    local visibilityClass
+    if m_mainmenu == "always" then
+        visibilityClass = nil
+    elseif m_mainmenu then
+        visibilityClass = "mainmenuOnly"
+    else
+        visibilityClass = "ingameOnly"
+    end
+
 	local resultPanel = {
 
-        classes = {"menuItem", cond(m_mainmenu, "mainmenuOnly", "ingameOnly")},
+        classes = {"menuItem", visibilityClass},
 		popupPositioning = 'panel',
 
         width = "auto",
@@ -259,6 +270,61 @@ local function CreateStatusBar()
                 entries = menuItems,
             }
         end,
+
+        -- Dev-only note: when this game is loading its assets from a local
+        -- directory (the "local assets" developer feature -- a custom data
+        -- directory that replaces the game's cloud assets), flag it here so it
+        -- is obvious at a glance that this is a dev game. Hovering shows the
+        -- source directory; clicking reveals it in the OS file browser. Empty
+        -- (zero-width) for every normal game. LocalAssetsStatus /
+        -- RevealInFileBrowser are read-and-compared-to-nil so an older engine
+        -- build (before the bridge exists) simply shows nothing.
+        gui.Label{
+            minFontSize = 10,
+            bold = true,
+            color = "#f0a030",
+            width = "auto",
+            height = "100%",
+            valign = "center",
+            rmargin = 10,
+            text = "",
+            data = { dir = nil },
+            linger = function(element)
+                local dir = element.data.dir
+                if dir == nil or dir == "" then
+                    return
+                end
+                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open it in your file browser.", dir))(element)
+            end,
+            click = function(element)
+                local dir = element.data.dir
+                if dir ~= nil and dir ~= "" and dmhub.RevealInFileBrowser ~= nil then
+                    dmhub.RevealInFileBrowser(dir)
+                end
+            end,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil)
+                element.data.dir = nil
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil),
+            think = function(element)
+                if (not dmhub.inGame) or dmhub.isLobbyGame or dmhub.LocalAssetsStatus == nil then
+                    element.data.dir = nil
+                    element.text = ""
+                    return
+                end
+                local status = dmhub.LocalAssetsStatus()
+                if status ~= nil and status.active and status.directory ~= nil and status.directory ~= "" then
+                    element.data.dir = status.directory
+                    element.text = "Dev Game"
+                else
+                    element.data.dir = nil
+                    element.text = ""
+                end
+            end,
+        },
 
         gui.Label{
             minFontSize = 10,
@@ -889,7 +955,12 @@ local function CreateSearchBar()
         popupPanel = gui.Panel{
             classes = {"bordered", "bg", "searchResultsPanel"},
             flow = "vertical",
-            width = 368,
+            -- Mirrors the search box's dockscale-tracking width (HB1), but
+            -- never shrinks below the old fixed 368 -- cards in this popup
+            -- must never wrap at small dock scales. At scale > 1 the popup
+            -- grows to match the (now wider) box above it. Rebuilt fresh per
+            -- search, so a value computed at construction stays current.
+            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
             height = "auto",
             halign = "center",
             valign = "bottom",
@@ -1188,7 +1259,14 @@ local function CreateSearchBar()
 
     resultPanel = gui.SearchInput{
         bgimage = true,
-        width = 368,
+        -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
+        -- so the box lines up with the dock below it at any scale (HB1). Kept
+        -- live by the think handler below. borderBox is load-bearing:
+        -- gui.SearchInput ships hpad=24 WITHOUT borderBox, so the rendered box
+        -- would otherwise be 48px wider than the declared width and overhang
+        -- the dock (James field report, 2026-07-03).
+        borderBox = true,
+        width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
         height = 20,
         halign = "right",
         valign = "center",
@@ -1221,6 +1299,16 @@ local function CreateSearchBar()
         -- watch for the rising edge of hasInputFocus on a light think.
         thinkTime = 0.2,
         think = function(element)
+            -- Live-follow the dock scale setting (HB1) so a mid-session
+            -- change to the slider is reflected without a reload. Cheap
+            -- setting read on a 0.2s tick; only touches .width when it
+            -- actually changed.
+            local w = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))
+            if element.data.appliedSearchWidth ~= w then
+                element.data.appliedSearchWidth = w
+                element.selfStyle.width = w
+            end
+
             local focused = element.hasInputFocus
             if focused and (not element.data.hadInputFocus)
                 and element.popup == nil
@@ -1276,6 +1364,341 @@ local function CreateSearchBar()
         dorepeatSearch = function(element)
             element.data.repeatingSearch = false
             element:FireEvent("edit")
+        end,
+    }
+
+    return resultPanel
+end
+
+--H-BAR: global audio indicator glyph, left of the search box. Three states
+--(muted / playing / idle) polled on a light think; a press opens a compact
+--mixer popover built from Audio.lua's exported fader factories so the top
+--bar, dock, and Studio Mixer share ONE fader implementation. If Audio.lua's
+--export is not loaded (should not happen given load order, but this is a
+--cross-module read) the glyph simply does not open a popup.
+local function CreateAudioIndicator()
+    local resultPanel
+
+    --Safe read of the "localmuted" setting. It is registered by a game mod
+    --(AudioMain.lua), so at the title screen and during the mid-Lua-reload
+    --teardown window the id does not exist -- GetSettingValue on a missing id
+    --both logs "Could not find setting" and throws a native NRE (seen once
+    --per boot, 2026-07-03). HasSetting is the non-logging existence probe.
+    local function IsLocalMuted()
+        return dmhub.HasSetting("localmuted") and dmhub.GetSettingValue("localmuted") == true
+    end
+
+    local function ComputeState()
+        --The engine audio system (and the GameController backing audio.muted)
+        --is not initialized during the title screen / early game load, where
+        --this think already runs. MERELY TOUCHING audio.muted or
+        --audio.currentlyPlaying there raises a native NullReference that the
+        --engine logs/reports even when Lua pcall catches it (player-window
+        --error dialog, 2026-07-03) -- so gate on the Audio.lua export, which
+        --only exists once the game's audio mods are loaded, and do not call
+        --into audio.* at all before then. The pcall stays as a second line of
+        --defense for reload teardown windows.
+        if rawget(_G, "g_drawSteelAudioBar") == nil then
+            return "idle"
+        end
+        local ok, state = pcall(function()
+            if audio.muted or IsLocalMuted() then
+                return "muted"
+            end
+            for _,_ in pairs(audio.currentlyPlaying) do
+                return "playing"
+            end
+            return "idle"
+        end)
+        if not ok then
+            return "idle"
+        end
+        return state
+    end
+
+    --Muted from this client's perspective: its own local mute, or the game-wide
+    --mute. Used for glyph/toggle display state; which layer the TOGGLE writes is
+    --role-branched at the press site.
+    local function IsClientMuted()
+        return audio.muted or IsLocalMuted()
+    end
+
+    local function BuildPopover()
+        local bar = rawget(_G, "g_drawSteelAudioBar")
+        if bar == nil then
+            return nil
+        end
+
+        -- Now-playing line is a snapshot at open time -- this is a transient
+        -- popover (same accepted pattern as the Studio's bindings popover),
+        -- not a live-refreshing panel.
+        local nowPlayingName = bar.PrimaryPlayingName()
+
+        --Muted-cause line (DJ delegation decision 4): the popover top tier is
+        --now PERSONAL for every role, so when the glyph shows muted the cause
+        --may be either layer - name it. Snapshot popover, but both mute
+        --toggles below refresh this line on press so it never contradicts an
+        --action taken inside the popover itself.
+        local mutedCauseLine
+        local function RefreshMutedCause()
+            if audio.muted then
+                mutedCauseLine.text = "The table is muted for everyone."
+                mutedCauseLine:SetClass("collapsed", false)
+            elseif IsLocalMuted() then
+                mutedCauseLine.text = "Your personal mute is on."
+                mutedCauseLine:SetClass("collapsed", false)
+            else
+                mutedCauseLine:SetClass("collapsed", true)
+            end
+        end
+        mutedCauseLine = gui.Label{
+            classes = {"sizeXxs", "fgMuted", "collapsed"},
+            width = "100%",
+            height = "auto",
+            textWrap = true,
+        }
+
+        --Personal tier (DJ delegation decision 4): EVERY role, including the
+        --Director, gets the personal master + personal mute here - reflex
+        --control keeps reflex semantics for every human. The game-wide mute
+        --moved into the broadcast block below as a labeled control (PR-note
+        --obligation: this repurposes the DM's trained mute-glyph behavior).
+        local muteToggle = gui.Panel{
+            bgcolor = "white",
+            width = 16,
+            height = 16,
+            valign = "center",
+            hmargin = 4,
+            press = function(element)
+                dmhub.SetSettingValue("localmuted", not IsLocalMuted())
+                -- The bar glyph self-heals on its 0.5s think, but this copy
+                -- lives in a snapshot popover -- swap it now or it reads
+                -- stale until the popover is reopened.
+                element:SetClass("muted", IsClientMuted())
+                RefreshMutedCause()
+            end,
+            linger = function(element)
+                gui.Tooltip("Mute (only you)")(element)
+            end,
+            styles = {
+                { bgimage = "ui-icons/ph-speaker-high-fill.png" },
+                { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                { selectors = {"hover"}, brightness = 2 },
+            },
+            create = function(element)
+                element:SetClass("muted", IsClientMuted())
+            end,
+        }
+        muteToggle:SetClass("muted", IsClientMuted())
+
+        -- Mute rides the RIGHT end of the Master row (its own row read as
+        -- orphaned chrome -- James field report, 2026-07-03). Master keeps the
+        -- left slot so its slider stays column-aligned with the Levels sliders
+        -- below; MakeFaderRow hardcodes width 100%, so the fader row is
+        -- narrowed post-construction to make room for the toggle.
+        --Personal per-user master for every role - the same "volume" setting
+        --as Settings->Audio's Master Volume. (The game-wide master lives in
+        --the dock/Studio/Settings; it is no longer in this popover.)
+        local masterSlider
+        if bar.MakePersonalFader == nil then
+            --Fallback for a stale export during partial reloads.
+            masterSlider = bar.MakeMasterFader()
+        else
+            masterSlider = bar.MakePersonalFader("volume")
+        end
+        local masterFaderRow = bar.MakeFaderRow("Master", masterSlider, false)
+        masterFaderRow.selfStyle.width = "100%-26"
+        local masterRow = gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 22,
+            valign = "center",
+            masterFaderRow,
+            muteToggle,
+        }
+
+        local children = {
+            -- "Now Playing" header (bold, pinned white -- the popover bg is
+            -- known-dark in every scheme) with the track title on its own
+            -- line beneath, mirroring the Studio's Now Playing card.
+            gui.Label{
+                classes = {"sizeXs", "bold"},
+                color = "#ffffff",
+                width = "100%",
+                height = "auto",
+                text = "Now Playing",
+            },
+            gui.Label{
+                classes = {"sizeXs", cond(nowPlayingName == nil, "fgMuted", nil)},
+                width = "100%",
+                height = "auto",
+                textWrap = false,
+                textOverflow = "ellipsis",
+                text = nowPlayingName or "Nothing playing",
+            },
+            masterRow,
+            mutedCauseLine,
+            --Personal-tier caption for EVERY role now (decision 4): the tier
+            --above is personal regardless of who you are; the broadcast block
+            --below is what plays to the table.
+            gui.Label{
+                classes = {"sizeXxs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                textWrap = true,
+                text = "These change your mix only.",
+            },
+        }
+        RefreshMutedCause()
+
+        --Broadcast tier: Director or DJ only (DJ delegation decision 4). All
+        --game-wide controls live here, including the game-wide mute as a
+        --labeled control (promoted from the old master-row glyph tooltip).
+        if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
+            children[#children+1] = gui.Label{
+                classes = {"sizeXs", "fgMuted"},
+                width = "100%",
+                height = "auto",
+                text = "Levels",
+                tmargin = 4,
+            }
+            children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
+            children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
+            children[#children+1] = bar.MakeFaderRow("Effects", bar.MakeBroadcastFader("effects"), false)
+            children[#children+1] = bar.MakeFaderRow("UI Sounds", bar.MakeBroadcastFader("uisounds"), false)
+            children[#children+1] = bar.MakeFaderRow("Anthem", bar.MakeBroadcastFader("anthem"), false)
+
+            local gameMuteToggle = gui.Panel{
+                bgcolor = "white",
+                width = 16,
+                height = 16,
+                valign = "center",
+                hmargin = 4,
+                press = function(element)
+                    audio.muted = not audio.muted
+                    audio.UploadMuted()
+                    element:SetClass("muted", audio.muted)
+                    muteToggle:SetClass("muted", IsClientMuted())
+                    RefreshMutedCause()
+                end,
+                styles = {
+                    { bgimage = "ui-icons/ph-speaker-high-fill.png" },
+                    { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                    { selectors = {"hover"}, brightness = 2 },
+                },
+                create = function(element)
+                    element:SetClass("muted", audio.muted)
+                end,
+            }
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = 22,
+                valign = "center",
+                tmargin = 4,
+                gui.Label{
+                    classes = {"sizeXs"},
+                    text = "Mute for everyone",
+                    width = "100%-26",
+                    height = "auto",
+                    valign = "center",
+                },
+                gameMuteToggle,
+            }
+
+            children[#children+1] = gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                tmargin = 4,
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Stop all audio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    linger = function(element)
+                        gui.Tooltip("Stop all audio. Also cancels auto game-mode music.")(element)
+                    end,
+                    press = function()
+                        bar.StopAll()
+                        resultPanel.popup = nil
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeXs"},
+                    text = "Open Audio Studio",
+                    width = "auto",
+                    height = 22,
+                    hpad = 8,
+                    borderBox = true,
+                    hmargin = 3,
+                    press = function()
+                        resultPanel.popup = nil
+                        LaunchablePanel.LaunchPanelByName("Audio Studio")
+                    end,
+                },
+            }
+        end
+
+        return gui.Panel{
+            classes = {"bordered", "bg"},
+            flow = "vertical",
+            width = 340,
+            height = "auto",
+            pad = 8,
+            borderBox = true,
+            halign = "right",
+            valign = "bottom",
+            children = children,
+        }
+    end
+
+    resultPanel = gui.Panel{
+        classes = {"audioIndicator"},
+        width = 18,
+        height = 18,
+        valign = "center",
+        hmargin = 6,
+        bgcolor = "white",
+        bgimage = "ui-icons/ph-speaker-high-fill.png",
+
+        linger = function(element)
+            gui.Tooltip("Audio controls")(element)
+        end,
+
+        press = function(element)
+            element.popupsInheritStyles = true
+            element.popup = BuildPopover()
+        end,
+
+        -- Run the state logic once at construction too: without this the
+        -- glyph renders its constructor defaults (volume icon, full opacity)
+        -- for up to one think period even when muted/idle at build time.
+        create = function(element)
+            element:FireEvent("think")
+        end,
+
+        thinkTime = 0.5,
+        think = function(element)
+            local state = ComputeState()
+            if element.data.audioIndicatorState == state then
+                return
+            end
+            element.data.audioIndicatorState = state
+
+            if state == "muted" then
+                element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+                element.selfStyle.opacity = 1
+            elseif state == "playing" then
+                element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+                element.selfStyle.opacity = 1
+            else
+                element.bgimage = "ui-icons/ph-speaker-none-fill.png"
+                element.selfStyle.opacity = 0.4
+            end
         end,
     }
 
@@ -1394,6 +1817,7 @@ local function CreateTopBar()
 
     local m_inGame = nil
     local m_searchBar = CreateSearchBar()
+    local m_audioIndicator = CreateAudioIndicator()
     local m_presentationBar = CreatePresentationBar()
 
     g_searchBar = m_searchBar
@@ -1432,6 +1856,555 @@ local function CreateTopBar()
     g_adventureDocumentsBar = m_adventureDocumentsBar
 
     local g_bugReportLink = "https://discord.gg/x2yEdNFmUB"
+
+    --Shows the feedback dialog for a report begun with dmhub.BeginBugReport.
+    --The report already holds a screenshot captured before the dialog appeared.
+    --feedbackType is "bug", "feature" or "feedback"; the log file is only
+    --offered on bug reports.
+    local function CreateBugReportDialog(report, feedbackType)
+        local kinds = {
+            bug = {
+                title = "Report a Bug",
+                intro = "Describe the bug below and submit it directly to the Codex developers. Please make a separate report for each bug.",
+                placeholder = "Describe the bug: what happened, and what you expected to happen instead. If you can, include exact steps to reproduce it.",
+                thanks = "Your bug report has been submitted. Thank you!",
+            },
+            feature = {
+                title = "Request a Feature",
+                intro = "Describe the feature you would like below and it will be submitted directly to the Codex developers.",
+                placeholder = "Describe the feature you would like, and the problem it would solve for you.",
+                thanks = "Your feature request has been submitted. Thank you!",
+            },
+            feedback = {
+                title = "Send Feedback",
+                intro = "Share your feedback below and it will be submitted directly to the Codex developers.",
+                placeholder = "Tell us what you think: what is working well, and what could be better?",
+                thanks = "Your feedback has been submitted. Thank you!",
+            },
+        }
+
+        local kindInfo = kinds[feedbackType]
+        if kindInfo == nil then
+            feedbackType = "bug"
+            kindInfo = kinds.bug
+        end
+
+        local isBugReport = (feedbackType == "bug")
+
+        local m_dialog = nil
+        local m_titlescreenModal = nil
+        local m_attachments = {}
+        local m_submitting = false
+        local m_submitted = false
+
+        local m_includeLog = isBugReport
+        local m_includeScreenshot = false
+        local m_allowGameEntry = true
+        local m_contactOnDiscord = true
+        local m_mood = nil
+
+        --the dialog is hosted in the gamehud modal stack in-game, or as a
+        --floating panel on the titlescreen root otherwise.
+        local function CloseDialog()
+            if m_titlescreenModal ~= nil then
+                if m_titlescreenModal.valid then
+                    m_titlescreenModal:DestroySelf()
+                end
+            elseif m_dialog ~= nil and m_dialog.valid then
+                m_dialog:FireEvent("close")
+            end
+        end
+
+        local descriptionInput = gui.Input{
+            width = 880,
+            height = 150,
+            fontSize = 16,
+            multiline = true,
+            characterLimit = 10000,
+            textAlignment = "topleft",
+            halign = "left",
+            tmargin = 4,
+            placeholderText = kindInfo.placeholder,
+        }
+
+        local screenshotSection = nil
+        if report.screenshotImage ~= nil then
+            local aspect = 9 / 16
+            if report.screenshotWidth > 0 then
+                aspect = report.screenshotHeight / report.screenshotWidth
+            end
+
+            screenshotSection = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 8,
+
+                gui.Panel{
+                    classes = {"bordered"},
+                    bgimage = report.screenshotImage,
+                    bgcolor = "white",
+                    width = 280,
+                    height = math.floor(280 * aspect),
+                    halign = "left",
+                    valign = "center",
+                },
+
+                gui.Check{
+                    text = "Include this screenshot of your screen",
+                    value = m_includeScreenshot,
+                    halign = "left",
+                    valign = "center",
+                    lmargin = 16,
+                    change = function(element)
+                        m_includeScreenshot = element.value
+                    end,
+                },
+            }
+        end
+
+        --the log file is only relevant to bug reports.
+        local logCheck = nil
+        if isBugReport then
+            logCheck = gui.Check{
+                text = "Include my log file (recommended)",
+                tooltip = "Your log file helps developers diagnose the problem. If a log from your previous session exists (for example after a crash and restart), it is included too. Logs contain a small amount of personal data, such as your system username, and are compressed before uploading.",
+                value = m_includeLog,
+                halign = "left",
+                tmargin = 12,
+                change = function(element)
+                    m_includeLog = element.value
+                end,
+            }
+        end
+
+        local gameEntryCheck = gui.Check{
+            text = "Allow Codex developers to enter my game if needed",
+            value = m_allowGameEntry,
+            halign = "left",
+            tmargin = cond(isBugReport, 4, 12),
+            change = function(element)
+                m_allowGameEntry = element.value
+            end,
+        }
+
+        --Discord follow-up: if the Discord desktop client is running we know the
+        --user's Discord handle and can offer to contact them about the report.
+        --Otherwise explain that we cannot follow up.
+        local discordSection
+        if report.discordUsername ~= nil then
+            discordSection = gui.Check{
+                text = "Contact me on Discord (" .. report.discordUsername .. ") to follow up on this report",
+                tooltip = "If checked, your Discord username is included with the report so a Codex developer can reach out to you about it. Leave unchecked to keep your Discord username private.",
+                value = m_contactOnDiscord,
+                halign = "left",
+                tmargin = 12,
+                change = function(element)
+                    m_contactOnDiscord = element.value
+                end,
+            }
+        else
+            discordSection = gui.Label{
+                fontSize = 15,
+                width = 880,
+                height = "auto",
+                textWrap = true,
+                halign = "left",
+                tmargin = 12,
+                text = "Discord isn't linked, so we won't be able to follow up with you about this report. Run the Discord app alongside Codex if you would like us to be able to reach out.",
+            }
+        end
+
+        local m_attachmentsList = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+        }
+
+        local function RefreshAttachments()
+            local children = {}
+            for i,path in ipairs(m_attachments) do
+                local index = i
+                local fileName = path
+                for j = #path, 1, -1 do
+                    local c = path:sub(j, j)
+                    if c == "/" or c == "\\" then
+                        fileName = path:sub(j + 1)
+                        break
+                    end
+                end
+
+                children[#children + 1] = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    vmargin = 2,
+
+                    gui.Label{
+                        fontSize = 15,
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        text = fileName,
+                    },
+
+                    gui.Button{
+                        classes = {"sizeXs"},
+                        text = "Remove",
+                        valign = "center",
+                        lmargin = 12,
+                        width = 60,
+                        click = function(element)
+                            if m_submitting or m_submitted then
+                                return
+                            end
+                            table.remove(m_attachments, index)
+                            RefreshAttachments()
+                        end,
+                    },
+                }
+            end
+
+            m_attachmentsList.children = children
+        end
+
+        local attachButton = gui.Button{
+            classes = {"sizeM"},
+            text = "Attach File...",
+            halign = "left",
+            tmargin = 12,
+            click = function(element)
+                if m_submitting or m_submitted then
+                    return
+                end
+                dmhub.OpenFileDialog{
+                    id = "bugreportattachment",
+                    prompt = "Choose files to attach to your bug report",
+                    extensions = {},
+                    multiFiles = true,
+                    openFiles = function(paths)
+                        for _,path in ipairs(paths) do
+                            local alreadyAdded = false
+                            for _,existing in ipairs(m_attachments) do
+                                if existing == path then
+                                    alreadyAdded = true
+                                end
+                            end
+                            if not alreadyAdded then
+                                m_attachments[#m_attachments + 1] = path
+                            end
+                        end
+                        RefreshAttachments()
+                    end,
+                }
+            end,
+        }
+
+        local statusLabel = gui.Label{
+            fontSize = 16,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            tmargin = 8,
+            text = "",
+        }
+
+        local submitButton
+
+        submitButton = gui.Button{
+            classes = {"sizeL"},
+            text = "Submit Report",
+            halign = "right",
+            hmargin = 8,
+            click = function(element)
+                if m_submitting or m_submitted then
+                    return
+                end
+
+                local description = descriptionInput.text
+                if description == nil or description == "" then
+                    statusLabel.text = "Please enter a description before submitting."
+                    return
+                end
+
+                m_submitting = true
+                statusLabel.text = "Submitting..."
+
+                report:Submit{
+                    description = description,
+                    type = feedbackType,
+                    includeLog = m_includeLog,
+                    includeScreenshot = m_includeScreenshot,
+                    allowGameEntry = m_allowGameEntry,
+                    contactOnDiscord = m_contactOnDiscord,
+                    mood = m_mood,
+                    attachments = m_attachments,
+                    progress = function(ratio)
+                        if statusLabel.valid and not m_submitted then
+                            statusLabel.text = string.format("Submitting... %d%%", math.floor(ratio * 100 + 0.5))
+                        end
+                    end,
+                    complete = function(reportid)
+                        m_submitting = false
+                        m_submitted = true
+                        if statusLabel.valid then
+                            statusLabel.text = kindInfo.thanks
+                            submitButton:SetClass("hidden", true)
+                        end
+                    end,
+                    error = function(message)
+                        m_submitting = false
+                        if statusLabel.valid then
+                            statusLabel.text = "Could not submit: " .. message
+                        end
+                    end,
+                }
+            end,
+        }
+
+        --Standard X close button pinned to the dialog's top-right corner. It
+        --doubles as the cancel action: cancels the in-flight report (unless it
+        --already submitted) and closes the dialog. Attached to the dialog frame
+        --below (in-game modal / titlescreen panel / fallback modal).
+        local closeButton = gui.Button{
+            classes = {"closeButton"},
+            floating = true,
+            halign = "right",
+            valign = "top",
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                if not m_submitted then
+                    report:Cancel()
+                end
+                CloseDialog()
+            end,
+        }
+
+        --Optional mood picker: five Fluent emoji (angry -> delighted) so the
+        --user can convey how they feel; stored on the report as `mood`. The art
+        --lives at Assets/UIImages/emotes/<mood>.png (run import-ui-images.ps1 +
+        --build for these to resolve).
+        local m_moodButtons = {}
+        local function RefreshMoodSelection()
+            for _,entry in ipairs(m_moodButtons) do
+                entry.panel:SetClass("selected", entry.id == m_mood)
+            end
+        end
+
+        local moodOrder = {
+            { id = "angry", label = "Angry" },
+            { id = "frustrated", label = "Frustrated" },
+            { id = "sad", label = "Sad" },
+            { id = "happy", label = "Happy" },
+            { id = "delighted", label = "Delighted" },
+        }
+
+        local moodButtonPanels = {}
+        for _,opt in ipairs(moodOrder) do
+            local optid = opt.id
+            local btn = gui.Panel{
+                classes = {"moodButton"},
+                bgimage = "emotes/" .. optid .. ".png",
+                bgcolor = "white",
+                --raw gui.Panel does not auto-wrap a string tooltip the way
+                --gui.Check/Button do, so attach the lazy hover handler directly
+                --(a bare `tooltip = string` eagerly creates an orphan panel).
+                hover = gui.Tooltip(opt.label),
+                press = function(element)
+                    m_mood = cond(m_mood == optid, nil, optid)
+                    RefreshMoodSelection()
+                end,
+            }
+            m_moodButtons[#m_moodButtons + 1] = { panel = btn, id = optid }
+            moodButtonPanels[#moodButtonPanels + 1] = btn
+        end
+
+        local moodPickerSection = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            vmargin = 4,
+
+            styles = {
+                { selectors = {"moodButton"}, width = 44, height = 44, hmargin = 6, valign = "center", bgcolor = "white", opacity = 0.5 },
+                { selectors = {"moodButton", "hover"}, opacity = 0.85 },
+                { selectors = {"moodButton", "selected"}, opacity = 1.0, scale = 1.15 },
+            },
+
+            gui.Label{
+                fontSize = 15,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                text = "How are you feeling? (optional)",
+            },
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                tmargin = 4,
+                children = moodButtonPanels,
+            },
+        }
+
+        --assemble the form children explicitly; screenshotSection may be nil and
+        --a nil hole in a positional children list would truncate it.
+        local formChildren = {
+            gui.Label{
+                width = 880,
+                height = "auto",
+                fontSize = 15,
+                textWrap = true,
+                halign = "left",
+                vmargin = 4,
+                text = kindInfo.intro,
+            },
+
+            moodPickerSection,
+
+            descriptionInput,
+        }
+
+        if logCheck ~= nil then
+            formChildren[#formChildren + 1] = logCheck
+        end
+
+        formChildren[#formChildren + 1] = gameEntryCheck
+        formChildren[#formChildren + 1] = discordSection
+
+        if screenshotSection ~= nil then
+            formChildren[#formChildren + 1] = screenshotSection
+        end
+
+        formChildren[#formChildren + 1] = attachButton
+        formChildren[#formChildren + 1] = m_attachmentsList
+
+        local bodyPanel = gui.Panel{
+                width = 940,
+                height = 620,
+                flow = "vertical",
+                halign = "center",
+
+                gui.Panel{
+                    width = "100%",
+                    height = 560,
+                    vscroll = true,
+                    flow = "vertical",
+                    halign = "center",
+
+                    children = formChildren,
+                },
+
+                statusLabel,
+
+                --Single bottom bar: Open Discord pinned to the bottom-left
+                --corner, Submit Report pinned to the bottom-right corner.
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    valign = "bottom",
+                    tmargin = 12,
+
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "left",
+                        valign = "center",
+
+                        gui.Label{
+                            fontSize = 14,
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            text = "You can also discuss bugs with us on the Draw Steel Codex Discord:",
+                        },
+
+                        gui.Button{
+                            classes = {"sizeS"},
+                            text = "Open Discord",
+                            valign = "center",
+                            lmargin = 8,
+                            width = 180,
+                            click = function(element)
+                                dmhub.OpenURL(g_bugReportLink)
+                            end,
+                        },
+                    },
+
+                    submitButton,
+                },
+        }
+
+        if dmhub.inGame and not dmhub.isLobbyGame then
+            m_dialog = gamehud:ModalDialog{
+                title = kindInfo.title,
+
+                --we build our own buttons inside the body so Submit can stay open
+                --while the report uploads.
+                buttons = {},
+
+                bodyPanel,
+            }
+            m_dialog:AddChild(closeButton)
+        else
+            --On the titlescreen there is no gamehud modal stack, so host the
+            --dialog as a floating framed panel on the titlescreen root, like
+            --the other titlescreen dialogs. The panel owns its own theme
+            --cascade, mirroring the frame that gamehud:ModalDialog builds.
+            local root = rawget(_G, "CodexTitlescreenRoot")
+            if root ~= nil and root.valid then
+                m_titlescreenModal = gui.Panel{
+                    classes = {"framedPanel"},
+                    floating = true,
+                    width = 1024,
+                    height = 768,
+                    halign = "center",
+                    valign = "center",
+                    styles = ThemeEngine.GetStyles(),
+
+                    gui.Panel{
+                        width = "100%-32",
+                        height = "100%-32",
+                        flow = "vertical",
+                        halign = "center",
+                        valign = "top",
+
+                        gui.Label{
+                            classes = {"dialogTitle"},
+                            text = kindInfo.title,
+                        },
+
+                        bodyPanel,
+                    },
+                }
+                root:AddChild(m_titlescreenModal)
+                m_titlescreenModal:AddChild(closeButton)
+            else
+                --fallback: no titlescreen root available; use the gamehud modal.
+                local gh = rawget(_G, "gamehud")
+                if gh ~= nil then
+                    m_dialog = gh:ModalDialog{
+                        title = kindInfo.title,
+                        buttons = {},
+                        bodyPanel,
+                    }
+                    m_dialog:AddChild(closeButton)
+                else
+                    report:Cancel()
+                end
+            end
+        end
+    end
 
     local menuBar = gui.Panel{
         id = "menuBarPanel",
@@ -1611,149 +2584,45 @@ local function CreateTopBar()
         },
 
         CreateCodexMenuItem{
-            name = "Bug Reports",
+            name = "Report Feedback",
+            mainmenu = "always",
             menuItems = function()
-                return {
-                    {
-                        text = "How to Report a Bug",
+                --each entry captures the screenshot before the dialog appears,
+                --then shows the dialog for that kind of feedback.
+                local function FeedbackMenuItem(text, feedbackType)
+                    return {
+                        text = text,
                         click = function()
-                            gamehud:ModalDialog{
-                                styles = ThemeEngine.GetStyles(),
-                                title = "Reporting Bugs",
-                                gui.Panel{
-                                    width = 900,
-                                    height = 500,
-                                    vscroll = true,
-                                    flow = "vertical",
-
-                                    gui.Label{
-                                        width = 860,
-                                        height = "auto",
-                                        fontSize = 20,
-                                        bold = true,
-                                        textWrap = true,
-                                        text = "<b>You will be sent to the Draw Steel Codex Discord where you can report bugs.</b>",
-                                        vmargin = 10,
-                                    },
-
-                                    gui.Label{
-                                        width = 860,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        text = "When you encounter a bug, please follow these steps to make your report as helpful as possible:",
-                                        tmargin = 4,
-                                        bmargin = 8,
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Post each bug as a <b>separate post</b> in the #bug-reports channel (click Proceed to go there). This allows us to triage bugs and ensures they are tracked until fixed.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Check if you can <b>consistently reproduce</b> the bug. If so, post an exact set of steps to reproduce it.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Consider posting a video demonstrating the bug for added clarity.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- If a bug occurs, immediately press <b>~</b> (tilde) to open the Codex error log. Include any error message with your report -- a screenshot is usually sufficient and makes the full log file unnecessary.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- The Codex log file is at <b>C:\\Users\\(your username)\\AppData\\LocalLow\\MCDM\\Codex</b> on Windows (press <b>F1</b> in the Codex to open it in Notepad). On Mac it is at <b>Library/Logs/MCDM/Codex/Player.log</b>. The log can be zipped to reduce size. Note it contains a small amount of personal data, so you may prefer to send it privately to a developer.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- If a bug seems specific to one game, post the <b>game invite code</b>. Doing so implicitly gives permission for Codex developers to enter your game to investigate.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- Please check back on your bug reports in case a developer asks for additional information.",
-                                    },
-
-                                    gui.Label{
-                                        width = 840,
-                                        height = "auto",
-                                        fontSize = 15,
-                                        textWrap = true,
-                                        lmargin = 16,
-                                        vmargin = 4,
-                                        text = "- After a bug is resolved, please re-test and reply to confirm whether it is fixed. If not, include the version number you tested with so we can confirm you received the update.",
-                                    },
-                                },
-                                buttons = {
-                                    {
-                                        text = "Proceed",
-                                        click = function()
-                                            dmhub.OpenURL(g_bugReportLink)
-                                        end,
-                                    },
-                                    {
-                                        text = "Copy Link",
-                                        click = function()
-                                            dmhub.CopyToClipboard(g_bugReportLink)
-                                        end,
-                                    },
-                                    {
-                                        text = "Close",
-                                        escapeActivates = true,
-                                    },
-                                },
-                            }
+                            dmhub.BeginBugReport(function(report)
+                                CreateBugReportDialog(report, feedbackType)
+                            end)
                         end,
-                    },
+                    }
+                end
+
+                return {
+                    FeedbackMenuItem("Bug Report", "bug"),
+                    FeedbackMenuItem("Feature Request", "feature"),
+                    FeedbackMenuItem("General Feedback", "feedback"),
                 }
             end,
         },
 
         m_presentationBar,
         CreateStatusBar(),
-        m_searchBar,
+        -- Glyph + search travel as ONE right-aligned cluster: the search box
+        -- floats right and its width tracks the dock scale, so a sibling at a
+        -- flow position drifts away from it as the box narrows. Wrapping both
+        -- keeps the glyph pressed against the box's left edge at any scale
+        -- (James field report, 2026-07-03).
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "100%",
+            halign = "right",
+            m_audioIndicator,
+            m_searchBar,
+        },
     }
 
     local titleBarStyleExtras = {
@@ -1782,6 +2651,15 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
+            hidden = 1,
+        },
+
+        -- Audio indicator glyph (H-BAR): same in-game-only visibility as the
+        -- search box, driven by the same "ingame" class SetClassTree'd onto
+        -- an ancestor (menuBar's think, below). No searchoverride exemption
+        -- -- the glyph has no main-menu equivalent to preserve.
+        {
+            selectors = {"audioIndicator", "~ingame"},
             hidden = 1,
         },
 

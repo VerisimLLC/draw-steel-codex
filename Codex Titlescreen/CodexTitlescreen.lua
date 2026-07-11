@@ -26,6 +26,79 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--Mirror of CodexTitleBar.lua's "dev:storepreview" setting. Settings are
+--keyed by id, so re-declaring it here just gives read access to the same
+--value. Gates the store banner on the selection screen along with the rest
+--of the shop UI.
+local g_devStorePreviewSetting = setting{
+    id = "dev:storepreview",
+    default = false,
+    storage = "preference",
+}
+
+--Selection-screen layout when the store banner is shown: the Director/Player
+--card container (normally 1200 wide = two 500-wide cards + a 200 gap) narrows
+--to pull the cards closer together, shrinks, and shifts up. The banner's
+--width is derived from the container's scaled width so its edges always align
+--exactly with the cards' outer edges.
+local g_selectionCardsBannerWidth = 1133 --500+500 cards + 133 gap (2/3 of the normal 200)
+local g_selectionCardsBannerScale = 0.92
+local g_selectionCardsBannerY = -86
+local g_selectionBannerWidth = math.floor(g_selectionCardsBannerWidth * g_selectionCardsBannerScale + 0.5)
+local g_selectionBannerHeight = 200
+
+--Dice sets showcased in the store banner's mini dice preview (assetids from
+--the shop's Dice items). Each is rendered as its own idle-spinning preview die
+--via a "#DicePreview:<assetid>:<seq>" bgimage (the same pooled mechanism the
+--shop tiles use), so no shared preview scene is involved and the two sets spin
+--independently. Noxa is the larger, forward-center die; Sea of Stars is the
+--smaller one tucked in behind it, so the pair reads as an overlapping arc.
+local g_storeBannerDiceNoxa = "62e2ade2-95a6-493b-81bb-3f9f08cc8312"
+local g_storeBannerDiceSeaOfStars = "8a2a0ab2-d9e2-4ee4-a215-a480033ef6a6"
+
+--Builds one spinning, drag-to-spin preview die for the store banner showcase.
+--opts: assetid (dice set), size (px, square), and placement (halign/valign/x/y).
+--The die idle-spins on its own (pooled preview scene); grabbing it spins it
+--from the cursor via dice.SetPreviewDragging -- mirroring the shop banner die
+--(CodexShopScreen's spinnable dieHit). The SetPreviewDragging call is
+--pcall-guarded so a Lua-only reload against an older binary still shows the
+--spinning die, just not draggable.
+local function MakeStoreBannerDie(opts)
+    --Key shared by the bgimage and the drag calls: "<assetid>:<seq>". The seq
+    --("storebanner") only needs to keep this preview's pooled entry distinct;
+    --the two dice already differ by assetid.
+    local key = string.format("%s:storebanner", opts.assetid)
+    return gui.Panel{
+        floating = true,
+        interactable = true,
+        draggable = true,
+        --Spin only -- never reposition the panel on drag (the die spins in place).
+        dragMove = false,
+        --Keep the normal cursor while draggable so it doesn't flash the
+        --"forbidden" drag cursor (a draggable panel with no drop target).
+        hoverCursor = "default",
+        --Pooled preview RT: transparent outside the die, premultiplied alpha
+        --(needs bgcolor set and blend = "premultiplied", like the shop banner die).
+        bgimage = "#DicePreview:" .. key,
+        bgcolor = "white",
+        blend = "premultiplied",
+        width = opts.size,
+        height = opts.size,
+        halign = opts.halign or "center",
+        valign = opts.valign or "center",
+        x = opts.x or 0,
+        y = opts.y or 0,
+
+        beginDrag = function(element)
+            pcall(function() dice.SetPreviewDragging(key, true) end)
+        end,
+        --Release: stop feeding cursor input; the spin coasts and decays to idle.
+        drag = function(element)
+            pcall(function() dice.SetPreviewDragging(key, false) end)
+        end,
+    }
+end
+
 local function ScaleDimensions(dim)
     return dim * math.max(1, (dmhub.screenDimensions.x / dmhub.screenDimensions.y) / (1920 / 1080))
 end
@@ -4841,12 +4914,14 @@ function CreateTitlescreen(dialog, options)
 
             gui.Panel {
 
-                classes = { 'king-panel' },
+                classes = { 'king-panel', cond(g_devStorePreviewSetting:Get(), "makeRoomForShopBanner") },
 
                 bgimage = true,
                 --bgcolor = "white",
 
-                width = 1200,
+                --width lives in the styles below (not inline) so the
+                --makeRoomForShopBanner variant can narrow it; inline
+                --properties always override styles.
                 height = 700,
 
                 floating = true,
@@ -4854,16 +4929,32 @@ function CreateTitlescreen(dialog, options)
                 halign = "center",
                 valign = "center",
 
+                --When the store banner is shown at the bottom of the screen,
+                --pull the Director/Player cards closer together, shrink them
+                --a little, and shift them to make room for it.
+                multimonitor = { "dev:storepreview" },
+                monitor = function(element)
+                    element:SetClass("makeRoomForShopBanner", g_devStorePreviewSetting:Get())
+                end,
+
                 styles = {
 
                     {
                         classes = { 'king-panel' },
                         hidden = 1,
+                        width = 1200,
                     },
 
                     {
                         classes = { 'parent:selection-screen', 'king-panel' },
                         hidden = 0,
+                    },
+
+                    {
+                        classes = { 'king-panel', 'makeRoomForShopBanner' },
+                        width = g_selectionCardsBannerWidth,
+                        scale = g_selectionCardsBannerScale,
+                        y = g_selectionCardsBannerY,
                     },
 
 
@@ -5059,6 +5150,171 @@ function CreateTitlescreen(dialog, options)
 
 
                 }
+
+            },
+
+            --Store banner across the bottom of the selection screen. Plain
+            --white placeholder for now until real advertising art is ready.
+            --Gated behind the same dev:storepreview flag as the rest of the
+            --shop UI; the Director/Player card container above makes room for
+            --it (makeRoomForShopBanner) under the same gate.
+            gui.Panel {
+
+                --'storeBannerZoom' drives the hover zoom below; it is listed
+                --before the cond so a nil (storepreview on) can't truncate the
+                --array and drop it.
+                classes = { 'king-panel', 'shop-banner', 'storeBannerZoom', cond(g_devStorePreviewSetting:Get(), nil, "collapsed") },
+
+                bgimage = "panels/shop/title-storebanner.png",
+                bgcolor = "white",
+
+                gradient = {
+                    type = "radial",
+                    point_a = { x = 1.4, y = 0.5 },
+                    point_b = { x = 0, y = 1 },
+                    stops = {
+                        { position = 0.0,  color = "#ffffffff" },
+                        { position = 0.65, color = "#ffffffff" },
+                        { position = 1.0,  color = "#000000ff" },
+                    },
+                },
+
+                borderWidth = 1.5,
+                borderColor = "white",
+
+
+                width = g_selectionBannerWidth,
+                height = g_selectionBannerHeight,
+
+                floating = true,
+
+                halign = "center",
+                valign = "bottom",
+                bmargin = 60,
+
+                multimonitor = { "dev:storepreview" },
+                monitor = function(element)
+                    element:SetClass("collapsed", not g_devStorePreviewSetting:Get())
+                end,
+
+                --The whole banner is a button into the store. A click anywhere on
+                --it (background, the STORE button, or a tap on the dice) bubbles
+                --here and opens the shop, hosted on the titlescreen root the same
+                --way CodexTitleBar's OpenShopScreen does at the title screen.
+                --Dragging a die fires beginDrag/drag (never click), so spinning
+                --the dice does NOT open the store.
+                hover = function(element)
+                    audio.FireSoundEvent("Mouse.Hover")
+                end,
+
+                click = function(element)
+                    audio.FireSoundEvent("Mouse.Click")
+                    titlescreen:AddChild(CreateShopScreen{ titlescreen = titlescreen, inventory = false })
+                end,
+
+                styles = {
+
+                    {
+                        classes = { 'king-panel' },
+                        hidden = 1,
+                    },
+
+                    {
+                        classes = { 'parent:selection-screen', 'king-panel' },
+                        hidden = 0,
+                    },
+
+                    --Hover zoom, mirroring the Director/Player cards: inset the
+                    --bgimage UVs a touch so the art scales up to fill, eased over
+                    --a short transition. Only the background art zooms; the dice,
+                    --gradient and border are unaffected.
+                    {
+                        selectors = { "storeBannerZoom", "hover" },
+                        transitionTime = 0.12,
+                        imageRect = { x1 = 0.02, x2 = 0.98, y1 = 0.02, y2 = 0.98 },
+                    },
+                },
+
+                gui.Panel{
+                    halign = "left",
+                    width = "30%",
+                    height = "100%",
+
+                    flow = "vertical",
+                    --Mini dice showcase: two independent spinning preview dice
+                    --arranged as an arc -- Noxa forward and centered (the larger
+                    --die), Sea of Stars smaller, up-and-right, and drawn behind
+                    --it. Both idle-spin and can be grabbed to spin (see
+                    --MakeStoreBannerDie). The container is transparent; the
+                    --floating dice are allowed to sit within it.
+                    gui.Panel{
+                        width = "100%",
+                        height = "60%",
+                        valign = "center",
+                        clip = false,
+
+                        --Back die first so it draws behind the front die.
+                        --Tucked in close to the larger front die and a little
+                        --lower, so the two overlap and the front die reads as
+                        --sitting in front of it.
+                        MakeStoreBannerDie{
+                            assetid = g_storeBannerDiceSeaOfStars,
+                            size = 123,
+                            halign = "center",
+                            valign = "center",
+                            x = 42,
+                            y = -13,
+                        },
+                        MakeStoreBannerDie{
+                            assetid = g_storeBannerDiceNoxa,
+                            size = 173,
+                            halign = "center",
+                            valign = "center",
+                            x = -27,
+                            y = 15,
+                        },
+                    },
+                    gui.Label{
+                        valign = "bottom",
+                        halign = "center",
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 24,
+                        fontFace = "book",
+                        text = "5 NEW DICE!",
+                        bmargin = 8,
+                    },
+                },
+
+                --Store button: a labelled affordance styled like the
+                --DIRECTOR/PLAYER card buttons (panels/titlescreen/button.png at
+                --the same 0.6 scale). It has no click of its own -- a click here
+                --bubbles up to the banner's click above (which opens the store),
+                --so there is a single open-store handler and no double-open.
+                gui.Panel{
+                    floating = true,
+                    bgimage = "panels/titlescreen/button.png",
+                    bgcolor = "white",
+                    height = 131 * 0.6,
+                    width = 632 * 0.6,
+                    halign = "center",
+                    valign = "bottom",
+                    hmargin = 28,
+                    bmargin = 0,
+
+                    gui.Label{
+                        text = "STORE",
+                        fontSize = 30,
+                        fontFace = "newzald",
+                        color = "white",
+                        halign = "center",
+                        valign = "center",
+                        textAlignment = "center",
+                        y = 5,
+                        width = "auto",
+                        interactable = false,
+                    },
+                },
 
             },
 

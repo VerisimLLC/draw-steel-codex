@@ -96,11 +96,21 @@ function GameHud.TokenMoving(self, token, path)
     end
 
     if path.fallDistance > 0 and not path.forced and not path.teleport then
-        statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>You will fall %d squares. Hold shift to climb down instead.</color>"), path.fallDistance)
+        local safe = token.properties ~= nil and token.properties:SafeFallDistance(path.landsInWater) or 0
+        if path.fallDistance <= safe then
+            statusText = statusText .. "\n" .. string.format(tr("<color=#4d9fff>Safely drops %d squares.</color>"), path.fallDistance)
+        else
+            statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
+        end
     end
 
 	if path.teleport then
         local distance = path.origin:DistanceInTiles(path.destination)
+        --Teleport cost is the largest single dimension of the jump. DistanceInTiles only
+        --covers the lateral (x/y) dimensions, so fold in the vertical (altitudeDelta was
+        --computed above): a purely upward teleport is charged for its climb instead of
+        --reading as near-zero distance.
+        distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
 	end
 
@@ -126,7 +136,18 @@ function GameHud.TokenMoving(self, token, path)
 
 	local creature = token.properties
 	if creature ~= nil and (not path.teleport) and (not path.forced) and (not path.shifting) then
-		text = string.format(tr('%s\n%s %s %s %s per round'), text, creature.GetTokenDescription(token), string.lower(creature:CurrentMoveTypeInfo().tense), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+		--How much this move actually spends. Mirror creature:CreatureMove exactly (path.cost/10
+		--with the same diagonal rounding) so the reported "Uses N" matches what will be deducted,
+		--INCLUDING climbing and difficult terrain -- neither of which is visible in the top-line
+		--square count (that uses path.numSteps, the flat tile count).
+		local usedTiles = path.cost/10
+		local newDiagonals = cond(usedTiles > math.floor(usedTiles), 1, 0)
+		usedTiles = math.floor(usedTiles)
+		if dmhub.GetSettingValue("truediagonals") and newDiagonals > 0 and (creature:DiagonalsMovedThisTurn()%2) == 1 then
+			usedTiles = usedTiles + 1
+		end
+
+		text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(usedTiles*dmhub.FeetPerTile), creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
 
 		if walkAndSwim then
 			local otherMode = "walk"
@@ -196,49 +217,84 @@ function GameHud.TokenMoving(self, token, path)
         text = path.properties.overrideText
     end
 
-	--calculate how it should be aligned, trying to avoid the tooltip going over the arrow or the creature.
-	local halign = 'center'
-	local valign = 'center'
+	--Place the movement tooltip so it can NEVER cover the moving token, the destination, or any part of
+	--the arrow. We build the axis-aligned bounding box of the WHOLE path -- every tile the mover steps
+	--through, each expanded by the mover's footprint (so both end tokens sit fully inside) plus a little
+	--for the arrow ribbon -- and then place the tooltip entirely OUTSIDE that box on one of its four
+	--sides. Anchoring at the box EDGE (rather than the old midpoint + perpendicular nudge) pins the
+	--tooltip's near, box-facing edge to the box boundary independent of the tooltip's size, so it clears
+	--the entire path at any move angle or length; it also removes the one-frame size-lag wobble the old
+	--version had (where the previously hovered tile appeared to influence the placement). We choose the
+	--side with the most room for the tooltip, computed from the camera's usable world bounds (the same
+	--rect Panel.ShowTooltip clamps to) so the on-screen clamp won't drag it back over the box. Everything
+	--here is in world coordinates: PosAtLoc, cameraUsableBounds and the ShowTooltip anchor share that
+	--space (valign 'top' = higher world y, halign 'right' = higher world x).
 
-
-	local dest = path.destination
-
-	if dest.x > path.origin.x then
-		valign = 'top'
-	end
-
-	if dest.x < path.origin.x then
-		valign = 'top'
-	end
-
-	if dest.y > path.origin.y then
-		valign = 'top'
-	end
-
-	if dest.y < path.origin.y then
-		valign = 'bottom'
-	end
-
-	--for large tokens make sure the tooltip appears well off the creature.
-	local locsOccupied = token:LocsOccupyingWhenAt(dest)
-	if locsOccupied ~= nil and #locsOccupied > 1 then
-		for _,loc in ipairs(locsOccupied) do
-			if valign == "top" and loc.y > dest.y then
-				dest = loc
-			end
-
-			if valign == "bottom" and loc.y < dest.y then
-				dest = loc
-			end
+	--Bounding box of the whole path, expanded by the mover's footprint (+ a bit for the arrow ribbon).
+	local pad = (token.tileSize or 1)*0.5 + 0.15
+	local minx, miny, maxx, maxy = nil, nil, nil, nil
+	for _,step in ipairs(path.steps) do
+		local p = token:PosAtLoc(step)
+		if minx == nil then
+			minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+		else
+			if p.x < minx then minx = p.x elseif p.x > maxx then maxx = p.x end
+			if p.y < miny then miny = p.y elseif p.y > maxy then maxy = p.y end
 		end
 	end
+	if minx == nil then
+		local p = token:PosAtLoc(path.destination)
+		minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+	end
+	minx, miny, maxx, maxy = minx - pad, miny - pad, maxx + pad, maxy + pad
 
+	local cx = (minx + maxx)*0.5
+	local cy = (miny + maxy)*0.5
+	local gap = 0.3
+
+	--rough OVER-estimate of the tooltip's world size (text + diagram), used only to pick the roomiest
+	--side. Over-estimating is safe: it just biases us away from a side that is too tight.
+	local worldPerPixel = 0.1
+	local screenDims = dmhub.screenDimensions
+	if dmhub.cameraZoom ~= nil and screenDims ~= nil and screenDims.y > 0 then
+		worldPerPixel = (dmhub.cameraZoom*2) / screenDims.y
+	end
+	local ttW = 430 * worldPerPixel
+	local ttH = 640 * worldPerPixel
+
+	--Four candidate placements: tooltip fully outside the box, one per side. `slack` is how much room is
+	--left over after fitting the tooltip on that side (positive = fits without the clamp shoving it back).
+	local halign, valign, anchorx, anchory
+	local bounds = dmhub.cameraUsableBounds
+	if bounds == nil then
+		halign, valign, anchorx, anchory = 'right', 'center', maxx + gap, cy
+	else
+		local candidates = {
+			{ slack = (bounds.x2 - maxx) - ttW, halign = 'right',  valign = 'center', anchorx = maxx + gap, anchory = cy },
+			{ slack = (minx - bounds.x1) - ttW, halign = 'left',   valign = 'center', anchorx = minx - gap, anchory = cy },
+			{ slack = (bounds.y2 - maxy) - ttH, halign = 'center', valign = 'top',    anchorx = cx, anchory = maxy + gap },
+			{ slack = (miny - bounds.y1) - ttH, halign = 'center', valign = 'bottom', anchorx = cx, anchory = miny - gap },
+		}
+		local best = candidates[1]
+		for i = 2, #candidates do
+			if candidates[i].slack > best.slack then best = candidates[i] end
+		end
+		halign, valign, anchorx, anchory = best.halign, best.valign, best.anchorx, best.anchory
+	end
 
 	self.dialog.sheet:FireEvent("tiletooltip", {
-		loc = dest,
+		--anchor at the chosen edge of the path bounding box (a world-space point, which
+		--FloatTooltipNearTile accepts as well as a Loc); halign/valign then push the tooltip off that
+		--edge, away from the box.
+		loc = core.Vector2(anchorx, anchory),
 		text = text,
 		halign = halign,
 		valign = valign,
 		floorDelta = floorDelta,
+
+		--used by the movement cross-section diagram in the tooltip
+		--(see CreateMovementDiagramPanel in GameHud.lua).
+		movingToken = token,
+		movingPath = path,
 	})
 end

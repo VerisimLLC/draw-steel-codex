@@ -270,9 +270,24 @@ CharacterModifier.TypeInfo.power = {
 		if modifier:try_get("hasCustomTrigger", false) and modifier:has_key("customTrigger") then
             local token = dmhub.LookupToken(creature)
 
-            
+
             print("TRIGGER:: TRIGGER", token.charid)
-			modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+            --Deferred until the casts currently resolving on this client
+            --complete (see ActivatedAbility.RunWhenCastsComplete): a custom
+            --trigger activated from the roll dialog (e.g. In All This
+            --Confusion's teleport) resolves after the triggering ability
+            --finishes (damage, forced movement), not mid-cast. Deferring here,
+            --at the source, also covers the locally-controlled-target case,
+            --where the invoke behavior runs ExecuteInvoke directly instead of
+            --going through the (already deferred) remoteInvokes queue. It also
+            --lifts the trigger's cast out of the ModifyProperties execute
+            --block this runs inside (see ConsumeResource in DSRollDialog).
+            ActivatedAbility.RunWhenCastsComplete(function()
+                if token == nil or not token.valid then
+                    return
+                end
+                modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+            end)
 		end
 
         if modifier:has_key("baseModifier") and (modifier:try_get("gobefore", false)) and (not modifier:try_get("overridebase", false)) then

@@ -450,6 +450,8 @@ ThemeEngine.RegisterTheme{
             bgimage = true,
             fontFace = "@label",
             fontSize = 16,
+            minFontSize = 10,
+            textWrap = false,
             textAlignment = "center",
             color = "@fg",
             bgcolor = "@bg",
@@ -1248,10 +1250,22 @@ ThemeEngine.RegisterTheme{
             borderColor = "@borderInverse",
             priority = 5,
         },
+        -- Non-bordered iconButtons carry no bgimage on the outer chrome, so the
+        -- @accent fill from {"iconButton","selected"} above never paints -- the
+        -- only visible pixels are the icon. Tint the icon to @accent so the
+        -- selected glyph reads as the highlight color, instead of knocking out
+        -- to @bg (which is near-invisible against a dark UI). Bordered pills
+        -- override this just below to keep the filled-accent-pill + bg-knockout
+        -- icon look, since their outer chrome is a paintable surface.
         {
             selectors = {"panel", "buttonIcon", "parent:selected"},
-            bgcolor = "@bg",
+            bgcolor = "@accent",
             priority = 5,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:selected", "parent:bordered"},
+            bgcolor = "@bg",
+            priority = 6,
         },
 
         --[[
@@ -1839,7 +1853,7 @@ ThemeEngine.RegisterTheme{
             selectors = {"label", "modalMessage"},
             halign = "center",
             valign = "center",
-            textAlignment = "left",
+            textAlignment = "center",
             width = "80%",
             height = "auto",
             fontSize = 18,
@@ -2295,6 +2309,7 @@ ThemeEngine.RegisterTheme{
         { selectors = {"featureCardBody"},     cornerRadius = 0 },
 
         { selectors = {"label", "button"},        cornerRadius = 0 },
+        { selectors = {"iconButton"},             cornerRadius = 0 },
         { selectors = {"input"},                  cornerRadius = 0 },
         { selectors = {"searchInput"},            cornerRadius = 0 },
         { selectors = {"dropdown"},               cornerRadius = 0 },
@@ -2346,6 +2361,7 @@ ThemeEngine.RegisterTheme{
 
         -- Interactive controls
         { selectors = {"label", "button"},        cornerRadius = 5 },
+        { selectors = {"iconButton"},             cornerRadius = 5 },
         { selectors = {"input"},                  cornerRadius = 5 },
         { selectors = {"searchInput"},            cornerRadius = 5 },
         { selectors = {"dropdown"},               cornerRadius = 5 },

@@ -287,8 +287,19 @@ end
 --- Builds a popup tree view of the journal hierarchy
 --- @param currentDocId string The ID of the currently displayed document
 --- @param dialogPanel Panel The dialog panel with navigation handlers
+--- @param opts nil|{onPick: fun(docId: string), onNewDocument: fun(typeInfo: table)}
+---   onPick: picking a document calls this instead of navigating dialogPanel
+---   (the tab bar's + uses it to open the pick in a new tab). onNewDocument:
+---   when set, a "New Document" entry heads the popup; it expands to the
+---   registered document types and picking one calls this.
 --- @return Panel The popup panel
-local function buildJournalTree(currentDocId, dialogPanel)
+local function buildJournalTree(currentDocId, dialogPanel, opts)
+    --pick-once latch: a single physical click can deliver press more than
+    --once while the popup is being torn down mid-dispatch (observed with the
+    --tab bar's + popup: one click on a create row made two documents). Any
+    --picking action arms this and further picks are ignored; the popup is
+    --closing anyway.
+    local m_pickHandled = false
     -- Built-in root folders
     local builtinRoots = {}
     builtinRoots["public"] = { description = "Shared Documents", parentFolder = "" }
@@ -438,6 +449,12 @@ local function buildJournalTree(currentDocId, dialogPanel)
                         { selectors = {"hover"}, bgcolor = "@fgMuted" },
                     }),
                     press = function(element)
+                        if m_pickHandled then return end
+                        if opts ~= nil and opts.onPick ~= nil then
+                            m_pickHandled = true
+                            opts.onPick(member.id)
+                            return
+                        end
                         if member.id == currentDocId then return end
                         if dialogPanel and dialogPanel.data then
                             dialogPanel:FireEvent("navigateToDocument", member.id)
@@ -487,8 +504,79 @@ local function buildJournalTree(currentDocId, dialogPanel)
         end
     end
 
-    if #rootChildren == 0 then
+    if #rootChildren == 0 and (opts == nil or opts.onNewDocument == nil) then
         return nil
+    end
+
+    --"New Document" heads the popup when the caller can create documents:
+    --a row with an expando arrow that unfolds the registered document
+    --types, so a type can be picked right here without the create dialog.
+    local headerPanels = {}
+    if opts ~= nil and opts.onNewDocument ~= nil then
+        local typeRows = {}
+        local sortedTypes = {}
+        for _, v in pairs(CustomDocument.documentTypes) do
+            sortedTypes[#sortedTypes + 1] = v
+        end
+        table.sort(sortedTypes, function(a, b) return (a.text or "") < (b.text or "") end)
+        for _, v in ipairs(sortedTypes) do
+            typeRows[#typeRows + 1] = gui.Panel {
+                width = "100%",
+                height = 22,
+                flow = "horizontal",
+                halign = "left",
+                valign = "center",
+                bgimage = "panels/square.png",
+                styles = ThemeEngine.MergeTokens({
+                    { bgcolor = "clear" },
+                    { selectors = {"hover"}, bgcolor = "@fgMuted" },
+                }),
+                press = function(element)
+                    if m_pickHandled then return end
+                    m_pickHandled = true
+                    opts.onNewDocument(v)
+                end,
+                gui.Panel {
+                    bgimage = "icons/icon_app/icon_app_107.png",
+                    bgcolor = "#aaaaaa",
+                    width = 14,
+                    height = 14,
+                    valign = "center",
+                    lmargin = 4,
+                },
+                gui.Label {
+                    text = v.text,
+                    fontSize = 12,
+                    color = "#cccccc",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 4,
+                    textWrap = false,
+                },
+            }
+        end
+
+        headerPanels[#headerPanels + 1] = buildFolderEntry("newdocument", "New Document", false, typeRows)
+        --hairline separating the create entry from the journal tree.
+        headerPanels[#headerPanels + 1] = gui.Panel {
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            classes = {"border"},
+            styles = ThemeEngine.MergeTokens({
+                { bgcolor = "@border" },
+            }),
+            vmargin = 3,
+        }
+    end
+
+    local popupChildren = {}
+    for _, p in ipairs(headerPanels) do
+        popupChildren[#popupChildren + 1] = p
+    end
+    for _, p in ipairs(rootChildren) do
+        popupChildren[#popupChildren + 1] = p
     end
 
     return gui.Panel {
@@ -523,7 +611,7 @@ local function buildJournalTree(currentDocId, dialogPanel)
                 maxHeight = 392,
                 flow = "vertical",
                 vscroll = true,
-                children = rootChildren,
+                children = popupChildren,
             },
         },
     }
@@ -1827,6 +1915,69 @@ function CustomDocument.GetOrCreateTabbedViewer()
         },
     }
 
+    --Chrome-style + after the last tab: opens the journal-tree popup (the
+    --same tree the breadcrumb shows) headed by a "New Document" entry that
+    --unfolds the document types. Picking a document opens it in a new tab;
+    --picking a type creates the document immediately (no create dialog -
+    --it opens in edit mode ready to be named) with the same ownership
+    --rules as the journal panel's + button.
+    local newTabButton = gui.Label {
+        classes = {"panel", "tab", "journalTab"},
+        text = "+",
+        fontSize = 18,
+        color = "#7a7468",
+        textAlignment = "center",
+        width = TAB_HEIGHT,
+        height = TAB_HEIGHT,
+        halign = "left",
+        valign = "bottom",
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+
+            --highlight the active tab's document in the tree.
+            local currentDocId = nil
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil and v.data ~= nil then
+                for _, tab in ipairs(v.data.tabs or {}) do
+                    if tab.tabId == v.data.activeTabId then
+                        currentDocId = tab.docId
+                        break
+                    end
+                end
+            end
+
+            element.popupPositioning = "panel"
+            element.popup = buildJournalTree(currentDocId, nil, {
+                onPick = function(docId)
+                    element.popup = nil
+                    local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[docId]
+                    if doc ~= nil then
+                        doc:ShowDocument()
+                    end
+                end,
+                onNewDocument = function(typeInfo)
+                    element.popup = nil
+                    local doc = typeInfo.create()
+                    doc.id = dmhub.GenerateGuid()
+                    if not dmhub.isDM then
+                        doc.ownerid = dmhub.loginUserid
+                        doc.parentFolder = dmhub.loginUserid
+                    else
+                        doc.parentFolder = "private"
+                    end
+                    doc:Upload()
+                    doc:ShowDocument{edit = true}
+                end,
+            })
+        end,
+        linger = function(element)
+            gui.Tooltip("Open or create a document")(element)
+        end,
+    }
+
     local tabBar = gui.Panel {
         classes = {"tabContainer"},
         height = "auto",
@@ -1836,6 +1987,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         bgcolor = "#0a0a0b",
         styles = ThemeEngine.MergeTokens(dsTabStyles),
         tabButtonsPanel,
+        newTabButton,
         tabArrowsPanel,
     }
 

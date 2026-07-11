@@ -74,6 +74,136 @@ function MapDocument:PreviewDescription()
     end
 end
 
+--A link to an info bubble on a map ("bubble:Room 1" or
+--"bubble:Map Name/Room 1"). Hovering the link previews the bubble's journal
+--document; clicking travels to the bubble's map if needed, centers the
+--camera on the bubble (on engine builds that support loc-based camera
+--moves), and opens the bubble's info dialog - the same one clicking the
+--bubble on the map shows.
+RegisterGameType("BubbleDocument", "CustomDocument")
+BubbleDocument.mapid = ""      --"" = the current map
+BubbleDocument.bubblename = "" --matched against bubble icon and description
+BubbleDocument.nodeType = "bubble"
+
+--Find a bubble on the CURRENT map by id, icon, or description (bubbles on
+--other maps are not enumerable; travel first). Exact matches win over
+--substring matches so "bubble:1" picks bubble 1, not bubble 11.
+function BubbleDocument.FindBubble(name)
+    local lname = string.lower(tostring(name or ""))
+    if lname == "" then
+        return nil
+    end
+    local substringMatch = nil
+    for id, b in pairs(dmhub.infoBubbles or {}) do
+        local icon, desc = "", ""
+        pcall(function() icon = string.lower(tostring(b.icon or "")) end)
+        pcall(function() desc = string.lower(tostring(b.description or "")) end)
+        if id == name or icon == lname or desc == lname then
+            return b
+        end
+        if substringMatch == nil and #desc > 0 and string.find(desc, lname, 1, true) then
+            substringMatch = b
+        end
+    end
+    return substringMatch
+end
+
+function BubbleDocument:GetBubble()
+    if self.mapid ~= "" and game.currentMapId ~= self.mapid then
+        return nil
+    end
+    return BubbleDocument.FindBubble(self.bubblename)
+end
+
+--The journal document behind the bubble (InfoDocument.docid). Drives the
+--hover preview; nil when the bubble is on another map or has no document.
+function BubbleDocument:GetMarkdownDocument()
+    local bubble = self:GetBubble()
+    if bubble == nil then
+        return nil
+    end
+    local doc = nil
+    pcall(function()
+        if bubble.document ~= nil and bubble.document.docid then
+            doc = (dmhub.GetTable(CustomDocument.tableName) or {})[bubble.document.docid]
+        end
+    end)
+    return doc
+end
+
+local function FocusBubble(bubble)
+    if bubble == nil then
+        return
+    end
+    --Center the camera on the bubble. CenterOnLoc does not exist on older
+    --engine builds and the bubble's world position comes off its hud sheet,
+    --so the whole move is best-effort; the info dialog opens regardless.
+    pcall(function()
+        local p = bubble.sheet.sheet.positionInWorldSpace
+        dmhub.CenterOnLoc{ x = p.x, y = p.y, floorid = bubble.floorid, smooth = true }
+    end)
+    local hud = GameHud.instance
+    if hud ~= nil then
+        hud:DisplayDocument(bubble)
+    end
+end
+
+function BubbleDocument:ShowDocument()
+    if self.mapid ~= "" and game.currentMapId ~= self.mapid then
+        for _, map in ipairs(game.maps) do
+            if map.id == self.mapid then
+                map:Travel()
+                break
+            end
+        end
+        --bubbles populate asynchronously after the map loads; wait for ours
+        --(bounded so a renamed/deleted bubble cannot leave a pending watcher).
+        local bubblename = self.bubblename
+        local deadline = dmhub.Time() + 10
+        dmhub.ScheduleWhen(function()
+            if mod.unloaded or dmhub.Time() > deadline then
+                return true
+            end
+            return BubbleDocument.FindBubble(bubblename) ~= nil
+        end, function()
+            if mod.unloaded then return end
+            FocusBubble(BubbleDocument.FindBubble(bubblename))
+        end)
+    else
+        FocusBubble(self:GetBubble())
+    end
+end
+
+--Hover preview: render the bubble's journal page inline (the same panel a
+--[:...] page embed shows), so mousing over the link reads the room info
+--without going anywhere. Falls back to PreviewDescription when the bubble
+--is on another map (not enumerable from here) or carries no document.
+function BubbleDocument:Render(args)
+    local doc = self:GetMarkdownDocument()
+    if doc == nil then
+        return nil
+    end
+    return CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = 2 })
+end
+
+function BubbleDocument:PreviewDescription()
+    if self.mapid ~= "" and game.currentMapId ~= self.mapid then
+        for _, map in ipairs(game.maps) do
+            if map.id == self.mapid then
+                return string.format("Click to go to the '%s' bubble on %s", self.bubblename, map.description)
+            end
+        end
+        return "Cannot find the linked map"
+    end
+    local bubble = self:GetBubble()
+    if bubble == nil then
+        return string.format("No bubble named '%s' on this map", self.bubblename)
+    end
+    local desc = ""
+    pcall(function() desc = tostring(bubble.description or "") end)
+    return string.format("Click to view %s", desc ~= "" and desc or "this bubble")
+end
+
 function CustomDocument.PreviewLink(element, link)
     if string.starts_with(link, "http://") or string.starts_with(link, "https://") then
         gui.Tooltip("Click to open this link in your web browser")(element)
@@ -256,6 +386,27 @@ function CustomDocument.SearchLinks(search)
                     }
                 end
             end
+            return results
+        end
+
+        if prefixStr == "bubble" and isDM then
+            --info bubbles on the current map only; bubbles on other maps are
+            --not enumerable (link those by hand as bubble:Map Name/Bubble).
+            local results = {}
+            for id, b in pairs(dmhub.infoBubbles or {}) do
+                local desc, icon = "", ""
+                pcall(function() desc = tostring(b.description or "") end)
+                pcall(function() icon = tostring(b.icon or "") end)
+                local name = desc ~= "" and desc or icon
+                if name ~= "" and (#rest == 0 or string.find(string.lower(name), rest, 1, true)) then
+                    results[#results+1] = {
+                        link = "bubble:" .. name,
+                        name = string.format("%s (bubble %s)", name, icon),
+                        type = "Bubble",
+                    }
+                end
+            end
+            table.sort(results, function(a, b) return a.name < b.name end)
             return results
         end
     end
@@ -455,6 +606,36 @@ function CustomDocument.ResolveLink(link)
             end
         end
         return doc
+    end
+
+    if string.starts_with(link, "bubble:") then
+        --"bubble:Room 1" (current map) or "bubble:Map Name/Room 1".
+        local rest = string.sub(link, 8)
+        local mapname, bubblename = string.match(rest, "^(.-)%s*/%s*(.+)$")
+        if bubblename == nil then
+            mapname, bubblename = nil, rest
+        end
+
+        if mapname ~= nil and mapname ~= "" then
+            for _, map in ipairs(game.maps) do
+                if map.id == mapname or string.lower(map.description) == mapname then
+                    --cross-map bubbles are not enumerable until the map loads,
+                    --so resolve optimistically; ShowDocument travels and waits.
+                    return BubbleDocument.new{
+                        mapid = map.id,
+                        bubblename = bubblename,
+                    }
+                end
+            end
+            return nil
+        end
+
+        if BubbleDocument.FindBubble(bubblename) == nil then
+            return nil
+        end
+        return BubbleDocument.new{
+            bubblename = bubblename,
+        }
     end
 
     if string.starts_with(link, "map:") then

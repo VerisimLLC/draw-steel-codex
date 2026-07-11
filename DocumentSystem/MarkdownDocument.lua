@@ -4072,6 +4072,7 @@ local function CreateMarkdownAutocomplete(opts)
         ["PDF Document"] = "implStatus2",
         ["PDF Fragment"] = "implStatus2",
         ["Map"]          = "implStatus3",
+        ["Bubble"]       = "implStatus3",
         ["item"]         = "implStatus4",
         ["title"]        = "implStatus4",
         ["monster"]      = "implStatus0",

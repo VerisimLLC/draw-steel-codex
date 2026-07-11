@@ -18,6 +18,7 @@ function RichEncounter.CreateDisplay(self)
 
     local m_balancedEncounter = self.encounter:CloneForNumberOfHeroes()
     local m_open = false
+    local m_palSignature = nil --page-skin palette applied to the chrome (nil = app theme)
 
     --party strength for the difficulty pill and EV/budget readout. This must
     --agree with the encounter builder: the hero COUNT comes from the numheroes
@@ -589,9 +590,14 @@ function RichEncounter.CreateDisplay(self)
         },
     }
 
-    resultPanel = gui.Panel{
-        classes = {"encounterWidget"},
-        styles = ThemeEngine.MergeTokens({
+    --the widget's chrome. With no palette this is the app-theme look;
+    --with a page palette (from the host sheet, see PageSkinPalette) the
+    --neutral chrome is overridden to sit on the page while the semantic
+    --difficulty-tier colors stay as authored. Overrides are appended so
+    --they win over the base entries; the tier rules keep winning over
+    --the plain pill override by selector count.
+    local function WidgetStyles(pal)
+        local styles = {
             {
                 selectors = {"encounterWidget"},
                 bgcolor = "@bg",
@@ -677,7 +683,31 @@ function RichEncounter.CreateDisplay(self)
                 --points (the radius exceeds the geometry's semicircle cap).
                 cornerRadius = 10,
             },
-        }),
+        }
+
+        if pal ~= nil then
+            --broad ink rule first so the specific rules below still win;
+            --~button: action buttons keep their themed label color.
+            styles[#styles + 1] = { selectors = {"label", "~button"}, color = pal.ink }
+            styles[#styles + 1] = { selectors = {"encounterWidget"}, bgcolor = pal.page, borderColor = pal.border }
+            styles[#styles + 1] = { selectors = {"encounterWidget", "focus"}, borderColor = pal.accent }
+            styles[#styles + 1] = { selectors = {"encounterWidgetHead", "hover"}, bgcolor = pal.wash }
+            styles[#styles + 1] = { selectors = {"encounterWidgetHead", "open"}, bgcolor = pal.wash }
+            styles[#styles + 1] = { selectors = {"encounterWidgetDivider"}, bgcolor = pal.hairline }
+            styles[#styles + 1] = { selectors = {"encounterWidgetCaption"}, color = pal.muted }
+            styles[#styles + 1] = { selectors = {"encounterWidgetEV"}, color = pal.link }
+            styles[#styles + 1] = { selectors = {"encounterWidgetLink"}, color = pal.link }
+            styles[#styles + 1] = { selectors = {"encounterWidgetLink", "hover"}, color = pal.accent }
+            styles[#styles + 1] = { selectors = {"encounterWidgetPill"}, color = pal.ink, borderColor = pal.border }
+            styles[#styles + 1] = { selectors = {"encounterWidgetChip"}, bgcolor = pal.wash, borderColor = pal.hairline }
+        end
+
+        return ThemeEngine.MergeTokens(styles)
+    end
+
+    resultPanel = gui.Panel{
+        classes = {"encounterWidget"},
+        styles = WidgetStyles(nil),
         flow = "vertical",
         width = "98%",
         maxWidth = 720,
@@ -959,6 +989,16 @@ function RichEncounter.CreateDisplay(self)
             self = tag or self
             element.data.encounter = self.encounter
             m_balancedEncounter = self.encounter:CloneForNumberOfHeroes()
+
+            --match the host sheet's page (opt-in; nil palette = app theme).
+            --Only reassign styles when the palette actually changes so the
+            --default case and steady-state renders stay no-ops.
+            local pal = MarkdownDocument.PageSkinPalette(self:GetDocument())
+            local sig = pal ~= nil and (pal.page .. "/" .. pal.ink .. "/" .. pal.accent) or nil
+            if sig ~= m_palSignature then
+                m_palSignature = sig
+                element.styles = WidgetStyles(pal)
+            end
         end,
 
         multimonitor = {"numheroes"},

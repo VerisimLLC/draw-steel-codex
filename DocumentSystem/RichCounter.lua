@@ -9,12 +9,33 @@ function RichCounter.CreateDisplay(self)
     local resultPanel
 
     local m_token
+    local m_styled = false
 
     resultPanel = gui.Panel{
         classes = {"richCounterFrame", "bg", "fgStrong"},
         width = 64,
         height = 30,
         halign = "left",
+
+        --match the host sheet's page instead of the app theme (opt-in:
+        --PageSkinPalette returns nil for default-skin docs, and clearing
+        --styles only when we previously applied them keeps the default
+        --case a true no-op). refreshTag fires every render, so live
+        --stylesheet edits flow through.
+        refreshTag = function(element, tag, match, token)
+            local pal = MarkdownDocument.PageSkinPalette((tag or self):GetDocument())
+            if pal ~= nil then
+                element.styles = {
+                    { selectors = {"richCounterFrame"}, bgcolor = pal.page },
+                    { selectors = {"label"}, color = pal.ink, borderColor = pal.border },
+                }
+                m_styled = true
+            elseif m_styled then
+                element.styles = {}
+                m_styled = false
+            end
+        end,
+
         gui.Label{
             styles = {
                 {

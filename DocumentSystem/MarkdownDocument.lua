@@ -1335,6 +1335,50 @@ function MarkdownDocument.RegisterRichTag(info)
     MarkdownDocument.RichTagRegistry[info.tag] = info
 end
 
+--Page-aware widget palette: rich-tag widgets call this from refreshTag so
+--their chrome matches the host sheet's page instead of the app theme.
+--Opt-in by the sheet: returns nil unless the resolved stylesheet defines
+--its own page background (page.bgcolor), so default-skin documents keep
+--the engine look untouched. Widget-specific semantic colors (difficulty
+--tiers etc.) are NOT part of the palette and stay as authored.
+--Mirrors the precedence RichCheckbox established: the page color is the
+--fill, the sheet's bullet color (its established accent, falling back to
+--link then body) is the accent, and the body color is the ink.
+function MarkdownDocument.PageSkinPalette(doc)
+    if doc == nil then return nil end
+    local ok, resolved = pcall(function() return doc:GetResolvedStylesheet() end)
+    if not ok or resolved == nil then return nil end
+    local base = resolved.base or {}
+    local page = SkinColor((base.page or {}).bgcolor)
+    if page == nil then return nil end
+
+    local ink = SkinColor((base.body or {}).color) or "#241f17"
+    local accent = SkinColor((base.bullet or {}).color)
+        or SkinColor((base.link or {}).color)
+        or ink
+    local link = SkinColor((base.link or {}).color) or accent
+
+    --derive translucent tints from the ink; only #rrggbb colors can take
+    --an alpha suffix, anything else is used as-is.
+    local function tint(c, a)
+        if type(c) == "string" and c:match("^#%x%x%x%x%x%x$") then
+            return c .. a
+        end
+        return c
+    end
+
+    return {
+        page = page,               --widget fill: sits on the page
+        ink = ink,                 --primary text
+        muted = tint(ink, "aa"),   --captions, secondary text
+        border = tint(ink, "55"),  --widget borders
+        hairline = tint(ink, "26"),--dividers
+        wash = tint(ink, "14"),    --hover / chip fills
+        accent = accent,
+        link = link,
+    }
+end
+
 local function StripSpoilers(text)
     local result = ""
     local i, depth = 1, 0
@@ -1832,7 +1876,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             str = ""
         end
 
-        local collapseNodeMatch = regex.MatchGroups(str, "^\\+ (?<title>['\"a-zA-Z0-9-_ ]+)$")
+        --title charset includes common punctuation: a title like
+        --"CUE - Reinforcement, round 2" must still form a card; before
+        --commas were allowed, such lines silently fell through and
+        --rendered as literal "+ ..." body text.
+        local collapseNodeMatch = regex.MatchGroups(str, "^\\+ (?<title>['\"a-zA-Z0-9-_,.:()!? ]+)$")
         if collapseNodeMatch ~= nil and lines[i + 1] ~= nil then
             local leading = string.match(lines[i + 1], "^(%s*)")
             if #leading > 0 then

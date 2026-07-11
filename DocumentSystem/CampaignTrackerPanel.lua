@@ -933,6 +933,17 @@ function RunAgenda.AddDocument(doc)
     }
 end
 
+--scripting hooks: read or replace the whole agenda from the console or
+--tooling. The Run panel monitors the shared document, so a SetItems
+--refreshes every open view.
+function RunAgenda.GetItems()
+    return DeepCopy(GetRunItems())
+end
+
+function RunAgenda.SetItems(items, description)
+    SaveRunItems(items, description or "Edit the run")
+end
+
 --Find the item by id and hand (items, index) to fn to mutate, then persist.
 local function MutateRunItems(itemid, description, fn)
     local items = DeepCopy(GetRunItems())
@@ -1937,6 +1948,7 @@ function RichExit.CreateDisplay(self)
     local exitid = self:try_get("id") or "exit"
 
     local m_taken = CampaignState.IsExitTaken(exitid)
+    local m_pageStyled = false
 
     local takeButton
     local statusLabel
@@ -2041,6 +2053,29 @@ function RichExit.CreateDisplay(self)
         refreshTag = function(element, tag, match, token)
             self = tag or self
             element:SetClass("collapsed", token ~= nil and token.player == true)
+
+            --match the host sheet's page instead of the app theme (opt-in:
+            --nil palette for default-skin docs keeps the engine look; the
+            --themed action buttons stay as-is, they are interactive chrome,
+            --not page furniture). Checkbox skin mirrors RichCheckbox.
+            local pal = MarkdownDocument.PageSkinPalette(self:GetDocument())
+            if pal ~= nil then
+                element.styles = {
+                    { selectors = {"bordered"}, bgcolor = pal.page, borderColor = pal.border },
+                    --~button: action buttons keep their themed label color.
+                    { selectors = {"label", "~button"}, color = pal.ink },
+                    { selectors = {"fgStrong", "~button"}, color = pal.ink },
+                    { selectors = {"fgMuted", "~button"}, color = pal.muted },
+                    { selectors = {"checkBackground"}, bgcolor = pal.page, borderColor = pal.accent, borderWidth = 2 },
+                    { selectors = {"checkMark"}, bgcolor = pal.accent },
+                    { selectors = {"checkboxLabel"}, color = pal.ink },
+                }
+                m_pageStyled = true
+            elseif m_pageStyled then
+                element.styles = {}
+                m_pageStyled = false
+            end
+
             RefreshTakenState()
         end,
 

@@ -1392,6 +1392,9 @@ end
 --passed at construction; assigning them on an existing panel is a no-op.
 function GameHud:InitStandaloneRollHost(hostPanel)
     local innerPanel
+    --Set once the mounted dialog has been seen shown; the shown -> hidden
+    --transition is the close signal (Proceed/Cancel only hide the dialog).
+    local childWasShown = false
     innerPanel = gui.Panel{
         width = "100%",
         height = "auto",
@@ -1400,15 +1403,35 @@ function GameHud:InitStandaloneRollHost(hostPanel)
         flow = "vertical",
 
         embedRollDialog = function(element, dialog)
+            childWasShown = false
             element.children = { dialog }
         end,
 
-        --Poll to clear the mounted dialog after it hides itself. No
-        --upward-traveling close event exists to listen for.
+        --Poll to tear down the mounted dialog after it hides itself. No
+        --upward-traveling close event exists to listen for. Destroying (not
+        --just leaving it hidden) matters: the dialog's dice cage stays
+        --registered as a dice-preview panel until the panel is destroyed, and
+        --DiceController only destroys settled embedded-roll dice once their
+        --cage is unregistered -- a lingering hidden dialog left the rolled 3D
+        --dice on screen forever (e.g. the Conduit start-of-turn Piety table
+        --roll). Only ever-shown dialogs are torn down, so a freshly mounted
+        --dialog whose ShowDialog is deferred is left alone.
         thinkTime = 0.25,
         think = function(element)
             local child = element.children[1]
-            if child ~= nil and not child.valid then
+            if child == nil then
+                return
+            end
+            if not child.valid then
+                element.children = {}
+                return
+            end
+            local shown = child.data ~= nil and child.data.IsShown ~= nil and child.data.IsShown()
+            if shown then
+                childWasShown = true
+            elseif childWasShown then
+                childWasShown = false
+                child:DestroySelf()
                 element.children = {}
             end
         end,

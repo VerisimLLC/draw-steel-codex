@@ -95,3 +95,11 @@ end
 function dice.SetRollPreviewModel(assetid)
 	-- dummy implementation for documentation purposes only
 end
+
+--- SetPreviewDragging: Sets the drag-to-spin state on a pooled dice preview -- one shown via a '#DicePreview:<key>' bgimage, e.g. the store banner's mini dice showcase (each renders its own idle-spinning die). Pass the same '<assetid>:<seq>' key the bgimage uses, and true when the die is grabbed / false when released: while true the die spins straight from the cursor (like the shop banner die), then eases back to its idle spin. A no-op if that preview isn't currently on screen. Does NOT affect the shared preview scene (dice.GetPreviewScene) or the panel-anchored 'try dice' cages.
+--- @param key string
+--- @param dragging boolean
+--- @return nil
+function dice.SetPreviewDragging(key, dragging)
+	-- dummy implementation for documentation purposes only
+end

@@ -1199,11 +1199,12 @@ function GameHud.CreateEmbeddedRollDialog()
         })
 
         local label = gui.Label {
-            fontSize = 14,
+            fontSize = 12,
             bold = true,
-            width = "auto",
+            width = "100%",
             height = "auto",
             halign = "center",
+            textAlignment = "center",
         }
 
         local augmentationOptions = {}

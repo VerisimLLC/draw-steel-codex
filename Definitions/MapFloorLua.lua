@@ -164,10 +164,42 @@ function MapFloorLua:ExecutePolygonOperation(options)
 end
 
 --- BreakWallSegment: Break a wall segment, removing it from the map and optionally spawning a rubble object found by keyword.
+--- If either tile bordering the segment is a wall-voxel column, its ground-level voxel is destroyed instead of erasing wall geometry.
 --- @param segLocVal any
 --- @param segDirVal any
 --- @param rubbleKeywordVal any
 --- @return nil
 function MapFloorLua:BreakWallSegment(segLocVal, segDirVal, rubbleKeywordVal)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetWallVoxelsAt: Get the wall-voxel objects (ObjectComponentWallVoxel) stacked on the given tile, ordered bottom to top.
+--- Returns an array of object instances; empty if the tile has no wall voxels.
+--- @param loc Loc
+--- @return LuaObjectInstance[]
+function MapFloorLua:GetWallVoxelsAt(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SyncWallVoxelColumn: Reconcile the wall-voxel column on the given tile with its solid building operation.
+--- Call after spawning wall-voxel objects locally (SpawnObjectLocal) and BEFORE uploading them: this assigns
+--- stack ordering to new voxels, snaps them to the tile center, and rewrites the column's map operation.
+--- Also safe to call at any time to repair a desynced column.
+--- Typical ability flow, per cube placed (tiles are centered on integer coordinates):
+---   local obj = floor:SpawnObjectLocal(wallVoxelAssetId, {posx = loc.x, posy = loc.y})
+---   floor:SyncWallVoxelColumn(loc)
+---   floor:Upload("Place wall")
+--- @param loc Loc
+--- @return nil
+function MapFloorLua:SyncWallVoxelColumn(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DestroyWallVoxel: Destroy the wall voxel occupying the given altitude (in tiles above floor zero) on the given tile.
+--- The column collapses by one cube (a gap mid-column is not representable by solid terrain).
+--- @param loc Loc
+--- @param altitude number
+--- @return boolean # true if a voxel was destroyed
+function MapFloorLua:DestroyWallVoxel(loc, altitude)
 	-- dummy implementation for documentation purposes only
 end

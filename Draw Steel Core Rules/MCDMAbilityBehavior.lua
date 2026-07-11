@@ -134,14 +134,25 @@ local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken
     --    return
     --end
 
-    targetToken:ModifyProperties{
-        description = "Invoke Ability",
-        undoable = false,
-        execute = function()
-			local invokes = targetToken.properties:get_or_add("remoteInvokes", {})
-			invokes[#invokes+1] = invocation
-        end,
-    }
+    --Held back until the casts currently resolving on this client complete
+    --(see ActivatedAbility.RunWhenCastsComplete), so the remote controller is
+    --not prompted to resolve this while the triggering cast is still resolving.
+    --The timestamp is refreshed at delivery so the deferral doesn't consume
+    --the 30-second staleness window checked by PumpRemoteInvokes.
+    ActivatedAbility.RunWhenCastsComplete(function()
+        if targetToken == nil or not targetToken.valid then
+            return
+        end
+        invocation.timestamp = ServerTimestamp()
+        targetToken:ModifyProperties{
+            description = "Invoke Ability",
+            undoable = false,
+            execute = function()
+                local invokes = targetToken.properties:get_or_add("remoteInvokes", {})
+                invokes[#invokes+1] = invocation
+            end,
+        }
+    end)
 end
 
 local function InvokeAbility(ability, abilityClone, targetToken, casterToken, options)

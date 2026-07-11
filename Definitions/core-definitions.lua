@@ -48,8 +48,4 @@ end
 --- @field boons nil|integer
 --- @field banes nil|integer
 --- @field amendmentRerolls nil|boolean
---- @field preview nil|boolean Seed resting preview dice on a dice-preview cage panel and arm them so a later click/drag executes this roll.
---- @field previewPanel nil|Panel For preview/drag rolls: the dice-preview cage panel (registered via panel:SetAsDicePreviewPanel) this roll's dice belong to. Several cages can each host an independent preview roll. Omit for the most recently registered cage (legacy single-cage behavior).
---- @field hideNumbers nil|boolean For preview rolls: render the resting preview dice numberless (draw a text label over them instead). When the die is thrown its real numbers fade in over ~0.25s. Used by the Dice dock panel.
---- @field cancel nil|function Callback to execute if a preview/drag roll is canceled.
 RollDefinition = {}

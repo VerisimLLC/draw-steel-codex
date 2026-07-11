@@ -252,7 +252,11 @@ local shopStyles = {
 		fontWeight = "light",
 		color = "#aaaaaaff",
 		fontSize = 16,
-		vmargin = 16,
+		--Half the old vmargin=16 above (the title->subtitle gap the header
+		--pair asked to tighten); keep the original 16 below so the header's
+		--spacing to the banner/grid underneath is unchanged.
+		tmargin = 8,
+		bmargin = 16,
 		valign = "top",
 		halign = "center",
 	},
@@ -3070,12 +3074,15 @@ local ShowItemDetailsPanel = function(args)
 
 		width = "auto",
 		height = "auto",
-		--Floated + vertically centered so the details showcase sits in the middle
-		--of the screen rather than hugging the top. Anchors to the (full-height)
-		--main lower panel that hosts it.
+		--Floated at the top of the (full-height) main lower panel that hosts it.
+		--The lower panel starts right under the "Store" header (the featured
+		--banner and the inventory/artist headers above it all collapse in the
+		--details view), so top-aligning here puts the showcase banner the same
+		--distance below the header as the products page's featured banner --
+		--rather than centering it in the screen and leaving a large gap.
 		floating = true,
 		halign = "center",
-		valign = "center",
+		valign = "top",
 
 		showProductDetails = function(element, item)
 			element:FireEventTree("refreshItem", item)
@@ -3708,6 +3715,28 @@ local function CreateShopScreenInternal(arguments)
 					gui.Panel{
 						--padding
 						height = 40
+					},
+
+					--Main shop page header, above the featured dice banner. Same
+					--shopTitle/shopDescription styling as the inventory header
+					--below; carries the dice banner's collapse classes so it
+					--shows in lockstep with it (main shop page only -- hidden on
+					--cart, inventory, artist focus, and coupon redemption).
+					gui.Panel{
+						classes = {"collapseOnCart", "collapsedWhenInventory", "collapsedWhenArtistFocus", "collapsedWhenRedeeming"},
+						halign = "center",
+						flow = "vertical",
+						width = "auto",
+						height = "auto",
+						gui.Label{
+							classes = {"shopTitle"},
+							text = "Store",
+						},
+
+						gui.Label{
+							classes = {"shopDescription"},
+							text = "Find the perfect item for you.",
+						},
 					},
 
 					MakeDiceBanner{ spinnable = true },

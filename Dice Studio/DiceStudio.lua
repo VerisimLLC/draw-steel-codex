@@ -1087,6 +1087,32 @@ CreateDiceStudioPanel = function()
 		diceDropdown,
 	}
 
+	-- The player-facing name for this set (dicestudio.displayName). Independent of the
+	-- internal name used for the file/cloud identity in the "Dice:" dropdown above; this
+	-- is what end users see (e.g. the "Dice Set" setting dropdown). Empty == fall back to
+	-- the internal name. Re-read on refreshDice so switching sets shows the right value.
+	local displayNameForm = gui.Panel{
+		classes = {"formPanel"},
+		gui.Label{
+			classes = {"formLabel"},
+			halign = "left",
+			text = "Display Name:",
+		},
+		gui.Input{
+			width = 160,
+			height = 22,
+			fontSize = 14,
+			placeholderText = "(same as internal name)",
+			text = dicestudio.displayName,
+			refreshDice = function(element)
+				element.textNoNotify = dicestudio.displayName
+			end,
+			change = function(element)
+				dicestudio.displayName = element.text
+			end,
+		},
+	}
+
 	local videobg = "#00ff00ff"
 
 	-- Modal browser for picking a particle effect for an event. Each tile shows a live rendered
@@ -2967,6 +2993,8 @@ end
 		},
 
 		dropdownForm,
+
+		displayNameForm,
 
 		-- Admin tool: pull an already-uploaded ("cloud") dice set down to a local file
 		-- so it shows up in the "Dice:" dropdown above. The local copy keeps the cloud

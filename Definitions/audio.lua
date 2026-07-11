@@ -61,6 +61,14 @@ function audio.PlaySoundEvent(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CrossfadeSoundEvents: Crossfades between two sound events: fades stopAssetId out and startAssetId in over the given duration. Either side may be nil to just fade one in or out.
+--- @param stopAssetId nil|string The asset id (guid) of the sound event to fade out, or nil.
+--- @param startAssetId nil|string The asset id (guid) of the sound event to fade in, or nil.
+--- @param seconds nil|number Crossfade duration in seconds; defaults to 3.0, minimum 0.05.
+function audio.CrossfadeSoundEvents(stopAssetId, startAssetId, seconds)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OpenAudioDevDir: Opens the audio development directory in the system file explorer.
 --- @return nil
 function audio.OpenAudioDevDir()
@@ -91,12 +99,15 @@ function audio.MixGroup(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- DuckGroup: Ducks a mix group's volume to a target level. Refcounted: pair each DuckGroup with a ReleaseDuck. fadeUp (optional) defaults to fadeDown -- pass a slower fadeUp so the bed swells back gently.
---- @param id string The mix group id to duck (e.g. "music").
---- @param level number Target volume multiplier 0..1.
---- @param fadeDown number Fade-in (duck) duration in seconds.
---- @param fadeUp? number Optional fade-out (release) duration in seconds; defaults to fadeDown.
+--- DuckGroup: Ducks a mix group's volume to a target level. Refcounted: pair each DuckGroup with a ReleaseDuck. fadeDown ramps into the duck; fadeUp (optional, defaults to fadeDown) ramps back out -- pass a slower fadeUp so the bed swells back gently.
+--- @param id string The mix group id to duck (e.g. "music"). @param level number Target volume multiplier 0..1. @param fadeDown number Fade-in (duck) duration in seconds. @param fadeUp number Optional fade-out (release) duration in seconds; defaults to fadeDown.
 function audio.DuckGroup(id, level, fadeDown, fadeUp)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetGroupShared: Sets a mix group's shared broadcast level (0..1) -- the DM-controlled layer synced to all clients via the shared audio-mix document. Folds up the parent chain; defaults to 1.0 (transparent) for untouched groups.
+--- @param id string The mix group id (e.g. "music", "uisounds"). @param value number Broadcast level 0..1.
+function audio.SetGroupShared(id, value)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -106,22 +117,7 @@ function audio.ReleaseDuck(id)
 	-- dummy implementation for documentation purposes only
 end
 
---- SetGroupShared: Sets a mix group's shared broadcast level (0..1) -- the DM-controlled layer synced to all clients. Folds up the parent chain; defaults to 1.0 (transparent) for untouched groups.
---- @param id string The mix group id (e.g. "music", "uisounds").
---- @param value number Broadcast level 0..1.
-function audio.SetGroupShared(id, value)
-	-- dummy implementation for documentation purposes only
-end
-
---- CrossfadeSoundEvents: Crossfades between two sound events with an equal-power curve: fades stopAssetId out and startAssetId in over the given duration. Either side may be nil to just fade one in or out. Synced to all clients. Crossfading an asset to itself is a no-op.
---- @param stopAssetId nil|string The asset id (guid) of the sound event to fade out, or nil for fade-in only.
---- @param startAssetId nil|string The asset id (guid) of the sound event to fade in, or nil for fade-out only.
---- @param seconds? number Crossfade duration in seconds; defaults to 3.0, minimum 0.05.
-function audio.CrossfadeSoundEvents(stopAssetId, startAssetId, seconds)
-	-- dummy implementation for documentation purposes only
-end
-
---- ResetMixState: Clears all mix-group duck and shared-broadcast state. Happens automatically on game load/switch; exposed as a manual escape hatch for recovering from a leaked duck or for testing.
+--- ResetMixState: Clears all mix-group duck and shared-broadcast state. Normally happens automatically on game load/switch; exposed here as a manual escape hatch for recovering from a leaked duck or testing.
 --- @return nil
 function audio.ResetMixState()
 	-- dummy implementation for documentation purposes only

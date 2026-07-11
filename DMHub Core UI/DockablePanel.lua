@@ -573,6 +573,31 @@ function GameHud:CreateSingleDock(params)
 			--leaving the contentPanel collapsed; a dock-level FireEvent doesn't reach it,
 			--so without this the panel un-minimizes to an empty backing panel.
 			element:FireEventTree("layoutChanged")
+
+			--Rebuild each panel instance's content on restore. Shrinking the panel to a
+			--33px title bar drives the inner vscroll (hideObjectsOutOfScroll) to cull --
+			--i.e. disable the renderers of -- the scrolled-out content. Simple panels
+			--recover when the viewport grows back, but content with its own deferred
+			--render lifecycle (notably gui.TextEditor / MarkdownDocument note bodies)
+			--stays permanently unpainted: the panel un-minimizes to a laid-out but blank
+			--tree that only a full rebuild fixes (which is why closing + reopening the
+			--panel "fixed" it). Re-firing "init" rebuilds the content fresh -- exactly
+			--the reopen path -- so it renders correctly. Deferred a tick so it runs
+			--after the restore's fitChildren/layout has settled (rebuilding into a
+			--still-shrunk viewport re-culls the fresh content). Cheap: only on an
+			--explicit user restore, and keeps the panel/tab identity intact.
+			local rebuildContainer = container
+			dmhub.Schedule(0.01, function()
+				if mod.unloaded or rebuildContainer == nil or not rebuildContainer.valid then
+					return
+				end
+				for _,instance in ipairs(rebuildContainer.data.GetPanelInstances()) do
+					if instance ~= nil and instance.valid then
+						instance:FireEvent("init")
+					end
+				end
+			end)
+
 			DockablePanel.Serialize()
 		end,
 

@@ -81,6 +81,12 @@ function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, target
 
 		if capturedTargets ~= nil then
 			for _, t in ipairs(capturedTargets) do
+				-- Record where the chosen target stood at selection time so later
+				-- behaviors can tell how it moved (e.g. shift_wall_voxel finding
+				-- the squares a pushed creature vacated).
+				if t.token ~= nil and t.token.valid then
+					t.origLoc = t.token.loc
+				end
 				allCapturedTargets[#allCapturedTargets+1] = t
 			end
 		end
@@ -89,6 +95,16 @@ function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, target
 	-- Merge or replace targets based on targetMode.
 	if #allCapturedTargets > 0 and options.targets ~= nil then
 		if self.targetMode == 'replace' then
+			-- Preserve the pre-replacement targets so later behaviors can still
+			-- reach them via applyto = "original_targets".
+			if options.originalTargets == nil then
+				local originals = {}
+				for _, t in ipairs(options.targets) do
+					originals[#originals+1] = t
+				end
+				options.originalTargets = originals
+			end
+
 			-- Clear existing targets and replace with new ones.
 			for i = #options.targets, 1, -1 do
 				options.targets[i] = nil

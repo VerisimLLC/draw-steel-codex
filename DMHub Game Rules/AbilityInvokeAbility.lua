@@ -265,14 +265,29 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         }
                     }
 
-                    target.token:ModifyProperties{
-                        description = "Invoke Ability",
-                        undoable = false,
-                        execute = function()
-                            local invokes = target.token.properties:get_or_add("remoteInvokes", {})
-                            invokes[#invokes+1] = DeepCopy(invocation)
-                        end,
-                    }
+                    --Held back until the casts currently resolving on this
+                    --client complete. This invoke may come from a triggered
+                    --reaction activated during the triggering ability's roll
+                    --(e.g. In All This Confusion's teleport), and delivering it
+                    --mid-cast prompts the remote player to move a token the
+                    --local player is still resolving a forced move against.
+                    --The timestamp is refreshed at delivery so the deferral
+                    --doesn't consume the 30-second staleness window checked by
+                    --PumpRemoteInvokes.
+                    ActivatedAbility.RunWhenCastsComplete(function()
+                        if target.token == nil or not target.token.valid then
+                            return
+                        end
+                        invocation.timestamp = ServerTimestamp()
+                        target.token:ModifyProperties{
+                            description = "Invoke Ability",
+                            undoable = false,
+                            execute = function()
+                                local invokes = target.token.properties:get_or_add("remoteInvokes", {})
+                                invokes[#invokes+1] = DeepCopy(invocation)
+                            end,
+                        }
+                    end)
 
                 else
 

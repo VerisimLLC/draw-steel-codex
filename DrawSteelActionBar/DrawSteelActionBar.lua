@@ -61,6 +61,14 @@ local g_actionBar = nil
 --- @type string[]
 local g_targetsChosen = {}
 
+--- @type boolean True once the player has manually clicked a target during the
+--- current cast. Distinguishes interactively-chosen targets from targets that
+--- arrived pre-selected (e.g. inherited into an invoked ability): a cast with a
+--- promptOverride waits for an explicit Confirm when its targets were
+--- pre-selected, but completes normally at the target cap when the player
+--- chose the targets by clicking.
+local g_manualTargetChosen = false
+
 --- @type nil|string The first target chosen by the player, the charid of this token.
 local g_firstTarget = nil
 
@@ -2807,6 +2815,11 @@ end
 
 
 
+--guards against a single physical click on stacked object tokens (wall voxel
+--columns) being dispatched once per overlapping token: {time, key}, where key
+--identifies the tile and time is the frame timestamp of the last object add.
+local m_objectClickGuard = nil
+
 local function CreateTargetInfo(spell)
     local targetInfo = {
         type = string.lower(spell.typeName),
@@ -2857,6 +2870,50 @@ local function CreateTargetInfo(spell)
                 end
             end
 
+            -- Stacked object tokens (wall voxel columns): the engine dispatches a
+            -- single physical click to EVERY overlapping token's reticule, so one
+            -- click on a 2-high wall column arrives here once per cube. Swallow
+            -- ALL duplicate dispatches for the same tile within the same frame --
+            -- unconditionally, or the duplicate dispatch for a token the first
+            -- dispatch just selected would toggle it straight back off. When the
+            -- clicked token is unselected, redirect the click to the TOPMOST
+            -- not-yet-chosen voxel on the tile (clicking again on a later frame
+            -- selects the next cube down, and deselect clicks on a fully-chosen
+            -- column fall through to the toggle path). The synthetic deselect
+            -- click fired by the over-cap swap below is unaffected: it targets a
+            -- tile that was not clicked this frame, so the guard passes it.
+            if targetToken.isObject then
+                local loc = targetToken.loc
+                if loc ~= nil then
+                    local clickKey = string.format("%d,%d,%d", loc.x, loc.y, loc.floor)
+                    local now = dmhub.Time()
+                    if m_objectClickGuard == nil or m_objectClickGuard.time ~= now then
+                        m_objectClickGuard = { time = now, keys = {} }
+                    end
+                    if m_objectClickGuard.keys[clickKey] then
+                        return
+                    end
+                    m_objectClickGuard.keys[clickKey] = true
+
+                    if not list_contains(g_targetsChosen, targetToken.id) then
+                        local voxelFloor = game.currentMap:GetFloorFromLoc(loc)
+                        local voxels = voxelFloor ~= nil and voxelFloor:GetWallVoxelsAt(loc) or nil
+                        if voxels ~= nil and #voxels > 0 then
+                            for i = #voxels, 1, -1 do
+                                local targetable = voxels[i]:GetComponent("Targetable")
+                                if targetable ~= nil and targetable.properties ~= nil then
+                                    local voxelToken = dmhub.LookupToken(targetable.properties)
+                                    if voxelToken ~= nil and voxelToken.valid and not list_contains(g_targetsChosen, voxelToken.id) then
+                                        targetToken = voxelToken
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
             -- Strict-targeting: players cannot select invalid targets (out of
             -- range, forbidden, etc). The reticule still lights up with the
             -- invalid styling so they get feedback on why, but the click is
@@ -2885,7 +2942,32 @@ local function CreateTargetInfo(spell)
                 effect:SetClass('three', false)
             end
             if not exists then
+                -- Enforce the target cap at selection time. Normally reaching the
+                -- cap auto-casts so this is unreachable, but abilities with a
+                -- promptOverride (e.g. invoked manipulate_targets picks) wait for
+                -- an explicit Confirm instead of auto-casting, so extra clicks
+                -- land here: swap out the most recent selection by re-dispatching
+                -- a click on it (which runs the deselect path and clears its
+                -- styling), keeping the selection within the cap.
+                local maxTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
+                print("TARGET:: add", targetToken.id, "ability =", g_currentAbility.name, "chosen =", #g_targetsChosen, "max =", tostring(maxTargets), "(", type(maxTargets), ")")
+                if type(maxTargets) == "number" and maxTargets >= 1 and #g_targetsChosen >= maxTargets then
+                    print("TARGET:: at capacity; swapping out most recent selection")
+                    local lastId = g_targetsChosen[#g_targetsChosen]
+                    local lastToken = dmhub.GetTokenById(lastId)
+                    if lastToken ~= nil and lastToken.valid and lastToken.sheet ~= nil then
+                        lastToken.sheet:FireEvent("tokenClick")
+                    end
+                    while #g_targetsChosen >= maxTargets do
+                        table.remove(g_targetsChosen)
+                    end
+                    if g_firstTarget ~= nil and not list_contains(g_targetsChosen, g_firstTarget) then
+                        g_firstTarget = g_targetsChosen[1]
+                    end
+                end
+
                 g_targetsChosen[#g_targetsChosen + 1] = targetToken.id
+                g_manualTargetChosen = true
                 if g_firstTarget == nil then
                     g_firstTarget = targetToken.id
                 end
@@ -2894,6 +2976,7 @@ local function CreateTargetInfo(spell)
             else
                 if spell:CanTargetAdditionalTimes(g_token, g_currentSymbols, g_targetsChosen, targetToken) then
                     g_targetsChosen[#g_targetsChosen + 1] = targetToken.id
+                    g_manualTargetChosen = true
                     local ntargets = 0
                     for _, tokenid in ipairs(g_targetsChosen) do
                         if tokenid == targetToken.id then
@@ -4503,6 +4586,16 @@ CreateAbilityController = function()
         end,
 
         beginCasting = function(element, ability, args)
+            --if a wall live-placement session from previous targeting is still
+            --uncommitted (e.g. the player picked another ability mid-targeting
+            --without cancelling), tear those wall squares down now.
+            do
+                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                if buildWall ~= nil then
+                    buildWall.CancelPlacement()
+                end
+            end
+
             if g_invokerInfo ~= nil and g_invokerInfo.oncast ~= nil then
                 g_invokerInfo.oncast()
             end
@@ -4554,6 +4647,7 @@ CreateAbilityController = function()
 
             g_currentAbility = ability
             g_targetsChosen = {}
+            g_manualTargetChosen = false
             g_firstTarget = nil
 
             --transfer any packaged targets over. Token targets go in g_targetsChosen;
@@ -5861,7 +5955,14 @@ CreateAbilityController = function()
                     token = g_token,
                     range = range,
                     radius = radius,
-                    checklos = true,
+                    --contiguous selection ("locations" shape): do NOT line-of-sight
+                    --filter the preview. The shape's LOS origin is the first chosen
+                    --square, and with live wall building that square contains the
+                    --wall cube just built -- its own walls gave Full cover to every
+                    --orthogonally adjacent square, silently filtering the chosen and
+                    --legal squares out of the outline. Adjacency/range are validated
+                    --on click instead.
+                    checklos = (shape ~= "locations"),
                     locOverride = locOverride or g_currentAbility:try_get("casterLocOverride"),
                     requireEmpty = requireEmpty,
                     emptyMayIncludeSelf = requireEmpty and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures"),
@@ -6259,7 +6360,11 @@ CreateAbilityController = function()
 
                     --For multi-target emptyspace/anyspace abilities, clicking an already
                     --selected space deselects it instead of adding a duplicate.
+                    --contiguous_wall targeting with wallStacking is the exception:
+                    --re-clicking a chosen square STACKS another wall cube on it, so
+                    --duplicates are welcome.
                     if (g_currentAbility.targetType == 'emptyspace' or g_currentAbility.targetType == 'anyspace')
+                        and not (g_currentAbility.targeting == "contiguous_wall" and g_currentAbility.wallStacking)
                         and g_currentAbility:GetNumTargets(g_token, g_currentSymbols) > 1 and loc ~= nil then
                         local deselectedIndex = nil
                         for i, t in ipairs(targets) do
@@ -6271,10 +6376,24 @@ CreateAbilityController = function()
                         if deselectedIndex ~= nil then
                             local removed = targets[deselectedIndex]
                             table.remove(targets, deselectedIndex)
+
+                            --wall abilities build live: deselecting a square removes
+                            --the voxel that was placed there during targeting.
+                            if g_currentAbility.targeting == "contiguous_wall" then
+                                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                                if buildWall ~= nil then
+                                    buildWall.RemoveSquare(loc)
+                                end
+                            end
+
+                            --only destroy the marker if we still track it: contiguous
+                            --targeting calls ClearRadiusMarkers after every click, so
+                            --the reference stored on the target may already be dead
+                            --and destroying it again errors.
                             if removed.marker ~= nil then
-                                removed.marker:Destroy()
                                 for i = #g_radiusMarkers, 1, -1 do
                                     if g_radiusMarkers[i] == removed.marker then
+                                        removed.marker:Destroy()
                                         table.remove(g_radiusMarkers, i)
                                         break
                                     end
@@ -6287,7 +6406,50 @@ CreateAbilityController = function()
                         end
                     end
 
+                    --contiguous targeting ("wall N" and connected-spaces abilities):
+                    --each square after the first must share a side with a square
+                    --already chosen; the first square must be within the ability's
+                    --range of the caster.
+                    if loc ~= nil and (g_currentAbility.targeting == "contiguous" or g_currentAbility.targeting == "contiguous_wall") then
+                        if #targets == 0 then
+                            local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
+                            if g_token:Distance(loc) > range then
+                                return
+                            end
+                        else
+                            local adjacent = false
+                            for _,t in ipairs(targets) do
+                                if t.loc ~= nil and t.loc.floor == loc.floor then
+                                    local dx = math.abs(t.loc.x - loc.x)
+                                    local dy = math.abs(t.loc.y - loc.y)
+                                    --same square (dx+dy == 0) means stacking another
+                                    --cube there; allowed for wall targeting with stacking.
+                                    if dx + dy == 1 or (dx + dy == 0 and g_currentAbility.targeting == "contiguous_wall" and g_currentAbility.wallStacking) then
+                                        adjacent = true
+                                        break
+                                    end
+                                end
+                            end
+                            if not adjacent then
+                                return
+                            end
+                        end
+                    end
+
                     targets[#targets + 1] = { loc = loc }
+
+                    --wall abilities build live: place the voxel for this square
+                    --immediately so the wall rises as squares are chosen. A casting
+                    --destructor tears the placed squares down if targeting is
+                    --cancelled; a committed cast keeps them (see CommitPlacement).
+                    if g_currentAbility.targeting == "contiguous_wall" then
+                        local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                        if buildWall ~= nil and buildWall.PlaceSquare(g_currentAbility, g_token, g_currentSymbols, loc) then
+                            g_castingDestructors[#g_castingDestructors + 1] = function()
+                                buildWall.CancelPlacement()
+                            end
+                        end
+                    end
                 else
                     for k, target in pairs(g_pointForceTargets) do
                         if g_currentAbility.targetType ~= 'all' or target ~= g_token or g_currentAbility.selfTarget then
@@ -6463,6 +6625,16 @@ CreateAbilityController = function()
                 AppendImprovementCosts(g_currentCostProposal)
 
                 local clearAbility = g_currentAbility
+
+                --wall live-placement: mark the session committed so the casting
+                --destructors (run by finishCasting, BEFORE behaviors execute on
+                --their coroutine) don't tear down the already-built wall.
+                if g_currentAbility.targeting == "contiguous_wall" then
+                    local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                    if buildWall ~= nil then
+                        buildWall.CommitPlacement(g_currentAbility)
+                    end
+                end
 
                 --Fire pre-cast controls (e.g. Acolyte Invoke: deal Presence to caster,
                 --add Patron's Gaze, set Cast.Invoked = 1). Must happen before Cast()
@@ -6769,11 +6941,15 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         g_skipButton:SetClass("collapsed", not g_currentAbility:try_get("skippable", false))
 
         -- Don't auto-cast on initial setup unless requested.
-        -- When a promptOverride is set (e.g. an invoke-ability prompt), always fall through to the
-        -- confirmation UI so the player can read the prompt and click Confirm, even if all
-        -- targets are already pre-selected via the inherited target list. An explicit Confirm
-        -- click (forceCast = true) always goes through regardless of promptOverride.
-        local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil
+        -- When a promptOverride is set (e.g. an invoke-ability prompt), fall through to the
+        -- confirmation UI so the player can read the prompt and click Confirm when the
+        -- targets arrived PRE-SELECTED via the inherited target list. If the player chose
+        -- the targets by clicking them (g_manualTargetChosen), reaching the target cap
+        -- completes the cast normally -- the prompt was visible throughout targeting, and
+        -- requiring an extra Confirm after an explicit click just adds friction (e.g. the
+        -- one-creature picks invoked per wall square by manipulate_targets). An explicit
+        -- Confirm click (forceCast = true) always goes through regardless.
+        local hasPromptOverride = g_currentAbility:try_get("promptOverride") ~= nil and not g_manualTargetChosen
         if forceCast or ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) and not hasPromptOverride) then --temporarily disabled -David -- and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
@@ -6846,6 +7022,16 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             end
 
             local clearAbility = g_currentAbility
+
+            --wall live-placement: mark the session committed so the casting
+            --destructors don't tear down the already-built wall (behaviors run on
+            --a coroutine after finishCasting fires the destructors).
+            if g_currentAbility.targeting == "contiguous_wall" then
+                local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                if buildWall ~= nil then
+                    buildWall.CommitPlacement(g_currentAbility)
+                end
+            end
 
             --Fire pre-cast controls (e.g. Acolyte Invoke). See FireCastControlsOnCommit
             --for the rationale on ordering: it must run before Cast() so symbols (e.g.

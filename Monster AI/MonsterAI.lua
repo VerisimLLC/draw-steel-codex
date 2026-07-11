@@ -126,7 +126,11 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                         return "inherit"
                     end
 
-                    local handler = self.prompts[abilityClone.name] or self.prompts[string.format("%s:%s", invokerToken.properties.monster_type, abilityClone.name)]
+                    --try_get: the invoker can be an object token (e.g. a wall voxel
+                    --prompting for a target near it), whose TargetableObject
+                    --properties have no monster_type field.
+                    local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
+                    local handler = self.prompts[abilityClone.name] or self.prompts[string.format("%s:%s", invokerMonsterType, abilityClone.name)]
                     if handler ~= nil then
                         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
                         if result ~= nil then
@@ -137,7 +141,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                             return "inherit"
                         end
                     else
-                        print("AI:: No handler for prompt ability:", string.format("%s:%s", invokerToken.properties.monster_type, abilityClone.name))
+                        print("AI:: No handler for prompt ability:", string.format("%s:%s", invokerMonsterType, abilityClone.name))
                     end
 
                     return "prompt"

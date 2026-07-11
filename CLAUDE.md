@@ -208,4 +208,4 @@ Key stubs:
 
 ## Editing Files
 
-Always edit files in the **main copy** of the repository (`C:\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
+Always edit files in the **main copy** of the repository (`D:\dev\dmhub\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.

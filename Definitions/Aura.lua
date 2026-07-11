@@ -11,8 +11,9 @@ end
 
 --- ApplyTo
 --- @param target any
+--- @param ignoreHeight boolean?
 --- @return boolean
-function Aura:ApplyTo(target)
+function Aura:ApplyTo(target, ignoreHeight)
 	-- dummy implementation for documentation purposes only
 end
 

@@ -37,8 +37,14 @@ function ActivatedAbilityScriptBehavior:Cast(ability, casterToken, targets, opti
         symbols = options.symbols
     }, {__index = _G})
     local f, err = load(self.code, "CustomAbilityScript", "t", env)
-    if f ~= nil then
-        f()
+    if f == nil then
+        dmhub.CloudError(string.format("Lua Script ability '%s': compile error: %s", self.name, tostring(err)))
+        return
+    end
+
+    local ok, runErr = pcall(f)
+    if not ok then
+        dmhub.CloudError(string.format("Lua Script ability '%s': runtime error: %s", self.name, tostring(runErr)))
     end
 end
 
@@ -62,7 +68,7 @@ function ActivatedAbilityScriptBehavior:EditorItems(parentPanel)
             if f ~= nil then
                 element.text = "Code compiled successfully"
             else
-                element.text = "Error: " .. err
+                element.text = string.format("Lua Script ability '%s': compile error: %s", self.name, tostring(err))
             end
         end,
         create = function(element)

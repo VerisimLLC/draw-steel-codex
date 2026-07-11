@@ -387,7 +387,25 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
                     local hasCollision = freeMovement < requestDist
                     local collisionSpeed = requestDist - freeMovement
-                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed)
+
+                    -- The engine reports the true force remaining at the moment of
+                    -- collision (path.collisionForce >= 0): distance travelled AND
+                    -- stamina spent breaking earlier walls (e.g. targetable wall
+                    -- voxels) are already deducted, so a second wall or creature is
+                    -- hit with reduced momentum. -1 means the engine recorded no
+                    -- collision -- force spent purely on wall breaks is not a
+                    -- collision, so a clean smash-through deals no collision damage.
+                    local collisionForce = path.collisionForce
+                    if collisionForce ~= nil then
+                        if collisionForce >= 0 then
+                            hasCollision = true
+                            collisionSpeed = collisionForce
+                        elseif not path.hasCollision then
+                            hasCollision = false
+                            collisionSpeed = 0
+                        end
+                    end
+                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed, "collisionForce=", collisionForce)
 
 					if hasCollision then
 						collisionInfo = {

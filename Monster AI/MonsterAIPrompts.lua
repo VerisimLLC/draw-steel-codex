@@ -129,6 +129,63 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
+--Wallmaster: the per-wall-square victim picks for Wall Slam and Dead End. The
+--invoker/caster is the WALL SQUARE object token (targeting is re-centered on
+--it); the wallmaster itself is ai.token. Registered unqualified because object
+--tokens have no monster_type to qualify with.
+MonsterAI:RegisterPrompt{
+    prompts = {"Wall Slam Topple", "Dead End Victim"},
+
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local monsterToken = ai.token
+        if monsterToken == nil or not monsterToken.valid then
+            return nil
+        end
+
+        local range = abilityClone:GetRange(casterToken.properties)
+
+        local best = nil
+        local bestFrac = nil
+        for _,tok in ipairs(dmhub.allTokens) do
+            if tok.valid and (not tok:IsFriend(monsterToken)) and (not tok.properties:IsDead()) and casterToken:Distance(tok) <= range then
+                local frac = tok.properties:CurrentHitpoints() / math.max(1, tok.properties.max_hitpoints)
+                if bestFrac == nil or frac < bestFrac then
+                    bestFrac = frac
+                    best = tok
+                end
+            end
+        end
+
+        if best == nil then
+            --no enemy in reach; fall back to manual prompting.
+            return nil
+        end
+
+        return {
+            targets = { {token = best} }
+        }
+    end,
+}
+
+--Wallmaster: Dead End's wall-shift destination. The pick ability carries the
+--whitelist of vacated squares in _tmp_restrictLocs (ordered from the push's
+--start square toward the creature's final position); take the last one so the
+--wall stays pressed up against the pushed creature.
+MonsterAI:RegisterPrompt{
+    prompts = {"Wall Shift"},
+
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local locs = abilityClone:try_get("_tmp_restrictLocs")
+        if locs == nil or #locs == 0 then
+            return nil
+        end
+
+        return {
+            targets = { {loc = locs[#locs]} }
+        }
+    end,
+}
+
 MonsterAI:RegisterPrompt{
     prompts = {"Decrepit Skeleton:Invoked Ability"},
 

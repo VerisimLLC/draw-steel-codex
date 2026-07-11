@@ -506,3 +506,177 @@ MonsterAI:RegisterMove{
         ai:ExecuteAbility(token, ability)
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Wallmaster.
+--
+-- The wallmaster is speed 0 and never moves; its whole kit works through wall
+-- voxels created by its Living Labyrinth trait (tagged with wallcreator = its
+-- charid, see AbilityBuildWall.lua). Living Labyrinth itself is a DM-driven
+-- begin-round trigger card, not an AI move: wall placement is a strategic
+-- choice made outside the AI turn loop.
+--------------------------------------------------------------------------------
+
+--true if this wall voxel token is the topmost cube of its tile's column; only
+--top cubes are legal targets for Wall Slam / Dead End (Target.WallTop filter).
+local function IsTopWallVoxel(wallToken)
+    if wallToken.objectInstance == nil then
+        return false
+    end
+
+    local loc = wallToken.loc
+    local voxelFloor = game.currentMap:GetFloorFromLoc(loc)
+    if voxelFloor == nil then
+        return false
+    end
+
+    local voxels = voxelFloor:GetWallVoxelsAt(loc)
+    if voxels == nil or #voxels == 0 then
+        return false
+    end
+
+    return voxels[#voxels].objid == wallToken.objectInstance.objid
+end
+
+--own wall voxel tokens created by this creature's Living Labyrinth trait.
+--Only the topmost cube per tile is returned (the targetable "square of wall").
+local function FindWallmasterWalls(token)
+    local result = {}
+    for _,wallToken in ipairs(Encounter.GetTargetableObjectsWithKeyword("wallvoxel")) do
+        if wallToken.valid and wallToken.properties:try_get("wallcreator") == token.charid and IsTopWallVoxel(wallToken) then
+            result[#result+1] = wallToken
+        end
+    end
+    return result
+end
+
+--enemies of token within 1 square of wallToken, best (lowest stamina fraction) first.
+local function EnemiesAdjacentToWall(token, wallToken)
+    local result = {}
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and (not tok:IsFriend(token)) and (not tok.properties:IsDead()) and wallToken:Distance(tok) <= 1 then
+            result[#result+1] = tok
+        end
+    end
+
+    table.sort(result, function(a,b)
+        local afrac = a.properties:CurrentHitpoints() / math.max(1, a.properties.max_hitpoints)
+        local bfrac = b.properties:CurrentHitpoints() / math.max(1, b.properties.max_hitpoints)
+        return afrac < bfrac
+    end)
+
+    return result
+end
+
+MonsterAI:RegisterMove{
+    id = "Wall Slam",
+    category = "Main Actions",
+    monsters = {"Wallmaster"},
+    abilities = {"Wall Slam"},
+    description = "Main action: topple squares of the wallmaster's Living Labyrinth wall onto adjacent enemies. Used when at least one enemy stands within 1 of one of its wall squares.",
+    score = function(self, ai, token, ability)
+        local range = ability:GetRange(token.properties)
+
+        local slams = {}
+        for _,wallToken in ipairs(FindWallmasterWalls(token)) do
+            if token:Distance(wallToken) <= range then
+                local enemies = EnemiesAdjacentToWall(token, wallToken)
+                if #enemies > 0 then
+                    slams[#slams+1] = { wall = wallToken, victim = enemies[1] }
+                end
+            end
+        end
+
+        if #slams == 0 then
+            return nil
+        end
+
+        --prefer slams whose victims are most wounded.
+        table.sort(slams, function(a,b)
+            local afrac = a.victim.properties:CurrentHitpoints() / math.max(1, a.victim.properties.max_hitpoints)
+            local bfrac = b.victim.properties:CurrentHitpoints() / math.max(1, b.victim.properties.max_hitpoints)
+            return afrac < bfrac
+        end)
+
+        return {score = 1.5, loc = token.loc, slams = slams}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:Speech(token, {"The walls close in!", "Be crushed!"})
+        ai.Sleep(0.5)
+
+        --base two wall squares; the per-square victim picks are answered by the
+        --"Wall Slam Topple" prompt handler below.
+        local targets = {}
+        for i,slam in ipairs(scoringInfo.slams) do
+            if i <= 2 then
+                targets[#targets+1] = { token = slam.wall }
+            end
+        end
+
+        ai:ExecuteAbility(token, ability, targets)
+    end,
+}
+
+MonsterAI:RegisterMove{
+    id = "Dead End",
+    category = "Maneuvers",
+    monsters = {"Wallmaster"},
+    abilities = {"Dead End"},
+    description = "Maneuver: a Living Labyrinth wall square pushes an adjacent enemy and shifts into a square they vacate.",
+    score = function(self, ai, token, ability)
+        local range = ability:GetRange(token.properties)
+
+        local best = nil
+        for _,wallToken in ipairs(FindWallmasterWalls(token)) do
+            if token:Distance(wallToken) <= range then
+                local enemies = EnemiesAdjacentToWall(token, wallToken)
+                if #enemies > 0 and best == nil then
+                    best = { wall = wallToken, victim = enemies[1] }
+                end
+            end
+        end
+
+        if best == nil then
+            return nil
+        end
+
+        return {score = 0.8, loc = token.loc, deadEnd = best}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:Speech(token, {"No way out.", "Dead end."})
+        ai.Sleep(0.5)
+
+        ai:ExecuteAbility(token, ability, { { token = scoringInfo.deadEnd.wall } })
+    end,
+}
+
+MonsterAI:RegisterMove{
+    id = "The Wall Sees All",
+    category = "Maneuvers",
+    monsters = {"Wallmaster"},
+    abilities = {"The Wall Sees All"},
+    description = "Malice: teleport to a wall within 10 squares and affix to it. Used when none of the wallmaster's own wall squares are within reach of its abilities.",
+    score = function(self, ai, token, ability)
+        --only worth relocating when the wallmaster has no useful wall in range:
+        --no own wall square within 10 that has an enemy within 3 of it.
+        for _,wallToken in ipairs(FindWallmasterWalls(token)) do
+            if token:Distance(wallToken) <= 10 then
+                for _,tok in ipairs(dmhub.allTokens) do
+                    if tok.valid and (not tok:IsFriend(token)) and (not tok.properties:IsDead()) and wallToken:Distance(tok) <= 3 then
+                        return nil
+                    end
+                end
+            end
+        end
+
+        return {score = 0.6, loc = token.loc}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability)
+        ai:Speech(token, {"The wall sees all.", "I am everywhere."})
+        ai.Sleep(0.5)
+
+        --the invoked standard Teleport prompts for a destination; there is no
+        --AI handler for it, so the DM picks the wall to affix to.
+        ai:ExecuteAbility(token, ability)
+    end,
+}

@@ -16,13 +16,6 @@ function gui.Panel(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- DicePreview: Create a DicePreview panel: a cage that resting preview dice anchor to.
---- @param args PanelArgs
---- @return DicePreview
-function gui.DicePreview(args)
-	-- dummy implementation for documentation purposes only
-end
-
 --- Carousel: Create a Carousel panel
 --- @param args CarouselArgs
 --- @return Carousel
@@ -69,6 +62,13 @@ end
 --- @param args TextEditorArgs
 --- @return TextEditor
 function gui.TextEditor(table)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DicePreview: Create a DicePreview panel: a cage that resting preview dice anchor to. Register it with SetAsDicePreviewPanel(true), seed dice with dmhub.Roll{preview = true, previewPanel = <panel>}, and route input through its DicePreview* methods.
+--- @param args PanelArgs
+--- @return DicePreview
+function gui.DicePreview(table)
 	-- dummy implementation for documentation purposes only
 end
 

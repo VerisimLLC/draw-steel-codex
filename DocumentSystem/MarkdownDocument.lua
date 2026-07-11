@@ -1335,6 +1335,20 @@ function MarkdownDocument.RegisterRichTag(info)
     MarkdownDocument.RichTagRegistry[info.tag] = info
 end
 
+-- Rich-tag annotations are stored in doc.annotations keyed by the tag text (e.g.
+-- "encounter:Boss"), and that key is serialized verbatim as a cloud/Firebase key.
+-- Firebase rejects keys that are empty or contain any of . $ # [ ] / -- and a
+-- single bad key fails the WHOLE module/document upload. [ and ] can't occur in
+-- tag text (they delimit the tag), so the practical set to reject is . $ # / .
+-- We guard at annotation-creation time so a bad key never enters doc.annotations;
+-- the tag still renders, it just doesn't persist a stored annotation.
+function MarkdownDocument.IsLegalAnnotationKey(key)
+    if type(key) ~= "string" or key == "" then
+        return false
+    end
+    return key:find("[%.%$#%[%]/]") == nil
+end
+
 local function StripSpoilers(text)
     local result = ""
     local i, depth = 1, 0
@@ -4908,13 +4922,13 @@ local function CreateAnnotationsPanel(opts)
                             doc.annotations[candidate] = nil
                         end
 
-                        if richTag == nil then
+                        if richTag == nil and MarkdownDocument.IsLegalAnnotationKey(candidate) then
                             richTag = richTagInfo.Create()
                             richTag.identifier = suffix or false
                             doc.annotations[candidate] = richTag
                         end
 
-                        if richTagInfo.hasEdit ~= "hidden" then
+                        if richTag ~= nil and richTagInfo.hasEdit ~= "hidden" then
                             local richPanel = m_richPanels[candidate] or gui.Panel {
                                 width = "auto",
                                 height = 120,

@@ -2153,8 +2153,272 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 end
 
 
+--Creates the "Map Modifications" folder, which lists destructive map edits
+--recorded from ability casts (pits dug, terrain changed - see
+--game.GetMapModifications). Double-click an entry to jump to it; right-click
+--to jump or revert. Returns nil on engine builds without the recording API.
+CharacterPanel.CreateMapModificationsFolder = function()
+    if game.GetMapModifications == nil then
+        return nil
+    end
+
+    local collapsedKey = "mapmodifications"
+    local isCollapsed = GetPartyCollapsed(collapsedKey, true)
+
+    local folderPane
+    local resultPanel
+    local modPanels = {}
+
+    local triangle
+    triangle = gui.ExpandoArrow{
+        halign = "left",
+        margin = 5,
+        valign = "center",
+
+        swallowPress = true,
+
+        events = {
+            create = function(element)
+                element:SetClass("expanded", not isCollapsed)
+                element:SetClass("empty", #game.GetMapModifications() < 1)
+            end,
+            refresh = function(element)
+                element:SetClass("empty", #game.GetMapModifications() < 1)
+            end,
+            press = function(element)
+                if element:HasClass("collapsed") then
+                    --the triangle itself isn't usable.
+                    return
+                end
+
+                if #game.GetMapModifications() == 0 then
+                    return
+                end
+
+                isCollapsed = not isCollapsed
+                SetPartyCollapsed(collapsedKey, isCollapsed)
+
+                triangle:SetClass("expanded", not isCollapsed)
+                folderPane:FireEvent("refreshCollapsed")
+
+                if not isCollapsed then
+                    folderPane:FireEvent("expand")
+                end
+            end,
+        },
+    }
+
+    local CreateModificationEntry = function(modInfo)
+        local clickTime = nil
+
+        local JumpToModification = function()
+            dmhub.CenterOnLoc{
+                x = modInfo.x,
+                y = modInfo.y,
+                floorid = modInfo.floorid,
+                smooth = true,
+            }
+        end
+
+        local text = modInfo.name
+        if modInfo.casterName ~= nil and modInfo.casterName ~= "" then
+            text = string.format("%s (%s)", modInfo.name, modInfo.casterName)
+        end
+
+        return gui.Panel{
+            classes = { "characterEntry" },
+            bgimage = true,
+            valign = "top",
+            width = "100%-6",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+
+            events = {
+                press = function(element)
+                    if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
+                        --double-click
+                        clickTime = nil
+                        JumpToModification()
+                        return
+                    end
+
+                    clickTime = dmhub.Time()
+                end,
+
+                rightClick = function(element)
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Jump to Location",
+                                click = function()
+                                    element.popup = nil
+                                    JumpToModification()
+                                end,
+                            },
+                            {
+                                text = "Revert Modification",
+                                click = function()
+                                    element.popup = nil
+                                    gamehud:ModalMessage{
+                                        title = "Revert Map Modification?",
+                                        message = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", text),
+                                        options = {
+                                            {
+                                                text = "Revert",
+                                                execute = function()
+                                                    game.DeleteMapModification(modInfo.id)
+                                                    resultPanel:FireEventTree("refresh")
+                                                end,
+                                            },
+                                            {
+                                                text = "Cancel",
+                                                execute = function()
+                                                end,
+                                            },
+                                        },
+                                    }
+                                end,
+                            },
+                        },
+                    }
+                end,
+            },
+
+            gui.Label{
+                text = text,
+                classes = { "bestiaryLabel" },
+            },
+        }
+    end
+
+    local headerPanel = gui.Panel{
+        bgimage = true,
+        classes = { "headerPanel" },
+
+        selfStyle = {
+            valign = "top",
+            halign = "left",
+            width = "100%",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+        },
+
+        events = {
+            rightClick = function(element)
+                if #game.GetMapModifications() == 0 then
+                    return
+                end
+
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Clear All Map Modifications",
+                            click = function()
+                                element.popup = nil
+                                gamehud:ModalMessage{
+                                    title = "Revert All Map Modifications?",
+                                    message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
+                                    options = {
+                                        {
+                                            text = "Revert All",
+                                            execute = function()
+                                                for _,m in ipairs(game.GetMapModifications()) do
+                                                    game.DeleteMapModification(m.id)
+                                                end
+                                                resultPanel:FireEventTree("refresh")
+                                            end,
+                                        },
+                                        {
+                                            text = "Cancel",
+                                            execute = function()
+                                            end,
+                                        },
+                                    },
+                                }
+                            end,
+                        },
+                    },
+                }
+            end,
+        },
+
+        children = {
+            triangle,
+
+            gui.Label{
+                text = "Map Modifications",
+                classes = { "bestiaryLabel", "folder" },
+            },
+        },
+    }
+
+    folderPane = gui.Panel{
+        classes = { cond(isCollapsed, "collapsed"), "ignoreDrag" },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        refreshCollapsed = function(element)
+            element:SetClass("collapsed", isCollapsed)
+        end,
+
+        create = function(element)
+            element:FireEvent("refresh")
+        end,
+
+        refresh = function(element)
+            if isCollapsed then
+                return
+            end
+
+            local mods = game.GetMapModifications()
+            local newModPanels = {}
+            local children = {}
+            for _,m in ipairs(mods) do
+                newModPanels[m.id] = modPanels[m.id] or CreateModificationEntry(m)
+                children[#children+1] = newModPanels[m.id]
+            end
+
+            modPanels = newModPanels
+            element.children = children
+        end,
+
+        expand = function(element)
+            element:FireEvent("refresh")
+        end,
+    }
+
+    resultPanel = gui.Panel{
+        classes = { "partyPanel", "ignoreDrag" },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        bgimage = true,
+        bgcolor = "clear",
+
+        data = {
+            parentCollapsed = false,
+            ord = function()
+                return 9999999
+            end,
+            header = headerPanel,
+        },
+
+        refresh = function(element)
+            --hide the folder entirely when there are no modifications.
+            element:SetClass("collapsed", #game.GetMapModifications() == 0)
+        end,
+
+        headerPanel,
+        folderPane,
+    }
+
+    return resultPanel
+end
+
 local CreateBestiaryAndPartyPanel = function(noBestiary)
     local partyPanels = {}
+    local mapModificationsPanel = nil
 
     local bestiaryPanel = nil
     if not noBestiary then
@@ -2190,6 +2454,14 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
 
             table.sort(children, function(a, b) return a.data.ord() < b.data.ord() end)
 
+            --the Map Modifications folder goes directly beneath the party folders
+            --(after the sort so it always lands below Dead Monsters).
+            if mapModificationsPanel == nil then
+                mapModificationsPanel = CharacterPanel.CreateMapModificationsFolder()
+            end
+            if mapModificationsPanel ~= nil then
+                children[#children + 1] = mapModificationsPanel
+            end
 
             children[#children + 1] = gui.Panel {
                 width = "auto",

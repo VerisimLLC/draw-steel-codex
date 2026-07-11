@@ -5188,19 +5188,6 @@ local function CreateMarkdownToolbar(opts)
             selectors = { "label", "dropdownOption" },
             fontSize = 14,
         },
-        --the one gold-accented button (Draw Steel!): gold-dim fill, bright
-        --gold border and text; hover deepens the fill, never moves.
-        {
-            selectors = { "label", "button", "dsAccent" },
-            bgcolor = DS_GOLD_DIM,
-            borderColor = DS_GOLD_BD_HI,
-            color = DS_GOLD,
-        },
-        {
-            selectors = { "label", "button", "dsAccent", "hover" },
-            bgcolor = DS_GOLD_FILL_HI,
-            borderColor = DS_GOLD_BD_HI,
-        },
     }
 
     local function ToolbarButton(label, fontSize, width, handler)
@@ -5344,6 +5331,10 @@ local function CreateMarkdownToolbar(opts)
     for _, t in ipairs(widgetTags) do
         widgetOptions[#widgetOptions + 1] = { id = t, text = t }
     end
+    --Draw Steel! lives in the widget menu but is not a rich tag: it inserts
+    --the roll-link markup, so it gets a sentinel id the change handler
+    --dispatches specially (a tag id can never start with "//").
+    widgetOptions[#widgetOptions + 1] = { id = "//drawsteel", text = "Draw Steel!" }
 
     local toolbarRow = gui.Panel{
         width = "100%",
@@ -5387,7 +5378,7 @@ local function CreateMarkdownToolbar(opts)
         ColorButton(),
         ToolbarButton("Spoiler", 14, 66, WrapHandler("{", "}")),
         gui.Dropdown{
-            width = 118, height = 30, idChosen = "", hmargin = 3,
+            width = 100, height = 30, idChosen = "", hmargin = 3,
             options = headingOptions,
             change = function(element)
                 if element.idChosen ~= "" then
@@ -5404,25 +5395,10 @@ local function CreateMarkdownToolbar(opts)
         ToolbarButton("Divider", 14, 68, InsertHandler("\n---\n", 5)),
         ToolbarButton("Link",    14, 50, InsertHandler("[]", 1)),
 
-        --push the insert group to the right edge, per the design.
-        gui.Panel{
-            width = "100% available",
-            height = 1,
-        },
-
-        --group: insert (right-aligned). Draw Steel! is the one gold-accented
-        --control on the bar.
-        gui.Button{
-            classes = { "dsAccent" },
-            text = "Draw Steel!",
-            width = 92,
-            height = 30,
-            fontSize = 14,
-            valign = "center",
-            hmargin = 3,
-            press = InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]'),
-        },
-
+        --group: insert. Not pushed to the right edge: a "100% available"
+        --spacer renders zero wide here, and it fills the wrap line exactly,
+        --which makes the wrap pass reserve a phantom second line (the row
+        --renders one line of controls but two lines of height).
         gui.Dropdown{
             width = 118, height = 30, idChosen = "", hmargin = 3,
             options = mediaOptions,
@@ -5438,7 +5414,11 @@ local function CreateMarkdownToolbar(opts)
             width = 118, height = 30, idChosen = "", hmargin = 3,
             options = widgetOptions,
             change = function(element)
-                if element.idChosen ~= "" then
+                if element.idChosen == "//drawsteel" then
+                    --not a rich tag: insert the Draw Steel! roll link.
+                    InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')()
+                    element.idChosen = ""
+                elseif element.idChosen ~= "" then
                     RichTagHandler(element.idChosen)()
                     element.idChosen = ""
                 end

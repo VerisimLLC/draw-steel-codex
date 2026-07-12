@@ -428,6 +428,7 @@ local g_companionSharedResources = {
     "2166c5fe-260e-4691-9743-06cf097a59f3", --hero tokens
     "1c8e3d92-4b5f-4a76-b428-7c1d3e6f5a82", --electric surge once-per-turn limit (Elemental Spark)
     "b9bc06dd-80f1-4f33-bc55-25c114e3300c", --triggered action (per "Companion Actions" rule: one triggered action per round shared between beastheart + companion)
+    "9c1e4b7a-2d38-4f60-a915-3c6e0d8f2b41", --This One's Yours once-per-turn limit (Punisher, shared beastheart + companion)
 }
 
 local g_companionSharedResourcesKeyed = {}

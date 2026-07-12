@@ -46,6 +46,10 @@ local g_triggeredAbilityTypes = {
         id = "passive",
         text = "Passive",
     },
+    {
+        id = "championAction",
+        text = "Champion Action",
+    },
 }
 
 local function GetTriggerInfo(id)
@@ -136,21 +140,7 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                 },
                 gui.Dropdown{
                     styles = ThemeEngine.GetStyles(),
-                    options = {
-
-                        {
-                            id = "trigger",
-                            text = "Triggered Action",
-                        },
-                        {
-                            id = "free",
-                            text = "Free Triggered Action",
-                        },
-                        {
-                            id = "passive",
-                            text = "Passive",
-                        },
-                    },
+                    options = g_triggeredAbilityTypes,
                     idChosen = modifier.ability.type,
                     change = function(element)
                         modifier.ability.type = element.idChosen

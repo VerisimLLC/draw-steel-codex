@@ -771,10 +771,10 @@ function dmhub.Roll(rolldef)
 	-- dummy implementation for documentation purposes only
 end
 
---- StartDiceBridge: Start the external physical-dice bridge process (e.g. the GoDice
-Bluetooth bridge) if it isn't already running. The executable is resolved engine-side --
-from the 'externaldice:bridgepath' preference, falling back to godice-bridge.exe next to
-the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
+--- StartDiceBridge: Start the external physical-dice bridge process (the Bluetooth
+dice bridge for GoDice/Pixels) if it isn't already running. The executable is resolved
+engine-side -- from the 'externaldice:bridgepath' preference, falling back to
+dice-bridge.exe next to the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
 bridge is running when the call returns. The bridge exits on its own if it stops
 receiving /v1/heartbeat POSTs for 60 seconds, and is force-killed when DMHub exits.
 --- @return boolean

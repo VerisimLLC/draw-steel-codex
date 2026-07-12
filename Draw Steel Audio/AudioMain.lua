@@ -1252,6 +1252,9 @@ audio.SoundEvent{
     sounds = {"dice/metalblade/DiceImp_metalblade_Hard_01.wav","dice/metalblade/DiceImp_metalblade_Hard_02.wav","dice/metalblade/DiceImp_metalblade_Hard_03.wav","dice/metalblade/DiceImp_metalblade_Hard_04.wav","dice/metalblade/DiceImp_metalblade_Hard_05.wav","dice/metalblade/DiceImp_metalblade_Hard_06.wav"},
     volume = 0.1,
     pitchRand = 0.0,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
 }
 
 audio.SoundEvent{
@@ -1260,6 +1263,9 @@ audio.SoundEvent{
     sounds = {"dice/metalblade/DiceImp_metalblade_Mild_01.wav","dice/metalblade/DiceImp_metalblade_Mild_02.wav","dice/metalblade/DiceImp_metalblade_Mild_03.wav","dice/metalblade/DiceImp_metalblade_Mild_04.wav","dice/metalblade/DiceImp_metalblade_Mild_05.wav","dice/metalblade/DiceImp_metalblade_Mild_06.wav"},
     volume = 0.15,
     pitchRand = 0.0,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
 }
 
 audio.SoundEvent{
@@ -1268,7 +1274,22 @@ audio.SoundEvent{
     sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
     volume = 0.05,
     pitchRand = 0.01,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
 }
+
+--when black ash dice teleport at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "DiceImp.Whoosh_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_MetalBlade_Whoosh_01.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_02.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_03.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_04.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_05.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
 
 
 --metalshield Dice Impacts

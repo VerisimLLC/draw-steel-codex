@@ -748,6 +748,37 @@ local function openTriggerEventPicker(currentId, onChosen)
     gui.ShowModal(dialogPanel)
 end
 
+-- Summarise the GoblinScript payload symbols a trigger event injects, for
+-- the hint label under the Trigger Event field. Returns nil when the event
+-- declares no symbols (the hint row is omitted entirely -- ambient symbols
+-- like Subject/Self/Caster are always available and not worth restating on
+-- every event). Handles both declaration forms (keyed map and bare array;
+-- see discoverTestInputs) and sorts by display name so the label is stable
+-- across rebuilds despite pairs() iteration order.
+local function triggerSymbolsHint(triggerId)
+    local trigger = TriggeredAbility.GetTriggerById(triggerId)
+    if trigger == nil or type(trigger.symbols) ~= "table" then return nil end
+    local names = {}
+    for k, def in pairs(trigger.symbols) do
+        if type(def) == "table" then
+            local nm = def.name
+            if (nm == nil or nm == "") and type(k) == "string" then
+                nm = k
+            end
+            if nm ~= nil and nm ~= "" then
+                if def.type ~= nil and def.type ~= "" then
+                    names[#names + 1] = string.format("%s (%s)", nm, def.type)
+                else
+                    names[#names + 1] = nm
+                end
+            end
+        end
+    end
+    if #names == 0 then return nil end
+    table.sort(names)
+    return "Adds script arguments: " .. table.concat(names, ", ")
+end
+
 -- Trigger Event field: shows the current event's display label with an
 -- inline "Change" button that opens the picker modal. Mirrors the Ability
 -- Editor's "Advanced Target..." convention (label + action button) rather
@@ -831,9 +862,12 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
             end,
         })
 
-    -- Trigger Event -- categorized picker modal (phase 2).
+    -- Trigger Event -- categorized picker modal (phase 2). The hint lists
+    -- the GoblinScript symbols this event injects; refreshSection() rebuilds
+    -- this section on trigger change, so it stays in sync with the picker.
     children[#children + 1] = fieldRow("Trigger Event",
-        makeTriggerEventButton(ability, refreshSection, fireChange))
+        makeTriggerEventButton(ability, refreshSection, fireChange),
+        triggerSymbolsHint(ability.trigger))
 
     -- Trigger Subject
     children[#children + 1] = fieldRow("Trigger Subject",

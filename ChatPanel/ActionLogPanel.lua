@@ -813,6 +813,9 @@ CreateChatPanel = function()
 	local children = {}
 	local messagePanels = {}
     local adoptedPanels = {}
+    --true once refreshChat has completed at least one FULL pass; the incremental path
+    --can only patch an existing build.
+    local m_fullRefreshDone = false
 
 	local chatPanelStyles = {
 			{
@@ -1166,12 +1169,132 @@ CreateChatPanel = function()
 
 		events = {
 			create = 'refreshChat',
-			refreshChat = function(element)
+			refreshChat = function(element, changeInfo)
 				--dev:diceperf -- per-phase timing of this handler (see engine settings.txt).
 				--os.clock() (CPU seconds) rather than dmhub.Time(), which is frame-quantized.
 				local perfLog = dmhub.GetSettingValue("dev:diceperf")
 				local perfStart = perfLog and os.clock() or 0
 				local perfCreateMs, perfCreates, perfRefreshMs, perfRefreshes = 0, 0, 0, 0
+
+				--INCREMENTAL PATH. The engine passes a change-set with refreshChat (see
+				--ChatPanel.cs RefreshLua): changeInfo.changed maps the top-level message
+				--keys whose content changed (new message, server echo replacing the
+				--message object, amendment arrival, roll completion) to true, and
+				--changeInfo.structural is true when the message SET changed shape
+				--(removal / first load / chat cleared). For a non-structural change on
+				--an already-built log, only the changed panels are touched: existing
+				--panels get refreshMessage, brand-new messages get a panel created and
+				--APPENDED. Nothing else is visited -- in particular the other ~100
+				--message panels and this scroll panel's children list -- which is what
+				--keeps a dice roll's refresh storm (send + echo + completion) off the
+				--frame budget. A structural change, or a refresh before the first full
+				--build (changeInfo == nil for the panel-create event), falls through to
+				--the full pass below.
+				if changeInfo ~= nil and (not changeInfo.structural) and m_fullRefreshDone then
+					--Removed messages (chat is pruned past 128 messages on every send, so
+					--this is routine): destroy just that message's panel.
+					for key,_ in pairs(changeInfo.removed or {}) do
+						local child = messagePanels[key] or adoptedPanels[key]
+						messagePanels[key] = nil
+						adoptedPanels[key] = nil
+						if child ~= nil and child.valid then
+							child:DestroySelf()
+						end
+					end
+
+					local anyNew = false
+					for key,_ in pairs(changeInfo.changed) do
+						--chat.GetRollInfo is a by-key lookup of the same message wrappers
+						--chat.messages holds (any message type, despite the name).
+						local message = chat.GetRollInfo(key)
+						if message ~= nil then
+							local adopted = adoptedPanels[key]
+							if adopted then
+								if adopted.valid then
+									adopted:FireEvent('refreshMessage', message)
+								end
+							else
+								local child = messagePanels[key]
+								--a panel destroyed out from under us (e.g. its adoptive
+								--cast parent was removed) is treated as missing.
+								if child ~= nil and (not child.valid) then
+									messagePanels[key] = nil
+									child = nil
+								end
+								if child ~= nil then
+									child:FireEvent('refreshMessage', message)
+
+									--late adoption: mirrors the full pass below.
+									local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
+									if adoptiveParentPanel ~= nil and adoptiveParentPanel.valid then
+										adoptiveParentPanel:AddChild(child)
+										adoptedPanels[key] = child
+									end
+								elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
+									local adoptCastid = nil
+									if message.messageType == "roll" and message.properties ~= nil then
+										adoptCastid = message.properties:try_get("castid")
+									end
+									local adoptiveParentPanel = adoptCastid and element.data.castPanels and element.data.castPanels[adoptCastid]
+									if adoptiveParentPanel ~= nil and (not adoptiveParentPanel.valid) then
+										adoptiveParentPanel = nil
+									end
+
+									if not g_errorPanels[key] then
+										local ok, result
+
+										--safely try to create the message panel. If it fails, we just skip it.
+										if devmode() then
+											--call unsafely as a dev. We want to get errors.
+											result = CreateSingleChatPanel(message, adoptiveParentPanel)
+											ok = true
+										else
+											ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
+										end
+
+										if ok then
+											child = result
+											child.data.adoptCastid = adoptCastid
+										else
+											dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+											g_errorPanels[key] = true
+										end
+									end
+
+									if child ~= nil then
+										messagePanels[key] = child
+										child:FireEvent('refreshMessage', message)
+
+										if adoptiveParentPanel ~= nil then
+											adoptiveParentPanel:AddChild(child)
+											adoptedPanels[key] = child
+										else
+											element:AddChild(child)
+											anyNew = true
+
+											if child.data.castid then
+												local castPanels = element.data.castPanels or {}
+												castPanels[child.data.castid] = child
+												element.data.castPanels = castPanels
+											end
+										end
+									end
+								end
+							end
+						end
+					end
+
+					--go to the bottom if we appended new messages, same as the full pass.
+					if anyNew then
+						element.vscrollPosition = 0
+						element:ScheduleEvent("moveToBottom", 0.05)
+					end
+
+					if perfLog then
+						print(string.format("DICEPERF-LUA:: ActionLog refreshChat INCREMENTAL total=%.1fms", (os.clock() - perfStart) * 1000))
+					end
+					return
+				end
 
 				local newMessagePanels = {}
 				local children = {}
@@ -1284,6 +1407,7 @@ CreateChatPanel = function()
 				end
 
 				messagePanels = newMessagePanels
+				m_fullRefreshDone = true
 				local perfT2 = perfLog and os.clock() or 0
 				element.children = children
 				if perfLog then

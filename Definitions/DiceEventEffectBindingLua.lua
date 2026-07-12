@@ -7,6 +7,8 @@
 --- @field brightness number Brightness multiplier (1 = authored brightness).
 --- @field tint Color Multiply tint colour combined with the material's authored tint (white = unchanged).
 --- @field xRotation number Whole-degree rotation of the FX root about its local X axis (0 = unchanged). Used in 90-degree steps to flip 'z up' vs 'y up' authored prefabs.
+--- @field offsetX number X offset of the spawned effect's position relative to the dice, in playfield units (screen-space; the dice playfield is roughly +/-4 units across). 0 = the authored attach point. Positive = right.
+--- @field offsetY number Y offset of the spawned effect's position relative to the dice, in playfield units (screen-space; the dice playfield is roughly +/-4 units across). 0 = the authored attach point. Positive = up.
 --- @field layerPlacement "auto"|"above"|"below"|"abovebelow" Where this effect renders relative to the dice: 'auto' (honor the prefab's TopLayer/BottomLayer convention -- the default), 'above' (force above the dice), 'below' (force beneath the dice), or 'abovebelow' (spawn two copies, one above and one below, dimmed by aboveOpacity/belowOpacity).
 --- @field aboveOpacity number Opacity (0..1) of the copy spawned ABOVE the dice when layerPlacement is 'abovebelow'. Multiplies that copy's tint alpha and brightness so it dims uniformly (1 = full intensity). Ignored for other placements.
 --- @field belowOpacity number Opacity (0..1) of the copy spawned BELOW the dice when layerPlacement is 'abovebelow'. Multiplies that copy's tint alpha and brightness so it dims uniformly (1 = full intensity). Ignored for other placements.

@@ -656,7 +656,7 @@ end
 local g_externalDiceEnabled = setting{
     id = SETTING_ENABLED,
     description = "Use Physical Dice",
-    help = "Route dice rolls through a localhost bridge to physical GoDice. The bridge program starts automatically when checked.",
+    help = "Route dice rolls through a localhost bridge to physical Bluetooth dice (GoDice, Pixels). The bridge program starts automatically when checked.",
     storage = "preference",
     section = "General",
     default = false,
@@ -1349,6 +1349,7 @@ local DIE_TYPE_OPTIONS = {
 -- waiting for the next think tick.
 local function CreateDieRow(die, onChanged)
     local connected = die.connected == true
+    local isPixels = die.vendor == "pixels"
     -- Battery is nil until the bridge's first real read after connect
     -- (there is no cached value for a sleeping die).
     local batteryText = "asleep"
@@ -1365,6 +1366,7 @@ local function CreateDieRow(die, onChanged)
         height = 26,
         vmargin = 2,
 
+        -- Connection dot; hover for the die's details (brand, size, MAC).
         gui.Panel{
             width = 12,
             height = 12,
@@ -1374,6 +1376,10 @@ local function CreateDieRow(die, onChanged)
             bgimage = "panels/square.png",
             bgcolor = connected and "#40c040" or "#707070",
             cornerRadius = 6,
+            hover = gui.Tooltip(string.format("%s %s\n%s",
+                isPixels and "Pixels" or "GoDice",
+                tostring(die.type),
+                tostring(die.id))),
         },
 
         gui.Label{
@@ -1395,10 +1401,14 @@ local function CreateDieRow(die, onChanged)
             color = "#aaaaaa",
         },
 
-        -- Declared die size. GoDice do not self-report which shell is
-        -- snapped on, so this is the user's declaration; changing it saves
-        -- to the bridge config and rebinds the connection.
-        gui.Dropdown{
+        -- Die size. GoDice do not self-report which shell is snapped on,
+        -- so it's a user declaration (dropdown; changing it saves to the
+        -- bridge config and rebinds the connection). Pixels report their
+        -- own type over BLE -- the hardware is authoritative and the
+        -- bridge rejects manual changes, so no editor: their size lives
+        -- in the connection dot's tooltip.
+        isPixels and gui.Panel{ width = 64, height = 22, valign = "center" }
+        or gui.Dropdown{
             width = 64,
             height = 22,
             fontSize = 12,
@@ -1517,8 +1527,9 @@ local function CreatePhysicalDicePanel()
     }
 
     -- Discovered-but-unpaired dice from the last scan, each with a Pair
-    -- button. Pairing defaults to d10 (the Draw Steel workhorse); adjust
-    -- with the row's size dropdown afterwards.
+    -- button. GoDice pair as d10 by default (the Draw Steel workhorse;
+    -- adjust with the row's size dropdown afterwards). Pixels advertise
+    -- their die type, so they pair as exactly what they are.
     local m_scanResults = gui.Panel{
         flow = "vertical",
         width = "100%",
@@ -1533,7 +1544,7 @@ local function CreatePhysicalDicePanel()
         height = 26,
         halign = "left",
         vmargin = 6,
-        hover = gui.Tooltip("Searches for nearby GoDice for ~8 seconds. Wake your dice first (give them a shake)."),
+        hover = gui.Tooltip("Searches for nearby GoDice and Pixels dice for ~8 seconds. Wake your dice first (give them a shake)."),
         click = function(element)
             if not CGB.isEnabled() then return end
             m_scanButton.text = "Scanning..."
@@ -1552,13 +1563,22 @@ local function CreatePhysicalDicePanel()
                     if body ~= nil and type(body.dice) == "table" then
                         for _, found in ipairs(body.dice) do
                             if not found.paired then
+                                local isPixels = found.vendor == "pixels"
+                                local label
+                                if isPixels then
+                                    -- Pixels self-report their type in the ad,
+                                    -- e.g. Pixel d20 'Fudge'.
+                                    label = string.format("Pixel %s '%s'", tostring(found.type or "?"), tostring(found.name))
+                                else
+                                    label = string.format("%s (%s)", tostring(found.name), tostring(found.address))
+                                end
                                 rows[#rows+1] = gui.Panel{
                                     flow = "horizontal",
                                     width = "100%",
                                     height = 26,
                                     vmargin = 2,
                                     gui.Label{
-                                        text = string.format("%s (%s)", tostring(found.name), tostring(found.address)),
+                                        text = label,
                                         fontSize = 12,
                                         width = "60%",
                                         height = "auto",
@@ -1574,7 +1594,12 @@ local function CreatePhysicalDicePanel()
                                         click = function(btn)
                                             net.Post{
                                                 url = CGB.getBaseUrl() .. "/v1/dice/pair",
-                                                data = { address = found.address, type = "d10" },
+                                                data = {
+                                                    address = found.address,
+                                                    vendor = found.vendor or "godice",
+                                                    type = isPixels and found.type or "d10",
+                                                    name = isPixels and found.name or nil,
+                                                },
                                                 success = function(_)
                                                     if resultPanel ~= nil and resultPanel.valid then
                                                         m_scanResults.children = {}

@@ -627,6 +627,10 @@ function CustomDocument:CreateInterface(args)
 
     writePanel:SetClass("collapsed", true)
 
+    --forward-declared (defined with the find state below): the edit-mode
+    --toggle re-fires the active find term at whichever panel it reveals.
+    local FireFind
+
     local m_presentButton
     local m_playerPreviewButton
 
@@ -901,6 +905,12 @@ function CustomDocument:CreateInterface(args)
                 element:SetClass("selected", not writePanel:HasClass("collapsed"))
                 m_titlePanel:SetClass("collapsed", writePanel:HasClass("collapsed"))
 
+                --carry an active find across the mode switch: re-fire it at
+                --the panel that just became visible.
+                if FireFind ~= nil then
+                    FireFind(true)
+                end
+
                 element.thinkTime = cond(element:HasClass("selected"), 1)
             end,
 
@@ -1012,6 +1022,30 @@ function CustomDocument:CreateInterface(args)
             dmhub.SetSettingValue("journal:fontsize", dmhub.GetSettingValue("journal:fontsize") + 20)
         end,
     }
+
+    -- Glossary hints quick-mute (view-local, never persisted): lets a
+    -- director instantly silence term hints while performing or presenting,
+    -- without touching the global preference.
+    if dmhub.GetSettingValue("glossaryhints") ~= "off" then
+        m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.Button {
+            classes = {"sizeS"},
+            icon = "ui-icons/eye.png",
+            escapeActivates = false,
+            halign = "left",
+            hmargin = 4,
+            data = { muted = false },
+            linger = function(element)
+                gui.Tooltip("Hide glossary hints in this view")(element)
+            end,
+            press = function(element)
+                element.data.muted = not element.data.muted
+                element:SetClass("selected", element.data.muted)
+                if readPanel ~= nil and readPanel.valid then
+                    readPanel:FireEvent("glossaryMute", element.data.muted)
+                end
+            end,
+        }
+    end
 
     if not args.presentationMode then
         m_controlMenuButtons[#m_controlMenuButtons + 1] = m_playerPreviewButton
@@ -1131,11 +1165,20 @@ function CustomDocument:CreateInterface(args)
     local m_findRowLabel = nil
     local m_searchInput
 
-    local function FireFind()
-        if readPanel == nil or not readPanel.valid then
+    FireFind = function(onlyIfActive)
+        if onlyIfActive and m_findState.term == nil then
             return
         end
-        readPanel:FireEvent("findInPage", {
+        --the display panel and the live editor both implement findInPage;
+        --target whichever is currently visible.
+        local target = readPanel
+        if writePanel ~= nil and writePanel.valid and not writePanel:HasClass("collapsed") then
+            target = writePanel
+        end
+        if target == nil or not target.valid then
+            return
+        end
+        target:FireEvent("findInPage", {
             term = m_findState.term,
             index = m_findState.index,
             callback = function(count)

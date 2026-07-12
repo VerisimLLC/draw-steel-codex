@@ -174,32 +174,31 @@ function game.DuplicateMap(mapid, oncomplete)
 	-- dummy implementation for documentation purposes only
 end
 
---- BeginRecordingMapModification: Begin recording destructive map modifications (heightmap and
---- terrain edits) into a persistent record. All map edits until EndRecordingMapModification is
---- called are captured so they can be reverted later. Recordings with the same key merge into a
---- single record, grouping the edits of one ability cast.
+--- BeginRecordingMapModification: Begin recording destructive map modifications (heightmap and terrain edits) into a persistent record. All map edits until EndRecordingMapModification is called are captured so they can be reverted later. Recordings with the same key merge into a single record, grouping the edits of one ability cast.
 --- @param options {key: nil|string, name: nil|string, casterid: nil|string, casterName: nil|string, floorid: nil|string, loc: nil|{x: number, y: number}}
 function game.BeginRecordingMapModification(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- EndRecordingMapModification: End the active map modification recording, persisting the record
---- if any map edits were captured. Safe to call when no recording is active.
+--- EndRecordingMapModification: End the active map modification recording, persisting the record if any map edits were captured. Safe to call when no recording is active.
+--- @return nil
 function game.EndRecordingMapModification()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetMapModifications: Get the recorded map modifications for the current map, sorted newest
---- first. Each entry has id, key, name, casterid, casterName, floorid, x, y, timestamp, and
---- count (the number of captured edit commands).
---- @return {id: string, key: string, name: string, casterid: nil|string, casterName: nil|string, floorid: string, x: number, y: number, timestamp: number, count: number}[]
+--- AddMapModificationVoxel: Attach a wall-voxel object (as returned by floor:SpawnObjectLocal) to the active map modification recording. Wall voxels persist outside the map document, so recordings reference them directly instead of capturing commands; deleting the record destroys whichever of its voxels still survive. No-op if no recording is active.
+--- @param obj ObjectInstance The spawned wall-voxel object.
+function game.AddMapModificationVoxel(obj)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetMapModifications: Get the recorded map modifications for the current map, sorted newest first. Each entry has id, key, name, casterid, casterName, floorid, x, y, timestamp, count (the number of captured edit commands), voxelCount (wall voxels recorded, for wall-building records), and voxelsRemaining (how many of those voxels still exist on the map).
+--- @return {id: string, key: string, name: string, casterid: nil|string, casterName: nil|string, floorid: string, x: number, y: number, timestamp: number, count: number, voxelCount: number, voxelsRemaining: number}[]
 function game.GetMapModifications()
 	-- dummy implementation for documentation purposes only
 end
 
---- DeleteMapModification: Revert a recorded map modification, restoring the captured
---- pre-modification state, and delete its record. The revert is a single undoable step; undoing
---- it re-applies the modification and restores the record.
+--- DeleteMapModification: Revert a recorded map modification, restoring the captured pre-modification state, and delete its record. For wall-building records this destroys whichever recorded wall voxels still survive. Command reverts are a single undoable step (undoing re-applies the modification and restores the record); wall-voxel removal is not undoable.
 --- @param id string The modification record id, as returned by GetMapModifications.
 function game.DeleteMapModification(id)
 	-- dummy implementation for documentation purposes only

@@ -462,7 +462,7 @@ local shopStyles = {
 		vmargin = 6,
 		fontSize = 14,
 		uppercase = true,
-		width = 140,
+		width = 152,
 		height = 40,
 		bgimage = "panels/square.png",
 		textAlignment = "center",
@@ -486,6 +486,23 @@ local shopStyles = {
 	},
 	{
 		selectors = {"itemButton", "checkoutButton", "hover"},
+		brightness = 1.4,
+	},
+
+	--A dice equip-panel button whose role/slot currently has THIS dice set
+	--equipped (see the equip panel in ShowItemDetailsInternal). Gold like the
+	--checkout button so "equipped" reads as the affirmative state.
+	{
+		selectors = {"itemButton", "equipped"},
+		color = "#000000cc",
+		transitionTime = 0.1,
+		bgcolor = "srgb:#f6ddb6",
+		borderColor = "srgb:#f6ddb6",
+	},
+	{
+		selectors = {"itemButton", "equipped", "hover"},
+		color = "#000000cc",
+		bgcolor = "srgb:#f6ddb6",
 		brightness = 1.4,
 	},
 
@@ -2634,8 +2651,9 @@ local ShowItemDetailsInternal = function(args)
 	--dice in place. All the engine calls are pcall-guarded so a Lua-only
 	--reload against an older binary degrades gracefully rather than erroring.
 	--cageArgs: x/width (wrapper placement in the action row), cageWidth (the
-	--invisible hitbox), numDice/numFaces (the seeded roll), label (optional
-	--caption under the dice).
+	--invisible hitbox), numDice/numFaces (the seeded roll), restScale
+	--(optional resting-size multiplier for this cage's dice; hover/roll
+	--sizes unaffected), label (optional caption under the dice).
 	local MakeTryDiceCage = function(cageArgs)
 		local captionLabel = nil
 		if cageArgs.label ~= nil then
@@ -2719,6 +2737,11 @@ local ShowItemDetailsInternal = function(args)
 					--drops it from that altitude so it falls and lands with an impact instead
 					--of just snapping back to rest. A quick flick still tosses a full roll.
 					pcall(function() element.dicePreviewLiftDrop = true end)
+					--Per-cage resting-size tuning; hover/roll sizes are unaffected,
+					--so a shrunk cage still pops to the normal size on mouseover.
+					if cageArgs.restScale ~= nil then
+						pcall(function() element.dicePreviewRestScale = cageArgs.restScale end)
+					end
 				end,
 				destroy = function(element)
 					pcall(function() element:CancelDicePreviewRoll() end)
@@ -2866,15 +2889,20 @@ local ShowItemDetailsInternal = function(args)
 
 			m_diceBanner,
 
-			--Action row under the banner: a roll-the-dice control on the left,
-			--Add to Cart pinned to the right. Sized to the banner width so the
-			--two ends line up with the banner's edges. Both children float so
-			--they sit at opposite ends regardless of flow.
+			--Action row under the banner: a roll-the-dice control on the left;
+			--on the right, Add to Cart (store view) or the dice equip panel
+			--(inventory view). Sized to the banner width so the two ends line up
+			--with the banner's edges. The cages and Add to Cart float; the equip
+			--panel is the row's one flowed child, so the row grows to fit it in
+			--the inventory view and falls back to the cages' height otherwise.
 			gui.Panel{
 				width = g_bannerDisplayWidth,
-				height = 96,
+				height = "auto",
+				minHeight = 96,
 				halign = "center",
-				vmargin = 12,
+				--Top margin only: the row keeps its gap to the banner above but
+				--sits flush against the bottom of the showcase column.
+				tmargin = 12,
 
 				styles = {
 					{ selectors = {"shopTryDie"}, transitionTime = 0.1 },
@@ -2892,6 +2920,9 @@ local ShowItemDetailsInternal = function(args)
 					cageWidth = 170,
 					numDice = 2,
 					numFaces = 10,
+					--The d10 pair reads slightly large next to the d6 at the shared
+					--rest size; sit them 5% smaller (hover still pops to full size).
+					restScale = 0.95,
 					label = "Drag to roll dice",
 				},
 
@@ -2951,34 +2982,308 @@ local ShowItemDetailsInternal = function(args)
 						end
 					end,
 				},
-			},
 
-			--Equip / Equipped (inventory only).
-			gui.Label{
-				text = "Equip",
-				classes = {"itemButton", "collapsedUnlessInventory"},
-				halign = "center",
-				vmargin = 8,
-				data = { item = nil },
-				click = function(element)
-					dmhub.SetSettingValue("diceequipped", element.data.item.assetid)
-					element.parent:FireEventTree("showProductDetails", element.data.item)
-				end,
-				showProductDetails = function(element, item)
-					element.data.item = item
-					element:SetClass("collapsed", item.itemType == "Dice" and item.assetid == dmhub.GetSettingValue("diceequipped"))
-				end,
-			},
+				--Equip panel (inventory only), filling the right side of the action
+				--row beside the try-dice cages rather than adding a row of vertical
+				--space below them. Dice equip into a multi-part loadout rather than
+				--one monolithic choice. Three columns, each a LIVE spinning
+				--render of the real 3D die currently equipped in that slot (a pooled
+				--"#DicePreview:<set>:<seq>:<scale>:<spin>:<faces>" scene -- see
+				--DiceSetPreviewManager; the faces segment picks the d10/d6 geometry)
+				--above a button that equips the viewed set there:
+				--  1st Power Die -- the diceequipped setting: the default set, used for
+				--                   everything another slot doesn't override, including
+				--                   the first d10 of a power roll (today's behavior).
+				--  2nd Power Die -- diceequipped2: rolls with multiple d10s alternate
+				--                   between the two power-die slots.
+				--  D3/D6         -- diceequippedd6: d6- and d3-shaped dice.
+				--Pressing a button puts the viewed set in that slot (pressing again
+				--clears the slot back to the default); the icon above swaps to the new
+				--die. Beneath the columns a central "Equip for All Dice" button equips
+				--the viewed set as the default and clears the other slots so every die
+				--uses it.
+				--Below that, one button per slot authored on the dice set (Dice Studio
+				--Slots section): activating a slot binds this set to that purpose (e.g.
+				--dealing fire damage, playing a Shadow) instead of equipping it always.
+				--Activations are stored in the diceslotsequipped setting keyed by slot
+				--(so a slot holds one dice set); rolls do not consume them yet -- that is
+				--the next step of the dice-slots feature.
+				gui.Panel{
+					classes = {"collapsedUnlessInventory"},
+					flow = "vertical",
+					width = "auto",
+					height = "auto",
+					halign = "right",
+					valign = "top",
+					rmargin = 24,
+					vmargin = 8,
+					data = { item = nil },
 
-			gui.Label{
-				text = "Equipped",
-				classes = {"titleLabel", "collapsedUnlessInventory"},
-				halign = "center",
-				width = "auto",
-				vmargin = 8,
-				showProductDetails = function(element, item)
-					element:SetClass("collapsed", item.itemType == "Dice" and item.assetid ~= dmhub.GetSettingValue("diceequipped"))
-				end,
+					showProductDetails = function(element, item)
+						element.data.item = item
+						element:SetClass("collapsed", item.itemType ~= "Dice")
+						element:FireEvent("rebuildEquip")
+					end,
+
+					rebuildEquip = function(element)
+						local item = element.data.item
+						if item == nil or item.itemType ~= "Dice" then
+							element.children = {}
+							return
+						end
+
+						local function Rebuild()
+							element:FireEvent("rebuildEquip")
+						end
+
+						local function MakeEquipButton(args)
+							local classes = {"itemButton"}
+							if args.equipped then
+								classes[#classes+1] = "equipped"
+							end
+							return gui.Label{
+								classes = classes,
+								text = args.text,
+								width = args.width,
+								halign = "center",
+								hmargin = 8,
+								linger = function(el)
+									gui.Tooltip{
+										text = args.tooltip,
+										halign = "center",
+										valign = "top",
+									}(el)
+								end,
+								press = function(el)
+									args.click()
+									Rebuild()
+								end,
+							}
+						end
+
+						--Copy-modify-set the slot-activation table; a slot key holds at
+						--most one dice set, so activating here replaces any other set
+						--previously activated for the same slot.
+						local function SetSlotActivation(key, assetid)
+							local result = {}
+							for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+								result[k] = v
+							end
+							result[key] = assetid
+							dmhub.SetSettingValue("diceslotsequipped", result)
+						end
+
+						local function SlotKey(slot)
+							if slot.slotType == "damage" then
+								return "damage:" .. (slot.damageType or "")
+							end
+							local key = "class:" .. (slot.classid or "")
+							if slot.subclassid ~= nil and slot.subclassid ~= "" then
+								key = key .. ":" .. slot.subclassid
+							end
+							return key
+						end
+
+						--Player-facing slot description, e.g. "Fire Damage" or
+						--"Shadow: College of Black Ash". Class/subclass names resolve
+						--from the lobby game's compendium tables.
+						local function SlotLabel(slot)
+							if slot.slotType == "damage" then
+								local damageType = slot.damageType or ""
+								if damageType == "" then
+									return "Any Damage"
+								end
+								return damageType:gsub("^%l", string.upper) .. " Damage"
+							end
+
+							local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
+							local className = "Unknown Class"
+							if classInfo ~= nil then
+								className = classInfo:try_get("name", className)
+							end
+							if slot.subclassid ~= nil and slot.subclassid ~= "" then
+								local sub = (dmhub.GetTable("subclasses") or {})[slot.subclassid]
+								if sub ~= nil then
+									return string.format("%s: %s", className, sub:try_get("name", "Subclass"))
+								end
+							end
+							return className
+						end
+
+						local children = {}
+
+						local equippedDefault = dmhub.GetSettingValue("diceequipped")
+						local equipped2 = dmhub.GetSettingValue("diceequipped2")
+						local equippedD6 = dmhub.GetSettingValue("diceequippedd6")
+
+						--One column per die slot: a live spinning render of the die
+						--currently equipped there, above the button that equips the
+						--viewed set. args = { faces = 10|6, seq, text, slotSet, tooltip,
+						--click }. seq is a stable per-slot tag so rebuilds after an equip
+						--click re-attach to the same pooled scene (same key) instead of
+						--spinning up a fresh one; changing the slot's set changes the key,
+						--which naturally builds the new die and evicts the old.
+						local function MakeSlotColumn(args)
+							--The die previewed for this slot: the slot's own set, falling
+							--back to the default set for empty slots (that is what rolls).
+							local previewSet = args.slotSet
+							if previewSet == nil or previewSet == "" then
+								previewSet = equippedDefault
+								if previewSet == nil or previewSet == "" then
+									previewSet = "Default"
+								end
+							end
+
+							return gui.Panel{
+								flow = "vertical",
+								width = "auto",
+								height = "auto",
+								halign = "center",
+								hmargin = 12,
+
+								--Live 3D die of the equipped set (pooled preview scene; the
+								--same mechanism as the shop tiles' spinning dice). The RT is
+								--premultiplied with reconstructed alpha, like the tile die
+								--layers. The trailing segments are dice scale, spin-axis
+								--angle, and the die geometry; an engine build that predates
+								--the faces segment ignores it and shows a d10.
+								gui.Panel{
+									interactable = false,
+									bgimage = string.format("#DicePreview:%s:%s:%.2f:%.2f:%d",
+										tostring(previewSet), args.seq, 3.0, 0, args.faces),
+									bgcolor = "white",
+									blend = "premultiplied",
+									width = 96,
+									height = 96,
+									halign = "center",
+								},
+
+								MakeEquipButton{
+									text = args.text,
+									equipped = item.assetid == args.slotSet,
+									tooltip = args.tooltip,
+									click = args.click,
+								},
+							}
+						end
+
+						children[#children+1] = gui.Panel{
+							flow = "horizontal",
+							width = "auto",
+							height = "auto",
+							halign = "center",
+
+							MakeSlotColumn{
+								faces = 10,
+								seq = "equipslot1",
+								text = "1st Power Die",
+								slotSet = equippedDefault,
+								tooltip = cond(item.assetid == equippedDefault,
+									"Your default dice: the first d10 of your power rolls, and every die another slot does not override. Click to revert to the standard dice.",
+									"Use this set as your default dice: the first d10 of your power rolls, and every die another slot does not override."),
+								click = function()
+									dmhub.SetSettingValue("diceequipped", cond(item.assetid == equippedDefault, "Default", item.assetid))
+								end,
+							},
+
+							MakeSlotColumn{
+								faces = 10,
+								seq = "equipslot2",
+								text = "2nd Power Die",
+								slotSet = equipped2,
+								tooltip = cond(item.assetid == equipped2,
+									"Your second d10: rolls with multiple d10s alternate between your 1st and 2nd power dice. Click to use your default set for every d10.",
+									"Rolls with multiple d10s -- like your power rolls -- will alternate between your default set and this one."),
+								click = function()
+									dmhub.SetSettingValue("diceequipped2", cond(item.assetid == equipped2, "", item.assetid))
+								end,
+							},
+
+							MakeSlotColumn{
+								faces = 6,
+								seq = "equipslotd6",
+								text = "D3/D6",
+								slotSet = equippedD6,
+								tooltip = cond(item.assetid == equippedD6,
+									"Your d3/d6 dice. Click to use your default set for these rolls.",
+									"Use this set whenever you roll a d3 or a d6."),
+								click = function()
+									dmhub.SetSettingValue("diceequippedd6", cond(item.assetid == equippedD6, "", item.assetid))
+								end,
+							},
+						}
+
+						--Central equip-for-all: the viewed set becomes the default and the
+						--other slots clear, so every die uses it.
+						children[#children+1] = MakeEquipButton{
+							text = "Equip for All Dice",
+							width = 240,
+							equipped = item.assetid == equippedDefault and (equipped2 == nil or equipped2 == "") and (equippedD6 == nil or equippedD6 == ""),
+							tooltip = "Equip this set for all of your dice.",
+							click = function()
+								dmhub.SetSettingValue("diceequipped", item.assetid)
+								dmhub.SetSettingValue("diceequipped2", "")
+								dmhub.SetSettingValue("diceequippedd6", "")
+							end,
+						}
+
+						--Slot activations, if this dice set has authored slots.
+						--pcall: dice.GetDiceSlots needs an engine build that has it.
+						local slots = nil
+						pcall(function() slots = dice.GetDiceSlots(item.assetid) end)
+						if slots ~= nil and #slots > 0 then
+							local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
+
+							children[#children+1] = gui.Label{
+								text = "Or activate this set for...",
+								width = "auto",
+								height = "auto",
+								halign = "center",
+								fontSize = 12,
+								color = "#cfcfcf",
+								vmargin = 4,
+							}
+
+							local slotButtons = {}
+							for _,slot in ipairs(slots) do
+								local key = SlotKey(slot)
+								local active = slotsEquipped[key] == item.assetid
+								slotButtons[#slotButtons+1] = MakeEquipButton{
+									text = SlotLabel(slot),
+									width = 240,
+									equipped = active,
+									tooltip = cond(active,
+										"This set is activated for this purpose. Click to deactivate.",
+										cond(slot.slotType == "damage",
+											"Use this set when dealing this damage type.",
+											"Use this set when playing this class.")),
+									click = function()
+										SetSlotActivation(key, cond(active, nil, item.assetid))
+									end,
+								}
+							end
+
+							--Wrap slot buttons onto rows of two so many-slotted dice
+							--stay inside the panel's share of the action row.
+							for i = 1, #slotButtons, 2 do
+								local rowChildren = {}
+								for j = i, math.min(i + 1, #slotButtons) do
+									rowChildren[#rowChildren+1] = slotButtons[j]
+								end
+								children[#children+1] = gui.Panel{
+									flow = "horizontal",
+									width = "auto",
+									height = "auto",
+									halign = "center",
+									children = rowChildren,
+								}
+							end
+						end
+
+						element.children = children
+					end,
+				},
+
 			},
 
 		},
@@ -4289,7 +4594,10 @@ local function CreateShopScreenInternal(arguments)
 				--Search bar row: occupies the gap between the featured banner and
 				--the product grid, right-aligned so the search box's right edge
 				--lines up with the banner's right edge. Hidden (keeping the gap)
-				--while viewing the cart or a single product's details.
+				--while viewing the cart; fully collapsed while viewing a single
+				--product's details, so the lower panel really does start right
+				--under the "Store" header and the details showcase banner sits
+				--the same distance below it as the featured banner does.
 				--The gap below the box is provided by the grid row's own 30px
 				--vmargin minus the 8px the card frame art rises above the items
 				--(22px effective); the -11 bmargin pulls the grid up to make it
@@ -4310,7 +4618,7 @@ local function CreateShopScreenInternal(arguments)
 						},
 						{
 							selectors = {"viewingItem"},
-							hidden = 1,
+							collapsed = 1,
 						},
 						{
 							selectors = {"redeemingCoupon"},
@@ -4917,7 +5225,7 @@ local function CreateShopScreenInternal(arguments)
 					valign = "center",
 					rmargin = 16,
 					text = "Redeem a Gift Code",
-					fontWeight = "bold",
+					fontWeight = "regular",
 
 					styles = {
 						{
@@ -4942,16 +5250,72 @@ local function CreateShopScreenInternal(arguments)
 					end,
 				},
 
+				--Divider between the redeem link and the cart group. It only
+				--separates the two when the cart group is shown, so it collapses
+				--along with it.
+				gui.Panel{
+					classes = {"collapseOnNoCommerce"},
+					bgimage = "panels/square.png",
+					bgcolor = "white",
+					opacity = 0.4,
+					width = 2,
+					height = 24,
+					valign = "center",
+					rmargin = 16,
+				},
+
+				--"View Cart" + cart icon + item count: one clickable unit. The
+				--press handler lives here on the group (an invisible backing makes
+				--the whole row, including the gaps, the hit area) and the hover
+				--feedback on the children keys off parent:hover so text and icon
+				--light up together.
 				gui.Panel{
 					classes = {"collapseOnNoCommerce"},
 					flow = "horizontal",
 					width = "auto",
 					height = "auto",
+					bgimage = "panels/square.png",
+					bgcolor = "clear",
 					refreshCart = function(element, shoppingCart, addingItem)
 						if addingItem then
 							element:PulseClassTree("add")
 						end
 					end,
+
+					press = function(element)
+						if element:HasClass("showingCouponInventory") then
+							resultPanel:FireEventTree("clearCouponDisplay")
+						end
+
+						if element:HasClass("redeemingCoupon") then
+							resultPanel:FireEventTree("clearredeem")
+						end
+
+						element:FireEventOnParents("showCart")
+
+						analytics.Event{
+							type = "showCart",
+						}
+
+					end,
+
+					gui.Label{
+						bgcolor = "clear",
+						width = "auto",
+						height = "auto",
+						fontSize = 18,
+						valign = "center",
+						rmargin = 8,
+						text = "View Cart",
+						fontWeight = "bold",
+
+						styles = {
+							{
+								selectors = {"parent:hover"},
+								color = "#ffffff",
+							},
+						},
+					},
 
 					gui.Panel{
 						bgimage = "icons/icon_shopping/shopping-cart.png",
@@ -4960,6 +5324,8 @@ local function CreateShopScreenInternal(arguments)
 						height = 32,
 						--The cart icon art is pure white, so hover/add feedback
 						--tints it gold (brightness can't lift white any further).
+						--parent:hover so hovering anywhere on the View Cart group
+						--tints it, not just the icon itself.
 						styles = {
 							{
 								selectors = {"add"},
@@ -4967,27 +5333,10 @@ local function CreateShopScreenInternal(arguments)
 								bgcolor = "#f6ddb6",
 							},
 							{
-								selectors = {"hover"},
+								selectors = {"parent:hover"},
 								bgcolor = "#f6ddb6",
 							},
 						},
-
-						press = function(element)
-							if element:HasClass("showingCouponInventory") then
-								resultPanel:FireEventTree("clearCouponDisplay")
-							end
-
-							if element:HasClass("redeemingCoupon") then
-								resultPanel:FireEventTree("clearredeem")
-							end
-
-							element:FireEventOnParents("showCart")
-
-							analytics.Event{
-								type = "showCart",
-							}
-
-						end,
 					},
 
 					gui.Label{

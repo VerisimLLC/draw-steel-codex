@@ -3365,9 +3365,26 @@ function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
     return g_moreTargetsFunction(self, casterToken, targets, symbols)
 end
 
+--for contiguous square placement (e.g. "wall N" abilities), a "(4/20)" counter
+--of squares placed so far, appended to the casting prompt. Empty string for
+--other targeting types.
+local function ContiguousPlacementCounter(ability, casterToken, targets, symbols)
+    local targeting = ability:try_get("targeting", "direct")
+    if targeting ~= "contiguous_wall" and targeting ~= "contiguous" then
+        return ""
+    end
+
+    local numTargets = ability:GetNumTargets(casterToken, symbols or {})
+    if type(numTargets) ~= "number" or numTargets < 2 or numTargets >= 99 then
+        return ""
+    end
+
+    return string.format(" (%d/%d)", #targets, numTargets)
+end
+
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
     if self:try_get("promptOverride") ~= nil then
-        return self.promptOverride
+        return self.promptOverride .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
     end
 
     if synthesizedSpells ~= nil then
@@ -3387,6 +3404,11 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
 
     if self.targetType == 'all' then
         return ""
+    end
+
+    local counter = ContiguousPlacementCounter(self, casterToken, targets, symbols)
+    if counter ~= "" then
+        return "Choose Squares" .. counter
     end
 
     local numTargets = self:GetNumTargets(casterToken, symbols)

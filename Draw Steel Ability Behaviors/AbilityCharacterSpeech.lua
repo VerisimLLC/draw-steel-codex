@@ -34,6 +34,13 @@ function ActivatedAbilityCharacterSpeechBehavior:Cast(ability, casterToken, targ
             self._tmp_shuffle[#self._tmp_shuffle] = nil
 
             local language = tok.properties:CurrentlySpokenLanguage()
+            if language == nil then
+                local fallback = self:try_get("fallbackText")
+                if fallback == nil or fallback == "" then
+                    fallback = "..."
+                end
+                text = fallback
+            end
             tok:ModifyProperties{
                 description = "Speech",
                 undoable = false,

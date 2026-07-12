@@ -19,6 +19,7 @@ local function CreateRulerPanel()
 		halign = "right",
 		valign = "top",
 		flow = "vertical",
+        pad = 16,
 
 		create = function(element)
 			dmhub.rulerToolActive = true
@@ -38,6 +39,7 @@ local function CreateRulerPanel()
 		CreateSettingsEditor("measure:linewidth", stackedOpts),
 		CreateSettingsEditor("measure:share", stackedOpts),
 		CreateSettingsEditor("measure:snap", stackedOpts),
+		CreateSettingsEditor("measure:distances", stackedOpts),
 		persistentSetting,
 
 	}

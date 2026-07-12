@@ -4438,6 +4438,25 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 
 	options.haveOngoingDC = false
 
+	--Apply/purge pairing: when this same ability also contains a later Purge
+	--Ongoing Effects behavior for this exact effect (e.g. Dread March's
+	--"Cannot Be Removed" bookkeeping around each undead's invoked move+strike),
+	--the effect's lifetime is meant to be bounded by this cast. A cast canceled
+	--between the apply and the purge (canceling the invoked move/strike kills
+	--the cast coroutine) used to leak the effect permanently. Track what we
+	--apply so a FinishCast handler -- guaranteed to run even on cancel via the
+	--cast coroutine's atexit -- can remove anything the purge behavior never
+	--got to. When the purge behavior DID run the effect is already gone and the
+	--handler is a no-op.
+	local hasPurgePair = false
+	for _,b in ipairs(ability.behaviors) do
+		if b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
+			hasPurgePair = true
+			break
+		end
+	end
+	local pairedApplications = nil
+
 	for i,target in ipairs(targets) do
 		local skip = false
 		if dcaction ~= nil then
@@ -4680,6 +4699,46 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 						end
 					end
 				}
+
+				if hasPurgePair and newEffect ~= nil then
+					pairedApplications = pairedApplications or {}
+					pairedApplications[#pairedApplications+1] = {
+						tokenid = target.token.charid,
+						casterid = casterid,
+					}
+				end
+			end
+		end
+	end
+
+	if pairedApplications ~= nil then
+		local effectid = self.ongoingEffect
+		options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+		options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function(finishAbility, finishCaster, finishOptions)
+			for _,application in ipairs(pairedApplications) do
+				local tok = dmhub.GetTokenById(application.tokenid)
+				if tok ~= nil and tok.valid and tok.properties ~= nil then
+					local staleSeqs = {}
+					for _,effect in ipairs(tok.properties:ActiveOngoingEffects()) do
+						if effect.ongoingEffectid == effectid then
+							local ci = effect:try_get("casterInfo")
+							if ci ~= nil and ci.tokenid == application.casterid then
+								staleSeqs[#staleSeqs+1] = effect.seq
+							end
+						end
+					end
+					if #staleSeqs > 0 then
+						tok:ModifyProperties{
+							description = "Remove ongoing effect (cast ended)",
+							undoable = false,
+							execute = function()
+								for _,seq in ipairs(staleSeqs) do
+									tok.properties:RemoveOngoingEffectBySeq(seq)
+								end
+							end,
+						}
+					end
+				end
 			end
 		end
 	end

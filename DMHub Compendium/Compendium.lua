@@ -876,6 +876,12 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 	local m_buildGeneration = 0
 	local m_activeSearch = ""
 
+	-- snapshot of the table keys observed by the previous refresh; nil until
+	-- the panel's first refresh. Distinguishes "the table gained a new entry"
+	-- (auto-select it) from "the row cache is just missing rows" (rebuild
+	-- quietly).
+	local m_knownKeys = nil
+
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
@@ -888,8 +894,8 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 			m_buildGeneration = m_buildGeneration + 1
 			local generation = m_buildGeneration
 
-			-- captured once: late chunks run when aliveTime > 0.2, and select=true
-			-- fires press on create, which would open every row built after open
+			-- gate against auto-selecting anything during the panel's opening
+			-- build; captured once so late chunks agree with the first one
 			local autoSelect = element.aliveTime > 0.2
 
 			local children = {}
@@ -932,6 +938,43 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 			local chunkSize = #keys
 			if missing > 120 then
 				chunkSize = 80
+				-- chunked build: headings cached from a previous build are
+				-- not covered by the pending-row tail below, so they get
+				-- orphan-destroyed once the first chunk drops them from
+				-- children; create them fresh rather than reuse dead panels
+				sectionHeadings = {}
+			end
+
+			-- Auto-select only when the table gained exactly one genuinely-new
+			-- entry (the Add button / right-click Duplicate case). This must
+			-- key off table membership, not the row cache: a refresh landing
+			-- while a chunked build is in flight recreates rows whose keys the
+			-- table already had, and select-on-create rebuilds the whole
+			-- editor pane per row (a multi-minute stall at ~900 effects).
+			local selectKey = nil
+			local knownKeys = m_knownKeys
+			m_knownKeys = {}
+			for _,k in ipairs(keys) do
+				m_knownKeys[k] = true
+			end
+			if knownKeys ~= nil then
+				local newKey = nil
+				local newKeyCount = 0
+				for _,k in ipairs(keys) do
+					if not knownKeys[k] then
+						newKeyCount = newKeyCount + 1
+						newKey = k
+					end
+				end
+				if autoSelect and newKeyCount == 1 then
+					selectKey = newKey
+				end
+				if missing > newKeyCount then
+					-- rows lost to an interrupted build being rebuilt; recovery
+					-- is cheap now, but leave a trace in the log in case a user
+					-- reports a stall on this page again
+					printf("OngoingEffect:: refresh recreating %d rows (%d new table entries), no mass auto-select", missing, newKeyCount)
+				end
 			end
 
 			local index = 1
@@ -997,7 +1040,7 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 					end
 
 					local row = ongoingEffectItems[k] or CreateListItem{
-						select = autoSelect,
+						select = (k == selectKey),
 						tableName = tableName,
 						key = k,
 						click = function()
@@ -1006,13 +1049,38 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 					}
 					row.text = item.name
 					newOngoingEffectItems[k] = row
+					-- commit to the cache immediately so a refresh that
+					-- interrupts this build reuses the rows instead of
+					-- recreating them all
+					ongoingEffectItems[k] = row
 					children[#children+1] = row
 					newRows[#newRows+1] = row
 
 					index = index + 1
 				end
 
-				element.children = children
+				if index <= #keys then
+					-- Mid-build, keep cached rows for the unprocessed keys
+					-- appended after the processed rows: a panel dropped from
+					-- children is orphan-destroyed at end of frame, so a
+					-- cached row must never leave children while a later
+					-- chunk still intends to reuse it. keys are pre-sorted,
+					-- so processed rows followed by pending cached rows in
+					-- key order is already in display order.
+					local combined = {}
+					for _,c in ipairs(children) do
+						combined[#combined+1] = c
+					end
+					for i = index, #keys do
+						local pendingRow = ongoingEffectItems[keys[i]]
+						if pendingRow ~= nil then
+							combined[#combined+1] = pendingRow
+						end
+					end
+					element.children = combined
+				else
+					element.children = children
+				end
 
 				if m_activeSearch ~= "" then
 					for _,row in ipairs(newRows) do

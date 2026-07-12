@@ -2415,6 +2415,277 @@ end
 		},
 	}
 
+	-- Slots: descriptive tags marking what a dice set is suited for -- e.g. "good when
+	-- dealing fire damage" or "fits a Shadow character". Stored on the set as an array of
+	-- records (dicestudio.slots) and saved/uploaded with it; nothing consumes them yet.
+	-- Record shapes:
+	--   { slotType = "damage", damageType = "fire" }
+	--   { slotType = "class", classid = "<classes table id>", subclassid = "<subclasses table id; absent = any>" }
+	local g_slotTypeOptions = {
+		{ id = "damage", text = "Dealing Damage" },
+		{ id = "class", text = "Playing Class" },
+	}
+
+	-- dicestudio.slots needs an engine build that has the slots property; return nil on
+	-- older engines (the section shows a notice) instead of erroring the whole panel.
+	local function TryGetSlots()
+		local ok, slots = pcall(function() return dicestudio.slots end)
+		if ok and type(slots) == "table" then
+			return slots
+		end
+		return nil
+	end
+
+	local function SlotDamageTypeOptions()
+		local rulesGlobal = rawget(_G, "rules")
+		local damageTypes = (rulesGlobal ~= nil and rulesGlobal.damageTypesAvailable) or {}
+		local result = {}
+		for _,damageType in ipairs(damageTypes) do
+			result[#result+1] = { id = damageType, text = damageType }
+		end
+		return result
+	end
+
+	local function SlotClassOptions()
+		local result = {}
+		for k,classInfo in pairs(dmhub.GetTable("classes") or {}) do
+			if (not classInfo:try_get("hidden", false)) and (not classInfo:try_get("isSubclass", false)) then
+				result[#result+1] = { id = k, text = classInfo:try_get("name", "Unknown Class") }
+			end
+		end
+		table.sort(result, function(a,b) return a.text < b.text end)
+		return result
+	end
+
+	local function SlotSubclassOptions(classid)
+		local result = {}
+		for k,sub in pairs(dmhub.GetTable("subclasses") or {}) do
+			if (not sub:try_get("hidden", false)) and sub:try_get("primaryClassId", "") == classid then
+				result[#result+1] = { id = k, text = sub:try_get("name", "Unknown Subclass") }
+			end
+		end
+		table.sort(result, function(a,b) return a.text < b.text end)
+		table.insert(result, 1, { id = "", text = "(Any Subclass)" })
+		return result
+	end
+
+	-- Forward-declared so the row dropdowns' change handlers can trigger a rebuild.
+	local slotRowsPanel
+
+	local function CreateSlotRow(index, slot)
+		-- First line: slot type + the type's main dropdown (+ floating delete button).
+		-- The subclass dropdown goes on its own second line -- three dropdowns do not
+		-- fit across the studio panel's width.
+		local rowChildren = {}
+		local subclassLine = nil
+
+		-- Slot type. Changing it resets the record to that type's blank shape.
+		rowChildren[#rowChildren+1] = gui.Dropdown{
+			width = 150,
+			height = 30,
+			fontSize = 14,
+			options = g_slotTypeOptions,
+			idChosen = slot.slotType,
+			change = function(element)
+				local slots = TryGetSlots()
+				local cur = slots ~= nil and slots[index] or nil
+				if cur == nil or cur.slotType == element.idChosen then
+					return
+				end
+				if element.idChosen == "damage" then
+					slots[index] = { slotType = "damage", damageType = "" }
+				else
+					slots[index] = { slotType = "class", classid = "" }
+				end
+				dicestudio.slots = slots
+				slotRowsPanel:FireEvent("refreshSlots")
+			end,
+		}
+
+		if slot.slotType == "damage" then
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 160,
+				height = 30,
+				fontSize = 14,
+				hmargin = 6,
+				textDefault = "Choose Damage Type...",
+				options = SlotDamageTypeOptions(),
+				idChosen = slot.damageType or "",
+				change = function(element)
+					local slots = TryGetSlots()
+					local cur = slots ~= nil and slots[index] or nil
+					if cur == nil then
+						return
+					end
+					cur.damageType = element.idChosen
+				end,
+			}
+		else
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 160,
+				height = 30,
+				fontSize = 14,
+				hmargin = 6,
+				textDefault = "Choose Class...",
+				options = SlotClassOptions(),
+				idChosen = slot.classid or "",
+				change = function(element)
+					local slots = TryGetSlots()
+					local cur = slots ~= nil and slots[index] or nil
+					if cur == nil then
+						return
+					end
+					cur.classid = element.idChosen
+					cur.subclassid = nil
+					-- Rebuild so the subclass dropdown appears/refreshes for the new class.
+					slotRowsPanel:FireEvent("refreshSlots")
+				end,
+			}
+
+			if slot.classid ~= nil and slot.classid ~= "" then
+				local subclassOptions = SlotSubclassOptions(slot.classid)
+				-- Only offer a subclass picker when the class actually has subclasses
+				-- (the list always contains the "(Any Subclass)" entry).
+				if #subclassOptions > 1 then
+					subclassLine = gui.Panel{
+						width = "100%",
+						height = "auto",
+						flow = "horizontal",
+						vmargin = 2,
+						-- Align under the class dropdown (type dropdown width + its hmargin).
+						lmargin = 156,
+
+						gui.Dropdown{
+							width = 160,
+							height = 30,
+							fontSize = 14,
+							options = subclassOptions,
+							idChosen = slot.subclassid or "",
+							change = function(element)
+								local slots = TryGetSlots()
+								local cur = slots ~= nil and slots[index] or nil
+								if cur == nil then
+									return
+								end
+								if element.idChosen == "" then
+									cur.subclassid = nil
+								else
+									cur.subclassid = element.idChosen
+								end
+							end,
+						},
+					}
+				end
+			end
+		end
+
+		rowChildren[#rowChildren+1] = gui.DeleteItemButton{
+			floating = true,
+			halign = "right",
+			valign = "center",
+			width = 16,
+			height = 16,
+			click = function(element)
+				local slots = TryGetSlots()
+				if slots == nil then
+					return
+				end
+				table.remove(slots, index)
+				dicestudio.slots = slots
+				slotRowsPanel:FireEvent("refreshSlots")
+			end,
+		}
+
+		local firstLine = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			children = rowChildren,
+		}
+
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 2,
+			children = { firstLine, subclassLine },
+		}
+	end
+
+	slotRowsPanel = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		create = function(element)
+			element:FireEvent("refreshSlots")
+		end,
+		refreshDice = function(element)
+			element:FireEvent("refreshSlots")
+		end,
+		-- A different set was loaded: rebuild the rows from the new set's slots.
+		newmaterial = function(element)
+			element:FireEvent("refreshSlots")
+		end,
+
+		refreshSlots = function(element)
+			local children = {}
+			local slots = TryGetSlots()
+			if slots == nil then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#ff8888ff",
+					text = "Slots require an updated engine build (dicestudio.slots is unavailable).",
+				}
+			else
+				for i,slot in ipairs(slots) do
+					children[#children+1] = CreateSlotRow(i, slot)
+				end
+			end
+			element.children = children
+		end,
+	}
+
+	local slotsSection = gui.TreeNode{
+		text = "Slots",
+		width = "100%",
+		contentPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				fontSize = 12,
+				color = "#bbbbbbff",
+				text = "Tag the purposes this dice set is suited for -- dealing a certain damage type, or playing a certain class. Slots save and upload with the set. They do not do anything yet.",
+			},
+
+			slotRowsPanel,
+
+			gui.AddButton{
+				width = 16,
+				height = 16,
+				halign = "right",
+				hmargin = 4,
+				click = function(element)
+					local slots = TryGetSlots()
+					if slots == nil then
+						return
+					end
+					slots[#slots+1] = { slotType = "damage", damageType = "" }
+					dicestudio.slots = slots
+					slotRowsPanel:FireEvent("refreshSlots")
+				end,
+			},
+		},
+	}
+
 	-- Halo / outline: a glowing outline that hugs each die. Authored per set (dicestudio.halo*)
 	-- and overridable per die from a dice script (die.halo / die.haloColor / die.haloRadius).
 	-- The color/radius/softness/intensity rows collapse while the effect is disabled.
@@ -4006,6 +4277,8 @@ end
 		haloSection,
 
 		billboardSection,
+
+		slotsSection,
 
 		scriptSection,
 

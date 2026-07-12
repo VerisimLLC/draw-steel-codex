@@ -351,6 +351,10 @@ CreateChatPanel = function()
 
 			create = "refreshChat",
 			refreshChat = function(element)
+				--dev:diceperf -- time this handler (see engine settings.txt).
+				local perfLog = dmhub.GetSettingValue("dev:diceperf")
+				local perfStart = perfLog and os.clock() or 0
+
 				local newMessagePanels = {}
 				local children = {}
 				local newMessage = false
@@ -399,6 +403,10 @@ CreateChatPanel = function()
 				messagePanels = newMessagePanels
 				element.children = children
                 element.data.init = true
+
+				if perfLog then
+					print(string.format("DICEPERF-LUA:: ChatPanel refreshChat total=%.1fms msgs=%d", (os.clock() - perfStart) * 1000, #chat.messages))
+				end
 
 				--go to the bottom if we have new messages
 				if newMessage then

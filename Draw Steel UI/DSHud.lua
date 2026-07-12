@@ -98,7 +98,8 @@ function GameHud.TokenMoving(self, token, path)
     if path.fallDistance > 0 and not path.forced and not path.teleport then
         local safe = token.properties ~= nil and token.properties:SafeFallDistance(path.landsInWater) or 0
         if path.fallDistance <= safe then
-            statusText = statusText .. "\n" .. string.format(tr("<color=#4d9fff>Safely drops %d squares.</color>"), path.fallDistance)
+            --Green to match the cross-section diagram's "Falls Safely" drop arrow (MovementCrossSection.ColSafeDrop).
+            statusText = statusText .. "\n" .. string.format(tr("<color=#4dc74d>Safely drops %d squares.</color>"), path.fallDistance)
         else
             statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
         end

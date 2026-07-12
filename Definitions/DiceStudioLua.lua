@@ -9,6 +9,7 @@
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
 --- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
+--- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, or playing a Shadow). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string. Purely descriptive metadata authored in the Dice Studio Slots section; it saves and uploads with the set and nothing on the engine side reads it.
 --- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity for its look). A dice script can also toggle this per-die via die.halo.
 --- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.

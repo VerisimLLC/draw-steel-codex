@@ -3047,6 +3047,11 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
         bgcolor = "#101010f2",
         border = 1,
         borderColor = "#ffffff47",
+        --presses on the card must not reach click-away dismissers that
+        --PARENT the card (the /glossary modal wrapper closes on press;
+        --buttons fire on release, so a bubbled press would destroy the
+        --card before its buttons could ever fire).
+        swallowPress = true,
         children = children,
     }
 end

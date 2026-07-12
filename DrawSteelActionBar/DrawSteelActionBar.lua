@@ -1453,6 +1453,19 @@ local function CreateActionBar()
             g_resources = g_token.properties:GetResources()
             g_abilities = g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
 
+            --break out melee and ranged.
+            local abilities = {}
+            for _, ability in ipairs(g_abilities) do
+                if ability.meleeAndRanged then
+                    abilities[#abilities + 1] = ability.meleeVariation
+                    abilities[#abilities + 1] = ability.rangedVariation
+                else
+                    abilities[#abilities + 1] = ability
+                end
+            end
+
+            g_abilities = abilities
+
             g_initiative = dmhub.initiativeQueue
             if g_initiative ~= nil and g_initiative.hidden then
                 g_initiative = nil

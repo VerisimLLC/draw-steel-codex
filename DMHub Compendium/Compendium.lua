@@ -7057,6 +7057,98 @@ function GlossaryTerm.CreateNew()
     return GlossaryTerm.new{}
 end
 
+--Open a glossary source reference at the PRINTED page number: the PDF
+--viewer resolves a STRING starting page against the PDF's page labels
+--(front matter shifts printed pages from raw indices), but silently stays
+--put when nothing matches, so only pass the label form when it exists.
+--Fall back to the printed number as a 0-based index guess.
+function GlossaryTerm.OpenSourcePage(src)
+    if src == nil or src.docid == nil or src.docid == "none" then
+        return
+    end
+    local pdfDoc = assets.pdfDocumentsTable[src.docid]
+    if pdfDoc == nil or pdfDoc.hidden then
+        return
+    end
+    local page = src.page or 1
+    local target = math.max(0, (tonumber(page) or 1) - 1)
+    pcall(function()
+        local want = string.lower(tostring(page))
+        for _, label in ipairs(pdfDoc.doc.summary.pageLabels) do
+            if string.lower(label) == want then
+                target = tostring(page)
+                break
+            end
+        end
+    end)
+    OpenPDFDocument(pdfDoc, target)
+end
+
+--Chat rendering for a shared glossary term (chat.ShareData). The chat
+--system calls Render on every client, so this must be self-contained:
+--name, definition, and the source line when the book is visible.
+function GlossaryTerm:Render(options)
+    options = options or {}
+    options.summary = nil
+
+    local sourceLine = nil
+    local src = self:try_get("sourceReference")
+    if src ~= nil and src.docid ~= nil and src.docid ~= "none" then
+        local pdfDoc = assets.pdfDocumentsTable[src.docid]
+        if pdfDoc ~= nil and not pdfDoc.hidden then
+            sourceLine = string.format("%s, p. %d", pdfDoc.description or "Book", src.page or 1)
+        end
+    end
+
+    local children = {
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            fontSize = 16,
+            bold = true,
+            color = "white",
+            text = self.name or "Term",
+        },
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            vmargin = 4,
+            fontSize = 14,
+            color = "#e8e8e8",
+            text = self.definition or "",
+        },
+    }
+    if sourceLine ~= nil then
+        --clickable: opens the book at the printed page.
+        children[#children + 1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            fontSize = 12,
+            color = "#ffffff77",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            hoverCursor = "pressbutton",
+            text = "<u>" .. sourceLine .. "</u>",
+            hover = function(element) element.selfStyle.color = "#ffffffcc" end,
+            dehover = function(element) element.selfStyle.color = "#ffffff77" end,
+            click = function(element)
+                GlossaryTerm.OpenSourcePage(src)
+            end,
+        }
+    end
+
+    local args = {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }
+    for k, v in pairs(options) do
+        args[k] = v
+    end
+    return gui.Panel(args)
+end
+
 --Editor for a single glossary term, fetched live from the table by key.
 --Fields upload on change, matching the negotiator editor.
 local function CreateGlossaryTermEditor(key)
@@ -7739,6 +7831,9 @@ Search.RegisterProvider{
                 end
             end
         end
+        --glossary terms are owned by the dedicated glossary provider below
+        --(definition preview, boosted rank, pops the definition card).
+        canonical["glossaryTerms"] = nil
         for _,opt in pairs(canonical) do
             local t = dmhub.GetTable(opt.contentType)
             if t ~= nil then
@@ -7762,6 +7857,55 @@ Search.RegisterProvider{
                         }
                     end
                 end
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: the glossary is the CANONICAL entry for a rules
+-- term. Rows preview the definition, outrank same-name compendium content
+-- (+15 keeps an exact glossary match above other exact matches while an
+-- exact match elsewhere still beats a glossary prefix match), and activate
+-- by popping the definition card at the mouse (the /glossary command) --
+-- an answer in place, not a trip to the Compendium. Falls back to opening
+-- the Compendium if the command is unavailable.
+Search.RegisterProvider{
+    id = "glossary",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        for k, term in unhidden_pairs(dmhub.GetTable(GlossaryTerm.tableName) or {}) do
+            local name = term.name
+            if type(name) == "string" and Search.MatchesText(name, needle) then
+                local capturedName, capturedKey = name, k
+                local definition = term.definition or ""
+                if #definition > 110 then
+                    definition = string.sub(definition, 1, 107) .. "..."
+                end
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle) + 15,
+                    typeLabel = "Glossary",
+                    subLabel = definition,
+                    actionLabel = "Show definition",
+                    activate = function()
+                        local shown = false
+                        pcall(function()
+                            if Commands.glossary ~= nil then
+                                Commands.glossary(capturedName)
+                                shown = true
+                            end
+                        end)
+                        if not shown then
+                            Compendium.Open{
+                                contentType = "glossaryTerms",
+                                search = capturedName,
+                                targetKey = capturedKey,
+                            }
+                        end
+                    end,
+                }
             end
         end
         return results

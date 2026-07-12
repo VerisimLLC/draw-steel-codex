@@ -2915,6 +2915,7 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
                 classes = {"sizeS"},
                 halign = "right",
                 valign = "center",
+                lmargin = 6,
                 fontSize = 13,
                 hpad = 8,
                 vpad = 2,
@@ -2923,7 +2924,9 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
                     if options.close ~= nil then
                         options.close()
                     end
-                    OpenPDFDocument(pdfDoc, src.page or 1)
+                    --opens at the PRINTED page (resolved against the PDF's
+                    --page labels; see GlossaryTerm.OpenSourcePage).
+                    GlossaryTerm.OpenSourcePage(src)
                 end,
             }
         end
@@ -2979,24 +2982,42 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
             text = term.definition or "",
         },
     }
+    --footer: source line on the left, Share to Chat / Open on the right.
+    --Always present so terms without a source reference remain shareable.
+    local footerChildren = {}
     if sourceLine ~= nil then
-        children[#children + 1] = gui.Panel{
-            width = "100%",
+        footerChildren[#footerChildren + 1] = gui.Label{
+            width = "auto",
             height = "auto",
-            flow = "horizontal",
-            vmargin = 2,
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                fontSize = 13,
-                color = "#ffffff77",
-                text = sourceLine,
-            },
-            openButton,
+            halign = "left",
+            valign = "center",
+            fontSize = 13,
+            color = "#ffffff77",
+            text = sourceLine,
         }
     end
+    footerChildren[#footerChildren + 1] = gui.Button{
+        classes = {"sizeS"},
+        halign = "right",
+        valign = "center",
+        fontSize = 13,
+        hpad = 8,
+        vpad = 2,
+        text = "Share to Chat",
+        click = function(element)
+            chat.ShareData(term)
+        end,
+    }
+    if openButton ~= nil then
+        footerChildren[#footerChildren + 1] = openButton
+    end
+    children[#children + 1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 2,
+        children = footerChildren,
+    }
 
     return gui.Panel{
         width = 380,
@@ -3046,11 +3067,25 @@ local function GlossarySetBright(element, link, bright)
     end)
 end
 
---The engine displays a tooltip only when it is assigned during the hover
---event itself (a deferred assignment from ScheduleEvent never shows), so
---the dwell works by assigning the tooltip IMMEDIATELY at zero opacity and
---revealing it when the dwell elapses.
+--The hover card is NOT an engine tooltip: tooltips anchor to the whole
+--label panel (a full-width paragraph), which reads as center-screen. The
+--card is instead placed at the mouse point on a floating host owned by the
+--DisplayPanel (see hoverGlossaryTerm). It is only built when the dwell
+--elapses: a panel parented at opacity 0 and revealed later never renders,
+--so create-visible-at-reveal is the reliable pattern.
 local GlossaryRevealCard
+
+--Destroy the hover card and reset the hover state machine.
+local function GlossaryClearHoverCard()
+    local frame = g_glossHover.frame
+    g_glossHover.frame = nil
+    g_glossHover.shown = false
+    g_glossHover.link = nil
+    g_glossHover.leftAt = nil
+    if frame ~= nil and frame.valid then
+        frame:DestroySelf()
+    end
+end
 
 local function GlossaryHintHover(element, link)
     local now = dmhub.Time()
@@ -3064,6 +3099,11 @@ local function GlossaryHintHover(element, link)
         g_glossHover.leftAt = nil
         g_glossHover.element = element
     else
+        --new link: drop any card left over from a previous term.
+        if g_glossHover.frame ~= nil and g_glossHover.frame.valid then
+            g_glossHover.frame:DestroySelf()
+        end
+        g_glossHover.frame = nil
         g_glossHover.link = link
         g_glossHover.element = element
         g_glossHover.startedAt = now
@@ -3071,37 +3111,29 @@ local function GlossaryHintHover(element, link)
         g_glossHover.shown = false
     end
 
-    --(re)create the tooltip now, in hover-event context.
-    local term = GlossaryTermById(string.sub(link, 10))
-    if term == nil then
+    if GlossaryTermById(string.sub(link, 10)) == nil then
         return
     end
-    local card = MarkdownDocument.CreateGlossaryCard(term, {})
-    local frame = gui.TooltipFrame(card, { interactable = false, width = 400 })
-    element.tooltip = frame
-    if frame ~= nil then
-        frame:MakeNonInteractiveRecursive()
-    end
-    g_glossHover.frame = frame
 
+    --the card is only built at reveal time (see GlossaryRevealCard), fully
+    --visible from birth, at the mouse point read at that moment.
     local remaining = GLOSSARY_DWELL - (now - g_glossHover.startedAt)
     if g_glossHover.shown or remaining <= 0 then
-        g_glossHover.shown = true
         GlossaryRevealCard(element)
     else
-        if frame ~= nil then
-            frame.selfStyle.opacity = 0
-        end
         element:ScheduleEvent("glossaryDwell", remaining)
     end
 end
 
 GlossaryRevealCard = function(element)
-    local frame = g_glossHover.frame
-    if frame ~= nil and frame.valid then
-        frame.selfStyle.opacity = 1
+    if g_glossHover.link == nil then
+        return
     end
     g_glossHover.shown = true
+    --build (or rebuild, repositioning at the current mouse point) the card
+    --on the DisplayPanel's hover host; the handler stores it in
+    --g_glossHover.frame (events fire synchronously).
+    element:FireEventOnParents("hoverGlossaryTerm", string.sub(g_glossHover.link, 10))
 
     --one-time teach toast, latched only by explicit dismissal.
     if not g_glossaryToastSeen:Get() then
@@ -3128,11 +3160,7 @@ end
 local function GlossaryHideGraceEvent(element)
     if g_glossHover.leftAt ~= nil
        and (dmhub.Time() - g_glossHover.leftAt) >= GLOSSARY_HIDE_GRACE - 0.01 then
-        element.tooltip = nil
-        g_glossHover.frame = nil
-        g_glossHover.shown = false
-        g_glossHover.link = nil
-        g_glossHover.leftAt = nil
+        GlossaryClearHoverCard()
     end
 end
 
@@ -3166,12 +3194,8 @@ local function StripGlossaryMarks(root)
 end
 
 local function GlossaryHintPress(element, link)
-    --the hover tooltip must not linger over the pinned card.
-    element.tooltip = nil
-    g_glossHover.frame = nil
-    g_glossHover.shown = false
-    g_glossHover.link = nil
-    g_glossHover.leftAt = nil
+    --the hover card must not linger over the pinned card.
+    GlossaryClearHoverCard()
     element:FireEventOnParents("pinGlossaryTerm", string.sub(link, 10))
 end
 
@@ -4597,8 +4621,100 @@ function MarkdownDocument.DisplayPanel(self, args)
     local m_glossaryMuted = false
     local m_glossaryPinHost = nil
     local m_glossaryToastHost = nil
+    local m_glossaryHoverHost = nil
 
     local BuildGlossaryPin
+
+    local function GetGlossaryHoverHost()
+        if m_glossaryHoverHost ~= nil and m_glossaryHoverHost.valid then
+            return m_glossaryHoverHost
+        end
+        m_glossaryHoverHost = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+        return m_glossaryHoverHost
+    end
+
+    --Hover card: built at the mouse point inside the document view. The
+    --engine tooltip system anchors to the whole paragraph label, which
+    --reads as center-screen, so the card is hosted here instead.
+    local function ShowGlossaryHoverCard(termid)
+        local term = (dmhub.GetTable("glossaryTerms") or {})[termid]
+        if term == nil then
+            return
+        end
+        local host = GetGlossaryHoverHost()
+        local card = MarkdownDocument.CreateGlossaryCard(term, {})
+
+        local hostW = host.renderedWidth or 0
+        local hostH = host.renderedHeight or 0
+        local px = nil
+        local py = nil
+        pcall(function()
+            local p = host.mousePoint
+            if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                px = p.x * hostW
+                py = (1 - p.y) * hostH
+            end
+        end)
+        if px == nil then
+            --mouse point unavailable; fall back to the upper middle.
+            px = math.max(8, hostW * 0.5 - 200)
+            py = hostH * 0.3
+        else
+            px = math.max(8, math.min(px + 14, hostW - 400))
+            py = math.max(8, math.min(py + 20, hostH - 260))
+        end
+
+        g_glossHover.gen = (g_glossHover.gen or 0) + 1
+        local wrapper
+        wrapper = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            x = px,
+            y = py,
+            interactable = false,
+            data = { gen = g_glossHover.gen },
+            --safety net: the label's dehover can be missed when the doc
+            --re-renders or scrolls under a stationary mouse. Poll the
+            --source label; when the link is gone, start the hide grace.
+            --(generation ids rather than panel identity: userdata
+            --references are not reliably comparable.)
+            thinkTime = 0.25,
+            think = function(element)
+                if element.data.gen ~= g_glossHover.gen then
+                    element:DestroySelf()
+                    return
+                end
+                local src = g_glossHover.element
+                local srcValid = false
+                pcall(function() srcValid = src ~= nil and src.valid end)
+                if not srcValid then
+                    GlossaryClearHoverCard()
+                    return
+                end
+                if g_glossHover.leftAt == nil then
+                    local hovered = nil
+                    pcall(function() hovered = src.linkHovered end)
+                    if hovered ~= g_glossHover.link then
+                        g_glossHover.leftAt = dmhub.Time()
+                        src:ScheduleEvent("glossaryHideGrace", GLOSSARY_HIDE_GRACE)
+                    end
+                end
+            end,
+            card,
+        }
+        wrapper:MakeNonInteractiveRecursive()
+        host.children = { wrapper }
+        g_glossHover.frame = wrapper
+    end
 
     local function GetGlossaryPinHost()
         if m_glossaryPinHost ~= nil and m_glossaryPinHost.valid then
@@ -4654,6 +4770,18 @@ function MarkdownDocument.DisplayPanel(self, args)
     local function PinGlossaryCard(termid)
         local host = GetGlossaryPinHost()
         host.data.pendingTerm = termid
+        --capture the click position now (the host spans the document view);
+        --the deferred build places the card beside it.
+        host.data.pendingPoint = nil
+        pcall(function()
+            local p = host.mousePoint
+            if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                host.data.pendingPoint = {
+                    x = p.x * (host.renderedWidth or 0),
+                    y = (1 - p.y) * (host.renderedHeight or 0),
+                }
+            end
+        end)
         host:ScheduleEvent("glossaryPinDeferred", 0.12)
     end
 
@@ -4667,6 +4795,39 @@ function MarkdownDocument.DisplayPanel(self, args)
             pinned = true,
             close = CloseGlossaryPin,
         })
+
+        --place the card beside the click point (captured at press time),
+        --clamped inside the view; fall back to top-right if the point is
+        --unavailable.
+        local cardWrapper
+        local pos = host.data.pendingPoint
+        host.data.pendingPoint = nil
+        if pos ~= nil then
+            local hostW = host.renderedWidth or 0
+            local hostH = host.renderedHeight or 0
+            local px = math.max(8, math.min(pos.x + 12, hostW - 400))
+            local py = math.max(8, math.min(pos.y + 14, hostH - 260))
+            cardWrapper = gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                x = px,
+                y = py,
+                card,
+            }
+        else
+            cardWrapper = gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "top",
+                rmargin = 14,
+                tmargin = 14,
+                card,
+            }
+        end
+
         host.children = {
             gui.Panel{
                 width = "100%",
@@ -4684,15 +4845,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     CloseGlossaryPin()
                 end,
             },
-            gui.Panel{
-                width = "auto",
-                height = "auto",
-                halign = "right",
-                valign = "top",
-                rmargin = 14,
-                tmargin = 14,
-                card,
-            },
+            cardWrapper,
         }
     end
 
@@ -4874,6 +5027,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                 end
             end
             if embedDepth == 0 and not m_noninteractive then
+                children[#children + 1] = GetGlossaryHoverHost()
                 children[#children + 1] = GetGlossaryToastHost()
                 children[#children + 1] = GetGlossaryPinHost()
             end
@@ -4924,12 +5078,16 @@ function MarkdownDocument.DisplayPanel(self, args)
         pinGlossaryTerm = function(element, termid)
             PinGlossaryCard(termid)
         end,
+        hoverGlossaryTerm = function(element, termid)
+            ShowGlossaryHoverCard(termid)
+        end,
         glossaryToast = function(element)
             ShowGlossaryToast()
         end,
         glossaryMute = function(element, muted)
             m_glossaryMuted = muted and true or false
             CloseGlossaryPin()
+            GlossaryClearHoverCard()
             element:FireEvent("refreshDocument")
         end,
 

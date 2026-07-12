@@ -395,6 +395,7 @@ Available during ability resolution (after power roll, while applying effects).
 | Tier | Number | Power roll tier (1, 2, or 3) |
 | Tier For Target | Number | Tier for a specific target |
 | Target Count | Number | Creatures targeted |
+| Duplicate Target Count | Function | `Duplicate Target Count(target)` -- times a creature was selected as a target |
 | Spaces Moved | Number | Squares moved during ability |
 | Damage Dealt | Number | Total damage dealt |
 | Damage Raw | Number | Damage before reductions |

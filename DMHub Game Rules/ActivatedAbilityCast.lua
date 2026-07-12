@@ -222,6 +222,11 @@ ActivatedAbilityCast.helpSymbols = {
 		type = "function",
 		desc = "A function which given a target of the roll will return the tier of the result against this target.",
 	},
+	duplicatetargetcount = {
+		name = "Duplicate Target Count",
+		type = "function",
+		desc = "A function which given a target returns the number of times that creature was selected as a target of this ability cast (e.g. via Allow Duplicate Targeting). Returns 0 if the creature was not targeted.",
+	},
     inflictedconditions = {
         name = "Inflicted Conditions",
         type = "boolean",
@@ -541,6 +546,28 @@ ActivatedAbilityCast.lookupSymbols = {
 			end
 
 			return c:try_get("tokenToTier", {})[targetToken.charid] or c.tier
+		end
+	end,
+
+	duplicatetargetcount = function(c)
+		return function(target)
+			if type(target) == "function" then
+				target = target("self")
+			end
+
+			local targetToken = dmhub.LookupToken(target)
+			if targetToken == nil then
+				return 0
+			end
+
+			local result = 0
+			for _,t in ipairs(c:try_get("targets", {})) do
+				if t.token ~= nil and t.token.charid == targetToken.charid then
+					result = result + 1
+				end
+			end
+
+			return result
 		end
 	end,
 

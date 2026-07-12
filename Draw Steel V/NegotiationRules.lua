@@ -526,6 +526,14 @@ NegotiationRules.offerLabels = {
 
 NegotiationRules.MAX = 5
 
+--Offers are stored as a 6-entry ARRAY, never a map keyed by the interest
+--number. A table with numeric-LOOKING string keys ("0".."5") is serialized
+--as an array and silently re-indexed 1-based on the round-trip through the
+--shared doc, which shifts every offer by one. index = interest + 1.
+function NegotiationRules.OfferIndex(interest)
+    return interest + 1
+end
+
 local function clamp05(n)
     if n < 0 then return 0 end
     if n > NegotiationRules.MAX then return NegotiationRules.MAX end
@@ -683,8 +691,9 @@ function LiveNegotiation.FromDocument(doc)
     end
     local docOffers = doc:try_get("offers", {})
     for i = 0, NegotiationRules.MAX do
-        local o = docOffers[tostring(i)] or docOffers[i]
-        live.offers[tostring(i)] = { terms = (o and o.terms) or "", revealed = false }
+        local idx = NegotiationRules.OfferIndex(i)
+        local o = docOffers[idx]
+        live.offers[idx] = { terms = (o and o.terms) or "", revealed = false }
     end
     return live
 end
@@ -1076,10 +1085,15 @@ function NegotiationDocument:EditPanel()
             gui.Input{
                 classes = { "sizeS" }, width = 460, height = "auto", multiline = true,
                 placeholderText = "What he offers (leave blank to use the book's line)",
-                text = (doc:try_get("offers", {})[tostring(interest)] or {}).terms or "",
+                text = (doc:try_get("offers", {})[NegotiationRules.OfferIndex(interest)] or {}).terms or "",
                 change = function(element)
                     local offers = doc:get_or_add("offers", {})
-                    offers[tostring(interest)] = { terms = element.text }
+                    --the array must stay contiguous or it serializes badly.
+                    for i = 0, NegotiationRules.MAX do
+                        local idx = NegotiationRules.OfferIndex(i)
+                        offers[idx] = offers[idx] or { terms = "" }
+                    end
+                    offers[NegotiationRules.OfferIndex(interest)] = { terms = element.text }
                     doc:Upload()
                 end,
             },
@@ -1209,7 +1223,7 @@ function NegotiationDocument:DisplayPanel()
 
     local offerRows = {}
     for i = NegotiationRules.MAX, 0, -1 do
-        local o = (doc:try_get("offers", {})[tostring(i)] or {})
+        local o = (doc:try_get("offers", {})[NegotiationRules.OfferIndex(i)] or {})
         local terms = (o.terms or "")
         offerRows[#offerRows + 1] = md(string.format("**%d - \"%s\"**  %s", i,
             NegotiationRules.offerLabels[i],
@@ -1367,9 +1381,11 @@ local function CreateNegotiationStage(args)
                     local on = (i == live.interest)
                     children[#children + 1] = gui.Label{
                         classes = { on and "bold" or "noBold" },
-                        width = "16%", height = "auto", vpad = 5,
+                        width = 64, height = 40, vpad = 4, hpad = 2, rmargin = 2,
+                        borderBox = true,
                         textAlignment = "center",
-                        fontSize = 11,
+                        textWrap = true,
+                        fontSize = 10,
                         color = on and "#f2ede1" or "#7a7468",
                         bgimage = "panels/square.png",
                         bgcolor = on and "#ffffff14" or "#00000000",
@@ -1514,7 +1530,13 @@ local function CreateNegotiationStage(args)
 
     local sayInput = gui.Input{
         classes = { "sizeS" },
-        width = "100%", height = 50, multiline = true, vmargin = 6,
+        width = "100%", height = 54, multiline = true, vmargin = 8,
+        hpad = 8, vpad = 6, borderBox = true,
+        textAlignment = "topleft",
+        bgimage = "panels/square.png",
+        bgcolor = "#0a0a0b",
+        border = 1,
+        borderColor = "#ffffff47",
         placeholderText = "What you say (optional)",
         text = "",
     }
@@ -1529,7 +1551,7 @@ local function CreateNegotiationStage(args)
                 local selected = (m_attr == a)
                 children[#children + 1] = gui.Label{
                     classes = { "sizeS", "hoverable" },
-                    width = "32%", height = "auto", vpad = 6, margin = 2,
+                    width = 178, height = "auto", vpad = 7, rmargin = 6,
                     textAlignment = "center", borderBox = true,
                     bgimage = "panels/square.png",
                     bgcolor = selected and "#ffffff1f" or "#00000000",
@@ -1613,9 +1635,9 @@ local function CreateNegotiationStage(args)
     end
 
     local actionsPanel = gui.Panel{
-        flow = "horizontal", width = "100%", height = "auto", vmargin = 6,
+        flow = "horizontal", width = "100%", height = "auto", vmargin = 8,
         gui.Button{
-            classes = { "sizeM" }, width = "58%", height = 34,
+            classes = { "sizeM" }, width = 330, height = 36,
             text = "Make your case",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -1630,7 +1652,7 @@ local function CreateNegotiationStage(args)
             end,
         },
         gui.Button{
-            classes = { "sizeM" }, width = "38%", height = 34, lmargin = 8,
+            classes = { "sizeM" }, width = 210, height = 36, lmargin = 12,
             text = "Read them",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -1744,7 +1766,8 @@ local function CreateNegotiationStage(args)
 
     --the offer: shape always standing, terms when revealed; accept row.
     local offerPanel = gui.Panel{
-        flow = "vertical", width = "100%", height = "auto", vmargin = 8,
+        flow = "vertical", width = "100%", height = "auto",
+        valign = "bottom", vmargin = 8,
         hpad = 12, vpad = 10, borderBox = true,
         bgimage = "panels/square.png",
         bgcolor = "#131315",
@@ -1752,7 +1775,8 @@ local function CreateNegotiationStage(args)
         borderColor = "#ffffff47",
         refreshNeg = function(element, live)
             local terminal = NegotiationRules.Terminal(live.interest, live.patience)
-            local o = live.offers[tostring(live.interest)] or { terms = "", revealed = false }
+            local o = live.offers[NegotiationRules.OfferIndex(live.interest)]
+                or { terms = "", revealed = false }
             local children = {}
 
             local heading = string.format("His offer right now - \"%s\"",
@@ -1879,34 +1903,57 @@ local function CreateNegotiationStage(args)
 
         closeButton,
 
-        --left column
+        --Columns are FIXED px, not percentages: the dialog carries hpad, and
+        --percentage children are measured against the full width (borderBox
+        --does not inset them), so 40%+58% overflowed and clipped the right
+        --column's buttons.
+        --left column: identity, the read on the NPC, then the standing offer
+        --pinned to the bottom (it is the thing the table decides on).
         gui.Panel{
-            flow = "vertical", width = "40%", height = "100%", rmargin = 18, vscroll = true,
-            nameLabel,
-            descLabel,
-            bandsPanel,
-            patienceCue,
-            learnedPanel,
+            flow = "vertical", width = 400, height = "100%", rmargin = 24,
+            gui.Panel{
+                flow = "vertical", width = "100%", height = "100%-220",
+                vscroll = true,
+                nameLabel,
+                descLabel,
+                bandsPanel,
+                patienceCue,
+                learnedPanel,
+            },
             offerPanel,
         },
 
-        --right column
+        --right column: composer card on top, history takes the remaining
+        --height and scrolls inside it (height "100%" on the scroller would
+        --exceed the column and spill past the dialog's bottom edge).
         gui.Panel{
-            flow = "vertical", width = "58%", height = "100%", vscroll = true,
+            flow = "vertical", width = 616, height = "100%",
             composerStatus,
-            discoveryPanel,
-            anglePanel,
-            angleHelp,
-            sayInput,
-            attrPanel,
-            actionsPanel,
+            gui.Panel{
+                flow = "vertical", width = "100%", height = "auto",
+                hpad = 14, vpad = 12, borderBox = true, vmargin = 4,
+                bgimage = "panels/square.png",
+                bgcolor = "#131315",
+                border = 1,
+                borderColor = "#ffffff26",
+                discoveryPanel,
+                anglePanel,
+                angleHelp,
+                sayInput,
+                attrPanel,
+                actionsPanel,
+            },
             gui.Label{
                 classes = { "bold" },
-                width = "100%", height = "auto", vmargin = 6,
+                width = "100%", height = "auto", vmargin = 8,
                 fontSize = 12, color = "#7a7468",
                 text = "HOW IT'S GOING",
             },
-            historyPanel,
+            gui.Panel{
+                flow = "vertical", width = "100%", height = "100%-320",
+                vscroll = true,
+                historyPanel,
+            },
         },
 
         refreshGame = function(element)
@@ -2489,7 +2536,8 @@ local function CreateNegotiationRunner()
         }
         for i = NegotiationRules.MAX, 0, -1 do
             local interest = i
-            local o = live.offers[tostring(interest)] or { terms = "", revealed = false }
+            local o = live.offers[NegotiationRules.OfferIndex(interest)]
+                or { terms = "", revealed = false }
             local isCurrent = (interest == live.interest)
             local terms = (o.terms or "")
             local shown = terms ~= "" and terms or NegotiationRules.offerLabels[interest]
@@ -2519,10 +2567,10 @@ local function CreateNegotiationRunner()
                 else
                     actions[#actions + 1] = SmallButton("Reveal terms", function()
                         NegotiationRun.Mutate("Reveal offer", function(l)
-                            local key = tostring(l.interest)
-                            local off = l.offers[key] or { terms = "", revealed = false }
+                            local idx = NegotiationRules.OfferIndex(l.interest)
+                            local off = l.offers[idx] or { terms = "", revealed = false }
                             off.revealed = true
-                            l.offers[key] = off
+                            l.offers[idx] = off
                             NegotiationRun.Log(l, npc, off.terms ~= "" and off.terms
                                 or (NegotiationRules.offerLabels[l.interest] or ""),
                                 "states his terms.", "npc")

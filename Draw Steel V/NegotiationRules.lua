@@ -1798,7 +1798,7 @@ local function CreateNegotiationStage(args)
     }
 
     local historyPanel = gui.Panel{
-        flow = "vertical", width = "100%", height = "auto",
+        flow = "vertical", width = "100%", height = "auto", valign = "top",
         refreshNeg = function(element, live)
             local children = {}
             for i = #live.history, 1, -1 do
@@ -2040,6 +2040,7 @@ local function CreateNegotiationStage(args)
             },
             gui.Panel{
                 flow = "vertical", width = "100%", height = "100%-320",
+                valign = "top",
                 vscroll = true,
                 historyPanel,
             },

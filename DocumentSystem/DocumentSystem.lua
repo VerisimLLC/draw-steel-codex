@@ -622,7 +622,7 @@ function CustomDocument:CreateInterface(args)
     local buttonSize = 20
 
     args = args or {}
-    local readPanel = self:DisplayPanel()
+    local readPanel = self:DisplayPanel{ relatedFooter = true }
     local writePanel = self:EditPanel(args)
 
     writePanel:SetClass("collapsed", true)
@@ -1123,7 +1123,46 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
-    local m_searchInput = gui.SearchInput {
+    --Find-in-page state for THIS page (the interface is rebuilt per
+    --document, so the term/position are naturally per-page). The search box
+    --drives it; MarkdownDocument's findInPage event does the marking,
+    --counting, and scrolling, reporting the count back synchronously.
+    local m_findState = { term = nil, index = 1, count = 0 }
+    local m_findRowLabel = nil
+    local m_searchInput
+
+    local function FireFind()
+        if readPanel == nil or not readPanel.valid then
+            return
+        end
+        readPanel:FireEvent("findInPage", {
+            term = m_findState.term,
+            index = m_findState.index,
+            callback = function(count)
+                m_findState.count = count
+            end,
+        })
+    end
+
+    local function FindRowText()
+        if m_findState.count == 1 then
+            return "1 match"
+        end
+        return string.format("%d/%d matches", m_findState.index, m_findState.count)
+    end
+
+    local function CycleFind(delta)
+        if m_findState.term == nil or m_findState.count == 0 then
+            return
+        end
+        m_findState.index = ((m_findState.index - 1 + delta) % m_findState.count) + 1
+        FireFind()
+        if m_findRowLabel ~= nil and m_findRowLabel.valid then
+            m_findRowLabel.text = FindRowText()
+        end
+    end
+
+    m_searchInput = gui.SearchInput {
         classes = {"sizeXs"},
         width = 240,
         height = 20,
@@ -1137,9 +1176,35 @@ function CustomDocument:CreateInterface(args)
         border = 1,
         borderColor = "#ffffff26",
         popupPositioning = "panel",
+
+        --Enter steps to the next on-page match.
+        submit = function(element)
+            CycleFind(1)
+        end,
+
         search = function(element, text)
             if text == nil or text == "" then
+                if m_findState.term ~= nil then
+                    m_findState.term = nil
+                    m_findState.index = 1
+                    m_findState.count = 0
+                    FireFind()
+                end
                 element.popup = nil
+                return
+            end
+
+            --update the on-page highlights. An unchanged term (e.g. the
+            --change event re-firing on Enter) keeps its position.
+            if text ~= m_findState.term then
+                m_findState.term = text
+                m_findState.index = 1
+                FireFind()
+            end
+
+            --a programmatic text set (carry-the-term navigation) should
+            --highlight but not pop the results list open.
+            if not element:HasClass("focus") then
                 return
             end
 
@@ -1147,7 +1212,7 @@ function CustomDocument:CreateInterface(args)
             local accessibleRoots = CustomDocument.GetAccessibleRoots()
             local results = {}
             for docId, doc in pairs(customDocs) do
-                if not doc.hidden and (dmhub.isDM or not doc.hiddenFromPlayers) and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
+                if docId ~= self.id and not doc.hidden and (dmhub.isDM or not doc.hiddenFromPlayers) and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
                     local titleMatch = string.find(string.lower(doc.description or ""), text, 1, true)
                     local contentMatch = doc.MatchesSearch and doc:MatchesSearch(text)
                     if titleMatch or contentMatch then
@@ -1164,15 +1229,9 @@ function CustomDocument:CreateInterface(args)
                             score = 25
                         end
                         results[#results + 1] = {
-                            text = string.format("<b>%s</b>", name),
+                            name = name,
                             score = score,
-                            click = function()
-                                element.popup = nil
-                                element.text = ""
-                                if args.dialogPanel and args.dialogPanel.data then
-                                    args.dialogPanel:FireEvent("navigateToDocument", docId)
-                                end
-                            end,
+                            docId = docId,
                         }
                     end
                 end
@@ -1183,7 +1242,7 @@ function CustomDocument:CreateInterface(args)
                 table.remove(results)
             end
 
-            if #results == 0 then
+            if #results == 0 and m_findState.count == 0 then
                 element.popup = gui.Label {
                     classes = {"bg"},
                     width = "auto",
@@ -1198,19 +1257,114 @@ function CustomDocument:CreateInterface(args)
                 return
             end
 
+            local function SectionLabel(t)
+                return gui.Label {
+                    classes = { "fgMuted", "bold" },
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 11,
+                    borderBox = true,
+                    hpad = 8,
+                    tmargin = 6,
+                    bmargin = 2,
+                    text = t,
+                }
+            end
+
+            local rows = {}
+
+            if m_findState.count > 0 then
+                rows[#rows + 1] = SectionLabel("ON THIS PAGE")
+                local function ArrowButton(glyph, delta, tip)
+                    return gui.Button {
+                        classes = { "sizeXs" },
+                        width = 22,
+                        height = 18,
+                        fontSize = 12,
+                        valign = "center",
+                        hmargin = 2,
+                        text = glyph,
+                        swallowPress = true,
+                        press = function()
+                            CycleFind(delta)
+                        end,
+                        linger = function(btnElement)
+                            gui.Tooltip(tip)(btnElement)
+                        end,
+                    }
+                end
+                --width "auto", NOT "100% available": the latter resolves to
+                --zero here and the text renders one character per line.
+                m_findRowLabel = gui.Label {
+                    classes = { "fg" },
+                    width = "auto",
+                    height = "auto",
+                    minWidth = 180,
+                    fontSize = 14,
+                    valign = "center",
+                    halign = "left",
+                    textWrap = false,
+                    borderBox = true,
+                    hpad = 8,
+                    text = FindRowText(),
+                }
+                rows[#rows + 1] = gui.Panel {
+                    flow = "horizontal",
+                    width = "100%",
+                    height = "auto",
+                    borderBox = true,
+                    vpad = 2,
+                    m_findRowLabel,
+                    ArrowButton("<", -1, "Previous match"),
+                    ArrowButton(">", 1, "Next match (Enter)"),
+                }
+            end
+
+            if #results > 0 then
+                rows[#rows + 1] = SectionLabel("OTHER DOCUMENTS")
+                for _, result in ipairs(results) do
+                    rows[#rows + 1] = gui.Label {
+                        classes = { "fg", "hoverable" },
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000000",
+                        width = "100%",
+                        height = "auto",
+                        fontSize = 14,
+                        borderBox = true,
+                        hpad = 8,
+                        vpad = 3,
+                        text = string.format("<b>%s</b>", result.name),
+                        press = function()
+                            element.popup = nil
+                            if args.dialogPanel and args.dialogPanel.data then
+                                --carry the term: the destination page's
+                                --interface seeds its find from this and
+                                --arrives highlighted at the first match.
+                                args.dialogPanel.data.pendingFind = text
+                                args.dialogPanel:FireEvent("navigateToDocument", result.docId)
+                            end
+                        end,
+                    }
+                end
+            end
+
+            element.popupsInheritStyles = true
             element.popup = gui.Panel {
                 width = "auto",
                 height = "auto",
                 halign = "center",
                 valign = "bottom",
-                flow = "vertical",
-                gui.ContextMenu {
+                constrainToScreen = true,
+                gui.Panel {
+                    classes = { "bordered", "bg" },
+                    flow = "vertical",
                     width = 300,
-                    valign = "bottom",
-                    entries = results,
-                    click = function()
-                        element.popup = nil
-                    end,
+                    height = "auto",
+                    maxHeight = 400,
+                    vscroll = true,
+                    borderBox = true,
+                    pad = 4,
+                    children = rows,
                 },
             }
         end,
@@ -1469,7 +1623,7 @@ function CustomDocument:CreateInterface(args)
             multimonitor = { "journal:fontsize" },
             monitor = function(element)
                 g_scale = nil
-                local newReadPanel = self:DisplayPanel()
+                local newReadPanel = self:DisplayPanel{ relatedFooter = true }
                 newReadPanel:SetClass("collapsed", readPanel:HasClass("collapsed"))
                 readPanel = newReadPanel
 
@@ -1479,6 +1633,19 @@ function CustomDocument:CreateInterface(args)
             end,
         },
     }
+
+    --Carry-the-term navigation: a search-result jump stores the term on the
+    --viewer before navigating; the destination page's interface (this one)
+    --seeds its find from it so the page arrives highlighted and scrolled to
+    --the first match. The box is seeded too, but unfocused, so no popup.
+    if args.dialogPanel ~= nil and args.dialogPanel.data ~= nil and args.dialogPanel.data.pendingFind then
+        local pending = args.dialogPanel.data.pendingFind
+        args.dialogPanel.data.pendingFind = nil
+        m_findState.term = pending
+        m_findState.index = 1
+        m_searchInput.text = pending
+        FireFind()
+    end
 
     return resultPanel
 end

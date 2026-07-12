@@ -1274,17 +1274,6 @@ local showPreviewSetting = setting{
     storage = "preferences",
 }
 
---Experimental Obsidian-style live editing for the journal: the document
---renders as in display mode except the block the cursor is in, which shows
---raw markdown in an inline input. Off by default while it matures; toggle
---from the console with: dmhub.SetSettingValue("journalLiveEdit", true)
-local liveEditSetting = setting{
-    id = "journalLiveEdit",
-    name = "Journal: Live Block Editing (Experimental)",
-    default = false,
-    storage = "preferences",
-}
-
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
@@ -5913,7 +5902,7 @@ local function CreateMarkdownToolbar(opts)
     }
 end
 
---Obsidian-style live edit surface (experimental, behind liveEditSetting).
+--Obsidian-style live edit surface: the journal's editor (see EditPanel).
 --The document is partitioned into blocks (PartitionTokensIntoBlocks); each
 --block renders through RenderMarkdownTokens exactly like display mode, with
 --a floating click-guard over it. Clicking a block swaps it for a multiline
@@ -7064,11 +7053,16 @@ end
 
 local MarkdownReferenceTooltip
 
+--The Obsidian-style live block editor (LiveEditPanel) is the journal's
+--editor. The classic full-document editor is retained below as
+--ClassicEditPanel for reference until its remaining exclusives (find bar
+--while editing, formatting guide, preview pane) are ported to the live
+--editor; nothing calls it.
 function MarkdownDocument:EditPanel(args)
-    if liveEditSetting:Get() then
-        return self:LiveEditPanel(args)
-    end
+    return self:LiveEditPanel(args)
+end
 
+function MarkdownDocument:ClassicEditPanel(args)
     local resultPanel
 
     local markdownReferenceLabel = gui.Label {

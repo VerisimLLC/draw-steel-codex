@@ -911,6 +911,9 @@ audio.SoundEvent{
     volume = 0.1,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
+    play = function(instance)
+        audio.FireSoundEvent("Dice.Numglow_Crucible_Explo")
+    end,
 }
 
 --crucible die explosion uh explosion
@@ -921,6 +924,7 @@ audio.SoundEvent{
     volume = 0.1,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
+    delay = 1.0,
 }
 
 

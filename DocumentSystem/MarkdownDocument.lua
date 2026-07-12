@@ -5934,6 +5934,14 @@ function MarkdownDocument:LiveEditPanel(args)
                              --block (widget, table, heading rule) for its
                              --shorter raw source does not make the content
                              --below it jump up.
+    local m_findTerm = nil   --find-in-page state (findInPage event), marked
+                             --over the rendered blocks exactly as in
+                             --DisplayPanel. The active block's input is
+                             --never marked: injected mark tags would become
+                             --part of the block's raw source.
+    local m_findIndex = 1
+    local m_findCallback = nil
+    local m_findGeneration = 0
     local m_savedContent = nil --the doc content as of the last load/save;
                              --distinguishes local unsaved work from a clean
                              --view so remote refreshes never clobber edits.
@@ -6438,7 +6446,70 @@ function MarkdownDocument:LiveEditPanel(args)
         return wrapper
     end
 
+    --Find-in-page over the live editor: walk the block wrappers in document
+    --order, marking matches in their rendered labels (same marks and scroll
+    --scheme as DisplayPanel). Placeholder blocks and the active block are
+    --skipped - the active block shows its raw source in an input, and marks
+    --injected there would be committed into the document. Runs at the end
+    --of every RefreshBlockPanels pass; the pass renders fresh labels
+    --whenever a term is active (see the generation bump there), so a label
+    --is never marked twice (re-marking would nest mark tags).
+    local function ApplyLiveFindMarks()
+        if m_findTerm == nil then
+            return
+        end
+        local total = 0
+        local currentLabel = nil
+        for index, block in ipairs(m_blocks) do
+            local wrapper = m_blockPanels[index]
+            if (not block.placeholder) and index ~= m_activeIndex
+               and wrapper ~= nil and wrapper.valid
+               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
+                local rel = m_findIndex - total
+                if rel < 1 then
+                    rel = nil
+                end
+                local cnt, cur = ApplyFindMarks(wrapper.data.contentPanel, m_findTerm, rel)
+                if cur ~= nil then
+                    currentLabel = cur
+                end
+                total = total + cnt
+            end
+        end
+        if m_findCallback ~= nil then
+            m_findCallback(total)
+        end
+        if currentLabel ~= nil then
+            --layout has not run for the fresh labels; retry the scroll
+            --until heights are real. The generation guard abandons stale
+            --retries when the term or index moves on.
+            m_findGeneration = m_findGeneration + 1
+            local generation = m_findGeneration
+            local attempts = 12
+            local function tryScroll()
+                if mod.unloaded or generation ~= m_findGeneration then
+                    return
+                end
+                if ScrollFindTargetIntoView(currentLabel) then
+                    return
+                end
+                attempts = attempts - 1
+                if attempts > 0 then
+                    dmhub.Schedule(0.1, tryScroll)
+                end
+            end
+            dmhub.Schedule(0.05, tryScroll)
+        end
+    end
+
     RefreshBlockPanels = function()
+        --with an active find term every pass must render fresh labels so
+        --the mark pass at the end never marks an already-marked label and
+        --index moves repaint the current-match color.
+        if m_findTerm ~= nil then
+            m_renderGeneration = m_renderGeneration + 1
+        end
+
         --resolve the skin once per refresh and share it into every block's
         --render context, mirroring what DisplayPanel does per render.
         local resolvedStylesheet = m_doc:GetResolvedStylesheet()
@@ -6604,6 +6675,8 @@ function MarkdownDocument:LiveEditPanel(args)
         end
 
         m_listPanel.children = children
+
+        ApplyLiveFindMarks()
     end
 
     DeactivateBlock = function()
@@ -6952,6 +7025,32 @@ function MarkdownDocument:LiveEditPanel(args)
         escapePriority = EscapePriority.DMHUB_POPUP,
         escape = function(element)
             DeactivateBlock()
+        end,
+
+        --Find-in-page driver, same contract as DisplayPanel's: re-renders
+        --with term occurrences marked, reports the match count through the
+        --callback (synchronously, during this event), and scrolls to match
+        --number index. A nil or empty term clears the highlights. An active
+        --block is committed first so its content is rendered, countable,
+        --and safe to mark.
+        findInPage = function(element, findArgs)
+            local term = findArgs ~= nil and findArgs.term or nil
+            if term == "" then
+                term = nil
+            end
+            m_findTerm = term
+            m_findIndex = findArgs ~= nil and findArgs.index or 1
+            m_findCallback = findArgs ~= nil and findArgs.callback or nil
+            m_findGeneration = m_findGeneration + 1
+            --render fresh labels even when the term was just cleared, so
+            --stale marks drop out.
+            m_renderGeneration = m_renderGeneration + 1
+            if m_activeIndex ~= nil then
+                DeactivateBlock()
+            else
+                RefreshBlockPanels()
+            end
+            m_findCallback = nil
         end,
 
         --focus watchdog: if the active input silently lost focus (clicked

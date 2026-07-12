@@ -12,11 +12,12 @@ local function track(eventType, fields)
 end
 
 -- Command context for the PDF viewer. While the viewer modal is open we push this
--- context (dmhub.PushCommandContext) so the left/right arrow keys page through the
--- document via the pdfprevpage/pdfnextpage commands instead of falling through to
--- the global 'tokenmove' bindings. The viewer's command handler responds to these.
--- Because they live in a named context, they only override the arrows while the
--- viewer is the active modal; everywhere else the arrows still move tokens.
+-- context (dmhub.PushCommandContext) so the navigation keys drive the document
+-- instead of falling through to the global 'tokenmove' bindings: left/right and
+-- page up/page down page through the document, and up/down nudge the scroll
+-- position. The viewer's command handler responds to these. Because they live in
+-- a named context, they only override these keys while the viewer is the active
+-- modal; everywhere else they still move tokens.
 local PDF_COMMAND_CONTEXT = "journalpdf"
 local g_pdfBindingsInitialized = false
 local function EnsurePdfCommandBindings()
@@ -26,6 +27,10 @@ local function EnsurePdfCommandBindings()
     g_pdfBindingsInitialized = true
     dmhub.SetCommandBinding("left", "pdfprevpage", PDF_COMMAND_CONTEXT)
     dmhub.SetCommandBinding("right", "pdfnextpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("page up", "pdfprevpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("page down", "pdfnextpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("up", "pdfscrollup", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("down", "pdfscrolldown", PDF_COMMAND_CONTEXT)
 end
 
 setting {
@@ -2631,9 +2636,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
-        -- Page navigation keyboard shortcuts. While the viewer modal is open the
-        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds the
-        -- left/right arrows to these commands, which are delivered here as 'command'
+        -- Navigation keyboard shortcuts. While the viewer modal is open the
+        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds
+        -- left/right and page up/page down to the paging commands and up/down to
+        -- the scroll-nudge commands, which are delivered here as 'command'
         -- events. This fires for the whole active modal tree, so the always-present
         -- viewer root is the right place to handle it.
         command = function(element, cmd)
@@ -2647,6 +2653,23 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 m_searchResults = nil
                 m_searchText = nil
                 RefreshPage()
+            elseif cmd == "pdfscrollup" or cmd == "pdfscrolldown" then
+                --nudge the scroll view by a fraction of the viewport. Moving
+                --the scroll position clears suppressDerivedPos in
+                --pdfContentPanel's think, so page tracking follows the scroll
+                --just like mouse-wheel scrolling.
+                local contentH = pdfContentPanel.renderedHeight
+                local viewportH = pdfScrollViewPanel.renderedHeight
+                local scrollRange = contentH - viewportH
+                if scrollRange > 0 then
+                    --vscrollPosition is 1 at the top of the document, 0 at the
+                    --bottom, so scrolling up increases it.
+                    local delta = (viewportH * 0.15) / scrollRange
+                    if cmd == "pdfscrolldown" then
+                        delta = -delta
+                    end
+                    pdfScrollViewPanel.vscrollPosition = clamp(pdfScrollViewPanel.vscrollPosition + delta, 0, 1)
+                end
             end
         end,
 

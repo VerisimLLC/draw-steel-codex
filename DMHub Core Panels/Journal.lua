@@ -56,6 +56,95 @@ Commands.RegisterMacro{
     end,
 }
 
+Commands.RegisterMacro{
+    name = "glossary",
+    summary = "show a glossary definition",
+    doc = "Usage: /glossary <term>\nShows the glossary definition for a rules term.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        for _, term in unhidden_pairs(dmhub.GetTable("glossaryTerms") or {}) do
+            result[#result+1] = { text = term.name or "", summary = string.sub(term.definition or "", 1, 60) }
+        end
+        table.sort(result, function(a, b) return a.text < b.text end)
+        return result
+    end,
+    command = function(str)
+        local query = string.lower(trim(str or ""))
+        if query == "" then
+            print("Usage: /glossary <term>")
+            return
+        end
+        local best = nil
+        for _, term in unhidden_pairs(dmhub.GetTable("glossaryTerms") or {}) do
+            local name = string.lower(term.name or "")
+            if name == query then
+                best = term
+                break
+            elseif best == nil and string.starts_with(name, query) then
+                best = term
+            end
+        end
+        if best == nil then
+            print("No glossary entry found for '" .. str .. "'.")
+            return
+        end
+
+        local card = MarkdownDocument.CreateGlossaryCard(best, {
+            pinned = true,
+            close = function()
+                gui.CloseModal()
+            end,
+        })
+        card.selfStyle.halign = "left"
+        card.selfStyle.valign = "top"
+        --hidden until placed at the cursor (below), so it never flashes at
+        --the default position.
+        card.selfStyle.opacity = 0
+
+        --full-screen wrapper: places the card at the mouse position once
+        --layout has run, and closes on click-away or escape.
+        gui.ShowModal(gui.Panel{
+            styles = ThemeEngine.GetStyles(),
+            width = "100%",
+            height = "100%",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            captureEscape = true,
+            escapePriority = EscapePriority.DMHUB_POPUP,
+            escape = function(element)
+                gui.CloseModal()
+            end,
+            press = function(element)
+                gui.CloseModal()
+            end,
+            create = function(element)
+                element:ScheduleEvent("placeGlossaryCard", 0.02)
+            end,
+            placeGlossaryCard = function(element)
+                local w = element.renderedWidth or 0
+                local h = element.renderedHeight or 0
+                local px, py = nil, nil
+                pcall(function()
+                    local p = element.mousePoint
+                    if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                        px = p.x * w
+                        py = (1 - p.y) * h
+                    end
+                end)
+                if px == nil or w <= 0 then
+                    --cursor unavailable: fall back to center.
+                    px = w * 0.5 - 190
+                    py = h * 0.4
+                end
+                card.x = math.max(8, math.min(px + 10, w - 400))
+                card.y = math.max(8, math.min(py - 40, h - 280))
+                card.selfStyle.opacity = 1
+            end,
+            card,
+        })
+    end,
+}
 
 local g_adventureDocumentId = "adventureDocuments"
 

@@ -98,4 +98,45 @@ creature.RegisterSymbol{
     end,
 }
 
---symbols
+----------------------------------------------------------------------
+-- Portent Affinity Type (custom attribute + GoblinScript symbol)
+----------------------------------------------------------------------
+
+PORTENT_AFFINITY_ATTRIBUTE_ID = "e8a6cced-9eca-43a2-9fc9-4298167044dd"
+
+--Returns the creature's chosen Portent affinity as a lowercase damage-type
+--keyword ("acid" / "cold" / "corruption" / "lightning" / "poison" / "fire"),
+--defaulting to "acid" when unset. 
+function creature:PortentAffinityType()
+    local rec = CustomAttribute.attributeInfoById and CustomAttribute.attributeInfoById[PORTENT_AFFINITY_ATTRIBUTE_ID]
+    if rec == nil then
+        return "acid"
+    end
+    local attrInfo = rec.attr or rec
+    if attrInfo == nil or type(attrInfo.CalculateBaseValue) ~= "function" then
+        return "acid"
+    end
+
+    local value = self:GetCustomAttribute(attrInfo)
+    if type(value) == "string" and value ~= "" then
+        return string.lower(value)
+    end
+    if type(value) == "table" then
+        --StringSet shape: { strings = { "Acid" } }
+        local strings = rawget(value, "strings")
+        if type(strings) == "table" and strings[1] ~= nil and tostring(strings[1]) ~= "" then
+            return string.lower(tostring(strings[1]))
+        end
+    end
+    return "acid"
+end
+
+RegisterGoblinScriptSymbol(creature, {
+	name = "Affinity Type",
+	type = "text",
+	desc = "The Creature's Chosen Affinity",
+	examples = {'Affinity Type = "acid"'},
+	calculate = function(c)
+        return c:PortentAffinityType()
+	end,
+})

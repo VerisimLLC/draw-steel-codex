@@ -1274,17 +1274,6 @@ local showPreviewSetting = setting{
     storage = "preferences",
 }
 
---Experimental Obsidian-style live editing for the journal: the document
---renders as in display mode except the block the cursor is in, which shows
---raw markdown in an inline input. Off by default while it matures; toggle
---from the console with: dmhub.SetSettingValue("journalLiveEdit", true)
-local liveEditSetting = setting{
-    id = "journalLiveEdit",
-    name = "Journal: Live Block Editing (Experimental)",
-    default = false,
-    storage = "preferences",
-}
-
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
@@ -2614,6 +2603,602 @@ function MarkdownDocument.FormatRichText(text, options)
     return result
 end
 
+--------------------------------------------------------------------------------
+-- Glossary hints: rules terms in rendered documents get a whisper-quiet
+-- ink-tint wash and act as glossary: link regions. Hovering (with dwell)
+-- shows the definition card; clicking pins it. Design brief:
+-- glossary-hints-brief.md (locked 2026-07-12).
+--
+-- The pass runs at label-text assembly time inside RenderMarkdownTokens'
+-- MakeTextLabel path only (never a whole-tree walk), display mode only,
+-- top-level documents only (no embeds), gated by ctx.render.glossaryHints
+-- which DisplayPanel sets from the user setting and the per-view mute.
+--------------------------------------------------------------------------------
+
+--one-time teach toast; latched only by explicit dismissal. Turning the
+--feature off re-arms it so turning it back on re-teaches.
+local g_glossaryToastSeen = setting{
+    id = "glossaryhints:toastseen",
+    default = false,
+    storage = "preference",
+}
+
+--Off / Subtle / Bold. Subtle is the signed default (#ffffff24-weight).
+local g_glossaryHintsSetting
+g_glossaryHintsSetting = setting{
+    id = "glossaryhints",
+    description = "Glossary hints in documents",
+    help = "Softly highlight rules terms in documents. Hover for the definition, click to pin it.",
+    storage = "preference",
+    section = "general",
+    editor = "dropdown",
+    default = "subtle",
+    enum = {
+        { value = "off", text = "Off" },
+        { value = "subtle", text = "Subtle" },
+        { value = "bold", text = "Bold" },
+    },
+    onchange = function()
+        --turning the feature off re-arms the teach toast.
+        if g_glossaryHintsSetting ~= nil and g_glossaryHintsSetting:Get() == "off" then
+            g_glossaryToastSeen:Set(false)
+        end
+    end,
+}
+
+MarkdownDocument.GlossaryHintsSetting = g_glossaryHintsSetting
+
+--alpha for the wash at each visibility step, and the brighter hover state.
+local GLOSSARY_WASH_ALPHA = { subtle = 0x24, bold = 0x55 }
+local GLOSSARY_HOVER_ALPHA = { subtle = 0x40, bold = 0x7a }
+local GLOSSARY_DWELL = 0.35        --hover time before the card shows.
+local GLOSSARY_HYSTERESIS = 0.15   --hover gaps shorter than this accumulate.
+local GLOSSARY_HIDE_GRACE = 0.30   --card survives this much dehover.
+
+--Compute the wash hex for the current setting step from the page's ink
+--color ("#rrggbb..." or nil for the default near-white ink).
+local function GlossaryWashColor(inkColor, hover)
+    local step = g_glossaryHintsSetting:Get()
+    local alphaTable = GLOSSARY_WASH_ALPHA
+    if hover then
+        alphaTable = GLOSSARY_HOVER_ALPHA
+    end
+    local alpha = alphaTable[step] or alphaTable.subtle
+    local rgb = "ffffff"
+    if inkColor ~= nil then
+        local ok, c = pcall(core.Color, inkColor)
+        if ok and c ~= nil then
+            rgb = string.format("%02x%02x%02x",
+                math.floor((c.r or 1) * 255 + 0.5),
+                math.floor((c.g or 1) * 255 + 0.5),
+                math.floor((c.b or 1) * 255 + 0.5))
+        end
+    end
+    return string.format("#%s%02x", rgb, alpha)
+end
+
+--Term index: lowercase first word -> candidate entries sorted longest
+--(most words) first. Built lazily from the glossaryTerms table; unhidden,
+--non-commonWord terms only. Invalidated when tables refresh.
+local g_glossaryIndex = nil
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    g_glossaryIndex = nil
+end)
+
+local function GetGlossaryIndex()
+    if g_glossaryIndex ~= nil then
+        return g_glossaryIndex
+    end
+    local index = {}
+    local dataTable = dmhub.GetTable("glossaryTerms")
+    if dataTable ~= nil then
+        for id, term in pairs(dataTable) do
+            if (not term:try_get("hidden", false)) and (not term:try_get("commonWord", false)) then
+                local words = {}
+                for w in string.gmatch(string.lower(term.name or ""), "[%w']+") do
+                    words[#words + 1] = w
+                end
+                if #words > 0 then
+                    local bucket = index[words[1]]
+                    if bucket == nil then
+                        bucket = {}
+                        index[words[1]] = bucket
+                    end
+                    bucket[#bucket + 1] = { words = words, id = id }
+                end
+            end
+        end
+        for _, bucket in pairs(index) do
+            table.sort(bucket, function(a, b) return #a.words > #b.words end)
+        end
+    end
+    g_glossaryIndex = index
+    return index
+end
+
+local function GlossaryTermById(id)
+    local dataTable = dmhub.GetTable("glossaryTerms")
+    if dataTable == nil then
+        return nil
+    end
+    return dataTable[id]
+end
+
+local function IsCapitalized(word)
+    local first = string.sub(word or "", 1, 1)
+    return first ~= "" and first == string.upper(first) and first ~= string.lower(first)
+end
+
+--Mark glossary terms inside one plain-text segment (no tags). washed maps
+--termid -> true once its wash has been spent for this label. Every match
+--becomes a <link=glossary:id> region; the first match of each term also
+--gets the wash <mark>. Returns the rewritten segment.
+local function GlossaryMarkSegment(seg, index, washed, washHex)
+    --tokenize words with positions.
+    local words = {}
+    local searchPos = 1
+    while true do
+        local s, e = string.find(seg, "[%a][%w']*", searchPos)
+        if s == nil then
+            break
+        end
+        words[#words + 1] = { s = s, e = e, text = string.sub(seg, s, e) }
+        searchPos = e + 1
+    end
+    if #words == 0 then
+        return seg
+    end
+
+    local out = {}
+    local copied = 1 --next seg index not yet copied to out.
+    local k = 1
+    while k <= #words do
+        local w = words[k]
+        local lower = string.lower(w.text)
+        local candidates = index[lower]
+        if candidates == nil and string.sub(lower, -1) == "s" then
+            --plural of a single-word term.
+            candidates = index[string.sub(lower, 1, -2)]
+        end
+
+        local matched = nil
+        if candidates ~= nil then
+            for _, entry in ipairs(candidates) do
+                if k + #entry.words - 1 <= #words then
+                    local ok = true
+                    for j = 1, #entry.words do
+                        local sw = string.lower(words[k + j - 1].text)
+                        local tw = entry.words[j]
+                        local isLast = (j == #entry.words)
+                        if sw ~= tw and not (isLast and sw == tw .. "s") then
+                            ok = false
+                            break
+                        end
+                        --words must be adjacent (whitespace only between).
+                        if ok and j > 1 then
+                            local gap = string.sub(seg, words[k + j - 2].e + 1, words[k + j - 1].s - 1)
+                            if string.find(gap, "%S") ~= nil then
+                                ok = false
+                                break
+                            end
+                        end
+                    end
+                    if ok then
+                        matched = entry
+                        break
+                    end
+                end
+            end
+        end
+
+        if matched ~= nil and #matched.words == 1 and IsCapitalized(w.text) then
+            --proper-noun guard: a capitalized single-word term adjacent to
+            --another capitalized word is probably part of a name ("The
+            --Winded Man"); skip it - the hint falls through to the next
+            --occurrence naturally.
+            local prevCap = k > 1 and IsCapitalized(words[k - 1].text)
+            local nextCap = k < #words and IsCapitalized(words[k + 1].text)
+            if prevCap or nextCap then
+                matched = nil
+            end
+        end
+
+        if matched ~= nil then
+            local lastWord = words[k + #matched.words - 1]
+            out[#out + 1] = string.sub(seg, copied, w.s - 1)
+            local span = string.sub(seg, w.s, lastWord.e)
+            if washed[matched.id] then
+                out[#out + 1] = string.format("<link=glossary:%s>%s</link>", matched.id, span)
+            else
+                washed[matched.id] = true
+                out[#out + 1] = string.format("<mark=%s><link=glossary:%s>%s</link></mark>", washHex, matched.id, span)
+            end
+            copied = lastWord.e + 1
+            k = k + #matched.words
+        else
+            k = k + 1
+        end
+    end
+    out[#out + 1] = string.sub(seg, copied)
+    return table.concat(out)
+end
+
+--Tag-aware pass over a label's final rich text. Skips <...> tag runs,
+--anything inside an existing <link> or <size> run (size = skinned
+--headings), and raw markdown heading lines (# ...) which the engine
+--renders as headings in default-skin documents.
+local function ApplyGlossaryHints(text, washHex)
+    if text == nil or text == "" then
+        return text
+    end
+    local index = GetGlossaryIndex()
+    if index == nil or next(index) == nil then
+        return text
+    end
+
+    local out = {}
+    local linkDepth = 0
+    local sizeDepth = 0
+    local i = 1
+    local n = #text
+    local washed = {}
+    local atLineStart = true
+    while i <= n do
+        local ch = string.sub(text, i, i)
+        if ch == "<" then
+            local close = string.find(text, ">", i, true)
+            if close == nil then
+                out[#out + 1] = string.sub(text, i)
+                break
+            end
+            local tag = string.lower(string.sub(text, i, close))
+            if string.starts_with(tag, "<link") then
+                linkDepth = linkDepth + 1
+            elseif tag == "</link>" then
+                linkDepth = math.max(0, linkDepth - 1)
+            elseif string.starts_with(tag, "<size") then
+                sizeDepth = sizeDepth + 1
+            elseif tag == "</size>" then
+                sizeDepth = math.max(0, sizeDepth - 1)
+            end
+            out[#out + 1] = string.sub(text, i, close)
+            i = close + 1
+        else
+            local nextTag = string.find(text, "<", i, true) or (n + 1)
+            local seg = string.sub(text, i, nextTag - 1)
+            if linkDepth > 0 or sizeDepth > 0 then
+                out[#out + 1] = seg
+            else
+                --process line by line so raw markdown headings are skipped.
+                local segOut = {}
+                local pos = 1
+                while pos <= #seg do
+                    local nl = string.find(seg, "\n", pos, true)
+                    local lineEnd = nl ~= nil and nl or (#seg + 1)
+                    local line = string.sub(seg, pos, lineEnd - 1)
+                    if atLineStart and string.match(line, "^#+[ \t]") ~= nil then
+                        segOut[#segOut + 1] = line
+                    else
+                        segOut[#segOut + 1] = GlossaryMarkSegment(line, index, washed, washHex)
+                    end
+                    if nl ~= nil then
+                        segOut[#segOut + 1] = "\n"
+                        atLineStart = true
+                        pos = nl + 1
+                    else
+                        atLineStart = false
+                        pos = lineEnd
+                    end
+                end
+                out[#out + 1] = table.concat(segOut)
+            end
+            i = nextTag
+        end
+    end
+    return table.concat(out)
+end
+
+--The definition card, shared by hover tooltips, the pinned card, and the
+--/glossary command. options: pinned (adds close X), close (dismiss fn).
+function MarkdownDocument.CreateGlossaryCard(term, options)
+    options = options or {}
+
+    local sourceLine = nil
+    local openButton = nil
+    local src = term:try_get("sourceReference")
+    if src ~= nil and src.docid ~= nil and src.docid ~= "none" then
+        local pdfDoc = assets.pdfDocumentsTable[src.docid]
+        if pdfDoc ~= nil and not pdfDoc.hidden then
+            sourceLine = string.format("%s, p. %d", pdfDoc.description or "Book", src.page or 1)
+            openButton = gui.Button{
+                classes = {"sizeS"},
+                halign = "right",
+                valign = "center",
+                lmargin = 6,
+                fontSize = 13,
+                hpad = 8,
+                vpad = 2,
+                text = "Open",
+                click = function(element)
+                    if options.close ~= nil then
+                        options.close()
+                    end
+                    --opens at the PRINTED page (resolved against the PDF's
+                    --page labels; see GlossaryTerm.OpenSourcePage).
+                    GlossaryTerm.OpenSourcePage(src)
+                end,
+            }
+        end
+    end
+
+    local headerChildren = {
+        gui.Label{
+            width = "auto",
+            height = "auto",
+            maxWidth = "100%-30",
+            halign = "left",
+            fontSize = 18,
+            bold = true,
+            color = "white",
+            text = term.name or "Term",
+        },
+    }
+    if options.pinned then
+        headerChildren[#headerChildren + 1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            fontSize = 16,
+            color = "#ffffff99",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            hpad = 4,
+            text = "x",
+            hover = function(element) element.selfStyle.color = "#ffffff" end,
+            dehover = function(element) element.selfStyle.color = "#ffffff99" end,
+            click = function(element)
+                if options.close ~= nil then
+                    options.close()
+                end
+            end,
+        }
+    end
+
+    local children = {
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            children = headerChildren,
+        },
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            vmargin = 6,
+            fontSize = 15,
+            color = "#e8e8e8",
+            text = term.definition or "",
+        },
+    }
+    --footer: source line on the left, Share to Chat / Open on the right.
+    --Always present so terms without a source reference remain shareable.
+    local footerChildren = {}
+    if sourceLine ~= nil then
+        footerChildren[#footerChildren + 1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            fontSize = 13,
+            color = "#ffffff77",
+            text = sourceLine,
+        }
+    end
+    footerChildren[#footerChildren + 1] = gui.Button{
+        classes = {"sizeS"},
+        halign = "right",
+        valign = "center",
+        fontSize = 13,
+        hpad = 8,
+        vpad = 2,
+        text = "Share to Chat",
+        click = function(element)
+            chat.ShareData(term)
+        end,
+    }
+    if openButton ~= nil then
+        footerChildren[#footerChildren + 1] = openButton
+    end
+    children[#children + 1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 2,
+        children = footerChildren,
+    }
+
+    return gui.Panel{
+        width = 380,
+        height = "auto",
+        flow = "vertical",
+        pad = 10,
+        borderBox = true,
+        bgimage = "panels/square.png",
+        bgcolor = "#101010f2",
+        border = 1,
+        borderColor = "#ffffff47",
+        children = children,
+    }
+end
+
+--Hover state machine: dwell with hysteresis, hide grace, wash brighten.
+--Module-level: there is one cursor.
+local g_glossHover = {
+    link = nil,       --the glossary: link currently (or last) hovered.
+    element = nil,
+    startedAt = nil,  --when the (accumulated) dwell began.
+    leftAt = nil,     --dehover time; nil while hovered.
+    shown = false,    --tooltip currently displayed.
+}
+
+--brighten/unbrighten the wash of one term's marked span by rewriting the
+--label's rich text in place (identical layout; only the mark alpha moves).
+--The rgb is taken from the existing mark so skinned inks stay correct.
+local function GlossarySetBright(element, link, bright)
+    pcall(function()
+        local text = element.text
+        if text == nil then
+            return
+        end
+        local id = string.sub(link, 10) --strip "glossary:"
+        local step = g_glossaryHintsSetting:Get()
+        local alphaTable = GLOSSARY_WASH_ALPHA
+        if bright then
+            alphaTable = GLOSSARY_HOVER_ALPHA
+        end
+        local alpha = string.format("%02x", alphaTable[step] or alphaTable.subtle)
+        local pattern = "<mark=#(%x%x%x%x%x%x)%x%x>(<link=glossary:" .. id .. ">)"
+        local newText, count = string.gsub(text, pattern, "<mark=#%1" .. alpha .. ">%2", 1)
+        if count > 0 then
+            element.text = newText
+        end
+    end)
+end
+
+--The hover card is NOT an engine tooltip: tooltips anchor to the whole
+--label panel (a full-width paragraph), which reads as center-screen. The
+--card is instead placed at the mouse point on a floating host owned by the
+--DisplayPanel (see hoverGlossaryTerm). It is only built when the dwell
+--elapses: a panel parented at opacity 0 and revealed later never renders,
+--so create-visible-at-reveal is the reliable pattern.
+local GlossaryRevealCard
+
+--Destroy the hover card and reset the hover state machine.
+local function GlossaryClearHoverCard()
+    local frame = g_glossHover.frame
+    g_glossHover.frame = nil
+    g_glossHover.shown = false
+    g_glossHover.link = nil
+    g_glossHover.leftAt = nil
+    if frame ~= nil and frame.valid then
+        frame:DestroySelf()
+    end
+end
+
+local function GlossaryHintHover(element, link)
+    local now = dmhub.Time()
+    GlossarySetBright(element, link, true)
+
+    local resuming = g_glossHover.link == link and g_glossHover.leftAt ~= nil
+        and (now - g_glossHover.leftAt) <= GLOSSARY_HYSTERESIS
+    if resuming then
+        --same link within the hysteresis window: keep the accumulated
+        --dwell (and the card, if it was already up).
+        g_glossHover.leftAt = nil
+        g_glossHover.element = element
+    else
+        --new link: drop any card left over from a previous term.
+        if g_glossHover.frame ~= nil and g_glossHover.frame.valid then
+            g_glossHover.frame:DestroySelf()
+        end
+        g_glossHover.frame = nil
+        g_glossHover.link = link
+        g_glossHover.element = element
+        g_glossHover.startedAt = now
+        g_glossHover.leftAt = nil
+        g_glossHover.shown = false
+    end
+
+    if GlossaryTermById(string.sub(link, 10)) == nil then
+        return
+    end
+
+    --the card is only built at reveal time (see GlossaryRevealCard), fully
+    --visible from birth, at the mouse point read at that moment.
+    local remaining = GLOSSARY_DWELL - (now - g_glossHover.startedAt)
+    if g_glossHover.shown or remaining <= 0 then
+        GlossaryRevealCard(element)
+    else
+        element:ScheduleEvent("glossaryDwell", remaining)
+    end
+end
+
+GlossaryRevealCard = function(element)
+    if g_glossHover.link == nil then
+        return
+    end
+    g_glossHover.shown = true
+    --build (or rebuild, repositioning at the current mouse point) the card
+    --on the DisplayPanel's hover host; the handler stores it in
+    --g_glossHover.frame (events fire synchronously).
+    element:FireEventOnParents("hoverGlossaryTerm", string.sub(g_glossHover.link, 10))
+
+    --one-time teach toast, latched only by explicit dismissal.
+    if not g_glossaryToastSeen:Get() then
+        element:FireEventOnParents("glossaryToast")
+    end
+end
+
+local function GlossaryHintDehover(element, link)
+    GlossarySetBright(element, link, false)
+    if g_glossHover.link ~= link then
+        return
+    end
+    g_glossHover.leftAt = dmhub.Time()
+    element:ScheduleEvent("glossaryHideGrace", GLOSSARY_HIDE_GRACE)
+end
+
+local function GlossaryDwellEvent(element)
+    if g_glossHover.link ~= nil and g_glossHover.leftAt == nil and not g_glossHover.shown
+       and element.linkHovered == g_glossHover.link then
+        GlossaryRevealCard(element)
+    end
+end
+
+local function GlossaryHideGraceEvent(element)
+    if g_glossHover.leftAt ~= nil
+       and (dmhub.Time() - g_glossHover.leftAt) >= GLOSSARY_HIDE_GRACE - 0.01 then
+        GlossaryClearHoverCard()
+    end
+end
+
+--Strip glossary markup from every label under root. Run after renders with
+--hints off (mute/setting): pooled labels can occasionally survive a render
+--without text reassignment, so stale washes are removed positively rather
+--than trusting the reassignment path. Mirrors the ApplyFindMarks walk.
+local function StripGlossaryMarks(root)
+    local function walk(panel)
+        local ok, valid = pcall(function() return panel.valid end)
+        if not ok or not valid then
+            return
+        end
+        local text = nil
+        pcall(function() text = panel.text end)
+        if type(text) == "string" and string.find(text, "<link=glossary:", 1, true) ~= nil then
+            local newText = text
+            newText = string.gsub(newText, "<mark=#%x+><link=glossary:[^>]*>(.-)</link></mark>", "%1")
+            newText = string.gsub(newText, "<link=glossary:[^>]*>(.-)</link>", "%1")
+            pcall(function() panel.text = newText end)
+        end
+        local kids = nil
+        pcall(function() kids = panel.children end)
+        if kids ~= nil then
+            for _, c in ipairs(kids) do
+                walk(c)
+            end
+        end
+    end
+    walk(root)
+end
+
+local function GlossaryHintPress(element, link)
+    --the hover card must not linger over the pinned card.
+    GlossaryClearHoverCard()
+    element:FireEventOnParents("pinGlossaryTerm", string.sub(link, 10))
+end
+
 --Renders a token stream (from BreakdownRichTags with trackPositions) into an
 --array of child panels, reusing panels pooled from the previous render where
 --possible. ctx is a stable per-host-panel render context:
@@ -3112,10 +3697,24 @@ local function RenderMarkdownTokens(ctx, tokens)
                         if string.starts_with(link, "spoiler:") then
                             return
                         end
+                        if string.starts_with(link, "glossary:") then
+                            GlossaryHintHover(element, link)
+                            return
+                        end
                         CustomDocument.PreviewLink(element, link)
                     end,
                     dehoverLink = function(element, link)
+                        if string.starts_with(link, "glossary:") then
+                            GlossaryHintDehover(element, link)
+                            return
+                        end
                         element.tooltip = nil
+                    end,
+                    glossaryDwell = function(element)
+                        GlossaryDwellEvent(element)
+                    end,
+                    glossaryHideGrace = function(element)
+                        GlossaryHideGraceEvent(element)
                     end,
                     rightClick = function(element)
                         if element.linkHovered == nil then return end
@@ -3150,6 +3749,10 @@ local function RenderMarkdownTokens(ctx, tokens)
                     press = function(element)
                         if element.popup then
                             element.popup = nil
+                            return
+                        end
+                        if element.linkHovered ~= nil and string.starts_with(element.linkHovered, "glossary:") then
+                            GlossaryHintPress(element, element.linkHovered)
                             return
                         end
                         if element.linkHovered ~= nil then
@@ -3246,7 +3849,11 @@ local function RenderMarkdownTokens(ctx, tokens)
                     text = text:sub(1, -2) .. "<color=#00000000>.</color>"
                 end
 
-                textPanel.text = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
+                local finalText = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
+                if ctx.render.glossaryHints then
+                    finalText = ApplyGlossaryHints(finalText, ctx.render.glossaryWash)
+                end
+                textPanel.text = finalText
                 newTextPanels[#newTextPanels + 1] = textPanel
 
                 --find if the string only has a newline at the end or no newline,
@@ -3327,10 +3934,14 @@ local function RenderMarkdownTokens(ctx, tokens)
                     label.selfStyle.width = (usesAlign and not token.justification) and "100%" or "auto"
                     label.selfStyle.maxWidth = "100%"
                     label.selfStyle.valign = "top"
-                    label.text = ApplySkinToText(
+                    local finalText = ApplySkinToText(
                         ApplyInlineClasses(seg.text, resolvedClasses),
                         resolvedSkin,
                         { ruledLevels = ruledLevels })
+                    if ctx.render.glossaryHints then
+                        finalText = ApplyGlossaryHints(finalText, ctx.render.glossaryWash)
+                    end
+                    label.text = finalText
                     newTextPanels[#newTextPanels + 1] = label
                     children[#children + 1] = label
                     if seg.ruleLevel ~= nil then
@@ -4004,6 +4615,296 @@ function MarkdownDocument.DisplayPanel(self, args)
 
     local resultPanel
 
+    --Glossary hints: per-view mute (toolbar eye), plus floating hosts for
+    --the pinned definition card and the one-time teach toast. The hosts are
+    --created once and re-appended to children on every render.
+    local m_glossaryMuted = false
+    local m_glossaryPinHost = nil
+    local m_glossaryToastHost = nil
+    local m_glossaryHoverHost = nil
+
+    local BuildGlossaryPin
+
+    local function GetGlossaryHoverHost()
+        if m_glossaryHoverHost ~= nil and m_glossaryHoverHost.valid then
+            return m_glossaryHoverHost
+        end
+        m_glossaryHoverHost = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+        return m_glossaryHoverHost
+    end
+
+    --Hover card: built at the mouse point inside the document view. The
+    --engine tooltip system anchors to the whole paragraph label, which
+    --reads as center-screen, so the card is hosted here instead.
+    local function ShowGlossaryHoverCard(termid)
+        local term = (dmhub.GetTable("glossaryTerms") or {})[termid]
+        if term == nil then
+            return
+        end
+        local host = GetGlossaryHoverHost()
+        local card = MarkdownDocument.CreateGlossaryCard(term, {})
+
+        local hostW = host.renderedWidth or 0
+        local hostH = host.renderedHeight or 0
+        local px = nil
+        local py = nil
+        pcall(function()
+            local p = host.mousePoint
+            if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                px = p.x * hostW
+                py = (1 - p.y) * hostH
+            end
+        end)
+        if px == nil then
+            --mouse point unavailable; fall back to the upper middle.
+            px = math.max(8, hostW * 0.5 - 200)
+            py = hostH * 0.3
+        else
+            px = math.max(8, math.min(px + 14, hostW - 400))
+            py = math.max(8, math.min(py + 20, hostH - 260))
+        end
+
+        g_glossHover.gen = (g_glossHover.gen or 0) + 1
+        local wrapper
+        wrapper = gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            x = px,
+            y = py,
+            interactable = false,
+            data = { gen = g_glossHover.gen },
+            --safety net: the label's dehover can be missed when the doc
+            --re-renders or scrolls under a stationary mouse. Poll the
+            --source label; when the link is gone, start the hide grace.
+            --(generation ids rather than panel identity: userdata
+            --references are not reliably comparable.)
+            thinkTime = 0.25,
+            think = function(element)
+                if element.data.gen ~= g_glossHover.gen then
+                    element:DestroySelf()
+                    return
+                end
+                local src = g_glossHover.element
+                local srcValid = false
+                pcall(function() srcValid = src ~= nil and src.valid end)
+                if not srcValid then
+                    GlossaryClearHoverCard()
+                    return
+                end
+                if g_glossHover.leftAt == nil then
+                    local hovered = nil
+                    pcall(function() hovered = src.linkHovered end)
+                    if hovered ~= g_glossHover.link then
+                        g_glossHover.leftAt = dmhub.Time()
+                        src:ScheduleEvent("glossaryHideGrace", GLOSSARY_HIDE_GRACE)
+                    end
+                end
+            end,
+            card,
+        }
+        wrapper:MakeNonInteractiveRecursive()
+        host.children = { wrapper }
+        g_glossHover.frame = wrapper
+    end
+
+    local function GetGlossaryPinHost()
+        if m_glossaryPinHost ~= nil and m_glossaryPinHost.valid then
+            return m_glossaryPinHost
+        end
+        m_glossaryPinHost = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            data = { pendingTerm = nil },
+            --pin creation is deferred past the pinning click's release:
+            --buttons fire on mouse-up, so a card materializing during the
+            --click could have its Open button eat the release.
+            glossaryPinDeferred = function(element)
+                if element.data.pendingTerm ~= nil then
+                    local termid = element.data.pendingTerm
+                    element.data.pendingTerm = nil
+                    BuildGlossaryPin(termid)
+                end
+            end,
+        }
+        return m_glossaryPinHost
+    end
+
+    local function GetGlossaryToastHost()
+        if m_glossaryToastHost ~= nil and m_glossaryToastHost.valid then
+            return m_glossaryToastHost
+        end
+        m_glossaryToastHost = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+        return m_glossaryToastHost
+    end
+
+    local function CloseGlossaryPin()
+        if m_glossaryPinHost ~= nil and m_glossaryPinHost.valid then
+            m_glossaryPinHost.children = {}
+        end
+    end
+
+    --Single pin: pinning a new term replaces the old card. The card sits at
+    --the top right of the document view (screen-anchored, self-identifying
+    --by its term-name header). A transparent blocker beneath it swallows
+    --the dismissing click so click-away never activates content beneath.
+    local function PinGlossaryCard(termid)
+        local host = GetGlossaryPinHost()
+        host.data.pendingTerm = termid
+        --capture the click position now (the host spans the document view);
+        --the deferred build places the card beside it.
+        host.data.pendingPoint = nil
+        pcall(function()
+            local p = host.mousePoint
+            if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                host.data.pendingPoint = {
+                    x = p.x * (host.renderedWidth or 0),
+                    y = (1 - p.y) * (host.renderedHeight or 0),
+                }
+            end
+        end)
+        host:ScheduleEvent("glossaryPinDeferred", 0.12)
+    end
+
+    BuildGlossaryPin = function(termid)
+        local term = (dmhub.GetTable("glossaryTerms") or {})[termid]
+        if term == nil then
+            return
+        end
+        local host = GetGlossaryPinHost()
+        local card = MarkdownDocument.CreateGlossaryCard(term, {
+            pinned = true,
+            close = CloseGlossaryPin,
+        })
+
+        --place the card beside the click point (captured at press time),
+        --clamped inside the view; fall back to top-right if the point is
+        --unavailable.
+        local cardWrapper
+        local pos = host.data.pendingPoint
+        host.data.pendingPoint = nil
+        if pos ~= nil then
+            local hostW = host.renderedWidth or 0
+            local hostH = host.renderedHeight or 0
+            local px = math.max(8, math.min(pos.x + 12, hostW - 400))
+            local py = math.max(8, math.min(pos.y + 14, hostH - 260))
+            cardWrapper = gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                x = px,
+                y = py,
+                card,
+            }
+        else
+            cardWrapper = gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "top",
+                rmargin = 14,
+                tmargin = 14,
+                card,
+            }
+        end
+
+        host.children = {
+            gui.Panel{
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+                bgimage = "panels/square.png",
+                bgcolor = "#00000000",
+                captureEscape = true,
+                escapePriority = EscapePriority.DMHUB_POPUP,
+                escape = function(element)
+                    CloseGlossaryPin()
+                end,
+                press = function(element)
+                    CloseGlossaryPin()
+                end,
+            },
+            cardWrapper,
+        }
+    end
+
+    local function ShowGlossaryToast()
+        if g_glossaryToastSeen:Get() then
+            return
+        end
+        local host = GetGlossaryToastHost()
+        if #host.children > 0 then
+            return
+        end
+        host.children = {
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+                tmargin = 10,
+                flow = "horizontal",
+                pad = 8,
+                borderBox = true,
+                bgimage = "panels/square.png",
+                bgcolor = "#101010f2",
+                border = 1,
+                borderColor = "#ffffff47",
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    maxWidth = 520,
+                    valign = "center",
+                    fontSize = 14,
+                    color = "#e8e8e8",
+                    text = "Softly highlighted terms have glossary definitions - hover to read, click to pin.",
+                },
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 10,
+                    hpad = 4,
+                    fontSize = 15,
+                    color = "#ffffff99",
+                    bgimage = "panels/square.png",
+                    bgcolor = "#00000000",
+                    text = "x",
+                    hover = function(element) element.selfStyle.color = "#ffffff" end,
+                    dehover = function(element) element.selfStyle.color = "#ffffff99" end,
+                    click = function(element)
+                        --explicit dismissal is what latches the seen flag.
+                        g_glossaryToastSeen:Set(true)
+                        if m_glossaryToastHost ~= nil and m_glossaryToastHost.valid then
+                            m_glossaryToastHost.children = {}
+                        end
+                    end,
+                },
+            },
+        }
+    end
+
     local ctx = CreateMarkdownRenderContext(self, embedDepth)
 
     local params = {
@@ -4098,6 +4999,14 @@ function MarkdownDocument.DisplayPanel(self, args)
                 element.borderBox = nil
             end
 
+            --Glossary hints: top-level interactive documents only (no
+            --embeds, no preview panels), gated by the setting and the
+            --per-view mute. The wash color derives from the page's ink.
+            local glossaryOn = embedDepth == 0
+                and (not m_noninteractive)
+                and (not m_glossaryMuted)
+                and g_glossaryHintsSetting:Get() ~= "off"
+
             ctx.render = {
                 skin = resolvedSkin,
                 classes = resolvedStylesheet.classes,
@@ -4106,6 +5015,8 @@ function MarkdownDocument.DisplayPanel(self, args)
                 ruledLevels = HeadingRuleLevels(resolvedSkin),
                 usesAlign = SkinUsesAlign(resolvedSkin),
                 pageColor = pageColor,
+                glossaryHints = glossaryOn,
+                glossaryWash = glossaryOn and GlossaryWashColor(SkinColor((resolvedSkin.body or {}).color), false) or nil,
             }
 
             local children = RenderMarkdownTokens(ctx, tokens)
@@ -4115,7 +5026,19 @@ function MarkdownDocument.DisplayPanel(self, args)
                     children[#children + 1] = footer
                 end
             end
+            if embedDepth == 0 and not m_noninteractive then
+                children[#children + 1] = GetGlossaryHoverHost()
+                children[#children + 1] = GetGlossaryToastHost()
+                children[#children + 1] = GetGlossaryPinHost()
+            end
             element.children = children
+
+            --with hints off (muted or setting off), positively remove any
+            --glossary markup a pooled label carried over from an earlier
+            --hinted render.
+            if not glossaryOn then
+                StripGlossaryMarks(element)
+            end
 
             --Find-in-page: mark matches over the freshly rendered labels.
             --Runs on every render so marks survive refreshes; clearing the
@@ -4147,6 +5070,25 @@ function MarkdownDocument.DisplayPanel(self, args)
                     dmhub.Schedule(0.05, tryScroll)
                 end
             end
+        end,
+
+        --Glossary hints: pin/toast/mute events fired up from the rendered
+        --labels (pin), the hover machinery (toast), and the document
+        --toolbar (mute).
+        pinGlossaryTerm = function(element, termid)
+            PinGlossaryCard(termid)
+        end,
+        hoverGlossaryTerm = function(element, termid)
+            ShowGlossaryHoverCard(termid)
+        end,
+        glossaryToast = function(element)
+            ShowGlossaryToast()
+        end,
+        glossaryMute = function(element, muted)
+            m_glossaryMuted = muted and true or false
+            CloseGlossaryPin()
+            GlossaryClearHoverCard()
+            element:FireEvent("refreshDocument")
         end,
 
         --Find-in-page driver. args = {term=string|nil, index=number,
@@ -5913,7 +6855,7 @@ local function CreateMarkdownToolbar(opts)
     }
 end
 
---Obsidian-style live edit surface (experimental, behind liveEditSetting).
+--Obsidian-style live edit surface: the journal's editor (see EditPanel).
 --The document is partitioned into blocks (PartitionTokensIntoBlocks); each
 --block renders through RenderMarkdownTokens exactly like display mode, with
 --a floating click-guard over it. Clicking a block swaps it for a multiline
@@ -5939,6 +6881,20 @@ function MarkdownDocument:LiveEditPanel(args)
     local m_activateTime = 0 --guards the focus watchdog against the focus race.
     local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
                              --toolbar reactivate where the user was typing.
+    local m_activeRenderedHeight = nil --the active block's rendered height,
+                             --measured at activation; held as the edit
+                             --input's minHeight so swapping a tall rendered
+                             --block (widget, table, heading rule) for its
+                             --shorter raw source does not make the content
+                             --below it jump up.
+    local m_findTerm = nil   --find-in-page state (findInPage event), marked
+                             --over the rendered blocks exactly as in
+                             --DisplayPanel. The active block's input is
+                             --never marked: injected mark tags would become
+                             --part of the block's raw source.
+    local m_findIndex = 1
+    local m_findCallback = nil
+    local m_findGeneration = 0
     local m_savedContent = nil --the doc content as of the last load/save;
                              --distinguishes local unsaved work from a clean
                              --view so remote refreshes never clobber edits.
@@ -6319,9 +7275,11 @@ function MarkdownDocument:LiveEditPanel(args)
                 DeactivateBlock()
             end,
 
-            escape = function(element)
-                DeactivateBlock()
-            end,
+            --escape is handled by the surface's captureEscape route (see
+            --resultPanel), which outranks the journal window's close handler;
+            --a handler here too would deactivate (clearing captureEscape)
+            --before the capture pass resolves, letting the same keypress
+            --fall through and close the whole journal.
 
             --arrow keys at the block's edge flow into the neighboring block,
             --so the cursor travels the document like a single continuous
@@ -6441,7 +7399,70 @@ function MarkdownDocument:LiveEditPanel(args)
         return wrapper
     end
 
+    --Find-in-page over the live editor: walk the block wrappers in document
+    --order, marking matches in their rendered labels (same marks and scroll
+    --scheme as DisplayPanel). Placeholder blocks and the active block are
+    --skipped - the active block shows its raw source in an input, and marks
+    --injected there would be committed into the document. Runs at the end
+    --of every RefreshBlockPanels pass; the pass renders fresh labels
+    --whenever a term is active (see the generation bump there), so a label
+    --is never marked twice (re-marking would nest mark tags).
+    local function ApplyLiveFindMarks()
+        if m_findTerm == nil then
+            return
+        end
+        local total = 0
+        local currentLabel = nil
+        for index, block in ipairs(m_blocks) do
+            local wrapper = m_blockPanels[index]
+            if (not block.placeholder) and index ~= m_activeIndex
+               and wrapper ~= nil and wrapper.valid
+               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
+                local rel = m_findIndex - total
+                if rel < 1 then
+                    rel = nil
+                end
+                local cnt, cur = ApplyFindMarks(wrapper.data.contentPanel, m_findTerm, rel)
+                if cur ~= nil then
+                    currentLabel = cur
+                end
+                total = total + cnt
+            end
+        end
+        if m_findCallback ~= nil then
+            m_findCallback(total)
+        end
+        if currentLabel ~= nil then
+            --layout has not run for the fresh labels; retry the scroll
+            --until heights are real. The generation guard abandons stale
+            --retries when the term or index moves on.
+            m_findGeneration = m_findGeneration + 1
+            local generation = m_findGeneration
+            local attempts = 12
+            local function tryScroll()
+                if mod.unloaded or generation ~= m_findGeneration then
+                    return
+                end
+                if ScrollFindTargetIntoView(currentLabel) then
+                    return
+                end
+                attempts = attempts - 1
+                if attempts > 0 then
+                    dmhub.Schedule(0.1, tryScroll)
+                end
+            end
+            dmhub.Schedule(0.05, tryScroll)
+        end
+    end
+
     RefreshBlockPanels = function()
+        --with an active find term every pass must render fresh labels so
+        --the mark pass at the end never marks an already-marked label and
+        --index moves repaint the current-match color.
+        if m_findTerm ~= nil then
+            m_renderGeneration = m_renderGeneration + 1
+        end
+
         --resolve the skin once per refresh and share it into every block's
         --render context, mirroring what DisplayPanel does per render.
         local resolvedStylesheet = m_doc:GetResolvedStylesheet()
@@ -6532,8 +7553,15 @@ function MarkdownDocument:LiveEditPanel(args)
                 input.selfStyle.bold = bold
                 input.selfStyle.color = ink
                 --one line of the edit font, so an empty block still shows a
-                --caret without padding the block taller than its render.
-                input.selfStyle.minHeight = math.ceil(size * 1.4)
+                --caret without padding the block taller than its render; when
+                --the block's rendered form was measured at activation, hold
+                --that height instead so the page does not reflow on entry
+                --(raw source is usually shorter than widgets/tables render).
+                local minHeight = math.ceil(size * 1.4)
+                if m_activeRenderedHeight ~= nil and m_activeRenderedHeight > minHeight then
+                    minHeight = m_activeRenderedHeight
+                end
+                input.selfStyle.minHeight = minHeight
                 if type(face) == "string" and face ~= "" and FontAvailable(face) then
                     input.selfStyle.fontFace = face
                 else
@@ -6600,6 +7628,8 @@ function MarkdownDocument:LiveEditPanel(args)
         end
 
         m_listPanel.children = children
+
+        ApplyLiveFindMarks()
     end
 
     DeactivateBlock = function()
@@ -6615,6 +7645,10 @@ function MarkdownDocument:LiveEditPanel(args)
         --is deliberately NOT re-read here.
         CommitActiveBlock()
         m_activeIndex = nil
+        m_activeRenderedHeight = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.captureEscape = false
+        end
         RebuildBlockData()
         RefreshAnnotations(GetContent())
         RefreshBlockPanels()
@@ -6654,6 +7688,23 @@ function MarkdownDocument:LiveEditPanel(args)
             end
             if index == nil and #m_blocks > 0 then
                 index = #m_blocks
+            end
+        end
+
+        --measure the block's rendered height before RefreshBlockPanels
+        --collapses it, so the edit input can hold the block at its rendered
+        --size. The pooled wrapper at this index still shows the pre-edit
+        --render here (RefreshBlockPanels has not run since the commit above),
+        --which is exactly the height the user is looking at.
+        m_activeRenderedHeight = nil
+        if index ~= nil then
+            local wrapper = m_blockPanels[index]
+            if wrapper ~= nil and wrapper.valid
+               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
+                local h = wrapper.data.contentPanel.renderedHeight
+                if type(h) == "number" and h > 0 then
+                    m_activeRenderedHeight = h
+                end
             end
         end
 
@@ -6720,6 +7771,12 @@ function MarkdownDocument:LiveEditPanel(args)
             m_editInput:SetTextAndCaret(caret, src)
             m_editInput.hasInputFocus = true
             m_lastEdit = { line = block.lineStart, caret = caret }
+        end
+
+        --intercept escape only while a block is active (see resultPanel's
+        --escape handler).
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.captureEscape = (m_activeIndex ~= nil)
         end
     end
 
@@ -6911,6 +7968,44 @@ function MarkdownDocument:LiveEditPanel(args)
             PerformRedo()
         end,
 
+        --escape while a block is being edited commits the block and stays in
+        --the journal instead of bubbling to the window's EXIT_DIALOG close.
+        --Same pattern as the editor's find bar: DMHUB_POPUP outranks
+        --EXIT_DIALOG, and captureEscape is toggled with block activation
+        --(ActivateBlock/DeactivateBlock) so escape with no active block
+        --still closes the journal window as usual.
+        captureEscape = false,
+        escapePriority = EscapePriority.DMHUB_POPUP,
+        escape = function(element)
+            DeactivateBlock()
+        end,
+
+        --Find-in-page driver, same contract as DisplayPanel's: re-renders
+        --with term occurrences marked, reports the match count through the
+        --callback (synchronously, during this event), and scrolls to match
+        --number index. A nil or empty term clears the highlights. An active
+        --block is committed first so its content is rendered, countable,
+        --and safe to mark.
+        findInPage = function(element, findArgs)
+            local term = findArgs ~= nil and findArgs.term or nil
+            if term == "" then
+                term = nil
+            end
+            m_findTerm = term
+            m_findIndex = findArgs ~= nil and findArgs.index or 1
+            m_findCallback = findArgs ~= nil and findArgs.callback or nil
+            m_findGeneration = m_findGeneration + 1
+            --render fresh labels even when the term was just cleared, so
+            --stale marks drop out.
+            m_renderGeneration = m_renderGeneration + 1
+            if m_activeIndex ~= nil then
+                DeactivateBlock()
+            else
+                RefreshBlockPanels()
+            end
+            m_findCallback = nil
+        end,
+
         --focus watchdog: if the active input silently lost focus (clicked
         --into another panel entirely) commit and re-render. The grace period
         --covers the input's multi-frame focus acquisition.
@@ -7010,11 +8105,16 @@ end
 
 local MarkdownReferenceTooltip
 
+--The Obsidian-style live block editor (LiveEditPanel) is the journal's
+--editor. The classic full-document editor is retained below as
+--ClassicEditPanel for reference until its remaining exclusives (find bar
+--while editing, formatting guide, preview pane) are ported to the live
+--editor; nothing calls it.
 function MarkdownDocument:EditPanel(args)
-    if liveEditSetting:Get() then
-        return self:LiveEditPanel(args)
-    end
+    return self:LiveEditPanel(args)
+end
 
+function MarkdownDocument:ClassicEditPanel(args)
     local resultPanel
 
     local markdownReferenceLabel = gui.Label {

@@ -99,6 +99,56 @@ creature.RegisterSymbol {
     },
 }
 
+--GoblinScript function symbol: "is the creature I am shown grabbed by MY
+--animal companion?". Caster-side and fully nil-safe -- returns false when the
+--beastheart has no companion, so callers avoid `Caster.Companion and ...`,
+--which the engine evaluates to nil for a bare object operand. Registered as a
+--function symbol (the lookup returns a closure) mirroring the built-in
+--`Distance` and `Cast.AnyTargetHas` patterns. Usage in a GoblinScript field
+--where Target is bound (e.g. a behavior filterTarget):
+--`Caster.CompanionIsGrabbing(Target)`.
+creature.RegisterSymbol {
+    symbol = "companionisgrabbing",
+    lookup = function(c)
+        return function(other)
+            local companionToken = c:GetCompanionToken()
+            if companionToken == nil or (not companionToken.valid) then
+                return false
+            end
+
+            --The argument may arrive as a creature-properties table or as a
+            --symbol-resolver function; coerce to properties the same way
+            --Cast.AnyTargetHas / Cast.HasTarget do in ActivatedAbilityCast.lua.
+            if type(other) == "function" then
+                other = other("self")
+            end
+
+            local targetToken = dmhub.LookupToken(other)
+            if targetToken == nil then
+                return false
+            end
+
+            local grabbedCond = CharacterCondition.conditionsByName["grabbed"]
+            if grabbedCond == nil then
+                return false
+            end
+
+            --creature:HasCondition returns the grabber's tokenid (== charid)
+            --when the caster is known, true when the grabber is unknown, or
+            --false when not grabbed. Only an exact companion match counts.
+            local grabber = targetToken.properties:HasCondition(grabbedCond.id)
+            return grabber == companionToken.charid
+        end
+    end,
+    help = {
+        name = "Companion Is Grabbing",
+        type = "function",
+        desc = "A function shown a creature; returns true if that creature is grabbed by this creature's animal companion (Beastheart partner). False when there is no companion or the grab was applied by anyone else.",
+        examples = {"Caster.CompanionIsGrabbing(Target)"},
+        seealso = {"Companion"},
+    },
+}
+
 --- Soft-release the beastheart's currently-summoned companion (if any) and
 --- clear the companionid link so the next Call summons a fresh one. The
 --- companion token is despawned (token.despawned = true), not destroyed --
@@ -428,6 +478,7 @@ local g_companionSharedResources = {
     "2166c5fe-260e-4691-9743-06cf097a59f3", --hero tokens
     "1c8e3d92-4b5f-4a76-b428-7c1d3e6f5a82", --electric surge once-per-turn limit (Elemental Spark)
     "b9bc06dd-80f1-4f33-bc55-25c114e3300c", --triggered action (per "Companion Actions" rule: one triggered action per round shared between beastheart + companion)
+    "9c1e4b7a-2d38-4f60-a915-3c6e0d8f2b41", --This One's Yours once-per-turn limit (Punisher, shared beastheart + companion)
 }
 
 local g_companionSharedResourcesKeyed = {}

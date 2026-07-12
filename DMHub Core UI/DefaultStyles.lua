@@ -10,33 +10,37 @@ local mod = dmhub.GetModLoading()
 ThemeEngine.RegisterColorScheme{
     id          = "default",
     name        = "Default",
-    description = "The Draw Steel default color palette.",
+    description = "The Draw Steel default color palette: warm parchment text on warm-black surfaces.",
+    -- Ported from the Codex design system (claude.ai/design, achromatic
+    -- chrome policy): warm-black surface ladder, parchment text in place
+    -- of stark white, primary-by-value (the parchment doubles as the
+    -- accent/inverse fill), and quiet white-alpha borders.
     colors = {
-        -- Surfaces
-        bg            = "#080B09",
-        bgAlt         = "#191A18",
-        bgInverse     = "#9C9C9C",
+        -- Surfaces (design ladder: #0a0a0b page, #1a1a1e nested strip)
+        bg            = "#0A0A0B",
+        bgAlt         = "#1A1A1E",
+        bgInverse     = "#E4DDD0", -- parchment "primary by value" fill
 
-        -- Foreground / text
-        fg            = "#CECECE",
-        fgStrong      = "#EFEFEF",
-        fgMuted       = "#9F9F9B",
-        fgPending     = "#999999",
-        fgInverse     = "#040404",
+        -- Foreground / text (parchment ladder - the "less stark white")
+        fg            = "#E4DDD0",
+        fgStrong      = "#F2EDE1",
+        fgMuted       = "#8A8A8A",
+        fgPending     = "#7A7468", -- design text-soft: warm-muted secondary
+        fgInverse     = "#0A0A0B", -- text on a parchment fill
 
-        -- Borders
-        border        = "#DFDFDF",
-        borderInverse = "#666666",
+        -- Borders (design: depth from quiet 1px edges, not bright frames)
+        border        = "#FFFFFF29", -- control border, white at 0.16
+        borderInverse = "#7A7468",
 
-        -- Accent + interactive
-        accent        = "#999999",
-        accentHover   = "#DDDDDD",
+        -- Accent + interactive (achromatic: emphasis by value, not hue)
+        accent        = "#E4DDD0",
+        accentHover   = "#F7F3EA",
 
         -- Status
-        success       = "#6BA84F", -- Also healthy, good, etc.
+        success       = "#4DB88C", -- Also healthy, good, etc.
         info          = "#E9C868",
-        warning       = "#E08A2E", -- Also winded, etc.
-        danger        = "#C73131", -- Also dying, bad, etc.
+        warning       = "#E8A030", -- Also winded, etc.
+        danger        = "#C94040", -- Also dying, bad, etc.
 
         -- Disabled
         disabled      = "#343434",
@@ -55,21 +59,23 @@ ThemeEngine.RegisterColorScheme{
     },
     gradients = {
         -- Surfaces
+        -- Retinted from the old green-black family to the warm-black
+        -- ladder (same values/steps, hue follows the new surfaces).
         surfaceRadial = {
             type = "radial",
             point_a = {x = 0.5, y = 0.5},
             point_b = {x = 0.5, y = 1.0},
             stops = {
-                {position = -0.01, color = "#1c1c1c"},
-                {position = 0.00,  color = "#1c1c1c"},
-                {position = 0.12,  color = "#191919"},
-                {position = 0.25,  color = "#161616"},
-                {position = 0.37,  color = "#131413"},
-                {position = 0.50,  color = "#101110"},
-                {position = 0.62,  color = "#0d0f0d"},
-                {position = 0.75,  color = "#0b0d0b"},
-                {position = 0.87,  color = "#090c0a"},
-                {position = 1.00,  color = "#080b09"},
+                {position = -0.01, color = "#1c1c1e"},
+                {position = 0.00,  color = "#1c1c1e"},
+                {position = 0.12,  color = "#19191b"},
+                {position = 0.25,  color = "#161618"},
+                {position = 0.37,  color = "#131315"},
+                {position = 0.50,  color = "#101012"},
+                {position = 0.62,  color = "#0d0d0f"},
+                {position = 0.75,  color = "#0b0b0d"},
+                {position = 0.87,  color = "#0a0a0c"},
+                {position = 1.00,  color = "#0a0a0b"},
             },
         },
 
@@ -77,8 +83,8 @@ ThemeEngine.RegisterColorScheme{
             point_a = {x = 0, y = 0},
             point_b = {x = 1, y = 1},
             stops = {
-                {position = 0, color = "#1A1B19"},
-                {position = 1, color = "#050605"},
+                {position = 0, color = "#1A1A1E"},
+                {position = 1, color = "#060607"},
             },
         },
 
@@ -88,7 +94,7 @@ ThemeEngine.RegisterColorScheme{
             point_a = {x = -0.02, y = 0},
             point_b = {x = 1.02,  y = 0},
             stops = {
-                {position = 0, color = "#060605"},
+                {position = 0, color = "#070708"},
                 {position = 1, color = "@bgAlt"},
             },
         },

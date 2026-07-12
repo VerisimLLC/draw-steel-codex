@@ -101,6 +101,10 @@ function SourceReference:Editor(options)
                 fontSize = 14,
                 width = "auto",
                 height = "auto",
+                hpad = 10,
+                vpad = 4,
+                lmargin = 8,
+                valign = "center",
                 text = "Open",
                 click = function(element)
                     print("CHANGE:: OPEN:", self:url())

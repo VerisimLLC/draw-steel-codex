@@ -2915,6 +2915,7 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
                 classes = {"sizeS"},
                 halign = "right",
                 valign = "center",
+                lmargin = 6,
                 fontSize = 13,
                 hpad = 8,
                 vpad = 2,
@@ -2923,24 +2924,9 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
                     if options.close ~= nil then
                         options.close()
                     end
-                    --src.page is the PRINTED page number. The PDF viewer
-                    --resolves a STRING starting page against the PDF's page
-                    --labels (front matter shifts printed pages from raw
-                    --indices), but silently stays put when nothing matches,
-                    --so only pass the label form when it exists. Fall back
-                    --to the printed number as a 0-based index guess.
-                    local page = src.page or 1
-                    local target = math.max(0, (tonumber(page) or 1) - 1)
-                    pcall(function()
-                        local want = string.lower(tostring(page))
-                        for _, label in ipairs(pdfDoc.doc.summary.pageLabels) do
-                            if string.lower(label) == want then
-                                target = tostring(page)
-                                break
-                            end
-                        end
-                    end)
-                    OpenPDFDocument(pdfDoc, target)
+                    --opens at the PRINTED page (resolved against the PDF's
+                    --page labels; see GlossaryTerm.OpenSourcePage).
+                    GlossaryTerm.OpenSourcePage(src)
                 end,
             }
         end
@@ -2996,24 +2982,42 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
             text = term.definition or "",
         },
     }
+    --footer: source line on the left, Share to Chat / Open on the right.
+    --Always present so terms without a source reference remain shareable.
+    local footerChildren = {}
     if sourceLine ~= nil then
-        children[#children + 1] = gui.Panel{
-            width = "100%",
+        footerChildren[#footerChildren + 1] = gui.Label{
+            width = "auto",
             height = "auto",
-            flow = "horizontal",
-            vmargin = 2,
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                fontSize = 13,
-                color = "#ffffff77",
-                text = sourceLine,
-            },
-            openButton,
+            halign = "left",
+            valign = "center",
+            fontSize = 13,
+            color = "#ffffff77",
+            text = sourceLine,
         }
     end
+    footerChildren[#footerChildren + 1] = gui.Button{
+        classes = {"sizeS"},
+        halign = "right",
+        valign = "center",
+        fontSize = 13,
+        hpad = 8,
+        vpad = 2,
+        text = "Share to Chat",
+        click = function(element)
+            chat.ShareData(term)
+        end,
+    }
+    if openButton ~= nil then
+        footerChildren[#footerChildren + 1] = openButton
+    end
+    children[#children + 1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 2,
+        children = footerChildren,
+    }
 
     return gui.Panel{
         width = 380,

@@ -6973,6 +6973,181 @@ local function ShowMontageTestsPanel(contentPanel)
     contentPanel.children = {leftPanel}
 end
 
+--A glossary term: reference content mirroring the book's glossary - the
+--term, its definition, and a SourceReference to the book and page that
+--defines it (openable directly in the PDF viewer, like ability sources).
+GlossaryTerm = RegisterGameType("GlossaryTerm")
+GlossaryTerm.tableName = "glossaryTerms"
+GlossaryTerm.name = "New Term"
+GlossaryTerm.definition = ""
+
+function GlossaryTerm.CreateNew()
+    return GlossaryTerm.new{}
+end
+
+--Editor for a single glossary term, fetched live from the table by key.
+--Fields upload on change, matching the negotiator editor.
+local function CreateGlossaryTermEditor(key)
+    local term = (dmhub.GetTable(GlossaryTerm.tableName) or {})[key]
+    if term == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    --source material: reuses SourceReference (book dropdown + page + Open),
+    --the same widget abilities use. Picking a source auto-searches the PDF
+    --for the term's name to prefill the page.
+    local m_source = term:try_get("sourceReference") or SourceReference.new{}
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        --gutter between the term list column and the editor's fields.
+        lmargin = 24,
+        gui.Input{
+            classes = {"sizeL"},
+            width = 400,
+            height = 26,
+            bmargin = 8,
+            placeholderText = "Term",
+            text = term.name,
+            change = function(element)
+                term.name = element.text
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        m_source:Editor{
+            object = term,
+            halign = "left",
+            vmargin = 8,
+            change = function(element)
+                term.sourceReference = m_source
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 48,
+            vmargin = 8,
+            multiline = true,
+            placeholderText = "Definition",
+            text = term.definition,
+            change = function(element)
+                term.definition = element.text
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+    }
+end
+
+local function ShowGlossaryPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    --glossaries run long; the filter box narrows the list as you type.
+    local m_filter = ""
+    --key of the term open in the editor. Selection is tracked here rather
+    --than through CreateListItem's select option: that option re-fires the
+    --click on every list refresh, and every field edit uploads (which
+    --refreshes the list), so it would rebuild the editor out from under
+    --mid-entry typing.
+    local m_selectedKey = nil
+
+    local function OpenTerm(key)
+        m_selectedKey = key
+        contentPanel.children = {leftPanel, CreateGlossaryTermEditor(key)}
+    end
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(GlossaryTerm.tableName) or {}
+            local entries = {}
+            local filter = string.lower(m_filter)
+            for key,item in unhidden_pairs(dataTable) do
+                if filter == "" or string.find(string.lower(item.name or ""), filter, 1, true) ~= nil then
+                    entries[#entries+1] = { key = key, item = item }
+                end
+            end
+            table.sort(entries, function(a,b)
+                return string.lower(a.item.name or "") < string.lower(b.item.name or "")
+            end)
+
+            local children = {}
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                --no obliterateOnDelete: deleted terms soft-hide and can be
+                --recovered with the showdeleted setting.
+                local listItem = CreateListItem{
+                    tableName = GlossaryTerm.tableName,
+                    key = key,
+                    click = function()
+                        OpenTerm(key)
+                    end,
+                }
+                listItem.text = entry.item.name or "Term"
+                listItem:SetClass("selected", key == m_selectedKey)
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 240,
+            height = 22,
+            halign = "left",
+            vmargin = 4,
+            placeholderText = "Filter terms...",
+            editlag = 0.25,
+            edit = function(element)
+                m_filter = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+            change = function(element)
+                m_filter = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
+        itemsListPanel,
+        AddButton{
+            --left-aligned under the term list (the shared AddButton default
+            --is halign right, which floats the + into the gap beside the
+            --editor column and reads as ambiguous ownership).
+            halign = "left",
+            lmargin = 8,
+            vmargin = 6,
+            click = function()
+                local newTerm = GlossaryTerm.CreateNew()
+                --SetAndUploadTableItem assigns the id onto the object, so
+                --the new term's editor can open immediately.
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, newTerm)
+                local key = nil
+                pcall(function() key = newTerm.id end)
+                if key ~= nil then
+                    OpenTerm(key)
+                end
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
 Compendium.CreateListItem = CreateListItem
 
 local g_registeredPanels = false
@@ -6999,6 +7174,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         contentType = "montageTests",
         click = function(contentPanel)
             ShowMontageTestsPanel(contentPanel)
+        end,
+    }
+
+    Compendium.Register{
+        section = "Prepped",
+        text = "Glossary",
+        contentType = "glossaryTerms",
+        click = function(contentPanel)
+            ShowGlossaryPanel(contentPanel)
         end,
     }
 

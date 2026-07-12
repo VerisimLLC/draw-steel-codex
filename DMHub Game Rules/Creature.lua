@@ -9137,6 +9137,19 @@ function creature:DispatchEvent(eventName, info)
                 else
                     serializedInfo[k] = v
                 end
+            elseif type(v) == "userdata" then
+                --Raw engine objects (e.g. a CharacterToken in info.attacker)
+                --cannot be serialized: they upload as null while the userdata
+                --stays in the local properties copy, which then logs
+                --"Could not serialize user data value" on every subsequent
+                --write to this token. Convert tokens to charid references
+                --(the consumer in RefreshToken resolves these back to
+                --properties) and drop anything else.
+                local id = nil
+                pcall(function() id = v.charid end)
+                if type(id) == "string" and id ~= "" then
+                    serializedInfo[k] = "charid:" .. id
+                end
             else
                 serializedInfo[k] = v
             end

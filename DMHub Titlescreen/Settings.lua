@@ -1212,6 +1212,41 @@ setting{
 	end,
 }
 
+--Dice loadout beyond the single default set (equipped from the shop inventory's
+--dice equip panel rather than the settings screen):
+--  diceequipped2   -- any roll with multiple d10s alternates its d10s between
+--                     diceequipped and this (1st/3rd/... = default, 2nd/4th/... =
+--                     this), so the Draw Steel 2d10 power roll mixes the two sets.
+--                     "" = use the default set for every d10.
+--  diceequippedd6  -- the set used for d6- and d3-shaped dice. "" = default set.
+--Both hold a dice asset id (like diceequipped) and are read by the engine via
+--AccountInfo.diceMaterial, which ships them with each roll.
+setting{
+	id = "diceequipped2",
+	storage = "account",
+	default = "",
+}
+
+setting{
+	id = "diceequippedd6",
+	storage = "account",
+	default = "",
+}
+
+--Activated dice "slots": conditional dice choices keyed by the slots authored on
+--dice sets in the Dice Studio (see dicestudio.slots). A table mapping a slot key
+--to the dice asset id activated for it. Slot keys:
+--  "damage:<damageType>"            e.g. "damage:fire"
+--  "class:<classid>"                playing that class
+--  "class:<classid>:<subclassid>"   playing that subclass
+--Written by the shop inventory's dice equip panel. Not consumed at roll time yet;
+--roll-time slot resolution is the next step of the dice-slots feature.
+setting{
+	id = "diceslotsequipped",
+	storage = "account",
+	default = {},
+}
+
 local diceWithColors = { "Default", "Chalk Stone", "Chrome", "Shiny Marble", }
 local diceWithColorsMap = {}
 for _,d in ipairs(diceWithColors) do
@@ -1687,6 +1722,34 @@ setting{
 		{
 			value = "corner",
 			text = "Corner",
+		},
+	},
+}
+
+setting{
+	id = "measure:distances",
+	description = "Distances",
+	storage = "preference",
+
+	editor = "dropdown",
+	default = "ignorediagonals",
+
+	-- Only relevant for the Ruler when snapping to the grid, since the choice
+	-- only affects how diagonal grid steps are counted. Without snapping the
+	-- ruler already reports the straight-line (Euclidean) length.
+	monitorVisible = {'measure:shape', 'measure:snap'},
+	visible = function()
+		return dmhub.GetSettingValue('measure:shape') == "ruler" and dmhub.GetSettingValue('measure:snap') ~= "none"
+	end,
+
+	enum = {
+		{
+			value = "ignorediagonals",
+			text = "Ignore Diagonals",
+		},
+		{
+			value = "euclidean",
+			text = "Euclidean",
 		},
 	},
 }

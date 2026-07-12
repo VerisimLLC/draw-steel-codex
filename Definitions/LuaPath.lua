@@ -1,8 +1,8 @@
---- @class LuaPath
---- @field hasCollision boolean
---- @field freeMovementSteps number
---- @field collisionForce number Forced movement only: the force remaining at the moment of collision, after deducting distance travelled AND stamina spent breaking walls along the way (the true impact momentum). -1 = no collision was recorded on this path.
---- @field wallBreaks nil|table[]
+--- @class LuaPath 
+--- @field hasCollision boolean 
+--- @field freeMovementSteps number 
+--- @field collisionForce int 
+--- @field wallBreaks nil|table[] 
 --- @field movementType string 
 --- @field jumpHeight number For a jump, the jump distance in tiles -- the mover clears height-limited walls up to this tall. Zero for every other movement type.
 --- @field shifting boolean 

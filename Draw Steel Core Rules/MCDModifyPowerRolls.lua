@@ -1070,14 +1070,19 @@ CharacterModifier.TypeInfo.power = {
                 firstRefresh = false
             end
 
+            --Imported/YAML-authored modifiers may lack activationCondition
+            --entirely (only the editor's init path sets it); treat missing
+            --as false, matching the init default.
+            local activationCondition = modifier:try_get("activationCondition", false)
+
             local conditionType = "condition"
-            if modifier.activationCondition == false then
+            if activationCondition == false then
                 if type(modifier:try_get("activationAfterRoll", false)) == "string" then
                     conditionType = "condition_after_roll"
                 else
                     conditionType = "never"
                 end
-            elseif modifier.activationCondition == true then
+            elseif activationCondition == true then
                 conditionType = "always"
             end
 
@@ -1456,7 +1461,7 @@ CharacterModifier.TypeInfo.power = {
 
 			}
 
-            if modifier.activationCondition ~= true and modifier.activationCondition ~= false then
+            if activationCondition ~= true and activationCondition ~= false then
                 local helpSymbols = CharacterModifier.defaultHelpSymbols
                 if modifier.rollType == "ability_power_roll" or modifier.rollType == "enemy_ability_power_roll" then
                     helpSymbols = g_powerRollSymbols
@@ -1503,7 +1508,7 @@ CharacterModifier.TypeInfo.power = {
 
                 children[#children+1] = gui.GoblinScriptInput{
 					placeholderText = "Enter activation criteria...",
-					value = modifier.activationCondition,
+					value = activationCondition,
 					change = function(element)
 						modifier.activationCondition = element.value
 						Refresh()

@@ -33,7 +33,18 @@ function ActivatedAbilityDelayBehavior:Cast(ability, casterToken, targets, optio
 
         print("DELAY:: PROCEED...")
     if self:try_get("proceedCondition", "") ~= "" then
+        --Bounded wait: a stale blocker must not park this cast forever. The
+        --Monster Death rule waits here on "Cannot be Removed = 0", and a
+        --"Cannot Be Removed" effect leaked by a canceled invoke (e.g. Dread
+        --March) used to block the dead creature's removal permanently --
+        --creaturedeath only fires on the alive->dead transition, so there is
+        --no retry. After the cap we proceed rather than abandon the cast.
+        local proceedDeadline = dmhub.Time() + 120
         while not GoblinScriptTrue(ExecuteGoblinScript(self.proceedCondition, casterToken.properties:LookupSymbol(options.symbols), "Proceed condition")) do
+            if dmhub.Time() > proceedDeadline then
+                print("DELAY:: proceed condition still false after 120s, proceeding anyway")
+                break
+            end
             coroutine.yield(0.1)
         end
     end

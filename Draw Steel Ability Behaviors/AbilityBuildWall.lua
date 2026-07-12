@@ -39,7 +39,7 @@ ActivatedAbility.RegisterType
 }
 
 --spawn one wall voxel object at the given square and sync the tile's column so
---the solid wall terrain materializes. Returns true on success.
+--the solid wall terrain materializes. Returns the spawned object, or nil.
 --ownerTag (optional): { charid = ..., castid = ... } stamped onto the voxel's
 --Targetable properties so abilities can later find walls made by a specific
 --creature/cast (e.g. the Wallmaster's Living Labyrinth replacing last round's
@@ -47,7 +47,7 @@ ActivatedAbility.RegisterType
 local function SpawnWallVoxelAt(objectid, loc, ownerTag)
     local targetFloor = game.currentMap:GetFloorFromLoc(loc)
     if targetFloor == nil then
-        return false
+        return nil
     end
 
     local spawnOptions = {
@@ -59,7 +59,7 @@ local function SpawnWallVoxelAt(objectid, loc, ownerTag)
 
     local obj = targetFloor:SpawnObjectLocal(objectid, spawnOptions)
     if obj == nil then
-        return false
+        return nil
     end
 
     if ownerTag ~= nil then
@@ -79,7 +79,19 @@ local function SpawnWallVoxelAt(objectid, loc, ownerTag)
         child:Upload()
     end
 
-    return true
+    return obj
+end
+
+--record the given spawned voxel object into the active map modification
+--recording, so the wall shows up in the character panel's Map Modifications
+--folder and can be removed from there. Nil-guarded for engine builds that
+--predate the voxel-recording API.
+local function RecordVoxelInModification(obj)
+    if obj == nil or rawget(_G, "game") == nil or game.AddMapModificationVoxel == nil then
+        return
+    end
+
+    game.AddMapModificationVoxel(obj)
 end
 
 --destroy every wall voxel this caster created in a DIFFERENT cast. Used by the
@@ -165,6 +177,7 @@ function ActivatedAbilityBuildWallBehavior.PlaceSquare(ability, casterToken, sym
             castid = dmhub.GenerateGuid(),
             committed = false,
             placements = {},
+            casterToken = casterToken, --for the map modification record's metadata.
         }
     end
 
@@ -173,11 +186,12 @@ function ActivatedAbilityBuildWallBehavior.PlaceSquare(ability, casterToken, sym
         ownerTag = { charid = casterToken.charid, castid = g_session.castid }
     end
 
-    if not SpawnWallVoxelAt(behavior.objectid, loc, ownerTag) then
+    local obj = SpawnWallVoxelAt(behavior.objectid, loc, ownerTag)
+    if obj == nil then
         return false
     end
 
-    g_session.placements[#g_session.placements+1] = { loc = loc }
+    g_session.placements[#g_session.placements+1] = { loc = loc, obj = obj }
     return true
 end
 
@@ -202,9 +216,23 @@ function ActivatedAbilityBuildWallBehavior.RemoveSquare(loc)
 end
 
 --- Mark the session as committed: the cast is going through, so the wall stays.
+--- Also records the live-built wall as a map modification (the placements
+--- happened during targeting, outside any cast recording) so it appears in the
+--- character panel's Map Modifications folder and can be removed from there.
 function ActivatedAbilityBuildWallBehavior.CommitPlacement(ability)
-    if g_session ~= nil and g_session.abilityGuid == ability.guid then
-        g_session.committed = true
+    if g_session == nil or g_session.abilityGuid ~= ability.guid then
+        return
+    end
+
+    g_session.committed = true
+
+    if #g_session.placements > 0 and rawget(_G, "game") ~= nil and game.AddMapModificationVoxel ~= nil then
+        ActivatedAbility.BeginMapModificationRecording(ability, g_session.casterToken,
+            { symbols = { castid = g_session.castid } }, g_session.placements[1].loc)
+        for _,placement in ipairs(g_session.placements) do
+            RecordVoxelInModification(placement.obj)
+        end
+        ActivatedAbility.EndMapModificationRecording()
     end
 end
 
@@ -277,9 +305,10 @@ function ActivatedAbilityBuildWallBehavior:Cast(ability, casterToken, targets, o
     end
 
     --record the wall construction as a revertible map modification, grouped
-    --with any other map edits made by this cast. (Live-placed walls happen
-    --during targeting, outside any cast recording -- this covers programmatic
-    --casts only.)
+    --with any other map edits made by this cast. The spawned voxels are
+    --attached to the record by object id (their writes land in the map-details
+    --document, which the command capture cannot see). Live-placed walls record
+    --in CommitPlacement instead -- this covers programmatic casts only.
     ActivatedAbility.BeginMapModificationRecording(ability, casterToken, options, locs[1])
 
     local ownerTag = nil
@@ -288,7 +317,8 @@ function ActivatedAbilityBuildWallBehavior:Cast(ability, casterToken, targets, o
     end
 
     for _,loc in ipairs(locs) do
-        SpawnWallVoxelAt(self.objectid, loc, ownerTag)
+        local obj = SpawnWallVoxelAt(self.objectid, loc, ownerTag)
+        RecordVoxelInModification(obj)
     end
 
     ability:CommitToPaying(casterToken, options)

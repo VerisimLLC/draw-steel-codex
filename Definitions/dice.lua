@@ -26,6 +26,13 @@ function dice.GetAllDice()
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetDiceSlots: Returns the 'slots' authored on an uploaded dice set (see the Dice Studio Slots section): an array of tables, each with a slotType field -- 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string. Returns an empty table if the dice set has no slots or the id is unknown. The result is a copy; mutating it does not change the dice set.
+--- @param assetid string The cloud dice id (guid).
+--- @return table
+function dice.GetDiceSlots(assetid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetPreviewScene: Returns a dice preview scene object for rendering dice in a UI context.
 --- @return LuaDicePreviewScene
 function dice.GetPreviewScene()
@@ -89,17 +96,17 @@ function dice.SetPreviewDiceScale(scale)
 	-- dummy implementation for documentation purposes only
 end
 
---- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
---- @param assetid string
---- @return nil
-function dice.SetRollPreviewModel(assetid)
-	-- dummy implementation for documentation purposes only
-end
-
---- SetPreviewDragging: Sets the drag-to-spin state on a pooled dice preview -- one shown via a '#DicePreview:<key>' bgimage, e.g. the store banner's mini dice showcase (each renders its own idle-spinning die). Pass the same '<assetid>:<seq>' key the bgimage uses, and true when the die is grabbed / false when released: while true the die spins straight from the cursor (like the shop banner die), then eases back to its idle spin. A no-op if that preview isn't currently on screen. Does NOT affect the shared preview scene (dice.GetPreviewScene) or the panel-anchored 'try dice' cages.
+--- SetPreviewDragging: Sets the drag-to-spin state on a pooled dice preview -- one shown via a '#DicePreview:<key>' bgimage, e.g. the store banner's mini dice showcase (each of these renders its own idle-spinning die). Pass the same '<assetid>:<seq>' key the bgimage uses, and true when the die is grabbed / false when released: while true the die spins straight from the cursor (like the shop banner die), then eases back to its idle spin. A no-op if that preview isn't currently on screen. Does NOT affect the shared roll/banner preview scene (dice.GetPreviewScene) or the panel-anchored 'try dice' cages.
 --- @param key string
 --- @param dragging boolean
 --- @return nil
 function dice.SetPreviewDragging(key, dragging)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetRollPreviewModel: Overrides the dice appearance used by subsequent rolls with the given dice-set asset id, so dice the player doesn't own yet (e.g. a shop item being previewed) can still be rolled -- the equipped-dice setting rejects unowned sets, but this bypasses it. Pass nil or an empty string to clear the override and return to the player's equipped set.
+--- @param assetid string
+--- @return nil
+function dice.SetRollPreviewModel(assetid)
 	-- dummy implementation for documentation purposes only
 end

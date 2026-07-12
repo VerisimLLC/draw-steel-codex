@@ -12,11 +12,12 @@ local function track(eventType, fields)
 end
 
 -- Command context for the PDF viewer. While the viewer modal is open we push this
--- context (dmhub.PushCommandContext) so the left/right arrow keys page through the
--- document via the pdfprevpage/pdfnextpage commands instead of falling through to
--- the global 'tokenmove' bindings. The viewer's command handler responds to these.
--- Because they live in a named context, they only override the arrows while the
--- viewer is the active modal; everywhere else the arrows still move tokens.
+-- context (dmhub.PushCommandContext) so the navigation keys drive the document
+-- instead of falling through to the global 'tokenmove' bindings: left/right and
+-- page up/page down page through the document, and up/down nudge the scroll
+-- position. The viewer's command handler responds to these. Because they live in
+-- a named context, they only override these keys while the viewer is the active
+-- modal; everywhere else they still move tokens.
 local PDF_COMMAND_CONTEXT = "journalpdf"
 local g_pdfBindingsInitialized = false
 local function EnsurePdfCommandBindings()
@@ -26,6 +27,10 @@ local function EnsurePdfCommandBindings()
     g_pdfBindingsInitialized = true
     dmhub.SetCommandBinding("left", "pdfprevpage", PDF_COMMAND_CONTEXT)
     dmhub.SetCommandBinding("right", "pdfnextpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("page up", "pdfprevpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("page down", "pdfnextpage", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("up", "pdfscrollup", PDF_COMMAND_CONTEXT)
+    dmhub.SetCommandBinding("down", "pdfscrolldown", PDF_COMMAND_CONTEXT)
 end
 
 setting {
@@ -42,6 +47,18 @@ setting {
     editor = "slider",
     default = 0,
     storage = "preference",
+}
+
+setting {
+    id = "pdfcontinuous",
+    description = "PDF Continuous Scrolling",
+    help = "When enabled, the PDF viewer scrolls smoothly through the whole document. When disabled, it shows one page at a time.",
+    editor = "check",
+    default = true,
+    storage = "preference",
+    --a section makes the setting show in the player settings dialog and in
+    --the title bar search (settings without a section are searchable nowhere).
+    section = "General",
 }
 
 local function CopyToClipboard(text)
@@ -1044,8 +1061,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         },
                         {
                             selectors = { "pageImage", "parent:selected" },
-                            borderWidth = 2.5,
-                            borderColor = "black",
+                            borderWidth = 4,
+                            borderColor = Styles.textColor,
                         },
                         {
                             selectors = { "pageFooter" },
@@ -1357,9 +1374,1192 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     local currentSearchGuid = nil
     local dialogPanel
 
+    --Continuous scroll layout: every page of the document is stacked
+    --vertically inside one tall content panel (pdfContentPanel) which lives
+    --in the scrolling view (pdfScrollViewPanel). Only the pages intersecting
+    --the visible window hold render panels (see CreateMainPagePanel and the
+    --content panel's think), so memory use is bounded by the viewport size
+    --rather than the document size. The interactive machinery (text
+    --selection, links, drag-to-import, augmentations) stays on a single
+    --transparent overlay (pdfViewPanel) positioned over the current page.
+    --All vertical sizes are fractions of the page width so they scale with
+    --zoom.
+    local npages = document.summary.npages
+    local pageAspect = document.summary.pageHeight / document.summary.pageWidth
+    --vertical gap between consecutive pages, as a fraction of page width.
+    local gapAspect = 0.02
+    local slotAspect = pageAspect + gapAspect
+
+    local pdfScrollViewPanel
+    local pdfContentPanel
+    local pdfViewPanel
+
+    --continuous scrolling can be toggled from the viewer's settings dialog;
+    --when off the main view holds only the current page and scrolling is
+    --confined to it, like the classic one-page-at-a-time viewer.
+    local IsContinuous = function()
+        return dmhub.GetSettingValue("pdfcontinuous") and true or false
+    end
+
+    --the page the user is considered to be reading, derived from the scroll
+    --position: the page under the viewport center, or under the viewport top
+    --edge when pages are shorter than the viewport (so navigating to a page
+    --top doesn't immediately re-derive as the following page). nil before
+    --layout has happened.
+    local DerivePageFromScroll = function()
+        if not IsContinuous() then
+            --in single-page mode the page is never derived from scrolling.
+            return m_npage
+        end
+        local contentH = pdfContentPanel.renderedHeight
+        local viewportH = pdfScrollViewPanel.renderedHeight
+        if contentH <= 0 or viewportH <= 0 then
+            return nil
+        end
+        local slotPx = contentH / npages
+        local scrollRange = math.max(0, contentH - viewportH)
+        local windowTop = scrollRange * (1 - pdfScrollViewPanel.vscrollPosition)
+        local probe = windowTop + 0.5 * math.min(viewportH, slotPx)
+        local result = math.floor(probe / slotPx)
+        if result < 0 then
+            result = 0
+        elseif result >= npages then
+            result = npages - 1
+        end
+        return result
+    end
+
+    --scroll the main view so the top of the given page sits at the top of
+    --the viewport. Suppresses scroll-derived page tracking until the user
+    --scrolls again, so a clamped scroll near the end of the document doesn't
+    --immediately override the page we just navigated to.
+    local ScrollToPage = function(npage)
+        if not IsContinuous() then
+            return
+        end
+        local contentH = pdfContentPanel.renderedHeight
+        local viewportH = pdfScrollViewPanel.renderedHeight
+        if contentH <= 0 or viewportH <= 0 or contentH <= viewportH then
+            return
+        end
+        local slotPx = contentH / npages
+        local pos = clamp((npage * slotPx) / (contentH - viewportH), 0, 1)
+        pdfScrollViewPanel.vscrollPosition = 1 - pos
+        pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+    end
+
+    --pooled render panel for one page of the main view. Two layers: the
+    --panel itself shows the (cheap, already-cached-for-the-contents-pane)
+    --thumbnail immediately, and the child panel fades in the full-resolution
+    --render once it has loaded, so fast scrolling shows page previews rather
+    --than blank rectangles. Pressing a page that isn't the current page
+    --makes it the current (interactive) page.
+    local CreateMainPagePanel = function()
+        local fullPanel = gui.Panel {
+            classes = { "pdfPageFull" },
+            width = "100%",
+            height = "100%",
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            interactable = false,
+
+            data = {
+                --true while bgimage is a real page render; guards against the
+                --placeholder square's imageLoaded revealing this layer.
+                live = false,
+            },
+
+            imageLoaded = function(element)
+                if element.data.live then
+                    element:SetClass("fullLoaded", true)
+                end
+            end,
+
+            --imageLoaded does not reliably re-fire when bgimage is reassigned
+            --on a pooled panel, so also poll bgimageInit to reveal the
+            --full-resolution layer once its render is ready.
+            thinkTime = 0.1,
+            think = function(element)
+                if element.data.live and element.bgimageInit and (not element:HasClass("fullLoaded")) then
+                    element:SetClass("fullLoaded", true)
+                end
+            end,
+
+            inversion = dmhub.GetSettingValue("pdfdark"),
+            brightness = dmhub.GetSettingValue("pdfbrightness"),
+            multimonitor = { "pdfbrightness", "pdfdark" },
+            monitor = function(element)
+                element.selfStyle.brightness = dmhub.GetSettingValue("pdfbrightness")
+                element.selfStyle.inversion = dmhub.GetSettingValue("pdfdark")
+            end,
+        }
+
+        return gui.Panel {
+            idprefix = "pdf-main-page",
+            classes = { "pdfPageRender" },
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            width = "100%",
+            height = string.format("%f%% width", pageAspect * 100),
+            halign = "left",
+            valign = "top",
+            floating = true,
+
+            data = {
+                npage = nil,
+                fullPanel = fullPanel,
+                --the full-resolution image id currently assigned to the full
+                --layer, or nil if it only holds the placeholder.
+                fullImage = nil,
+            },
+
+            inversion = dmhub.GetSettingValue("pdfdark"),
+            brightness = dmhub.GetSettingValue("pdfbrightness"),
+            multimonitor = { "pdfbrightness", "pdfdark" },
+            monitor = function(element)
+                element.selfStyle.brightness = dmhub.GetSettingValue("pdfbrightness")
+                element.selfStyle.inversion = dmhub.GetSettingValue("pdfdark")
+            end,
+
+            setFullImage = function(element, imageid)
+                element.data.fullImage = imageid
+                fullPanel.data.live = true
+                fullPanel.bgimage = imageid
+            end,
+
+            --hide the full-resolution layer (when the page leaves the window,
+            --or is displayed too small to need it). The bgimage is
+            --deliberately left in place: swapping a dynamic #PDF image out
+            --for a placeholder poisons the binding when the same id is later
+            --assigned again (the panel keeps rendering the placeholder), and
+            --a hidden pooled panel holding one stale page texture is bounded
+            --by the pool size.
+            clearFullImage = function(element)
+                if element.data.fullImage == nil then
+                    return
+                end
+                element.data.fullImage = nil
+                fullPanel.data.live = false
+                fullPanel:SetClass("fullLoaded", false)
+            end,
+
+            press = function(element)
+                if element.data.npage ~= nil and element.data.npage ~= m_npage then
+                    m_npage = element.data.npage
+                    m_searchResults = nil
+                    m_searchText = nil
+                    --the page is already visible (it was just clicked), so
+                    --don't snap the scroll position to its top; and pause
+                    --scroll-derived page tracking until the user scrolls so
+                    --it doesn't immediately override this selection.
+                    pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+                    RefreshPage { noscroll = true }
+                end
+            end,
+
+            fullPanel,
+        }
+    end
+
+    --interactive layer: carries all the machinery that works on the current
+    --page (text selection, link hit-testing, the drag-import rectangle and
+    --the augmentation overlays). It renders nothing itself -- the pooled
+    --page panels behind it draw the document -- and is repositioned over the
+    --current page by pdfContentPanel's think.
+    pdfViewPanel = gui.Panel {
+        id = "pdfViewPanel",
+        bgcolor = "clear",
+        bgimage = "panels/square.png",
+        halign = "left",
+        valign = "top",
+        floating = true,
+        width = "100%",
+        height = string.format("%f%% width", pageAspect * 100),
+        draggable = true,
+        dragMove = false,
+
+        styles = {
+            {
+                selectors = { "highlight" },
+                halign = "left",
+                valign = "top",
+                bgcolor = "#0000ff77",
+                borderWidth = 1,
+                borderColor = "blue",
+            }
+        },
+
+        --augmentation overlays: image panels that sit on top of the page
+        --and replace parts of it. Data-driven from PDFAugmentations (see
+        --JournalPDFAugmentation.lua). interactable=false so the page text
+        --underneath stays selectable.
+        gui.Panel {
+            id = "pdfAugmentations",
+            floating = true,
+            interactable = false,
+            halign = "left",
+            valign = "top",
+            width = "100%",
+            height = "100%",
+            data = {
+                panels = {},
+                dirty = true,
+                lastW = 0,
+                lastH = 0,
+                lastPage = nil,
+                activeAugs = {},     --augmentations matched on the current page
+                detectors = {},      --aug id -> gesture detector
+                gestureName = {},    --aug id -> currently-reported gesture, or nil
+                graceUntil = {},     --aug id -> off-area grace deadline (dmhub.Time)
+            },
+
+            --fired by RefreshPage on page/zoom change; mark for relayout.
+            page = function(element)
+                element.data.dirty = true
+            end,
+
+            --small thinkTime so gesture sampling is roughly per-frame; the
+            --relayout below is gated and cheap when nothing changed.
+            thinkTime = 0.01,
+            think = function(element)
+                local parent = element.parent
+                if parent == nil then
+                    return
+                end
+
+                local w = parent.renderedWidth
+                local h = parent.renderedHeight
+                if w <= 0 or h <= 0 then
+                    return
+                end
+
+                --(1) Relayout overlays only when the page changed or the
+                --panel resized (covers zoom and window resize).
+                if element.data.dirty or w ~= element.data.lastW or h ~= element.data.lastH or m_npage ~= element.data.lastPage then
+                    element.data.dirty = false
+                    element.data.lastW = w
+                    element.data.lastH = h
+                    element.data.lastPage = m_npage
+
+                    --the page number as displayed in the page input box: the
+                    --page label if the PDF has one, else the 1-based index.
+                    local pageShown = document.summary.pageLabels[m_npage + 1] or (m_npage + 1)
+
+                    --O(1) lookup of just this page's augmentations -- no walk
+                    --of the whole registry. GetForPage returns a shared list,
+                    --so shallow-copy it before sorting for render order.
+                    local PDFAug = rawget(_G, "PDFAugmentations")
+                    local pageAugs = (PDFAug ~= nil and PDFAug.GetForPage ~= nil) and PDFAug.GetForPage(doc.description, pageShown) or {}
+                    local matches = {}
+                    for i = 1, #pageAugs do
+                        matches[i] = pageAugs[i]
+                    end
+
+                    --sort ascending by zorder: GUI panels have no z-index
+                    --property, render order is sibling array order (later
+                    --children draw on top), so the highest zorder must land
+                    --last in element.children below.
+                    table.sort(matches, function(a, b)
+                        return (a.zorder or 0) < (b.zorder or 0)
+                    end)
+
+                    local children = {}
+                    for i, aug in ipairs(matches) do
+                        local area = aug.area
+
+                        local p = element.data.panels[i] or gui.Panel {
+                            floating = true,
+                            interactable = false,
+                            halign = "left",
+                            valign = "top",
+                            bgimage = "panels/square.png",
+                        }
+
+                        --area is {x1, y1, x2, y2} normalized, in the same
+                        --convention as the SELECT:: print in the drag handler:
+                        --y is bottom-origin (0 at the bottom of the page, 1 at
+                        --the top), so the panel's top edge maps from y2.
+                        p.selfStyle.x = w * area[1]
+                        p.selfStyle.y = h * (1 - area[4])
+                        p.selfStyle.width = w * (area[3] - area[1])
+                        p.selfStyle.height = h * (area[4] - area[2])
+
+                        p.bgimage = aug.image or "panels/square.png"
+                        p.selfStyle.bgcolor = aug.bgcolor or "white"
+
+                        --pass the blend mode straight through (e.g.
+                        --"premultiplied"); nil resets to the default so a
+                        --pooled panel reused by a non-blended augmentation
+                        --doesn't keep a stale blend.
+                        p.selfStyle.blend = aug.blend
+
+                        p:SetClass("hidden", false)
+                        element.data.panels[i] = p
+                        children[i] = p
+                    end
+
+                    for i = #matches + 1, #element.data.panels do
+                        element.data.panels[i]:SetClass("hidden", true)
+                        children[#children + 1] = element.data.panels[i]
+                    end
+
+                    element.children = children
+                    element.data.activeAugs = matches
+                end
+
+                --(2) Gesture detection every tick, for augmentations that
+                --declare a gesture handler. The cursor position and guards
+                --come from the parent (pdfViewPanel) because this overlay is
+                --interactable=false; the augmentation 'area' is normalized
+                --over the page, the same space as parent.mousePoint.
+                local PDFAug = rawget(_G, "PDFAugmentations")
+                if PDFAug == nil or PDFAug.NewGestureDetector == nil then
+                    return
+                end
+
+                local now = dmhub.Time()
+                local mp = parent.mousePoint
+                local hover = parent:HasClass("hover")
+                local buttonHeld = parent:GetMouseButton(0) or parent:GetMouseButton(1) or parent:GetMouseButton(2)
+
+                local relevant = {}
+                for _, aug in ipairs(element.data.activeAugs) do
+                    if type(aug.gesture) == "function" then
+                        local id = aug.id
+                        relevant[id] = true
+
+                        local area = aug.area
+                        local inside = false
+                        if hover and mp ~= nil then
+                            inside = mp.x >= area[1] and mp.x <= area[3] and mp.y >= area[2] and mp.y <= area[4]
+                        end
+
+                        --a brief grace after the cursor strays off the area
+                        --keeps a stroke that overshoots the box alive; the
+                        --button guard still applies every tick.
+                        if inside then
+                            element.data.graceUntil[id] = now + 0.35
+                        end
+                        local active = (now < (element.data.graceUntil[id] or 0)) and (not buttonHeld)
+
+                        local detector = element.data.detectors[id]
+                        if detector == nil then
+                            detector = PDFAug.NewGestureDetector()
+                            element.data.detectors[id] = detector
+                        end
+
+                        --feed pixel-space position so the detector's pixel
+                        --thresholds (minStrokeDistance etc.) stay meaningful.
+                        local mx, my = 0, 0
+                        if mp ~= nil then
+                            mx = mp.x * w
+                            my = mp.y * h
+                        end
+
+                        local petting = detector:Tick(mx, my, now, active)
+                        local name = petting and "pet" or nil
+                        if name ~= nil then
+                            --continuous stream of calls while the gesture is
+                            --active (acts as a keepalive for the handler).
+                            aug.gesture(name)
+                        elseif element.data.gestureName[id] ~= nil then
+                            --falling edge: signal the end once.
+                            aug.gesture(nil)
+                        end
+                        element.data.gestureName[id] = name
+                    end
+                end
+
+                --send a stop (nil) for any augmentation that was mid-gesture
+                --but is no longer on this page (e.g. the user changed pages).
+                for id, name in pairs(element.data.gestureName) do
+                    if name ~= nil and not relevant[id] then
+                        element.data.gestureName[id] = nil
+                        if element.data.detectors[id] ~= nil then
+                            element.data.detectors[id]:Reset()
+                        end
+                        local aug = PDFAug.Get(id)
+                        if aug ~= nil and type(aug.gesture) == "function" then
+                            aug.gesture(nil)
+                        end
+                    end
+                end
+            end,
+        },
+
+        m_dragPanel,
+
+        data = {
+            pageDisplayed = nil,
+            setCursor = false,
+
+            anchorTextDrag = nil,
+            textLayout = nil,
+
+            highlightPanels = {},
+
+            FindMouseoverChar = function(element)
+                local layout = element.data.textLayout
+
+                if layout == nil then
+                    return nil
+                end
+
+                local mousePoint = element.mousePoint
+
+                local x = mousePoint.x * document.summary.pageWidth
+                local y = mousePoint.y * document.summary.pageHeight
+
+                for j, r in ipairs(layout.mergedRects) do
+                    local rect = r.rect
+                    if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
+                        local breaks = r.breaks
+                        if x < breaks[1] then
+                            return r.a
+                        end
+
+                        local smallestDiff = nil
+                        local closestIndex = nil
+                        for i = 1, #breaks do
+                            local diff = math.abs(breaks[i] - x)
+                            if smallestDiff == nil or diff < smallestDiff then
+                                closestIndex = i
+                                smallestDiff = diff
+                            end
+                        end
+
+                        if closestIndex ~= nil then
+                            return {
+                                rectIndex = j,
+                                breakIndex = closestIndex,
+                                charIndex = r.a + (closestIndex - 1),
+                            }
+                        end
+                    end
+                end
+
+                return nil
+            end,
+
+            FindMouseToRightOf = function(element)
+                local layout = element.data.textLayout
+
+                if layout == nil then
+                    return nil
+                end
+
+                local mousePoint = element.mousePoint
+
+                local x = mousePoint.x * document.summary.pageWidth
+                local y = mousePoint.y * document.summary.pageHeight
+
+                local bestIndex = nil
+                local bestDist = nil
+
+                for j, r in ipairs(layout.mergedRects) do
+                    local rect = r.rect
+                    if x >= rect.x2 and y >= rect.y1 and y <= rect.y2 then
+                        if bestIndex == nil or rect.x2 > bestDist then
+                            bestIndex = j
+                            bestDist = rect.x2
+                        end
+                    end
+                end
+
+                if bestIndex ~= nil then
+                    return {
+                        rectIndex = bestIndex,
+                        breakIndex = #layout.mergedRects[bestIndex].breaks,
+                        charIndex = layout.mergedRects[bestIndex].b,
+                    }
+                end
+
+                return nil
+            end,
+
+            FindMouseBelow = function(element)
+                local layout = element.data.textLayout
+
+                if layout == nil then
+                    return nil
+                end
+
+                local mousePoint = element.mousePoint
+
+                local x = mousePoint.x * document.summary.pageWidth
+                local y = mousePoint.y * document.summary.pageHeight
+
+                local bestIndex = nil
+                local bestDist = nil
+
+                for j, r in ipairs(layout.mergedRects) do
+                    local rect = r.rect
+                    if y <= rect.y1 and x >= rect.x1 and x <= rect.x2 then
+                        if bestIndex == nil or rect.y1 < bestDist then
+                            bestIndex = j
+                            bestDist = rect.y1
+                        end
+                    end
+                end
+
+                if bestIndex ~= nil then
+                    return {
+                        rectIndex = bestIndex,
+                        breakIndex = #layout.mergedRects[bestIndex].breaks,
+                        charIndex = layout.mergedRects[bestIndex].b,
+                    }
+                end
+
+                return nil
+            end,
+
+
+
+        },
+
+        inputEvents = { "copy" },
+
+        copy = function(element)
+            if element.data.selectedText == nil then
+                return
+            end
+
+            CopyToClipboard(element.data.selectedText)
+        end,
+
+        rightClick = function(element)
+            local menuItems = {}
+
+            if element.data.selectedText ~= nil then
+                menuItems[#menuItems + 1] = {
+                    text = "Copy",
+                    click = function()
+                        element.popup = nil
+                        if element.data.selectedText == nil then
+                            return
+                        end
+
+                        CopyToClipboard(element.data.selectedText)
+                    end,
+                }
+            end
+
+            menuItems[#menuItems + 1] = {
+                text = "Copy All",
+                click = function()
+                    element.popup = nil
+
+                    local layout = element.data.textLayout
+                    if layout == nil then
+                        return
+                    end
+
+                    CopyToClipboard(layout.text:Substring(1, layout.text.Length))
+                end,
+            }
+
+            element.popup = gui.ContextMenu {
+                entries = menuItems,
+            }
+        end,
+
+        --- @param element Panel
+        --- @param rects {x1: number, x2: number, y1: number, y2: number}[]
+        --- @param text string
+        highlight = function(element, rects, text, args)
+            args = args or {}
+            element.data.lastHighlight = DeepCopy(rects)
+            element.data.selectedText = text
+
+            local hasSearch = args.changepage and m_searchIndex ~= nil and m_searchResults ~= nil
+
+            if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil and element.data.textLayout ~= nil then
+                local match = m_searchResults[m_searchIndex]
+                if match.page == m_npage then
+                    local matchIndex = match.index
+                    local matchEnd = matchIndex + m_searchLen
+                    rects = DeepCopy(rects) or {}
+                    for _, r in ipairs(element.data.textLayout.mergedRects) do
+                        if matchIndex >= r.a and matchIndex <= r.b then
+                            local startIndex = (matchIndex - r.a) + 1
+                            local endIndex = math.min(startIndex + m_searchLen, r.b - r.a) + 1
+
+                            local rect = DeepCopy(r.rect)
+                            rect.x1 = r.breaks[startIndex]
+                            rect.x2 = r.breaks[endIndex]
+
+                            rects[#rects + 1] = rect
+
+                            matchIndex = matchIndex + (endIndex - startIndex)
+                            if matchIndex >= matchEnd then
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            local newChildren = {}
+            for i, r in ipairs(rects or {}) do
+                if hasSearch then
+                    hasSearch = false
+                    local pageHeightPx = element.renderedHeight
+                    local contentHeight = pdfContentPanel.renderedHeight
+                    local viewportHeight = pdfScrollViewPanel.renderedHeight
+                    if contentHeight > viewportHeight + 20 and pageHeightPx > 0 then
+                        --in continuous mode the page sits at its slot within
+                        --the full document; in single-page mode it IS the
+                        --content, at the top.
+                        local pageTop = 0
+                        if IsContinuous() then
+                            pageTop = m_npage * (contentHeight / npages)
+                        end
+                        --rect coordinates are bottom-origin; convert the rect
+                        --center to a distance from the top of the page, then
+                        --center it in the viewport.
+                        local centerWithinPage = (1 - ((r.y1 + r.y2) * 0.5) / document.summary.pageHeight) * pageHeightPx
+                        local desiredTop = pageTop + centerWithinPage - viewportHeight * 0.5
+                        local pos = clamp(desiredTop / (contentHeight - viewportHeight), 0, 1)
+                        pdfScrollViewPanel.vscrollPosition = 1 - pos
+                        pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+                    end
+                end
+
+
+                local p = element.data.highlightPanels[i] or gui.Panel {
+                    classes = { "highlight" },
+                    bgimage = "panels/square.png",
+                    floating = true,
+                }
+
+                p.selfStyle.x = (element.renderedWidth * r.x1) / document.summary.pageWidth
+                p.selfStyle.y = element.renderedHeight - (element.renderedHeight * r.y2) /
+                    document.summary.pageHeight
+                p.selfStyle.width = element.renderedWidth * (r.x2 - r.x1) / document.summary.pageWidth
+                p.selfStyle.height = element.renderedHeight * (r.y2 - r.y1) / document.summary.pageHeight
+
+
+                p:SetClass("hidden", false)
+
+                if element.data.highlightPanels[i] == nil then
+                    element.data.highlightPanels[i] = p
+                    newChildren[#newChildren + 1] = p
+                end
+            end
+
+            for i = #rects + 1, #element.data.highlightPanels do
+                element.data.highlightPanels[i]:SetClass("hidden", true)
+            end
+
+            if #newChildren > 0 then
+                local children = element.children
+                for _, child in ipairs(newChildren) do
+                    children[#children + 1] = child
+                end
+
+                element.children = children
+            end
+        end,
+
+        thinkTime = 0.01,
+
+        think = function(element)
+            if element:HasClass("hover") == false or element.data.textLayout == nil then
+                if element.data.anchorTextDrag ~= nil then
+                    dmhub.OverrideMouseCursor("text", 0.2)
+                    element.data.setCursor = true
+                elseif element.data.setCursor then
+                    dmhub.OverrideMouseCursor(nil, 0)
+                    element.data.setCursor = false
+                end
+                element.data.prev_drag = nil
+                return
+            end
+
+            local mousePoint = element.mousePoint
+
+            local x = mousePoint.x * document.summary.pageWidth
+            local y = mousePoint.y * document.summary.pageHeight
+
+            local middleButtonDown = element:GetMouseButton(2)
+
+            if middleButtonDown then
+                local dx = 0
+                local dy = 0
+                if element.data.prev_drag ~= nil then
+                    dx = mousePoint.x - element.data.prev_drag.x
+                    dy = mousePoint.y - element.data.prev_drag.y
+
+                    --pan the whole content stack horizontally, clamped so the
+                    --document can slide around when zoomed in but can never
+                    --be dragged off the screen; vertically we scroll through
+                    --the full document.
+                    local maxPan = math.abs(pdfContentPanel.renderedWidth - pdfScrollViewPanel.renderedWidth) / 2
+                    pdfContentPanel.x = clamp(pdfContentPanel.x + dx * element.renderedWidth, -maxPan, maxPan)
+
+                    local contentH = pdfContentPanel.renderedHeight
+                    local viewportH = pdfScrollViewPanel.renderedHeight
+                    if contentH > viewportH then
+                        pdfScrollViewPanel.vscrollPosition = pdfScrollViewPanel.vscrollPosition -
+                            (dy * element.renderedHeight) / (contentH - viewportH)
+                    end
+                end
+
+                element.data.prev_drag = { x = mousePoint.x - dx, y = mousePoint.y - dy }
+            else
+                element.data.prev_drag = nil
+            end
+
+
+            local hit = false
+            for _, r in ipairs(element.data.textLayout.mergedRects) do
+                local rect = r.rect
+                if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
+                    hit = true
+                end
+            end
+
+            local hitlink = nil
+            for _, link in ipairs(element.data.textLayout.links or {}) do
+                local rect = link.rect
+                if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
+                    hitlink = link
+                end
+            end
+
+            element.data.hoveredLink = hitlink
+
+            --don't allow text cursor if we're over the drag panel.
+            if hit and element:FindChildRecursive(function(p) return p:HasClass("hover") and p:HasClass("dragPanel") end) ~= nil then
+                hit = false
+            end
+
+            if (not middleButtonDown) and element.data.anchorTextDrag == nil and hitlink then
+                dmhub.OverrideMouseCursor("hand", 0.2)
+            elseif (not middleButtonDown) and (hit or element.data.anchorTextDrag ~= nil) then
+                dmhub.OverrideMouseCursor("text", 0.2)
+            else
+                dmhub.OverrideMouseCursor(nil, 0)
+            end
+        end,
+
+        page = function(element)
+            if element.data.pageDisplayed ~= m_npage then
+                element.data.lastHighlight = {}
+                element.data.pageDisplayed = m_npage
+
+                element.data.textLayout = nil
+                document:TextLayout(m_npage, function(info)
+                    if not element.valid then
+                        return
+                    end
+                    element.data.textLayout = info
+                    element:FireEvent("highlight", {}, nil, { changepage = true })
+                end)
+            elseif m_searchIndex ~= nil then
+                element:FireEvent("highlight", element.data.lastHighlight)
+            end
+        end,
+
+        press = function(element)
+            if element.data.hoveredLink and element.popup == nil and (m_dragPanel == nil or m_dragPanel:HasClass("hidden")) then
+                --see if we are over a link we can jump to.
+                m_npage = element.data.hoveredLink.destpage
+                m_searchResults = nil
+                RefreshPage()
+                return
+            end
+
+            m_dragPanel:FireEvent("hide")
+            element:FireEvent("highlight", {})
+            element.popup = nil
+
+
+
+            local pressCharacter = element.data.FindMouseoverChar(element)
+            if pressCharacter ~= nil then
+                local t = dmhub.Time()
+
+                if dmhub.DeepEqual(element.data.lastPressCharacter, pressCharacter) and (t - (element.data.lastPressCharacterTime or 0)) < 1 then
+                    local delimiters
+                    if element.data.doubleClickCharacter then
+                        element.data.doubleClickCharacter = false
+
+                        --triple click
+                        delimiters = "\n\r"
+
+                        --disable back to a normal click.
+                        t = nil
+                    else
+                        --double click
+                        delimiters = " \n\r"
+
+                        element.data.doubleClickCharacter = true
+                    end
+
+                    local layout = element.data.textLayout
+
+                    if layout ~= nil then
+                        local index = pressCharacter.charIndex
+                        local index1, index2 = FindTextBoundaries(layout.text, index, delimiters)
+                        local a = CharacterIndexToLocation(layout, index1)
+                        local b = CharacterIndexToLocation(layout, index2)
+
+                        local rects = {}
+
+                        for i = a.rectIndex, b.rectIndex do
+                            local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
+                            if i == a.rectIndex then
+                                local breakIndex = a.breakIndex
+                                if breakIndex < 1 then
+                                    breakIndex = 1
+                                end
+                                r.x1 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
+                            end
+
+                            if i == b.rectIndex then
+                                local breakIndex = b.breakIndex + 2
+                                if breakIndex > #element.data.textLayout.mergedRects[i].breaks then
+                                    breakIndex = #element.data.textLayout.mergedRects[i].breaks
+                                end
+                                r.x2 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
+                            end
+
+                            rects[#rects + 1] = r
+                        end
+
+                        element:FireEvent("highlight", rects,
+                            element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
+                    end
+                else
+                    element.data.doubleClickCharacter = false
+                end
+
+                element.data.lastPressCharacterTime = t
+                element.data.lastPressCharacter = pressCharacter
+            end
+        end,
+
+
+        dragThreshold = 2,
+
+        beginDrag = function(element)
+            element.data.anchorTextDrag = nil
+            if (not m_importer) and element.data.textLayout ~= nil then
+                element.data.anchorTextDrag = element.data.FindMouseoverChar(element)
+                if element.data.anchorTextDrag ~= nil then
+                    return
+                end
+            end
+
+            m_dragAnchor = element.mousePoint
+            m_dragPanel:SetClass("hidden", false)
+            m_dragPanel:FireEvent("update", element)
+        end,
+
+        dragging = function(element)
+            if element.data.anchorTextDrag ~= nil then
+                local b = element.data.FindMouseoverChar(element)
+                if b == nil then
+                    b = element.data.FindMouseToRightOf(element)
+                end
+                if b == nil then
+                    b = element.data.FindMouseBelow(element)
+                end
+                if b ~= nil then
+                    local a = element.data.anchorTextDrag
+                    if a.charIndex > b.charIndex then
+                        local c = a
+                        a = b
+                        b = c
+                    end
+
+                    local rects = {}
+
+                    for i = a.rectIndex, b.rectIndex do
+                        local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
+                        if i == a.rectIndex then
+                            r.x1 = element.data.textLayout.mergedRects[i].breaks[a.breakIndex]
+                        end
+
+                        if i == b.rectIndex then
+                            r.x2 = element.data.textLayout.mergedRects[i].breaks[b.breakIndex]
+                        end
+
+                        rects[#rects + 1] = r
+                    end
+
+                    element:FireEvent("highlight", rects,
+                        element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
+                end
+
+                return
+            end
+
+            m_dragPanel:FireEvent("update", element)
+        end,
+
+        drag = function(element)
+            element.data.anchorTextDrag = nil
+
+            if m_dragPanel:HasClass("hidden") or m_dragAnchor == nil then
+                return
+            end
+
+            m_dragPanel:FireEvent("finish", element)
+        end,
+
+    }
+
+    --the tall content panel holding one slot per page of the document.
+    --Renders the visible pages through a pool of CreateMainPagePanel panels:
+    --pages entering the window are assigned a panel (reusing panels from
+    --pages that left it), pages outside the window hold no image at all.
+    pdfContentPanel = gui.Panel {
+        id = "pdfContentPanel",
+        halign = "center",
+        valign = "top",
+        width = string.format("%f%%", m_zoom * 100),
+        height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100),
+
+        styles = {
+            {
+                selectors = { "pdfPageFull" },
+                opacity = 0,
+            },
+            {
+                selectors = { "pdfPageFull", "fullLoaded" },
+                opacity = 1,
+                transitionTime = 0.1,
+            },
+        },
+
+        data = {
+            assigned = {},   --page index -> pooled render panel
+            spare = {},      --hidden panels available for reuse
+            allPanels = {},  --every pooled panel created so far
+            childrenDirty = true,
+            --while set, scroll-derived page tracking is paused; cleared as
+            --soon as the scroll position moves away from this value.
+            suppressDerivedPos = nil,
+            initialScroll = false,
+            --set to line the view up on the current page once layout has
+            --settled (initial open, or toggling continuous scrolling on).
+            scrollToCurrentPage = false,
+            lastWindowTop = nil,
+            lastWindowTime = nil,
+            havePending = false,
+            lastState = nil,
+        },
+
+        page = function(element)
+            element.selfStyle.width = string.format("%f%%", m_zoom * 100)
+            element.selfStyle.height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100)
+        end,
+
+        --the continuous scrolling checkbox was toggled in the settings
+        --dialog: rescale the content stack for the new mode and line the
+        --view up on the page being read.
+        multimonitor = { "pdfcontinuous" },
+        monitor = function(element)
+            element:FireEvent("page")
+            element.data.lastState = nil
+            if IsContinuous() then
+                element.data.scrollToCurrentPage = true
+            else
+                pdfScrollViewPanel.vscrollPosition = 1
+            end
+        end,
+
+        thinkTime = 0.02,
+        think = function(element)
+            local continuous = IsContinuous()
+            local contentH = element.renderedHeight
+            local viewportH = pdfScrollViewPanel.renderedHeight
+            local w = element.renderedWidth
+            if contentH <= 0 or viewportH <= 0 or w <= 0 then
+                return
+            end
+
+            --only operate on settled numbers: right after the mode (or zoom)
+            --changes, the new height style hasn't been applied by layout yet
+            --and scroll math would use a stale content height.
+            local expectedH = w * (continuous and (npages * slotAspect) or pageAspect)
+            if math.abs(contentH - expectedH) > expectedH * 0.01 + 2 then
+                return
+            end
+
+            --pull any horizontal pan back within bounds when the zoom (and
+            --with it the pannable range) shrinks.
+            local maxPan = math.abs(w - pdfScrollViewPanel.renderedWidth) / 2
+            if element.x < -maxPan or element.x > maxPan then
+                element.x = clamp(element.x, -maxPan, maxPan)
+            end
+
+            --one-time initial position: honor an explicit starting page, and
+            --self-heal settings saved by the old one-page-at-a-time viewer
+            --(whose saved scroll meant position within a single page) by
+            --scrolling to the remembered page when the restored scroll
+            --disagrees with it.
+            if not element.data.initialScroll then
+                element.data.initialScroll = true
+                if starting_page ~= nil or DerivePageFromScroll() ~= m_npage then
+                    element.data.scrollToCurrentPage = true
+                end
+            end
+
+            if element.data.scrollToCurrentPage then
+                element.data.scrollToCurrentPage = false
+                ScrollToPage(m_npage)
+            end
+
+            local pos = pdfScrollViewPanel.vscrollPosition
+
+            --track the page being read as the user scrolls. When the whole
+            --document fits in the viewport there is nothing to derive and
+            --explicit navigation stays authoritative.
+            if element.data.suppressDerivedPos ~= nil and pos ~= element.data.suppressDerivedPos then
+                element.data.suppressDerivedPos = nil
+            end
+            if element.data.suppressDerivedPos == nil and contentH > viewportH then
+                local derived = DerivePageFromScroll()
+                if derived ~= nil and derived ~= m_npage then
+                    m_npage = derived
+                    RefreshPage { noscroll = true }
+                end
+            end
+
+            --in single-page mode the whole content is one page slot.
+            local slotPx = contentH
+            if continuous then
+                slotPx = contentH / npages
+            end
+            local scrollRange = math.max(0, contentH - viewportH)
+            local windowTop = scrollRange * (1 - pos)
+
+            --estimate scroll speed so full-resolution renders can be
+            --deferred while pages are flying past.
+            local now = dmhub.Time()
+            local fastScroll = false
+            if element.data.lastWindowTime ~= nil and now > element.data.lastWindowTime then
+                local velocity = math.abs(windowTop - (element.data.lastWindowTop or windowTop)) / (now - element.data.lastWindowTime)
+                fastScroll = velocity > viewportH * 4
+            end
+            element.data.lastWindowTop = windowTop
+            element.data.lastWindowTime = now
+
+            --skip the layout work when nothing changed and no deferred
+            --full-resolution loads are waiting to be flushed.
+            local st = element.data.lastState
+            local changed = st == nil or st.contentH ~= contentH or st.viewportH ~= viewportH or st.pos ~= pos or st.page ~= m_npage
+            if (not changed) and not (element.data.havePending and not fastScroll) then
+                return
+            end
+            element.data.lastState = { contentH = contentH, viewportH = viewportH, pos = pos, page = m_npage }
+
+            --the window of pages that should hold render panels: the visible
+            --pages plus half a viewport of lookahead on each side. In
+            --single-page mode only the current page is rendered.
+            local firstPage = m_npage
+            local lastPage = m_npage
+            if continuous then
+                local lookahead = viewportH * 0.5
+                firstPage = math.floor((windowTop - lookahead) / slotPx)
+                lastPage = math.floor((windowTop + viewportH + lookahead) / slotPx)
+                if firstPage < 0 then
+                    firstPage = 0
+                end
+                if lastPage >= npages then
+                    lastPage = npages - 1
+                end
+            end
+
+            --recycle the panels of pages that left the window, releasing
+            --their full-resolution renders.
+            local assigned = element.data.assigned
+            for page, panel in pairs(assigned) do
+                if page < firstPage or page > lastPage then
+                    assigned[page] = nil
+                    panel.data.npage = nil
+                    panel:FireEvent("clearFullImage")
+                    panel:SetClass("hidden", true)
+                    element.data.spare[#element.data.spare + 1] = panel
+                end
+            end
+
+            --full-resolution renders are only worth holding when pages are
+            --displayed reasonably large: at small zoom the thumbnails are
+            --already at display resolution, and holding full renders for the
+            --many pages then visible would use a lot of memory.
+            local wantFull = element.renderedWidth >= 400
+
+            local havePending = false
+            for i = firstPage, lastPage do
+                local panel = assigned[i]
+                if panel == nil then
+                    panel = table.remove(element.data.spare)
+                    if panel == nil then
+                        panel = CreateMainPagePanel()
+                        element.data.allPanels[#element.data.allPanels + 1] = panel
+                        element.data.childrenDirty = true
+                    end
+                    assigned[i] = panel
+                    panel.data.npage = i
+                    panel:SetClass("hidden", false)
+
+                    panel.bgimage = document:GetPageThumbnailId(i)
+                end
+
+                local fullImage = nil
+                if wantFull then
+                    fullImage = document:GetPageImageId(i)
+                end
+
+                if fullImage == nil then
+                    panel:FireEvent("clearFullImage")
+                elseif panel.data.fullImage ~= fullImage then
+                    if fastScroll then
+                        --defer expensive full-resolution loads while pages
+                        --are flying past; flushed once scrolling settles.
+                        havePending = true
+                    else
+                        panel:FireEvent("setFullImage", fullImage)
+                    end
+                end
+
+                if continuous then
+                    panel.y = i * slotPx
+                else
+                    panel.y = 0
+                end
+            end
+            element.data.havePending = havePending
+
+            --keep the interactive layer over the current page.
+            if continuous then
+                pdfViewPanel.y = m_npage * slotPx
+            else
+                pdfViewPanel.y = 0
+            end
+
+            if element.data.childrenDirty then
+                element.data.childrenDirty = false
+                local children = {}
+                for _, p in ipairs(element.data.allPanels) do
+                    children[#children + 1] = p
+                end
+                --the interactive layer must stay last so the drag rectangle,
+                --highlights and augmentations draw above the page images.
+                children[#children + 1] = pdfViewPanel
+                element.children = children
+            end
+        end,
+
+        pdfViewPanel,
+    }
 
     --view panel.
-    local pdfScrollViewPanel = gui.Panel {
+    pdfScrollViewPanel = gui.Panel {
         id = "pdfScrollView",
         width = "100%-260",
         height = "100%",
@@ -1368,9 +2568,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             pos = nil,
         },
         create = function(element)
-            if m_settings.vscroll ~= nil then
+            if m_settings.vscroll ~= nil and starting_page == nil then
                 element.vscrollPosition = m_settings.vscroll
-                print("PDFScroll: Set", m_settings.vscroll)
+                pdfContentPanel.data.suppressDerivedPos = element.vscrollPosition
             end
             element.data.pos = element.vscrollPosition
         end,
@@ -1385,753 +2585,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 WriteSettings()
             end
         end,
-        gui.Panel {
-            id = "pdfViewPanel",
-            bgcolor = "white",
-            bgimage = "panels/square.png",
-            halign = "center",
-            width = "100%",
-            height = "100% width",
-            valign = "top",
-            draggable = true,
-            dragMove = false,
-
-            styles = {
-                {
-                    selectors = { "loading" },
-                    opacity = 1,
-                },
-                {
-                    selectors = { "highlight" },
-                    halign = "left",
-                    valign = "top",
-                    bgcolor = "#0000ff77",
-                    borderWidth = 1,
-                    borderColor = "blue",
-                }
-            },
-
-            --augmentation overlays: image panels that sit on top of the page
-            --and replace parts of it. Data-driven from PDFAugmentations (see
-            --JournalPDFAugmentation.lua). interactable=false so the page text
-            --underneath stays selectable.
-            gui.Panel {
-                id = "pdfAugmentations",
-                floating = true,
-                interactable = false,
-                halign = "left",
-                valign = "top",
-                width = "100%",
-                height = "100%",
-                data = {
-                    panels = {},
-                    dirty = true,
-                    lastW = 0,
-                    lastH = 0,
-                    lastPage = nil,
-                    activeAugs = {},     --augmentations matched on the current page
-                    detectors = {},      --aug id -> gesture detector
-                    gestureName = {},    --aug id -> currently-reported gesture, or nil
-                    graceUntil = {},     --aug id -> off-area grace deadline (dmhub.Time)
-                },
-
-                --fired by RefreshPage on page/zoom change; mark for relayout.
-                page = function(element)
-                    element.data.dirty = true
-                end,
-
-                --small thinkTime so gesture sampling is roughly per-frame; the
-                --relayout below is gated and cheap when nothing changed.
-                thinkTime = 0.01,
-                think = function(element)
-                    local parent = element.parent
-                    if parent == nil then
-                        return
-                    end
-
-                    local w = parent.renderedWidth
-                    local h = parent.renderedHeight
-                    if w <= 0 or h <= 0 then
-                        return
-                    end
-
-                    --(1) Relayout overlays only when the page changed or the
-                    --panel resized (covers zoom and window resize).
-                    if element.data.dirty or w ~= element.data.lastW or h ~= element.data.lastH or m_npage ~= element.data.lastPage then
-                        element.data.dirty = false
-                        element.data.lastW = w
-                        element.data.lastH = h
-                        element.data.lastPage = m_npage
-
-                        --the page number as displayed in the page input box: the
-                        --page label if the PDF has one, else the 1-based index.
-                        local pageShown = document.summary.pageLabels[m_npage + 1] or (m_npage + 1)
-
-                        --O(1) lookup of just this page's augmentations -- no walk
-                        --of the whole registry. GetForPage returns a shared list,
-                        --so shallow-copy it before sorting for render order.
-                        local PDFAug = rawget(_G, "PDFAugmentations")
-                        local pageAugs = (PDFAug ~= nil and PDFAug.GetForPage ~= nil) and PDFAug.GetForPage(doc.description, pageShown) or {}
-                        local matches = {}
-                        for i = 1, #pageAugs do
-                            matches[i] = pageAugs[i]
-                        end
-
-                        --sort ascending by zorder: GUI panels have no z-index
-                        --property, render order is sibling array order (later
-                        --children draw on top), so the highest zorder must land
-                        --last in element.children below.
-                        table.sort(matches, function(a, b)
-                            return (a.zorder or 0) < (b.zorder or 0)
-                        end)
-
-                        local children = {}
-                        for i, aug in ipairs(matches) do
-                            local area = aug.area
-
-                            local p = element.data.panels[i] or gui.Panel {
-                                floating = true,
-                                interactable = false,
-                                halign = "left",
-                                valign = "top",
-                                bgimage = "panels/square.png",
-                            }
-
-                            --area is {x1, y1, x2, y2} normalized, in the same
-                            --convention as the SELECT:: print in the drag handler:
-                            --y is bottom-origin (0 at the bottom of the page, 1 at
-                            --the top), so the panel's top edge maps from y2.
-                            p.selfStyle.x = w * area[1]
-                            p.selfStyle.y = h * (1 - area[4])
-                            p.selfStyle.width = w * (area[3] - area[1])
-                            p.selfStyle.height = h * (area[4] - area[2])
-
-                            p.bgimage = aug.image or "panels/square.png"
-                            p.selfStyle.bgcolor = aug.bgcolor or "white"
-
-                            --pass the blend mode straight through (e.g.
-                            --"premultiplied"); nil resets to the default so a
-                            --pooled panel reused by a non-blended augmentation
-                            --doesn't keep a stale blend.
-                            p.selfStyle.blend = aug.blend
-
-                            p:SetClass("hidden", false)
-                            element.data.panels[i] = p
-                            children[i] = p
-                        end
-
-                        for i = #matches + 1, #element.data.panels do
-                            element.data.panels[i]:SetClass("hidden", true)
-                            children[#children + 1] = element.data.panels[i]
-                        end
-
-                        element.children = children
-                        element.data.activeAugs = matches
-                    end
-
-                    --(2) Gesture detection every tick, for augmentations that
-                    --declare a gesture handler. The cursor position and guards
-                    --come from the parent (pdfViewPanel) because this overlay is
-                    --interactable=false; the augmentation 'area' is normalized
-                    --over the page, the same space as parent.mousePoint.
-                    local PDFAug = rawget(_G, "PDFAugmentations")
-                    if PDFAug == nil or PDFAug.NewGestureDetector == nil then
-                        return
-                    end
-
-                    local now = dmhub.Time()
-                    local mp = parent.mousePoint
-                    local hover = parent:HasClass("hover")
-                    local buttonHeld = parent:GetMouseButton(0) or parent:GetMouseButton(1) or parent:GetMouseButton(2)
-
-                    local relevant = {}
-                    for _, aug in ipairs(element.data.activeAugs) do
-                        if type(aug.gesture) == "function" then
-                            local id = aug.id
-                            relevant[id] = true
-
-                            local area = aug.area
-                            local inside = false
-                            if hover and mp ~= nil then
-                                inside = mp.x >= area[1] and mp.x <= area[3] and mp.y >= area[2] and mp.y <= area[4]
-                            end
-
-                            --a brief grace after the cursor strays off the area
-                            --keeps a stroke that overshoots the box alive; the
-                            --button guard still applies every tick.
-                            if inside then
-                                element.data.graceUntil[id] = now + 0.35
-                            end
-                            local active = (now < (element.data.graceUntil[id] or 0)) and (not buttonHeld)
-
-                            local detector = element.data.detectors[id]
-                            if detector == nil then
-                                detector = PDFAug.NewGestureDetector()
-                                element.data.detectors[id] = detector
-                            end
-
-                            --feed pixel-space position so the detector's pixel
-                            --thresholds (minStrokeDistance etc.) stay meaningful.
-                            local mx, my = 0, 0
-                            if mp ~= nil then
-                                mx = mp.x * w
-                                my = mp.y * h
-                            end
-
-                            local petting = detector:Tick(mx, my, now, active)
-                            local name = petting and "pet" or nil
-                            if name ~= nil then
-                                --continuous stream of calls while the gesture is
-                                --active (acts as a keepalive for the handler).
-                                aug.gesture(name)
-                            elseif element.data.gestureName[id] ~= nil then
-                                --falling edge: signal the end once.
-                                aug.gesture(nil)
-                            end
-                            element.data.gestureName[id] = name
-                        end
-                    end
-
-                    --send a stop (nil) for any augmentation that was mid-gesture
-                    --but is no longer on this page (e.g. the user changed pages).
-                    for id, name in pairs(element.data.gestureName) do
-                        if name ~= nil and not relevant[id] then
-                            element.data.gestureName[id] = nil
-                            if element.data.detectors[id] ~= nil then
-                                element.data.detectors[id]:Reset()
-                            end
-                            local aug = PDFAug.Get(id)
-                            if aug ~= nil and type(aug.gesture) == "function" then
-                                aug.gesture(nil)
-                            end
-                        end
-                    end
-                end,
-            },
-
-            m_dragPanel,
-
-            data = {
-                pageDisplayed = nil,
-                setCursor = false,
-
-                anchorTextDrag = nil,
-                textLayout = nil,
-
-                highlightPanels = {},
-
-                FindMouseoverChar = function(element)
-                    local layout = element.data.textLayout
-
-                    if layout == nil then
-                        return nil
-                    end
-
-                    local mousePoint = element.mousePoint
-
-                    local x = mousePoint.x * document.summary.pageWidth
-                    local y = mousePoint.y * document.summary.pageHeight
-
-                    for j, r in ipairs(layout.mergedRects) do
-                        local rect = r.rect
-                        if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
-                            local breaks = r.breaks
-                            if x < breaks[1] then
-                                return r.a
-                            end
-
-                            local smallestDiff = nil
-                            local closestIndex = nil
-                            for i = 1, #breaks do
-                                local diff = math.abs(breaks[i] - x)
-                                if smallestDiff == nil or diff < smallestDiff then
-                                    closestIndex = i
-                                    smallestDiff = diff
-                                end
-                            end
-
-                            if closestIndex ~= nil then
-                                return {
-                                    rectIndex = j,
-                                    breakIndex = closestIndex,
-                                    charIndex = r.a + (closestIndex - 1),
-                                }
-                            end
-                        end
-                    end
-
-                    return nil
-                end,
-
-                FindMouseToRightOf = function(element)
-                    local layout = element.data.textLayout
-
-                    if layout == nil then
-                        return nil
-                    end
-
-                    local mousePoint = element.mousePoint
-
-                    local x = mousePoint.x * document.summary.pageWidth
-                    local y = mousePoint.y * document.summary.pageHeight
-
-                    local bestIndex = nil
-                    local bestDist = nil
-
-                    for j, r in ipairs(layout.mergedRects) do
-                        local rect = r.rect
-                        if x >= rect.x2 and y >= rect.y1 and y <= rect.y2 then
-                            if bestIndex == nil or rect.x2 > bestDist then
-                                bestIndex = j
-                                bestDist = rect.x2
-                            end
-                        end
-                    end
-
-                    if bestIndex ~= nil then
-                        return {
-                            rectIndex = bestIndex,
-                            breakIndex = #layout.mergedRects[bestIndex].breaks,
-                            charIndex = layout.mergedRects[bestIndex].b,
-                        }
-                    end
-
-                    return nil
-                end,
-
-                FindMouseBelow = function(element)
-                    local layout = element.data.textLayout
-
-                    if layout == nil then
-                        return nil
-                    end
-
-                    local mousePoint = element.mousePoint
-
-                    local x = mousePoint.x * document.summary.pageWidth
-                    local y = mousePoint.y * document.summary.pageHeight
-
-                    local bestIndex = nil
-                    local bestDist = nil
-
-                    for j, r in ipairs(layout.mergedRects) do
-                        local rect = r.rect
-                        if y <= rect.y1 and x >= rect.x1 and x <= rect.x2 then
-                            if bestIndex == nil or rect.y1 < bestDist then
-                                bestIndex = j
-                                bestDist = rect.y1
-                            end
-                        end
-                    end
-
-                    if bestIndex ~= nil then
-                        return {
-                            rectIndex = bestIndex,
-                            breakIndex = #layout.mergedRects[bestIndex].breaks,
-                            charIndex = layout.mergedRects[bestIndex].b,
-                        }
-                    end
-
-                    return nil
-                end,
-
-
-
-            },
-
-            inputEvents = { "copy" },
-
-            copy = function(element)
-                if element.data.selectedText == nil then
-                    return
-                end
-
-                CopyToClipboard(element.data.selectedText)
-            end,
-
-            rightClick = function(element)
-                local menuItems = {}
-
-                if element.data.selectedText ~= nil then
-                    menuItems[#menuItems + 1] = {
-                        text = "Copy",
-                        click = function()
-                            element.popup = nil
-                            if element.data.selectedText == nil then
-                                return
-                            end
-
-                            CopyToClipboard(element.data.selectedText)
-                        end,
-                    }
-                end
-
-                menuItems[#menuItems + 1] = {
-                    text = "Copy All",
-                    click = function()
-                        element.popup = nil
-
-                        local layout = element.data.textLayout
-                        if layout == nil then
-                            return
-                        end
-
-                        CopyToClipboard(layout.text:Substring(1, layout.text.Length))
-                    end,
-                }
-
-                element.popup = gui.ContextMenu {
-                    entries = menuItems,
-                }
-            end,
-
-            --- @param element Panel
-            --- @param rects {x1: number, x2: number, y1: number, y2: number}[]
-            --- @param text string
-            highlight = function(element, rects, text, args)
-                args = args or {}
-                element.data.lastHighlight = DeepCopy(rects)
-                element.data.selectedText = text
-
-                local hasSearch = args.changepage and m_searchIndex ~= nil and m_searchResults ~= nil
-
-                if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil and element.data.textLayout ~= nil then
-                    local match = m_searchResults[m_searchIndex]
-                    if match.page == m_npage then
-                        local matchIndex = match.index
-                        local matchEnd = matchIndex + m_searchLen
-                        rects = DeepCopy(rects) or {}
-                        for _, r in ipairs(element.data.textLayout.mergedRects) do
-                            if matchIndex >= r.a and matchIndex <= r.b then
-                                local startIndex = (matchIndex - r.a) + 1
-                                local endIndex = math.min(startIndex + m_searchLen, r.b - r.a) + 1
-
-                                local rect = DeepCopy(r.rect)
-                                rect.x1 = r.breaks[startIndex]
-                                rect.x2 = r.breaks[endIndex]
-
-                                rects[#rects + 1] = rect
-
-                                matchIndex = matchIndex + (endIndex - startIndex)
-                                if matchIndex >= matchEnd then
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end
-
-                local newChildren = {}
-                for i, r in ipairs(rects or {}) do
-                    if hasSearch then
-                        hasSearch = false
-                        local contentHeight = element.renderedHeight
-                        local viewportHeight = element.parent.renderedHeight
-                        if contentHeight > viewportHeight + 20 then
-                            local desiredCenter = ((r.y1 + r.y2) * 0.5) / document.summary.pageHeight
-                            desiredCenter = desiredCenter - (viewportHeight / contentHeight) * 0.5
-
-                            local scrollPosition = desiredCenter / ((contentHeight - viewportHeight) / contentHeight)
-
-                            print("PDFScroll: Set to", scrollPosition)
-                            element.parent.vscrollPosition = scrollPosition
-                        end
-                    end
-
-
-                    local p = element.data.highlightPanels[i] or gui.Panel {
-                        classes = { "highlight" },
-                        bgimage = "panels/square.png",
-                        floating = true,
-                    }
-
-                    p.selfStyle.x = (element.renderedWidth * r.x1) / document.summary.pageWidth
-                    p.selfStyle.y = element.renderedHeight - (element.renderedHeight * r.y2) /
-                        document.summary.pageHeight
-                    p.selfStyle.width = element.renderedWidth * (r.x2 - r.x1) / document.summary.pageWidth
-                    p.selfStyle.height = element.renderedHeight * (r.y2 - r.y1) / document.summary.pageHeight
-
-
-                    p:SetClass("hidden", false)
-
-                    if element.data.highlightPanels[i] == nil then
-                        element.data.highlightPanels[i] = p
-                        newChildren[#newChildren + 1] = p
-                    end
-                end
-
-                for i = #rects + 1, #element.data.highlightPanels do
-                    element.data.highlightPanels[i]:SetClass("hidden", true)
-                end
-
-                if #newChildren > 0 then
-                    local children = element.children
-                    for _, child in ipairs(newChildren) do
-                        children[#children + 1] = child
-                    end
-
-                    element.children = children
-                end
-            end,
-
-            thinkTime = 0.01,
-
-            think = function(element)
-                if element:HasClass("hover") == false or element.data.textLayout == nil then
-                    if element.data.anchorTextDrag ~= nil then
-                        dmhub.OverrideMouseCursor("text", 0.2)
-                        element.data.setCursor = true
-                    elseif element.data.setCursor then
-                        dmhub.OverrideMouseCursor(nil, 0)
-                        element.data.setCursor = false
-                    end
-                    element.data.prev_drag = nil
-                    return
-                end
-
-                local mousePoint = element.mousePoint
-
-                local x = mousePoint.x * document.summary.pageWidth
-                local y = mousePoint.y * document.summary.pageHeight
-
-                local middleButtonDown = element:GetMouseButton(2)
-
-                if middleButtonDown then
-                    local dx = 0
-                    local dy = 0
-                    if element.data.prev_drag ~= nil then
-                        dx = mousePoint.x - element.data.prev_drag.x
-                        dy = mousePoint.y - element.data.prev_drag.y
-
-                        element.x = element.x + dx * element.renderedWidth
-                        element.parent.vscrollPosition = element.parent.vscrollPosition -
-                            dy / ((element.renderedHeight - element.parent.renderedHeight) / element.renderedHeight)
-                        print("PDFScroll: Set")
-                    end
-
-                    element.data.prev_drag = { x = mousePoint.x - dx, y = mousePoint.y - dy }
-                else
-                    element.data.prev_drag = nil
-                end
-
-
-                local hit = false
-                for _, r in ipairs(element.data.textLayout.mergedRects) do
-                    local rect = r.rect
-                    if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
-                        hit = true
-                    end
-                end
-
-                local hitlink = nil
-                for _, link in ipairs(element.data.textLayout.links or {}) do
-                    local rect = link.rect
-                    if x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2 then
-                        hitlink = link
-                    end
-                end
-
-                element.data.hoveredLink = hitlink
-
-                --don't allow text cursor if we're over the drag panel.
-                if hit and element:FindChildRecursive(function(p) return p:HasClass("hover") and p:HasClass("dragPanel") end) ~= nil then
-                    hit = false
-                end
-
-                if (not middleButtonDown) and element.data.anchorTextDrag == nil and hitlink then
-                    dmhub.OverrideMouseCursor("hand", 0.2)
-                elseif (not middleButtonDown) and (hit or element.data.anchorTextDrag ~= nil) then
-                    dmhub.OverrideMouseCursor("text", 0.2)
-                else
-                    dmhub.OverrideMouseCursor(nil, 0)
-                end
-            end,
-
-            inversion = dmhub.GetSettingValue("pdfdark"),
-            brightness = dmhub.GetSettingValue("pdfbrightness"),
-            multimonitor = { "pdfbrightness", "pdfdark" },
-            monitor = function(element)
-                element.selfStyle.brightness = dmhub.GetSettingValue("pdfbrightness")
-                element.selfStyle.inversion = dmhub.GetSettingValue("pdfdark")
-            end,
-
-            imageLoaded = function(element)
-                element:SetClass("loading", false)
-            end,
-            page = function(element)
-                element.selfStyle.width = string.format("%f%%", m_zoom * 100)
-                element.selfStyle.height = string.format("%f%% width",
-                    (document.summary.pageHeight / document.summary.pageWidth) * 100)
-
-                if element.data.pageDisplayed ~= m_npage then
-                    element.data.lastHighlight = {}
-                    --element.bgimageInit = false
-                    element.data.pageDisplayed = m_npage
-                    element:SetClass("loading", true)
-
-                    element.data.textLayout = nil
-                    element.bgimage = document:GetPageImageId(m_npage)
-                    document:TextLayout(m_npage, function(info)
-                        if not element.valid then
-                            return
-                        end
-                        element.data.textLayout = info
-                        element:FireEvent("highlight", {}, nil, { changepage = true })
-                    end)
-                elseif m_searchIndex ~= nil then
-                    element:FireEvent("highlight", element.data.lastHighlight)
-                end
-            end,
-
-            press = function(element)
-                if element.data.hoveredLink and element.popup == nil and (m_dragPanel == nil or m_dragPanel:HasClass("hidden")) then
-                    --see if we are over a link we can jump to.
-                    m_npage = element.data.hoveredLink.destpage
-                    m_searchResults = nil
-                    RefreshPage()
-                    return
-                end
-
-                m_dragPanel:FireEvent("hide")
-                element:FireEvent("highlight", {})
-                element.popup = nil
-
-
-
-                local pressCharacter = element.data.FindMouseoverChar(element)
-                if pressCharacter ~= nil then
-                    local t = dmhub.Time()
-
-                    if dmhub.DeepEqual(element.data.lastPressCharacter, pressCharacter) and (t - (element.data.lastPressCharacterTime or 0)) < 1 then
-                        local delimiters
-                        if element.data.doubleClickCharacter then
-                            element.data.doubleClickCharacter = false
-
-                            --triple click
-                            delimiters = "\n\r"
-
-                            --disable back to a normal click.
-                            t = nil
-                        else
-                            --double click
-                            delimiters = " \n\r"
-
-                            element.data.doubleClickCharacter = true
-                        end
-
-                        local layout = element.data.textLayout
-
-                        if layout ~= nil then
-                            local index = pressCharacter.charIndex
-                            local index1, index2 = FindTextBoundaries(layout.text, index, delimiters)
-                            local a = CharacterIndexToLocation(layout, index1)
-                            local b = CharacterIndexToLocation(layout, index2)
-
-                            local rects = {}
-
-                            for i = a.rectIndex, b.rectIndex do
-                                local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
-                                if i == a.rectIndex then
-                                    local breakIndex = a.breakIndex
-                                    if breakIndex < 1 then
-                                        breakIndex = 1
-                                    end
-                                    r.x1 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
-                                end
-
-                                if i == b.rectIndex then
-                                    local breakIndex = b.breakIndex + 2
-                                    if breakIndex > #element.data.textLayout.mergedRects[i].breaks then
-                                        breakIndex = #element.data.textLayout.mergedRects[i].breaks
-                                    end
-                                    r.x2 = element.data.textLayout.mergedRects[i].breaks[breakIndex]
-                                end
-
-                                rects[#rects + 1] = r
-                            end
-
-                            element:FireEvent("highlight", rects,
-                                element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
-                        end
-                    else
-                        element.data.doubleClickCharacter = false
-                    end
-
-                    element.data.lastPressCharacterTime = t
-                    element.data.lastPressCharacter = pressCharacter
-                end
-            end,
-
-
-            dragThreshold = 2,
-
-            beginDrag = function(element)
-                element.data.anchorTextDrag = nil
-                if (not m_importer) and element.data.textLayout ~= nil then
-                    element.data.anchorTextDrag = element.data.FindMouseoverChar(element)
-                    if element.data.anchorTextDrag ~= nil then
-                        return
-                    end
-                end
-
-                m_dragAnchor = element.mousePoint
-                m_dragPanel:SetClass("hidden", false)
-                m_dragPanel:FireEvent("update", element)
-            end,
-
-            dragging = function(element)
-                if element.data.anchorTextDrag ~= nil then
-                    local b = element.data.FindMouseoverChar(element)
-                    if b == nil then
-                        b = element.data.FindMouseToRightOf(element)
-                    end
-                    if b == nil then
-                        b = element.data.FindMouseBelow(element)
-                    end
-                    if b ~= nil then
-                        local a = element.data.anchorTextDrag
-                        if a.charIndex > b.charIndex then
-                            local c = a
-                            a = b
-                            b = c
-                        end
-
-                        local rects = {}
-
-                        for i = a.rectIndex, b.rectIndex do
-                            local r = DeepCopy(element.data.textLayout.mergedRects[i].rect)
-                            if i == a.rectIndex then
-                                r.x1 = element.data.textLayout.mergedRects[i].breaks[a.breakIndex]
-                            end
-
-                            if i == b.rectIndex then
-                                r.x2 = element.data.textLayout.mergedRects[i].breaks[b.breakIndex]
-                            end
-
-                            rects[#rects + 1] = r
-                        end
-
-                        element:FireEvent("highlight", rects,
-                            element.data.textLayout.text:Substring(a.charIndex, b.charIndex))
-                    end
-
-                    return
-                end
-
-                m_dragPanel:FireEvent("update", element)
-            end,
-
-            drag = function(element)
-                element.data.anchorTextDrag = nil
-
-                if m_dragPanel:HasClass("hidden") or m_dragAnchor == nil then
-                    return
-                end
-
-                m_dragPanel:FireEvent("finish", element)
-            end,
-
-        }
+        pdfContentPanel,
     }
 
     dialogPanel = gui.Panel {
@@ -2182,9 +2636,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             RefreshPage()
         end,
 
-        -- Page navigation keyboard shortcuts. While the viewer modal is open the
-        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds the
-        -- left/right arrows to these commands, which are delivered here as 'command'
+        -- Navigation keyboard shortcuts. While the viewer modal is open the
+        -- 'journalpdf' command context (pushed in ShowPDFViewerDialog) binds
+        -- left/right and page up/page down to the paging commands and up/down to
+        -- the scroll-nudge commands, which are delivered here as 'command'
         -- events. This fires for the whole active modal tree, so the always-present
         -- viewer root is the right place to handle it.
         command = function(element, cmd)
@@ -2198,6 +2653,23 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 m_searchResults = nil
                 m_searchText = nil
                 RefreshPage()
+            elseif cmd == "pdfscrollup" or cmd == "pdfscrolldown" then
+                --nudge the scroll view by a fraction of the viewport. Moving
+                --the scroll position clears suppressDerivedPos in
+                --pdfContentPanel's think, so page tracking follows the scroll
+                --just like mouse-wheel scrolling.
+                local contentH = pdfContentPanel.renderedHeight
+                local viewportH = pdfScrollViewPanel.renderedHeight
+                local scrollRange = contentH - viewportH
+                if scrollRange > 0 then
+                    --vscrollPosition is 1 at the top of the document, 0 at the
+                    --bottom, so scrolling up increases it.
+                    local delta = (viewportH * 0.15) / scrollRange
+                    if cmd == "pdfscrolldown" then
+                        delta = -delta
+                    end
+                    pdfScrollViewPanel.vscrollPosition = clamp(pdfScrollViewPanel.vscrollPosition + delta, 0, 1)
+                end
             end
         end,
 
@@ -2521,6 +2993,26 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     },
                 },
 
+                gui.Check {
+                    text = "Continuous Scrolling",
+                    value = dmhub.GetSettingValue("pdfcontinuous"),
+                    tooltip = "Scroll through the whole document, or show one page at a time.",
+                    fontSize = 14,
+                    width = "auto",
+                    height = 20,
+                    valign = "center",
+                    hmargin = 8,
+                    change = function(element)
+                        dmhub.SetSettingValue("pdfcontinuous", element.value)
+                    end,
+                    --stay in sync when the setting is changed elsewhere (the
+                    --player settings dialog or another viewer).
+                    multimonitor = { "pdfcontinuous" },
+                    monitor = function(element)
+                        element:SetValue(dmhub.GetSettingValue("pdfcontinuous") and true or false, false)
+                    end,
+                },
+
                 gui.Button {
                     classes = {"settingsButton", "sizeS"},
                     halign = "right",
@@ -2607,8 +3099,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         },
     }
 
-    RefreshPage = function()
-        if m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil then
+    --options.noscroll: set for refreshes driven by the scroll position itself
+    --(or by clicking a page that is already visible), where snapping the view
+    --to the top of the current page would fight the user.
+    RefreshPage = function(options)
+        options = options or {}
+
+        if (not options.noscroll) and m_searchResults ~= nil and m_searchResults[m_searchIndex] ~= nil then
             m_npage = m_searchResults[m_searchIndex].page
         end
 
@@ -2622,6 +3119,19 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
         m_dragPanel.children = {}
         m_dragPanel:SetClass("hidden", true)
+
+        --navigation (arrows, page input, thumbnails, links, search, bookmarks)
+        --scrolls the main view to the target page.
+        if not options.noscroll then
+            local derived = DerivePageFromScroll()
+            if derived ~= nil and derived ~= m_npage then
+                ScrollToPage(m_npage)
+            end
+            --refresh the render pool immediately so a jump shows the
+            --destination page this frame rather than flashing whatever the
+            --pool was showing until the next think tick.
+            pdfContentPanel:FireEvent("think")
+        end
 
         dialogPanel:FireEventTree("page")
 
@@ -2714,7 +3224,12 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
             if g_pdfViewerDialog == element then
                 g_pdfViewerDialog = nil
                 Search.UnregisterContextProvider("pdf-viewer")
-                GameHud.instance.modalPanel.interactable = true
+                --GameHud.instance is false while the hud is being rebuilt
+                --(e.g. a Lua reload with the viewer open); the fresh modal
+                --panel starts interactable so there is nothing to restore.
+                if GameHud.instance then
+                    GameHud.instance.modalPanel.interactable = true
+                end
             end
         end,
 

@@ -2220,10 +2220,33 @@ CharacterPanel.CreateMapModificationsFolder = function()
             }
         end
 
-        local text = modInfo.name
-        if modInfo.casterName ~= nil and modInfo.casterName ~= "" then
-            text = string.format("%s (%s)", modInfo.name, modInfo.casterName)
+        --wall-building records (e.g. Motivate Earth) reference the wall voxels
+        --they placed; reverting one removes whatever remains of the wall.
+        --voxelCount/voxelsRemaining are nil on engine builds without wall records.
+        local IsWallRecord = function()
+            return (modInfo.voxelCount or 0) > 0 and (modInfo.count or 0) == 0
         end
+
+        local BaseText = function()
+            local text = modInfo.name
+            if modInfo.casterName ~= nil and modInfo.casterName ~= "" then
+                text = string.format("%s (%s)", modInfo.name, modInfo.casterName)
+            end
+            return text
+        end
+
+        local EntryText = function()
+            local text = BaseText()
+            if IsWallRecord() and (modInfo.voxelsRemaining or 0) == 0 then
+                text = text .. " (destroyed)"
+            end
+            return text
+        end
+
+        local label = gui.Label{
+            text = EntryText(),
+            classes = { "bestiaryLabel" },
+        }
 
         return gui.Panel{
             classes = { "characterEntry" },
@@ -2234,6 +2257,13 @@ CharacterPanel.CreateMapModificationsFolder = function()
             flow = "horizontal",
 
             events = {
+                --fired on refresh with the latest record info so cached entries
+                --pick up changes (e.g. a wall's cubes getting destroyed in play).
+                updateMod = function(element, m)
+                    modInfo = m
+                    label.text = EntryText()
+                end,
+
                 press = function(element)
                     if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
                         --double-click
@@ -2246,6 +2276,19 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 end,
 
                 rightClick = function(element)
+                    local revertEntryText = "Revert Modification"
+                    local confirmTitle = "Revert Map Modification?"
+                    local confirmMessage = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", BaseText())
+                    if IsWallRecord() then
+                        revertEntryText = "Remove Wall"
+                        confirmTitle = "Remove Wall?"
+                        if (modInfo.voxelsRemaining or 0) > 0 then
+                            confirmMessage = string.format("This will remove what remains of the wall created by %s.", BaseText())
+                        else
+                            confirmMessage = string.format("The wall created by %s has already been destroyed. This will remove its record.", BaseText())
+                        end
+                    end
+
                     element.popup = gui.ContextMenu{
                         entries = {
                             {
@@ -2256,15 +2299,15 @@ CharacterPanel.CreateMapModificationsFolder = function()
                                 end,
                             },
                             {
-                                text = "Revert Modification",
+                                text = revertEntryText,
                                 click = function()
                                     element.popup = nil
                                     gamehud:ModalMessage{
-                                        title = "Revert Map Modification?",
-                                        message = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", text),
+                                        title = confirmTitle,
+                                        message = confirmMessage,
                                         options = {
                                             {
-                                                text = "Revert",
+                                                text = cond(IsWallRecord(), "Remove", "Revert"),
                                                 execute = function()
                                                     game.DeleteMapModification(modInfo.id)
                                                     resultPanel:FireEventTree("refresh")
@@ -2284,10 +2327,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 end,
             },
 
-            gui.Label{
-                text = text,
-                classes = { "bestiaryLabel" },
-            },
+            label,
         }
     end
 
@@ -2375,8 +2415,14 @@ CharacterPanel.CreateMapModificationsFolder = function()
             local newModPanels = {}
             local children = {}
             for _,m in ipairs(mods) do
-                newModPanels[m.id] = modPanels[m.id] or CreateModificationEntry(m)
-                children[#children+1] = newModPanels[m.id]
+                local entryPanel = modPanels[m.id]
+                if entryPanel ~= nil then
+                    entryPanel:FireEvent("updateMod", m)
+                else
+                    entryPanel = CreateModificationEntry(m)
+                end
+                newModPanels[m.id] = entryPanel
+                children[#children+1] = entryPanel
             end
 
             modPanels = newModPanels

@@ -1167,53 +1167,48 @@ CreateChatPanel = function()
 		events = {
 			create = 'refreshChat',
 			refreshChat = function(element)
+				--dev:diceperf -- per-phase timing of this handler (see engine settings.txt).
+				--os.clock() (CPU seconds) rather than dmhub.Time(), which is frame-quantized.
+				local perfLog = dmhub.GetSettingValue("dev:diceperf")
+				local perfStart = perfLog and os.clock() or 0
+				local perfCreateMs, perfCreates, perfRefreshMs, perfRefreshes = 0, 0, 0, 0
+
 				local newMessagePanels = {}
 				local children = {}
 				local newMessage = false
 				for i,message in ipairs(chat.messages) do
-                    if adoptedPanels[message.key] then
-                        local panel = adoptedPanels[message.key]
-                        if panel.valid then
-                            panel:FireEvent('refreshMessage', message)
+                    --This handler runs on EVERY refreshChat (a dice roll fires it several
+                    --times: send, server echo patches, roll completion) over every message,
+                    --so per-message bridge reads (message.key/.messageType/.properties are
+                    --each a Lua->C# property call) dominated its cost. Messages that already
+                    --have a panel take a fast path with a single bridge read (key); the
+                    --type filtering and cast-adoption lookups only run when a panel is
+                    --first created, with the roll's castid cached on the panel
+                    --(data.adoptCastid) for the late-adoption check on later passes.
+                    local key = message.key
+                    local adopted = adoptedPanels[key]
+                    if adopted then
+                        if adopted.valid then
+                            adopted:FireEvent('refreshMessage', message)
                         end
-                    elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
-                        newMessage = (messagePanels[message.key] == nil)
-                        local child = messagePanels[message.key]
-
-                        local adoptiveParentPanel = nil
-                        if message.messageType == "roll" and message.properties ~= nil then
-                            adoptiveParentPanel = element.data.castPanels and element.data.castPanels[message.properties:try_get("castid")]
-                        end
-                        
-                        if child == nil and (not g_errorPanels[message.key]) then
-
-                            local ok, result
-
-                            --safely try to create the message panel. If it fails, we just skip it.
-                            if devmode() then
-                                --call unsafely as a dev. We want to get errors.
-                                result = CreateSingleChatPanel(message, adoptiveParentPanel)
-                                ok = true
-                            else
-                                ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
-                            end
-
-                            if ok then
-                                child = result
-                            else
-
-                                dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
-                                g_errorPanels[message.key] = true
-                            end
-                        end
-
+                    else
+                        local child = messagePanels[key]
                         if child ~= nil then
-                            newMessagePanels[message.key] = child
+                            --fast path: known message with an existing panel.
+                            newMessagePanels[key] = child
+                            local perfT1 = perfLog and os.clock() or 0
                             child:FireEvent('refreshMessage', message)
+                            if perfLog then
+                                perfRefreshMs = perfRefreshMs + (os.clock() - perfT1) * 1000
+                                perfRefreshes = perfRefreshes + 1
+                            end
 
+                            --late adoption: a roll whose cast panel was created after the
+                            --roll's own panel moves under it as soon as it exists.
+                            local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
                             if adoptiveParentPanel ~= nil then
                                 adoptiveParentPanel:AddChild(child)
-                                adoptedPanels[message.key] = child
+                                adoptedPanels[key] = child
                             else
                                 children[#children+1] = child
 
@@ -1223,12 +1218,78 @@ CreateChatPanel = function()
                                     element.data.castPanels = castPanels
                                 end
                             end
+                        elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
+                            newMessage = true
+
+                            local adoptCastid = nil
+                            if message.messageType == "roll" and message.properties ~= nil then
+                                adoptCastid = message.properties:try_get("castid")
+                            end
+                            local adoptiveParentPanel = adoptCastid and element.data.castPanels and element.data.castPanels[adoptCastid]
+
+                            if not g_errorPanels[key] then
+
+                                local ok, result
+
+                                local perfT0 = perfLog and os.clock() or 0
+
+                                --safely try to create the message panel. If it fails, we just skip it.
+                                if devmode() then
+                                    --call unsafely as a dev. We want to get errors.
+                                    result = CreateSingleChatPanel(message, adoptiveParentPanel)
+                                    ok = true
+                                else
+                                    ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
+                                end
+
+                                if perfLog then
+                                    perfCreateMs = perfCreateMs + (os.clock() - perfT0) * 1000
+                                    perfCreates = perfCreates + 1
+                                end
+
+                                if ok then
+                                    child = result
+                                    child.data.adoptCastid = adoptCastid
+                                else
+
+                                    dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+                                    g_errorPanels[key] = true
+                                end
+                            end
+
+                            if child ~= nil then
+                                newMessagePanels[key] = child
+                                local perfT1 = perfLog and os.clock() or 0
+                                child:FireEvent('refreshMessage', message)
+                                if perfLog then
+                                    perfRefreshMs = perfRefreshMs + (os.clock() - perfT1) * 1000
+                                    perfRefreshes = perfRefreshes + 1
+                                end
+
+                                if adoptiveParentPanel ~= nil then
+                                    adoptiveParentPanel:AddChild(child)
+                                    adoptedPanels[key] = child
+                                else
+                                    children[#children+1] = child
+
+                                    if child.data.castid then
+                                        local castPanels = element.data.castPanels or {}
+                                        castPanels[child.data.castid] = child
+                                        element.data.castPanels = castPanels
+                                    end
+                                end
+                            end
                         end
                     end
 				end
 
 				messagePanels = newMessagePanels
+				local perfT2 = perfLog and os.clock() or 0
 				element.children = children
+				if perfLog then
+					print(string.format("DICEPERF-LUA:: ActionLog refreshChat total=%.1fms msgs=%d creates=%d createMs=%.1f refreshes=%d refreshMs=%.1f childrenMs=%.1f",
+						(os.clock() - perfStart) * 1000, #chat.messages, perfCreates, perfCreateMs, perfRefreshes, perfRefreshMs, (os.clock() - perfT2) * 1000))
+				end
 
 				--go to the bottom if we have new messages
 				if newMessage then

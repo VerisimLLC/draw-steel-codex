@@ -56,6 +56,61 @@ Commands.RegisterMacro{
     end,
 }
 
+Commands.RegisterMacro{
+    name = "glossary",
+    summary = "show a glossary definition",
+    doc = "Usage: /glossary <term>\nShows the glossary definition for a rules term.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        for _, term in unhidden_pairs(dmhub.GetTable("glossaryTerms") or {}) do
+            result[#result+1] = { text = term.name or "", summary = string.sub(term.definition or "", 1, 60) }
+        end
+        table.sort(result, function(a, b) return a.text < b.text end)
+        return result
+    end,
+    command = function(str)
+        local query = string.lower(trim(str or ""))
+        if query == "" then
+            print("Usage: /glossary <term>")
+            return
+        end
+        local best = nil
+        for _, term in unhidden_pairs(dmhub.GetTable("glossaryTerms") or {}) do
+            local name = string.lower(term.name or "")
+            if name == query then
+                best = term
+                break
+            elseif best == nil and string.starts_with(name, query) then
+                best = term
+            end
+        end
+        if best == nil then
+            print("No glossary entry found for '" .. str .. "'.")
+            return
+        end
+
+        gui.ShowModal(gui.Panel{
+            styles = ThemeEngine.GetStyles(),
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+            captureEscape = true,
+            escapePriority = EscapePriority.DMHUB_POPUP,
+            escape = function(element)
+                gui.CloseModal()
+            end,
+            MarkdownDocument.CreateGlossaryCard(best, {
+                pinned = true,
+                close = function()
+                    gui.CloseModal()
+                end,
+            }),
+        })
+    end,
+}
 
 local g_adventureDocumentId = "adventureDocuments"
 

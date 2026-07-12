@@ -1023,6 +1023,30 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
+    -- Glossary hints quick-mute (view-local, never persisted): lets a
+    -- director instantly silence term hints while performing or presenting,
+    -- without touching the global preference.
+    if dmhub.GetSettingValue("glossaryhints") ~= "off" then
+        m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.Button {
+            classes = {"sizeS"},
+            icon = "ui-icons/eye.png",
+            escapeActivates = false,
+            halign = "left",
+            hmargin = 4,
+            data = { muted = false },
+            linger = function(element)
+                gui.Tooltip("Hide glossary hints in this view")(element)
+            end,
+            press = function(element)
+                element.data.muted = not element.data.muted
+                element:SetClass("selected", element.data.muted)
+                if readPanel ~= nil and readPanel.valid then
+                    readPanel:FireEvent("glossaryMute", element.data.muted)
+                end
+            end,
+        }
+    end
+
     if not args.presentationMode then
         m_controlMenuButtons[#m_controlMenuButtons + 1] = m_playerPreviewButton
     end

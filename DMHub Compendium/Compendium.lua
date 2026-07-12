@@ -7048,6 +7048,10 @@ GlossaryTerm = RegisterGameType("GlossaryTerm")
 GlossaryTerm.tableName = "glossaryTerms"
 GlossaryTerm.name = "New Term"
 GlossaryTerm.definition = ""
+--common English words opt out of auto-hinting in documents (the glossary
+--hints feature in MarkdownDocument); their definitions stay reachable via
+--/glossary and the compendium.
+GlossaryTerm.commonWord = false
 
 function GlossaryTerm.CreateNew()
     return GlossaryTerm.new{}
@@ -7105,6 +7109,17 @@ local function CreateGlossaryTermEditor(key)
             text = term.definition,
             change = function(element)
                 term.definition = element.text
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        gui.Check{
+            text = "Common word (don't auto-hint)",
+            halign = "left",
+            vmargin = 8,
+            value = cond(term:try_get("commonWord", false), true, false),
+            linger = gui.Tooltip("Applies to all documents, for everyone."),
+            change = function(element)
+                term.commonWord = element.value
                 dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
             end,
         },

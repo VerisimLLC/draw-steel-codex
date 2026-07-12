@@ -653,8 +653,14 @@ LiveNegotiation.traits = {}
 LiveNegotiation.offers = {}
 --accepted: map charid -> "accepted" | "declined"
 LiveNegotiation.accepted = {}
---history: array of { who, text, cue, tone ("good"|"bad"|"neutral"|"npc"|"system") }
+--history: the STORY BEATS the table sees - arguments and their outcomes,
+--NPC lines, offers, accepts. array of { who, text, cue, tone }
+--tone: good | bad | neutral | npc | system
 LiveNegotiation.history = {}
+--audit: DIRECTOR-ONLY bookkeeping - floor churn, the numbers toggle, manual
+--meter corrections. Never rendered on the stage: a fat-finger meter fix must
+--not read to the table as an NPC mood swing. array of { text }
+LiveNegotiation.audit = {}
 --pending: false, or the argument awaiting the Director's Resolve:
 --  { who, whoName, roll, natHigh, angleTraitId }
 --(false, never nil: a nil default does not register the field, and reads of
@@ -809,7 +815,7 @@ function NegotiationRun.Mutate(desc, fn)
     doc:CompleteChange(desc or "Negotiation")
 end
 
---Append a history line. tone: good | bad | neutral | npc | system.
+--Append a STORY BEAT (the table sees this). tone: good|bad|neutral|npc|system.
 function NegotiationRun.Log(live, who, text, cue, tone)
     local h = live.history
     h[#h + 1] = {
@@ -818,6 +824,12 @@ function NegotiationRun.Log(live, who, text, cue, tone)
         cue = cue or "",
         tone = tone or "neutral",
     }
+end
+
+--Append a Director-only audit line (bookkeeping; never on the stage).
+function NegotiationRun.Audit(live, text)
+    local a = live:get_or_add("audit", {})
+    a[#a + 1] = { text = text or "" }
 end
 
 function NegotiationRun.TraitById(live, id)
@@ -928,6 +940,9 @@ function NegotiationRun.AdjustMeter(which, delta)
         else
             live.patience = math.max(0, math.min(NegotiationRules.MAX, live.patience + delta))
         end
+        NegotiationRun.Audit(live, string.format("%s %s%d (manual)",
+            which == "interest" and "Interest" or "Patience",
+            delta > 0 and "+" or "", delta))
     end)
 end
 
@@ -1112,17 +1127,46 @@ function NegotiationDocument:EditPanel()
         width = "100%", height = "100%", flow = "vertical", vscroll = true,
 
         SectionHeader("The NPC"),
-        gui.Input{
-            classes = { "sizeL" }, width = "94%", height = 30, halign = "left",
-            placeholderText = "Negotiation title (e.g. Reeve Halric)",
-            text = doc.description,
-            change = function(element)
-                doc.description = element.text
-                doc:Upload()
-            end,
+        gui.Panel{
+            flow = "horizontal", width = "94%", height = "auto", halign = "left",
+            --portrait: the face the table sees on the stage.
+            gui.IconEditor{
+                library = "Avatar",
+                width = 96, height = 120,
+                valign = "top", rmargin = 12,
+                bgcolor = "white",
+                allowNone = true,
+                value = doc:try_get("portrait", ""),
+                change = function(element)
+                    doc.portrait = element.value or ""
+                    doc:Upload()
+                end,
+            },
+            gui.Panel{
+                flow = "vertical", width = "100%-108", height = "auto",
+                gui.Input{
+                    classes = { "sizeL" }, width = "100%", height = 30, halign = "left",
+                    placeholderText = "Negotiation title (e.g. Reeve Halric)",
+                    text = doc.description,
+                    change = function(element)
+                        doc.description = element.text
+                        doc:Upload()
+                    end,
+                },
+                textInput("npcName", "NPC name (as the players hear it)"),
+                textInput("npcDesc", "Who they are, in a line (e.g. Town reeve - holds the gate keys)"),
+                gui.Check{
+                    classes = { "sizeS" },
+                    width = "100%", height = 24, minWidth = 0,
+                    text = "Start unnamed (\"???\" until revealed)",
+                    value = doc:try_get("hideName", false),
+                    change = function(element)
+                        doc.hideName = element.value
+                        doc:Upload()
+                    end,
+                },
+            },
         },
-        textInput("npcName", "NPC name (as the players hear it)"),
-        textInput("npcDesc", "Who they are, in a line (e.g. Town reeve - holds the gate keys)"),
 
         SectionHeader("Seed from an archetype"),
         gui.Button{
@@ -1347,9 +1391,26 @@ local function CreateNegotiationStage(args)
     ----------------------------------------------------------------------
     -- Left column: reading the NPC.
     ----------------------------------------------------------------------
+    --Identity: portrait + name + descriptor. An unrevealed NPC shows an empty
+    --frame and "???" (the reveal grammar covers identity too).
+    local portraitPanel = gui.Panel{
+        classes = { "image" },
+        width = 96, height = 120,
+        valign = "top", rmargin = 14,
+        bgcolor = "white",
+        borderWidth = 1,
+        borderColor = "#ffffff47",
+        refreshNeg = function(element, live)
+            local p = live:try_get("portrait", "")
+            local show = live.nameRevealed and p ~= ""
+            element.selfStyle.bgimage = show and p or nil
+            element.selfStyle.bgcolor = show and "white" or "#131315"
+        end,
+    }
+
     local nameLabel = gui.Label{
         classes = { "bold", "sizeXl" },
-        width = "auto", height = "auto", halign = "left",
+        width = "100%", height = "auto", halign = "left",
         refreshNeg = function(element, live)
             local shown = live.nameRevealed and live.npcName ~= "" and live.npcName or "???"
             element.text = shown
@@ -1359,10 +1420,21 @@ local function CreateNegotiationStage(args)
     local descLabel = gui.Label{
         classes = { "sizeS" },
         width = "100%", height = "auto", halign = "left",
+        textWrap = true,
         color = "#8a8a8a",
         refreshNeg = function(element, live)
             element.text = live.nameRevealed and live.npcDesc or ""
         end,
+    }
+
+    local identityPanel = gui.Panel{
+        flow = "horizontal", width = "100%", height = "auto", vmargin = 4,
+        portraitPanel,
+        gui.Panel{
+            flow = "vertical", width = "100%-110", height = "auto", valign = "top",
+            nameLabel,
+            descLabel,
+        },
     }
 
     --disposition bands (or raw pips when the Director reveals the numbers).
@@ -1585,10 +1657,13 @@ local function CreateNegotiationStage(args)
         end)
         local rollStr = string.format("2d10%s%d", modifier >= 0 and "+" or "", modifier)
 
-        --claim the floor (confirm-after-sync: the doc is the truth).
+        --claim the floor (confirm-after-sync: the doc is the truth). Floor
+        --churn is bookkeeping - it goes to the Director's audit, not the stage
+        --(the composer already shows who holds the floor, live).
         NegotiationRun.Mutate("Claim floor", function(l)
             l.floor = tok.charid
             l.floorAt = dmhub.serverTimeMilliseconds
+            NegotiationRun.Audit(l, string.format("floor: %s", tok.name))
         end)
 
         local text = sayInput.text or ""
@@ -1710,54 +1785,69 @@ local function CreateNegotiationStage(args)
         end,
     }
 
-    --the conversation.
+    --The conversation: STORY BEATS only, one compact line each. The
+    --spoken/typed line (when there is one) sits quoted beneath its beat -
+    --never hidden behind a click, because for a hard-of-hearing player that
+    --text IS the conversation. Bookkeeping lives in the rail's audit strip.
+    local TONE_GLYPH = {
+        good = "+", bad = "x", npc = "\"", system = "-", neutral = ">",
+    }
+    local TONE_COLOR = {
+        good = "#4db88c", bad = "#c94040", npc = "#e4ddd0",
+        system = "#7a7468", neutral = "#8a8a8a",
+    }
+
     local historyPanel = gui.Panel{
-        flow = "vertical", width = "100%", height = "auto", vmargin = 4,
+        flow = "vertical", width = "100%", height = "auto",
         refreshNeg = function(element, live)
             local children = {}
             for i = #live.history, 1, -1 do
                 local h = live.history[i]
                 local tone = h.tone or "neutral"
-                local accent = "#ffffff26"
-                if tone == "good" then accent = "#4db88c"
-                elseif tone == "bad" then accent = "#c94040"
-                elseif tone == "npc" then accent = "#e4ddd0" end
+                local col = TONE_COLOR[tone] or TONE_COLOR.neutral
 
-                local lines = {}
-                if (h.text or "") ~= "" then
-                    lines[#lines + 1] = gui.Label{
-                        classes = { "sizeS" },
-                        width = "100%", height = "auto", textWrap = true,
-                        text = h.text,
-                    }
+                local rows = {}
+                --the beat itself: glyph + who + cue, one line.
+                local head = ""
+                if (h.who or "") ~= "" then
+                    head = h.who
                 end
                 if (h.cue or "") ~= "" then
-                    lines[#lines + 1] = gui.Label{
-                        classes = { "sizeS" },
-                        width = "100%", height = "auto", textWrap = true,
-                        fontSize = 12,
-                        color = (tone == "good" and "#4db88c")
-                            or (tone == "bad" and "#c94040")
-                            or "#8a8a8a",
-                        text = ((h.who or "") ~= "" and (h.who .. " ") or "") .. h.cue,
+                    head = head ~= "" and (head .. "  " .. h.cue) or h.cue
+                end
+                if head ~= "" then
+                    rows[#rows + 1] = gui.Panel{
+                        flow = "horizontal", width = "100%", height = "auto",
+                        gui.Label{
+                            classes = { "sizeS" },
+                            width = 16, height = "auto", valign = "top",
+                            fontSize = 12, color = col,
+                            text = TONE_GLYPH[tone] or ">",
+                        },
+                        gui.Label{
+                            classes = { "sizeS" },
+                            width = "100%-16", height = "auto", textWrap = true,
+                            fontSize = 12,
+                            color = tone == "system" and "#7a7468" or "#c9c3b8",
+                            text = head,
+                        },
                     }
                 end
-                --the tone stripe is a real 3px panel on the left edge, not a
-                --border property (the engine has no per-side border).
+                --what was actually said, quoted, when there is a line.
+                if (h.text or "") ~= "" then
+                    rows[#rows + 1] = gui.Label{
+                        classes = { "sizeS" },
+                        width = "100%-16", height = "auto", halign = "right",
+                        textWrap = true, vmargin = 1,
+                        fontSize = 13,
+                        color = tone == "npc" and "#e4ddd0" or "#8a8a8a",
+                        text = "\"" .. h.text .. "\"",
+                    }
+                end
+
                 children[#children + 1] = gui.Panel{
-                    flow = "horizontal", width = "100%", height = "auto", vmargin = 3,
-                    gui.Panel{
-                        width = 3, height = "100%", valign = "top",
-                        bgimage = "panels/square.png",
-                        bgcolor = accent,
-                    },
-                    gui.Panel{
-                        flow = "vertical", width = "100%-3", height = "auto",
-                        hpad = 10, vpad = 6, borderBox = true,
-                        bgimage = "panels/square.png",
-                        bgcolor = "#1a1a1e",
-                        children = lines,
-                    },
+                    flow = "vertical", width = "100%", height = "auto", vmargin = 3,
+                    children = rows,
                 }
             end
             element.children = children
@@ -1914,8 +2004,7 @@ local function CreateNegotiationStage(args)
             gui.Panel{
                 flow = "vertical", width = "100%", height = "100%-220",
                 vscroll = true,
-                nameLabel,
-                descLabel,
+                identityPanel,
                 bandsPanel,
                 patienceCue,
                 learnedPanel,
@@ -2144,10 +2233,26 @@ local function CreateNegotiationRunner()
         local terminal = NegotiationRules.Terminal(live.interest, live.patience)
 
         -- 1. Header ---------------------------------------------------------
-        children[#children + 1] = gui.Label{
-            classes = { "bold", "sizeM" },
-            width = "100%", height = "auto",
-            text = npc,
+        local portrait = live:try_get("portrait", "")
+        children[#children + 1] = gui.Panel{
+            flow = "horizontal", width = "100%", height = "auto", vmargin = 2,
+            (portrait ~= "") and gui.Panel{
+                classes = { "image" },
+                width = 34, height = 42, valign = "top", rmargin = 8,
+                bgcolor = "white",
+                bgimage = portrait,
+                borderWidth = 1,
+                borderColor = "#ffffff47",
+            } or nil,
+            gui.Panel{
+                flow = "vertical", width = "100%-46", height = "auto", valign = "center",
+                gui.Label{
+                    classes = { "bold", "sizeM" },
+                    width = "100%", height = "auto", textWrap = true,
+                    text = npc,
+                },
+                (not live.nameRevealed) and Micro("Unnamed on stage (\"???\")", "#e8a030") or nil,
+            },
         }
         if terminal ~= nil then
             children[#children + 1] = Micro(terminal == "nodeal"
@@ -2173,9 +2278,7 @@ local function CreateNegotiationRunner()
             SmallButton(live.showRaw and "Hide the numbers" or "Reveal the numbers", function()
                 NegotiationRun.Mutate("Toggle numbers", function(l)
                     l.showRaw = not l.showRaw
-                    NegotiationRun.Log(l, "", "", l.showRaw
-                        and "The Director shared the exact numbers."
-                        or "The Director hid the exact numbers.", "system")
+                    NegotiationRun.Audit(l, l.showRaw and "Numbers revealed" or "Numbers hidden")
                 end)
                 Refresh()
             end, 130),
@@ -2592,6 +2695,27 @@ local function CreateNegotiationRunner()
                 borderColor = isCurrent and "#ffffff47" or "#ffffff14",
                 children = rowChildren,
             }
+        end
+
+        -- 7. The audit strip: Director-only bookkeeping (meter corrections,
+        -- the numbers toggle, floor churn). Deliberately NOT on the stage - a
+        -- fat-finger fix must not read to the table as an NPC mood swing.
+        local audit = live:try_get("audit", {})
+        if #audit > 0 then
+            children[#children + 1] = gui.Label{
+                classes = { "bold" },
+                width = "100%", height = "auto", vmargin = 6,
+                fontSize = 12, color = "#7a7468",
+                text = "AUDIT (you only)",
+            }
+            local shown = 0
+            for i = #audit, 1, -1 do
+                if shown >= 8 then
+                    break
+                end
+                shown = shown + 1
+                children[#children + 1] = Micro("- " .. (audit[i].text or ""), "#7a7468")
+            end
         end
 
         return children

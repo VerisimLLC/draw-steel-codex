@@ -416,7 +416,7 @@ local g_rulePatterns = {
     },
 
     {
-        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
+        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
 
             print("INVOKE:: EXECUTE FORCE MOVE", match.movement, match.distance)
@@ -493,7 +493,14 @@ local g_rulePatterns = {
             end
 
             local stability = targetToken.properties:Stability()
-            if stability ~= 0 and (match.ignorestability or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
+            local ignoreForCompanion = false
+            if match.ignorestabilityifcompanion then
+                local companionToken = casterToken.properties:GetCompanionToken()
+                if companionToken ~= nil and companionToken.valid and companionToken.loc ~= nil and targetToken.loc ~= nil then
+                    ignoreForCompanion = companionToken.loc:DistanceInTiles(targetToken.loc) <= 1
+                end
+            end
+            if stability ~= 0 and (match.ignorestability or ignoreForCompanion or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
                 stability = 0
                 adjustments[#adjustments+1] = "Ignoring Stability"
             end

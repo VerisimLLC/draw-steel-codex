@@ -350,10 +350,83 @@ CreateChatPanel = function()
             end,
 
 			create = "refreshChat",
-			refreshChat = function(element)
+			refreshChat = function(element, changeInfo)
 				--dev:diceperf -- time this handler (see engine settings.txt).
 				local perfLog = dmhub.GetSettingValue("dev:diceperf")
 				local perfStart = perfLog and os.clock() or 0
+
+				--INCREMENTAL PATH: same contract as ActionLogPanel's refreshChat (see
+				--ChatPanel.cs RefreshLua). For a non-structural change on an
+				--already-built chat, only the changed message panels are touched;
+				--everything else, including this scroll panel's children list, is left
+				--alone. Structural changes and the panel-create event (changeInfo ==
+				--nil) fall through to the full pass below.
+				if changeInfo ~= nil and (not changeInfo.structural) and element.data.init then
+					--Removed messages (chat is pruned past 128 messages on every send, so
+					--this is routine): destroy just that message's panel.
+					for key,_ in pairs(changeInfo.removed or {}) do
+						local child = messagePanels[key]
+						messagePanels[key] = nil
+						if child ~= nil and child.valid then
+							child:DestroySelf()
+						end
+					end
+
+					local anyNew = false
+					for key,_ in pairs(changeInfo.changed) do
+						--chat.GetRollInfo is a by-key lookup of the same message wrappers
+						--chat.messages holds (any message type, despite the name).
+						local message = chat.GetRollInfo(key)
+						if message ~= nil then
+							local child = messagePanels[key]
+							if child ~= nil and (not child.valid) then
+								messagePanels[key] = nil
+								child = nil
+							end
+							if child ~= nil then
+								child:FireEvent("refreshMessage", message)
+							elseif message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat") then
+								if not g_errorPanels[key] then
+									--safely try to create the message panel. If it fails, we just skip it.
+									local ok, result
+
+									if devmode() then
+										--call unsafely as a dev. We want to get errors.
+										result = CreateSingleChatPanel(message)
+										ok = true
+									else
+										ok, result = pcall(CreateSingleChatPanel, message)
+									end
+
+									if ok then
+										child = result
+									else
+										dmhub.CloudError(string.format("Error creating chat panel in ChatPanel: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+										g_errorPanels[key] = true
+									end
+								end
+
+								if child ~= nil then
+									messagePanels[key] = child
+									child:FireEvent("refreshMessage", message)
+									element:AddChild(child)
+									anyNew = true
+								end
+							end
+						end
+					end
+
+					if anyNew then
+						element.vscrollPosition = 0
+						element:ScheduleEvent("moveToBottom", 0.05)
+						audio.FireSoundEvent("UI.ChatMsgRegular")
+					end
+
+					if perfLog then
+						print(string.format("DICEPERF-LUA:: ChatPanel refreshChat INCREMENTAL total=%.1fms", (os.clock() - perfStart) * 1000))
+					end
+					return
+				end
 
 				local newMessagePanels = {}
 				local children = {}

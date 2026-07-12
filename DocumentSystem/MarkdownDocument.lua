@@ -3631,10 +3631,364 @@ local function CreateMarkdownRenderContext(doc, embedDepth)
     }
 end
 
+--Related-entries footer for the top-level read view. Two directions:
+--"From this page" (documents this page references) and "Mentioned in"
+--(documents that reference this page). A reference is either a link-form
+--mention of the description in the text - all the link syntaxes end up
+--containing "(desc", "[desc", "[:desc", or "document:desc" - or the doc's
+--id appearing in the other page's annotations, which generically catches
+--widget-held references (an exit's nextDocid, a cue's opendoc step)
+--without knowing each widget's schema.
+local function CollectRelatedDocs(selfDoc)
+    local docsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+    local isDM = dmhub.isDM
+    local accessibleRoots = nil
+    if not isDM then
+        accessibleRoots = CustomDocument.GetAccessibleRoots()
+    end
+
+    local function AnnotationsJson(doc)
+        local result = ""
+        pcall(function()
+            local ann = doc:try_get("annotations")
+            if ann ~= nil and next(ann) ~= nil then
+                result = dmhub.ToJson(ann)
+            end
+        end)
+        return result
+    end
+
+    --true when content references a page with this description via any
+    --link form. Bare prose mentions deliberately do not count.
+    local function MentionsDesc(content, ldesc)
+        if #ldesc < 3 then
+            return false
+        end
+        return string.find(content, "(" .. ldesc, 1, true) ~= nil
+            or string.find(content, "[" .. ldesc, 1, true) ~= nil
+            or string.find(content, "[:" .. ldesc, 1, true) ~= nil
+            or string.find(content, "document:" .. ldesc, 1, true) ~= nil
+    end
+
+    local mydesc = string.lower(selfDoc.description or "")
+    local myid = selfDoc:try_get("id")
+    local mycontent = ""
+    pcall(function() mycontent = string.lower(selfDoc:GetTextContent() or "") end)
+    local myannotations = AnnotationsJson(selfDoc)
+
+    local outgoing, incoming = {}, {}
+    for id, doc in unhidden_pairs(docsTable) do
+        if id ~= myid then
+            local visible = isDM or ((not doc:try_get("hiddenFromPlayers", false))
+                and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots))
+            if visible then
+                local desc = doc.description or ""
+                local ldesc = string.lower(desc)
+
+                if MentionsDesc(mycontent, ldesc)
+                    or (myannotations ~= "" and string.find(myannotations, id, 1, true)) then
+                    outgoing[#outgoing + 1] = { id = id, name = desc }
+                end
+
+                local theircontent = ""
+                pcall(function() theircontent = string.lower(doc:GetTextContent() or "") end)
+                local theirann = AnnotationsJson(doc)
+                if MentionsDesc(theircontent, mydesc)
+                    or (myid ~= nil and theirann ~= "" and string.find(theirann, myid, 1, true)) then
+                    incoming[#incoming + 1] = { id = id, name = desc }
+                end
+            end
+        end
+    end
+    table.sort(outgoing, function(a, b) return a.name < b.name end)
+    table.sort(incoming, function(a, b) return a.name < b.name end)
+    return outgoing, incoming
+end
+
+local function BuildRelatedFooter(selfDoc)
+    local outgoing, incoming = CollectRelatedDocs(selfDoc)
+    if #outgoing == 0 and #incoming == 0 then
+        return nil
+    end
+
+    --match the page skin when the sheet defines one; quiet greys otherwise.
+    local pal = MarkdownDocument.PageSkinPalette(selfDoc)
+    local mutedColor = pal ~= nil and pal.muted or "#8a8578"
+    local linkColor = pal ~= nil and pal.link or "#b8b2a4"
+    local inkColor = pal ~= nil and pal.ink or "#e4ddd0"
+    local hairColor = pal ~= nil and pal.hairline or "#88888833"
+
+    local function Row(entry)
+        return gui.Label {
+            width = "auto",
+            height = "auto",
+            maxWidth = "100%",
+            halign = "left",
+            fontSize = CustomDocument.ScaleFontSize(13),
+            color = linkColor,
+            bmargin = 2,
+            text = entry.name,
+            styles = {
+                { selectors = { "hover" }, color = inkColor },
+            },
+            press = function(element)
+                --navigate in place like a page link; fall back to a tab.
+                local dialogPanel = element:FindParentWithClass("framedPanel")
+                if dialogPanel and dialogPanel.data and dialogPanel.data.history then
+                    dialogPanel:FireEvent("navigateToDocument", entry.id)
+                    return
+                end
+                local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[entry.id]
+                if doc ~= nil then
+                    CustomDocument.OpenContent(doc)
+                end
+            end,
+        }
+    end
+
+    local function Group(title, entries)
+        if #entries == 0 then
+            return nil
+        end
+        local children = {
+            gui.Label {
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                fontSize = CustomDocument.ScaleFontSize(11),
+                bold = true,
+                color = mutedColor,
+                bmargin = 4,
+                text = title,
+            },
+        }
+        for _, entry in ipairs(entries) do
+            children[#children + 1] = Row(entry)
+        end
+        return gui.Panel {
+            flow = "vertical",
+            width = "50%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            children = children,
+        }
+    end
+
+    local columns = {}
+    columns[#columns + 1] = Group("FROM THIS PAGE", outgoing)
+    columns[#columns + 1] = Group("MENTIONED IN", incoming)
+
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        tmargin = 24,
+
+        gui.Panel {
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = hairColor,
+            bmargin = 8,
+        },
+        gui.Label {
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            fontSize = CustomDocument.ScaleFontSize(12),
+            bold = true,
+            color = mutedColor,
+            bmargin = 6,
+            text = "RELATED",
+        },
+        gui.Panel {
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            children = columns,
+        },
+    }
+end
+
+--Find-in-page: highlight marks injected into rendered label text. The
+--soft mark tints every hit; the current hit gets the stronger mark. A
+--highlighter yellow/amber family reads on both the dark theme and
+--parchment pages, and marks sit BEHIND the glyphs so ink stays legible.
+local FIND_MARK_SOFT = "#ffd54a55"
+local FIND_MARK_CURRENT = "#ff9d2e88"
+
+--Wrap term occurrences in a label's rich text with <mark> tags, skipping
+--<...> tag runs so markup (links, colors, existing marks) is never split.
+--Occurrences that span a tag boundary (e.g. across </b>) do not match -
+--acceptable for v1. Returns the marked text and the number of matches;
+--the match numbered currentIndex - indexBase gets the current-mark color.
+local function MarkLabelMatches(text, lterm, indexBase, currentIndex)
+    local out = {}
+    local count = 0
+    local lower = string.lower(text)
+    local i = 1
+    local n = #text
+    while i <= n do
+        if text:sub(i, i) == "<" then
+            local close = text:find(">", i, true)
+            if close == nil then
+                out[#out + 1] = text:sub(i)
+                break
+            end
+            out[#out + 1] = text:sub(i, close)
+            i = close + 1
+        else
+            local nextTag = text:find("<", i, true) or (n + 1)
+            local seg = text:sub(i, nextTag - 1)
+            local lseg = lower:sub(i, nextTag - 1)
+            local spos = 1
+            while true do
+                local a, b = lseg:find(lterm, spos, true)
+                if a == nil then
+                    out[#out + 1] = seg:sub(spos)
+                    break
+                end
+                count = count + 1
+                local color = FIND_MARK_SOFT
+                if currentIndex ~= nil and indexBase + count == currentIndex then
+                    color = FIND_MARK_CURRENT
+                end
+                out[#out + 1] = seg:sub(spos, a - 1)
+                out[#out + 1] = "<mark=" .. color .. ">" .. seg:sub(a, b) .. "</mark>"
+                spos = b + 1
+            end
+            i = nextTag
+        end
+    end
+    return table.concat(out), count
+end
+
+--Depth-first walk over the rendered page (render order == document order),
+--marking matches in every label. Returns the total match count and the
+--label carrying the current match. Panel reads error rather than return
+--nil, so every read is pcall-guarded.
+local function ApplyFindMarks(root, term, currentIndex)
+    local lterm = string.lower(term)
+    local total = 0
+    local currentLabel = nil
+    local function walk(panel)
+        local ok, valid = pcall(function() return panel.valid end)
+        if not ok or not valid then
+            return
+        end
+        local text = nil
+        pcall(function() text = panel.text end)
+        if type(text) == "string" and text ~= "" then
+            local newText, cnt = MarkLabelMatches(text, lterm, total, currentIndex)
+            if cnt > 0 then
+                pcall(function() panel.text = newText end)
+                if currentIndex ~= nil and currentIndex > total and currentIndex <= total + cnt then
+                    currentLabel = panel
+                end
+                total = total + cnt
+            end
+        end
+        local kids = nil
+        pcall(function() kids = panel.children end)
+        if kids ~= nil then
+            for _, c in ipairs(kids) do
+                walk(c)
+            end
+        end
+    end
+    walk(root)
+    return total, currentLabel
+end
+
+--Scroll a descendant into (vertically centered) view within its nearest
+--vscroll ancestor. No engine ScrollIntoView exists; offsets are summed
+--from preceding siblings' rendered heights (same approach as the
+--character sheet's search reveal). Returns false until layout has
+--rendered so the caller can retry.
+local function ScrollFindTargetIntoView(target)
+    if target == nil or not target.valid then
+        return false
+    end
+
+    local scrollPanel = target.parent
+    while scrollPanel ~= nil do
+        local isScroll = false
+        pcall(function() isScroll = scrollPanel.vscroll == true end)
+        if isScroll then
+            break
+        end
+        scrollPanel = scrollPanel.parent
+    end
+    if scrollPanel == nil then
+        return false
+    end
+
+    local windowH = 0
+    local targetH = 0
+    pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+    pcall(function() targetH = target.renderedHeight or 0 end)
+    if windowH <= 0 or targetH <= 0 then
+        return false
+    end
+
+    local contentH = 0
+    pcall(function()
+        for _, c in ipairs(scrollPanel.children) do
+            contentH = contentH + (c.renderedHeight or 0)
+        end
+    end)
+    local range = contentH - windowH
+    if range <= 0 then
+        return true
+    end
+
+    local offset = 0
+    local node = target
+    while node ~= nil and node ~= scrollPanel do
+        local parent = node.parent
+        if parent == nil then
+            return false
+        end
+        pcall(function()
+            for _, s in ipairs(parent.children) do
+                if s == node then
+                    break
+                end
+                offset = offset + (s.renderedHeight or 0)
+            end
+        end)
+        node = parent
+    end
+
+    local desiredTop = offset - (windowH - targetH) * 0.5
+    if desiredTop < 0 then
+        desiredTop = 0
+    elseif desiredTop > range then
+        desiredTop = range
+    end
+    --vscrollPosition: 1 = top, 0 = bottom.
+    scrollPanel.vscrollPosition = 1 - desiredTop / range
+    return true
+end
+
 function MarkdownDocument.DisplayPanel(self, args)
     args = args or {}
     local embedDepth = args.embedDepth or 0
     args.embedDepth = nil
+
+    --Related-entries footer: opt-in by the top-level viewer only, so page
+    --embeds, hover previews, and template previews stay clean.
+    local m_relatedFooter = args.relatedFooter or false
+    args.relatedFooter = nil
+
+    --Find-in-page state (driven by the findInPage event below).
+    local m_findTerm = nil
+    local m_findIndex = 1
+    local m_findCallback = nil
+    local m_findGeneration = 0
 
     -- Host page color handed down to an embedded document. When this embed has
     -- no page background of its own, it falls back to this so it blends into
@@ -3754,7 +4108,63 @@ function MarkdownDocument.DisplayPanel(self, args)
                 pageColor = pageColor,
             }
 
-            element.children = RenderMarkdownTokens(ctx, tokens)
+            local children = RenderMarkdownTokens(ctx, tokens)
+            if m_relatedFooter then
+                local footer = BuildRelatedFooter(self)
+                if footer ~= nil then
+                    children[#children + 1] = footer
+                end
+            end
+            element.children = children
+
+            --Find-in-page: mark matches over the freshly rendered labels.
+            --Runs on every render so marks survive refreshes; clearing the
+            --term simply renders without this pass.
+            if m_findTerm ~= nil then
+                local total, currentLabel = ApplyFindMarks(element, m_findTerm, m_findIndex)
+                if m_findCallback ~= nil then
+                    m_findCallback(total)
+                end
+                if currentLabel ~= nil then
+                    --layout has not run yet for the new render; retry the
+                    --scroll until heights are real. The generation guard
+                    --abandons stale retries when the term or index moves on.
+                    m_findGeneration = m_findGeneration + 1
+                    local generation = m_findGeneration
+                    local attempts = 12
+                    local function tryScroll()
+                        if mod.unloaded or generation ~= m_findGeneration then
+                            return
+                        end
+                        if ScrollFindTargetIntoView(currentLabel) then
+                            return
+                        end
+                        attempts = attempts - 1
+                        if attempts > 0 then
+                            dmhub.Schedule(0.1, tryScroll)
+                        end
+                    end
+                    dmhub.Schedule(0.05, tryScroll)
+                end
+            end
+        end,
+
+        --Find-in-page driver. args = {term=string|nil, index=number,
+        --callback=fun(count)}: re-renders with term occurrences marked,
+        --reports the visible match count through the callback (synchronously,
+        --during this event), and scrolls to match number index. A nil or
+        --empty term clears the highlights.
+        findInPage = function(element, findArgs)
+            local term = findArgs ~= nil and findArgs.term or nil
+            if term == "" then
+                term = nil
+            end
+            m_findTerm = term
+            m_findIndex = findArgs ~= nil and findArgs.index or 1
+            m_findCallback = findArgs ~= nil and findArgs.callback or nil
+            m_findGeneration = m_findGeneration + 1
+            element:FireEvent("refreshDocument")
+            m_findCallback = nil
         end,
         monitorGame = "/assets/objectTables/" .. JournalStylesheet.tableName,
         refreshGame = function(element)

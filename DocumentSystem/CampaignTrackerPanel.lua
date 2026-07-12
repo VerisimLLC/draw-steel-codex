@@ -1522,6 +1522,39 @@ end
 local function CreateRunPanel()
     local listPanel
 
+    --a full-width labeled bar rather than a bare "+" icon: always visible,
+    --obvious, and immune to the style-settle quirk the icon button needed
+    --the settleLayout hack for. Built by a factory because refreshRun
+    --recreates it with every rebuild: panels sitting below the accordion
+    --get culled when expanded content pushes them offscreen, and the
+    --engine never re-evaluates culling when the content shrinks back - the
+    --stale panel stays invisible (class toggles, reparenting, and scroll
+    --nudges all fail to revive it; only recreation does).
+    local function CreateAddBar()
+        return gui.Label {
+            classes = { "bordered", "hoverable", "bgAlt", "fgMuted" },
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            text = "+  Add to the run",
+            borderBox = true,
+            vpad = 6,
+            tmargin = 6,
+            bmargin = 4,
+            press = function(element)
+                if element.popup ~= nil then
+                    element.popup = nil
+                    return
+                end
+                element.popupPositioning = "panel"
+                --popups re-root the style cascade; inherit the panel's theme
+                --styles so bordered/bg/fg/hoverable/collapsed resolve.
+                element.popupsInheritStyles = true
+                element.popup = CreateAddPopup(element)
+            end,
+        }
+    end
+
     listPanel = gui.Panel {
         flow = "vertical",
         width = "100%",
@@ -1654,6 +1687,9 @@ local function CreateRunPanel()
                 }
             end
 
+            --recreated per rebuild; see CreateAddBar for why.
+            children[#children + 1] = CreateAddBar()
+
             element.children = children
         end,
     }
@@ -1674,39 +1710,12 @@ local function CreateRunPanel()
         end,
     }
 
-    --a full-width labeled bar rather than a bare "+" icon: always visible,
-    --obvious, and immune to the style-settle quirk the icon button needed
-    --the settleLayout hack for.
-    local addBar = gui.Label {
-        classes = { "bordered", "hoverable", "bgAlt", "fgMuted" },
-        width = "100%",
-        height = "auto",
-        textAlignment = "center",
-        text = "+  Add to the run",
-        borderBox = true,
-        vpad = 6,
-        tmargin = 6,
-        bmargin = 4,
-        press = function(element)
-            if element.popup ~= nil then
-                element.popup = nil
-                return
-            end
-            element.popupPositioning = "panel"
-            --popups re-root the style cascade; inherit the panel's theme
-            --styles so bordered/bg/fg/hoverable/collapsed resolve.
-            element.popupsInheritStyles = true
-            element.popup = CreateAddPopup(element)
-        end,
-    }
-
     return gui.Panel {
         flow = "vertical",
         width = "100%",
         height = "auto",
 
         listPanel,
-        addBar,
         stateMonitor,
     }
 end

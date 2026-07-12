@@ -5939,6 +5939,12 @@ function MarkdownDocument:LiveEditPanel(args)
     local m_activateTime = 0 --guards the focus watchdog against the focus race.
     local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
                              --toolbar reactivate where the user was typing.
+    local m_activeRenderedHeight = nil --the active block's rendered height,
+                             --measured at activation; held as the edit
+                             --input's minHeight so swapping a tall rendered
+                             --block (widget, table, heading rule) for its
+                             --shorter raw source does not make the content
+                             --below it jump up.
     local m_savedContent = nil --the doc content as of the last load/save;
                              --distinguishes local unsaved work from a clean
                              --view so remote refreshes never clobber edits.
@@ -6319,9 +6325,11 @@ function MarkdownDocument:LiveEditPanel(args)
                 DeactivateBlock()
             end,
 
-            escape = function(element)
-                DeactivateBlock()
-            end,
+            --escape is handled by the surface's captureEscape route (see
+            --resultPanel), which outranks the journal window's close handler;
+            --a handler here too would deactivate (clearing captureEscape)
+            --before the capture pass resolves, letting the same keypress
+            --fall through and close the whole journal.
 
             --arrow keys at the block's edge flow into the neighboring block,
             --so the cursor travels the document like a single continuous
@@ -6532,8 +6540,15 @@ function MarkdownDocument:LiveEditPanel(args)
                 input.selfStyle.bold = bold
                 input.selfStyle.color = ink
                 --one line of the edit font, so an empty block still shows a
-                --caret without padding the block taller than its render.
-                input.selfStyle.minHeight = math.ceil(size * 1.4)
+                --caret without padding the block taller than its render; when
+                --the block's rendered form was measured at activation, hold
+                --that height instead so the page does not reflow on entry
+                --(raw source is usually shorter than widgets/tables render).
+                local minHeight = math.ceil(size * 1.4)
+                if m_activeRenderedHeight ~= nil and m_activeRenderedHeight > minHeight then
+                    minHeight = m_activeRenderedHeight
+                end
+                input.selfStyle.minHeight = minHeight
                 if type(face) == "string" and face ~= "" and FontAvailable(face) then
                     input.selfStyle.fontFace = face
                 else
@@ -6615,6 +6630,10 @@ function MarkdownDocument:LiveEditPanel(args)
         --is deliberately NOT re-read here.
         CommitActiveBlock()
         m_activeIndex = nil
+        m_activeRenderedHeight = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.captureEscape = false
+        end
         RebuildBlockData()
         RefreshAnnotations(GetContent())
         RefreshBlockPanels()
@@ -6654,6 +6673,23 @@ function MarkdownDocument:LiveEditPanel(args)
             end
             if index == nil and #m_blocks > 0 then
                 index = #m_blocks
+            end
+        end
+
+        --measure the block's rendered height before RefreshBlockPanels
+        --collapses it, so the edit input can hold the block at its rendered
+        --size. The pooled wrapper at this index still shows the pre-edit
+        --render here (RefreshBlockPanels has not run since the commit above),
+        --which is exactly the height the user is looking at.
+        m_activeRenderedHeight = nil
+        if index ~= nil then
+            local wrapper = m_blockPanels[index]
+            if wrapper ~= nil and wrapper.valid
+               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
+                local h = wrapper.data.contentPanel.renderedHeight
+                if type(h) == "number" and h > 0 then
+                    m_activeRenderedHeight = h
+                end
             end
         end
 
@@ -6720,6 +6756,12 @@ function MarkdownDocument:LiveEditPanel(args)
             m_editInput:SetTextAndCaret(caret, src)
             m_editInput.hasInputFocus = true
             m_lastEdit = { line = block.lineStart, caret = caret }
+        end
+
+        --intercept escape only while a block is active (see resultPanel's
+        --escape handler).
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.captureEscape = (m_activeIndex ~= nil)
         end
     end
 
@@ -6909,6 +6951,18 @@ function MarkdownDocument:LiveEditPanel(args)
         end,
         redo = function(element)
             PerformRedo()
+        end,
+
+        --escape while a block is being edited commits the block and stays in
+        --the journal instead of bubbling to the window's EXIT_DIALOG close.
+        --Same pattern as the editor's find bar: DMHUB_POPUP outranks
+        --EXIT_DIALOG, and captureEscape is toggled with block activation
+        --(ActivateBlock/DeactivateBlock) so escape with no active block
+        --still closes the journal window as usual.
+        captureEscape = false,
+        escapePriority = EscapePriority.DMHUB_POPUP,
+        escape = function(element)
+            DeactivateBlock()
         end,
 
         --focus watchdog: if the active input silently lost focus (clicked

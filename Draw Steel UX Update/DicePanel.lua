@@ -554,25 +554,26 @@ CreateDicePanel = function()
 end
 
 ----------------------------------------------------------------
--- Physical Dice (GoDice) integration
+-- Physical Dice (Bluetooth dice) integration
 ----------------------------------------------------------------
 do
 
 --[[
 ================================================================
-Go Dice — Codex mod
+Physical Dice (GoDice + Pixels) — Codex integration
 ================================================================
 
 Intercepts Codex roll dialogs and routes the dice through a local
-HTTP service (the Python "Codex GoDice Bridge"). The physical
-GoDice pass their face values engine via rollArgs.forcedDice, 
+HTTP service (the Python "Codex Dice Bridge"). The physical
+dice (GoDice, Pixels) pass their face values to the engine via
+rollArgs.forcedDice, 
 and the engine resolves the original roll expression as if it had 
 rolled those values itself — populating rollInfo.rolls, naturalRoll, 
 nat1/nat20, total, tier, and firing the crit audio cue when appropriate.
 
-PAIRED WITH: codex-godice-bridge (Python). The HTTP contract is
-documented in that repo's README. Both must update together when
-the contract changes.
+PAIRED WITH: dice-bridge/ in the DMHub repo (Python). The HTTP
+contract is documented in its README. Both must update together
+when the contract changes.
 
 USER SURFACE:
   - Settings panel ("General" section) provides the toggle, the
@@ -623,7 +624,7 @@ end
 
 -- Start/stop the bridge process alongside the checkbox. The engine
 -- resolves the executable itself (the bridgepath preference below, or
--- godice-bridge.exe next to the player executable) so this API can't be
+-- dice-bridge.exe next to the player executable) so this API can't be
 -- pointed at an arbitrary binary. Guarded for engine builds that predate
 -- dmhub.StartDiceBridge. `announce` posts feedback to chat -- pass false for
 -- non-interactive calls (e.g. startup auto-start) so a normal game load stays
@@ -635,11 +636,11 @@ local function syncBridgeProcess(enabled, announce)
                 -- The bridge runs windowless, so without this there is no
                 -- visible sign the checkbox did anything.
                 if announce then
-                    chatNotify("GoDice bridge started. Wake your dice (give them a shake) and they will connect within a few seconds -- check with /godice status.")
+                    chatNotify("Dice bridge started. Wake your dice (give them a shake) and they will connect within a few seconds -- check with /godice status.")
                 end
             else
                 if announce then
-                    chatNotify("Could not start the GoDice bridge. Set 'Physical Dice Bridge Program' in settings to the bridge executable, or start it manually.")
+                    chatNotify("Could not start the dice bridge. Set 'Physical Dice Bridge Program' in settings to the bridge executable, or start it manually.")
                 end
             end
         end
@@ -648,7 +649,7 @@ local function syncBridgeProcess(enabled, announce)
             dmhub.StopDiceBridge()
         end
         if announce then
-            chatNotify("GoDice bridge stopped.")
+            chatNotify("Dice bridge stopped.")
         end
     end
 end
@@ -667,12 +668,12 @@ local g_externalDiceEnabled = setting{
 }
 
 -- Where the bridge executable lives. Read by the ENGINE (DiceBridgeProcess),
--- not by this mod. Empty means "godice-bridge.exe next to the player
+-- not by this mod. Empty means "dice-bridge.exe next to the player
 -- executable"; during development point it at your built bridge.exe.
 local g_externalDiceBridgePath = setting{
     id = SETTING_BRIDGEPATH,
     description = "Physical Dice Bridge Program",
-    help = "Path to the GoDice bridge executable. Leave empty to use godice-bridge.exe next to the Codex executable.",
+    help = "Path to the dice bridge executable. Leave empty to use dice-bridge.exe next to the Codex executable.",
     characterLimit = 400,
     editor = "input",
     storage = "preference",
@@ -959,7 +960,7 @@ local function runBridgeRoll(diceList, opts)
             log("falling back to virtual roll: %s", tostring(reason))
             local chatLib = rawget(_G, "chat")
             if chatLib and chatLib.Send then
-                chatLib.Send("GoDice: " .. tostring(reason) .. " -- rolling virtually.")
+                chatLib.Send("Physical dice: " .. tostring(reason) .. " -- rolling virtually.")
             end
             opts.onVirtual()
         end)
@@ -1184,7 +1185,7 @@ local function cmdStatus()
     CGB.bridgeStatus(function(ok, body)
         if ok and body then
             chat.Send(string.format(
-                "GoDice bridge: ok=%s version=%s dice=%d pending=%d (mod enabled=%s url=%s)",
+                "Dice bridge: ok=%s version=%s dice=%d pending=%d (mod enabled=%s url=%s)",
                 tostring(body.ok),
                 tostring(body.version),
                 body.dice_count or 0,
@@ -1196,7 +1197,7 @@ local function cmdStatus()
                 chat.Send(string.format("  hook %s: %s", name, present and "registered" or "missing"))
             end
         else
-            chat.Send("GoDice bridge: unreachable (" .. tostring(body) .. ")")
+            chat.Send("Dice bridge: unreachable (" .. tostring(body) .. ")")
         end
     end)
 end
@@ -1205,7 +1206,7 @@ local commandsLib = rawget(_G, "Commands")
 if commandsLib and commandsLib.RegisterMacro then
     commandsLib.RegisterMacro{
         name = "godice",
-        summary = "control the GoDice bridge mod",
+        summary = "control the dice bridge integration",
         doc = "Usage: /godice [status|on|off|debug on|debug off|probe|register]\n"
             .. "  status     — show bridge health and registered hooks\n"
             .. "  on / off   — enable/disable roll interception (writes the preference)\n"
@@ -1242,13 +1243,13 @@ if commandsLib and commandsLib.RegisterMacro then
                 cmdStatus()
             elseif sub == "on" then
                 dmhub.SetSettingValue(SETTING_ENABLED, true)
-                chat.Send("GoDice bridge: ENABLED (preference saved)")
+                chat.Send("Dice bridge: ENABLED (preference saved)")
             elseif sub == "off" then
                 dmhub.SetSettingValue(SETTING_ENABLED, false)
-                chat.Send("GoDice bridge: DISABLED (preference saved)")
+                chat.Send("Dice bridge: DISABLED (preference saved)")
             elseif sub == "debug" then
                 CGB.debugDump = (parts[2] == "on")
-                chat.Send("GoDice debug dump: " .. (CGB.debugDump and "on" or "off"))
+                chat.Send("Dice bridge debug dump: " .. (CGB.debugDump and "on" or "off"))
             elseif sub == "probe" then
                 local rd = rawget(_G, "RollDialog")
                 local hook = rd and rd.OnBeforeRoll

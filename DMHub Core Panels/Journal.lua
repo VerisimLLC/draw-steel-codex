@@ -90,24 +90,58 @@ Commands.RegisterMacro{
             return
         end
 
+        local card = MarkdownDocument.CreateGlossaryCard(best, {
+            pinned = true,
+            close = function()
+                gui.CloseModal()
+            end,
+        })
+        card.selfStyle.halign = "left"
+        card.selfStyle.valign = "top"
+        --hidden until placed at the cursor (below), so it never flashes at
+        --the default position.
+        card.selfStyle.opacity = 0
+
+        --full-screen wrapper: places the card at the mouse position once
+        --layout has run, and closes on click-away or escape.
         gui.ShowModal(gui.Panel{
             styles = ThemeEngine.GetStyles(),
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            valign = "center",
-            flow = "vertical",
+            width = "100%",
+            height = "100%",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
             captureEscape = true,
             escapePriority = EscapePriority.DMHUB_POPUP,
             escape = function(element)
                 gui.CloseModal()
             end,
-            MarkdownDocument.CreateGlossaryCard(best, {
-                pinned = true,
-                close = function()
-                    gui.CloseModal()
-                end,
-            }),
+            press = function(element)
+                gui.CloseModal()
+            end,
+            create = function(element)
+                element:ScheduleEvent("placeGlossaryCard", 0.02)
+            end,
+            placeGlossaryCard = function(element)
+                local w = element.renderedWidth or 0
+                local h = element.renderedHeight or 0
+                local px, py = nil, nil
+                pcall(function()
+                    local p = element.mousePoint
+                    if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                        px = p.x * w
+                        py = (1 - p.y) * h
+                    end
+                end)
+                if px == nil or w <= 0 then
+                    --cursor unavailable: fall back to center.
+                    px = w * 0.5 - 190
+                    py = h * 0.4
+                end
+                card.x = math.max(8, math.min(px + 10, w - 400))
+                card.y = math.max(8, math.min(py - 40, h - 280))
+                card.selfStyle.opacity = 1
+            end,
+            card,
         })
     end,
 }

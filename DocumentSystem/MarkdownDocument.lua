@@ -2604,10 +2604,11 @@ function MarkdownDocument.FormatRichText(text, options)
 end
 
 --------------------------------------------------------------------------------
--- Glossary hints: rules terms in rendered documents get a whisper-quiet
--- ink-tint wash and act as glossary: link regions. Hovering (with dwell)
--- shows the definition card; clicking pins it. Design brief:
--- glossary-hints-brief.md (locked 2026-07-12).
+-- Glossary hints: rules terms in rendered documents get the design
+-- system's broken-underline treatment (solid on hover/Bold) and act as
+-- glossary: link regions. Hovering (with dwell) shows the definition
+-- card; clicking pins it. Design brief: glossary-hints-brief.md (locked
+-- 2026-07-12; visual updated to the broken underline 2026-07-13).
 --
 -- The pass runs at label-text assembly time inside RenderMarkdownTokens'
 -- MakeTextLabel path only (never a whole-tree walk), display mode only,
@@ -2623,12 +2624,13 @@ local g_glossaryToastSeen = setting{
     storage = "preference",
 }
 
---Off / Subtle / Bold. Subtle is the signed default (#ffffff24-weight).
+--Off / Subtle / Bold. Subtle (broken underline) is the default; Bold is
+--a solid underline.
 local g_glossaryHintsSetting
 g_glossaryHintsSetting = setting{
     id = "glossaryhints",
     description = "Glossary hints in documents",
-    help = "Softly highlight rules terms in documents. Hover for the definition, click to pin it.",
+    help = "Softly underline rules terms in documents. Hover for the definition, click to pin it.",
     storage = "preference",
     section = "general",
     editor = "dropdown",
@@ -2648,33 +2650,48 @@ g_glossaryHintsSetting = setting{
 
 MarkdownDocument.GlossaryHintsSetting = g_glossaryHintsSetting
 
---alpha for the wash at each visibility step, and the brighter hover state.
-local GLOSSARY_WASH_ALPHA = { subtle = 0x24, bold = 0x55 }
-local GLOSSARY_HOVER_ALPHA = { subtle = 0x40, bold = 0x7a }
 local GLOSSARY_DWELL = 0.35        --hover time before the card shows.
 local GLOSSARY_HYSTERESIS = 0.15   --hover gaps shorter than this accumulate.
 local GLOSSARY_HIDE_GRACE = 0.30   --card survives this much dehover.
 
---Compute the wash hex for the current setting step from the page's ink
---color ("#rrggbb..." or nil for the default near-white ink).
-local function GlossaryWashColor(inkColor, hover)
-    local step = g_glossaryHintsSetting:Get()
-    local alphaTable = GLOSSARY_WASH_ALPHA
-    if hover then
-        alphaTable = GLOSSARY_HOVER_ALPHA
-    end
-    local alpha = alphaTable[step] or alphaTable.subtle
-    local rgb = "ffffff"
-    if inkColor ~= nil then
-        local ok, c = pcall(core.Color, inkColor)
-        if ok and c ~= nil then
-            rgb = string.format("%02x%02x%02x",
-                math.floor((c.r or 1) * 255 + 0.5),
-                math.floor((c.g or 1) * 255 + 0.5),
-                math.floor((c.b or 1) * 255 + 0.5))
+--Broken underline (the design system's treatment for term hints): TMP has
+--no dashed-underline tag, so the break is literal - alternate 2-character
+--<u> runs with 1-character gaps. No characters are added or removed, so
+--layout is identical to the plain span. Spans are ASCII by construction
+--(the matcher's word pattern), so byte slicing is safe. Spaces are never
+--underlined; they read as natural breaks in multi-word terms.
+local function GlossaryBrokenUnderline(span)
+    local out = {}
+    local i = 1
+    local n = #span
+    while i <= n do
+        if string.sub(span, i, i) == " " then
+            out[#out + 1] = " "
+            i = i + 1
+        else
+            local j = math.min(i + 1, n)
+            if string.sub(span, j, j) == " " then
+                j = i
+            end
+            out[#out + 1] = "<u>" .. string.sub(span, i, j) .. "</u>"
+            i = j + 1
+            --one-character gap between runs.
+            if i <= n and string.sub(span, i, i) ~= " " then
+                out[#out + 1] = string.sub(span, i, i)
+                i = i + 1
+            end
         end
     end
-    return string.format("#%s%02x", rgb, alpha)
+    return table.concat(out)
+end
+
+--The hinted-term treatment for the current setting step: Subtle = broken
+--underline, Bold = solid underline.
+local function GlossaryUnderlineForm(span)
+    if g_glossaryHintsSetting:Get() == "bold" then
+        return "<u>" .. span .. "</u>"
+    end
+    return GlossaryBrokenUnderline(span)
 end
 
 --Term index: lowercase first word -> candidate entries sorted longest
@@ -2731,10 +2748,10 @@ local function IsCapitalized(word)
 end
 
 --Mark glossary terms inside one plain-text segment (no tags). washed maps
---termid -> true once its wash has been spent for this label. Every match
---becomes a <link=glossary:id> region; the first match of each term also
---gets the wash <mark>. Returns the rewritten segment.
-local function GlossaryMarkSegment(seg, index, washed, washHex)
+--termid -> true once its underline has been spent for this label. Every
+--match becomes a <link=glossary:id> region; the first match of each term
+--also gets the underline treatment. Returns the rewritten segment.
+local function GlossaryMarkSegment(seg, index, washed)
     --tokenize words with positions.
     local words = {}
     local searchPos = 1
@@ -2812,7 +2829,8 @@ local function GlossaryMarkSegment(seg, index, washed, washHex)
                 out[#out + 1] = string.format("<link=glossary:%s>%s</link>", matched.id, span)
             else
                 washed[matched.id] = true
-                out[#out + 1] = string.format("<mark=%s><link=glossary:%s>%s</link></mark>", washHex, matched.id, span)
+                out[#out + 1] = string.format("<link=glossary:%s>%s</link>",
+                    matched.id, GlossaryUnderlineForm(span))
             end
             copied = lastWord.e + 1
             k = k + #matched.words
@@ -2828,7 +2846,7 @@ end
 --anything inside an existing <link> or <size> run (size = skinned
 --headings), and raw markdown heading lines (# ...) which the engine
 --renders as headings in default-skin documents.
-local function ApplyGlossaryHints(text, washHex)
+local function ApplyGlossaryHints(text)
     if text == nil or text == "" then
         return text
     end
@@ -2880,7 +2898,7 @@ local function ApplyGlossaryHints(text, washHex)
                     if atLineStart and string.match(line, "^#+[ \t]") ~= nil then
                         segOut[#segOut + 1] = line
                     else
-                        segOut[#segOut + 1] = GlossaryMarkSegment(line, index, washed, washHex)
+                        segOut[#segOut + 1] = GlossaryMarkSegment(line, index, washed)
                     end
                     if nl ~= nil then
                         segOut[#segOut + 1] = "\n"
@@ -3043,29 +3061,11 @@ local g_glossHover = {
     shown = false,    --tooltip currently displayed.
 }
 
---brighten/unbrighten the wash of one term's marked span by rewriting the
---label's rich text in place (identical layout; only the mark alpha moves).
---The rgb is taken from the existing mark so skinned inks stay correct.
-local function GlossarySetBright(element, link, bright)
-    pcall(function()
-        local text = element.text
-        if text == nil then
-            return
-        end
-        local id = string.sub(link, 10) --strip "glossary:"
-        local step = g_glossaryHintsSetting:Get()
-        local alphaTable = GLOSSARY_WASH_ALPHA
-        if bright then
-            alphaTable = GLOSSARY_HOVER_ALPHA
-        end
-        local alpha = string.format("%02x", alphaTable[step] or alphaTable.subtle)
-        local pattern = "<mark=#(%x%x%x%x%x%x)%x%x>(<link=glossary:" .. id .. ">)"
-        local newText, count = string.gsub(text, pattern, "<mark=#%1" .. alpha .. ">%2", 1)
-        if count > 0 then
-            element.text = newText
-        end
-    end)
-end
+--NOTE: there is deliberately no hover restyle of the hinted span.
+--Reassigning label.text mid-hover resets the engine's link-hover state
+--(linkHovered reads nil until the mouse moves), which cascades into a
+--phantom dehover that kills the card. The hover response is the card
+--itself; the underline never changes under the cursor.
 
 --The hover card is NOT an engine tooltip: tooltips anchor to the whole
 --label panel (a full-width paragraph), which reads as center-screen. The
@@ -3089,7 +3089,6 @@ end
 
 local function GlossaryHintHover(element, link)
     local now = dmhub.Time()
-    GlossarySetBright(element, link, true)
 
     local resuming = g_glossHover.link == link and g_glossHover.leftAt ~= nil
         and (now - g_glossHover.leftAt) <= GLOSSARY_HYSTERESIS
@@ -3142,7 +3141,6 @@ GlossaryRevealCard = function(element)
 end
 
 local function GlossaryHintDehover(element, link)
-    GlossarySetBright(element, link, false)
     if g_glossHover.link ~= link then
         return
     end
@@ -3178,8 +3176,12 @@ local function StripGlossaryMarks(root)
         pcall(function() text = panel.text end)
         if type(text) == "string" and string.find(text, "<link=glossary:", 1, true) ~= nil then
             local newText = text
+            --legacy wash form (pooled labels from an older render).
             newText = string.gsub(newText, "<mark=#%x+><link=glossary:[^>]*>(.-)</link></mark>", "%1")
-            newText = string.gsub(newText, "<link=glossary:[^>]*>(.-)</link>", "%1")
+            --underline form: unwrap the link and its <u> runs.
+            newText = string.gsub(newText, "<link=glossary:[^>]*>(.-)</link>", function(inner)
+                return (string.gsub(inner, "</?u>", ""))
+            end)
             pcall(function() panel.text = newText end)
         end
         local kids = nil
@@ -3851,7 +3853,7 @@ local function RenderMarkdownTokens(ctx, tokens)
 
                 local finalText = ApplySkinToText(ApplyInlineClasses(text, resolvedClasses), resolvedSkin)
                 if ctx.render.glossaryHints then
-                    finalText = ApplyGlossaryHints(finalText, ctx.render.glossaryWash)
+                    finalText = ApplyGlossaryHints(finalText)
                 end
                 textPanel.text = finalText
                 newTextPanels[#newTextPanels + 1] = textPanel
@@ -3939,7 +3941,7 @@ local function RenderMarkdownTokens(ctx, tokens)
                         resolvedSkin,
                         { ruledLevels = ruledLevels })
                     if ctx.render.glossaryHints then
-                        finalText = ApplyGlossaryHints(finalText, ctx.render.glossaryWash)
+                        finalText = ApplyGlossaryHints(finalText)
                     end
                     label.text = finalText
                     newTextPanels[#newTextPanels + 1] = label
@@ -4878,7 +4880,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                     valign = "center",
                     fontSize = 14,
                     color = "#e8e8e8",
-                    text = "Softly highlighted terms have glossary definitions - hover to read, click to pin.",
+                    text = "Softly underlined terms have glossary definitions - hover to read, click to pin.",
                 },
                 gui.Label{
                     width = "auto",
@@ -5001,10 +5003,13 @@ function MarkdownDocument.DisplayPanel(self, args)
 
             --Glossary hints: top-level interactive documents only (no
             --embeds, no preview panels), gated by the setting and the
-            --per-view mute. The wash color derives from the page's ink.
+            --per-view mute. Suspended while find-in-page has a term: the
+            --broken-underline runs would split hinted words so find could
+            --never match them (find wins; hints return when cleared).
             local glossaryOn = embedDepth == 0
                 and (not m_noninteractive)
                 and (not m_glossaryMuted)
+                and m_findTerm == nil
                 and g_glossaryHintsSetting:Get() ~= "off"
 
             ctx.render = {
@@ -5016,7 +5021,6 @@ function MarkdownDocument.DisplayPanel(self, args)
                 usesAlign = SkinUsesAlign(resolvedSkin),
                 pageColor = pageColor,
                 glossaryHints = glossaryOn,
-                glossaryWash = glossaryOn and GlossaryWashColor(SkinColor((resolvedSkin.body or {}).color), false) or nil,
             }
 
             local children = RenderMarkdownTokens(ctx, tokens)

@@ -1718,8 +1718,38 @@ function CreateSettingsScreen(dialog, args)
 								width = 240, height = 40, fontSize = 20, halign = "left", vmargin = 4,
 								text = "Connect MCDM Shopify Store",
 								click = function(element)
-									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
-									StartShopifyLinkPoll()
+									-- Ask the backend for the Shopify authorize URL using the
+									-- codex's own credentials (net.Post attaches them), then open
+									-- the browser straight into Shopify's approve screen. The
+									-- OAuth callback lands the browser on /link-store afterwards;
+									-- the link poll flips this section to Connected on its own.
+									shopifyStatusLabel.text = "Starting the connection..."
+									shopifyConnectButton:SetClass("collapsed", true)
+									shopifyRefreshButton:SetClass("collapsed", true)
+									shopifyErrorLabel:SetClass("collapsed", true)
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/shopifyAuthStart",
+										data = { returnTo = "/link-store" },
+										success = function(data)
+											if not shopifyStatusLabel.valid then return end
+											if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
+												dmhub.OpenURL(data.authorizeUrl)
+												StartShopifyLinkPoll()
+											else
+												shopifyStatusLabel.text = "Could not start the connection. Try again."
+												shopifyConnectButton:SetClass("collapsed", false)
+												shopifyRefreshButton:SetClass("collapsed", false)
+											end
+										end,
+										error = function(msg)
+											if not shopifyStatusLabel.valid then return end
+											shopifyStatusLabel.text = "Could not start the connection. Try again."
+											shopifyErrorLabel.text = "Error: " .. tostring(msg)
+											shopifyErrorLabel:SetClass("collapsed", false)
+											shopifyConnectButton:SetClass("collapsed", false)
+											shopifyRefreshButton:SetClass("collapsed", false)
+										end,
+									}
 								end,
 							}
 

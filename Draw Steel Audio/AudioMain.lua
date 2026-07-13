@@ -867,7 +867,7 @@ audio.SoundEvent{
     name = "Dice.Numglow_Generic",
     mixgroup = "dice",
     sounds = {"dice/Dice_NumGlow_Generic_01.wav","dice/Dice_NumGlow_Generic_02.wav","dice/Dice_NumGlow_Generic_03.wav"},
-    volume = 0.01,
+    volume = 0.02,
     ignoreDuplicates = 0.01,
 }
 
@@ -877,7 +877,7 @@ audio.SoundEvent{
     name = "Dice.Numglow_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/Dice_NumGlow_BlackAsh_01.wav","dice/cust/Dice_NumGlow_BlackAsh_02.wav","dice/cust/Dice_NumGlow_BlackAsh_03.wav","dice/cust/Dice_NumGlow_BlackAsh_04.wav","dice/cust/Dice_NumGlow_BlackAsh_05.wav"},
-    volume = 0.1,
+    volume = 0.05,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
 }
@@ -897,7 +897,7 @@ audio.SoundEvent{
     name = "Dice.Teleport_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/Dice_Teleport_BlackAsh_01.wav","dice/cust/Dice_Teleport_BlackAsh_02.wav","dice/cust/Dice_Teleport_BlackAsh_03.wav","dice/cust/Dice_Teleport_BlackAsh_04.wav","dice/cust/Dice_Teleport_BlackAsh_05.wav"},
-    volume = 0.2,
+    volume = 0.1,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
 }
@@ -907,7 +907,7 @@ audio.SoundEvent{
     name = "Dice.Remove_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/Dice_Remove_BlackAsh_01.wav","dice/cust/Dice_Remove_BlackAsh_02.wav","dice/cust/Dice_Remove_BlackAsh_03.wav","dice/cust/Dice_Remove_BlackAsh_04.wav","dice/cust/Dice_Remove_BlackAsh_05.wav"},
-    volume = 0.01,
+    volume = 0.02,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
 }
@@ -1090,7 +1090,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/DiceImp_BlackAsh_Hard_v1_01.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_02.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_03.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_04.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_05.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_06.wav"},
-    volume = 0.05,
+    volume = 0.02,
     pitchRand = 0.0,
 }
 
@@ -1098,7 +1098,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/DiceImp_BlackAsh_Mild_v1_01.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_02.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_03.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_04.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_05.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_06.wav"},
-    volume = 0.15,
+    volume = 0.-5,
     pitchRand = 0.0,
 }
 
@@ -1173,7 +1173,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_Spectral",
     mixgroup = "dice",
     sounds = {"dice/spectral/DiceImp_spectral_Hard_01.wav","dice/spectral/DiceImp_spectral_Hard_02.wav","dice/spectral/DiceImp_spectral_Hard_03.wav","dice/spectral/DiceImp_spectral_Hard_04.wav","dice/spectral/DiceImp_spectral_Hard_05.wav","dice/spectral/DiceImp_spectral_Hard_06.wav"},
-    volume = 0.02,
+    volume = 0.015,
     pitchRand = 0.1,
 }
 
@@ -1181,7 +1181,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_Spectral",
     mixgroup = "dice",
     sounds = {"dice/spectral/DiceImp_spectral_Mild_01.wav","dice/spectral/DiceImp_spectral_Mild_02.wav","dice/spectral/DiceImp_spectral_Mild_03.wav","dice/spectral/DiceImp_spectral_Mild_04.wav","dice/spectral/DiceImp_spectral_Mild_05.wav","dice/spectral/DiceImp_spectral_Mild_06.wav"},
-    volume = 0.02,
+    volume = 0.015,
     pitchRand = 0.1,
 }
 

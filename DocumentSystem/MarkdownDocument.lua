@@ -2933,10 +2933,10 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
                 classes = {"sizeS"},
                 halign = "right",
                 valign = "center",
-                lmargin = 6,
+                lmargin = 10,
                 fontSize = 13,
-                hpad = 8,
-                vpad = 2,
+                hpad = 14,
+                vpad = 5,
                 text = "Open",
                 click = function(element)
                     if options.close ~= nil then
@@ -3019,8 +3019,8 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
         halign = "right",
         valign = "center",
         fontSize = 13,
-        hpad = 8,
-        vpad = 2,
+        hpad = 14,
+        vpad = 5,
         text = "Share to Chat",
         click = function(element)
             chat.ShareData(term)
@@ -3033,7 +3033,7 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        vmargin = 2,
+        tmargin = 8,
         children = footerChildren,
     }
 

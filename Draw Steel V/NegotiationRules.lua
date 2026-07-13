@@ -1814,38 +1814,39 @@ local function CreateNegotiationStage(args)
         }
     end
 
+    --A HIDDEN panel still occupies its slot in the flow, so hiding these buttons
+    --on a client with no hero (the Director's) left a dead band inside the card.
+    --Build them in the refresh instead: no hero, no buttons, no reserved space.
     local actionsPanel = gui.Panel{
-        flow = "horizontal", width = "100%", height = "auto", vmargin = 8,
-        gui.Button{
-            classes = { "sizeM" }, width = 296, height = 36,
-            text = "Make your case",
-            refreshNeg = function(element, live)
-                local blocked = live:try_get("pending", false)
-                    or (live.floor ~= "" and not IHaveFloor(live))
-                    or NegotiationRules.Terminal(live.interest, live.patience) ~= nil
-                    or dmhub.currentToken == nil
-                element:SetClass("hidden", dmhub.currentToken == nil)
-                element:SetClass("disabled", blocked and true or false)
-            end,
-            click = function()
-                MakeRoll("argue")
-            end,
-        },
-        gui.Button{
-            classes = { "sizeM" }, width = 190, height = 36, lmargin = 12,
-            text = "Read them",
-            refreshNeg = function(element, live)
-                local blocked = live:try_get("pending", false)
-                    or (live.floor ~= "" and not IHaveFloor(live))
-                    or NegotiationRules.Terminal(live.interest, live.patience) ~= nil
-                    or dmhub.currentToken == nil
-                element:SetClass("hidden", dmhub.currentToken == nil)
-                element:SetClass("disabled", blocked and true or false)
-            end,
-            click = function()
-                MakeRoll("read")
-            end,
-        },
+        flow = "horizontal", width = "100%", height = "auto",
+        refreshNeg = function(element, live)
+            if dmhub.currentToken == nil then
+                element.children = {}
+                element.selfStyle.vmargin = 0
+                return
+            end
+            element.selfStyle.vmargin = 8
+
+            local blocked = live:try_get("pending", false)
+                or (live.floor ~= "" and not IHaveFloor(live))
+                or NegotiationRules.Terminal(live.interest, live.patience) ~= nil
+
+            local function ActionButton(text, width, lmargin, kind)
+                return gui.Button{
+                    classes = { "sizeM", blocked and "disabled" or nil },
+                    width = width, height = 36, lmargin = lmargin,
+                    text = text,
+                    click = function()
+                        MakeRoll(kind)
+                    end,
+                }
+            end
+
+            element.children = {
+                ActionButton("Make your case", 296, 0, "argue"),
+                ActionButton("Read them", 190, 12, "read"),
+            }
+        end,
     }
 
     --The table, as the table sees itself: everyone at the negotiation, in their
@@ -2204,10 +2205,14 @@ local function CreateNegotiationStage(args)
         --read as a gutter: at 24 the composer card looked stuck to the column.
         gui.Panel{
             flow = "vertical", width = 400, height = "100%", rmargin = 44,
+            --identity sits at the top, the read on him sits against the offer at
+            --the bottom. Previously everything crowded the top of an 820 dialog
+            --and the middle was a void.
+            identityPanel,
             gui.Panel{
-                flow = "vertical", width = "100%", height = "100%-250",
+                flow = "vertical", width = "100%", height = "100%-320",
+                valign = "bottom",
                 vscroll = true,
-                identityPanel,
                 bandsPanel,
                 patienceCue,
                 patienceBudget,
@@ -2247,10 +2252,19 @@ local function CreateNegotiationStage(args)
                 fontSize = 12, color = "#7a7468",
                 text = "HOW IT'S GOING",
             },
+            --the conversation takes whatever the composer leaves: it is the one
+            --thing here that grows, so it should own the slack, not a void.
             gui.Panel{
                 flow = "vertical", width = "100%", height = "100%-410",
                 valign = "top",
                 vscroll = true,
+                refreshNeg = function(element)
+                    --a client with no hero has no action buttons, so the card is
+                    --shorter by exactly that row. Give the difference back to the
+                    --conversation instead of leaving it as dead air.
+                    element.selfStyle.height = (dmhub.currentToken ~= nil)
+                        and "100%-410" or "100%-360"
+                end,
                 historyPanel,
             },
         },

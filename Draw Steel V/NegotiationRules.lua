@@ -2014,8 +2014,11 @@ local function CreateNegotiationStage(args)
         --column's buttons.
         --left column: identity, the read on the NPC, then the standing offer
         --pinned to the bottom (it is the thing the table decides on).
+        --400 + 44 gutter + 596 = 1040, inside the dialog's 1060 usable width.
+        --The gutter has to beat the dialog's own 20 edge padding by enough to
+        --read as a gutter: at 24 the composer card looked stuck to the column.
         gui.Panel{
-            flow = "vertical", width = 400, height = "100%", rmargin = 24,
+            flow = "vertical", width = 400, height = "100%", rmargin = 44,
             gui.Panel{
                 flow = "vertical", width = "100%", height = "100%-220",
                 vscroll = true,
@@ -2031,7 +2034,7 @@ local function CreateNegotiationStage(args)
         --height and scrolls inside it (height "100%" on the scroller would
         --exceed the column and spill past the dialog's bottom edge).
         gui.Panel{
-            flow = "vertical", width = 616, height = "100%",
+            flow = "vertical", width = 596, height = "100%",
             composerStatus,
             gui.Panel{
                 flow = "vertical", width = "100%", height = "auto",

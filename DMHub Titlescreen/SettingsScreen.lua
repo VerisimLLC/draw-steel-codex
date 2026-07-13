@@ -1688,7 +1688,13 @@ function CreateSettingsScreen(dialog, args)
 							local shopifyConfirmButton
 							local shopifyErrorLabel
 							local shopifyRefreshButton
+							local shopifyCancelWaitButton
 							local RefreshShopifyStatus
+							local ApplyShopifyStatusData
+							local StartShopifyLinkPoll
+							-- Bumped to retire any in-flight link-poll timers; every scheduled
+							-- tick compares its captured generation against this before acting.
+							local m_shopifyPollGeneration = 0
 							local shopifyOrdersToggle
 							local shopifyOrdersListPanel
 							local shopifyOrdersLoaded = false
@@ -1713,6 +1719,16 @@ function CreateSettingsScreen(dialog, args)
 								text = "Connect MCDM Shopify Store",
 								click = function(element)
 									dmhub.OpenURL("https://draw-steel-codex.com/more/account")
+									StartShopifyLinkPoll()
+								end,
+							}
+
+							shopifyCancelWaitButton = gui.Button{
+								classes = {"collapsed"},
+								width = 120, height = 30, fontSize = 14, halign = "left", vmargin = 4,
+								text = "Cancel",
+								click = function(element)
+									RefreshShopifyStatus()
 								end,
 							}
 
@@ -1786,40 +1802,49 @@ function CreateSettingsScreen(dialog, args)
 								end,
 							}
 
+							-- Render a /shopifyStatus response into the section UI. Shared by
+							-- the one-shot refresh and the post-Connect polling loop.
+							ApplyShopifyStatusData = function(data)
+								shopifyRefreshButton:SetClass("collapsed", false)
+								if type(data) ~= "table" or not data.ok then
+									shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
+									return
+								end
+								if data.linked then
+									shopifyStatusLabel.text = (data.email ~= nil and data.email ~= "")
+										and string.format("MCDM Shopify Store: Connected as %s", data.email)
+										or "MCDM Shopify Store: Connected"
+									shopifyDisconnectButton:SetClass("collapsed", false)
+									shopifyOrdersToggle:SetClass("collapsed", false)
+								else
+									shopifyStatusLabel.text = "Connect your MCDM Shopify Store account to link your purchases."
+									shopifyConnectButton:SetClass("collapsed", false)
+									shopifyOrdersToggle:SetClass("collapsed", true)
+									shopifyOrdersListPanel:SetClass("collapsed", true)
+									ordersShown = false
+									shopifyOrdersLoaded = false
+									ordersCount = nil
+									UpdateOrdersToggleText()
+								end
+							end
+
 							-- Fetch link status from the backend (Lua cannot read /shopLinks directly).
-							-- Called on panel create, on Refresh, and after a successful disconnect.
+							-- Called on panel create, on Refresh, on Cancel while waiting, and
+							-- after a successful disconnect. Also retires any active link poll.
 							RefreshShopifyStatus = function()
+								m_shopifyPollGeneration = m_shopifyPollGeneration + 1
 								shopifyStatusLabel.text = "Checking MCDM Shopify Store..."
 								shopifyConnectButton:SetClass("collapsed", true)
 								shopifyDisconnectButton:SetClass("collapsed", true)
 								shopifyConfirmPanel:SetClass("collapsed", true)
 								shopifyRefreshButton:SetClass("collapsed", true)
 								shopifyErrorLabel:SetClass("collapsed", true)
+								shopifyCancelWaitButton:SetClass("collapsed", true)
 								net.Post{
 									url = dmhub.cloudFunctionsBaseUrl .. "/shopifyStatus",
 									data = {},
 									success = function(data)
-										shopifyRefreshButton:SetClass("collapsed", false)
-										if type(data) ~= "table" or not data.ok then
-											shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
-											return
-										end
-										if data.linked then
-											shopifyStatusLabel.text = (data.email ~= nil and data.email ~= "")
-												and string.format("MCDM Shopify Store: Connected as %s", data.email)
-												or "MCDM Shopify Store: Connected"
-											shopifyDisconnectButton:SetClass("collapsed", false)
-											shopifyOrdersToggle:SetClass("collapsed", false)
-										else
-											shopifyStatusLabel.text = "Connect your MCDM Shopify Store account to link your purchases."
-											shopifyConnectButton:SetClass("collapsed", false)
-											shopifyOrdersToggle:SetClass("collapsed", true)
-											shopifyOrdersListPanel:SetClass("collapsed", true)
-											ordersShown = false
-											shopifyOrdersLoaded = false
-											ordersCount = nil
-											UpdateOrdersToggleText()
-										end
+										ApplyShopifyStatusData(data)
 									end,
 									error = function(msg)
 										shopifyRefreshButton:SetClass("collapsed", false)
@@ -1828,6 +1853,69 @@ function CreateSettingsScreen(dialog, args)
 										shopifyErrorLabel:SetClass("collapsed", false)
 									end,
 								}
+							end
+
+							-- After Connect opens the browser, poll link status so the section
+							-- flips to Connected on its own when the user finishes the web flow.
+							-- Transient request errors do not end the wait; only success, Cancel,
+							-- another refresh, or the deadline do.
+							StartShopifyLinkPoll = function()
+								m_shopifyPollGeneration = m_shopifyPollGeneration + 1
+								local generation = m_shopifyPollGeneration
+								local deadline = dmhub.Time() + 180
+
+								shopifyStatusLabel.text = "Waiting for you to finish connecting in your browser..."
+								shopifyConnectButton:SetClass("collapsed", true)
+								shopifyRefreshButton:SetClass("collapsed", true)
+								shopifyErrorLabel:SetClass("collapsed", true)
+								shopifyCancelWaitButton:SetClass("collapsed", false)
+
+								local function PollExpired()
+									-- The settings sheet may have been destroyed while a tick was
+									-- scheduled; a dead panel is not safe to touch at all.
+									return mod.unloaded or generation ~= m_shopifyPollGeneration or (not shopifyStatusLabel.valid)
+								end
+
+								local function FinishTimedOut()
+									m_shopifyPollGeneration = m_shopifyPollGeneration + 1
+									shopifyCancelWaitButton:SetClass("collapsed", true)
+									shopifyStatusLabel.text = "Connection timed out. Try again, or click Refresh after finishing in your browser."
+									shopifyConnectButton:SetClass("collapsed", false)
+									shopifyRefreshButton:SetClass("collapsed", false)
+								end
+
+								local Tick
+								Tick = function()
+									if PollExpired() then return end
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/shopifyStatus",
+										data = {},
+										success = function(data)
+											if PollExpired() then return end
+											if type(data) == "table" and data.ok and data.linked then
+												m_shopifyPollGeneration = m_shopifyPollGeneration + 1
+												shopifyCancelWaitButton:SetClass("collapsed", true)
+												ApplyShopifyStatusData(data)
+												return
+											end
+											if dmhub.Time() > deadline then
+												FinishTimedOut()
+												return
+											end
+											dmhub.Schedule(4, Tick)
+										end,
+										error = function(msg)
+											if PollExpired() then return end
+											if dmhub.Time() > deadline then
+												FinishTimedOut()
+												return
+											end
+											dmhub.Schedule(4, Tick)
+										end,
+									}
+								end
+
+								Tick()
 							end
 
 							UpdateOrdersToggleText = function()
@@ -1938,9 +2026,12 @@ function CreateSettingsScreen(dialog, args)
 								flow = "vertical", width = "100%", height = "auto", vmargin = 2,
 							}
 
+							-- minWidth rather than a fixed width: matches the Disconnect and
+							-- Refresh buttons at rest, but the label can grow so the counted
+							-- "Show purchases (N)" state never clips.
 							shopifyOrdersToggle = gui.Button{
 								classes = {"collapsed"},
-								width = "auto", height = 26, fontSize = 14, halign = "left", vmargin = 4,
+								width = "auto", minWidth = 120, hpad = 8, borderBox = true, height = 30, fontSize = 14, halign = "left", vmargin = 4,
 								text = "Show purchases",
 								click = function(element)
 									ordersShown = not ordersShown
@@ -2072,6 +2163,7 @@ function CreateSettingsScreen(dialog, args)
 								shopifyStatusLabel,
 								shopifyConnectButton,
 								shopifyDisconnectButton,
+								shopifyCancelWaitButton,
 								shopifyConfirmPanel,
 								shopifyRefreshButton,
 								shopifyErrorLabel,

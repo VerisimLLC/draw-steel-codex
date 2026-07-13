@@ -2716,6 +2716,31 @@ local function CreateTopBar()
                     text = "",
                 }
 
+                --optional free-text comments accompanying the rating, stored
+                --alongside the numeric answer as <questionid>_comments.
+                local commentsInput = gui.Input{
+                    width = 700,
+                    height = 90,
+                    fontSize = 15,
+                    multiline = true,
+                    characterLimit = 2000,
+                    textAlignment = "topleft",
+                    halign = "center",
+                    tmargin = 20,
+                    placeholderText = "Comments (optional)...",
+                    text = m_answers[qid .. "_comments"] or "",
+                }
+                m_commitPageInput = function()
+                    if commentsInput.valid then
+                        local text = commentsInput.text
+                        if text == nil or text == "" then
+                            m_answers[qid .. "_comments"] = nil
+                        else
+                            m_answers[qid .. "_comments"] = text
+                        end
+                    end
+                end
+
                 local result = gui.Panel{
                     width = "auto",
                     height = "auto",
@@ -2760,6 +2785,8 @@ local function CreateTopBar()
                     },
 
                     caption,
+
+                    commentsInput,
                 }
 
                 RefreshSelection()

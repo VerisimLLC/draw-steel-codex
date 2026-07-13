@@ -1639,7 +1639,11 @@ local function CreateNegotiationStage(args)
                 element.text = string.format("%s is making their case...",
                     tok ~= nil and tok.name or "Another hero")
             else
-                element.text = "The floor is open - make your case."
+                --the open floor is the RESTING state: the composer sitting there
+                --live already says it. This line only earns its space when it is
+                --telling you something you cannot see (someone else is speaking,
+                --the NPC is weighing it, the talking is done).
+                element.text = ""
             end
         end,
     }

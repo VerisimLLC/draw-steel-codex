@@ -1724,7 +1724,7 @@ local function CreateNegotiationStage(args)
 
                 children[#children + 1] = gui.Label{
                     classes = { "sizeS", "hoverable" },
-                    width = 172, height = "auto", vpad = 7, rmargin = 6,
+                    width = 164, height = "auto", vpad = 7, rmargin = 6,
                     textAlignment = "center", borderBox = true,
                     bgimage = "panels/square.png",
                     bgcolor = selected and "#ffffff1f" or "#00000000",
@@ -1813,7 +1813,7 @@ local function CreateNegotiationStage(args)
     local actionsPanel = gui.Panel{
         flow = "horizontal", width = "100%", height = "auto", vmargin = 8,
         gui.Button{
-            classes = { "sizeM" }, width = 318, height = 36,
+            classes = { "sizeM" }, width = 296, height = 36,
             text = "Make your case",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -1828,7 +1828,7 @@ local function CreateNegotiationStage(args)
             end,
         },
         gui.Button{
-            classes = { "sizeM" }, width = 202, height = 36, lmargin = 12,
+            classes = { "sizeM" }, width = 190, height = 36, lmargin = 12,
             text = "Read them",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -2171,8 +2171,12 @@ local function CreateNegotiationStage(args)
         --right column: composer card on top, history takes the remaining
         --height and scrolls inside it (height "100%" on the scroller would
         --exceed the column and spill past the dialog's bottom edge).
+        --400 + 44 gutter + 560 = 1004 inside the 1060 usable width, so the
+        --column pulls 56 back from the dialog's right edge. The children pack
+        --LEFT, so every spare pixel lands on the right - the column's width IS
+        --the right margin, and at 596 the composer card was hard against the frame.
         gui.Panel{
-            flow = "vertical", width = 596, height = "100%",
+            flow = "vertical", width = 560, height = "100%",
             composerStatus,
             gui.Panel{
                 flow = "vertical", width = "100%", height = "auto",

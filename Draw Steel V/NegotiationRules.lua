@@ -862,7 +862,12 @@ function NegotiationRun.ResolvePending(opts)
         local trait = opts.traitId ~= nil and NegotiationRun.TraitById(live, opts.traitId) or nil
         local repeated = false
         if opts.track == "appeal" and trait ~= nil then
+            --the motivation-once rule: the engine knows this one by itself.
             repeated = trait.used == true
+        elseif opts.track == "nomotivation" then
+            --the same-argument-twice rule: only the Director can judge whether
+            --this is a line the heroes have already tried, so they tell us.
+            repeated = opts.repeated == true
         end
 
         local d = NegotiationRules.Resolve{
@@ -1855,6 +1860,10 @@ local function CreateNegotiationStage(args)
     }
 
     --the offer: shape always standing, terms when revealed; accept row.
+    --The left column is 400 and this box pads 12 a side, so its children are
+    --sized to the 376 INNER width in px: a "100%" child would be measured
+    --against the full 400 and hang past the padded edge (see the column note).
+    local OFFER_W = 376
     local offerPanel = gui.Panel{
         flow = "vertical", width = "100%", height = "auto",
         valign = "bottom", vmargin = 8,
@@ -1880,7 +1889,7 @@ local function CreateNegotiationStage(args)
 
             children[#children + 1] = gui.Label{
                 classes = { "bold", "sizeS" },
-                width = "100%", height = "auto",
+                width = OFFER_W, height = "auto", halign = "left",
                 color = terminal ~= nil and "#e8a030" or "#7a7468",
                 text = heading,
             }
@@ -1893,7 +1902,8 @@ local function CreateNegotiationStage(args)
                     end
                     children[#children + 1] = gui.Label{
                         classes = { "sizeM" },
-                        width = "100%", height = "auto", textWrap = true, vmargin = 4,
+                        width = OFFER_W, height = "auto", halign = "left",
+                        textWrap = true, tmargin = 6, bmargin = 8,
                         text = terms,
                     }
 
@@ -1912,23 +1922,27 @@ local function CreateNegotiationStage(args)
                             accepts[#accepts + 1] = gui.Label{
                                 classes = { "sizeS" },
                                 width = "auto", height = "auto", rmargin = 12,
+                                halign = "left",
                                 fontSize = 12, color = col,
                                 text = string.format("%s  %s", token.name, word),
                             }
                         end
                     end
                     children[#children + 1] = gui.Panel{
-                        flow = "horizontal", width = "100%", height = "auto",
-                        wrap = true, vmargin = 4,
+                        flow = "horizontal", width = OFFER_W, height = "auto",
+                        halign = "left", wrap = true, bmargin = 6,
                         children = accepts,
                     }
 
                     local me = MyCharId()
                     if me ~= nil then
                         children[#children + 1] = gui.Panel{
-                            flow = "horizontal", width = "100%", height = "auto",
+                            flow = "horizontal", width = OFFER_W, height = "auto",
+                            halign = "left",
+                            --168 a side: the themed button carries its own
+                            --hmargin, so two 180s + the gap overran the 376.
                             gui.Button{
-                                classes = { "sizeS" }, width = "48%", height = 28,
+                                classes = { "sizeS" }, width = 168, height = 28, halign = "left",
                                 text = "Accept",
                                 click = function()
                                     NegotiationRun.Mutate("Accept offer", function(l)
@@ -1941,7 +1955,8 @@ local function CreateNegotiationStage(args)
                                 end,
                             },
                             gui.Button{
-                                classes = { "sizeS" }, width = "48%", height = 28, lmargin = 8,
+                                classes = { "sizeS" }, width = 168, height = 28,
+                                lmargin = 8, halign = "left",
                                 text = "Decline",
                                 click = function()
                                     NegotiationRun.Mutate("Decline offer", function(l)
@@ -1958,7 +1973,7 @@ local function CreateNegotiationStage(args)
                 else
                     children[#children + 1] = gui.Label{
                         classes = { "sizeS" },
-                        width = "100%", height = "auto", vmargin = 3,
+                        width = OFFER_W, height = "auto", halign = "left", tmargin = 6,
                         color = "#7a7468",
                         text = "He hasn't stated his terms yet.",
                     }
@@ -2094,6 +2109,7 @@ local function CreateNegotiationRunner()
     local m_trackTrait = nil  --trait id for appeal/pitfall
     local m_tier = nil        --override; nil = from the roll
     local m_lie = false
+    local m_repeat = false    --nomotivation track: they have made this argument before
 
     local runnerPanel
 
@@ -2398,6 +2414,9 @@ local function CreateNegotiationRunner()
                     press = function()
                         m_track = id
                         m_trackTrait = traitId
+                        if id ~= "nomotivation" then
+                            m_repeat = false
+                        end
                         Refresh()
                     end,
                 }
@@ -2452,7 +2471,12 @@ local function CreateNegotiationRunner()
 
             --outcome preview: exactly what Resolve will do (kills the tables).
             local previewTrait = m_trackTrait ~= nil and NegotiationRun.TraitById(live, m_trackTrait) or nil
-            local repeated = (m_track == "appeal") and previewTrait ~= nil and previewTrait.used == true
+            local repeated = false
+            if m_track == "appeal" then
+                repeated = previewTrait ~= nil and previewTrait.used == true
+            elseif m_track == "nomotivation" then
+                repeated = m_repeat
+            end
             local d = NegotiationRules.Resolve{
                 track = m_track,
                 tier = tier,
@@ -2477,6 +2501,23 @@ local function CreateNegotiationRunner()
                     fmt(d.interest), fmt(d.patience), NegotiationRules.bands[ni] or "", ni, np),
             }
 
+            --the repeat checkbox only exists on the track its rule lives on:
+            --a no-motivation argument the heroes have already made auto-lands
+            --on tier 1. (An already-appealed MOTIVATION needs no checkbox --
+            --the runner tracks that itself.)
+            if m_track == "nomotivation" then
+                cardChildren[#cardChildren + 1] = gui.Check{
+                    classes = { "sizeS" },
+                    width = "96%", height = 22, minWidth = 0,
+                    text = "Repeated argument (auto tier 1)",
+                    value = m_repeat,
+                    change = function(element)
+                        m_repeat = element.value
+                        Refresh()
+                    end,
+                }
+            end
+
             --the lie checkbox only exists when its rule condition holds.
             if d.interest <= 0 or m_lie then
                 cardChildren[#cardChildren + 1] = gui.Check{
@@ -2499,13 +2540,14 @@ local function CreateNegotiationRunner()
                         tier = tier,
                         traitId = m_trackTrait,
                         lie = m_lie,
+                        repeated = m_repeat,
                     }
-                    m_track = nil; m_trackTrait = nil; m_tier = nil; m_lie = false
+                    m_track = nil; m_trackTrait = nil; m_tier = nil; m_lie = false; m_repeat = false
                     Refresh()
                 end, 96),
                 SmallButton("Dismiss", function()
                     NegotiationRun.DismissPending()
-                    m_track = nil; m_trackTrait = nil; m_tier = nil; m_lie = false
+                    m_track = nil; m_trackTrait = nil; m_tier = nil; m_lie = false; m_repeat = false
                     Refresh()
                 end, 96),
             }

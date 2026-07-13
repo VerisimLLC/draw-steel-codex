@@ -2597,6 +2597,10 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options.alreadyInCoroutine = dmhub.inCoroutine
 	options.symbols.ability = self
     options.symbols.caster = options.symbols.caster or casterToken.properties
+    --charges the player selected live on options.charges (set during GetCost/cost
+    --payment), but tier rules text and invoked sub-abilities read the {Charges}
+    --GoblinScript symbol from options.symbols. Copy it across so {Charges} resolves.
+    options.symbols.charges = options.symbols.charges or options.charges or self:DefaultCharges()
 
     --footprint of the caster at the start of the cast, before any behavior has
     --moved them. Used by summon behaviors that anchor placement on the caster's

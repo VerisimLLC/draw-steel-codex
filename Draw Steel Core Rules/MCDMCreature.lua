@@ -2282,7 +2282,11 @@ function monster:KillThresholdStamina()
     if self:IsRetainer() then
         return -self:BloodiedThreshold()
     end
-    return 0
+    --Monsters normally die at 0 Stamina. The "killthreshold" attribute lets a
+    --monster survive below 0 (e.g. Ajax the Invincible dies only at -350, via
+    --a killthreshold of 350). The default of 0 leaves every other monster
+    --unchanged.
+    return -self:CalculateAttribute("killthreshold", 0)
 end
 
 --- @return boolean
@@ -2317,6 +2321,7 @@ function monster:IsDead()
 end
 
 CustomAttribute.RegisterAttribute { id = "extraturns", text = "Extra Turns", attributeType = "number", category = "Basic Attributes" }
+CustomAttribute.RegisterAttribute { id = "killthreshold", text = "Kill Threshold", attributeType = "number", category = "Basic Attributes" }
 
 function creature:TurnsPerRound()
     return 1 + self:CalculateAttribute("extraturns", 0)

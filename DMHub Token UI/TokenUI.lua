@@ -267,7 +267,13 @@ end
 local CalculateStatusIcons = function(token)
 	local result = {}
 	if token.invisibleToPlayers then
-		result[#result+1] = { id = "invisible", icon = "ui-icons/eye.png" }
+		--tokens pending placement in a tweak-placement flow (see
+		--AbilityTweakCreaturePlacement.lua) are temporarily hidden from players;
+		--they show a centered move icon instead of the hidden-from-players eye.
+		local tweaker = rawget(_G, "CreaturePlacementTweaker")
+		if tweaker == nil or not tweaker.IsPending(token) then
+			result[#result+1] = { id = "invisible", icon = "ui-icons/eye.png" }
+		end
 	end
 
 	if token.properties ~= nil and token.properties:IsDown() then

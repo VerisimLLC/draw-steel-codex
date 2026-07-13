@@ -317,6 +317,24 @@ function dmhub.BeginBugReport(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetSurvey: Reads the user survey definition from the cloud and calls callback(survey, error). survey is a table with id, title, intro, completedMessage, thanks, and a questions list (each with id, type ('rating', 'select', 'multiselect' or 'text'), prompt and type-specific fields), or nil if no survey is published. error is nil on success.
+--- @param callback fun(survey: nil|table, error: nil|string)
+function dmhub.GetSurvey(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSurveyResponse: Reads the local user's survey response record from the cloud and calls callback(response, error). response is nil if the user has not completed the survey; otherwise a table with surveyId and answers (keyed by question id). error is nil on success.
+--- @param callback fun(response: nil|table, error: nil|string)
+function dmhub.GetSurveyResponse(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SubmitSurveyResponse: Uploads the local user's survey response, replacing any previous response. answers is a table keyed by question id; surveyId records which survey revision was answered. The record is stamped with the userid, app version, platform and server timestamp. complete is called on success; error is called with a message on failure (after which it may be called again).
+--- @param options {surveyId: nil|string, answers: table, complete: nil|fun(), error: nil|fun(message: string)}
+function dmhub.SubmitSurveyResponse(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
 --- @param options {id: string, extensions: string[], multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
 function dmhub.OpenFileDialog(options)
@@ -406,8 +424,8 @@ function dmhub.SetMapTool(toolInfo)
 	-- dummy implementation for documentation purposes only
 end
 
---- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved.
---- @field options {texture: string, error: (fun(message: string): nil)}
+--- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved.
+--- @field options {texture: string, filename: string|nil, error: (fun(message: string): nil)|nil}
 function dmhub.SaveImageDialog(options)
 	-- dummy implementation for documentation purposes only
 end

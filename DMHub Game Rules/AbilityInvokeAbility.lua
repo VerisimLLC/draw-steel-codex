@@ -229,8 +229,15 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                 if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
 
-                    --clean out the ability so we don't copy too much.
-                    local cast = DeepCopy(options.symbols.cast)
+                    --Clean out the ability so we don't copy too much, and make the
+                    --cast serialization-safe: it holds live objects (targets[].token
+                    --CharacterToken userdata; the ability's function fields) which
+                    --DeepCopy cannot copy ("Unknown type deep copied" errors) and
+                    --which corrupt the target token's properties when the
+                    --remoteInvokes write fails to serialize them. SerializeEventValue
+                    --converts tokens to string refs, which PumpRemoteInvokes resolves
+                    --back to live objects on the controller's machine.
+                    local cast = SerializeEventValue(options.symbols.cast)
                     cast.ability = nil
                     symbols.cast = cast
 

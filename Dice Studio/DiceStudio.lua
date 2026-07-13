@@ -1670,6 +1670,26 @@ CreateDiceStudioPanel = function()
 					"Length of the opacity fade-out at the end of the Linger window (capped at Linger; default 1). 0 = snap off with no fade. Ignored when Linger is 0."),
 			},
 
+			-- Delay: shifts when this effect fires relative to its event. Positive = after the
+			-- event, staying at the spot where the event happened. Negative = BEFORE it: rolls
+			-- play back a pre-recorded simulation, so the engine knows when (and where) upcoming
+			-- events happen and pre-fires the effect at the event's recorded spot (bounces,
+			-- teleports, the final rest). Appearance cannot be predicted (it fires on the hurl),
+			-- so negative delays there fire at the event. Pulse events only; the Portal effect
+			-- has its own timing (Portal Creation Time), so the row is hidden there.
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				create = function(element)
+					element:SetClass("collapsed", (not pulse) or eventName == "Portal")
+				end,
+				ParamSlider("Delay (s):", -3, 5,
+					function() return binding.delay end,
+					function(v) binding.delay = v end,
+					"Shifts when the effect fires relative to its event (0 = at the event). Positive = fires that long after, staying at the spot where the event happened. Negative = fires early: the roll is a replay of a pre-computed simulation, so the effect can start ahead of the event, at the spot where it will happen (bounces, teleports, the exit and end-of-roll fade). Appearance cannot fire early. The Test button plays negative delays as immediate; roll the dice to see the anticipation timing."),
+			},
+
 			gui.Panel{
 				classes = {"formPanel"},
 				gui.Label{

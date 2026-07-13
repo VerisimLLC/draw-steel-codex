@@ -4710,17 +4710,13 @@ function creature:RefreshToken(token)
 				if TimestampAgeInSeconds(eventInfo.timestamp) < 30 then
                     local info = eventInfo.info
                     if info ~= nil then
+                        --Resolve "charid:"/"tokenid:" refs back to live objects,
+                        --including refs nested inside tables such as the cast's
+                        --targets list. See DeserializeEventValue.
                         local deserializedInfo = {}
+                        local visited = {}
                         for k,v in pairs(info) do
-                            if type(v) == "string" and string.starts_with(v, "charid:") then
-                                local charid = string.sub(v, 8)
-                                local charInfo = dmhub.GetCharacterById(charid)
-                                if charInfo ~= nil then
-                                    deserializedInfo[k] = charInfo.properties
-                                end
-                            else
-                                deserializedInfo[k] = v
-                            end
+                            deserializedInfo[k] = DeserializeEventValue(v, visited)
                         end
 
                         info = deserializedInfo
@@ -4791,7 +4787,11 @@ function creature:PumpRemoteInvokes()
 
 	local token = dmhub.LookupToken(self)
 	if token ~= nil then
-		local invoke = DeepCopy(remoteInvokes[1])
+		--Resolve "charid:"/"tokenid:" refs written by the sender (see
+		--SerializeEventValue in this file and the runOnController path in
+		--AbilityInvokeAbility) back to live objects, e.g. the tokens in
+		--symbols.cast.targets.
+		local invoke = DeserializeEventValue(DeepCopy(remoteInvokes[1]))
 
 		token:ModifyProperties{
 			description = "Clear Invoke",
@@ -9072,6 +9072,119 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 	return true
 end
 
+--Serialization helpers for event payloads that cross the network (the
+--triggeredEvents and remoteInvokes queues written via ModifyProperties).
+--Event info can hold live objects nested inside tables: e.g. info.cast is an
+--ActivatedAbilityCast whose targets[].token are CharacterToken userdata and
+--whose ability holds function fields. The engine cannot serialize userdata --
+--the write uploads null while the userdata stays in the token's local
+--properties copy, which then logs "Could not serialize user data value" on
+--every subsequent write to that token until the queue entry expires.
+--SerializeEventValue recursively converts tokens to string refs ("tokenid:"
+--for CharacterToken userdata, "charid:" for creature properties tables,
+--mirroring the top-level convention in DispatchEvent below), drops functions,
+--unserializable userdata and _tmp_ fields, and preserves game-type metatables
+--so typed objects like the cast round-trip. Userdata types the engine CAN
+--serialize natively (the LuaUserTypeBase subclasses in ScriptSerialize.cs,
+--identified by metatable __name) pass through untouched -- e.g. the LuaPath
+--inside the "move" event's PathMoved. DeserializeEventValue is the inverse,
+--applied where the controller consumes the queue (RefreshToken and
+--PumpRemoteInvokes).
+local g_serializableUserTypes = {
+    LuaLoc = true,
+    LuaColor = true,
+    LuaVector2 = true,
+    LuaVector4 = true,
+    LuaShape = true,
+    LuaUnicodeString = true,
+    LuaPath = true,
+}
+
+function SerializeEventValue(value, visited)
+    local valtype = type(value)
+    if valtype == "userdata" then
+        local id = nil
+        pcall(function() id = value.charid end)
+        if type(id) == "string" and id ~= "" then
+            return "tokenid:" .. id
+        end
+
+        local mt = getmetatable(value)
+        if type(mt) == "table" and g_serializableUserTypes[rawget(mt, "__name")] then
+            return value
+        end
+
+        return nil
+    end
+
+    if valtype == "function" then
+        return nil
+    end
+
+    if valtype ~= "table" then
+        return value
+    end
+
+    local id = dmhub.LookupTokenId(value)
+    if id ~= nil then
+        return "charid:" .. id
+    end
+
+    visited = visited or {}
+    if visited[value] ~= nil then
+        return visited[value]
+    end
+
+    local result = {}
+    visited[value] = result
+    for k,v in pairs(value) do
+        local keytype = type(k)
+        if keytype == "number" or (keytype == "string" and not string.starts_with(k, "_tmp_")) then
+            result[k] = SerializeEventValue(v, visited)
+        end
+    end
+
+    setmetatable(result, getmetatable(value))
+    return result
+end
+
+function DeserializeEventValue(value, visited)
+    local valtype = type(value)
+    if valtype == "string" then
+        if string.starts_with(value, "charid:") then
+            local charInfo = dmhub.GetCharacterById(string.sub(value, 8))
+            if charInfo == nil then
+                return nil
+            end
+            return charInfo.properties
+        end
+
+        if string.starts_with(value, "tokenid:") then
+            return dmhub.GetCharacterById(string.sub(value, 9))
+        end
+
+        return value
+    end
+
+    if valtype ~= "table" then
+        return value
+    end
+
+    visited = visited or {}
+    if visited[value] ~= nil then
+        return visited[value]
+    end
+
+    local result = {}
+    visited[value] = result
+    for k,v in pairs(value) do
+        result[k] = DeserializeEventValue(v, visited)
+    end
+
+    setmetatable(result, getmetatable(value))
+    return result
+end
+
 function creature:DispatchEvent(eventName, info)
 
     local triggeredOnOthers = false
@@ -9129,13 +9242,18 @@ function creature:DispatchEvent(eventName, info)
 
     if info ~= nil then
         local serializedInfo = {}
+        local visited = {}
         for k,v in pairs(info) do
             if type(v) == "table" then
                 local id = dmhub.LookupTokenId(v)
                 if id ~= nil then
                     serializedInfo[k] = "charid:" .. id
                 else
-                    serializedInfo[k] = v
+                    --Recurse: live objects can hide inside nested tables --
+                    --e.g. info.cast holds targets[].token CharacterToken
+                    --userdata and an ability with function fields. See
+                    --SerializeEventValue above.
+                    serializedInfo[k] = SerializeEventValue(v, visited)
                 end
             elseif type(v) == "userdata" then
                 --Raw engine objects (e.g. a CharacterToken in info.attacker)
@@ -9150,7 +9268,7 @@ function creature:DispatchEvent(eventName, info)
                 if type(id) == "string" and id ~= "" then
                     serializedInfo[k] = "charid:" .. id
                 end
-            else
+            elseif type(v) ~= "function" then
                 serializedInfo[k] = v
             end
         end

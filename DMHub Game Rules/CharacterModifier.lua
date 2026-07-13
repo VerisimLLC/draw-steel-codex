@@ -763,6 +763,29 @@ CharacterModifier.TypeInfo.attribute = {
 				}
 			}
 
+			--if the selected attribute has documentation, show it beneath the attribute selection.
+			local attrDocumentation = nil
+			if attrInfo ~= nil then
+				attrDocumentation = attrInfo.documentation
+				if attrDocumentation == nil and attrInfo.attr ~= nil then
+					attrDocumentation = attrInfo.attr:try_get("documentation")
+				end
+				if attrDocumentation == "" then
+					attrDocumentation = nil
+				end
+			end
+
+			if attrDocumentation ~= nil then
+				children[#children+1] = gui.Label{
+					fontSize = 14,
+					italics = true,
+					width = '100%',
+					height = 'auto',
+					maxWidth = 560,
+					text = attrDocumentation,
+				}
+			end
+
 			if attributeType.enum then
 				local isCreatureSetFilter = AttributeTypeCreatureSet.IsFilterValue(modifier.value)
 

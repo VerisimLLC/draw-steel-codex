@@ -2406,6 +2406,898 @@ local function CreateTopBar()
         end
     end
 
+    --Survey dialog (Report Feedback > Survey): reads the survey definition
+    --from the cloud (/survey) along with the user's previous response
+    --(/surveyFeedback/<userid>), then walks the user through the questions
+    --one page at a time in a wizard and uploads the answers with
+    --dmhub.SubmitSurveyResponse. A user who already responded is thanked and
+    --offered the chance to change their answers, which arrive prefilled from
+    --their previous response.
+    local function CreateSurveyDialog()
+        local m_dialog = nil
+        local m_titlescreenModal = nil
+
+        local m_survey = nil     --survey definition table from the cloud.
+        local m_response = nil   --the user's previous response record, if any.
+        local m_answers = {}     --working answers, keyed by question id.
+        local m_page = "loading" --"loading", "error", "intro", "finished", or a question index.
+        local m_errorMessage = nil
+        local m_submitting = false
+
+        local function CloseDialog()
+            if m_titlescreenModal ~= nil then
+                if m_titlescreenModal.valid then
+                    m_titlescreenModal:DestroySelf()
+                end
+            elseif m_dialog ~= nil and m_dialog.valid then
+                m_dialog:FireEvent("close")
+            end
+        end
+
+        --forward declared; assigned below and captured by the page builder closures.
+        local contentPanel
+        local RefreshPage
+
+        --gui.Input only delivers its text reliably when read directly, so any
+        --page holding an input registers a commit function here that pulls the
+        --input's text into m_answers; navigation calls it before leaving the page.
+        local m_commitPageInput = nil
+        local function CommitPageInput()
+            if m_commitPageInput ~= nil then
+                m_commitPageInput()
+            end
+        end
+
+        local function HasAnswer(q)
+            local a = m_answers[q.id]
+            if a == nil then
+                return false
+            end
+            if q.type == "text" then
+                return a ~= ""
+            end
+            if q.type == "multiselect" then
+                if type(a) ~= "table" then
+                    return false
+                end
+                if a.other ~= nil and a.other ~= "" then
+                    return true
+                end
+                if type(a.selected) == "table" then
+                    for _,v in pairs(a.selected) do
+                        if v then
+                            return true
+                        end
+                    end
+                end
+                return false
+            end
+            return true
+        end
+
+        --page builders.
+        local function BuildMessagePage(text)
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Label{
+                    fontSize = 18,
+                    width = 700,
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    text = text,
+                },
+            }
+        end
+
+        local function BuildIntroPage()
+            local alreadyCompleted = (m_response ~= nil)
+
+            local message
+            if alreadyCompleted then
+                message = m_survey.completedMessage or "You have already completed this survey - thank you! You can review and change your answers at any time."
+            else
+                message = m_survey.intro or "We would love to hear about your experience with the Codex."
+            end
+
+            local startText = "Start Survey"
+            if alreadyCompleted then
+                startText = "Change My Answers"
+            end
+
+            local nquestions = 0
+            if type(m_survey.questions) == "table" then
+                nquestions = #m_survey.questions
+            end
+
+            local children = {
+                gui.Label{
+                    fontSize = 30,
+                    bold = true,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    text = m_survey.title or "Codex Survey",
+                },
+
+                gui.Label{
+                    fontSize = 17,
+                    width = 640,
+                    height = "auto",
+                    halign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    tmargin = 20,
+                    text = message,
+                },
+
+                gui.Label{
+                    fontSize = 14,
+                    color = "#aaaaaa",
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 14,
+                    text = string.format("%d questions - takes a few minutes", nquestions),
+                },
+
+                gui.Button{
+                    classes = {"sizeL"},
+                    text = startText,
+                    halign = "center",
+                    tmargin = 32,
+                    click = function(element)
+                        m_page = 1
+                        RefreshPage()
+                    end,
+                },
+            }
+
+            if alreadyCompleted then
+                children[#children + 1] = gui.Button{
+                    classes = {"sizeM"},
+                    text = "Close",
+                    halign = "center",
+                    tmargin = 10,
+                    click = function(element)
+                        CloseDialog()
+                    end,
+                }
+            end
+
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "center",
+                    valign = "center",
+                    children = children,
+                },
+            }
+        end
+
+        local function BuildFinishedPage()
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "center",
+                    valign = "center",
+
+                    gui.Label{
+                        fontSize = 30,
+                        bold = true,
+                        width = "auto",
+                        height = "auto",
+                        halign = "center",
+                        text = "Thank You!",
+                    },
+
+                    gui.Label{
+                        fontSize = 17,
+                        width = 640,
+                        height = "auto",
+                        halign = "center",
+                        textAlignment = "center",
+                        textWrap = true,
+                        tmargin = 20,
+                        text = m_survey.thanks or "Thank you for completing the survey!",
+                    },
+
+                    gui.Button{
+                        classes = {"sizeL"},
+                        text = "Close",
+                        halign = "center",
+                        tmargin = 32,
+                        click = function(element)
+                            CloseDialog()
+                        end,
+                    },
+                },
+            }
+        end
+
+        --builds the interactive answer control for one question. Every control
+        --is a centered column so the page reads as a single balanced block.
+        local function BuildQuestionControl(q)
+            local qid = q.id
+
+            if q.type == "text" then
+                local input = gui.Input{
+                    width = 700,
+                    height = 220,
+                    fontSize = 16,
+                    multiline = true,
+                    characterLimit = 5000,
+                    textAlignment = "topleft",
+                    halign = "center",
+                    tmargin = 28,
+                    placeholderText = q.placeholder or "Type your answer here...",
+                    text = m_answers[qid] or "",
+                }
+                m_commitPageInput = function()
+                    if input.valid then
+                        m_answers[qid] = input.text
+                    end
+                end
+                return input
+            end
+
+            if q.type == "rating" then
+                local labels = q.labels or {"1", "2", "3", "4", "5"}
+                local m_buttons = {}
+                local caption
+
+                local function RefreshSelection()
+                    for _,entry in ipairs(m_buttons) do
+                        entry.panel:SetClassTree("selected", m_answers[qid] == entry.value)
+                    end
+                    if caption ~= nil and caption.valid then
+                        local value = m_answers[qid]
+                        if value ~= nil and labels[value] ~= nil then
+                            caption.text = labels[value]
+                        else
+                            caption.text = ""
+                        end
+                    end
+                end
+
+                local buttonPanels = {}
+                for i,_ in ipairs(labels) do
+                    local value = i
+                    local btn = gui.Panel{
+                        classes = {"ratingButton"},
+                        bgimage = true,
+                        press = function(element)
+                            m_answers[qid] = value
+                            RefreshSelection()
+                        end,
+
+                        gui.Label{
+                            fontSize = 26,
+                            width = "auto",
+                            height = "auto",
+                            halign = "center",
+                            valign = "center",
+                            interactable = false,
+                            text = tostring(i),
+                        },
+                    }
+                    m_buttons[#m_buttons + 1] = { panel = btn, value = value }
+                    buttonPanels[#buttonPanels + 1] = btn
+                end
+
+                --the low/high captions anchor the scale under its endpoints;
+                --the width matches the button row (N buttons at 64 + 2x5 margin).
+                local scaleWidth = #labels * 74
+
+                caption = gui.Label{
+                    fontSize = 16,
+                    width = 700,
+                    height = 24,
+                    halign = "center",
+                    textAlignment = "center",
+                    tmargin = 10,
+                    text = "",
+                }
+
+                local result = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "center",
+                    tmargin = 28,
+
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "center",
+                        children = buttonPanels,
+                    },
+
+                    gui.Panel{
+                        width = scaleWidth,
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "center",
+                        tmargin = 6,
+
+                        gui.Label{
+                            fontSize = 13,
+                            color = "#999999",
+                            width = "50%",
+                            height = "auto",
+                            halign = "left",
+                            textAlignment = "left",
+                            text = labels[1],
+                        },
+
+                        gui.Label{
+                            fontSize = 13,
+                            color = "#999999",
+                            width = "50%",
+                            height = "auto",
+                            halign = "right",
+                            textAlignment = "right",
+                            text = labels[#labels],
+                        },
+                    },
+
+                    caption,
+                }
+
+                RefreshSelection()
+                return result
+            end
+
+            --select and multiselect: one row per option, each with a radio or
+            --checkbox indicator. select keeps exactly one row active;
+            --multiselect toggles rows independently.
+            local multi = (q.type == "multiselect")
+            local m_rows = {}
+
+            local function IsOptionSelected(optid)
+                if multi then
+                    local a = m_answers[qid]
+                    return type(a) == "table" and type(a.selected) == "table" and a.selected[optid] == true
+                else
+                    return m_answers[qid] == optid
+                end
+            end
+
+            local function RefreshSelection()
+                for _,entry in ipairs(m_rows) do
+                    entry.panel:SetClassTree("selected", IsOptionSelected(entry.id))
+                end
+            end
+
+            local function ToggleOption(optid)
+                if multi then
+                    local a = m_answers[qid]
+                    if type(a) ~= "table" then
+                        a = {}
+                        m_answers[qid] = a
+                    end
+                    if type(a.selected) ~= "table" then
+                        a.selected = {}
+                    end
+                    if a.selected[optid] then
+                        a.selected[optid] = nil
+                    else
+                        a.selected[optid] = true
+                    end
+                else
+                    if m_answers[qid] == optid then
+                        m_answers[qid] = nil
+                    else
+                        m_answers[qid] = optid
+                    end
+                end
+                RefreshSelection()
+            end
+
+            local indicatorClass = "surveyRadio"
+            if multi then
+                indicatorClass = "surveyCheckBox"
+            end
+
+            local rowPanels = {}
+            for _,option in ipairs(q.options or {}) do
+                local optid = option.id
+                local row = gui.Panel{
+                    classes = {"surveyOption"},
+                    bgimage = true,
+                    press = function(element)
+                        ToggleOption(optid)
+                    end,
+
+                    gui.Panel{
+                        classes = {indicatorClass},
+                        bgimage = true,
+                        interactable = false,
+
+                        gui.Panel{
+                            classes = {indicatorClass .. "Fill"},
+                            bgimage = true,
+                            interactable = false,
+                        },
+                    },
+
+                    gui.Label{
+                        fontSize = 16,
+                        width = "100%-38",
+                        height = "auto",
+                        halign = "left",
+                        lmargin = 12,
+                        valign = "center",
+                        interactable = false,
+                        textWrap = true,
+                        text = option.text or optid,
+                    },
+                }
+                m_rows[#m_rows + 1] = { panel = row, id = optid }
+                rowPanels[#rowPanels + 1] = row
+            end
+
+            local children = {
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "center",
+                    children = rowPanels,
+                },
+            }
+
+            if q.allowOther then
+                local otherText = ""
+                local a = m_answers[qid]
+                if multi then
+                    if type(a) == "table" and type(a.other) == "string" then
+                        otherText = a.other
+                    end
+                else
+                    local other = m_answers[qid .. "_other"]
+                    if type(other) == "string" then
+                        otherText = other
+                    end
+                end
+
+                local otherInput = gui.Input{
+                    width = 700,
+                    height = 30,
+                    fontSize = 16,
+                    halign = "center",
+                    tmargin = 12,
+                    placeholderText = "Other (tell us more)...",
+                    text = otherText,
+                }
+                m_commitPageInput = function()
+                    if not otherInput.valid then
+                        return
+                    end
+                    local text = otherInput.text
+                    if text == "" then
+                        text = nil
+                    end
+                    if multi then
+                        local answer = m_answers[qid]
+                        if type(answer) ~= "table" then
+                            answer = {}
+                            m_answers[qid] = answer
+                        end
+                        answer.other = text
+                    else
+                        m_answers[qid .. "_other"] = text
+                    end
+                end
+
+                children[#children + 1] = otherInput
+            end
+
+            local result = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                tmargin = 24,
+                children = children,
+            }
+
+            RefreshSelection()
+            return result
+        end
+
+        --A prompt too long for one line otherwise wraps wherever it runs out
+        --of room, orphaning a couple of words on the second line. Break long
+        --prompts explicitly at the word nearest the middle so the two lines
+        --come out roughly even. Prompts short enough for one line (the 760px
+        --label fits around 72 characters at this size) are left alone.
+        local function BalancePromptText(text)
+            if text == nil or #text <= 72 then
+                return text
+            end
+            local mid = math.floor(#text / 2)
+            local best = nil
+            for i = 1, #text do
+                if text:sub(i, i) == " " then
+                    if best == nil or math.abs(i - mid) < math.abs(best - mid) then
+                        best = i
+                    end
+                end
+            end
+            if best == nil then
+                return text
+            end
+            return text:sub(1, best - 1) .. "\n" .. text:sub(best + 1)
+        end
+
+        local function BuildQuestionPage(index)
+            local questions = m_survey.questions
+            local q = questions[index]
+            local nquestions = #questions
+            local isLast = (index >= nquestions)
+
+            local statusLabel = gui.Label{
+                fontSize = 15,
+                width = 700,
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = true,
+                bmargin = 8,
+                text = "",
+            }
+
+            local function TryLeavePage(destination)
+                CommitPageInput()
+                if destination > index and q.required and not HasAnswer(q) then
+                    statusLabel.text = "Please answer this question before continuing."
+                    return
+                end
+                if destination < 1 then
+                    m_page = "intro"
+                else
+                    m_page = destination
+                end
+                RefreshPage()
+            end
+
+            local function Submit()
+                CommitPageInput()
+                if q.required and not HasAnswer(q) then
+                    statusLabel.text = "Please answer this question before continuing."
+                    return
+                end
+                if m_submitting then
+                    return
+                end
+                m_submitting = true
+                statusLabel.text = "Submitting..."
+                dmhub.SubmitSurveyResponse{
+                    surveyId = m_survey.id,
+                    answers = m_answers,
+                    complete = function()
+                        m_submitting = false
+                        if contentPanel ~= nil and contentPanel.valid then
+                            m_page = "finished"
+                            RefreshPage()
+                        end
+                    end,
+                    error = function(message)
+                        m_submitting = false
+                        if statusLabel.valid then
+                            statusLabel.text = "Could not submit: " .. message
+                        end
+                    end,
+                }
+            end
+
+            local nextText = "Next"
+            if isLast then
+                nextText = "Submit"
+            end
+
+            --the question block: prompt (plus an Optional note) and the answer
+            --control, gathered into one column centered in the page.
+            local questionChildren = {
+                gui.Label{
+                    fontSize = 22,
+                    bold = true,
+                    width = 760,
+                    height = "auto",
+                    halign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    text = BalancePromptText(q.prompt or ""),
+                },
+            }
+
+            if not q.required then
+                questionChildren[#questionChildren + 1] = gui.Label{
+                    fontSize = 13,
+                    color = "#999999",
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 6,
+                    text = "Optional",
+                }
+            end
+
+            questionChildren[#questionChildren + 1] = BuildQuestionControl(q)
+
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                --header pinned to the top: position in the survey plus a
+                --progress bar that fills as the user advances.
+                gui.Panel{
+                    floating = true,
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "top",
+
+                    gui.Label{
+                        fontSize = 13,
+                        color = "#aaaaaa",
+                        width = "auto",
+                        height = "auto",
+                        halign = "center",
+                        text = string.upper(string.format("Question %d of %d", index, nquestions)),
+                    },
+
+                    gui.Panel{
+                        width = 700,
+                        height = 6,
+                        halign = "center",
+                        tmargin = 10,
+                        bgimage = true,
+                        bgcolor = "#ffffff22",
+                        cornerRadius = 3,
+
+                        gui.Panel{
+                            width = string.format("%d%%", math.floor(100 * index / nquestions)),
+                            height = "100%",
+                            halign = "left",
+                            bgimage = true,
+                            bgcolor = "#8899eeff",
+                            cornerRadius = 3,
+                        },
+                    },
+                },
+
+                --the question itself, centered in the page.
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "center",
+                    valign = "center",
+                    children = questionChildren,
+                },
+
+                --navigation pinned to the bottom of the page, aligned with the
+                --content column.
+                gui.Panel{
+                    floating = true,
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "bottom",
+
+                    statusLabel,
+
+                    gui.Panel{
+                        width = 700,
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "center",
+
+                        gui.Button{
+                            classes = {"sizeM"},
+                            text = "Back",
+                            halign = "left",
+                            click = function(element)
+                                TryLeavePage(index - 1)
+                            end,
+                        },
+
+                        gui.Button{
+                            classes = {"sizeM"},
+                            text = nextText,
+                            halign = "right",
+                            click = function(element)
+                                if isLast then
+                                    Submit()
+                                else
+                                    TryLeavePage(index + 1)
+                                end
+                            end,
+                        },
+                    },
+                },
+            }
+        end
+
+        contentPanel = gui.Panel{
+            width = "100%",
+            height = "100%",
+            flow = "vertical",
+        }
+
+        RefreshPage = function()
+            m_commitPageInput = nil
+            local page
+            if m_page == "loading" then
+                page = BuildMessagePage("Loading...")
+            elseif m_page == "error" then
+                page = BuildMessagePage(m_errorMessage or "The survey could not be loaded. Please try again later.")
+            elseif m_page == "intro" then
+                page = BuildIntroPage()
+            elseif m_page == "finished" then
+                page = BuildFinishedPage()
+            else
+                page = BuildQuestionPage(m_page)
+            end
+            contentPanel.children = { page }
+        end
+
+        --fetch the survey definition and the user's previous response in
+        --parallel; move off the loading page when both have arrived.
+        local m_surveyLoaded = false
+        local m_responseLoaded = false
+        local function CheckLoadingComplete()
+            if not (m_surveyLoaded and m_responseLoaded) then
+                return
+            end
+            if contentPanel == nil or not contentPanel.valid then
+                return
+            end
+            if m_survey == nil or type(m_survey.questions) ~= "table" or #m_survey.questions == 0 then
+                m_page = "error"
+                if m_errorMessage == nil then
+                    m_errorMessage = "No survey is available right now. Please check back later."
+                end
+            else
+                --prefill from the previous answers so the user can revise them.
+                if m_response ~= nil and type(m_response.answers) == "table" then
+                    for k,v in pairs(m_response.answers) do
+                        m_answers[k] = v
+                    end
+                end
+                m_page = "intro"
+            end
+            RefreshPage()
+        end
+
+        dmhub.GetSurvey(function(survey, err)
+            m_surveyLoaded = true
+            m_survey = survey
+            if err ~= nil then
+                m_errorMessage = "Could not load the survey: " .. err
+            end
+            CheckLoadingComplete()
+        end)
+
+        dmhub.GetSurveyResponse(function(response, err)
+            --a response fetch error is not fatal; treat it as no previous response.
+            m_responseLoaded = true
+            m_response = response
+            CheckLoadingComplete()
+        end)
+
+        local closeButton = gui.Button{
+            classes = {"closeButton"},
+            floating = true,
+            halign = "right",
+            valign = "top",
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                CloseDialog()
+            end,
+        }
+
+        local bodyPanel = gui.Panel{
+            width = 940,
+            height = 620,
+            flow = "vertical",
+            halign = "center",
+
+            styles = {
+                { selectors = {"surveyOption"}, width = 700, height = "auto", flow = "horizontal", bgcolor = "#00000066", border = 1, borderColor = "#888888", cornerRadius = 6, pad = 10, borderBox = true, halign = "center", vmargin = 3 },
+                { selectors = {"surveyOption", "hover"}, bgcolor = "#2a2a2aaa", borderColor = "#cccccc" },
+                { selectors = {"surveyOption", "selected"}, bgcolor = "#38386e99", borderColor = "#8899ee" },
+                { selectors = {"surveyCheckBox"}, width = 20, height = 20, valign = "center", bgcolor = "clear", border = 1, borderColor = "#aaaaaa", cornerRadius = 3 },
+                { selectors = {"surveyRadio"}, width = 20, height = 20, valign = "center", bgcolor = "clear", border = 1, borderColor = "#aaaaaa", cornerRadius = 10 },
+                { selectors = {"surveyCheckBoxFill"}, width = 12, height = 12, halign = "center", valign = "center", bgcolor = "#aabbff", cornerRadius = 2, opacity = 0 },
+                { selectors = {"surveyRadioFill"}, width = 12, height = 12, halign = "center", valign = "center", bgcolor = "#aabbff", cornerRadius = 6, opacity = 0 },
+                { selectors = {"surveyCheckBoxFill", "selected"}, opacity = 1 },
+                { selectors = {"surveyRadioFill", "selected"}, opacity = 1 },
+                { selectors = {"ratingButton"}, width = 64, height = 64, bgcolor = "#00000066", border = 1, borderColor = "#888888", cornerRadius = 6, hmargin = 5 },
+                { selectors = {"ratingButton", "hover"}, bgcolor = "#2a2a2aaa", borderColor = "#cccccc" },
+                { selectors = {"ratingButton", "selected"}, bgcolor = "#38386e99", borderColor = "#8899ee" },
+            },
+
+            contentPanel,
+        }
+
+        if dmhub.inGame and not dmhub.isLobbyGame then
+            m_dialog = gamehud:ModalDialog{
+                title = "Survey",
+                buttons = {},
+                bodyPanel,
+            }
+            m_dialog:AddChild(closeButton)
+        else
+            --On the titlescreen there is no gamehud modal stack, so host the
+            --dialog as a floating framed panel on the titlescreen root, like
+            --the bug report dialog above.
+            local root = rawget(_G, "CodexTitlescreenRoot")
+            if root ~= nil and root.valid then
+                m_titlescreenModal = gui.Panel{
+                    classes = {"framedPanel"},
+                    floating = true,
+                    width = 1024,
+                    height = 768,
+                    halign = "center",
+                    valign = "center",
+                    styles = ThemeEngine.GetStyles(),
+
+                    gui.Panel{
+                        width = "100%-32",
+                        height = "100%-32",
+                        flow = "vertical",
+                        halign = "center",
+                        valign = "top",
+
+                        gui.Label{
+                            classes = {"dialogTitle"},
+                            text = "Survey",
+                        },
+
+                        bodyPanel,
+                    },
+                }
+                root:AddChild(m_titlescreenModal)
+                m_titlescreenModal:AddChild(closeButton)
+            else
+                --fallback: no titlescreen root available; use the gamehud modal.
+                local gh = rawget(_G, "gamehud")
+                if gh ~= nil then
+                    m_dialog = gh:ModalDialog{
+                        title = "Survey",
+                        buttons = {},
+                        bodyPanel,
+                    }
+                    m_dialog:AddChild(closeButton)
+                end
+            end
+        end
+
+        RefreshPage()
+    end
+
     local menuBar = gui.Panel{
         id = "menuBarPanel",
         classes = {"titleBarSurface"},
@@ -2604,6 +3496,12 @@ local function CreateTopBar()
                     FeedbackMenuItem("Bug Report", "bug"),
                     FeedbackMenuItem("Feature Request", "feature"),
                     FeedbackMenuItem("General Feedback", "feedback"),
+                    {
+                        text = "Survey",
+                        click = function()
+                            CreateSurveyDialog()
+                        end,
+                    },
                 }
             end,
         },

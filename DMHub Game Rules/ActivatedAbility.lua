@@ -2598,6 +2598,13 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options.symbols.ability = self
     options.symbols.caster = options.symbols.caster or casterToken.properties
 
+    --footprint of the caster at the start of the cast, before any behavior has
+    --moved them. Used by summon behaviors that anchor placement on the caster's
+    --former space (e.g. "minions appear in the space the caster leaves behind").
+    if options.casterStartLocs == nil then
+        options.casterStartLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
+    end
+
 	if self.targetType == 'self' and #targets == 0 then
 		targets[#targets+1] = { loc = casterToken.loc, token = casterToken }
 	end

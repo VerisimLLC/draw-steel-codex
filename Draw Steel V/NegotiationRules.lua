@@ -1848,26 +1848,66 @@ local function CreateNegotiationStage(args)
         },
     }
 
-    --Who has carried the scene. The rules give a negotiation no turn order, so
-    --this NUDGES rather than gates: a hero who has not spoken reads as an
-    --unspent resource, which is exactly what they are.
+    --The table, as the table sees itself: everyone at the negotiation, in their
+    --own token circle. The rules give a negotiation no turn order, so this
+    --NUDGES rather than gates - a hero who has not spoken stays lit, because an
+    --unspent voice is exactly what they are. Whoever holds the floor is ringed.
     local spokenPanel = gui.Panel{
-        flow = "horizontal", width = "100%", height = "auto", wrap = true, vmargin = 4,
+        flow = "horizontal", width = "100%", height = "auto", wrap = true, vmargin = 6,
         refreshNeg = function(element, live)
             local children = {}
             local spoke = live:try_get("spoke", {})
             for _, token in ipairs(dmhub.allTokens) do
                 if token.properties:IsHero() and token.ownerId ~= nil then
                     local n = spoke[token.charid] or 0
-                    children[#children + 1] = gui.Label{
-                        classes = { "sizeS" },
-                        width = "auto", height = "auto", rmargin = 14, halign = "left",
-                        fontSize = 11,
-                        color = n > 0 and "#8a8a8a" or "#e4ddd0",
-                        text = n > 0
-                            and string.format("%s  argued %s", token.name,
-                                n == 1 and "once" or string.format("%d times", n))
-                            or string.format("%s  has not spoken", token.name),
+                    local speaking = (live.floor == token.charid)
+
+                    local status = "has not spoken"
+                    local statusColor = "#e4ddd0"
+                    if speaking then
+                        status = "speaking..."
+                        statusColor = "#e8a030"
+                    elseif n == 1 then
+                        status = "argued once"
+                        statusColor = "#7a7468"
+                    elseif n > 1 then
+                        status = string.format("argued %d times", n)
+                        statusColor = "#7a7468"
+                    end
+
+                    children[#children + 1] = gui.Panel{
+                        flow = "vertical", width = 84, height = "auto",
+                        halign = "left", rmargin = 4,
+                        --the circle sits in a ring panel so the floor-holder can
+                        --be marked without touching the token image itself.
+                        gui.Panel{
+                            classes = { "image" },
+                            width = 48, height = 48, halign = "center",
+                            cornerRadius = 24,
+                            borderWidth = speaking and 2 or 0,
+                            borderColor = "#e8a030",
+                            gui.CreateTokenImage(token, {
+                                width = 44, height = 44,
+                                halign = "center", valign = "center",
+                                interactable = false,
+                            }),
+                        },
+                        gui.Label{
+                            classes = { "sizeS" },
+                            width = 84, height = "auto", halign = "center", tmargin = 2,
+                            textAlignment = "center", textWrap = true,
+                            fontSize = 11,
+                            color = n > 0 and not speaking and "#8a8a8a" or "#e4ddd0",
+                            text = token.name,
+                        },
+                        gui.Label{
+                            classes = { "sizeS" },
+                            width = 84, height = "auto", halign = "center",
+                            textAlignment = "center", textWrap = true,
+                            fontSize = 10,
+                            color = statusColor,
+                            text = status,
+                        },
                     }
                 end
             end
@@ -2208,7 +2248,7 @@ local function CreateNegotiationStage(args)
                 text = "HOW IT'S GOING",
             },
             gui.Panel{
-                flow = "vertical", width = "100%", height = "100%-360",
+                flow = "vertical", width = "100%", height = "100%-410",
                 valign = "top",
                 vscroll = true,
                 historyPanel,

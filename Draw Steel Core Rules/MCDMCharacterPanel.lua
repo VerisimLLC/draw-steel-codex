@@ -2151,6 +2151,58 @@ function TacPanel.Portrait()
     }
 end
 
+--- Count heroes from the three sources the hero-token refresh button consults:
+--- (a) the encounter builder's numheroes setting, (b) hero tokens deployed on
+--- the current map, and (c) hero tokens in the default player party.
+--- @return integer encounterCount
+--- @return integer mapCount
+--- @return integer partyCount
+local function HeroTokenRefreshCounts()
+    local encounterCount = dmhub.GetSettingValue("numheroes")
+
+    local mapCount = 0
+    for _, tok in ipairs(dmhub.allTokens) do
+        local props = tok.properties
+        if props ~= nil and props:IsHero() then
+            mapCount = mapCount + 1
+        end
+    end
+
+    local partyCount = 0
+    local partyMembers = dmhub.GetCharacterIdsInParty(GetDefaultPartyID()) or {}
+    for _, charid in ipairs(partyMembers) do
+        local tok = dmhub.GetTokenById(charid)
+        if tok ~= nil and tok.properties ~= nil and tok.properties:IsHero() then
+            partyCount = partyCount + 1
+        end
+    end
+
+    return encounterCount, mapCount, partyCount
+end
+
+--- Reset a token's hero tokens to n as a session reset (the refresh button's action).
+--- @param token CharacterToken
+--- @param n integer
+local function RefreshHeroTokensTo(token, n)
+    if token == nil then return end
+    local prev = token.properties:GetHeroTokens()
+    token:ModifyProperties{
+        description = "Reset Hero Tokens",
+        execute = function()
+            token.properties:SetHeroTokens(n, "Session Reset")
+        end,
+    }
+    if n ~= prev then
+        local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+        track("hero_token_change", {
+            change = n - prev,
+            source = "session_reset",
+            class = classInfo and classInfo.name or "unknown",
+            dailyLimit = 30,
+        })
+    end
+end
+
 --- display the hero token box
 --- @return Panel
 function TacPanel.HeroTokenBox()
@@ -2254,29 +2306,44 @@ function TacPanel.HeroTokenBox()
             icon = "icons/standard/Icon_App_Undo.png",
             press = function(element)
                 local token = element.parent.data.token
-                if token ~= nil then
-                    local n = dmhub.GetSettingValue("numheroes")
-                    local prev = token.properties:GetHeroTokens()
-                    token:ModifyProperties{
-                        description = "Reset Hero Tokens",
-                        execute = function()
-                            token.properties:SetHeroTokens(n, "Session Reset")
-                        end,
-                    }
-                    if n ~= prev then
-                        local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
-                        track("hero_token_change", {
-                            change = n - prev,
-                            source = "session_reset",
-                            class = classInfo and classInfo.name or "unknown",
-                            dailyLimit = 30,
-                        })
+                if token == nil then return end
+
+                local encounterCount, mapCount, partyCount = HeroTokenRefreshCounts()
+
+                -- All three sources agree: refresh directly, as before.
+                if encounterCount == mapCount and mapCount == partyCount then
+                    RefreshHeroTokensTo(token, encounterCount)
+                    return
+                end
+
+                -- Sources disagree: let the user pick which count to refresh to,
+                -- one entry per unique value.
+                local seen = {}
+                local entries = {}
+                for _, n in ipairs({encounterCount, mapCount, partyCount}) do
+                    if seen[n] == nil then
+                        seen[n] = true
+                        entries[#entries+1] = {
+                            text = string.format("Refresh Hero Tokens (%d)", n),
+                            click = function()
+                                element.popup = nil
+                                RefreshHeroTokensTo(token, n)
+                            end,
+                        }
                     end
                 end
+
+                element.popup = gui.ContextMenu{
+                    entries = entries,
+                }
             end,
             linger = function(element)
-                local n = dmhub.GetSettingValue("numheroes")
-                gui.Tooltip(string.format("Reset Hero Tokens For Session (%d heroes)", n))(element)
+                local encounterCount, mapCount, partyCount = HeroTokenRefreshCounts()
+                if encounterCount == mapCount and mapCount == partyCount then
+                    gui.Tooltip(string.format("Reset Hero Tokens For Session (%d heroes)", encounterCount))(element)
+                else
+                    gui.Tooltip("Reset Hero Tokens")(element)
+                end
             end,
         },
     }

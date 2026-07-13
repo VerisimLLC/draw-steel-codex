@@ -1157,6 +1157,12 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "usetriggeredaction",
+    text = "Use a Triggered Action",
+    symbols = g_abilitySymbols,
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "prestartturn",
     text = "Before Start of Turn",
     symbols = {},

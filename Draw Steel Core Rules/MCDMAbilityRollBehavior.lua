@@ -899,6 +899,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 for _,option in ipairs(ActivatedAbilityPowerRollBehavior.s_modificationTypes) do
                     if option.value == boonMod.value*mult then
                         modtype = option.id
+                        break
                     end
                 end
 

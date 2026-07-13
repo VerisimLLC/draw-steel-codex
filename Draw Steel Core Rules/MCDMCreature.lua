@@ -5731,6 +5731,11 @@ function creature:PersistentAbilities()
             ability.persistence = nil
             ability.actionResourceId = cond(persistenceMode == "recast_maneuver", CharacterResource.maneuverResourceId,
                 "none")
+            --spendOnRecast: charge the persist cost from the heroic resource on the recast trigger itself.
+            if persistence.spendOnRecast == true then
+                newAbility.resourceNumber = persistence.cost or 1
+                newAbility.resourceCost = ability.resourceCost
+            end
             ability.resourceNumber = "0"
 
             --[[ if a.filter ~= nil then

@@ -653,6 +653,11 @@ LiveNegotiation.traits = {}
 LiveNegotiation.offers = {}
 --accepted: map charid -> "accepted" | "declined"
 LiveNegotiation.accepted = {}
+--spoke: map charid -> number of arguments that hero has made. Draw Steel puts
+--NO turn order on a negotiation - any hero may argue at any time - so the way
+--to keep one player from carrying the whole scene is to make participation
+--VISIBLE, not to gate it. A tally nudges; a rule would be one we invented.
+LiveNegotiation.spoke = {}
 --history: the STORY BEATS the table sees - arguments and their outcomes,
 --NPC lines, offers, accepts. array of { who, text, cue, tone }
 --tone: good | bad | neutral | npc | system
@@ -905,6 +910,14 @@ function NegotiationRun.ResolvePending(opts)
             tone = "good"
         elseif d.interest < 0 or (opts.track == "pitfall") then
             tone = "bad"
+        end
+
+        --a resolved argument counts toward who has carried the scene. Dismissed
+        --ones do not: they never happened.
+        local who = pending.who or ""
+        if who ~= "" then
+            local spoke = live:get_or_add("spoke", {})
+            spoke[who] = (spoke[who] or 0) + 1
         end
 
         NegotiationRun.Log(live, pending.whoName or "", pending.text or "", cue, tone)
@@ -1489,6 +1502,29 @@ local function CreateNegotiationStage(args)
         end,
     }
 
+    --Patience IS the argument budget - roughly one argument a point. The mood
+    --cue above says how he feels; this says how much runway is left, which is
+    --what the table needs to decide between pushing and taking the deal.
+    local patienceBudget = gui.Label{
+        classes = { "sizeS" },
+        width = "100%", height = "auto", halign = "left", vmargin = 2,
+        fontSize = 12,
+        color = "#7a7468",
+        refreshNeg = function(element, live)
+            if NegotiationRules.Terminal(live.interest, live.patience) ~= nil then
+                element.text = ""
+                return
+            end
+            if live.patience <= 0 then
+                element.text = ""
+            elseif live.patience == 1 then
+                element.text = "He'll hear one more argument, and that's the last of it."
+            else
+                element.text = string.format("He'll hear about %d more arguments.", live.patience)
+            end
+        end,
+    }
+
     --what you've learned: two headed groups + one "more to learn" affordance.
     local learnedPanel = gui.Panel{
         flow = "vertical", width = "100%", height = "auto", vmargin = 8,
@@ -1498,10 +1534,18 @@ local function CreateNegotiationStage(args)
                 local rows = {}
                 for _, t in ipairs(live.traits) do
                     if t.kind == kind and t.revealed then
+                        --a motivation that has already landed is SPENT: appeal to
+                        --it again and the rules give you nothing but a patience
+                        --cost. Say so, or the table wastes its best remaining card.
+                        local spent = (kind == "motivation") and t.used == true
                         rows[#rows + 1] = gui.Label{
                             classes = { "sizeS" },
                             width = "100%", height = "auto", halign = "left", vmargin = 1,
-                            text = string.format("%s  %s", glyph, t.name),
+                            textWrap = true,
+                            color = spent and "#7a7468" or "#e4ddd0",
+                            text = spent
+                                and string.format("%s  %s - already moved him", glyph, t.name)
+                                or string.format("%s  %s", glyph, t.name),
                         }
                     end
                 end
@@ -1598,11 +1642,13 @@ local function CreateNegotiationStage(args)
         end,
     }
 
+    --The second sentence is the player-facing half of the Director's repeated-
+    --argument checkbox: a line he has already heard lands on tier 1 by rule.
     local angleHelp = gui.Label{
         classes = { "sizeS" },
-        width = "100%", height = "auto", halign = "left",
+        width = "100%", height = "auto", halign = "left", textWrap = true,
         color = "#7a7468", fontSize = 11,
-        text = "A new angle may strike a motivation you haven't uncovered.",
+        text = "A new angle may strike a motivation you haven't uncovered. Making an argument he has already heard won't land - find a new one.",
     }
 
     local sayInput = gui.Input{
@@ -1622,19 +1668,35 @@ local function CreateNegotiationStage(args)
         flow = "horizontal", width = "100%", height = "auto", vmargin = 4,
         refreshNeg = function(element)
             local children = {}
+            local tok = dmhub.currentToken
             for _, attrid in ipairs(ARGUMENT_ATTRS) do
                 local a = attrid
                 local info = creature.attributesInfo[a]
                 local selected = (m_attr == a)
+                local label = info ~= nil and info.description or a
+
+                --Which characteristic to roll is THE choice in the composer, and
+                --a player should not have to open their sheet to make it. Put
+                --their own modifier on their own button.
+                if tok ~= nil then
+                    local mod = nil
+                    pcall(function()
+                        mod = tok.properties:GetAttribute(a):Modifier()
+                    end)
+                    if mod ~= nil then
+                        label = string.format("%s  %s%d", label, mod >= 0 and "+" or "", mod)
+                    end
+                end
+
                 children[#children + 1] = gui.Label{
                     classes = { "sizeS", "hoverable" },
-                    width = 178, height = "auto", vpad = 7, rmargin = 6,
+                    width = 172, height = "auto", vpad = 7, rmargin = 6,
                     textAlignment = "center", borderBox = true,
                     bgimage = "panels/square.png",
                     bgcolor = selected and "#ffffff1f" or "#00000000",
                     border = 1,
                     borderColor = selected and "#ffffff99" or "#ffffff47",
-                    text = info ~= nil and info.description or a,
+                    text = label,
                     press = function()
                         m_attr = a
                         element:FireEventOnParents("refreshNegLocal")
@@ -1717,7 +1779,7 @@ local function CreateNegotiationStage(args)
     local actionsPanel = gui.Panel{
         flow = "horizontal", width = "100%", height = "auto", vmargin = 8,
         gui.Button{
-            classes = { "sizeM" }, width = 330, height = 36,
+            classes = { "sizeM" }, width = 318, height = 36,
             text = "Make your case",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -1732,7 +1794,7 @@ local function CreateNegotiationStage(args)
             end,
         },
         gui.Button{
-            classes = { "sizeM" }, width = 210, height = 36, lmargin = 12,
+            classes = { "sizeM" }, width = 202, height = 36, lmargin = 12,
             text = "Read them",
             refreshNeg = function(element, live)
                 local blocked = live:try_get("pending", false)
@@ -1746,6 +1808,33 @@ local function CreateNegotiationStage(args)
                 MakeRoll("read")
             end,
         },
+    }
+
+    --Who has carried the scene. The rules give a negotiation no turn order, so
+    --this NUDGES rather than gates: a hero who has not spoken reads as an
+    --unspent resource, which is exactly what they are.
+    local spokenPanel = gui.Panel{
+        flow = "horizontal", width = "100%", height = "auto", wrap = true, vmargin = 4,
+        refreshNeg = function(element, live)
+            local children = {}
+            local spoke = live:try_get("spoke", {})
+            for _, token in ipairs(dmhub.allTokens) do
+                if token.properties:IsHero() and token.ownerId ~= nil then
+                    local n = spoke[token.charid] or 0
+                    children[#children + 1] = gui.Label{
+                        classes = { "sizeS" },
+                        width = "auto", height = "auto", rmargin = 14, halign = "left",
+                        fontSize = 11,
+                        color = n > 0 and "#8a8a8a" or "#e4ddd0",
+                        text = n > 0
+                            and string.format("%s  argued %s", token.name,
+                                n == 1 and "once" or string.format("%d times", n))
+                            or string.format("%s  has not spoken", token.name),
+                    }
+                end
+            end
+            element.children = children
+        end,
     }
 
     --tier-3 discovery: the roller picks the KIND only (never a browse of the
@@ -1894,6 +1983,20 @@ local function CreateNegotiationStage(args)
                 text = heading,
             }
 
+            --The next rung, in SHAPE only (the prepped terms stay the Director's
+            --to reveal). Without it, accept-or-push is a coin flip: this is what
+            --tells the table whether another argument is worth the patience.
+            if terminal == nil and live.interest < NegotiationRules.MAX then
+                children[#children + 1] = gui.Label{
+                    classes = { "sizeS" },
+                    width = OFFER_W, height = "auto", halign = "left",
+                    textWrap = true, tmargin = 2,
+                    fontSize = 11, color = "#7a7468",
+                    text = string.format("Move him one more step and it becomes \"%s\"",
+                        NegotiationRules.offerLabels[live.interest + 1] or ""),
+                }
+            end
+
             if terminal ~= "nodeal" then
                 if o.revealed then
                     local terms = (o.terms or "")
@@ -2020,11 +2123,12 @@ local function CreateNegotiationStage(args)
         gui.Panel{
             flow = "vertical", width = 400, height = "100%", rmargin = 44,
             gui.Panel{
-                flow = "vertical", width = "100%", height = "100%-220",
+                flow = "vertical", width = "100%", height = "100%-250",
                 vscroll = true,
                 identityPanel,
                 bandsPanel,
                 patienceCue,
+                patienceBudget,
                 learnedPanel,
             },
             offerPanel,
@@ -2050,6 +2154,7 @@ local function CreateNegotiationStage(args)
                 attrPanel,
                 actionsPanel,
             },
+            spokenPanel,
             gui.Label{
                 classes = { "bold" },
                 width = "100%", height = "auto", vmargin = 8,
@@ -2057,7 +2162,7 @@ local function CreateNegotiationStage(args)
                 text = "HOW IT'S GOING",
             },
             gui.Panel{
-                flow = "vertical", width = "100%", height = "100%-320",
+                flow = "vertical", width = "100%", height = "100%-360",
                 valign = "top",
                 vscroll = true,
                 historyPanel,

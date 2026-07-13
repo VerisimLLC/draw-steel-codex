@@ -1398,13 +1398,31 @@ function NegotiationDocument:DisplayPanel()
     return resultPanel
 end
 
-CustomDocument.Register{
-    id = "negotiation",
-    text = "New Negotiation",
-    create = function()
-        return NegotiationDocument.CreateNew{}
-    end,
+--Feature flag for the negotiation panel. It gates the two REGISTRATIONS - the
+--journal's "New Negotiation" entry and the rail runner at the bottom of this
+--file - and nothing else. Registration happens at load, so a change takes
+--effect on the next reload. Existing negotiation pages keep rendering either
+--way: a saved page is deserialized by its game type, not by this registry, so
+--turning the flag off hides the feature without orphaning anyone's prep.
+NegotiationPanelSetting = setting{
+    id = "negotiationPanel",
+    description = "Negotiation panel",
+    help = "The negotiation prep page, the shared stage, and the Director's rail runner. Takes effect after a reload.",
+    storage = "preference",
+    section = "general",
+    default = true,
+    editor = "check",
 }
+
+if NegotiationPanelSetting:Get() then
+    CustomDocument.Register{
+        id = "negotiation",
+        text = "New Negotiation",
+        create = function()
+            return NegotiationDocument.CreateNew{}
+        end,
+    }
+end
 
 --==============================================================================
 -- THE CENTER STAGE -- one shared dialog, presented to every client. Players
@@ -3054,13 +3072,15 @@ local function CreateNegotiationRunner()
     return runnerPanel
 end
 
-DockablePanel.Register{
-    name = "Negotiation",
-    icon = "icons/standard/Icon_App_Negotiation.png",
-    minHeight = 260,
-    vscroll = true,
-    dmonly = true,
-    content = function()
-        return CreateNegotiationRunner()
-    end,
-}
+if NegotiationPanelSetting:Get() then
+    DockablePanel.Register{
+        name = "Negotiation",
+        icon = "icons/standard/Icon_App_Negotiation.png",
+        minHeight = 260,
+        vscroll = true,
+        dmonly = true,
+        content = function()
+            return CreateNegotiationRunner()
+        end,
+    }
+end

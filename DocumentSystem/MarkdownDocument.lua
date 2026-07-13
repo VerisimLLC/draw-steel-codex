@@ -8114,13 +8114,30 @@ end
 
 local MarkdownReferenceTooltip
 
---The Obsidian-style live block editor (LiveEditPanel) is the journal's
---editor. The classic full-document editor is retained below as
---ClassicEditPanel for reference until its remaining exclusives (find bar
---while editing, formatting guide, preview pane) are ported to the live
---editor; nothing calls it.
+--The Obsidian-style live block editor (LiveEditPanel) is the journal's editor
+--and now the DEFAULT. The flag survives - flipped, not deleted - because the
+--classic full-document editor below still holds a few exclusives (formatting
+--guide, preview pane) and is the escape hatch if live editing misbehaves on a
+--page. Turn this off and MarkdownDocument:EditPanel routes to ClassicEditPanel.
+--NB the id is NOT the old "journalLiveEdit". That id still carries a stored
+--`false` for anyone who tried the experiment back when it was opt-in, and a
+--stored value beats a default - they would have been silently dropped into the
+--classic editor. A fresh id has no legacy value to shadow it.
+local liveEditSetting = setting{
+    id = "journal:liveedit",
+    description = "Journal: live block editing",
+    help = "Edit journal pages block by block, in place. Turn this off to use the classic full-document editor.",
+    storage = "preference",
+    section = "general",
+    default = true,
+    editor = "check",
+}
+
 function MarkdownDocument:EditPanel(args)
-    return self:LiveEditPanel(args)
+    if liveEditSetting:Get() then
+        return self:LiveEditPanel(args)
+    end
+    return self:ClassicEditPanel(args)
 end
 
 function MarkdownDocument:ClassicEditPanel(args)

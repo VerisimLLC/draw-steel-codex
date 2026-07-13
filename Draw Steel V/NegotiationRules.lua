@@ -2319,6 +2319,12 @@ local function CreateNegotiationRunner()
     local m_lie = false
     local m_repeat = false    --nomotivation track: they have made this argument before
 
+    --Progressive disclosure. The rail INFORMS - it does not shout. A trait is
+    --one line until you reach for it; the ladder and the audit stay shut until
+    --you want them. Nothing is removed, only folded. All local to this client.
+    local m_openTraits = {}   --trait id -> true when expanded
+    local m_openSections = { traits = true, offers = false, audit = false }
+
     local runnerPanel
 
     local function Refresh()
@@ -2344,6 +2350,23 @@ local function CreateNegotiationRunner()
             width = wide or 96, height = 24, margin = 2,
             text = text,
             click = onclick,
+        }
+    end
+
+    --A section header that folds. `note` rides on the right when shut, so a
+    --closed section still tells you what is inside it (2 revealed, 3 more...).
+    local function SectionFold(key, title, note)
+        local open = m_openSections[key] == true
+        return gui.Label{
+            classes = { "bold", "hoverable" },
+            width = "100%", height = "auto", vmargin = 5,
+            fontSize = 12, color = "#7a7468",
+            text = string.format("%s  %s%s", open and "v" or ">", title,
+                (not open and note ~= nil and note ~= "") and ("   " .. note) or ""),
+            press = function()
+                m_openSections[key] = not open
+                Refresh()
+            end,
         }
     end
 
@@ -2822,135 +2845,158 @@ local function CreateNegotiationRunner()
         end
 
         -- 5. Motivations & pitfalls: the reveal grammar ----------------------
-        children[#children + 1] = gui.Label{
-            classes = { "bold" },
-            width = "100%", height = "auto", vmargin = 4,
-            fontSize = 12, color = "#7a7468",
-            text = "MOTIVATIONS & PITFALLS",
-        }
+        -- One LINE each. The voiced quote and the [Reveal]/[Say it] buttons are
+        -- the material you reach for one at a time - showing all thirty at once
+        -- is a wall, not information. Click a row to open the one you want.
+        local onStage, hidden = 0, 0
         for _, t in ipairs(live.traits) do
-            local trait = t
-            local rowChildren = {
-                gui.Label{
-                    classes = { "sizeS" },
-                    width = "100%", height = "auto", textWrap = true,
-                    fontSize = 12,
-                    text = string.format("%s  %s%s",
-                        trait.kind == "pitfall" and "x" or "+",
-                        trait.name,
-                        trait.used and "  (used)" or ""),
-                },
-            }
-            if (trait.line or "") ~= "" then
-                rowChildren[#rowChildren + 1] = Micro("\"" .. trait.line .. "\"", "#8a8a8a")
-            end
-            local actions = {}
-            if trait.revealed then
-                actions[#actions + 1] = gui.Label{
-                    classes = { "sizeS" },
-                    width = "auto", height = "auto", valign = "center",
-                    hpad = 6, vpad = 2, rmargin = 4, borderBox = true,
-                    fontSize = 10, color = "#e4ddd0",
-                    bgimage = "panels/square.png", bgcolor = "#ffffff1f",
-                    text = "ON STAGE",
+            if t.revealed then onStage = onStage + 1 else hidden = hidden + 1 end
+        end
+        children[#children + 1] = SectionFold("traits", "MOTIVATIONS & PITFALLS",
+            string.format("%d on stage, %d held", onStage, hidden))
+
+        if m_openSections.traits then
+            for _, t in ipairs(live.traits) do
+                local trait = t
+                local open = m_openTraits[trait.id] == true
+                local rowChildren = {}
+
+                --the always-visible line: what it is, and whether the table has it.
+                rowChildren[#rowChildren + 1] = gui.Panel{
+                    flow = "horizontal", width = "100%", height = "auto",
+                    classes = { "hoverable" },
+                    press = function()
+                        m_openTraits[trait.id] = not open
+                        Refresh()
+                    end,
+                    gui.Label{
+                        classes = { "sizeS" },
+                        width = "100%-58", height = "auto", textWrap = true,
+                        fontSize = 12,
+                        color = trait.revealed and "#e4ddd0" or "#8a8a8a",
+                        text = string.format("%s  %s%s",
+                            trait.kind == "pitfall" and "x" or "+",
+                            trait.name,
+                            trait.used and "  (used)" or ""),
+                    },
+                    trait.revealed and gui.Label{
+                        classes = { "sizeS" },
+                        width = "auto", height = "auto", valign = "center", halign = "right",
+                        hpad = 5, vpad = 1, borderBox = true,
+                        fontSize = 9, color = "#e4ddd0",
+                        bgimage = "panels/square.png", bgcolor = "#ffffff1f",
+                        text = "ON STAGE",
+                    } or nil,
                 }
-                actions[#actions + 1] = SmallButton("Hide", function()
-                    NegotiationRun.SetTraitRevealed(trait.id, false)
-                    Refresh()
-                end, 60)
-            else
-                actions[#actions + 1] = SmallButton("Reveal", function()
-                    NegotiationRun.SetTraitRevealed(trait.id, true)
-                    Refresh()
-                end, 70)
+
+                if open then
+                    if (trait.line or "") ~= "" then
+                        rowChildren[#rowChildren + 1] = Micro("\"" .. trait.line .. "\"", "#8a8a8a")
+                    end
+                    local actions = {}
+                    if trait.revealed then
+                        actions[#actions + 1] = SmallButton("Hide", function()
+                            NegotiationRun.SetTraitRevealed(trait.id, false)
+                            Refresh()
+                        end, 60)
+                    else
+                        actions[#actions + 1] = SmallButton("Reveal", function()
+                            NegotiationRun.SetTraitRevealed(trait.id, true)
+                            Refresh()
+                        end, 70)
+                    end
+                    if (trait.line or "") ~= "" then
+                        actions[#actions + 1] = SmallButton("Say it", function()
+                            NegotiationRun.Mutate("NPC speaks", function(l)
+                                NegotiationRun.Log(l, npc, trait.line, "", "npc")
+                            end)
+                            Refresh()
+                        end, 60)
+                    end
+                    rowChildren[#rowChildren + 1] = gui.Panel{
+                        flow = "horizontal", width = "100%", height = "auto", wrap = true,
+                        children = actions,
+                    }
+                end
+
+                children[#children + 1] = gui.Panel{
+                    flow = "vertical", width = "96%", height = "auto", vmargin = 2,
+                    hpad = 6, vpad = open and 6 or 4, borderBox = true,
+                    bgimage = "panels/square.png",
+                    bgcolor = open and "#131315" or "#00000000",
+                    border = 1,
+                    borderColor = open and "#ffffff47" or "#ffffff14",
+                    children = rowChildren,
+                }
             end
-            if (trait.line or "") ~= "" then
-                actions[#actions + 1] = SmallButton("Say it", function()
-                    NegotiationRun.Mutate("NPC speaks", function(l)
-                        NegotiationRun.Log(l, npc, trait.line, "", "npc")
-                    end)
-                    Refresh()
-                end, 60)
-            end
-            rowChildren[#rowChildren + 1] = gui.Panel{
-                flow = "horizontal", width = "100%", height = "auto", wrap = true,
-                children = actions,
-            }
-            children[#children + 1] = gui.Panel{
-                flow = "vertical", width = "96%", height = "auto", vmargin = 3,
-                hpad = 6, vpad = 6, borderBox = true,
-                bgimage = "panels/square.png",
-                bgcolor = "#131315",
-                border = 1, borderColor = "#ffffff26",
-                children = rowChildren,
-            }
         end
 
         -- 6. Offers ladder ---------------------------------------------------
-        children[#children + 1] = gui.Label{
-            classes = { "bold" },
-            width = "100%", height = "auto", vmargin = 4,
-            fontSize = 12, color = "#7a7468",
-            text = "OFFERS",
-        }
+        -- Only the CURRENT rung is live - it is the one you can act on. The
+        -- other five are reference, and reference folds.
+        children[#children + 1] = SectionFold("offers", "OFFERS",
+            string.format("at %d - \"%s\"", live.interest,
+                NegotiationRules.offerLabels[live.interest] or ""))
+
         for i = NegotiationRules.MAX, 0, -1 do
             local interest = i
-            local o = live.offers[NegotiationRules.OfferIndex(interest)]
-                or { terms = "", revealed = false }
             local isCurrent = (interest == live.interest)
-            local terms = (o.terms or "")
-            local shown = terms ~= "" and terms or NegotiationRules.offerLabels[interest]
-            local rowChildren = {
-                gui.Label{
-                    classes = { "sizeS" },
-                    width = "100%", height = "auto", textWrap = true, fontSize = 12,
-                    color = isCurrent and "#f2ede1" or "#8a8a8a",
-                    text = string.format("%s%d  \"%s\"  %s",
-                        isCurrent and "> CURRENT  " or "",
-                        interest,
-                        NegotiationRules.offerLabels[interest],
-                        terms ~= "" and ("- " .. terms) or ""),
-                },
-            }
-            if isCurrent then
-                local actions = {}
-                if o.revealed then
-                    actions[#actions + 1] = gui.Label{
+            if m_openSections.offers or isCurrent then
+                local o = live.offers[NegotiationRules.OfferIndex(interest)]
+                    or { terms = "", revealed = false }
+                local terms = (o.terms or "")
+                local rowChildren = {
+                    gui.Label{
                         classes = { "sizeS" },
-                        width = "auto", height = "auto", valign = "center",
-                        hpad = 6, vpad = 2, rmargin = 4, borderBox = true,
-                        fontSize = 10, color = "#e4ddd0",
-                        bgimage = "panels/square.png", bgcolor = "#ffffff1f",
-                        text = "ON STAGE",
+                        width = "100%", height = "auto", textWrap = true, fontSize = 12,
+                        color = isCurrent and "#f2ede1" or "#8a8a8a",
+                        text = string.format("%s%d  \"%s\"  %s",
+                            isCurrent and "> CURRENT  " or "",
+                            interest,
+                            NegotiationRules.offerLabels[interest],
+                            terms ~= "" and ("- " .. terms) or ""),
+                    },
+                }
+                if isCurrent then
+                    local actions = {}
+                    if o.revealed then
+                        actions[#actions + 1] = gui.Label{
+                            classes = { "sizeS" },
+                            width = "auto", height = "auto", valign = "center",
+                            hpad = 6, vpad = 2, rmargin = 4, borderBox = true,
+                            fontSize = 10, color = "#e4ddd0",
+                            bgimage = "panels/square.png", bgcolor = "#ffffff1f",
+                            text = "ON STAGE",
+                        }
+                    else
+                        actions[#actions + 1] = SmallButton("Reveal terms", function()
+                            NegotiationRun.Mutate("Reveal offer", function(l)
+                                local idx = NegotiationRules.OfferIndex(l.interest)
+                                local off = l.offers[idx] or { terms = "", revealed = false }
+                                off.revealed = true
+                                l.offers[idx] = off
+                                NegotiationRun.Log(l, npc, off.terms ~= "" and off.terms
+                                    or (NegotiationRules.offerLabels[l.interest] or ""),
+                                    "states his terms.", "npc")
+                            end)
+                            Refresh()
+                        end, 110)
+                    end
+                    rowChildren[#rowChildren + 1] = gui.Panel{
+                        flow = "horizontal", width = "100%", height = "auto", wrap = true,
+                        children = actions,
                     }
-                else
-                    actions[#actions + 1] = SmallButton("Reveal terms", function()
-                        NegotiationRun.Mutate("Reveal offer", function(l)
-                            local idx = NegotiationRules.OfferIndex(l.interest)
-                            local off = l.offers[idx] or { terms = "", revealed = false }
-                            off.revealed = true
-                            l.offers[idx] = off
-                            NegotiationRun.Log(l, npc, off.terms ~= "" and off.terms
-                                or (NegotiationRules.offerLabels[l.interest] or ""),
-                                "states his terms.", "npc")
-                        end)
-                        Refresh()
-                    end, 110)
                 end
-                rowChildren[#rowChildren + 1] = gui.Panel{
-                    flow = "horizontal", width = "100%", height = "auto", wrap = true,
-                    children = actions,
+                children[#children + 1] = gui.Panel{
+                    flow = "vertical", width = "96%", height = "auto", vmargin = 2,
+                    hpad = 6, vpad = 5, borderBox = true,
+                    bgimage = "panels/square.png",
+                    bgcolor = isCurrent and "#1a1a1e" or "#00000000",
+                    border = 1,
+                    borderColor = isCurrent and "#ffffff47" or "#ffffff14",
+                    children = rowChildren,
                 }
             end
-            children[#children + 1] = gui.Panel{
-                flow = "vertical", width = "96%", height = "auto", vmargin = 2,
-                hpad = 6, vpad = 5, borderBox = true,
-                bgimage = "panels/square.png",
-                bgcolor = isCurrent and "#1a1a1e" or "#00000000",
-                border = 1,
-                borderColor = isCurrent and "#ffffff47" or "#ffffff14",
-                children = rowChildren,
-            }
         end
 
         -- 7. The audit strip: Director-only bookkeeping (meter corrections,
@@ -2958,19 +3004,17 @@ local function CreateNegotiationRunner()
         -- fat-finger fix must not read to the table as an NPC mood swing.
         local audit = live:try_get("audit", {})
         if #audit > 0 then
-            children[#children + 1] = gui.Label{
-                classes = { "bold" },
-                width = "100%", height = "auto", vmargin = 6,
-                fontSize = 12, color = "#7a7468",
-                text = "AUDIT (you only)",
-            }
-            local shown = 0
-            for i = #audit, 1, -1 do
-                if shown >= 8 then
-                    break
+            children[#children + 1] = SectionFold("audit", "AUDIT (you only)",
+                string.format("%d entries", #audit))
+            if m_openSections.audit then
+                local shown = 0
+                for i = #audit, 1, -1 do
+                    if shown >= 8 then
+                        break
+                    end
+                    shown = shown + 1
+                    children[#children + 1] = Micro("- " .. (audit[i].text or ""), "#7a7468")
                 end
-                shown = shown + 1
-                children[#children + 1] = Micro("- " .. (audit[i].text or ""), "#7a7468")
             end
         end
 

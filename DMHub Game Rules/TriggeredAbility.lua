@@ -301,6 +301,20 @@ TriggeredAbility.triggers = {
 	{
 		id = "creaturedeath",
 		text = "Death",
+        symbols = {
+            attacker = {
+                name = "Attacker",
+                type = "creature",
+                desc = "The attacking creature. Only valid if Has Attacker is true.",
+                prose = "the attacker",
+            },
+            hasattacker = {
+                name = "HasAttacker",
+                type = "boolean",
+                desc = "True if the damage has an attacker.",
+                prose = "there is an attacker",
+            },
+        },
 	},
 	{
 		id = "saveagainstdamage",

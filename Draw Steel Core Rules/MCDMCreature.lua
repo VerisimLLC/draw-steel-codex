@@ -5414,11 +5414,12 @@ function creature.TakeDamage(self, amount, note, info)
             end
 
             eventArg.victim = nil
-            eventArg.attacker = nil
-            eventArg.hasattacker = nil
             eventArg.subject = nil
 
             self:DispatchEvent("creaturedeath", eventArg)
+            
+            eventArg.attacker = nil
+            eventArg.hasattacker = nil
 
             self:CancelConcentration()
 

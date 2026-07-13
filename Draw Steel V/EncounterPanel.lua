@@ -42,19 +42,34 @@ end
 
 local CreateEncounterPanel
 
-DockablePanel.Register {
-    name = "Encounter creator",
-    icon = "icons/standard/Icon_App_EncounterCreator.png",
-    minHeight = 200,
-    vscroll = true,
-    content = function()
-        track("panel_open", {
-            panel = "Encounter creator",
-            dailyLimit = 30,
-        })
-        return CreateEncounterPanel()
-    end,
+--Feature flag for the encounter builder. Registration happens at load, so a
+--change takes effect on the next reload. Turning it off hides the panel; the
+--Encounter type and any encounters already built stay exactly where they are.
+local encounterBuilderSetting = setting{
+    id = "encounterBuilder",
+    description = "Encounter builder",
+    help = "The Encounter creator panel: build encounters, cost them against the party's budget, and drop them into the journal. Takes effect after a reload.",
+    storage = "preference",
+    section = "general",
+    default = true,
+    editor = "check",
 }
+
+if encounterBuilderSetting:Get() then
+    DockablePanel.Register {
+        name = "Encounter creator",
+        icon = "icons/standard/Icon_App_EncounterCreator.png",
+        minHeight = 200,
+        vscroll = true,
+        content = function()
+            track("panel_open", {
+                panel = "Encounter creator",
+                dailyLimit = 30,
+            })
+            return CreateEncounterPanel()
+        end,
+    }
+end
 
 --Encounter is defined in Draw Steel Core Rules/MCDMEncounter.lua (data + rules).
 --We re-fetch the registered type here so the UI methods below can attach to it.

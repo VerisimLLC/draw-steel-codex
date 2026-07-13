@@ -13,19 +13,40 @@ end
 
 local CreateNegotiationDialog
 
-LaunchablePanel.Register {
-	name = "Negotiation",
-    menu = "game",
-	icon = "icons/standard/Icon_App_Negotiation.png",
-	halign = "center",
-	valign = "center",
-	--filtered = function()
-	--	return not dmhub.isDM
-	--end,
-	content = function(options)
-		return CreateNegotiationDialog(options)
-	end,
+--The negotiation feature flag. It lives HERE, not in NegotiationRules.lua,
+--because main.lua loads this file first and the flag has to exist before either
+--registration reads it.
+--
+--It is a SWITCH, not a toggle: ON registers the new doc-driven stage + rail
+--runner (NegotiationRules.lua) and this old dialog stays out of the menu; OFF
+--registers only this one. Never both - two menu entries called "Negotiation"
+--is worse than either alone. Defaults OFF: the old dialog is what ships until
+--the new panel is turned on deliberately.
+NegotiationPanelSetting = setting{
+	id = "negotiationPanel",
+	description = "Negotiation panel (new)",
+	help = "The new negotiation prep page, shared stage, and Director's rail runner. Off keeps the classic negotiation dialog. Takes effect after a reload.",
+	storage = "preference",
+	section = "general",
+	default = false,
+	editor = "check",
 }
+
+if not NegotiationPanelSetting:Get() then
+	LaunchablePanel.Register {
+		name = "Negotiation",
+		menu = "game",
+		icon = "icons/standard/Icon_App_Negotiation.png",
+		halign = "center",
+		valign = "center",
+		--filtered = function()
+		--	return not dmhub.isDM
+		--end,
+		content = function(options)
+			return CreateNegotiationDialog(options)
+		end,
+	}
+end
 
 
 CreateNegotiationDialog = function(options)

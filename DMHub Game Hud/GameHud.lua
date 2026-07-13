@@ -1478,6 +1478,14 @@ function GameHud.PresentDialogToUsers(parentElement, dialogid, args, livedata)
 	GameHud.instance.parentPanel:FireEvent("presentDialog", parentElement, dialogid, args, livedata)
 end
 
+--The monitorGame path of the shared presentdialog document. Panels in OTHER
+--modules must use this rather than their own mod:GetDocumentPath("presentdialog"):
+--shared documents are namespaced per module, so that call would resolve to a
+--different (never-changing) document and the panel would never refresh.
+function GameHud.PresentDialogPath()
+	return mod:GetDocumentPath("presentdialog")
+end
+
 function GameHud.HidePresentedDialog()
     GameHud.instance.parentPanel:FireEventTree("clearPresentDialog")
 end

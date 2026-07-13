@@ -640,6 +640,10 @@ LiveNegotiation.npcName = ""
 LiveNegotiation.npcDesc = ""
 LiveNegotiation.portrait = ""
 LiveNegotiation.nameRevealed = true
+--Director-only provenance, shown in the rail, never on the stage: the sample
+--negotiator this run is playing, and how hard he is to move (impression 1-12).
+LiveNegotiation.archetype = ""
+LiveNegotiation.impression = 1
 LiveNegotiation.interest = 2
 LiveNegotiation.patience = 3
 LiveNegotiation.showRaw = false     --bands (false) vs raw numbers (true) on stage.
@@ -683,12 +687,15 @@ function LiveNegotiation.FromDocument(doc)
         npcDesc = doc:try_get("npcDesc", ""),
         portrait = doc:try_get("portrait", ""),
         nameRevealed = not doc:try_get("hideName", false),
+        archetype = doc:try_get("archetype", ""),
+        impression = doc:try_get("impression", 1),
         interest = doc:try_get("startInterest", att.interest),
         patience = doc:try_get("startPatience", att.patience),
         traits = {},
         offers = {},
         accepted = {},
         history = {},
+        spoke = {},
     }
     for _, t in ipairs(doc:try_get("traits", {})) do
         live.traits[#live.traits + 1] = {
@@ -724,6 +731,11 @@ NegotiationDocument.attitude = "suspicious"
 NegotiationDocument.startInterest = -1   --<0 means "derive from attitude"
 NegotiationDocument.startPatience = -1
 NegotiationDocument.impression = 1
+--The Sample Negotiator this was seeded from, by name. The seed is a COPY (the
+--Director edits the traits freely afterwards), so this is a provenance label,
+--not a live link - but without it the run forgets what it is playing, and the
+--rail can only say who the NPC is, never what kind of negotiator he is.
+NegotiationDocument.archetype = ""
 NegotiationDocument.opening = ""
 NegotiationDocument.stakes = ""
 --traits: array of { id, kind, name, line }
@@ -753,6 +765,7 @@ end
 --Seed traits + impression from a compendium Negotiator archetype, copying
 --the voiced lines so the prep doc carries performance material.
 function NegotiationDocument:SeedFromArchetype(negotiator)
+    self.archetype = negotiator.name or ""
     self.impression = negotiator:try_get("impressionScore", 1)
     if self.description == "New Negotiation" or self.description == "" then
         self.npcDesc = negotiator:try_get("flavorText", "")
@@ -1018,6 +1031,25 @@ end
 function NegotiationDocument:EditPanel()
     local doc = self
 
+    --provenance: which Sample Negotiator this was seeded from. The seed is a
+    --copy, so this is a label, not a link - but it is the only thing that tells
+    --the Director (and later the rail) what kind of negotiator he is running.
+    local seedNote
+    local function SeedNoteText()
+        local a = doc:try_get("archetype", "")
+        if a == "" then
+            return ""
+        end
+        return string.format("Seeded from %s (impression %d). The traits are yours to edit - this is a copy.",
+            a, doc:try_get("impression", 1))
+    end
+    seedNote = gui.Label{
+        classes = { "sizeS" },
+        width = "94%", height = "auto", halign = "left", vmargin = 3,
+        fontSize = 12, color = "#7a7468", textWrap = true,
+        text = SeedNoteText(),
+    }
+
     local function textInput(field, placeholder, multiline)
         return gui.Input{
             classes = { "sizeM" },
@@ -1207,6 +1239,7 @@ function NegotiationDocument:EditPanel()
                             element.popup = nil
                             doc:SeedFromArchetype(negotiator)
                             doc:Upload()
+                            seedNote.text = SeedNoteText()
                             RebuildTraits()
                         end,
                     }
@@ -1214,6 +1247,7 @@ function NegotiationDocument:EditPanel()
                 element.popup = gui.ContextMenu{ entries = entries }
             end,
         },
+        seedNote,
 
         SectionHeader("Starting attitude"),
         gui.Dropdown{
@@ -2376,6 +2410,11 @@ local function CreateNegotiationRunner()
                     width = "100%", height = "auto", textWrap = true,
                     text = npc,
                 },
+                --what he IS, not just who: the archetype the run is playing and
+                --how hard he is to move. Director-side only.
+                (live:try_get("archetype", "") ~= "") and Micro(string.format(
+                    "%s - impression %d", live.archetype, live:try_get("impression", 1)),
+                    "#8a8a8a") or nil,
                 (not live.nameRevealed) and Micro("Unnamed on stage (\"???\")", "#e8a030") or nil,
             },
         }

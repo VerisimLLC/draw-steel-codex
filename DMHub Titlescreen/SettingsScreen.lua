@@ -11,7 +11,7 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
--- Gates the codex MCDM Shopify Store UI behind the dev:storepreview testing flag.
+-- Gates the codex MCDM Shop UI behind the dev:storepreview testing flag.
 -- Settings are keyed by id, so re-declaring "dev:storepreview" here gives read access
 -- to the same persisted preference the title bar uses (CodexTitleBar.lua). When off,
 -- the Shopify account section is hidden.
@@ -1081,7 +1081,7 @@ local CreateEmailConfirmationPanel = function()
 	local resultPanel = gui.Panel{
 		-- Gate the email-update interface behind the same dev:storepreview
 		-- preference that controls whether the shop is available (the
-		-- Shop/Inventory title-bar menu and the MCDM Shopify Store section
+		-- Shop/Inventory title-bar menu and the MCDM Shop section
 		-- below). When the store isn't live, the email section stays hidden.
 		classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
 		flow = "vertical",
@@ -1705,7 +1705,7 @@ function CreateSettingsScreen(dialog, args)
 
 							shopifyStatusLabel = gui.Label{
 								fontSize = 14, width = "100%", maxWidth = 600, height = "auto",
-								text = "Checking MCDM Shopify Store...",
+								text = "Checking MCDM Shop...",
 							}
 
 							shopifyErrorLabel = gui.Label{
@@ -1716,7 +1716,7 @@ function CreateSettingsScreen(dialog, args)
 							shopifyConnectButton = gui.Button{
 								classes = {"collapsed"},
 								width = 240, height = 40, fontSize = 20, halign = "left", vmargin = 4,
-								text = "Connect MCDM Shopify Store",
+								text = "Connect MCDM Shop",
 								click = function(element)
 									-- Ask the backend for the Shopify authorize URL using the
 									-- codex's own credentials (net.Post attaches them), then open
@@ -1805,7 +1805,7 @@ function CreateSettingsScreen(dialog, args)
 								flow = "vertical", width = "auto", height = "auto", vmargin = 4,
 								gui.Label{
 									fontSize = 14, maxWidth = 600, width = "100%", height = "auto",
-									text = "Disconnect your MCDM Shopify Store account?",
+									text = "Disconnect your MCDM Shop account?",
 								},
 								gui.Panel{
 									flow = "horizontal", width = "auto", height = "auto",
@@ -1837,17 +1837,17 @@ function CreateSettingsScreen(dialog, args)
 							ApplyShopifyStatusData = function(data)
 								shopifyRefreshButton:SetClass("collapsed", false)
 								if type(data) ~= "table" or not data.ok then
-									shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
+									shopifyStatusLabel.text = "Could not load MCDM Shop status."
 									return
 								end
 								if data.linked then
 									shopifyStatusLabel.text = (data.email ~= nil and data.email ~= "")
-										and string.format("MCDM Shopify Store: Connected as %s", data.email)
-										or "MCDM Shopify Store: Connected"
+										and string.format("MCDM Shop: Connected as %s", data.email)
+										or "MCDM Shop: Connected"
 									shopifyDisconnectButton:SetClass("collapsed", false)
 									shopifyOrdersToggle:SetClass("collapsed", false)
 								else
-									shopifyStatusLabel.text = "Connect your MCDM Shopify Store account to link your purchases."
+									shopifyStatusLabel.text = "Connect your MCDM Shop account to link your purchases."
 									shopifyConnectButton:SetClass("collapsed", false)
 									shopifyOrdersToggle:SetClass("collapsed", true)
 									shopifyOrdersListPanel:SetClass("collapsed", true)
@@ -1863,7 +1863,7 @@ function CreateSettingsScreen(dialog, args)
 							-- after a successful disconnect. Also retires any active link poll.
 							RefreshShopifyStatus = function()
 								m_shopifyPollGeneration = m_shopifyPollGeneration + 1
-								shopifyStatusLabel.text = "Checking MCDM Shopify Store..."
+								shopifyStatusLabel.text = "Checking MCDM Shop..."
 								shopifyConnectButton:SetClass("collapsed", true)
 								shopifyDisconnectButton:SetClass("collapsed", true)
 								shopifyConfirmPanel:SetClass("collapsed", true)
@@ -1878,7 +1878,7 @@ function CreateSettingsScreen(dialog, args)
 									end,
 									error = function(msg)
 										shopifyRefreshButton:SetClass("collapsed", false)
-										shopifyStatusLabel.text = "Could not load MCDM Shopify Store status."
+										shopifyStatusLabel.text = "Could not load MCDM Shop status."
 										shopifyErrorLabel.text = "Error: " .. tostring(msg)
 										shopifyErrorLabel:SetClass("collapsed", false)
 									end,
@@ -1975,7 +1975,7 @@ function CreateSettingsScreen(dialog, args)
 								if o.statusPageUrl ~= nil then
 									detailChildren[#detailChildren+1] = gui.Label{
 										fontSize = 12, color = "#c8a45a", width = "auto", height = "auto", vmargin = 4,
-										text = "View receipt on Shopify ->",
+										text = "View receipt ->",
 										press = function(element)
 											dmhub.OpenURL(o.statusPageUrl)
 										end,
@@ -2188,7 +2188,7 @@ function CreateSettingsScreen(dialog, args)
 
 								gui.Label{
 									bold = true, fontSize = 16, width = "auto", height = "auto",
-									text = "MCDM Shopify Store",
+									text = "MCDM Shop",
 								},
 								shopifyStatusLabel,
 								shopifyConnectButton,

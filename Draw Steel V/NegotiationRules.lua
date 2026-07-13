@@ -2123,9 +2123,13 @@ local function CreateNegotiationStage(args)
 
     local closeButton = nil
     if isDM then
+        --floating: the dialog's flow is horizontal, so an in-flow close button
+        --is a COLUMN - it was shoving the whole stage right by its own width
+        --and stealing the left column's margin.
         closeButton = gui.Button{
             classes = { "closeButton" },
-            halign = "right", valign = "top",
+            floating = true,
+            halign = "left", valign = "top",
             press = function()
                 GameHud.HidePresentedDialog()
             end,

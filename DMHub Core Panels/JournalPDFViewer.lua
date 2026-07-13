@@ -2370,6 +2370,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             --set to line the view up on the current page once layout has
             --settled (initial open, or toggling continuous scrolling on).
             scrollToCurrentPage = false,
+            --reading position (in page slots from the document top) captured
+            --when the zoom changes, re-asserted until the layout settles.
+            --The engine preserves the PIXEL scroll offset across a content
+            --resize, which would land the view on a different page.
+            zoomAnchor = nil,
+            zoomAnchorUntil = 0,
+            lastZoom = m_zoom,
             lastWindowTop = nil,
             lastWindowTime = nil,
             havePending = false,
@@ -2377,6 +2384,28 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         },
 
         page = function(element)
+            --a zoom change rescales the content stack; capture the reading
+            --position in page units from the pre-zoom geometry (layout has
+            --not applied the new width yet) so the think can restore it. If
+            --several zoom steps land before layout settles, keep the anchor
+            --from the first one -- it is the only one measured from settled
+            --geometry.
+            if m_zoom ~= element.data.lastZoom then
+                element.data.lastZoom = m_zoom
+                element.data.zoomAnchorUntil = dmhub.Time() + 0.6
+                if element.data.zoomAnchor == nil then
+                    local contentH = element.renderedHeight
+                    local viewportH = pdfScrollViewPanel.renderedHeight
+                    if contentH > 0 and viewportH > 0 then
+                        local slotPx = contentH
+                        if IsContinuous() then
+                            slotPx = contentH / npages
+                        end
+                        local windowTop = math.max(0, contentH - viewportH) * (1 - pdfScrollViewPanel.vscrollPosition)
+                        element.data.zoomAnchor = windowTop / slotPx
+                    end
+                end
+            end
             element.selfStyle.width = string.format("%f%%", m_zoom * 100)
             element.selfStyle.height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100)
         end,
@@ -2411,6 +2440,26 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             local expectedH = w * (continuous and (npages * slotAspect) or pageAspect)
             if math.abs(contentH - expectedH) > expectedH * 0.01 + 2 then
                 return
+            end
+
+            --restore the reading position captured across a zoom change.
+            --The engine applies its pixel-preserving scroll adjustment on a
+            --layout pass that can land AFTER the geometry first reads as
+            --settled, so keep re-asserting the anchor for a short window
+            --rather than restoring it once.
+            if element.data.zoomAnchor ~= nil then
+                local scrollRange = contentH - viewportH
+                if dmhub.Time() > element.data.zoomAnchorUntil or scrollRange <= 0 then
+                    element.data.zoomAnchor = nil
+                else
+                    local slotPx = continuous and (contentH / npages) or contentH
+                    local currentSlots = scrollRange * (1 - pdfScrollViewPanel.vscrollPosition) / slotPx
+                    if math.abs(currentSlots - element.data.zoomAnchor) > 0.005 then
+                        local restored = clamp((element.data.zoomAnchor * slotPx) / scrollRange, 0, 1)
+                        pdfScrollViewPanel.vscrollPosition = 1 - restored
+                        element.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+                    end
+                end
             end
 
             --pull any horizontal pan back within bounds when the zoom (and

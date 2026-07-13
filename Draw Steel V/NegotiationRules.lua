@@ -1398,22 +1398,14 @@ function NegotiationDocument:DisplayPanel()
     return resultPanel
 end
 
---Feature flag for the negotiation panel. It gates the two REGISTRATIONS - the
---journal's "New Negotiation" entry and the rail runner at the bottom of this
---file - and nothing else. Registration happens at load, so a change takes
---effect on the next reload. Existing negotiation pages keep rendering either
---way: a saved page is deserialized by its game type, not by this registry, so
---turning the flag off hides the feature without orphaning anyone's prep.
-NegotiationPanelSetting = setting{
-    id = "negotiationPanel",
-    description = "Negotiation panel",
-    help = "The negotiation prep page, the shared stage, and the Director's rail runner. Takes effect after a reload.",
-    storage = "preference",
-    section = "general",
-    default = true,
-    editor = "check",
-}
-
+--NegotiationPanelSetting is declared in Negotiation.lua, which main.lua loads
+--first (the flag has to exist before the OLD dialog decides whether to
+--register). It gates the two registrations here - the journal's "New
+--Negotiation" entry and the rail runner at the bottom of this file - and
+--nothing else. Registration happens at load, so a change needs a reload.
+--Existing negotiation pages keep rendering either way: a saved page is
+--deserialized by its game type, not by this registry, so turning the flag off
+--hides the feature without orphaning anyone's prep.
 if NegotiationPanelSetting:Get() then
     CustomDocument.Register{
         id = "negotiation",

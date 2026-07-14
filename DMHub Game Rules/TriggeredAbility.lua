@@ -297,6 +297,18 @@ TriggeredAbility.triggers = {
 	{
 		id = "kill",
 		text = "Kill a Creature",
+        symbols = {
+            usedability = {
+                name = "Used Ability",
+                type = "ability",
+                desc = "The ability used",
+            },
+                target = {
+                name = "Victim",
+                type = "creature",
+                desc = "The creature being killed.",
+            },
+        },
 	},
 	{
 		id = "creaturedeath",
@@ -417,6 +429,18 @@ TriggeredAbility.triggers = {
 	{
 		id = "attack",
 		text = "Attack an Enemy",
+        symbols = {
+            usedability = {
+                name = "Used Ability",
+                type = "ability",
+                desc = "The ability used",
+            },
+                target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature being Attacked.",
+            },
+        },
 	},
 
 	{

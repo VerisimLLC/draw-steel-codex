@@ -5365,6 +5365,7 @@ function creature.TakeDamage(self, amount, note, info)
             self:DispatchEvent("zerohitpoints", eventArg)
 
             eventArg.victim = self
+            eventArg.usedability = eventArg.ability
             eventArg.hasattacker = eventArg.attacker ~= nil
 
             if eventArg.attacker ~= nil then

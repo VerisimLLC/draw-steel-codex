@@ -1533,6 +1533,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     degree = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result),
                     target = GenerateSymbols(targetToken.properties),
                     ability = GenerateSymbols(ability),
+                    usedability = GenerateSymbols(ability),
                 }
 
                 casterToken.properties:TriggerEvent("attack", args)

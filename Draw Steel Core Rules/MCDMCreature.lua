@@ -3024,6 +3024,33 @@ function character:BaseHitpoints()
     return ExecuteGoblinScript(c.hitpointsCalculation, self:LookupSymbol {}, 1, "Base hitpoints")
 end
 
+--Writhing Envelopment (and similar effects): a creature carrying the
+--"Cannot Save Against Other Effects" custom attribute can't roll saving throws
+--to end any other condition or ongoing effect. Rather than prompting for a roll
+--that would just be wasted, the creature protests via a speech bubble and the
+--save is skipped. Returns true when the save should be suppressed.
+local function SuppressSaveAgainstOtherEffects(self)
+    if (self:CalculateNamedCustomAttribute("Cannot Save Against Other Effects") or 0) <= 0 then
+        return false
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token ~= nil and token.valid then
+        token:ModifyProperties{
+            description = "Cannot Save",
+            undoable = false,
+            execute = function()
+                self:CharacterSpeech{
+                    text = "I can't make Saving Throws while grabbed this way!",
+                    langid = self:CurrentlySpokenLanguage(),
+                }
+            end,
+        }
+    end
+
+    return true
+end
+
 function creature:RollOngoingEffectSave(id, abilityOptions)
     abilityOptions = abilityOptions or {}
     abilityOptions.symbols = abilityOptions.symbols or {}
@@ -3041,6 +3068,10 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     end
 
     if index == nil then
+        return
+    end
+
+    if SuppressSaveAgainstOtherEffects(self) then
         return
     end
 
@@ -3130,6 +3161,10 @@ function creature:RollConditionSave(condid, abilityOptions)
                 self:InflictCondition(condid, { purge = true })
             end,
         }
+        return
+    end
+
+    if SuppressSaveAgainstOtherEffects(self) then
         return
     end
 
@@ -3446,7 +3481,15 @@ function creature:InflictCondition(conditionid, args)
             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
             local conditionInfo = conditionsTable[conditionid]
             if conditionInfo ~= nil then
-                local text = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                --A modifier that grants the immunity may specify its own custom
+                --line (immunityMessage), used verbatim to override the generic
+                --speech. This lets special-case effects (e.g. Olothec
+                --transformations that specifically block hiding) say something
+                --context-appropriate instead of "I can't be Hidden!". Otherwise
+                --fall back to the per-condition variations table, then a generic
+                --line.
+                local text = self:GetConditionImmunityMessage(conditionid)
+                    or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
                     or string.format("I can't be %s!", conditionInfo.name)
                 local language = self:CurrentlySpokenLanguage()
                 if language ~= nil then

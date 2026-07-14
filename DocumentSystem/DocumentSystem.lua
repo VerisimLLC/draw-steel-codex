@@ -346,14 +346,32 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
             foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }
         end
     end
-    --PDF books, same filter as the journal panel (hidden covers the
-    --Patreon variants that share book names). Opened via OpenContent,
-    --never navigated to in a viewer tab.
+    --PDF books, image documents, and PDF page fragments -- the same member
+    --sources as the journal panel (hidden covers the Patreon PDF variants
+    --that share book names). Non-doc members carry their content object and
+    --open via CustomDocument.OpenContent, exactly like a journal panel
+    --click; they are never navigated to in a viewer tab.
     for k, doc in pairs(assets.pdfDocumentsTable or {}) do
         if not doc.hidden then
             local pf = doc.parentFolder or "private"
             foldersToMembers[pf] = foldersToMembers[pf] or {}
-            foldersToMembers[pf][k] = { type = "pdf", id = k, description = doc.description or "PDF", pdfDoc = doc }
+            foldersToMembers[pf][k] = { type = "pdf", id = k, description = doc.description or "PDF", content = doc }
+        end
+    end
+    for k, image in pairs(assets.imagesByTypeTable.Document or {}) do
+        if not image.hidden then
+            local pf = image.parentFolder or "private"
+            foldersToMembers[pf] = foldersToMembers[pf] or {}
+            foldersToMembers[pf][k] = { type = "image", id = k, description = image.description or "Image", content = image }
+        end
+    end
+    --PDFFragment is registered by JournalPDFViewer (a later-loading module);
+    --guard so the tree still builds if that module is absent.
+    if rawget(_G, "PDFFragment") ~= nil then
+        for k, fragment in unhidden_pairs(dmhub.GetTable(PDFFragment.tableName) or {}) do
+            local pf = fragment.parentFolder or "private"
+            foldersToMembers[pf] = foldersToMembers[pf] or {}
+            foldersToMembers[pf][k] = { type = "pdffragment", id = k, description = fragment.description or "PDF Page", content = fragment }
         end
     end
     for k, folder in pairs(allFolders) do
@@ -464,6 +482,14 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 children[#children + 1] = buildFolderEntry(member.id, member.description, expandThis, subChildren)
             else
                 local isCurrentDoc = (member.id == currentDocId)
+                --icons match the journal panel: book for PDFs, image icon
+                --for image docs and page fragments, page icon for documents.
+                local memberIcon = "icons/icon_app/icon_app_107.png"
+                if member.type == "pdf" then
+                    memberIcon = "icons/icon_app/icon_app_137.png"
+                elseif member.type == "image" or member.type == "pdffragment" then
+                    memberIcon = "icons/icon_app/icon_app_34.png"
+                end
                 children[#children + 1] = gui.Panel {
                     width = "100%",
                     height = 22,
@@ -479,12 +505,13 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     }),
                     press = function(element)
                         if m_pickHandled then return end
-                        --PDFs open in the PDF viewer in every context;
-                        --they are never a viewer tab or a nav target.
-                        if member.type == "pdf" then
+                        --non-doc members (pdf/image/pdffragment) open via
+                        --OpenContent in every context; they are never a
+                        --viewer tab or a nav target.
+                        if member.content ~= nil then
                             m_pickHandled = true
                             element:ScheduleEvent("resetPickLatch", 0.1)
-                            CustomDocument.OpenContent(member.pdfDoc)
+                            CustomDocument.OpenContent(member.content)
                             return
                         end
                         if opts ~= nil and opts.onPick ~= nil then
@@ -507,8 +534,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     end,
 
                     gui.Panel {
-                        bgimage = cond(member.type == "pdf",
-                            "icons/icon_app/icon_app_137.png", "icons/icon_app/icon_app_107.png"),
+                        bgimage = memberIcon,
                         bgcolor = cond(isCurrentDoc, "white", "#aaaaaa"),
                         width = 14,
                         height = 14,

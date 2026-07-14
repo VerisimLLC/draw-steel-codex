@@ -607,50 +607,26 @@ local SETTING_BRIDGE   = "externaldice:bridgeurl"
 local SETTING_BRIDGEPATH = "externaldice:bridgepath"
 local DEFAULT_BRIDGE   = "http://127.0.0.1:17211"
 
--- Sending chat before the local user has a game session (e.g. the character
--- creation lobby, or before the session is established at startup) crashes the
--- engine: ChatPanel.SendChat indexes usersToSessions[effectiveUserId] without a
--- guard. GetSessionInfo reads that same dictionary safely, so gate on it.
-local function chatNotify(msg)
-    local chatLib = rawget(_G, "chat")
-    if chatLib == nil or chatLib.Send == nil then
-        return
-    end
-    if dmhub.GetSessionInfo == nil or dmhub.GetSessionInfo(dmhub.userid) == nil then
-        return
-    end
-    chatLib.Send(msg)
-end
-
 -- Start/stop the bridge process alongside the checkbox. The engine
 -- resolves the executable itself (the bridgepath preference below, or
 -- dice-bridge.exe next to the player executable) so this API can't be
 -- pointed at an arbitrary binary. Guarded for engine builds that predate
--- dmhub.StartDiceBridge. `announce` posts feedback to chat -- pass false for
--- non-interactive calls (e.g. startup auto-start) so a normal game load stays
--- quiet.
-local function syncBridgeProcess(enabled, announce)
+-- dmhub.StartDiceBridge. Lifecycle feedback goes to the dev console, not
+-- chat (the Physical Dice panel's status line is the user-facing surface).
+local function syncBridgeProcess(enabled)
     if enabled then
         if dmhub.StartDiceBridge ~= nil then
             if dmhub.StartDiceBridge() then
-                -- The bridge runs windowless, so without this there is no
-                -- visible sign the checkbox did anything.
-                if announce then
-                    chatNotify("Dice bridge started. Wake your dice (give them a shake) and they will connect within a few seconds -- check with /godice status.")
-                end
+                print("CGB: dice bridge started")
             else
-                if announce then
-                    chatNotify("Could not start the dice bridge. Set 'Physical Dice Bridge Program' in settings to the bridge executable, or start it manually.")
-                end
+                print("CGB: could not start the dice bridge -- set 'Physical Dice Bridge Program' in settings to the bridge executable, or start it manually")
             end
         end
     else
         if dmhub.StopDiceBridge ~= nil then
             dmhub.StopDiceBridge()
         end
-        if announce then
-            chatNotify("Dice bridge stopped.")
-        end
+        print("CGB: dice bridge stopped")
     end
 end
 
@@ -663,7 +639,7 @@ local g_externalDiceEnabled = setting{
     default = false,
     editor = "check",
     onchange = function()
-        syncBridgeProcess(dmhub.GetSettingValue(SETTING_ENABLED) == true, true)
+        syncBridgeProcess(dmhub.GetSettingValue(SETTING_ENABLED) == true)
     end,
 }
 
@@ -1351,6 +1327,12 @@ local DIE_TYPE_OPTIONS = {
 local function CreateDieRow(die, onChanged)
     local connected = die.connected == true
     local isPixels = die.vendor == "pixels"
+    -- Pixels: the physical die type as self-reported over BLE. `die.type`
+    -- is what it plays as -- a pixels d20 can play as a d10 (the bridge
+    -- folds 11..20 onto 1..10), since Pixels only make d20s.
+    local hwType = die.hw_type
+    if hwType == "" then hwType = nil end
+    local folded = isPixels and hwType ~= nil and hwType ~= die.type
     -- Battery is nil until the bridge's first real read after connect
     -- (there is no cached value for a sleeping die).
     local batteryText = "asleep"
@@ -1379,7 +1361,8 @@ local function CreateDieRow(die, onChanged)
             cornerRadius = 6,
             hover = gui.Tooltip(string.format("%s %s\n%s",
                 isPixels and "Pixels" or "GoDice",
-                tostring(die.type),
+                folded and string.format("%s played as %s", tostring(hwType), tostring(die.type))
+                       or tostring(die.type),
                 tostring(die.id))),
         },
 
@@ -1403,12 +1386,32 @@ local function CreateDieRow(die, onChanged)
         },
 
         -- Die size. GoDice do not self-report which shell is snapped on,
-        -- so it's a user declaration (dropdown; changing it saves to the
-        -- bridge config and rebinds the connection). Pixels report their
-        -- own type over BLE -- the hardware is authoritative and the
-        -- bridge rejects manual changes, so no editor: their size lives
-        -- in the connection dot's tooltip.
-        isPixels and gui.Panel{ width = 64, height = 22, valign = "center" }
+        -- so it's a free user declaration (full dropdown; changing it saves
+        -- to the bridge config and rebinds the connection). Pixels report
+        -- their own type over BLE -- the hardware is authoritative, so
+        -- there's no free choice; but a pixels d20 can PLAY AS a d10 (the
+        -- bridge folds 11..20 onto 1..10), so d20s get a two-option
+        -- dropdown and everything else just a spacer.
+        (isPixels and hwType == "d20") and gui.Dropdown{
+            width = 64,
+            height = 22,
+            fontSize = 12,
+            valign = "center",
+            options = {
+                {id = "d20", text = "d20"},
+                {id = "d10", text = "as d10"},
+            },
+            idChosen = tostring(die.type),
+            change = function(element)
+                net.Post{
+                    url = CGB.getBaseUrl() .. "/v1/dice/" .. die.id .. "/type",
+                    data = { type = element.idChosen },
+                    success = function(_) onChanged() end,
+                    error = function(_) end,
+                }
+            end,
+        }
+        or isPixels and gui.Panel{ width = 64, height = 22, valign = "center" }
         or gui.Dropdown{
             width = 64,
             height = 22,
@@ -1706,10 +1709,8 @@ registerHooks()
 
 -- If the user left the checkbox on last session, bring the bridge up now.
 -- EnsureRunning is idempotent, so the twice-per-startup file reload is fine.
--- announce=false: this runs before the session exists, and a boot-time bridge
--- message would be both crash-prone and noisy.
 if CGB.isEnabled() then
-    syncBridgeProcess(true, false)
+    syncBridgeProcess(true)
 end
 
 end

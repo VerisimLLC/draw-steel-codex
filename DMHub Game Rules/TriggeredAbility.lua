@@ -297,10 +297,36 @@ TriggeredAbility.triggers = {
 	{
 		id = "kill",
 		text = "Kill a Creature",
+        symbols = {
+            usedability = {
+                name = "Used Ability",
+                type = "ability",
+                desc = "The ability used",
+            },
+                target = {
+                name = "Victim",
+                type = "creature",
+                desc = "The creature being killed.",
+            },
+        },
 	},
 	{
 		id = "creaturedeath",
 		text = "Death",
+        symbols = {
+            attacker = {
+                name = "Attacker",
+                type = "creature",
+                desc = "The attacking creature. Only valid if Has Attacker is true.",
+                prose = "the attacker",
+            },
+            hasattacker = {
+                name = "HasAttacker",
+                type = "boolean",
+                desc = "True if the damage has an attacker.",
+                prose = "there is an attacker",
+            },
+        },
 	},
 	{
 		id = "saveagainstdamage",
@@ -403,6 +429,18 @@ TriggeredAbility.triggers = {
 	{
 		id = "attack",
 		text = "Attack an Enemy",
+        symbols = {
+            usedability = {
+                name = "Used Ability",
+                type = "ability",
+                desc = "The ability used",
+            },
+                target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature being Attacked.",
+            },
+        },
 	},
 
 	{
@@ -1168,6 +1206,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 		local isDismissExec = isDismiss == true
 		argOptions.dismiss = isDismissExec
+		--Parallel to "useability" (which CountsAsRegularAbilityCast excludes triggered
+		--abilities from): announce that a creature used a TRIGGERED action, so a
+		--subject:enemy data trigger can react to a triggered action taken outside the
+		--actor's own turn. Dispatched on the acting creature with no info.subject, so
+		--DispatchEventOnOthers installs subject = the actor for every other token.
+		--Skipped on dismiss (the reaction was declined, not used).
+		--Gate on the normal trigger resource so free triggered actions don't count.
+		if not isDismissExec and self:ActionResource() == CharacterResource.triggerResourceId then
+			casterToken.properties:DispatchEvent("usetriggeredaction", {usedability = self, cast = symbols and symbols.cast})
+		end
 		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
 		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 		if not needCoroutine then

@@ -310,7 +310,8 @@ TokenHud.RegisterPanel{
                                         })
                                     end
 
-                                    token.properties:TriggerEvent("creaturedeath", {})
+                                    token.properties:TriggerEvent("creaturedeath", {hasattacker = attacker ~= nil,
+                                            attacker = attacker,})
                                     token.properties:MinionDeath()
                                 end,
 

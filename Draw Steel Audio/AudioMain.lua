@@ -868,7 +868,7 @@ audio.SoundEvent{
     mixgroup = "dice",
     sounds = {"dice/Dice_NumGlow_Generic_01.wav","dice/Dice_NumGlow_Generic_02.wav","dice/Dice_NumGlow_Generic_03.wav"},
     volume = 0.02,
-    ignoreDuplicates = 0.01,
+    ignoreDuplicates = 0.00,
 }
 
 
@@ -887,9 +887,10 @@ audio.SoundEvent{
     name = "Dice.Numglow_Spectral",
     mixgroup = "dice",
     sounds = {"dice/spectral/Dice_NumGlow_spectral_01.wav","dice/spectral/Dice_NumGlow_spectral_02.wav","dice/spectral/Dice_NumGlow_spectral_03.wav","dice/spectral/Dice_NumGlow_spectral_04.wav","dice/spectral/Dice_NumGlow_spectral_05.wav"},
-    volume = 0.1,
+    volume = 0.04,
     pitchRand = 0.01,
     ignoreDuplicates = 0.01,
+    delay = 0.0,
 }
 
 --when black ash dice teleport at end of roll. one sound call for each die
@@ -907,7 +908,7 @@ audio.SoundEvent{
     name = "Dice.Remove_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/Dice_Remove_BlackAsh_01.wav","dice/cust/Dice_Remove_BlackAsh_02.wav","dice/cust/Dice_Remove_BlackAsh_03.wav","dice/cust/Dice_Remove_BlackAsh_04.wav","dice/cust/Dice_Remove_BlackAsh_05.wav"},
-    volume = 0.02,
+    volume = 0.04,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
 }
@@ -918,7 +919,7 @@ audio.SoundEvent{
     name = "Dice.Numglow_Crucible_Charge",
     mixgroup = "dice",
     sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Charge_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_05.wav"},
-    volume = 0.1,
+    volume = 0.05,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
     play = function(instance)
@@ -931,10 +932,10 @@ audio.SoundEvent{
     name = "Dice.Numglow_Crucible_Explo",
     mixgroup = "dice",
     sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Explo_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_05.wav"},
-    volume = 0.1,
+    volume = 0.2,
     pitchRand = 0.1,
     ignoreDuplicates = 0.01,
-    delay = 1.0,
+    delay = 1,
 }
 
 
@@ -1090,7 +1091,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/DiceImp_BlackAsh_Hard_v1_01.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_02.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_03.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_04.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_05.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_06.wav"},
-    volume = 0.02,
+    volume = 0.01,
     pitchRand = 0.0,
 }
 
@@ -1098,7 +1099,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_BlackAsh",
     mixgroup = "dice",
     sounds = {"dice/cust/DiceImp_BlackAsh_Mild_v1_01.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_02.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_03.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_04.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_05.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_06.wav"},
-    volume = 0.-5,
+    volume = 0.05,
     pitchRand = 0.0,
 }
 
@@ -1173,7 +1174,7 @@ audio.SoundEvent{
     name = "DiceImp.Hard_Spectral",
     mixgroup = "dice",
     sounds = {"dice/spectral/DiceImp_spectral_Hard_01.wav","dice/spectral/DiceImp_spectral_Hard_02.wav","dice/spectral/DiceImp_spectral_Hard_03.wav","dice/spectral/DiceImp_spectral_Hard_04.wav","dice/spectral/DiceImp_spectral_Hard_05.wav","dice/spectral/DiceImp_spectral_Hard_06.wav"},
-    volume = 0.015,
+    volume = 0.01,
     pitchRand = 0.1,
 }
 
@@ -1181,7 +1182,7 @@ audio.SoundEvent{
     name = "DiceImp.Mild_Spectral",
     mixgroup = "dice",
     sounds = {"dice/spectral/DiceImp_spectral_Mild_01.wav","dice/spectral/DiceImp_spectral_Mild_02.wav","dice/spectral/DiceImp_spectral_Mild_03.wav","dice/spectral/DiceImp_spectral_Mild_04.wav","dice/spectral/DiceImp_spectral_Mild_05.wav","dice/spectral/DiceImp_spectral_Mild_06.wav"},
-    volume = 0.015,
+    volume = 0.01,
     pitchRand = 0.1,
 }
 

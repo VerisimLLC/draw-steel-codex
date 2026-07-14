@@ -1111,6 +1111,11 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             guid = guid,
             spellcastingFeature = ability:try_get("spellcastingFeature"),
             casterid = casterToken.id,
+            --snapshot the caster's party allegiance so an aura that persists past the
+            --caster's death (aliveafterdeath) can still tell friend from foe after the
+            --caster token/record is gone. Empty string means no party, which the engine
+            --Party.IsFriendly treats as the "MONSTER" side. See Aura.cs ApplyTo fallback.
+            casterPartyId = casterToken.partyId or "",
             iconid = ability.iconid,
             name = ability.name,
             display = ability.display,

@@ -39,6 +39,17 @@ local TAB_HEIGHT = 30
 local TAB_MAX_WIDTH = 200
 local TAB_BAR_HEIGHT = TAB_HEIGHT + 6
 
+--Width of the docked journal tree rail inside the tabbed viewer.
+local TREE_RAIL_WIDTH = 250
+
+--Per-user preference: keep the journal tree pinned as a rail inside the
+--tabbed document viewer. Off = the viewer looks exactly as it does today.
+local g_journalTreeRailSetting = setting{
+    id = "docviewer:journaltree",
+    default = false,
+    storage = "preference",
+}
+
 function CustomDocument.Register(args)
     CustomDocument.documentTypes[args.id] = args
 end
@@ -371,6 +382,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
 
         local arrow = gui.ExpandoArrow {
             classes = cond(not isCollapsed, {"expanded"}),
+            halign = "left",
             valign = "center",
             lmargin = 4,
         }
@@ -399,6 +411,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 fontSize = 12,
                 width = "auto",
                 height = "auto",
+                halign = "left",
                 valign = "center",
                 lmargin = 4,
                 textWrap = false,
@@ -466,6 +479,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                         bgcolor = cond(isCurrentDoc, "white", "#aaaaaa"),
                         width = 14,
                         height = 14,
+                        halign = "left",
                         valign = "center",
                         lmargin = 4,
                     },
@@ -476,6 +490,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                         bold = isCurrentDoc,
                         width = "auto",
                         height = "auto",
+                        halign = "left",
                         valign = "center",
                         lmargin = 4,
                         textWrap = false,
@@ -541,6 +556,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     bgcolor = "#aaaaaa",
                     width = 14,
                     height = 14,
+                    halign = "left",
                     valign = "center",
                     lmargin = 4,
                 },
@@ -550,6 +566,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     color = "#cccccc",
                     width = "auto",
                     height = "auto",
+                    halign = "left",
                     valign = "center",
                     lmargin = 4,
                     textWrap = false,
@@ -577,6 +594,18 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
     end
     for _, p in ipairs(rootChildren) do
         popupChildren[#popupChildren + 1] = p
+    end
+
+    --bare mode: return just the tree rows (no popup chrome, no fixed size),
+    --for callers that host the tree in their own container -- the viewer's
+    --docked tree rail. The popup wrapper below stays for dropdown callers.
+    if opts ~= nil and opts.bare then
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = popupChildren,
+        }
     end
 
     return gui.Panel {
@@ -2188,6 +2217,47 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end,
     }
 
+    --Sidebar toggle at the left end of the tab strip: pins/unpins the
+    --journal tree rail. The rail and content column are constructed after
+    --the tab bar, so they are forward-declared and captured as upvalues.
+    local treeRail
+    local contentArea
+
+    local treeToggleIcon = gui.Panel {
+        bgimage = "icons/standard/Icon_App_Journal.png",
+        bgcolor = cond(g_journalTreeRailSetting:Get(), "#e4ddd0", "#7a7468"),
+        width = 16,
+        height = 16,
+        halign = "center",
+        valign = "center",
+    }
+
+    local treeToggleButton = gui.Panel {
+        classes = {"panel", "tab", "journalTab"},
+        width = TAB_HEIGHT,
+        height = TAB_HEIGHT,
+        halign = "left",
+        valign = "bottom",
+        press = function(element)
+            local open = not g_journalTreeRailSetting:Get()
+            g_journalTreeRailSetting:Set(open)
+            treeRail:SetClass("collapsed", not open)
+            contentArea.selfStyle.width = cond(open, string.format("100%%-%d", TREE_RAIL_WIDTH), "100%")
+            treeToggleIcon.selfStyle.bgcolor = cond(open, "#e4ddd0", "#7a7468")
+            if open then
+                treeRail:FireEvent("refreshTree")
+            end
+        end,
+        linger = function(element)
+            if g_journalTreeRailSetting:Get() then
+                gui.Tooltip("Hide journal tree")(element)
+            else
+                gui.Tooltip("Show journal tree")(element)
+            end
+        end,
+        treeToggleIcon,
+    }
+
     local tabBar = gui.Panel {
         classes = {"tabContainer"},
         height = "auto",
@@ -2196,6 +2266,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         bgimage = "panels/square.png",
         bgcolor = "#0a0a0b",
         styles = ThemeEngine.MergeTokens(dsTabStyles),
+        treeToggleButton,
         tabButtonsPanel,
         newTabButton,
         tabArrowsPanel,
@@ -2291,12 +2362,120 @@ function CustomDocument.GetOrCreateTabbedViewer()
         element.data.visibleCount = visibleCount
     end
 
-    local contentArea = gui.Panel {
+    contentArea = gui.Panel {
         classes = {"journalTabContent"},
+        --engine gotcha: percent-available WIDTH resolves to ~0 in a
+        --horizontal row, so the content column gets an explicit width that
+        --the rail toggle swaps between full and full-minus-rail.
+        width = cond(g_journalTreeRailSetting:Get(), string.format("100%%-%d", TREE_RAIL_WIDTH), "100%"),
+        height = "100%",
+        halign = "left",
+        valign = "top",
+    }
+
+    --The journal tree rail: the same tree the breadcrumb and the tab bar's
+    --+ button pop up transiently, pinned as a persistent sidebar. Rebuilt on
+    --navigation (piggybacks the viewer's refreshNavButtons broadcast) and on
+    --document/folder changes; visibility is a per-user preference.
+    local treeRailScroll = gui.Panel {
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        vscroll = true,
+    }
+
+    treeRail = gui.Panel {
+        classes = {"journalTreeRail", cond(not g_journalTreeRailSetting:Get(), "collapsed")},
+        width = TREE_RAIL_WIDTH,
+        height = "100%",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#0a0a0b",
+        hpad = 6,
+        vpad = 6,
+        borderBox = true,
+        data = {
+            treeDirty = true,
+            builtForDocId = "",
+        },
+        monitorAssets = { "documents", "objecttables" },
+
+        refreshAssets = function(element)
+            element.data.treeDirty = true
+            element:FireEvent("refreshTree")
+        end,
+
+        --fired tree-wide by the viewer after every tab switch and every
+        --back/forward/link navigation -- exactly when the highlight moves.
+        refreshNavButtons = function(element)
+            element:FireEvent("refreshTree")
+        end,
+
+        refreshTree = function(element)
+            if element:HasClass("collapsed") then
+                return
+            end
+            local currentDocId = ""
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil and v.data ~= nil then
+                for _, tab in ipairs(v.data.tabs or {}) do
+                    if tab.tabId == v.data.activeTabId then
+                        currentDocId = tab.docId or ""
+                        break
+                    end
+                end
+            end
+            if not element.data.treeDirty and element.data.builtForDocId == currentDocId then
+                return
+            end
+            element.data.treeDirty = false
+            element.data.builtForDocId = currentDocId
+
+            local tree = buildJournalTree(currentDocId, nil, {
+                bare = true,
+                onPick = function(docId)
+                    local viewerPanel = element:FindParentWithClass("journalTabbedViewer")
+                    if viewerPanel == nil then
+                        return
+                    end
+                    local activeDocId = nil
+                    for _, tab in ipairs(viewerPanel.data.tabs or {}) do
+                        if tab.tabId == viewerPanel.data.activeTabId then
+                            activeDocId = tab.docId
+                            break
+                        end
+                    end
+                    if docId == activeDocId then
+                        return
+                    end
+                    viewerPanel:FireEvent("navigateToDocument", docId)
+                end,
+            })
+            treeRailScroll.children = { tree }
+        end,
+
+        treeRailScroll,
+
+        --hairline separating the rail from the document content.
+        gui.Panel{
+            floating = true,
+            halign = "right",
+            valign = "top",
+            width = 1,
+            height = "100%",
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffff26",
+        },
+    }
+
+    local bodyRow = gui.Panel {
         width = "100%",
         height = "100% available",
-        halign = "center",
+        flow = "horizontal",
+        halign = "left",
         valign = "top",
+        treeRail,
+        contentArea,
     }
 
     local innerPanel = gui.Panel {
@@ -2311,7 +2490,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             bgimage = "panels/square.png",
             bgcolor = "#ffffff26",
         },
-        contentArea,
+        bodyRow,
     }
 
     local viewer

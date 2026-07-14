@@ -333,11 +333,14 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         if not v.hidden then allFolders[k] = v end
     end
 
-    -- Build foldersToMembers map (folders + custom docs only)
+    -- Build foldersToMembers map (folders + custom docs only). The nodeType
+    -- gate matches the journal panel's row builder (Journal.lua): documents
+    -- with specialized nodeTypes (e.g. "negotiation") are surfaced through
+    -- their own panels, not the journal tree.
     local foldersToMembers = {}
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
     for k, doc in pairs(customDocs) do
-        if not doc.hidden and (dmhub.isDM or not doc.hiddenFromPlayers) then
+        if not doc.hidden and doc.nodeType == "custom" and (dmhub.isDM or not doc.hiddenFromPlayers) then
             local pf = doc.parentFolder or "private"
             foldersToMembers[pf] = foldersToMembers[pf] or {}
             foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }

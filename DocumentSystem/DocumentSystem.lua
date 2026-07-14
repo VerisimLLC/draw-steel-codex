@@ -483,11 +483,13 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                         --they are never a viewer tab or a nav target.
                         if member.type == "pdf" then
                             m_pickHandled = true
+                            element:ScheduleEvent("resetPickLatch", 0.1)
                             CustomDocument.OpenContent(member.pdfDoc)
                             return
                         end
                         if opts ~= nil and opts.onPick ~= nil then
                             m_pickHandled = true
+                            element:ScheduleEvent("resetPickLatch", 0.1)
                             opts.onPick(member.id)
                             return
                         end
@@ -495,6 +497,13 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                         if dialogPanel and dialogPanel.data then
                             dialogPanel:FireEvent("navigateToDocument", member.id)
                         end
+                    end,
+                    --the pick latch protects one PHYSICAL click from double
+                    --dispatch during popup teardown; in the persistent rail
+                    --the tree outlives the pick, so the latch must re-open
+                    --shortly after instead of staying armed forever.
+                    resetPickLatch = function(element)
+                        m_pickHandled = false
                     end,
 
                     gui.Panel {
@@ -573,7 +582,11 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 press = function(element)
                     if m_pickHandled then return end
                     m_pickHandled = true
+                    element:ScheduleEvent("resetPickLatch", 0.1)
                     opts.onNewDocument(v)
+                end,
+                resetPickLatch = function(element)
+                    m_pickHandled = false
                 end,
                 gui.Panel {
                     bgimage = "icons/icon_app/icon_app_107.png",

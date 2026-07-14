@@ -603,6 +603,8 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         return gui.Panel {
             width = "100%",
             height = "auto",
+            halign = "left",
+            valign = "top",
             flow = "vertical",
             children = popupChildren,
         }

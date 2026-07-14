@@ -2081,6 +2081,32 @@ CharacterModifier.TypeInfo.activated = {
     modifyAbility = function(modifier, creature, ability)
         local suppresses = modifier:try_get("suppressOthers", false)
         if suppresses and ability.name == modifier.activatedAbility.name and ability.guid ~= modifier.activatedAbility.guid then
+            --If the incoming ability is itself granted by a suppressOthers 'activated'
+            --modifier that occurs LATER in the modifier list (i.e. from a higher class
+            --level), let it live -- otherwise two upgraded versions of the same ability
+            --would suppress each other and the ability would vanish entirely.
+            local myGuid = modifier:try_get("guid")
+            local myIndex = nil
+            local otherIndex = nil
+            local otherSuppresses = false
+            for i,entry in ipairs(creature:GetActiveModifiers()) do
+                local m = entry.mod
+                if myIndex == nil and myGuid ~= nil and m:try_get("guid") == myGuid then
+                    myIndex = i
+                end
+                if otherIndex == nil and m:try_get("behavior") == "activated" then
+                    local grantedAbility = m:try_get("activatedAbility")
+                    if grantedAbility ~= nil and grantedAbility.guid == ability.guid then
+                        otherIndex = i
+                        otherSuppresses = m:try_get("suppressOthers", false)
+                    end
+                end
+            end
+
+            if otherSuppresses and myIndex ~= nil and otherIndex ~= nil and otherIndex > myIndex then
+                return ability
+            end
+
             return nil
         end
 

@@ -533,6 +533,15 @@ local function CreateMonsterEntry(nodeid)
 
             --render a tooltip of the monster.
             linger = function(element)
+                --If the cursor is on the implementation-status diamond, its own
+                --tooltip is showing; don't replace it with the stat block.
+                local diamond = element:FindChildRecursive(function(p)
+                    return p:HasClass("implementationDiamond")
+                end)
+                if diamond ~= nil and diamond:HasClass("hover") then
+                    return
+                end
+
                 local dock = element:FindParentWithClass("dock")
 
                 local monsterEntry = assets.monsters[nodeid]

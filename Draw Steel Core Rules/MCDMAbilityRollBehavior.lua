@@ -899,6 +899,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 for _,option in ipairs(ActivatedAbilityPowerRollBehavior.s_modificationTypes) do
                     if option.value == boonMod.value*mult then
                         modtype = option.id
+                        break
                     end
                 end
 
@@ -1532,6 +1533,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     degree = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result),
                     target = GenerateSymbols(targetToken.properties),
                     ability = GenerateSymbols(ability),
+                    usedability = GenerateSymbols(ability),
                 }
 
                 casterToken.properties:TriggerEvent("attack", args)

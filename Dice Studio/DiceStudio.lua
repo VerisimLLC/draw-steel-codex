@@ -919,6 +919,43 @@ CreateDiceStudioPanel = function()
 	local studio = dicestudio
 	studio:Activate()
 
+	-- Versioning bridge feature gate: reading an unknown member on the C# userdata raises,
+	-- so probe with pcall. False when running against an engine build that predates dice
+	-- versioning -- the Version/Notes rows collapse and the unsaved-changes prompts pass
+	-- through silently, keeping the rest of the panel usable.
+	local haveVersions = pcall(function() return dicestudio.currentVersion end)
+
+	local HasUnsavedChanges = function()
+		return haveVersions and dicestudio.hasUnsavedChanges
+	end
+
+	-- Ask the artist what to do with unsaved edits before an action that would discard
+	-- them (switching version or dice set). onProceed runs after Save for "Save" or
+	-- immediately for "Discard"; onCancel (optional) runs when they keep editing.
+	local PromptUnsavedChanges = function(onProceed, onCancel)
+		gui.ModalMessage{
+			title = "Unsaved Changes",
+			message = string.format("Version %d of these dice has unsaved changes.", dicestudio.currentVersion),
+			options = {
+				{
+					text = "Save",
+					execute = function()
+						dicestudio:Save()
+						onProceed()
+					end,
+				},
+				{
+					text = "Discard",
+					execute = onProceed,
+				},
+				{
+					text = "Cancel",
+					execute = onCancel,
+				},
+			},
+		}
+	end
+
 	local materials = studio.availableMaterials
 	local materialOptions
 	local idToMaterial
@@ -1069,11 +1106,31 @@ CreateDiceStudioPanel = function()
 			end
 		end,
 		change = function(element)
-			studio:Load(element.idChosen)
-			dmhub.SetSettingValue("dicestudio:lastedited", element.idChosen)
-			RefreshDice()
-			element.root:FireEventTree("newmaterial")
-			element.root:FireEventTree("refreshDice")
+			local chosen = element.idChosen
+
+			local DoLoad = function()
+				studio:Load(chosen)
+				dmhub.SetSettingValue("dicestudio:lastedited", chosen)
+				RefreshDice()
+				element.root:FireEventTree("newmaterial")
+				element.root:FireEventTree("refreshDice")
+			end
+
+			-- Prompt before discarding unsaved edits when moving to a DIFFERENT set.
+			-- (Re-selecting the loaded set -- e.g. the create-time fire -- passes through.)
+			local lastEdited = dmhub.GetSettingValue("dicestudio:lastedited")
+			if chosen ~= lastEdited and HasUnsavedChanges() then
+				-- Snap the dropdown back until the artist decides; setting idChosen
+				-- programmatically does not re-fire change.
+				element.idChosen = lastEdited
+				PromptUnsavedChanges(function()
+					element.idChosen = chosen
+					DoLoad()
+				end)
+				return
+			end
+
+			DoLoad()
 		end,
 	}
 
@@ -1086,6 +1143,197 @@ CreateDiceStudioPanel = function()
 		},
 		diceDropdown,
 	}
+
+	-- Versioning row: pick which version of the set is open, see/set which one is live,
+	-- and branch a new version. Plus a per-version artist-notes box. Both collapse when
+	-- no set is loaded, and are inert placeholders on engine builds without the bridge.
+	-- Forward-declared: the Download from Cloud button pokes the dropdown so it re-reads
+	-- the asynchronously-downloaded version history.
+	local versionDropdown = nil
+	local versionForm
+	local notesForm
+
+	if haveVersions then
+		local BuildVersionOptions = function()
+			local opts = {}
+			for _,v in ipairs(studio:GetVersions()) do
+				local text = string.format("Version %d", v.version)
+				if v.live then
+					-- The live version is marked with an asterisk in the dropdown.
+					text = text .. " *"
+				end
+				opts[#opts+1] = { id = tostring(v.version), text = text }
+			end
+			if opts[1] == nil then
+				opts[1] = { id = tostring(dicestudio.currentVersion), text = string.format("Version %d", dicestudio.currentVersion) }
+			end
+			return opts
+		end
+
+		versionDropdown = gui.Dropdown{
+			width = 120,
+			height = 30,
+			fontSize = 14,
+			valign = "center",
+			options = BuildVersionOptions(),
+			idChosen = tostring(dicestudio.currentVersion),
+
+			-- Re-read the version list + selection whenever the panel re-syncs (set
+			-- switches, saves, Set Live); refreshVersions is poked after a cloud
+			-- download's async version-history fetch lands.
+			refreshDice = function(element)
+				element.options = BuildVersionOptions()
+				element.idChosen = tostring(dicestudio.currentVersion)
+			end,
+			refreshVersions = function(element)
+				element:FireEvent("refreshDice")
+			end,
+
+			change = function(element)
+				local target = tonumber(element.idChosen)
+				if target == nil or target == dicestudio.currentVersion then
+					return
+				end
+
+				local DoSwitch = function()
+					studio:LoadVersion(target)
+					RefreshDice()
+					element.root:FireEventTree("newmaterial")
+					element.root:FireEventTree("refreshDice")
+				end
+
+				if HasUnsavedChanges() then
+					-- Snap back until the artist decides; programmatic idChosen writes
+					-- do not re-fire change.
+					element.idChosen = tostring(dicestudio.currentVersion)
+					PromptUnsavedChanges(DoSwitch)
+					return
+				end
+
+				DoSwitch()
+			end,
+		}
+
+		local liveLabel = gui.Label{
+			classes = {cond(not dicestudio.isLiveVersion, "collapsed")},
+			text = "LIVE",
+			bold = true,
+			fontSize = 14,
+			color = "#80ff80",
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			hmargin = 6,
+			refreshDice = function(element)
+				element:SetClass("collapsed", not dicestudio.isLiveVersion)
+			end,
+		}
+
+		local setLiveButton = gui.Button{
+			classes = {cond(dicestudio.isLiveVersion, "collapsed")},
+			text = "Set Live",
+			width = 80,
+			height = 24,
+			fontSize = 14,
+			valign = "center",
+			hmargin = 6,
+			refreshDice = function(element)
+				element:SetClass("collapsed", dicestudio.isLiveVersion)
+			end,
+			click = function(element)
+				local message = string.format("Make Version %d the live version of these dice?", dicestudio.currentVersion)
+				if dicestudio.uploaded then
+					message = message .. " It will be pushed to the cloud immediately, replacing the version users get."
+				end
+				gui.ModalMessage{
+					title = "Set Live",
+					message = message,
+					options = {
+						{
+							text = "Set Live",
+							execute = function()
+								studio:SetLive()
+								element.root:FireEventTree("refreshDice")
+							end,
+						},
+						{
+							text = "Cancel",
+						},
+					},
+				}
+			end,
+		}
+
+		local newVersionButton = gui.Button{
+			text = "New Version",
+			width = 100,
+			height = 24,
+			fontSize = 14,
+			valign = "center",
+			click = function(element)
+				if not studio.canSave then
+					return
+				end
+				-- Clones the studio's current state (including unsaved edits) as the next
+				-- version and switches to it; the version you were on keeps its last save
+				-- and the live version is unchanged.
+				studio:NewVersion()
+				element.root:FireEventTree("refreshDice")
+			end,
+		}
+
+		versionForm = gui.Panel{
+			classes = {"formPanel", cond(not studio.canSave, "collapsed")},
+			refreshDice = function(element)
+				element:SetClass("collapsed", not dicestudio.canSave)
+			end,
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Version:",
+			},
+			gui.Panel{
+				width = "auto",
+				height = "auto",
+				flow = "horizontal",
+				versionDropdown,
+				liveLabel,
+				setLiveButton,
+				newVersionButton,
+			},
+		}
+
+		notesForm = gui.Panel{
+			classes = {"formPanel", cond(not studio.canSave, "collapsed")},
+			refreshDice = function(element)
+				element:SetClass("collapsed", not dicestudio.canSave)
+			end,
+			gui.Label{
+				classes = {"formLabel"},
+				halign = "left",
+				text = "Version Notes:",
+			},
+			gui.Input{
+				width = 300,
+				height = 60,
+				fontSize = 14,
+				multiline = true,
+				placeholderText = "Notes about this version...",
+				text = dicestudio.notes,
+				refreshDice = function(element)
+					element.textNoNotify = dicestudio.notes
+				end,
+				change = function(element)
+					dicestudio.notes = element.text
+				end,
+			},
+		}
+	else
+		-- Engine build without the versioning bridge: keep layout slots so the panel's
+		-- child list stays dense (a nil in a gui.Panel constructor truncates it).
+		versionForm = gui.Panel{ classes = {"collapsed"}, width = 1, height = 1 }
+		notesForm = gui.Panel{ classes = {"collapsed"}, width = 1, height = 1 }
+	end
 
 	-- The player-facing name for this set (dicestudio.displayName). Independent of the
 	-- internal name used for the file/cloud identity in the "Dice:" dropdown above; this
@@ -1668,6 +1916,26 @@ CreateDiceStudioPanel = function()
 					function() return binding.fade end,
 					function(v) binding.fade = v end,
 					"Length of the opacity fade-out at the end of the Linger window (capped at Linger; default 1). 0 = snap off with no fade. Ignored when Linger is 0."),
+			},
+
+			-- Delay: shifts when this effect fires relative to its event. Positive = after the
+			-- event, staying at the spot where the event happened. Negative = BEFORE it: rolls
+			-- play back a pre-recorded simulation, so the engine knows when (and where) upcoming
+			-- events happen and pre-fires the effect at the event's recorded spot (bounces,
+			-- teleports, the final rest). Appearance cannot be predicted (it fires on the hurl),
+			-- so negative delays there fire at the event. Pulse events only; the Portal effect
+			-- has its own timing (Portal Creation Time), so the row is hidden there.
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				create = function(element)
+					element:SetClass("collapsed", (not pulse) or eventName == "Portal")
+				end,
+				ParamSlider("Delay (s):", -3, 5,
+					function() return binding.delay end,
+					function(v) binding.delay = v end,
+					"Shifts when the effect fires relative to its event (0 = at the event). Positive = fires that long after, staying at the spot where the event happened. Negative = fires early: the roll is a replay of a pre-computed simulation, so the effect can start ahead of the event, at the spot where it will happen (bounces, teleports, the exit and end-of-roll fade). Appearance cannot fire early. The Test button plays negative delays as immediate; roll the dice to see the anticipation timing."),
 			},
 
 			gui.Panel{
@@ -3273,6 +3541,10 @@ end
 
 		dropdownForm,
 
+		versionForm,
+
+		notesForm,
+
 		displayNameForm,
 
 		-- Admin tool: pull an already-uploaded ("cloud") dice set down to a local file
@@ -3421,6 +3693,13 @@ end
 								diceDropdown.options = localFiles
 								diceDropdown.idChosen = name
 								diceDropdown:FireEvent("change")
+
+								-- The set's version history downloads asynchronously;
+								-- poke the version dropdown after it has had time to land.
+								if versionDropdown ~= nil then
+									versionDropdown:ScheduleEvent("refreshVersions", 1)
+									versionDropdown:ScheduleEvent("refreshVersions", 3)
+								end
 							end,
 						},
 
@@ -3486,7 +3765,16 @@ end
 					height = 24,
 					fontSize = 18,
 					click = function(element)
-						diceDropdown:FireEvent("change")
+						if haveVersions then
+							-- Reload the CURRENT version from its last save. (Re-picking
+							-- the set in the Dice: dropdown would load the live version.)
+							studio:LoadVersion(studio.currentVersion)
+							RefreshDice()
+							element.root:FireEventTree("newmaterial")
+							element.root:FireEventTree("refreshDice")
+						else
+							diceDropdown:FireEvent("change")
+						end
 					end,
 				},
 

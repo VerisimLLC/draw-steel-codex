@@ -2282,7 +2282,11 @@ function monster:KillThresholdStamina()
     if self:IsRetainer() then
         return -self:BloodiedThreshold()
     end
-    return 0
+    --Monsters normally die at 0 Stamina. The "killthreshold" attribute lets a
+    --monster survive below 0 (e.g. Ajax the Invincible dies only at -350, via
+    --a killthreshold of 350). The default of 0 leaves every other monster
+    --unchanged.
+    return -self:CalculateAttribute("killthreshold", 0)
 end
 
 --- @return boolean
@@ -2317,6 +2321,7 @@ function monster:IsDead()
 end
 
 CustomAttribute.RegisterAttribute { id = "extraturns", text = "Extra Turns", attributeType = "number", category = "Basic Attributes" }
+CustomAttribute.RegisterAttribute { id = "killthreshold", text = "Kill Threshold", attributeType = "number", category = "Basic Attributes" }
 
 function creature:TurnsPerRound()
     return 1 + self:CalculateAttribute("extraturns", 0)
@@ -5360,6 +5365,7 @@ function creature.TakeDamage(self, amount, note, info)
             self:DispatchEvent("zerohitpoints", eventArg)
 
             eventArg.victim = self
+            eventArg.usedability = eventArg.ability
             eventArg.hasattacker = eventArg.attacker ~= nil
 
             if eventArg.attacker ~= nil then
@@ -5409,11 +5415,12 @@ function creature.TakeDamage(self, amount, note, info)
             end
 
             eventArg.victim = nil
-            eventArg.attacker = nil
-            eventArg.hasattacker = nil
             eventArg.subject = nil
 
             self:DispatchEvent("creaturedeath", eventArg)
+            
+            eventArg.attacker = nil
+            eventArg.hasattacker = nil
 
             self:CancelConcentration()
 
@@ -5726,6 +5733,11 @@ function creature:PersistentAbilities()
             ability.persistence = nil
             ability.actionResourceId = cond(persistenceMode == "recast_maneuver", CharacterResource.maneuverResourceId,
                 "none")
+            --spendOnRecast: charge the persist cost from the heroic resource on the recast trigger itself.
+            if persistence.spendOnRecast == true then
+                newAbility.resourceNumber = persistence.cost or 1
+                newAbility.resourceCost = ability.resourceCost
+            end
             ability.resourceNumber = "0"
 
             --[[ if a.filter ~= nil then

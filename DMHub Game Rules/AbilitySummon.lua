@@ -31,6 +31,26 @@ ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
+--tweak placement: summons are auto-placed around each target (hidden from
+--players), then the user rearranges them within tweakRadius of the anchor and
+--presses Continue to reveal them. See AbilityTweakCreaturePlacement.lua.
+--choosePlacement takes precedence over tweakPlacement if both are set.
+--
+--tweakAnchor:
+--  "target" (default) -- placement anchors on each of the ability's targets.
+--  "casterstart" -- placement anchors on the squares the caster occupied at
+--                   the START of the cast, before any behavior moved them
+--                   (e.g. "minions appear in the space the caster leaves
+--                   behind" after a teleport). tweakRadius 0 restricts
+--                   placement to exactly those squares.
+--tweakMessage: optional override for the text after the creature names in the
+--rearrange prompt; default is "placed around targets. Rearrange positions
+--before continuing."
+ActivatedAbilitySummonBehavior.tweakPlacement = false
+ActivatedAbilitySummonBehavior.tweakRadius = "1"
+ActivatedAbilitySummonBehavior.tweakAnchor = "target"
+ActivatedAbilitySummonBehavior.tweakMessage = ""
+
 --duplicate mode fields
 ActivatedAbilitySummonBehavior.duplicateMode = false
 ActivatedAbilitySummonBehavior.copyStamina = false
@@ -349,15 +369,27 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	local maxPrettyCR = "0"
 
 	local allSameCheck = nil
-	if dialogOptions.index ~= nil and dialogOptions.index < dialogOptions.numSummons and (not dialogOptions.allCreaturesTheSame) then
+	--offerAllSame is passed when the dialog runs before the number of summons
+	--is known (the pre-pick before the numSummons roll); otherwise the check
+	--shows whenever there are more summons after this one.
+	local showAllSame = dialogOptions.offerAllSame
+		or (dialogOptions.index ~= nil and dialogOptions.numSummons ~= nil and dialogOptions.index < dialogOptions.numSummons)
+	if showAllSame and (not dialogOptions.allCreaturesTheSame) then
+		local checkText
+		if dialogOptions.offerAllSame then
+			checkText = "Use this choice for all summons"
+		else
+			checkText = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index))
+		end
+
+		--shown in the bottom row, left of the Summon/Cancel buttons.
 		allSameCheck = gui.Check{
 			classes = {"sizeS"},
-			halign = "right",
-			valign = "bottom",
-			hmargin = 32,
-			width = 460,
+			vmargin = 0,
+			hmargin = 8,
+			width = 330,
 			height = 30,
-			text = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index)),
+			text = checkText,
 			value = dmhub.GetSettingValue("summonallsame"),
 			change = function(element)
 				dmhub.SetSettingValue("summonallsame", element.value)
@@ -375,6 +407,24 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 		if minCR == nil or cr < minCR then
 			minCR = cr
 		end
+	end
+
+	--statblock preview of the currently selected creature, shown beside the list.
+	local statblockPanel = nil
+	local function RefreshStatblock()
+		if statblockPanel == nil or not statblockPanel.valid then
+			return
+		end
+		local children = {}
+		if chosenOption ~= nil then
+			local ok, rendered = pcall(function()
+				return chosenOption.properties:Render({width = 480}, {asset = chosenOption})
+			end)
+			if ok and rendered ~= nil then
+				children[#children+1] = rendered
+			end
+		end
+		statblockPanel.children = children
 	end
 
 	for i,option in ipairs(choices) do
@@ -406,6 +456,7 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 				end
 
 				chosenOption = choices[i]
+				RefreshStatblock()
 			end,
 		}
 
@@ -429,32 +480,26 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 
 	ShowMaxCROnly(dmhub.GetSettingValue("summoncrcheck"))
 
-	gamehud:ModalDialog{
+	local dialogPanel = nil
+	local function CloseDialog()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEvent("close")
+		end
+	end
+
+	--buttons live in our own bottom row (checks on the left, buttons on the
+	--right) instead of ModalDialog's button strip, so pass no dialog buttons.
+	dialogPanel = gamehud:ModalDialog{
 		title = dialogOptions.title or "Summon Creature",
         valign = "top",
         tmargin = 12,
-		buttons = {
-			{
-				text = dialogOptions.buttonText or "Summon",
-				click = function()
-					finished = true
-				end,
-			},
-			{
-				text = "Cancel",
-				escapeActivates = true,
-				click = function()
-					finished = true
-					canceled = true
-				end,
-			},
-		},
+		buttons = {},
 
 		styles = ThemeEngine.MergeTokens{
 			{
 				selectors = {"option"},
 				height = 24,
-				width = 500,
+				width = 480,
 				halign = "center",
 				valign = "top",
 				hmargin = 20,
@@ -465,40 +510,127 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 			},
 			{ selectors = {"option","hover"},    bgcolor = "@bgAlt" },
 			{ selectors = {"option","selected"}, bgcolor = "@accent" },
+			--retint text inside the selected row so it stays legible against
+			--the accent fill (same convention as drag-target labels).
+			{ selectors = {"label", "parent:selected"}, priority = 5, color = "@fgInverse" },
 		},
 
-		width = 650,
+		width = 1100,
 		height = 700,
 		flow = "vertical",
 
 		children = {
 
+			--explicitly-sized client area (ModalDialog's client panel has no
+			--real size of its own): two uniform columns filling most of the
+			--dialog, with a bottom row anchored beneath them.
 			gui.Panel{
-                classes = {"bordered"},
-				width = 600,
-				height = 500,
-				valign = "top",
+				width = 1060,
+				height = 627,
 				halign = "center",
-                vpad = 8,
-				flow = "vertical",
-				vscroll = true,
-				children = optionPanels,
+				valign = "top",
+				flow = "none",
+
+				--the creature list on the left and a statblock preview of the
+				--selected creature on the right.
+				gui.Panel{
+					width = "100%",
+					height = 555,
+					halign = "center",
+					valign = "top",
+					flow = "horizontal",
+
+					gui.Panel{
+						classes = {"bordered"},
+						width = 520,
+						height = "100%",
+						valign = "top",
+						vpad = 8,
+						flow = "vertical",
+						vscroll = true,
+						children = optionPanels,
+					},
+
+					gui.Panel{
+						classes = {"bordered"},
+						width = 520,
+						height = "100%",
+						hmargin = 10,
+						valign = "top",
+						vpad = 8,
+						flow = "vertical",
+						vscroll = true,
+						create = function(element)
+							statblockPanel = element
+							RefreshStatblock()
+						end,
+					},
+				},
+
+				--bottom row: option checks on the left, buttons on the right.
+				gui.Panel{
+					width = "100%",
+					height = 40,
+					halign = "center",
+					valign = "bottom",
+					flow = "none",
+
+					gui.Panel{
+						width = "auto",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						flow = "horizontal",
+
+						gui.Check{
+							--"collapsed" (not "hidden"): hidden panels still occupy
+							--layout space, which would misalign the row.
+							classes = {"sizeS", cond(minCR == maxCR, "collapsed")},
+							vmargin = 0,
+							hmargin = 8,
+							width = 330,
+							height = 30,
+							text = string.format("Show only Level %s creatures", maxPrettyCR),
+							value = dmhub.GetSettingValue("summoncrcheck"),
+							change = function(element)
+								dmhub.SetSettingValue("summoncrcheck", element.value)
+								ShowMaxCROnly(element.value)
+							end,
+						},
+						allSameCheck,
+					},
+
+					gui.Panel{
+						width = "auto",
+						height = "auto",
+						halign = "right",
+						valign = "center",
+						flow = "horizontal",
+
+						gui.Button{
+							classes = {"sizeL"},
+							text = dialogOptions.buttonText or "Summon",
+							hmargin = 8,
+							click = function(element)
+								finished = true
+								CloseDialog()
+							end,
+						},
+						gui.Button{
+							classes = {"sizeL"},
+							text = "Cancel",
+							escapeActivates = true,
+							escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+							hmargin = 8,
+							click = function(element)
+								finished = true
+								canceled = true
+								CloseDialog()
+							end,
+						},
+					},
+				},
 			},
-			gui.Check{
-				classes = {"sizeS", cond(minCR == maxCR, "hidden")},
-				halign = "right",
-				valign = "bottom",
-				hmargin = 32,
-				width = 460,
-				height = 30,
-				text = string.format("Show only Level %s creatures", maxPrettyCR),
-				value = dmhub.GetSettingValue("summoncrcheck"),
-				change = function(element)
-					dmhub.SetSettingValue("summoncrcheck", element.value)
-					ShowMaxCROnly(element.value)
-				end,
-			},
-			allSameCheck,
 		}
 	}
 
@@ -510,8 +642,12 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 		return nil
 	end
 
-	if allSameCheck ~= nil and allSameCheck.valid then
-		dialogOptions.allSame = allSameCheck.value
+	--the confirm click may have destroyed the dialog (and the check panel)
+	--before this coroutine wakes, so don't read the panel: the change handler
+	--mirrors the checkbox into the summonallsame setting, and the checkbox is
+	--initialized from it, so the setting is always the checkbox's state.
+	if allSameCheck ~= nil then
+		dialogOptions.allSame = dmhub.GetSettingValue("summonallsame")
 	end
 
 	return chosenOption
@@ -1284,6 +1420,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
     --avoids mutating the `targets` table while it is still being iterated.
     local allSummonedTokens = {}
 
+    --tweak-placement mode: summons are auto-placed around each outer target and
+    --spawned hidden from players; after the outer loop the user rearranges them
+    --within each group's radius and confirms. One group per outer target.
+    local tweakGroups = {}
+
     for _,target in ipairs(targets) do
         local newOwner = ""
         if self.casterControls then
@@ -1325,6 +1466,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         --pre-pick the chosen creature so its symbols are available to numSummons
         --and to subsequent behaviors
+        local allSame = false
         local chosenOption
         if #choices == 1 then
             chosenOption = choices[1]
@@ -1333,10 +1475,15 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             --use the first sorted choice as a default so symbols and numSummons can resolve.
             chosenOption = choices[1]
         elseif self.casterChoosesCreatures then
-            local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame }
+            --the number of summons is not rolled yet (its formula may reference
+            --the chosen creature), so offer a countless "all summons" check.
+            local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame, offerAllSame = true }
             chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
             if chosenOption == nil then
                 return
+            end
+            if dialogOptions.allSame then
+                allSame = true
             end
         else
             chosenOption = choices[math.random(#choices)]
@@ -1384,6 +1531,21 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             end
         end
 
+        local tweakPlacement = self.tweakPlacement and (not manualPlacement) and (not self.replaceCaster)
+        local tweakRadius = 1
+        local tweakStartLocs = nil
+        if tweakPlacement then
+            tweakRadius = dmhub.EvalGoblinScript(self.tweakRadius, GenerateSymbols(casterToken.properties, args.symbols), 1, string.format("Tweak placement radius for %s", ability.name)) or 1
+            tweakRadius = math.max(0, math.floor(tweakRadius))
+
+            if self.tweakAnchor == "casterstart" then
+                tweakStartLocs = args.casterStartLocs
+                if tweakStartLocs == nil or #tweakStartLocs == 0 then
+                    tweakStartLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
+                end
+            end
+        end
+
         local summonedTokens = {}
         local summonerEntries = {}
 
@@ -1400,7 +1562,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         -- into the inline placement picker so it can change per-summon.
         local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1 and self.changeCreatureWhileCasting
 
-        local allSame = false
+        --note: allSame is declared at pre-pick time above, so the pre-pick
+        --dialog's "use this choice for all summons" carries into this loop.
 
         local initiativeGrouping = nil
         if self.groupInitiativeWithCaster then
@@ -1527,12 +1690,26 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                     squadNameForSpawn = squadResult.squadName
                 end
-                loc = target.loc
+                if tweakStartLocs ~= nil then
+                    --anchor on the caster's starting footprint: cycle summons
+                    --through those squares (the caster has typically vacated
+                    --them by now, e.g. via an earlier teleport behavior).
+                    loc = tweakStartLocs[((j - 1) % #tweakStartLocs) + 1]
+                else
+                    loc = target.loc
+                end
             end
 
             local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
                 fitLocation = not self.replaceCaster,
             })
+
+            if tweakPlacement then
+                --spawn hidden from players; the tweak mode reveals on Continue.
+                --Meanwhile the token renders ghosted (40% alpha) to the director.
+                token.invisibleToPlayers = true
+            end
+
             token.ownerId = newOwner
 
             token.summonerid = casterToken.charid
@@ -1590,6 +1767,23 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             allSummonedTokens[#allSummonedTokens+1] = summoned
         end
 
+        if tweakPlacement and #summonedTokens > 0 then
+            local anchorToken = target.token
+            if anchorToken == nil or not anchorToken.valid then
+                anchorToken = casterToken
+            end
+            local groupTokens = {}
+            for _,summoned in ipairs(summonedTokens) do
+                groupTokens[#groupTokens+1] = summoned
+            end
+            tweakGroups[#tweakGroups+1] = {
+                tokens = groupTokens,
+                anchorToken = anchorToken,
+                anchorLocs = tweakStartLocs, --nil unless tweakAnchor is "casterstart"
+                radius = tweakRadius,
+            }
+        end
+
         if #summonedTokens > 0 then
             if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
                 casterToken:ModifyProperties{
@@ -1636,6 +1830,100 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end,
                 }
             end
+        end
+    end
+
+    --tweak-placement mode: all summons are on the map (hidden from players).
+    --Show the rearrange UI and block until the user presses Continue, which
+    --reveals them. If the tweaker module is unavailable, just reveal immediately.
+    if #tweakGroups > 0 then
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.1)
+
+        local groups = {}
+        local nameCounts = {}
+        local nameOrder = {}
+        for _,g in ipairs(tweakGroups) do
+            local groupTokens = {}
+            for _,tok in ipairs(g.tokens) do
+                local resolved = dmhub.GetTokenById(tok.charid)
+                if resolved ~= nil and resolved.valid then
+                    groupTokens[#groupTokens+1] = resolved
+                    local name = resolved.description
+                    if name == nil or name == "" then
+                        name = "creature"
+                    end
+                    if nameCounts[name] == nil then
+                        nameCounts[name] = 0
+                        nameOrder[#nameOrder+1] = name
+                    end
+                    nameCounts[name] = nameCounts[name] + 1
+                end
+            end
+
+            if #groupTokens > 0 and g.anchorLocs ~= nil then
+                --anchored on fixed squares (e.g. the caster's starting footprint):
+                --derive the valid area from the anchor locs directly.
+                local seen = {}
+                local validLocs = {}
+                for _,anchorLoc in ipairs(g.anchorLocs) do
+                    for dx = -g.radius, g.radius do
+                        for dy = -g.radius, g.radius do
+                            local l = anchorLoc:dir(dx, dy)
+                            local key = string.format("%d,%d,%d", l.x, l.y, l.floor)
+                            if not seen[key] then
+                                seen[key] = true
+                                validLocs[#validLocs+1] = l
+                            end
+                        end
+                    end
+                end
+                groups[#groups+1] = {
+                    tokens = groupTokens,
+                    anchorLocs = g.anchorLocs,
+                    radius = g.radius,
+                    validLocs = validLocs,
+                }
+            elseif #groupTokens > 0 and g.anchorToken ~= nil and g.anchorToken.valid then
+                groups[#groups+1] = {
+                    tokens = groupTokens,
+                    anchorLocs = g.anchorToken:LocsOccupyingWhenAt(g.anchorToken.loc),
+                    radius = g.radius,
+                    validLocs = g.anchorToken:GetLocsWithinRadius(g.radius),
+                }
+            end
+        end
+
+        local tweaker = rawget(_G, "CreaturePlacementTweaker")
+        if tweaker ~= nil and #groups > 0 then
+            local nameParts = {}
+            for _,name in ipairs(nameOrder) do
+                local count = nameCounts[name]
+                if count > 1 then
+                    nameParts[#nameParts+1] = string.format("%d %ss", count, name)
+                else
+                    nameParts[#nameParts+1] = string.format("1 %s", name)
+                end
+            end
+            local messageSuffix = self.tweakMessage
+            if messageSuffix == nil or messageSuffix == "" then
+                messageSuffix = tr("placed around targets. Rearrange positions before continuing.")
+            end
+            local message = string.format("%s %s", table.concat(nameParts, ", "), messageSuffix)
+            tweaker.Run{
+                groups = groups,
+                message = message,
+            }
+        else
+            for _,g in ipairs(tweakGroups) do
+                for _,tok in ipairs(g.tokens) do
+                    local resolved = dmhub.GetTokenById(tok.charid)
+                    if resolved ~= nil and resolved.valid then
+                        resolved.invisibleToPlayers = false
+                    end
+                end
+            end
+            game.UpdateCharacterTokens()
         end
     end
 
@@ -1886,6 +2174,74 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 					subjectDescription = "The creature using the ability",
 					symbols = ActivatedAbility.helpCasting,
 				},
+			},
+		}
+
+		list[#list+1] = gui.Check{
+			text = "Auto-place, then rearrange",
+			value = self.tweakPlacement,
+			minWidth = 300,
+			change = function(element)
+				self.tweakPlacement = element.value
+				element.parent:FireEventTree("refreshTweakPlacement")
+			end,
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.tweakPlacement, "hidden")},
+			refreshTweakPlacement = function(element)
+				element:SetClass("hidden", not self.tweakPlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Radius:",
+			},
+			gui.GoblinScriptInput{
+				value = self.tweakRadius,
+				change = function(element)
+					self.tweakRadius = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript is used with auto-placement: summons are placed around each target automatically, then the user may rearrange them within this many squares of the target before confirming. If 'Choose placement for each creature' is also checked, that takes precedence."),
+					output = "number",
+					examples = {
+						{
+							script = "1",
+							text = "Summons appear in spaces adjacent to each target and may be rearranged within 1 square of the target.",
+						},
+						{
+							script = "3",
+							text = "Summons may be rearranged within 3 squares of each target (e.g. a 3 burst).",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = ActivatedAbility.helpCasting,
+				},
+			},
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.tweakPlacement, "hidden")},
+			refreshTweakPlacement = function(element)
+				element:SetClass("hidden", not self.tweakPlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Anchor:",
+			},
+			gui.Dropdown{
+				classes = {"formDropdown"},
+				options = {
+					{ id = "target", text = "Around each target" },
+					{ id = "casterstart", text = "Caster's starting space" },
+				},
+				idChosen = self.tweakAnchor,
+				change = function(element)
+					self.tweakAnchor = element.idChosen
+				end,
 			},
 		}
 	end

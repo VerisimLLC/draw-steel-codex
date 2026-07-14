@@ -1525,6 +1525,15 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.data.fullImage = imageid
                 fullPanel.data.live = true
                 fullPanel.bgimage = imageid
+                --reassigning a #PDF bgimage on a pooled panel keeps the
+                --PREVIOUS page's texture on screen (and bgimageInit true)
+                --until the new render arrives (~0.3s), so the think poll
+                --below would re-reveal this layer showing the OLD page --
+                --seen as the page flicking back and forth on navigation
+                --in one-page-at-a-time mode. Force bgimageInit off: the
+                --engine reasserts it (and fires imageLoaded) only once
+                --the new texture is actually bound.
+                fullPanel.bgimageInit = false
             end,
 
             --hide the full-resolution layer (when the page leaves the window,
@@ -1955,6 +1964,27 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end
 
                     CopyToClipboard(layout.text:Substring(1, layout.text.Length))
+                end,
+            }
+
+            menuItems[#menuItems + 1] = {
+                text = "Save to Image",
+                click = function()
+                    element.popup = nil
+
+                    --saves the page render as displayed: the same #PDF image id
+                    --the main view is showing, at its cached resolution.
+                    local docname = string.gsub(doc.description or "pdf", "[<>:\"/\\|?*]", "_")
+                    dmhub.SaveImageDialog {
+                        texture = document:GetPageImageId(m_npage),
+                        filename = string.format("%s page %d.png", docname, m_npage + 1),
+                        error = function(text)
+                            gui.ModalMessage {
+                                title = "Save to Image",
+                                message = text,
+                            }
+                        end,
+                    }
                 end,
             }
 
@@ -2459,7 +2489,12 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
             --the window of pages that should hold render panels: the visible
             --pages plus half a viewport of lookahead on each side. In
-            --single-page mode only the current page is rendered.
+            --single-page mode the window is the current page plus the next
+            --two and the previous one: the neighbors all stack at y=0
+            --BEHIND the current page (the children rebuild below keeps the
+            --current page's panel on top), fully rendered, so navigating
+            --within the window just brings an already-rendered panel to
+            --the front -- no texture swap, no thumbnail flash.
             local firstPage = m_npage
             local lastPage = m_npage
             if continuous then
@@ -2472,6 +2507,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 if lastPage >= npages then
                     lastPage = npages - 1
                 end
+            else
+                firstPage = math.max(0, m_npage - 1)
+                lastPage = math.min(npages - 1, m_npage + 2)
             end
 
             --recycle the panels of pages that left the window, releasing
@@ -2493,6 +2531,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             --many pages then visible would use a lot of memory.
             local wantFull = element.renderedWidth >= 400
 
+            --in single-page mode, neighbor pages only start their
+            --full-resolution renders once the current page's own render has
+            --landed, so the page actually on screen always wins the render
+            --worker. (The deferral is flushed through havePending below.)
+            local currentPageReady = false
+            if not continuous then
+                local cur = assigned[m_npage]
+                currentPageReady = cur ~= nil and cur.data.fullImage ~= nil
+                    and cur.data.fullPanel:HasClass("fullLoaded")
+            end
+
             local havePending = false
             for i = firstPage, lastPage do
                 local panel = assigned[i]
@@ -2511,12 +2560,20 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 end
 
                 local fullImage = nil
+                local deferForCurrent = false
                 if wantFull then
-                    fullImage = document:GetPageImageId(i)
+                    if continuous or i == m_npage or currentPageReady then
+                        fullImage = document:GetPageImageId(i)
+                    else
+                        deferForCurrent = true
+                        havePending = true
+                    end
                 end
 
                 if fullImage == nil then
-                    panel:FireEvent("clearFullImage")
+                    if not deferForCurrent then
+                        panel:FireEvent("clearFullImage")
+                    end
                 elseif panel.data.fullImage ~= fullImage then
                     if fastScroll then
                         --defer expensive full-resolution loads while pages
@@ -2542,11 +2599,26 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 pdfViewPanel.y = 0
             end
 
-            if element.data.childrenDirty then
+            --in single-page mode all the page panels stack at y=0, so
+            --sibling order (later children draw on top) is what puts the
+            --current page in front of its prefetched neighbors; rebuild the
+            --children whenever the panel that should be on top changes.
+            local topPanel = nil
+            if not continuous then
+                topPanel = assigned[m_npage]
+            end
+
+            if element.data.childrenDirty or topPanel ~= element.data.topPanel then
                 element.data.childrenDirty = false
+                element.data.topPanel = topPanel
                 local children = {}
                 for _, p in ipairs(element.data.allPanels) do
-                    children[#children + 1] = p
+                    if p ~= topPanel then
+                        children[#children + 1] = p
+                    end
+                end
+                if topPanel ~= nil then
+                    children[#children + 1] = topPanel
                 end
                 --the interactive layer must stay last so the drag rectangle,
                 --highlights and augmentations draw above the page images.

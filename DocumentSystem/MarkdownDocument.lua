@@ -2931,12 +2931,19 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
             sourceLine = string.format("%s, p. %d", pdfDoc.description or "Book", src.page or 1)
             openButton = gui.Button{
                 classes = {"sizeS"},
+                --explicit size: the sizeS button class fixes width=57/height=26,
+                --which the modal (/glossary) style context enforces literally,
+                --clipping the label. Inline auto + padding renders identically
+                --in every context.
+                width = "auto",
+                height = "auto",
                 halign = "right",
                 valign = "center",
                 lmargin = 10,
                 fontSize = 13,
                 hpad = 14,
                 vpad = 5,
+                borderBox = false,
                 text = "Open",
                 click = function(element)
                     if options.close ~= nil then
@@ -3016,11 +3023,16 @@ function MarkdownDocument.CreateGlossaryCard(term, options)
     end
     footerChildren[#footerChildren + 1] = gui.Button{
         classes = {"sizeS"},
+        --explicit size: see the Open button above -- the sizeS class width
+        --clips this label in the /glossary modal's style context.
+        width = "auto",
+        height = "auto",
         halign = "right",
         valign = "center",
         fontSize = 13,
         hpad = 14,
         vpad = 5,
+        borderBox = false,
         text = "Share to Chat",
         click = function(element)
             chat.ShareData(term)

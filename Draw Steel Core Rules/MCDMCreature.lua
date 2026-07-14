@@ -3415,18 +3415,53 @@ local g_officialStatConditions = {
 }
 
 --Custom in-character speech shown when a creature is immune to a condition.
---Keyed by lowercased condition name. Conditions not listed fall back to a
---generic "I can't be <Name>!" line.
+--Keyed by lowercased condition name; each entry is a list of variations and
+--one is chosen at random. Conditions not listed fall back to a generic
+--"I can't be <Name>!" line.
 local g_conditionImmunitySpeech = {
-    ["bleeding"] = "I don't bleed like everyone else",
-    ["dazed"] = "You can't daze me!",
-    ["frightened"] = "Nothing frightens me!",
-    ["grabbed"] = "You can't grab me!",
-    ["prone"] = "I'll never be knocked down",
-    ["restrained"] = "You can't tie me down!",
-    ["slowed"] = "I won't be Slowed",
-    ["surprised"] = "Nothing ever surprises me!",
-    ["weakened"] = "I won't be weakened; not by you, not by anybody!",
+    ["bleeding"] = {
+        "I don't bleed like everyone else.",
+        "You want me to bleed? Never!",
+    },
+    ["dazed"] = {
+        "Can't phase me, can't Daze me!",
+        "You can't Daze me!",
+        "I won't be dazed",
+    },
+    ["frightened"] = {
+        "Nothing Frightens me!",
+        "I won't Fright, I want to fight!",
+        "You don't scare me!",
+    },
+    ["grabbed"] = {
+        "You can't grab me!",
+        "Get your mits off me!",
+    },
+    ["prone"] = {
+        "You won't knock me down",
+        "I'll never be knocked down",
+        "Can't get me off my feet",
+    },
+    ["restrained"] = {
+        "You can't tie me down!",
+        "I won't be bound.",
+        "Tie me down? Never!",
+    },
+    ["slowed"] = {
+        "I won't be Slowed",
+        "I'm too fast to be slowed!",
+        "I can't Slow, I won't Slow!",
+    },
+    ["surprised"] = {
+        "Nothing ever surprises me!",
+        "I'm not surprised.",
+        "I was expecting that.",
+    },
+    ["weakened"] = {
+        "I won't be Weakened; not by you, or anybody!",
+        "I'm too strong to be Weakened!",
+        "I can't be Weakened!",
+    },
 }
 
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
@@ -3446,8 +3481,13 @@ function creature:InflictCondition(conditionid, args)
             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
             local conditionInfo = conditionsTable[conditionid]
             if conditionInfo ~= nil then
-                local text = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
-                    or string.format("I can't be %s!", conditionInfo.name)
+                local variations = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                local text
+                if variations ~= nil and #variations > 0 then
+                    text = variations[math.random(1, #variations)]
+                else
+                    text = string.format("I can't be %s!", conditionInfo.name)
+                end
                 local language = self:CurrentlySpokenLanguage()
                 if language ~= nil then
                     self:CharacterSpeech{

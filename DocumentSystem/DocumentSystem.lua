@@ -346,6 +346,16 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
             foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }
         end
     end
+    --PDF books, same filter as the journal panel (hidden covers the
+    --Patreon variants that share book names). Opened via OpenContent,
+    --never navigated to in a viewer tab.
+    for k, doc in pairs(assets.pdfDocumentsTable or {}) do
+        if not doc.hidden then
+            local pf = doc.parentFolder or "private"
+            foldersToMembers[pf] = foldersToMembers[pf] or {}
+            foldersToMembers[pf][k] = { type = "pdf", id = k, description = doc.description or "PDF", pdfDoc = doc }
+        end
+    end
     for k, folder in pairs(allFolders) do
         if builtinRoots[k] == nil then
             local pf = folder.parentFolder or "private"
@@ -440,7 +450,10 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
             sorted[#sorted + 1] = member
         end
         table.sort(sorted, function(a, b)
-            if a.type ~= b.type then return a.type == "folder" end
+            --folders first; docs and pdfs interleave alphabetically.
+            local aFolder = a.type == "folder"
+            local bFolder = b.type == "folder"
+            if aFolder ~= bFolder then return aFolder end
             return (a.description or "") < (b.description or "")
         end)
 
@@ -466,6 +479,13 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     }),
                     press = function(element)
                         if m_pickHandled then return end
+                        --PDFs open in the PDF viewer in every context;
+                        --they are never a viewer tab or a nav target.
+                        if member.type == "pdf" then
+                            m_pickHandled = true
+                            CustomDocument.OpenContent(member.pdfDoc)
+                            return
+                        end
                         if opts ~= nil and opts.onPick ~= nil then
                             m_pickHandled = true
                             opts.onPick(member.id)
@@ -478,7 +498,8 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     end,
 
                     gui.Panel {
-                        bgimage = "icons/icon_app/icon_app_107.png",
+                        bgimage = cond(member.type == "pdf",
+                            "icons/icon_app/icon_app_137.png", "icons/icon_app/icon_app_107.png"),
                         bgcolor = cond(isCurrentDoc, "white", "#aaaaaa"),
                         width = 14,
                         height = 14,

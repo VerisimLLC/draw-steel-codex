@@ -4074,7 +4074,7 @@ CreateEncounterPanel = function()
                             rmargin = 6,
                             bmargin = 4,
                             text = "Start Encounter",
-                            hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and open combat setup."),
+                            hover = gui.Tooltip("Place monsters at their saved positions and open combat setup."),
                             swallowPress = true,
                             press = function(element)
                                 PlaceEncounterForReal(encounter, DefaultParty(), {

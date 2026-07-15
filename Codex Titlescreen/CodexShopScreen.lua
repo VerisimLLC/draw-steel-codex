@@ -1626,7 +1626,7 @@ local MakeDiceBanner = function(opts)
 				halign = "left",
 				textAlignment = "left",
 				vmargin = 10,
-				maxHeight = 110,
+				maxHeight = 160,
 				textOverflow = "ellipsis",
 				text = "",
 

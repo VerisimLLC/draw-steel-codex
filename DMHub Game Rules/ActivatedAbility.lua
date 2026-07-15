@@ -265,6 +265,9 @@ end
 ActivatedAbility.proximityTargeting = false
 ActivatedAbility.proximityRange = "5"
 
+--default for abilities serialized before this field existed; Create() sets it explicitly.
+ActivatedAbility.repeatTargets = false
+
 ActivatedAbility.sequentialTargeting = false
 
 --for emptyspace targetType, this is the type of targeting used.

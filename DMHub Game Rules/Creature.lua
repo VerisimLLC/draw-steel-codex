@@ -9599,6 +9599,22 @@ function creature:EnterAura(info)
 	return result
 end
 
+--Remove ongoing effects that expire on a rest of the given type. Called when
+--a respite begins, and also from Rest() for instant-respite flows.
+function creature:RemoveOngoingEffectsOnRest(restType)
+	if self:has_key("ongoingEffects") then
+		local newOngoingEffects = {}
+		for _,effectInstance in ipairs(self.ongoingEffects) do
+			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
+			if not remove then
+				newOngoingEffects[#newOngoingEffects+1] = effectInstance
+			end
+		end
+
+		self.ongoingEffects = newOngoingEffects
+	end
+end
+
 function creature:Rest(restType)
 	local restid = dmhub.GenerateGuid()
 
@@ -9635,17 +9651,7 @@ function creature:Rest(restType)
 
 	self.shortRestId = restid
 
-	if self:has_key("ongoingEffects") then
-		local newOngoingEffects = {}
-		for _,effectInstance in ipairs(self.ongoingEffects) do
-			local remove = effectInstance.removeOnShortRest or (effectInstance.removeOnLongRest and restType == 'long')
-			if not remove then
-				newOngoingEffects[#newOngoingEffects+1] = effectInstance
-			end
-		end
-
-		self.ongoingEffects = newOngoingEffects
-	end
+	self:RemoveOngoingEffectsOnRest(restType)
 
 end
 

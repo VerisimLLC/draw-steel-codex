@@ -260,6 +260,47 @@ local inputStatus = gui.Style{
     textWrap = false,
 }
 
+local growingListViewportStyle = gui.Style{
+    selectors = {"growing-list-viewport"},
+    bgimage = true,
+    bgcolor = "#0B1220FF",
+    borderColor = "#3D526FFF",
+    borderWidth = 1,
+    cornerRadius = 10,
+    pad = 6,
+    flow = "vertical",
+    scrollHandleColor = "#8FE3D2D0",
+    borderBox = true,
+}
+
+local growingListRow = gui.Style{
+    selectors = {"growing-list-row"},
+    bgimage = true,
+    bgcolor = "#18253AFF",
+    borderColor = "#354B69FF",
+    borderWidth = 1,
+    cornerRadius = 8,
+    width = "100%-14",
+    height = 40,
+    margin = 3,
+    hpad = 8,
+    flow = "horizontal",
+    borderBox = true,
+}
+
+local deleteItem = gui.Style{
+    selectors = {"delete-item"},
+    bgcolor = "#612F3EFF",
+    borderColor = "#B86A7DFF",
+}
+
+local deleteItemHover = gui.Style{
+    selectors = {"delete-item", "hover"},
+    priority = 1,
+    bgcolor = "#9C4058FF",
+    borderColor = "#FFC0CEFF",
+}
+
 local function title(text)
     return gui.Label{classes = {"heading"}, text = text}
 end
@@ -269,6 +310,223 @@ local function captionLabel(text, height)
 end
 
 local function CreateExample()
+local nextGrowingListItem = 0
+
+local function updateGrowingListStatus(list)
+    local status = list:Get("growing-list-status")
+    if status ~= nil then
+        status.text = string.format("%d items  |  add enough to scroll", #list.children)
+    end
+end
+
+local function makeGrowingListItem(kind)
+    nextGrowingListItem = nextGrowingListItem + 1
+    local number = nextGrowingListItem
+    return gui.Panel{
+        id = "growing-list-item-" .. number,
+        classes = {"growing-list-row"},
+        gui.Label{
+            width = "72%", height = "100%",
+            text = string.format("%s item %d", kind or "Added", number),
+            fontSize = 13, color = "#DCE8F8FF", textAlignment = "left",
+        },
+        gui.Label{
+            id = "growing-list-delete-" .. number,
+            classes = {"interactive", "delete-item"},
+            width = "27%", height = 30, vmargin = 4,
+            text = "DELETE", fontSize = 11, bold = true, textAlignment = "center",
+            click = function(button)
+                local row = button.parent
+                local list = row.parent
+                list:RemoveChild(row)
+                updateGrowingListStatus(list)
+            end,
+        },
+    }
+end
+
+local growingList = gui.Panel{
+    id = "growing-list",
+    classes = {"growing-list-viewport"},
+    width = "69%", height = 168,
+    vscroll = true,
+    vscrollLockToBottom = true,
+    hideObjectsOutOfScroll = true,
+    clip = true,
+    makeGrowingListItem("Starter"),
+    makeGrowingListItem("Starter"),
+    makeGrowingListItem("Starter"),
+}
+
+local growingListCard = gui.Panel{
+    id = "growing-list-card",
+    classes = {"card"},
+    width = "100%-14",
+    height = 268,
+    title("MUTABLE + SCROLLABLE GROWING LIST"),
+    captionLabel("Add rows, delete any row, drag the scrollbar, or use the wheel. At the list boundary, wheel input bubbles to the gallery.", 34),
+    gui.Panel{
+        width = "100%", height = 176, flow = "horizontal",
+        gui.Panel{
+            width = "29%", height = "100%", flow = "vertical", rmargin = 10,
+            gui.Label{
+                id = "growing-list-add",
+                classes = {"interactive"},
+                width = "100%-8", height = 52, margin = 4,
+                text = "+ ADD ITEM", fontSize = 14, bold = true, textAlignment = "center",
+                click = function(button)
+                    local list = button:Get("growing-list")
+                    list:AddChild(makeGrowingListItem("Added"))
+                    updateGrowingListStatus(list)
+                end,
+            },
+            gui.Label{
+                id = "growing-list-status",
+                classes = {"caption"},
+                width = "100%-8", height = 58, margin = 4,
+                text = "3 items  |  add enough to scroll",
+            },
+            gui.Label{
+                classes = {"caption"},
+                width = "100%-8", height = 42, margin = 4,
+                text = "New content stays locked to the bottom.",
+            },
+        },
+        growingList,
+    },
+}
+
+local layoutBehaviorCard = gui.Panel{
+    id = "layout-behavior-card",
+    classes = {"card"},
+    width = "100%-14",
+    height = 224,
+    title("AVAILABLE + FLOATING + ALIGNED FLOW"),
+    captionLabel("Available consumes leftover flow space; alignment forms leading, middle, and trailing groups; floating overlays without consuming flow.", 34),
+    gui.Panel{
+        width = "100%", height = 132, flow = "horizontal",
+        gui.Panel{
+            id = "available-height-demo",
+            classes = {"demo-tile"},
+            width = "31%", height = 122, flow = "vertical", pad = 5,
+            gui.Label{
+                width = "100%", height = 24,
+                text = "FIXED HEADER", fontSize = 11, textAlignment = "center",
+                bgimage = true, bgcolor = "#32415EFF", cornerRadius = 5,
+            },
+            gui.Label{
+                id = "available-height-fill",
+                width = "100%", height = "100% available", vmargin = 4,
+                text = "100% AVAILABLE", fontSize = 12, bold = true, textAlignment = "center",
+                bgimage = true, bgcolor = "#24685FFF", cornerRadius = 6,
+            },
+            gui.Label{
+                width = "100%", height = 24,
+                text = "FIXED FOOTER", fontSize = 11, textAlignment = "center",
+                bgimage = true, bgcolor = "#32415EFF", cornerRadius = 5,
+            },
+        },
+        gui.Panel{
+            id = "aligned-flow-demo",
+            classes = {"demo-tile"},
+            width = "67%", height = 122, flow = "horizontal", pad = 7,
+            gui.Label{
+                id = "aligned-flow-left",
+                width = 74, height = 44, halign = "left", valign = "center",
+                text = "LEFT", fontSize = 11, bold = true, textAlignment = "center",
+                bgimage = true, bgcolor = "#315B91FF", cornerRadius = 7,
+            },
+            gui.Label{
+                id = "aligned-flow-center",
+                width = 74, height = 44, halign = "center", valign = "center",
+                text = "CENTER", fontSize = 11, bold = true, textAlignment = "center",
+                bgimage = true, bgcolor = "#713F98FF", cornerRadius = 7,
+            },
+            gui.Label{
+                id = "aligned-flow-right",
+                width = 74, height = 44, halign = "right", valign = "center",
+                text = "RIGHT", fontSize = 11, bold = true, textAlignment = "center",
+                bgimage = true, bgcolor = "#387B55FF", cornerRadius = 7,
+            },
+            gui.Label{
+                id = "floating-layout-badge", floating = true,
+                width = 152, height = 24, halign = "center", valign = "bottom", bmargin = 2,
+                text = "FLOATING (NO FLOW SPACE)", fontSize = 10, textAlignment = "center",
+                bgimage = true, bgcolor = "#A84F76E8", borderColor = "#FFD0E4FF",
+                borderWidth = 1, cornerRadius = 7,
+            },
+        },
+    },
+}
+
+local pointerBehaviorCard = gui.Panel{
+    id = "pointer-behavior-card",
+    classes = {"card"},
+    width = "100%-14",
+    height = 224,
+    title("POINTER TARGETING + LOCAL MOUSE STATE"),
+    captionLabel("The triangle uses alphaHitTest and DMHub's ruler cursor. Click its transparent corners to pass through to the panel underneath.", 34),
+    gui.Panel{
+        width = "100%", height = 132, flow = "horizontal",
+        gui.Panel{
+            id = "alpha-hit-stage", classes = {"demo-tile"},
+            width = "49%", height = 122,
+            gui.Label{
+                id = "alpha-hit-underlay", classes = {"interactive"},
+                width = "100%-12", height = "100%-12", halign = "center", valign = "center",
+                hoverCursor = "hand",
+                text = "UNDERLAY\nclick a transparent triangle corner",
+                fontSize = 12, textAlignment = "center",
+                click = function(element)
+                    element.parent:Get("pointer-hit-status").text = "TRANSPARENT PIXEL -> UNDERLAY"
+                end,
+            },
+            gui.Panel{
+                id = "alpha-hit-triangle", floating = true,
+                width = 104, height = 94, halign = "center", valign = "center",
+                bgimage = "panels/triangle.png", alphaHitTest = true,
+                hoverCursor = "ruler",
+                click = function(element)
+                    element:Get("pointer-hit-status").text = "OPAQUE PIXEL -> TRIANGLE"
+                end,
+                gui.Label{
+                    id = "alpha-hit-label",
+                    interactable = false,
+                    width = "100%", height = "100%",
+                    text = "ALPHA\nHIT", fontSize = 11, bold = true, textAlignment = "center",
+                },
+            },
+        },
+        gui.Panel{
+            classes = {"demo-tile"}, width = "49%", height = 122, flow = "vertical", pad = 7,
+            gui.Label{
+                id = "pointer-hit-status", width = "100%", height = 34,
+                text = "MOVE OVER THE TRIANGLE", fontSize = 12, bold = true,
+                color = "#A8FFF0FF", textAlignment = "center",
+            },
+            gui.Label{
+                id = "pointer-live-state", width = "100%", height = "100% available",
+                text = "mousePoint = nil", fontSize = 12, textAlignment = "center",
+                thinkTime = 0.05,
+                think = function(element)
+                    local target = element:Get("alpha-hit-triangle")
+                    local point = target.mousePoint
+                    if point == nil then
+                        element.text = "mousePoint = nil\nbuttons: L=false R=false M=false"
+                    else
+                        element.text = string.format(
+                            "mousePoint = %.2f, %.2f\nbuttons: L=%s R=%s M=%s",
+                            point.x, point.y,
+                            tostring(target:GetMouseButton(0)),
+                            tostring(target:GetMouseButton(1)),
+                            tostring(target:GetMouseButton(2)))
+                    end
+                end,
+            },
+        },
+    },
+}
+
 return gui.Panel{
     id = "style-gallery",
     width = "100%-48",
@@ -284,6 +542,10 @@ return gui.Panel{
     borderColor = "#354663FF",
     borderWidth = 1,
     cornerRadius = 20,
+    vscroll = true,
+    clip = true,
+    hideObjectsOutOfScroll = true,
+    scrollHandleColor = "#8FE3D2C0",
 
     styles = {
         card, heading, caption, demoTile,
@@ -294,6 +556,7 @@ return gui.Panel{
         dragToken, dragTokenMoving, dropZone,
         availableDropZone, hoveredDropZone, successfulDropZone,
         inputSurface, inputHover, inputFocus, inputStatus,
+        growingListViewportStyle, growingListRow, deleteItem, deleteItemHover,
     },
 
     gui.Panel{
@@ -328,6 +591,10 @@ return gui.Panel{
             textAlignment = "right",
         },
     },
+
+    growingListCard,
+    layoutBehaviorCard,
+    pointerBehaviorCard,
 
     gui.Panel{
         id = "top-row",

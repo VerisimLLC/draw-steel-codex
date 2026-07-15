@@ -577,6 +577,192 @@ local g_materialFields = {
 
 }
 
+-- PBRTexturedStarfieldDiceMaterial: everything PBRTexturedDiceMaterial has, plus two layers
+-- of procedural emissive stars ("starry dice" -- see PBRTexturedStarfield.shader). Built from
+-- the PBRTextured list above so the shared rows never drift apart. Each layer has an Enabled
+-- checkbox (_Star*Enable); unchecking it turns the layer off in the shader and collapses the
+-- layer's detail rows (requiresDefault = 1 keeps them visible for dice saved before the
+-- Enable prop existed, whose property bags lack the key).
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Per-layer defaults match PBRTexturedStarfield.shader's Properties block: layer 1 is a
+	-- bright, sparse, shallow layer; layer 2 a denser, dimmer, cooler, deeper one.
+	local layers = {
+		{
+			prefix = "_Star1", label = "L1",
+			defaults = {
+				Brightness = 1.5, Density = 48, Fill = 0.6, Size = 0.18, SizeVariation = 0.7,
+				HueVariation = 0.3, TwinkleSpeed = 1.5, TwinkleAmount = 0.5, Parallax = 0.08,
+				Glow = 0.3,
+			},
+		},
+		{
+			prefix = "_Star2", label = "L2",
+			defaults = {
+				Brightness = 0.8, Density = 96, Fill = 0.5, Size = 0.12, SizeVariation = 0.8,
+				HueVariation = 0.5, TwinkleSpeed = 2.5, TwinkleAmount = 0.6, Parallax = 0.22,
+				Glow = 0.3,
+			},
+		},
+	}
+
+	for _, layer in ipairs(layers) do
+		local p = layer.prefix
+		local L = layer.label
+		local d = layer.defaults
+		local enable = p .. "Enable"
+
+		fields[#fields + 1] = {
+			name = enable,
+			type = "Bool",
+			default = 1,
+			description = L .. " Stars Enabled",
+		}
+		fields[#fields + 1] = {
+			name = p .. "Brightness",
+			type = "Range",
+			min = 0,
+			max = 8,
+			default = d.Brightness,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Star Brightness",
+		}
+		fields[#fields + 1] = {
+			name = p .. "Color",
+			type = "Color",
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Star Color",
+		}
+		-- Star grid cells across the UV square. Dice faces are UV islands occupying a
+		-- fraction of the atlas, so useful values are higher than you might expect.
+		fields[#fields + 1] = {
+			name = p .. "Density",
+			type = "Range",
+			min = 8,
+			max = 256,
+			default = d.Density,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Star Density",
+		}
+		-- Fraction of grid cells that actually contain a star.
+		fields[#fields + 1] = {
+			name = p .. "Fill",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = d.Fill,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Star Fill",
+		}
+		fields[#fields + 1] = {
+			name = p .. "Size",
+			type = "Range",
+			min = 0.02,
+			max = 0.5,
+			default = d.Size,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Star Size",
+		}
+		fields[#fields + 1] = {
+			name = p .. "SizeVariation",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = d.SizeVariation,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Size Variation",
+		}
+		-- Random per-star hue shift around the layer color.
+		fields[#fields + 1] = {
+			name = p .. "HueVariation",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = d.HueVariation,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Hue Variation",
+		}
+		fields[#fields + 1] = {
+			name = p .. "TwinkleSpeed",
+			type = "Range",
+			min = 0,
+			max = 8,
+			default = d.TwinkleSpeed,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Twinkle Speed",
+		}
+		fields[#fields + 1] = {
+			name = p .. "TwinkleAmount",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = d.TwinkleAmount,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Twinkle Amount",
+		}
+		-- Apparent depth below the die surface; the layer's UVs shift with the view angle.
+		fields[#fields + 1] = {
+			name = p .. "Parallax",
+			type = "Range",
+			min = 0,
+			max = 0.5,
+			default = d.Parallax,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Parallax Depth",
+		}
+		-- 4-point diffraction-spike glints on each star.
+		fields[#fields + 1] = {
+			name = p .. "Spikes",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Spikes",
+		}
+		-- Wide soft halo around each star: analytic in-material "bloom" that also spreads
+		-- enough HDR energy over enough pixels for the post-process bloom to pick up.
+		fields[#fields + 1] = {
+			name = p .. "Glow",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = d.Glow,
+			requires = enable,
+			requiresDefault = 1,
+			description = L .. " Glow",
+		}
+	end
+
+	-- Attenuate stars by albedo brightness: 1 = stars only in the dark "sky" areas of the
+	-- base map, so painted planets/nebulae stay free of star overlay.
+	fields[#fields + 1] = {
+		name = "_StarDarkMask",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0,
+		description = "Stars In Dark Areas",
+	}
+
+	g_materialFields.PBRTexturedStarfieldDiceMaterial = fields
+end
+
 local CreateDicePanel
 
 -- Builds a panel that edits the tuned shader properties of a dice material.
@@ -585,6 +771,11 @@ local CreateDicePanel
 --   opts.numFaces -- a per-die-type surface material override (4, 6, 8, 10, 12, 20).
 -- Exactly one of matid / numFaces should be set. opts.propertiesOverride supplies an
 -- explicit field list (used by the builtin material whose fields are hand-authored).
+--
+-- A field's `requires` names a float prop that must be non-zero for the row to show.
+-- `requiresDefault` is the value to assume when that prop is absent from the property
+-- bag -- needed when a gate prop is added to a shader after dice sets were saved against
+-- it (the saved bag lacks the key, but the material default still applies in rendering).
 local CreateMaterialPropertiesPanel = function(opts)
 	local matid = opts.matid
 	local numFaces = opts.numFaces
@@ -703,7 +894,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 						hover = ScriptHint(p),
                     	refreshDice = function(element)
 							printf("REFRESHDICE: %s", json(p.requires))
-							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires) == 0)
+							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires, p.requiresDefault) == 0)
 						end,
 						gui.Label{
 							classes = {"formLabel"},
@@ -737,7 +928,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 						classes = {"formPanel"},
 						hover = ScriptHint(p),
                     	refreshDice = function(element)
-							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires) == 0)
+							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires, p.requiresDefault) == 0)
 						end,
 						gui.Label{
 							classes = {"formLabel"},
@@ -766,7 +957,7 @@ local CreateMaterialPropertiesPanel = function(opts)
 							is_array = nil,
 						},
                     	refreshDice = function(element)
-							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires) == 0)
+							element:SetClass("collapsed", p.requires ~= nil and GetProps():GetFloat(p.requires, p.requiresDefault) == 0)
 
 							if element:HasClass("collapsed") then
 								return

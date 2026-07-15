@@ -732,6 +732,14 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 
             local srcProps = sourceToken.properties
             local srcMaxHp = srcProps:MaxHitpoints()
+
+            --size and squad membership are part of the duplicate's identity:
+            --a duplicated minion keeps the source's size and joins its squad.
+            props.creatureSize = srcProps.creatureSize
+            props.minion = srcProps.minion
+            if srcProps.minion then
+                props.minionSquad = srcProps:MinionSquad()
+            end
             if self.copyStamina then
                 props.damage_taken = srcProps.damage_taken
                 props.max_hitpoints = srcMaxHp
@@ -761,10 +769,10 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                 props.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
             end
             if self.copyConditions then
-                props.inflictedConditions = DeepCopy(sourceToken.properties.inflictedConditions)
+                props.inflictedConditions = DeepCopy(sourceToken.properties:try_get("inflictedConditions", {}))
             end
             if self.copyEffects then
-                props.ongoingEffects = DeepCopy(sourceToken.properties.ongoingEffects)
+                props.ongoingEffects = DeepCopy(sourceToken.properties:try_get("ongoingEffects", {}))
             end
 
             props.isDuplicate = true
@@ -813,10 +821,14 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                         token.properties.max_hitpoints = srcMaxHp
                     end
                     if self.copyConditions then
-                        token.properties.inflictedConditions = DeepCopy(srcProps.inflictedConditions)
+                        token.properties.inflictedConditions = DeepCopy(srcProps:try_get("inflictedConditions", {}))
                     end
                     if self.copyEffects then
-                        token.properties.ongoingEffects = DeepCopy(srcProps.ongoingEffects)
+                        token.properties.ongoingEffects = DeepCopy(srcProps:try_get("ongoingEffects", {}))
+                    end
+                    if srcProps.minion then
+                        token.properties.minion = true
+                        token.properties.minionSquad = srcProps:MinionSquad()
                     end
                     if self.copyFeatures then
                         token.properties.attributes = DeepCopy(srcProps.attributes)

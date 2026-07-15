@@ -2799,6 +2799,34 @@ local function CreateTopBar()
             local multi = (q.type == "multiselect")
             local m_rows = {}
 
+            --multiselect questions may cap how many options can be chosen via
+            --q.maxSelections; nil/0 means unlimited. When the cap is reached the
+            --remaining options grey out and further presses are ignored.
+            local maxSel = nil
+            if multi then
+                maxSel = tonumber(q.maxSelections)
+                if maxSel ~= nil and maxSel <= 0 then
+                    maxSel = nil
+                end
+            end
+
+            --forward declared; created below only when a cap is in effect.
+            local hintLabel = nil
+
+            local function CountSelected()
+                local a = m_answers[qid]
+                if type(a) ~= "table" or type(a.selected) ~= "table" then
+                    return 0
+                end
+                local n = 0
+                for _,v in pairs(a.selected) do
+                    if v then
+                        n = n + 1
+                    end
+                end
+                return n
+            end
+
             local function IsOptionSelected(optid)
                 if multi then
                     local a = m_answers[qid]
@@ -2809,8 +2837,17 @@ local function CreateTopBar()
             end
 
             local function RefreshSelection()
+                local atLimit = (maxSel ~= nil and CountSelected() >= maxSel)
                 for _,entry in ipairs(m_rows) do
-                    entry.panel:SetClassTree("selected", IsOptionSelected(entry.id))
+                    local selected = IsOptionSelected(entry.id)
+                    entry.panel:SetClassTree("selected", selected)
+                    --once the cap is reached, grey out the options that are not
+                    --already chosen so it is clear they cannot be added without
+                    --deselecting one first. Selected rows stay live to toggle off.
+                    entry.panel:SetClass("disabledOption", atLimit and not selected)
+                end
+                if hintLabel ~= nil and hintLabel.valid then
+                    hintLabel.text = string.format("Select up to %d", maxSel)
                 end
             end
 
@@ -2826,9 +2863,10 @@ local function CreateTopBar()
                     end
                     if a.selected[optid] then
                         a.selected[optid] = nil
-                    else
+                    elseif maxSel == nil or CountSelected() < maxSel then
                         a.selected[optid] = true
                     end
+                    --at the cap, presses on unselected options are ignored.
                 else
                     if m_answers[qid] == optid then
                         m_answers[qid] = nil
@@ -2882,14 +2920,29 @@ local function CreateTopBar()
                 rowPanels[#rowPanels + 1] = row
             end
 
-            local children = {
-                gui.Panel{
+            local children = {}
+
+            --when a cap is in effect, a small note above the options tells the
+            --user how many they may pick.
+            if maxSel ~= nil then
+                hintLabel = gui.Label{
+                    fontSize = 13,
+                    color = "#999999",
                     width = "auto",
                     height = "auto",
-                    flow = "vertical",
                     halign = "center",
-                    children = rowPanels,
-                },
+                    bmargin = 10,
+                    text = string.format("Select up to %d", maxSel),
+                }
+                children[#children + 1] = hintLabel
+            end
+
+            children[#children + 1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                children = rowPanels,
             }
 
             if q.allowOther then
@@ -3255,6 +3308,8 @@ local function CreateTopBar()
                 { selectors = {"surveyOption"}, width = 700, height = "auto", flow = "horizontal", bgcolor = "#00000066", border = 1, borderColor = "#888888", cornerRadius = 6, pad = 10, borderBox = true, halign = "center", vmargin = 3 },
                 { selectors = {"surveyOption", "hover"}, bgcolor = "#2a2a2aaa", borderColor = "#cccccc" },
                 { selectors = {"surveyOption", "selected"}, bgcolor = "#38386e99", borderColor = "#8899ee" },
+                { selectors = {"surveyOption", "disabledOption"}, bgcolor = "#00000033", borderColor = "#555555", opacity = 0.45 },
+                { selectors = {"surveyOption", "disabledOption", "hover"}, bgcolor = "#00000033", borderColor = "#555555" },
                 { selectors = {"surveyCheckBox"}, width = 20, height = 20, valign = "center", bgcolor = "clear", border = 1, borderColor = "#aaaaaa", cornerRadius = 3 },
                 { selectors = {"surveyRadio"}, width = 20, height = 20, valign = "center", bgcolor = "clear", border = 1, borderColor = "#aaaaaa", cornerRadius = 10 },
                 { selectors = {"surveyCheckBoxFill"}, width = 12, height = 12, halign = "center", valign = "center", bgcolor = "#aabbff", cornerRadius = 2, opacity = 0 },

@@ -4536,7 +4536,17 @@ function GameHud:BeginRespiteMode()
 		settings:SetPauseRolls(true)
 	end
 
+	--"Until Respite" ongoing effects end when the respite begins, not when it ends.
+	local groupid = dmhub.GenerateGuid()
 	for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+		token:ModifyProperties{
+			description = "Begin Respite",
+			combine = true,
+			groupid = groupid,
+			execute = function()
+				token.properties:RemoveOngoingEffectsOnRest("long")
+			end,
+		}
 		token.properties:DispatchEvent("startrespite", {})
 	end
 end

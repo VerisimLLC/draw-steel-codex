@@ -26,6 +26,105 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--A Local (Offline) game whose data lives on another computer cannot be
+--entered from here: connecting would make the local server create a fresh
+--empty game.db and serve an empty game, which bounces back to the
+--titlescreen -- and once that empty db exists, hasLocalData reports the
+--game as present on this machine, so the play gate never engages again.
+--Every EnterGame call site must check this before entering.
+local function GameHasNoLocalData(game)
+    return game ~= nil and game.storage == 3 and not game.hasLocalData
+end
+
+local function FindLobbyGame(gameid)
+    if gameid == nil then
+        return nil
+    end
+    for _, g in ipairs(lobby.games or {}) do
+        if g.gameid == gameid then
+            return g
+        end
+    end
+    return nil
+end
+
+--Framed-panel modal for titlescreen messages, following the stall-modal /
+--ShowPromoteLocalGameDialog pattern (gui.ShowModal() doesn't show up in the
+--titlescreen's own modal stack). Used for the offline-game-on-another-
+--computer explanation and for errors fired from C# via ShowTitlescreenError.
+local function ShowTitlescreenMessageDialog(root, title, message)
+    if root == nil or not root.valid then
+        return
+    end
+
+    local modal
+    modal = gui.Panel {
+        floating = true,
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000b0",
+
+        gui.Panel {
+            classes = { "framedPanel" },
+            styles = {
+                Styles.Default,
+                Styles.Panel,
+            },
+            bgimage = true,
+            halign = "center",
+            valign = "center",
+            width = 640,
+            height = "auto",
+            minHeight = 280,
+            flow = "vertical",
+            vpad = 24,
+
+            gui.Label {
+                text = title,
+                fontSize = 36,
+                bold = true,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+                color = "white",
+                tmargin = 12,
+            },
+
+            gui.Label {
+                text = message,
+                fontSize = 20,
+                width = "80%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                color = "white",
+                vmargin = 16,
+            },
+
+            gui.Button {
+                text = "Close",
+                halign = "center",
+                valign = "bottom",
+                bmargin = 12,
+                escapeActivates = true,
+                click = function(element)
+                    modal:DestroySelf()
+                end,
+            },
+        },
+    }
+
+    root:AddChild(modal)
+end
+
+local OFFLINE_GAME_ELSEWHERE_TITLE = "Game Data Not On This Computer"
+local OFFLINE_GAME_ELSEWHERE_MESSAGE =
+    "This offline game keeps its data on the computer where it was created, " ..
+    "so it can't be played from here. Open the game on that computer and " ..
+    "press Invite Players to deploy it online so you can access it anywhere."
+
 --Mirror of CodexTitleBar.lua's "dev:storepreview" setting. Settings are
 --keyed by id, so re-declaring it here just gives read access to the same
 --value. Gates the store banner on the selection screen along with the rest
@@ -672,6 +771,11 @@ local function CreateJoinGameModal(tokenToImport)
                 press = function(element)
                     local gameid = element.data.gameInfo.gameid
 
+                    if GameHasNoLocalData(element.data.gameInfo) then
+                        ShowTitlescreenMessageDialog(element.root, OFFLINE_GAME_ELSEWHERE_TITLE, OFFLINE_GAME_ELSEWHERE_MESSAGE)
+                        return
+                    end
+
                     if tokenToImport ~= nil then
                         tokenToImport:ModifyProperties {
                             description = "Joining Game",
@@ -739,6 +843,11 @@ local function CreateJoinGameModal(tokenToImport)
                 press = function(element)
                     local gameInfo = element.data.gameInfo
                     if gameInfo == nil or tokenToImport == nil then
+                        return
+                    end
+
+                    if GameHasNoLocalData(gameInfo) then
+                        ShowTitlescreenMessageDialog(element.root, OFFLINE_GAME_ELSEWHERE_TITLE, OFFLINE_GAME_ELSEWHERE_MESSAGE)
                         return
                     end
 
@@ -3809,6 +3918,10 @@ local function MakeHeroPanel(heroIndex)
         },
         press = function(element)
             if element.data.game then
+                if GameHasNoLocalData(element.data.game) then
+                    ShowTitlescreenMessageDialog(element.root, OFFLINE_GAME_ELSEWHERE_TITLE, OFFLINE_GAME_ELSEWHERE_MESSAGE)
+                    return
+                end
                 element.root:FireEventTree("overrideLoadingScreenArt", element.data.game.coverart, element.data.game.gameid)
                 lobby:EnterGame(element.data.game.gameid)
             end
@@ -4285,6 +4398,15 @@ function CreateTitlescreen(dialog, options)
                                 halign = "center",
                                 hmargin = 12,
                                 click = function(btn)
+                                    --Retrying a Local game whose data lives on
+                                    --another computer would just recreate an
+                                    --empty local db and stall again; leave and
+                                    --explain instead.
+                                    if GameHasNoLocalData(FindLobbyGame(m_loadingGameId)) then
+                                        ShowTitlescreenMessageDialog(btn.root, OFFLINE_GAME_ELSEWHERE_TITLE, OFFLINE_GAME_ELSEWHERE_MESSAGE)
+                                        dmhub.LeaveGame()
+                                        return
+                                    end
                                     local modal = stallPanel:Get("stallModal")
                                     if modal ~= nil then
                                         modal:SetClass("hidden", true)
@@ -4523,8 +4645,15 @@ function CreateTitlescreen(dialog, options)
             element:FireEvent("endLoading")
         end,
 
+        --Fired from C# via GameHarness.ShowTitlescreenError (e.g. the
+        --malformed-game bounce). This used to be a print-only stub, so load
+        --failures bounced back to the titlescreen with no visible
+        --explanation.
         error = function(element, message)
-            print("EVENT::: ERROR")
+            print("EVENT::: ERROR", message)
+            if message ~= nil and message ~= "" then
+                ShowTitlescreenMessageDialog(titlescreen, "Couldn't Load Game", message)
+            end
         end,
 
         gui.Panel {

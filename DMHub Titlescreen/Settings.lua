@@ -1875,7 +1875,7 @@ setting{
 	storage = "preference",
 	section = "Graphics",
 	editor = "check",
-	default = false,
+	default = true,
 }
 
 setting{

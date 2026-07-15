@@ -1327,7 +1327,12 @@ local g_bestiaryInfoCache = nil
 local function CreateBestiaryPane(party, addMonster)
     local state = {
         searchText = "",
+        page = 1,
     }
+
+    --one page of rows at a time: building the whole compendium's rows (and
+    --re-filtering them per keystroke) is what made the pane crawl.
+    local PAGE_SIZE = 25
 
     --gather bestiary facts from the live compendium (assets.monsters),
     --memoized in g_bestiaryInfoCache.
@@ -1464,17 +1469,6 @@ local function CreateBestiaryPane(party, addMonster)
                 end
             end,
 
-            filterBestiary = function(element)
-                local matches = true
-                if state.searchText ~= "" then
-                    local haystack = string.lower(rowInfo.name .. " " .. rowInfo.meta)
-                    if not string.find(haystack, state.searchText, 1, true) then
-                        matches = false
-                    end
-                end
-                element:SetClass("collapsed", not matches)
-            end,
-
             imagePanel,
 
             gui.Panel {
@@ -1527,43 +1521,80 @@ local function CreateBestiaryPane(party, addMonster)
         }
     end
 
-    --Stream the rows in batches across frames so the dialog opens
-    --immediately instead of stalling while hundreds of rows construct.
-    --A generation counter abandons an in-flight stream when a newer
-    --population starts (e.g. refreshAssets mid-stream).
-    local m_populateGeneration = 0
-    local function PopulateRows(element, rowInfos)
-        m_populateGeneration = m_populateGeneration + 1
-        local generation = m_populateGeneration
-        local BATCH_SIZE = 30
-        local index = 1
-
-        element.children = {}
-
-        local function addBatch()
-            if mod.unloaded or not element.valid or generation ~= m_populateGeneration then
-                return
-            end
-
-            local children = element.children
-            local limit = math.min(index + BATCH_SIZE - 1, #rowInfos)
-            for i = index, limit do
-                local row = BuildRow(rowInfos[i])
-                --bring the fresh rows in line with the current search filter
-                --and party state before they appear.
-                row:FireEventTree("filterBestiary")
-                row:FireEventTree("refreshBuilder")
-                children[#children + 1] = row
-            end
-            element.children = children
-            index = limit + 1
-
-            if index <= #rowInfos then
-                dmhub.Schedule(0.01, addBatch)
+    --Search happens at the DATA level (a substring scan over the cached
+    --infos is microseconds for a whole compendium); only the current page's
+    --rows ever exist as panels.
+    local function FilteredInfos()
+        local infos = BuildInfos()
+        if state.searchText == "" then
+            return infos
+        end
+        local result = {}
+        for _, info in ipairs(infos) do
+            local haystack = string.lower(info.name .. " " .. info.meta)
+            if string.find(haystack, state.searchText, 1, true) then
+                result[#result + 1] = info
             end
         end
+        return result
+    end
 
-        addBatch()
+    local pagerLabel
+    local prevButton
+    local nextButton
+
+    --Build the current page's rows and bring the pager controls in line.
+    local function RebuildList()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+
+        local infos = FilteredInfos()
+        local pageCount = math.max(1, math.ceil(#infos / PAGE_SIZE))
+        if state.page > pageCount then
+            state.page = pageCount
+        end
+        if state.page < 1 then
+            state.page = 1
+        end
+
+        local first = (state.page - 1) * PAGE_SIZE + 1
+        local last = math.min(first + PAGE_SIZE - 1, #infos)
+
+        local children = {}
+        for i = first, last do
+            local row = BuildRow(infos[i])
+            row:FireEventTree("refreshBuilder")
+            children[#children + 1] = row
+        end
+
+        if #infos == 0 then
+            children[1] = gui.Label {
+                classes = { "fgMuted", "sizeXs" },
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                vpad = 10,
+                text = "No monsters match your search.",
+            }
+        end
+
+        listPanel.children = children
+
+        if pagerLabel ~= nil and pagerLabel.valid then
+            if #infos == 0 then
+                pagerLabel.text = "0 monsters"
+            else
+                pagerLabel.text = string.format("%d-%d of %d", first, last, #infos)
+            end
+        end
+        if prevButton ~= nil and prevButton.valid then
+            prevButton:SetClass("hidden", state.page <= 1)
+        end
+        if nextButton ~= nil and nextButton.valid then
+            nextButton:SetClass("hidden", state.page >= pageCount)
+        end
     end
 
     listPanel = gui.Panel {
@@ -1574,14 +1605,49 @@ local function CreateBestiaryPane(party, addMonster)
         monitorAssets = true,
 
         create = function(element)
-            PopulateRows(element, BuildInfos())
+            RebuildList()
         end,
 
-        --rebuild the rows whenever the compendium changes so the list always
+        --rebuild whenever the compendium changes so the list always
         --reflects the live bestiary (imports, edits, deletions).
         refreshAssets = function(element)
             g_bestiaryInfoCache = nil
-            PopulateRows(element, BuildInfos())
+            RebuildList()
+        end,
+    }
+
+    pagerLabel = gui.Label {
+        classes = { "fgMuted", "sizeXs" },
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        minWidth = 110,
+        text = "",
+    }
+
+    prevButton = gui.Button {
+        classes = { "sizeXs" },
+        width = 70,
+        halign = "left",
+        valign = "center",
+        text = "Previous",
+        press = function(element)
+            state.page = state.page - 1
+            RebuildList()
+        end,
+    }
+
+    nextButton = gui.Button {
+        classes = { "sizeXs" },
+        width = 70,
+        halign = "right",
+        valign = "center",
+        text = "Next",
+        press = function(element)
+            state.page = state.page + 1
+            RebuildList()
         end,
     }
 
@@ -1609,21 +1675,16 @@ local function CreateBestiaryPane(party, addMonster)
 
             edit = function(element)
                 state.searchText = string.lower(element.text)
-                listPanel:FireEventTree("filterBestiary")
+                state.page = 1
+                RebuildList()
             end,
 
             confirm = function(element)
                 local query = element.text
                 if query ~= "" then
-                    local resultCount = 0
-                    for _, child in ipairs(listPanel.children) do
-                        if not child:HasClass("collapsed") then
-                            resultCount = resultCount + 1
-                        end
-                    end
                     track("search_query", {
                         query = query,
-                        resultCount = resultCount,
+                        resultCount = #FilteredInfos(),
                         context = "encounter",
                         dailyLimit = 20,
                     })
@@ -1632,6 +1693,19 @@ local function CreateBestiaryPane(party, addMonster)
         },
 
         listPanel,
+
+        --pager: one page of rows at a time keeps the pane fast; search is
+        --how anyone realistically finds a monster in a 500-entry bestiary.
+        gui.Panel {
+            width = "100%",
+            height = 26,
+            flow = "horizontal",
+            tmargin = 6,
+
+            prevButton,
+            pagerLabel,
+            nextButton,
+        },
     }
 end
 
@@ -3974,14 +4048,17 @@ CreateEncounterPanel = function()
 
                         --start the saved plan without reopening the editor:
                         --place at saved positions and open combat setup.
+                        --Named in full: a bare "Start" reads as "start the
+                        --builder", which is the opposite of what it does.
                         gui.Button {
                             classes = { "sizeXs" },
                             floating = true,
                             halign = "right",
                             valign = "bottom",
+                            width = 110,
                             rmargin = 6,
                             bmargin = 4,
-                            text = "Start",
+                            text = "Start Encounter",
                             hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and open combat setup."),
                             swallowPress = true,
                             press = function(element)

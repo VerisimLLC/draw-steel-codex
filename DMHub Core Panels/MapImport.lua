@@ -1026,11 +1026,11 @@ mod.shared.ImportMapDialog = function(paths, options)
 
             updateScaling = function(element)
                 if importPanel.tileScaling == 1 then
-                    element.text = "A tile in the imported map will become 1 tile in DMHub."
+                    element.text = "A tile in the imported map will become 1 tile in Draw Steel."
                     return
                 end
 
-                element.text = string.format("A tile in the imported map will become %dx%d tiles in DMHub.", importPanel.tileScaling, importPanel.tileScaling)
+                element.text = string.format("A tile in the imported map will become %dx%d tiles in Draw Steel.", importPanel.tileScaling, importPanel.tileScaling)
             end,
 
             scalingError = function(element)

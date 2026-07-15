@@ -3471,6 +3471,24 @@ function Encounter.Editor(self, options)
             },
         },
 
+        --optional description, saved with the plan alongside the name.
+        gui.Input {
+            classes = { "form" },
+            width = "100%",
+            height = "auto",
+            minHeight = 30,
+            fontSize = 13,
+            multiline = true,
+            textAlignment = "topleft",
+            characterLimit = 2000,
+            bmargin = 6,
+            placeholderText = "Add a description...",
+            text = self.description,
+            change = function(element)
+                self.description = element.text
+            end,
+        },
+
         CreatePartyBar(self, party, refresh, CreateBudgetDial(self, party)),
 
         --the two-pane body: bestiary browser left, composition right.

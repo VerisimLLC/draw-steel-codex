@@ -2714,6 +2714,21 @@ ShowPlacementBanner = function(encounter, opts)
         create = function(element)
             gui.SetFocus(element)
 
+            --the click that opened this banner can still be bubbling: the
+            --encounter card's own click handler selects the card (SetFocus)
+            --AFTER this banner takes focus, which would deafen the spawn
+            --handler below -- every map click then spawns tokens the banner
+            --ignores and it never resolves. Re-assert focus once the opening
+            --gesture has fully settled.
+            dmhub.Schedule(0.1, function()
+                if mod.unloaded or not element.valid then
+                    return
+                end
+                if not element:HasClass("focus") then
+                    gui.SetFocus(element)
+                end
+            end)
+
             element.data.monitorid = dmhub.RegisterEventHandler("spawnFromBestiary", function(charids)
                 if not element:HasClass("focus") then
                     return

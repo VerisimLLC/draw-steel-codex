@@ -2618,13 +2618,17 @@ ShowPlacementBanner = function(encounter, opts)
     banner = gui.Panel {
         classes = { "framedPanel" },
         styles = ThemeEngine.GetStyles(),
-        width = 560,
-        height = 54,
+        width = 640,
+        --auto height with a bounded label: long messages wrap to a second
+        --line and the box grows instead of pushing the button outside it.
+        height = "auto",
+        minHeight = 54,
         halign = "center",
         valign = "top",
         vmargin = 80,
         flow = "horizontal",
         hpad = 14,
+        vpad = 12,
         borderBox = true,
         bgimage = true,
 
@@ -2697,7 +2701,7 @@ ShowPlacementBanner = function(encounter, opts)
 
         gui.Label {
             classes = { "sizeS" },
-            width = "auto",
+            width = "100%-110",
             height = "auto",
             valign = "center",
             text = opts.message or string.format("Click on the map to place %s", encounter:try_get("name", "the encounter")),
@@ -2729,13 +2733,17 @@ ShowStagingBanner = function(message, opts)
     banner = gui.Panel {
         classes = { "framedPanel" },
         styles = ThemeEngine.GetStyles(),
-        width = 620,
-        height = 54,
+        width = 680,
+        --auto height with a bounded label: long messages wrap to a second
+        --line and the box grows instead of pushing the button outside it.
+        height = "auto",
+        minHeight = 54,
         halign = "center",
         valign = "top",
         vmargin = 80,
         flow = "horizontal",
         hpad = 14,
+        vpad = 12,
         borderBox = true,
         bgimage = true,
 
@@ -2747,7 +2755,7 @@ ShowStagingBanner = function(message, opts)
 
         gui.Label {
             classes = { "sizeS" },
-            width = "auto",
+            width = "100%-170",
             height = "auto",
             valign = "center",
             text = message,

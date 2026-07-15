@@ -1464,6 +1464,12 @@ CharacterModifier.RegisterType('conditionimmunity', "Condition Immunity")
 
 --a 'conditionimmunity' modifier has the following properties:
 --  - conditions: a list of condition id's which we are immune to.
+--conditionimmunity: grants immunity to the conditions listed in modifier.conditions
+--(a list of condition ids). Optional field: modifier.immunityMessage -- when set to
+--a non-empty string, creature:GetConditionImmunityMessage reads it (via try_get) so
+--the immunity-blocked speech can be overridden with a context-specific line instead
+--of the generic "I can't be <Name>!". Used e.g. by Olothec transformation effects
+--that block hiding.
 CharacterModifier.TypeInfo.conditionimmunity = {
 	init = function(modifier)
 		modifier.conditions = {}

@@ -3446,7 +3446,15 @@ function creature:InflictCondition(conditionid, args)
             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
             local conditionInfo = conditionsTable[conditionid]
             if conditionInfo ~= nil then
-                local text = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                --A modifier that grants the immunity may specify its own custom
+                --line (immunityMessage), used verbatim to override the generic
+                --speech. This lets special-case effects (e.g. Olothec
+                --transformations that specifically block hiding) say something
+                --context-appropriate instead of "I can't be Hidden!". Otherwise
+                --fall back to the per-condition variations table, then a generic
+                --line.
+                local text = self:GetConditionImmunityMessage(conditionid)
+                    or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
                     or string.format("I can't be %s!", conditionInfo.name)
                 local language = self:CurrentlySpokenLanguage()
                 if language ~= nil then

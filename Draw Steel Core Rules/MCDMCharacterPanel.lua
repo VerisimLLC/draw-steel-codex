@@ -8323,8 +8323,15 @@ function TacPanel.PersistentAbilities()
                 end
             end
 
-            startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, token.properties:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
-            
+            local evaluatedGain = dmhub.EvalGoblinScript(startOfTurnHeroicResource, token.properties:LookupSymbol(), string.format("Calculating Start of Turn Resources"))
+
+            --EvalGoblinScript reduces the formula as far as it can but returns a string;
+            --dice-based gains (e.g. the talent's and troubadour's "1d3") don't reduce to
+            --a plain number, so tonumber() yields nil. Fall back to the roll's expected
+            --value so the comparison below always has a number. (For 1d3 classes this
+            --matches the flat threshold of 2 this panel used before the checklist lookup.)
+            startOfTurnHeroicResource = tonumber(evaluatedGain) or dmhub.RollExpectedValue(evaluatedGain)
+
             if totalCost > startOfTurnHeroicResource then
                 children[#children+1] = gui.Label{
                     classes = {"danger", "sizeXs"},

@@ -312,6 +312,11 @@ end
 --Tokens currently on the map carrying this group's placement tag (stamped
 --when the group is placed from the builder), sorted by spawn slot so their
 --positions bank back into group.spawnlocs in spawn order.
+--Only STAGED tokens count: encounterStaged == true, or nil for tokens staged
+--before the flag existed (real combat placements stamp an explicit false).
+--Staging is also scoped to the Director who staged it (encounterStagedBy), so
+--one Director collecting a group never deletes tokens a colleague is
+--arranging; nil (legacy) tokens are treated as ours.
 local function PlacedTokensForGroup(group)
     if group.placementid == nil then
         return {}
@@ -319,13 +324,50 @@ local function PlacedTokensForGroup(group)
     local result = {}
     for _, token in ipairs(dmhub.allTokens) do
         if token.properties ~= nil and token.properties:try_get("encounterPlacementId") == group.placementid then
-            result[#result + 1] = token
+            local staged = token.properties:try_get("encounterStaged")
+            local stagedBy = token.properties:try_get("encounterStagedBy")
+            if staged ~= false and (stagedBy == nil or stagedBy == dmhub.userid) then
+                result[#result + 1] = token
+            end
         end
     end
     table.sort(result, function(a, b)
         return a.properties:try_get("encounterSpawnSlot", 0) < b.properties:try_get("encounterSpawnSlot", 0)
     end)
     return result
+end
+
+--Bank one group's staged tokens into the group: positions (spawnlocs),
+--player-visibility, and (when the encounter opts in) appearances, all in
+--spawn-slot order. Also stamps the map the positions belong to -- spawnlocs
+--are map-blind coordinates, so consumers must not use them on another map.
+--Returns the banked tokens; the CALLER decides whether to delete them.
+local function BankGroupPositions(group, saveAppearances)
+    local tokens = PlacedTokensForGroup(group)
+    if #tokens == 0 then
+        return tokens
+    end
+    group.spawnlocs = {}
+    group.appearances = {}
+    group.invisibleToPlayers = {}
+    group.stagemapid = game.currentMapId
+    for slot, token in ipairs(tokens) do
+        group.spawnlocs[slot] = token.loc
+        group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
+        if saveAppearances and token.appearanceChangedFromBestiary then
+            group.appearances[slot] = token:SerializeAppearanceToString()
+        else
+            group.appearances[slot] = false
+        end
+    end
+    return tokens
+end
+
+--True when the group's saved positions were banked on a different map than
+--the one currently open (nil stagemapid = legacy data, treated as matching).
+local function GroupStagedOnOtherMap(group)
+    local mapid = group.stagemapid
+    return mapid ~= nil and mapid ~= game.currentMapId
 end
 
 --Spawn a group's monsters at its saved staging positions (group.spawnlocs),
@@ -347,6 +389,8 @@ local function StageGroupAtSavedLocations(group, numHeroes, placementid)
                 if token ~= nil then
                     token.properties.encounterPlacementId = placementid
                     token.properties.encounterSpawnSlot = slot
+                    token.properties.encounterStaged = true
+                    token.properties.encounterStagedBy = dmhub.userid
                     local appearance = (group.appearances or {})[slot]
                     if type(appearance) == "string" then
                         token:SerializeAppearanceFromString(appearance)
@@ -1891,23 +1935,34 @@ local function CreateGroupCard(args)
         classes = { "link", "sizeXs" },
         width = "auto",
         height = "auto",
+        --reserve room for the longest state so the footer row does not
+        --reflow every staging cycle.
+        minWidth = 150,
         valign = "center",
         rmargin = 16,
         text = "Stage on Map",
-        hover = gui.Tooltip("Stage this group's monsters on the map to set their starting positions. Saving the encounter records the positions and removes the tokens; they are placed for real when the encounter runs."),
+        hover = gui.Tooltip("Stage this group on the map and arrange its starting positions. Collecting the tokens saves their positions with the plan; Start Encounter places them there for real."),
         refreshBuilder = function(element)
-            element.text = cond(#PlacedTokensForGroup(group) > 0, "Remove from Map", "Stage on Map")
+            element.text = cond(#PlacedTokensForGroup(group) > 0, "Save Positions & Remove", "Stage on Map")
         end,
         press = function(element)
-            --already on the map: collect the tagged tokens back up.
+            --already on the map: bank the arrangement, then collect the
+            --tokens. Discarding instead lives on the card's right-click menu.
             local placed = PlacedTokensForGroup(group)
             if #placed > 0 then
+                BankGroupPositions(group, encounter.saveAppearances)
                 local charids = {}
                 for _, token in ipairs(placed) do
                     charids[#charids + 1] = token.charid
                 end
                 game.DeleteCharacters(charids)
                 refresh()
+                --token deletion resolves asynchronously; refresh again once
+                --it lands so the link and chip flip without another click.
+                dmhub.Schedule(0.4, function()
+                    if mod.unloaded then return end
+                    refresh()
+                end)
                 return
             end
 
@@ -1926,9 +1981,24 @@ local function CreateGroupCard(args)
 
             local editorPanel = element:FindParentWithClass("editorPanel")
 
-            --a saved staging exists: re-materialize the tokens at their
-            --saved positions and bring them into view for arranging.
-            if group.spawnlocs ~= nil and #group.spawnlocs > 0 then
+            local function ShowArrangeBanner()
+                ShowStagingBanner(
+                    string.format("%s staged. Arrange the tokens, then return - positions save with the plan.", GroupName(encounter, group, groupIndex)),
+                    {
+                        onClosed = function()
+                            if editorPanel ~= nil and editorPanel.valid then
+                                editorPanel:SetClass("hidden", false)
+                                refresh()
+                            end
+                        end,
+                    })
+            end
+
+            --a saved staging exists on THIS map: re-materialize the tokens at
+            --their saved positions and bring them into view for arranging.
+            --Positions banked on another map are coordinates that mean nothing
+            --here, so fall through to click-to-stage instead.
+            if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
                 local tokens = StageGroupAtSavedLocations(group, party.numHeroes, placementid)
                 if #tokens > 0 then
                     editorPanel:SetClass("hidden", true)
@@ -1939,16 +2009,7 @@ local function CreateGroupCard(args)
                         dmhub.FocusToken(firstCharid)
                     end)
 
-                    ShowStagingBanner(
-                        string.format("%s staged at its saved positions. Arrange the tokens, then return.", GroupName(encounter, group, groupIndex)),
-                        {
-                            onClosed = function()
-                                if editorPanel ~= nil and editorPanel.valid then
-                                    editorPanel:SetClass("hidden", false)
-                                    refresh()
-                                end
-                            end,
-                        })
+                    ShowArrangeBanner()
                     refresh()
                     return
                 end
@@ -1967,13 +2028,24 @@ local function CreateGroupCard(args)
 
             editorPanel:SetClass("hidden", true)
 
+            local stageMessage = string.format("Click on the map to stage %s", GroupName(encounter, group, groupIndex))
+            if GroupStagedOnOtherMap(group) then
+                stageMessage = string.format("Positions were saved on another map - click to stage %s here", GroupName(encounter, group, groupIndex))
+            end
+
+            --when the click resolves we chain straight into the arrange
+            --banner (editor stays hidden) so initial staging gets the same
+            --arrange moment as re-staging.
+            local chainedToArrange = false
+
             ShowPlacementBanner(placeEncounter, {
-                message = string.format("Click on the map to stage %s", GroupName(encounter, group, groupIndex)),
+                message = stageMessage,
 
                 --tag the tokens once they resolve so the builder can
                 --recognise them, offer removal, and bank their positions
                 --into the group at save time.
                 onSpawned = function(charids)
+                    chainedToArrange = true
                     local attempts = 20
                     local function tagWhenReady()
                         if mod.unloaded then return end
@@ -1994,15 +2066,22 @@ local function CreateGroupCard(args)
                             if token ~= nil then
                                 token.properties.encounterPlacementId = placementid
                                 token.properties.encounterSpawnSlot = slot
+                                token.properties.encounterStaged = true
+                                token.properties.encounterStagedBy = dmhub.userid
                                 token:UploadToken()
                             end
                         end
                         refresh()
                     end
                     tagWhenReady()
+                    ShowArrangeBanner()
                 end,
 
                 onClosed = function()
+                    if chainedToArrange then
+                        --the arrange banner now owns restoring the editor.
+                        return
+                    end
                     if editorPanel ~= nil and editorPanel.valid then
                         editorPanel:SetClass("hidden", false)
                         refresh()
@@ -2019,16 +2098,25 @@ local function CreateGroupCard(args)
         valign = "center",
         halign = "right",
         text = "",
-        hover = gui.Tooltip("Green: this group's tokens are on the map for staging. Plain: starting positions are saved with the encounter."),
+        hover = gui.Tooltip("Green: this group's tokens are on the map for staging. Plain: starting positions are saved with the plan. A count mismatch means the roster changed after staging - restage to fix the positions."),
         refreshBuilder = function(element)
             local live = #PlacedTokensForGroup(group)
             local saved = group.spawnlocs ~= nil and #group.spawnlocs > 0
             element:SetClass("hidden", not (live > 0 or saved))
             element:SetClass("success", live > 0)
             if live > 0 then
-                element.text = string.format("Staged (%d)", live)
+                local expected = AdjustedGroupCount(group, party.numHeroes)
+                if live ~= expected then
+                    element.text = string.format("Staged (%d of %d)", live, expected)
+                else
+                    element.text = string.format("Staged (%d)", live)
+                end
             elseif saved then
-                element.text = "Staging saved"
+                if GroupStagedOnOtherMap(group) then
+                    element.text = "Positions saved (other map)"
+                else
+                    element.text = "Positions saved"
+                end
             end
         end,
     }
@@ -2072,6 +2160,27 @@ local function CreateGroupCard(args)
                 },
             }
 
+            if #PlacedTokensForGroup(group) > 0 then
+                menuEntries[#menuEntries + 1] = {
+                    text = "Remove from Map Without Saving",
+                    click = function()
+                        element.popup = nil
+                        local charids = {}
+                        for _, token in ipairs(PlacedTokensForGroup(group)) do
+                            charids[#charids + 1] = token.charid
+                        end
+                        game.DeleteCharacters(charids)
+                        refresh()
+                        --token deletion resolves asynchronously; refresh again
+                        --once it lands so the link and chip flip on their own.
+                        dmhub.Schedule(0.4, function()
+                            if mod.unloaded then return end
+                            refresh()
+                        end)
+                    end,
+                }
+            end
+
             if group.spawnlocs ~= nil and #group.spawnlocs > 0 then
                 menuEntries[#menuEntries + 1] = {
                     text = "Clear Saved Staging",
@@ -2080,6 +2189,7 @@ local function CreateGroupCard(args)
                         group.spawnlocs = nil
                         group.appearances = nil
                         group.invisibleToPlayers = nil
+                        group.stagemapid = nil
                         refresh()
                     end,
                 }
@@ -2659,6 +2769,343 @@ ShowStagingBanner = function(message, opts)
 end
 
 -- ===========================================================================
+-- Real placement: put the encounter on the map for play
+-- ===========================================================================
+
+--Spawn one group's monsters for real (combat-grade, mirroring
+--LiveEncounter:DeployWave): initiative grouping, minion squads, balancing
+--stamina, appears-gates, saved appearances and visibility. Slots with a
+--saved position spawn there; slots without one spread in a 5-wide grid
+--around fallbackAnchor. Tokens are tagged with the group's placement id
+--(encounterStaged = false, so the builder never mistakes them for staging).
+--Returns the initiative groupid and the spawned charids.
+local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
+    local minionName = nil
+    local nsquads = 1
+    for monsterid, quantity in pairs(group.monsters) do
+        local monsterAsset = assets.monsters[monsterid]
+        if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
+            minionName = monsterAsset.properties.monster_type
+            if quantity >= 8 then
+                nsquads = math.ceil(quantity / (group.squadSize or 4))
+            end
+            break
+        end
+    end
+
+    local squadNames = nil
+    if minionName ~= nil then
+        squadNames = {}
+        for i = 1, nsquads do
+            squadNames[#squadNames + 1] = monster.FindFreshSquadName(minionName)
+        end
+    end
+
+    local baseX = round(fallbackAnchor.x)
+    local baseY = round(fallbackAnchor.y)
+    local floorIndex = game.currentFloorIndex
+
+    local groupid = dmhub.GenerateGuid()
+    local charids = {}
+    local slot = 1
+    local fallbackIndex = 0
+    local nsquad = 1
+
+    for monsterid, quantity in pairs(group.monsters) do
+        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+        for i = 1, quantity do
+            local loc = (group.spawnlocs or {})[slot]
+            if loc ~= nil then
+                if not loc.isValidFloor then
+                    loc = loc.withCurrentFloor
+                end
+            else
+                local col = fallbackIndex % 5
+                local row = math.floor(fallbackIndex / 5)
+                loc = core.Loc { x = baseX + col, y = baseY + row, floorIndex = floorIndex }
+                fallbackIndex = fallbackIndex + 1
+            end
+
+            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
+            if token ~= nil then
+                token.properties.initiativeGrouping = groupid
+                token.properties:OnCreateFromBestiary(token, groupid)
+                token.properties.minHeroes = (group.monsterMinHeroes or {})[monsterid] or group.minHeroes
+
+                if group.placementid ~= nil then
+                    token.properties.encounterPlacementId = group.placementid
+                    token.properties.encounterSpawnSlot = slot
+                    token.properties.encounterStaged = false
+                end
+
+                local appearanceInfo = (group.appearances or {})[slot]
+                if type(appearanceInfo) == "string" then
+                    token:SerializeAppearanceFromString(appearanceInfo)
+                end
+                if (group.invisibleToPlayers or {})[slot] then
+                    token.invisibleToPlayers = true
+                end
+
+                local balancing = group.balancing
+                if balancing ~= nil then
+                    local info = balancing[numHeroes]
+                    if info ~= nil and type(info.stamina) == "number" then
+                        token.properties.max_hitpoints = info.stamina
+                    end
+                end
+
+                if squadNames ~= nil then
+                    token.properties.minionSquad = squadNames[nsquad]
+                    nsquad = nsquad + 1
+                    if nsquad > #squadNames then
+                        nsquad = 1
+                    end
+                end
+
+                token:UploadToken()
+                charids[#charids + 1] = token.charid
+            end
+
+            slot = slot + 1
+        end
+    end
+
+    return groupid, charids
+end
+
+--Place the encounter on the map for play. Staged tokens are collected first
+--(positions banked, tokens removed) so the freshest arrangement wins and
+--nothing double-spawns. Groups with saved positions on THIS map spawn there
+--immediately; the rest go through one click-to-place banner. Wave groups are
+--never placed up front -- they arrive via the reinforcements strip
+--(LiveEncounter:DeployWave), which reads the same banked positions.
+--
+--opts:
+--  start      -- open combat setup (Draw Steel!) once everything is placed
+--  persist    -- called if collecting staged tokens mutated the encounter
+--  onComplete -- placement finished (start flows may already be underway)
+--  onCancel   -- the click-to-place step was cancelled; everything this call
+--                spawned has been removed again
+local function PlaceEncounterForReal(encounter, party, opts)
+    opts = opts or {}
+    local queue = dmhub.initiativeQueue
+    local queueActive = queue ~= nil and not queue.hidden
+
+    local function Proceed()
+        --collect any staged tokens: bank the live arrangement, then clear
+        --the props off the map so the real spawn cannot double them.
+        local mutated = false
+        for _, group in ipairs(encounter.groups) do
+            local staged = PlacedTokensForGroup(group)
+            if #staged > 0 then
+                BankGroupPositions(group, encounter.saveAppearances)
+                local charids = {}
+                for _, token in ipairs(staged) do
+                    charids[#charids + 1] = token.charid
+                end
+                game.DeleteCharacters(charids)
+                mutated = true
+            end
+        end
+        if mutated and opts.persist ~= nil then
+            opts.persist()
+        end
+
+        --tokens from a previous real placement of this plan are still on the
+        --map (encounterStaged == false): pressing Start twice should not
+        --silently double the encounter.
+        local alreadyPlaced = 0
+        local placementids = {}
+        for _, group in ipairs(encounter.groups) do
+            if group.placementid ~= nil then
+                placementids[group.placementid] = true
+            end
+        end
+        for _, token in ipairs(dmhub.allTokens) do
+            local pid = nil
+            pcall(function() pid = token.properties:try_get("encounterPlacementId") end)
+            if pid ~= nil and placementids[pid] then
+                local staged = nil
+                pcall(function() staged = token.properties:try_get("encounterStaged") end)
+                if staged == false then
+                    alreadyPlaced = alreadyPlaced + 1
+                end
+            end
+        end
+        if alreadyPlaced > 0 and not opts.placeAgainConfirmed then
+            gui.ModalMessage {
+                title = "Already on the Map",
+                message = string.format("%d of this encounter's monsters are already placed on this map. Place another copy anyway?", alreadyPlaced),
+                options = {
+                    {
+                        text = "Cancel",
+                        execute = function()
+                            gui.CloseModal()
+                            if opts.onCancel ~= nil then
+                                opts.onCancel()
+                            end
+                        end,
+                    },
+                    {
+                        text = "Place Again Anyway",
+                        execute = function()
+                            gui.CloseModal()
+                            local optsAgain = {}
+                            for k, v in pairs(opts) do
+                                optsAgain[k] = v
+                            end
+                            optsAgain.placeAgainConfirmed = true
+                            PlaceEncounterForReal(encounter, party, optsAgain)
+                        end,
+                    },
+                },
+            }
+            return
+        end
+
+        local numHeroes = party.numHeroes
+
+        --split placeable groups: saved positions on this map spawn
+        --directly; everything else goes through click-to-place.
+        local directGroups = {}
+        local clickGroups = {}
+        for _, group in ipairs(encounter.groups) do
+            if group.wave == nil and AdjustedGroupCount(group, numHeroes) > 0 then
+                if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
+                    directGroups[#directGroups + 1] = group
+                else
+                    clickGroups[#clickGroups + 1] = group
+                end
+            end
+        end
+
+        local spawnedCharids = {}
+        local spawnedGroupids = {}
+
+        for _, group in ipairs(directGroups) do
+            local anchor = group.spawnlocs[1] or dmhub.cameraPosition
+            local groupid, charids = SpawnGroupForReal(group, numHeroes, anchor)
+            spawnedGroupids[#spawnedGroupids + 1] = groupid
+            for _, cid in ipairs(charids) do
+                spawnedCharids[#spawnedCharids + 1] = cid
+            end
+        end
+
+        local function Finish()
+            --engine-placed tokens are not always queryable the instant the
+            --spawn event fires; opening combat setup before they resolve
+            --leaves them out of the participating pool. Wait for them.
+            local attempts = 20
+            local function proceed()
+                if mod.unloaded then return end
+
+                local allReady = true
+                for _, cid in ipairs(spawnedCharids) do
+                    if dmhub.GetTokenById(cid or "") == nil then
+                        allReady = false
+                        break
+                    end
+                end
+                if not allReady and attempts > 0 then
+                    attempts = attempts - 1
+                    dmhub.Schedule(0.1, proceed)
+                    return
+                end
+
+                game.UpdateCharacterTokens()
+                Encounter.SetReadiedEncounter(encounter)
+
+                if queueActive then
+                    --mid-combat: the new arrivals join the running fight,
+                    --same as a deployed wave; no combat-setup dialog.
+                    for _, groupid in ipairs(spawnedGroupids) do
+                        queue:SetInitiative(groupid, 0, 0)
+                    end
+                    dmhub:UploadInitiativeQueue()
+                elseif opts.start then
+                    Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
+                end
+
+                if opts.onComplete ~= nil then
+                    opts.onComplete()
+                end
+            end
+            proceed()
+        end
+
+        if #clickGroups == 0 then
+            Finish()
+            return
+        end
+
+        --one click places the remaining groups; cancelling removes
+        --everything this action spawned so it stays atomic.
+        local placeEncounter = DeepCopy(encounter)
+        placeEncounter.groups = {}
+        for _, group in ipairs(clickGroups) do
+            local copy = DeepCopy(group)
+            copy.wave = nil
+            placeEncounter.groups[#placeEncounter.groups + 1] = copy
+        end
+        placeEncounter.waves = {}
+
+        local clickResolved = false
+        ShowPlacementBanner(placeEncounter, {
+            message = string.format("Click on the map to place the remaining monsters of %s", encounter:try_get("name", "the encounter")),
+            onSpawned = function(charids)
+                clickResolved = true
+                for _, cid in ipairs(charids) do
+                    spawnedCharids[#spawnedCharids + 1] = cid
+                end
+                Finish()
+            end,
+            onClosed = function()
+                if clickResolved then
+                    return
+                end
+                if #spawnedCharids > 0 then
+                    game.DeleteCharacters(spawnedCharids)
+                end
+                if opts.onCancel ~= nil then
+                    opts.onCancel()
+                end
+            end,
+        })
+    end
+
+    --starting on top of a running combat must not clobber the live queue
+    --(round counter, hero stats, deployed waves all live there). Skipped on
+    --the place-again re-entry, which already confirmed once.
+    if opts.start and queueActive and not opts.placeAgainConfirmed then
+        gui.ModalMessage {
+            title = "Combat Is Already Running",
+            message = "Starting this encounter now adds its monsters to the current combat instead of beginning a new one.",
+            options = {
+                {
+                    text = "Cancel",
+                    execute = function()
+                        gui.CloseModal()
+                        if opts.onCancel ~= nil then
+                            opts.onCancel()
+                        end
+                    end,
+                },
+                {
+                    text = "Add to Current Combat",
+                    execute = function()
+                        gui.CloseModal()
+                        Proceed()
+                    end,
+                },
+            },
+        }
+        return
+    end
+
+    Proceed()
+end
+
+-- ===========================================================================
 -- The encounter builder editor
 -- ===========================================================================
 
@@ -2804,24 +3251,15 @@ function Encounter.Editor(self, options)
 
     --Bank any groups placed on the map from this builder: record each tagged
     --token's position (and appearance/visibility) into its group in spawn-slot
-    --order, then remove the tokens from the map. Groups the DM never placed
-    --are untouched.
-    local function BankPlacedGroups()
+    --order. Staged tokens are only removed from the map when deleteTokens is
+    --true -- saving the plan mid-arrangement must not yank the tokens out
+    --from under the Director (collecting is the per-group action).
+    local function BankPlacedGroups(deleteTokens)
         local toDelete = {}
         for _, group in ipairs(self.groups) do
-            local tokens = PlacedTokensForGroup(group)
-            if #tokens > 0 then
-                group.spawnlocs = {}
-                group.appearances = {}
-                group.invisibleToPlayers = {}
-                for slot, token in ipairs(tokens) do
-                    group.spawnlocs[slot] = token.loc
-                    group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
-                    if self.saveAppearances and token.appearanceChangedFromBestiary then
-                        group.appearances[slot] = token:SerializeAppearanceToString()
-                    else
-                        group.appearances[slot] = false
-                    end
+            local tokens = BankGroupPositions(group, self.saveAppearances)
+            if deleteTokens then
+                for _, token in ipairs(tokens) do
                     toDelete[#toDelete + 1] = token.charid
                 end
             end
@@ -2829,6 +3267,60 @@ function Encounter.Editor(self, options)
         if #toDelete > 0 then
             game.DeleteCharacters(toDelete)
         end
+    end
+
+    --Upload the plan to wherever it lives (the encounters table, or the
+    --journal widget's save callback when the editor was opened from one).
+    local function PersistPlan()
+        if options.save then
+            options.save()
+        else
+            analytics.Event {
+                type = "create_encounter",
+                encounter = self.name,
+                eds = self:CountEDS(),
+            }
+            dmhub.SetAndUploadTableItem("encounters", self)
+        end
+    end
+
+    --Dirty tracking for the Save button: compare a serialized snapshot of the
+    --plan against the last-saved baseline. Serialization can fail on exotic
+    --values; treat failure as "dirty" so Save is never wrongly disabled.
+    local function SnapshotPlan()
+        local ok, snapshot = pcall(dmhub.ToJson, self)
+        if not ok then
+            return nil
+        end
+        return snapshot
+    end
+
+    local m_savedSnapshot = SnapshotPlan()
+
+    local function PlanIsDirty()
+        if m_savedSnapshot == nil then
+            return true
+        end
+        local current = SnapshotPlan()
+        return current == nil or current ~= m_savedSnapshot
+    end
+
+    --Save the plan: bank staged positions (tokens stay out for arranging),
+    --persist, and reset the dirty baseline.
+    local function SavePlan()
+        BankPlacedGroups(false)
+        PersistPlan()
+        m_savedSnapshot = SnapshotPlan()
+    end
+
+    local function StagedGroupNames()
+        local names = {}
+        for i, group in ipairs(self.groups) do
+            if #PlacedTokensForGroup(group) > 0 then
+                names[#names + 1] = GroupName(self, group, i)
+            end
+        end
+        return names
     end
 
     resultPanel = gui.Panel {
@@ -2839,6 +3331,10 @@ function Encounter.Editor(self, options)
         hpad = 16,
         vpad = 16,
         borderBox = true,
+
+        --populated after construction with the close-prompt hooks; see the
+        --assignments below the constructor.
+        data = {},
 
         --header: editable encounter name + live badges.
         gui.Panel {
@@ -2906,7 +3402,8 @@ function Encounter.Editor(self, options)
             },
         },
 
-        --footer: the appearances option sits above the action buttons.
+        --footer: the appearances option and workflow narration sit above the
+        --action buttons.
         gui.Panel {
             width = "100%",
             height = "auto",
@@ -2924,6 +3421,26 @@ function Encounter.Editor(self, options)
                 end,
             },
 
+            gui.Label {
+                classes = { "fgMuted", "sizeXs" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                bmargin = 6,
+                text = "Stage groups to set starting positions. Positions save with the plan; Start Encounter places everyone and opens combat setup.",
+                refreshBuilder = function(element)
+                    local anyMonsters = false
+                    for _, group in ipairs(self.groups) do
+                        for _ in pairs(group.monsters) do
+                            anyMonsters = true
+                            break
+                        end
+                        if anyMonsters then break end
+                    end
+                    element:SetClass("hidden", not anyMonsters)
+                end,
+            },
+
             gui.Panel {
                 width = "100%",
                 height = "auto",
@@ -2933,6 +3450,7 @@ function Encounter.Editor(self, options)
                     classes = { "sizeM" },
                     halign = "left",
                     text = "Place on Map",
+                    hover = gui.Tooltip("Place the monsters at their saved positions without starting combat."),
                     press = function(button)
                         local count = 0
                         for _, group in ipairs(self.groups) do
@@ -2946,8 +3464,23 @@ function Encounter.Editor(self, options)
                             return
                         end
 
-                        ShowPlacementBanner(DeepCopy(self))
-                        button:FindParentWithClass("editorPanel"):DestroySelf()
+                        SavePlan()
+                        local editorPanel = button:FindParentWithClass("editorPanel")
+                        editorPanel:SetClass("hidden", true)
+                        PlaceEncounterForReal(self, party, {
+                            persist = PersistPlan,
+                            onComplete = function()
+                                if editorPanel ~= nil and editorPanel.valid then
+                                    editorPanel:DestroySelf()
+                                end
+                            end,
+                            onCancel = function()
+                                if editorPanel ~= nil and editorPanel.valid then
+                                    editorPanel:SetClass("hidden", false)
+                                    refresh()
+                                end
+                            end,
+                        })
                     end,
                 },
 
@@ -2982,32 +3515,98 @@ function Encounter.Editor(self, options)
                     end,
                 },
 
+                gui.Label {
+                    classes = { "fgMuted", "sizeXs", "hidden" },
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                    rmargin = 10,
+                    text = "Saved",
+                    savedFlash = function(element)
+                        element:SetClass("hidden", false)
+                        element:ScheduleEvent("savedFlashEnd", 1.4)
+                    end,
+                    savedFlashEnd = function(element)
+                        element:SetClass("hidden", true)
+                    end,
+                },
+
                 gui.Button {
                     classes = { "sizeM" },
                     halign = "right",
                     text = options.mode or "Save",
-
+                    refreshBuilder = function(element)
+                        element:SetClass("disabled", not PlanIsDirty())
+                    end,
                     press = function(button)
-                        BankPlacedGroups()
+                        SavePlan()
+                        refresh()
+                        button.parent:FireEventTree("savedFlash")
+                    end,
+                },
 
-                        if options.save then
-                            options.save()
-                        else
-                            analytics.Event {
-                                type = "create_encounter",
-                                encounter = self.name,
-                                eds = self:CountEDS(),
+                gui.Button {
+                    classes = { "sizeM" },
+                    halign = "right",
+                    lmargin = 8,
+                    text = "Start Encounter",
+                    hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and open combat setup."),
+                    press = function(button)
+                        local count = 0
+                        for _, group in ipairs(self.groups) do
+                            count = count + AdjustedGroupCount(group, party.numHeroes)
+                        end
+                        if count == 0 then
+                            gui.ModalMessage {
+                                title = "Nothing to Start",
+                                message = "Add monsters to the encounter before starting it.",
                             }
-
-                            dmhub.SetAndUploadTableItem("encounters", self)
+                            return
                         end
 
-                        button:FindParentWithClass("editorPanel"):DestroySelf()
+                        SavePlan()
+                        local editorPanel = button:FindParentWithClass("editorPanel")
+                        editorPanel:SetClass("hidden", true)
+                        PlaceEncounterForReal(self, party, {
+                            start = true,
+                            persist = PersistPlan,
+                            onComplete = function()
+                                if editorPanel ~= nil and editorPanel.valid then
+                                    editorPanel:DestroySelf()
+                                end
+                            end,
+                            onCancel = function()
+                                if editorPanel ~= nil and editorPanel.valid then
+                                    editorPanel:SetClass("hidden", false)
+                                    refresh()
+                                end
+                            end,
+                        })
                     end,
                 },
             },
         },
     }
+
+    --hooks for the dialog's close button: it lives outside this function's
+    --scope (CreateEditorDialog) but needs to ask about staged tokens.
+    resultPanel.data.stagedGroupNames = StagedGroupNames
+    resultPanel.data.collectAndSave = function(deleteTokens)
+        BankPlacedGroups(deleteTokens)
+        PersistPlan()
+    end
+    resultPanel.data.discardStaged = function()
+        local charids = {}
+        for _, group in ipairs(self.groups) do
+            for _, token in ipairs(PlacedTokensForGroup(group)) do
+                charids[#charids + 1] = token.charid
+            end
+        end
+        if #charids > 0 then
+            game.DeleteCharacters(charids)
+        end
+    end
 
     rebuild()
     return resultPanel
@@ -3015,6 +3614,8 @@ end
 
 function Encounter.CreateEditorDialog(encounter, options)
     local editorPanel
+
+    local editorContent = Encounter.Editor(encounter, options)
 
     editorPanel = gui.Panel {
 
@@ -3034,14 +3635,66 @@ function Encounter.CreateEditorDialog(encounter, options)
             width = "100%",
             height = "100%",
 
-            Encounter.Editor(encounter, options),
+            editorContent,
 
             gui.Button {
                 classes = { "closeButton" },
                 halign = "right",
                 valign = "top",
                 press = function()
-                    editorPanel:DestroySelf()
+                    --staged tokens still on the map: make the Director decide
+                    --what happens to the arrangement before the builder goes
+                    --away. "Leave Them" still banks positions and saves so the
+                    --staging is never orphaned from the plan that owns it.
+                    local stagedNames = editorContent.data.stagedGroupNames()
+                    if #stagedNames == 0 then
+                        editorPanel:DestroySelf()
+                        return
+                    end
+
+                    local subject
+                    if #stagedNames == 1 then
+                        subject = string.format("%s is still staged on the map.", stagedNames[1])
+                    else
+                        subject = string.format("%d groups are still staged on the map.", #stagedNames)
+                    end
+
+                    gui.ModalMessage {
+                        title = "Staged Tokens on the Map",
+                        message = subject .. " Save those positions before closing?",
+                        options = {
+                            {
+                                text = "Cancel",
+                                execute = function()
+                                    gui.CloseModal()
+                                end,
+                            },
+                            {
+                                text = "Discard Positions",
+                                execute = function()
+                                    gui.CloseModal()
+                                    editorContent.data.discardStaged()
+                                    editorPanel:DestroySelf()
+                                end,
+                            },
+                            {
+                                text = "Leave Them on the Map",
+                                execute = function()
+                                    gui.CloseModal()
+                                    editorContent.data.collectAndSave(false)
+                                    editorPanel:DestroySelf()
+                                end,
+                            },
+                            {
+                                text = "Save Positions & Remove",
+                                execute = function()
+                                    gui.CloseModal()
+                                    editorContent.data.collectAndSave(true)
+                                    editorPanel:DestroySelf()
+                                end,
+                            },
+                        },
+                    }
                 end,
             },
 
@@ -3308,6 +3961,28 @@ CreateEncounterPanel = function()
                             press = function(element)
                                 local encounterCopy = DeepCopy(encounter)
                                 encounterCopy:CreateEditorDialog { mode = "Save" }
+                            end,
+                        },
+
+                        --start the saved plan without reopening the editor:
+                        --place at saved positions and open combat setup.
+                        gui.Button {
+                            classes = { "sizeXs" },
+                            floating = true,
+                            halign = "right",
+                            valign = "bottom",
+                            rmargin = 6,
+                            bmargin = 4,
+                            text = "Start",
+                            hover = gui.Tooltip("Save the plan, place monsters at their saved positions, and open combat setup."),
+                            swallowPress = true,
+                            press = function(element)
+                                PlaceEncounterForReal(encounter, DefaultParty(), {
+                                    start = true,
+                                    persist = function()
+                                        dmhub.SetAndUploadTableItem("encounters", encounter)
+                                    end,
+                                })
                             end,
                         },
 

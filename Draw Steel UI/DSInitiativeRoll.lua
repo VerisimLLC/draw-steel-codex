@@ -871,7 +871,7 @@ function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
         return
     end
 
-    Encounter.ShowCombatSetupDialog(nil, encounter)
+    Encounter.ShowCombatSetupDialog(nil, encounter, spawnedCharids)
 end
 
 --- @class RollInitiativeChatMessage
@@ -1216,7 +1216,7 @@ end
 --preselectEncounter: optional Encounter object to force-select in the dropdown; takes
 --priority over the readied/open-journal inference. Used by the journal RichEncounter
 --"Draw Steel!" button so the dialog opens scoped to that encounter.
-local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
+local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, preselectSpawnIds)
     --The party strength computed from the hero pool (see Encounter.PartyStrengthFromTokens),
     --or nil while the pool is empty. Shared between the hero and monster status labels so
     --the monster EV readout can classify against the current party.
@@ -2015,6 +2015,26 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
                 break
             end
         end
+
+        --not a journal-embedded encounter (e.g. a plan started from the
+        --encounter builder): inject it as its own dropdown entry so choosing
+        --it still creates a real LiveEncounter (waves, cues, stats, round
+        --label) instead of silently falling back to Custom.
+        if defaultEncounterIndex == nil then
+            m_encountersOnMap[#m_encountersOnMap + 1] = {
+                name = preselectEncounter:try_get("name", "Encounter"),
+                encounter = preselectEncounter,
+                richEncounter = nil,
+                spawnids = preselectSpawnIds,
+                bubbleid = nil,
+                docid = nil,
+            }
+            defaultEncounterIndex = #m_encountersOnMap
+            m_encounterOptions[#m_encounterOptions + 1] = {
+                id = string.format("encounter-%d", defaultEncounterIndex),
+                text = preselectEncounter:try_get("name", "Encounter"),
+            }
+        end
     end
 
     local readiedEncounter = Encounter.GetReadiedEncounter()
@@ -2065,6 +2085,37 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter)
             matching = {}
             for _,charid in ipairs(encounterEntry.richEncounter:try_get("spawns", {})) do
                 matching[charid] = true
+            end
+        end
+
+        --a builder-started plan has no richEncounter: its participants are
+        --the charids the placement flow handed us, plus any tokens on the
+        --map tagged with one of the plan's group placement ids.
+        if encounterEntry ~= nil and encounterEntry.richEncounter == nil then
+            if encounterEntry.spawnids ~= nil then
+                matching = matching or {}
+                for _,charid in ipairs(encounterEntry.spawnids) do
+                    matching[charid] = true
+                end
+            end
+
+            local placementids = {}
+            local anyPlacements = false
+            for _,group in ipairs(encounterEntry.encounter:try_get("groups", {})) do
+                if group.placementid ~= nil then
+                    placementids[group.placementid] = true
+                    anyPlacements = true
+                end
+            end
+            if anyPlacements then
+                matching = matching or {}
+                for _,tok in ipairs(dmhub.allTokens) do
+                    local pid = nil
+                    pcall(function() pid = tok.properties:try_get("encounterPlacementId") end)
+                    if pid ~= nil and placementids[pid] then
+                        matching[tok.charid] = true
+                    end
+                end
             end
         end
 

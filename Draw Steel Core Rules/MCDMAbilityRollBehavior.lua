@@ -2347,7 +2347,9 @@ function RollPropertiesPowerTable:GetDamageTypes()
     for i,tier in ipairs(self.tiers) do
         local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(?<type>[a-zA-Z]+\\s+)?damage")
         if match ~= nil then
-            local t = string.lower(match.type or "untyped")
+            --The type capture includes its trailing whitespace ("fire "); trim it
+            --so results compare cleanly against damage-type names.
+            local t = string.gsub(string.lower(match.type or "untyped"), "%s+$", "")
             if not table.contains(result, t) then
                 result[#result+1] = t
             end

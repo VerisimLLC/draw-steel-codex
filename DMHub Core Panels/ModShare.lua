@@ -1811,14 +1811,23 @@ local showShareModuleDialog = function(options)
 					}
 				end
 
-                if dmhub.isAdminAccount then
+                --ReserveAuthorID handles publishing as an organization (records
+                --the module with the org) and admin accounts (no reservation)
+                --as well as the personal reservation path. On engine builds
+                --without the organizations API, keep the old admin skip: the
+                --old ReserveAuthorID would wrongly reserve ids like "codex"
+                --onto the admin's account.
+                local hasOrgSupport = pcall(function()
+                    module.GetOurOrganizations()
+                end)
+                if (not hasOrgSupport) and dmhub.isAdminAccount then
                     success()
                 else
                     moduleInstance:ReserveAuthorID{
                         success = success,
 
-                        failure = function()
-                            statusLabel.text = "The author ID you chose is no longer available."
+                        failure = function(msg)
+                            statusLabel.text = msg or "The author ID you chose is no longer available."
                         end,
                     }
                 end
@@ -2133,25 +2142,102 @@ local showShareModuleDialog = function(options)
         end
     end
 
-    local officialModulePanel = nil
+    --Publish As: choose whether to publish personally or as a creator
+    --organization the user belongs to. This replaces the old admin-only
+    --"Official Module" checkbox; "codex" is now an organization, though a
+    --legacy codex option is kept for admins who are not members of it yet.
+    --On engine builds without the organizations API this degrades to the old
+    --behavior: admins get a Myself/Codex choice, everyone else no panel.
+    local hasOrgSupport = pcall(function()
+        module.GetOurOrganizations()
+    end)
 
-    if dmhub.isAdminAccount then
-        officialModulePanel = gui.Panel{
-            flow = "vertical",
-            width = "auto",
-            gui.Check{styles = g_CheckboxStyles,
-                text = "Official Module",
-                value = moduleInstance.authorid == "codex",
+    local GetOurOrganizationsSafe = function()
+        if not hasOrgSupport then
+            return {}
+        end
+        return module.GetOurOrganizations()
+    end
+
+    local publishAsPanel = nil
+    local m_publishAsOrg = false
+
+    if isNewModule then
+        local BuildPublishAsOptions = function()
+            local result = {{ id = "self", text = "Myself" }}
+            local hasCodex = false
+            for _,org in ipairs(GetOurOrganizationsSafe()) do
+                result[#result+1] = { id = org.id, text = org.displayName }
+                if org.id == "codex" then
+                    hasCodex = true
+                end
+            end
+            if dmhub.isAdminAccount and (not hasCodex) then
+                result[#result+1] = { id = "codex", text = "Codex (Official)" }
+            end
+            return result
+        end
+
+        local SelectedPublishAs = function()
+            local authorid = string.lower(moduleInstance.authorid or "")
+            for _,org in ipairs(GetOurOrganizationsSafe()) do
+                if org.id == authorid then
+                    return authorid
+                end
+            end
+            if authorid == "codex" and dmhub.isAdminAccount then
+                return "codex"
+            end
+            return "self"
+        end
+
+        local publishAsOptions = BuildPublishAsOptions()
+        if #publishAsOptions > 1 then
+            m_publishAsOrg = SelectedPublishAs() ~= "self"
+
+            local dropdown
+            dropdown = gui.Dropdown{
+                options = publishAsOptions,
+                idChosen = SelectedPublishAs(),
+                width = 260,
                 change = function(element)
-                    if element.value then
-                        moduleInstance.authorid = "codex"
+                    if element.idChosen == "self" then
+                        moduleInstance.authorid = module.savedAuthorid or dmhub.GetDisplayName(dmhub.userid)
                     else
-                        moduleInstance.authorid = module.savedAuthorid
+                        moduleInstance.authorid = element.idChosen
                     end
+                    m_publishAsOrg = element.idChosen ~= "self"
                     dialogPanel:FireEventTree("refreshModule")
                 end,
             }
-        }
+
+            publishAsPanel = gui.Panel{
+                classes = {'form-entry'},
+                create = function(element)
+                    if not hasOrgSupport then
+                        return
+                    end
+                    --membership may have changed since login; refresh and rebuild the options.
+                    module.RefreshOurOrganizations{
+                        success = function(orgs)
+                            if not element.valid then
+                                return
+                            end
+                            local selected = dropdown.idChosen
+                            dropdown.options = BuildPublishAsOptions()
+                            dropdown.idChosen = selected
+                        end,
+                    }
+                end,
+
+                gui.Label{
+                    classes = {'formLabel'},
+                    text = 'Publish As:',
+                },
+
+                dropdown,
+            }
+        end
     end
 
 	local leftPublishingPanel = gui.Panel{
@@ -2160,10 +2246,16 @@ local showShareModuleDialog = function(options)
 		height = "auto",
 		valign = "top",
 
-        officialModulePanel,
+        publishAsPanel,
 
 		gui.Panel{
 			classes = {'form-entry'},
+
+			--when publishing as an organization the identity comes from the
+			--Publish As dropdown, so the personal author name row hides.
+			refreshModule = function(element)
+				element:SetClass("collapsed", m_publishAsOrg)
+			end,
 
 			gui.Label{
 				classes = {'formLabel'},
@@ -2205,6 +2297,9 @@ local showShareModuleDialog = function(options)
 			height = "auto",
 			maxWidth = 500,
 
+			refreshModule = function(element)
+				element:SetClass("collapsed", (not isNewModule) or module.savedAuthorid ~= nil or m_publishAsOrg)
+			end,
 		},
 
 
@@ -3023,7 +3118,56 @@ mod.shared.ShowShareDialog = function()
 		classes = {"form"},
 		options = moduleOptions,
 		idChosen = defaultModuleSelected,
-		create = GetModuleInfo,
+		create = function(element)
+			GetModuleInfo(element)
+
+			--refresh organization membership so modules published by fellow
+			--org members since login appear in the list. (Entries rebuilt here
+			--skip the local module-info check; DownloadModuleInfo fetches the
+			--record when one is selected.)
+			local hasOrgSupport = pcall(function()
+				module.GetOurOrganizations()
+			end)
+			if hasOrgSupport then
+				module.RefreshOurOrganizations{
+					success = function(orgs)
+						if not element.valid then
+							return
+						end
+
+						local opts = {}
+						local included = {}
+						for _,info in ipairs(module.GetModulesPublishedFromThisGame()) do
+							opts[#opts+1] = {
+								id = info.id,
+								text = info.id,
+								mtime = info.mtime,
+							}
+							included[info.id] = true
+						end
+
+						for _,key in ipairs(module.GetOurPublishedModules()) do
+							if not included[key] then
+								opts[#opts+1] = {
+									id = key,
+									text = key,
+								}
+								included[key] = true
+							end
+						end
+
+						opts[#opts+1] = {
+							id = "new",
+							text = "Create a New Module",
+						}
+
+						local selected = element.idChosen
+						element.options = opts
+						element.idChosen = selected
+					end,
+				}
+			end
+		end,
 		change = GetModuleInfo,
 		width = 200,
 	}

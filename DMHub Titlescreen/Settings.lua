@@ -1239,10 +1239,27 @@ setting{
 --  "damage:<damageType>"            e.g. "damage:fire"
 --  "class:<classid>"                playing that class
 --  "class:<classid>:<subclassid>"   playing that subclass
---Written by the shop inventory's dice equip panel. Not consumed at roll time yet;
---roll-time slot resolution is the next step of the dice-slots feature.
+--  "monster:<groupid>"              controlling a monster of that MonsterGroup
+--                                   (or one inheriting from it)
+--Written by the shop inventory's dice equip panel. Consumed by the embedded roll
+--dialog: when a roll it shows matches an activation (most specific key first --
+--damage type, then subclass, class, monster type), the whole roll is skinned
+--with the activated set via dice.SetRollSlotDice.
 setting{
 	id = "diceslotsequipped",
+	storage = "account",
+	default = {},
+}
+
+--Player-authored custom dice slots ("uses"), added from the shop inventory's
+--"Add Uses..." dialog: extra slot records the player attaches to a dice set
+--they own, using the same record shapes the Dice Studio authors (slotType
+--"damage"/"class"/"monster" -- see dicestudio.slots). A table keyed by dice
+--asset id, each value an ARRAY of up to 5 slot records. Custom slots display
+--and activate alongside the set's built-in slots in the equip panel; roll-time
+--consumption is unchanged (activations all land in diceslotsequipped).
+setting{
+	id = "dicecustomslots",
 	storage = "account",
 	default = {},
 }

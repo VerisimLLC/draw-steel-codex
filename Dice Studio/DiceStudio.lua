@@ -1172,6 +1172,21 @@ CreateDiceStudioPanel = function()
 
 	CalculateMaterialOptions()
 
+	-- "Numbers material" options: base-shader variants that draw the die numbers + cage
+	-- (materials[0]) with an extra effect. Names come straight from the engine's approved
+	-- list (studio.availableNumberMaterials); "(None)" == the stock base. Friendlier labels
+	-- for known variants, else the raw material name.
+	local g_numberMaterialLabels = {
+		StarfieldNumbersDiceMaterial = "Starfield Numbers",
+	}
+	local numberMaterialOptions = { { id = "none", text = "(None)" } }
+	for _,name in ipairs(studio.availableNumberMaterials) do
+		numberMaterialOptions[#numberMaterialOptions+1] = {
+			id = name,
+			text = g_numberMaterialLabels[name] or name,
+		}
+	end
+
 	local builtinPropertiesPanel = CreateMaterialPropertiesPanel{ matid = "builtin", propertiesOverride = g_builtinFields }
 	local materialPropertiesPanel = CreateMaterialPropertiesPanel{ matid = "material" }
 
@@ -2883,14 +2898,21 @@ end
 	}
 
 	-- Slots: descriptive tags marking what a dice set is suited for -- e.g. "good when
-	-- dealing fire damage" or "fits a Shadow character". Stored on the set as an array of
-	-- records (dicestudio.slots) and saved/uploaded with it; nothing consumes them yet.
+	-- dealing fire damage", "fits a Shadow character", or "fits an Undead monster".
+	-- Stored on the set as an array of records (dicestudio.slots) and saved/uploaded
+	-- with it. Players activate a slot from the shop inventory's equip panel
+	-- (diceslotsequipped setting); the roll dialog then uses the activated set for
+	-- matching rolls (see EmbeddedRollDialog's slot-dice resolution).
 	-- Record shapes:
 	--   { slotType = "damage", damageType = "fire" }
 	--   { slotType = "class", classid = "<classes table id>", subclassid = "<subclasses table id; absent = any>" }
+	--   { slotType = "monster", groupid = "<MonsterGroup table id>" } (the malice
+	--     compendium's monster types; matches monsters of that group or any group
+	--     inheriting from it)
 	local g_slotTypeOptions = {
 		{ id = "damage", text = "Dealing Damage" },
 		{ id = "class", text = "Playing Class" },
+		{ id = "monster", text = "Playing Monster Type" },
 	}
 
 	-- dicestudio.slots needs an engine build that has the slots property; return nil on
@@ -2936,6 +2958,20 @@ end
 		return result
 	end
 
+	-- Monster types = the MonsterGroup table (what the compendium's Malice section
+	-- edits). Literal table name so this works even if the game system's globals
+	-- aren't loaded.
+	local function SlotMonsterGroupOptions()
+		local result = {}
+		for k,group in pairs(dmhub.GetTable("MonsterGroup") or {}) do
+			if not group:try_get("hidden", false) then
+				result[#result+1] = { id = k, text = group:try_get("name", "Unknown Monster Type") }
+			end
+		end
+		table.sort(result, function(a,b) return a.text < b.text end)
+		return result
+	end
+
 	-- Forward-declared so the row dropdowns' change handlers can trigger a rebuild.
 	local slotRowsPanel
 
@@ -2961,6 +2997,8 @@ end
 				end
 				if element.idChosen == "damage" then
 					slots[index] = { slotType = "damage", damageType = "" }
+				elseif element.idChosen == "monster" then
+					slots[index] = { slotType = "monster", groupid = "" }
 				else
 					slots[index] = { slotType = "class", classid = "" }
 				end
@@ -2985,6 +3023,24 @@ end
 						return
 					end
 					cur.damageType = element.idChosen
+				end,
+			}
+		elseif slot.slotType == "monster" then
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 160,
+				height = 30,
+				fontSize = 14,
+				hmargin = 6,
+				textDefault = "Choose Monster Type...",
+				options = SlotMonsterGroupOptions(),
+				idChosen = slot.groupid or "",
+				change = function(element)
+					local slots = TryGetSlots()
+					local cur = slots ~= nil and slots[index] or nil
+					if cur == nil then
+						return
+					end
+					cur.groupid = element.idChosen
 				end,
 			}
 		else
@@ -3130,7 +3186,7 @@ end
 				halign = "left",
 				fontSize = 12,
 				color = "#bbbbbbff",
-				text = "Tag the purposes this dice set is suited for -- dealing a certain damage type, or playing a certain class. Slots save and upload with the set. They do not do anything yet.",
+				text = "Tag the purposes this dice set is suited for -- dealing a certain damage type, playing a certain class, or playing a certain monster type. Slots save and upload with the set; owners can activate them from the shop inventory's equip panel, and matching rolls then use this set.",
 			},
 
 			slotRowsPanel,
@@ -4620,6 +4676,55 @@ end
                 CreatePerDieMaterialPanel(20),
 
                 materialPropertiesPanel,
+            }
+        },
+
+        gui.TreeNode{
+            text = "Numbers Material",
+            width = "100%",
+            contentPanel = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.Label{
+                    width = "90%",
+                    height = "auto",
+                    halign = "left",
+                    lmargin = 12,
+                    vmargin = 4,
+                    fontSize = 12,
+                    color = "#bbbbbb",
+                    text = "Swaps the material that draws the die numbers and cage. 'Starfield Numbers' floods the landed result number with a twinkling starfield when the die settles, then holds a steady bright fill.",
+                },
+
+                gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        halign = "left",
+                        text = "Numbers Material:",
+                    },
+                    gui.Dropdown{
+                        width = 200,
+                        height = 30,
+                        fontSize = 14,
+                        options = numberMaterialOptions,
+                        idChosen = studio.numbersMaterialName or "none",
+                        newmaterial = function(element)
+                            element.options = numberMaterialOptions
+                            element.idChosen = studio.numbersMaterialName or "none"
+                        end,
+                        change = function(element)
+                            if element.idChosen == "none" then
+                                studio.numbersMaterialName = nil
+                            else
+                                studio.numbersMaterialName = element.idChosen
+                            end
+                            RefreshDice()
+                        end,
+                    },
+                },
             }
         },
 

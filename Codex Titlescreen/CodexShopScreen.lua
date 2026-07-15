@@ -1591,7 +1591,7 @@ local MakeDiceBanner = function(opts)
 			hpad = 16.8,
 			vpad = 14,
 			bgimage = "panels/square.png",
-			bgcolor = "#000000a0",
+			bgcolor = "#000000c0",
 			cornerRadius = 12,
 
 			placeBannerText = function(element, cfg)
@@ -1653,7 +1653,7 @@ local MakeDiceBanner = function(opts)
 
 				press = function(element)
 					if m_item ~= nil then
-						element:FireEventOnParents("showItemDetails", m_item)
+						element:FireEventOnParents("showItemDetails", m_item, "featuredBanner")
 					end
 				end,
 			},
@@ -2102,6 +2102,13 @@ local MakeShopImageDisplay = function(options)
 	local fullBleed = options.fullBleed
 	options.fullBleed = nil
 
+	--Which surface this display lives on, for shopViewItem attribution
+	--("productTile" grid cards, "cartRow" cart rows). The instances inside the
+	--already-open details view (main gallery, footer thumbnails) leave it nil
+	--so their presses refresh the page without being counted as a navigation.
+	local analyticsSource = options.analyticsSource
+	options.analyticsSource = nil
+
 	g_dicePreviewSeq = g_dicePreviewSeq + 1
 	local mySeq = g_dicePreviewSeq
 
@@ -2129,7 +2136,7 @@ local MakeShopImageDisplay = function(options)
 		bg,
 		press = function(element)
 			if m_item ~= nil then
-				element:FireEventOnParents("showItemDetails", m_item)
+				element:FireEventOnParents("showItemDetails", m_item, analyticsSource)
 			end
 		end,
 
@@ -2405,6 +2412,7 @@ local MakeShopItemText = function(options)
 
 				analytics.Event{
 					type = "shopAddCart",
+					itemid = m_item.id,
 				}
 
 			end,
@@ -2450,7 +2458,7 @@ local MakeShopItem = function()
 			x = 4,
 		},
 
-		MakeShopImageDisplay{ fullBleed = true },
+		MakeShopImageDisplay{ fullBleed = true, analyticsSource = "productTile" },
 
 		--The fullBleed tile above draws ~21px below its 355px layout slot
 		--(scaled to 384px, anchored 8px up), so push the text block down to
@@ -2469,7 +2477,8 @@ local ShopEntryPanel = function(item)
 		height = "auto",
 
 		MakeShopImageDisplay{
-			uiscale = 0.62
+			uiscale = 0.62,
+			analyticsSource = "cartRow",
 		},
 
 		gui.Panel{
@@ -2598,6 +2607,578 @@ local function ShowDiceTryRoll(item)
 			},
 		},
 	})
+end
+
+--------------------------------------------------------------------------------
+--Dice slot ("uses") helpers, shared by the equip panel's slot-activation column
+--and the "Add Uses..." custom-uses dialog. A slot is a record shaped like the
+--Dice Studio's authored slots (see dicestudio.slots):
+--  { slotType = "damage", damageType = "fire" }
+--  { slotType = "class", classid = "<classes id>", subclassid = "<absent = any>" }
+--  { slotType = "monster", groupid = "<MonsterGroup table id>" }
+--------------------------------------------------------------------------------
+
+--The diceslotsequipped key a slot record activates under. Must mirror the
+--roll dialog's candidate keys (see EmbeddedRollDialog's slot-dice resolution).
+local function SlotKey(slot)
+	if slot.slotType == "damage" then
+		return "damage:" .. (slot.damageType or "")
+	end
+	if slot.slotType == "monster" then
+		return "monster:" .. (slot.groupid or "")
+	end
+	local key = "class:" .. (slot.classid or "")
+	if slot.subclassid ~= nil and slot.subclassid ~= "" then
+		key = key .. ":" .. slot.subclassid
+	end
+	return key
+end
+
+--Whether a slot record has its criteria chosen. Incomplete records (fresh rows
+--in the Add Uses dialog) neither display in the equip panel nor auto-activate.
+local function SlotIsComplete(slot)
+	if slot.slotType == "damage" then
+		return (slot.damageType or "") ~= ""
+	end
+	if slot.slotType == "monster" then
+		return (slot.groupid or "") ~= ""
+	end
+	return (slot.classid or "") ~= ""
+end
+
+--Player-facing slot description, e.g. "Fire Damage",
+--"Shadow: College of Black Ash", or "Undead Monsters".
+--Class/subclass/monster-type names resolve from the lobby game's
+--compendium tables.
+local function SlotLabel(slot)
+	if slot.slotType == "damage" then
+		local damageType = slot.damageType or ""
+		if damageType == "" then
+			return "Any Damage"
+		end
+		return damageType:gsub("^%l", string.upper) .. " Damage"
+	end
+
+	if slot.slotType == "monster" then
+		local group = (dmhub.GetTable("MonsterGroup") or {})[slot.groupid or ""]
+		local groupName = "Unknown Monster Type"
+		if group ~= nil then
+			groupName = group:try_get("name", groupName)
+		end
+		return groupName .. " Monsters"
+	end
+
+	local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
+	local className = "Unknown Class"
+	if classInfo ~= nil then
+		className = classInfo:try_get("name", className)
+	end
+	if slot.subclassid ~= nil and slot.subclassid ~= "" then
+		local sub = (dmhub.GetTable("subclasses") or {})[slot.subclassid]
+		if sub ~= nil then
+			return string.format("%s: %s", className, sub:try_get("name", "Subclass"))
+		end
+	end
+	return className
+end
+
+--Player-facing explanation of when an activated slot's dice will roll -- the
+--tooltip on the slot toggle buttons.
+local function SlotDescription(slot, label)
+	if slot.slotType == "damage" then
+		return string.format("Roll these dice whenever your power roll deals %s.", label:lower())
+	end
+	if slot.slotType == "monster" then
+		return string.format("Roll these dice when controlling %s.", label:lower())
+	end
+	return string.format("Roll these dice when playing a %s.", label)
+end
+
+--Copy-modify-set the slot-activation table; a slot key holds at most one dice
+--set, so activating here replaces any other set previously activated for the
+--same slot.
+local function SetSlotActivation(key, assetid)
+	local result = {}
+	for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
+		result[k] = v
+	end
+	result[key] = assetid
+	dmhub.SetSettingValue("diceslotsequipped", result)
+end
+
+--The player's own custom slots for a dice set (the dicecustomslots setting;
+--see ShowCustomUsesDialog). Returns a mutable deep copy; write back with
+--SetCustomSlots.
+local function GetCustomSlots(assetid)
+	local all = dmhub.GetSettingValue("dicecustomslots") or {}
+	local slots = all[assetid]
+	if slots == nil then
+		return {}
+	end
+	return DeepCopy(slots)
+end
+
+local function SetCustomSlots(assetid, slots)
+	local result = {}
+	for k,v in pairs(dmhub.GetSettingValue("dicecustomslots") or {}) do
+		result[k] = v
+	end
+	if slots == nil or #slots == 0 then
+		result[assetid] = nil
+	else
+		result[assetid] = DeepCopy(slots)
+	end
+	dmhub.SetSettingValue("dicecustomslots", result)
+end
+
+--Criteria option lists for the Add Uses dialog's dropdowns -- the same
+--criteria the Dice Studio's Slots section offers (see DiceStudio.lua).
+local function SlotDamageTypeOptions()
+	local rulesGlobal = rawget(_G, "rules")
+	local damageTypes = (rulesGlobal ~= nil and rulesGlobal.damageTypesAvailable) or {}
+	local result = {}
+	for _,damageType in ipairs(damageTypes) do
+		result[#result+1] = { id = damageType, text = damageType }
+	end
+	return result
+end
+
+local function SlotClassOptions()
+	local result = {}
+	for k,classInfo in pairs(dmhub.GetTable("classes") or {}) do
+		if (not classInfo:try_get("hidden", false)) and (not classInfo:try_get("isSubclass", false)) then
+			result[#result+1] = { id = k, text = classInfo:try_get("name", "Unknown Class") }
+		end
+	end
+	table.sort(result, function(a,b) return a.text < b.text end)
+	return result
+end
+
+local function SlotSubclassOptions(classid)
+	local result = {}
+	for k,sub in pairs(dmhub.GetTable("subclasses") or {}) do
+		if (not sub:try_get("hidden", false)) and sub:try_get("primaryClassId", "") == classid then
+			result[#result+1] = { id = k, text = sub:try_get("name", "Unknown Subclass") }
+		end
+	end
+	table.sort(result, function(a,b) return a.text < b.text end)
+	table.insert(result, 1, { id = "", text = "(Any Subclass)" })
+	return result
+end
+
+local function SlotMonsterGroupOptions()
+	local result = {}
+	for k,group in pairs(dmhub.GetTable("MonsterGroup") or {}) do
+		if not group:try_get("hidden", false) then
+			result[#result+1] = { id = k, text = group:try_get("name", "Unknown Monster Type") }
+		end
+	end
+	table.sort(result, function(a,b) return a.text < b.text end)
+	return result
+end
+
+local g_slotTypeOptions = {
+	{ id = "damage", text = "Dealing Damage" },
+	{ id = "class", text = "Playing Class" },
+	{ id = "monster", text = "Playing Monster Type" },
+}
+
+--Cap on the custom slots a player can attach to one dice set.
+local g_maxCustomSlots = 5
+
+--The one open custom-uses dialog; opening another closes it first.
+local g_customUsesDialog = nil
+
+--The "Add Uses..." dialog: lets the player attach up to g_maxCustomSlots slot
+--records of their own to a dice set they own, using the same criteria the Dice
+--Studio's Slots section authors. Edits save immediately (dicecustomslots);
+--closing the dialog auto-activates any complete uses that were added during
+--this session, so they light up in the equip panel right away. Hosted as a
+--self-contained floating overlay on the UI root (the titlescreen has no
+--gamehud modal stack), styled after the shop's gold-bordered dialogs.
+--args:
+--  item     -- the shop item (dice) being configured
+--  host     -- a live panel used to reach the UI root
+--  changed  -- called when the dialog closes (rebuild the equip panel)
+local function ShowCustomUsesDialog(args)
+	local item = args.item
+
+	if g_customUsesDialog ~= nil and g_customUsesDialog.valid then
+		g_customUsesDialog:DestroySelf()
+	end
+	g_customUsesDialog = nil
+
+	local m_slots = GetCustomSlots(item.assetid)
+
+	--Keys already complete when the dialog opened; anything complete beyond
+	--these at close time was added here and gets auto-activated.
+	local m_openKeys = {}
+	for _,slot in ipairs(m_slots) do
+		if SlotIsComplete(slot) then
+			m_openKeys[SlotKey(slot)] = true
+		end
+	end
+
+	local resultPanel
+	local rowsPanel
+	local addRowPanel
+
+	local function Save()
+		SetCustomSlots(item.assetid, m_slots)
+	end
+
+	local function RefreshAll()
+		rowsPanel:FireEvent("refreshUses")
+		addRowPanel:FireEventTree("refreshUses")
+	end
+
+	local function Close()
+		--Auto-activate the complete uses added during this dialog session.
+		for _,slot in ipairs(m_slots) do
+			if SlotIsComplete(slot) then
+				local key = SlotKey(slot)
+				if not m_openKeys[key] then
+					SetSlotActivation(key, item.assetid)
+				end
+			end
+		end
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel:DestroySelf()
+		end
+		g_customUsesDialog = nil
+		if args.changed ~= nil then
+			args.changed()
+		end
+	end
+
+	--One editable use: slot-type dropdown + the type's criteria dropdown, with
+	--a class's subclass picker on a second line (mirrors the Dice Studio rows),
+	--and a delete button on the right.
+	local function CreateRow(index, slot)
+		local rowChildren = {}
+		local subclassLine = nil
+
+		--Slot type. Changing it resets the record to that type's blank shape.
+		rowChildren[#rowChildren+1] = gui.Dropdown{
+			width = 170,
+			height = 30,
+			fontSize = 14,
+			options = g_slotTypeOptions,
+			idChosen = slot.slotType,
+			change = function(element)
+				local cur = m_slots[index]
+				if cur == nil or cur.slotType == element.idChosen then
+					return
+				end
+				if element.idChosen == "damage" then
+					m_slots[index] = { slotType = "damage", damageType = "" }
+				elseif element.idChosen == "monster" then
+					m_slots[index] = { slotType = "monster", groupid = "" }
+				else
+					m_slots[index] = { slotType = "class", classid = "" }
+				end
+				Save()
+				RefreshAll()
+			end,
+		}
+
+		if slot.slotType == "damage" then
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 200,
+				height = 30,
+				fontSize = 14,
+				hmargin = 8,
+				textDefault = "Choose Damage Type...",
+				options = SlotDamageTypeOptions(),
+				idChosen = slot.damageType or "",
+				change = function(element)
+					local cur = m_slots[index]
+					if cur == nil then
+						return
+					end
+					cur.damageType = element.idChosen
+					Save()
+				end,
+			}
+		elseif slot.slotType == "monster" then
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 200,
+				height = 30,
+				fontSize = 14,
+				hmargin = 8,
+				textDefault = "Choose Monster Type...",
+				options = SlotMonsterGroupOptions(),
+				idChosen = slot.groupid or "",
+				change = function(element)
+					local cur = m_slots[index]
+					if cur == nil then
+						return
+					end
+					cur.groupid = element.idChosen
+					Save()
+				end,
+			}
+		else
+			rowChildren[#rowChildren+1] = gui.Dropdown{
+				width = 200,
+				height = 30,
+				fontSize = 14,
+				hmargin = 8,
+				textDefault = "Choose Class...",
+				options = SlotClassOptions(),
+				idChosen = slot.classid or "",
+				change = function(element)
+					local cur = m_slots[index]
+					if cur == nil then
+						return
+					end
+					cur.classid = element.idChosen
+					cur.subclassid = nil
+					Save()
+					--Rebuild so the subclass dropdown appears/refreshes.
+					RefreshAll()
+				end,
+			}
+
+			if slot.classid ~= nil and slot.classid ~= "" then
+				local subclassOptions = SlotSubclassOptions(slot.classid)
+				--Only offer a subclass picker when the class actually has
+				--subclasses (the list always contains "(Any Subclass)").
+				if #subclassOptions > 1 then
+					subclassLine = gui.Panel{
+						width = "100%",
+						height = "auto",
+						flow = "horizontal",
+						vmargin = 2,
+						--Align under the class dropdown (type dropdown width).
+						lmargin = 178,
+
+						gui.Dropdown{
+							width = 200,
+							height = 30,
+							fontSize = 14,
+							options = subclassOptions,
+							idChosen = slot.subclassid or "",
+							change = function(element)
+								local cur = m_slots[index]
+								if cur == nil then
+									return
+								end
+								if element.idChosen == "" then
+									cur.subclassid = nil
+								else
+									cur.subclassid = element.idChosen
+								end
+								Save()
+							end,
+						},
+					}
+				end
+			end
+		end
+
+		--Delete: removes the use, deactivating it first if it was activated
+		--for this set (an orphaned activation would keep skinning rolls).
+		rowChildren[#rowChildren+1] = gui.Button{
+			classes = {"deleteButton", "sizeS"},
+			halign = "right",
+			valign = "center",
+			click = function(element)
+				local cur = m_slots[index]
+				if cur ~= nil and SlotIsComplete(cur) then
+					local key = SlotKey(cur)
+					local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
+					if slotsEquipped[key] == item.assetid then
+						SetSlotActivation(key, nil)
+					end
+					--Forget the open-time snapshot of this key so re-adding
+					--the same use in this session counts as newly added.
+					m_openKeys[key] = nil
+				end
+				table.remove(m_slots, index)
+				Save()
+				RefreshAll()
+			end,
+		}
+
+		local firstLine = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			children = rowChildren,
+		}
+
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 4,
+			children = { firstLine, subclassLine },
+		}
+	end
+
+	--The uses list. Scoped ThemeEngine cascade so the dropdowns and delete
+	--buttons pick up the theme's widget styling (the shop cascade has no
+	--dropdown rules -- matches the Dropdown pattern in CodexTitlescreen.lua).
+	rowsPanel = gui.Panel{
+		styles = ThemeEngine.GetStyles(),
+		width = "94%",
+		height = "auto",
+		maxHeight = 250,
+		halign = "center",
+		flow = "vertical",
+		vscroll = true,
+		vmargin = 8,
+
+		create = function(element)
+			element:FireEvent("refreshUses")
+		end,
+		refreshUses = function(element)
+			local children = {}
+			for i,slot in ipairs(m_slots) do
+				children[#children+1] = CreateRow(i, slot)
+			end
+			if #children == 0 then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "center",
+					textAlignment = "center",
+					fontSize = 13,
+					color = "#999999ff",
+					vmargin = 12,
+					text = "No custom uses yet. Press Add Use to create one.",
+				}
+			end
+			element.children = children
+		end,
+	}
+
+	--Add Use + count. The button collapses at the cap.
+	addRowPanel = gui.Panel{
+		width = "94%",
+		height = "auto",
+		halign = "center",
+		flow = "horizontal",
+		vmargin = 4,
+
+		gui.Label{
+			classes = {"itemButton"},
+			width = 140,
+			fontSize = 12,
+			halign = "left",
+			text = "Add Use",
+			refreshUses = function(element)
+				element:SetClass("collapsed", #m_slots >= g_maxCustomSlots)
+			end,
+			press = function(element)
+				if #m_slots >= g_maxCustomSlots then
+					return
+				end
+				m_slots[#m_slots+1] = { slotType = "damage", damageType = "" }
+				Save()
+				RefreshAll()
+			end,
+		},
+
+		gui.Label{
+			width = "auto",
+			height = "auto",
+			halign = "right",
+			valign = "center",
+			fontSize = 13,
+			color = "#999999ff",
+			refreshUses = function(element)
+				element.text = string.format("%d/%d uses", #m_slots, g_maxCustomSlots)
+			end,
+		},
+
+		create = function(element)
+			element:FireEventTree("refreshUses")
+		end,
+	}
+
+	resultPanel = gui.Panel{
+		--Fullscreen dim backdrop; clicking it (or Escape, or Done) closes the
+		--dialog and applies the auto-activations.
+		floating = true,
+		width = "100%",
+		height = "100%",
+		halign = "center",
+		valign = "center",
+		bgimage = "panels/square.png",
+		bgcolor = "#000000aa",
+		styles = shopStyles,
+		captureEscape = true,
+		escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+		escape = function(element)
+			Close()
+		end,
+		click = function(element)
+			Close()
+		end,
+
+		--The dialog card, styled after the shop's gold-bordered dialogs. Its
+		--empty click handler swallows clicks so only the backdrop closes.
+		gui.Panel{
+			width = 600,
+			height = "auto",
+			halign = "center",
+			valign = "center",
+			flow = "vertical",
+			bgimage = "panels/square.png",
+			bgcolor = "#0a0a0af2",
+			cornerRadius = 16,
+			borderWidth = 2,
+			borderColor = "#f6ddb6",
+			vpad = 16,
+			borderBox = true,
+			click = function(element)
+			end,
+
+			gui.Label{
+				classes = {"shopTitle"},
+				fontSize = 20,
+				halign = "center",
+				vmargin = 4,
+				text = "Custom Uses",
+			},
+
+			gui.Label{
+				width = "94%",
+				height = "auto",
+				halign = "center",
+				textAlignment = "center",
+				fontSize = 13,
+				color = "#bbbbbbff",
+				vmargin = 4,
+				text = string.format("Add your own uses to %s. Activate a use and these dice roll for it automatically -- when dealing a damage type, playing a class, or controlling a monster type.", item.name),
+			},
+
+			rowsPanel,
+
+			addRowPanel,
+
+			gui.Label{
+				classes = {"itemButton"},
+				width = 152,
+				halign = "center",
+				vmargin = 8,
+				text = "Done",
+				press = function(element)
+					Close()
+				end,
+			},
+		},
+	}
+
+	local root = args.host.root
+	if root == nil then
+		return
+	end
+	root:AddChild(resultPanel)
+	g_customUsesDialog = resultPanel
+	return resultPanel
 end
 
 local ShowItemDetailsInternal = function(args)
@@ -2793,6 +3374,14 @@ local ShowItemDetailsInternal = function(args)
 						previewPanel = element,
 						numDice = cageArgs.numDice, numFaces = cageArgs.numFaces, numKeep = 0, description = "Try Dice",
 						complete = function()
+							--The seeded preview roll only executes when the user clicks
+							--or drags the cage, so a completion here is a real try-roll
+							--(cancel covers the too-weak-drag and teardown paths).
+							analytics.Event{
+								type = "shopTryDiceRoll",
+								itemid = item.id,
+								dice = string.format("%dd%d", cageArgs.numDice, cageArgs.numFaces),
+							}
 							if element.valid then element:FireEvent("requestReseed") end
 						end,
 						cancel = function()
@@ -2978,7 +3567,7 @@ local ShowItemDetailsInternal = function(args)
 							element:FireEventOnParents("removeFromCart", item)
 						else
 							element:FireEventOnParents("addToCart", item)
-							analytics.Event{ type = "shopAddCart" }
+							analytics.Event{ type = "shopAddCart", itemid = item.id }
 						end
 					end,
 				},
@@ -3002,15 +3591,20 @@ local ShowItemDetailsInternal = function(args)
 				--die. Beneath the columns a central "Equip for All Dice" button equips
 				--the viewed set as the default and clears the other slots so every die
 				--uses it.
-				--Below that, one button per slot authored on the dice set (Dice Studio
-				--Slots section): activating a slot binds this set to that purpose (e.g.
-				--dealing fire damage, playing a Shadow) instead of equipping it always.
+				--To the right of the equip columns, one toggle button per slot authored
+				--on the dice set (Dice Studio Slots section): activating a slot binds
+				--this set to that purpose (e.g. dealing fire damage, playing a Shadow,
+				--controlling an Undead monster) instead of equipping it always.
 				--Activations are stored in the diceslotsequipped setting keyed by slot
-				--(so a slot holds one dice set); rolls do not consume them yet -- that is
-				--the next step of the dice-slots feature.
+				--(so a slot holds one dice set); the roll dialog consumes them, picking
+				--the most specific activated slot matching the roll (see
+				--EmbeddedRollDialog's slot-dice resolution).
+				--Layout: the panel flows horizontally -- the equip block sits on the
+				--left and the slot column (when the set has slots) on its right, so
+				--the whole panel stays pinned to the action row's right edge.
 				gui.Panel{
 					classes = {"collapsedUnlessInventory"},
-					flow = "vertical",
+					flow = "horizontal",
 					width = "auto",
 					height = "auto",
 					halign = "right",
@@ -3045,6 +3639,7 @@ local ShowItemDetailsInternal = function(args)
 								classes = classes,
 								text = args.text,
 								width = args.width,
+								fontSize = args.fontSize,
 								halign = "center",
 								hmargin = 8,
 								linger = function(el)
@@ -3061,54 +3656,9 @@ local ShowItemDetailsInternal = function(args)
 							}
 						end
 
-						--Copy-modify-set the slot-activation table; a slot key holds at
-						--most one dice set, so activating here replaces any other set
-						--previously activated for the same slot.
-						local function SetSlotActivation(key, assetid)
-							local result = {}
-							for k,v in pairs(dmhub.GetSettingValue("diceslotsequipped") or {}) do
-								result[k] = v
-							end
-							result[key] = assetid
-							dmhub.SetSettingValue("diceslotsequipped", result)
-						end
-
-						local function SlotKey(slot)
-							if slot.slotType == "damage" then
-								return "damage:" .. (slot.damageType or "")
-							end
-							local key = "class:" .. (slot.classid or "")
-							if slot.subclassid ~= nil and slot.subclassid ~= "" then
-								key = key .. ":" .. slot.subclassid
-							end
-							return key
-						end
-
-						--Player-facing slot description, e.g. "Fire Damage" or
-						--"Shadow: College of Black Ash". Class/subclass names resolve
-						--from the lobby game's compendium tables.
-						local function SlotLabel(slot)
-							if slot.slotType == "damage" then
-								local damageType = slot.damageType or ""
-								if damageType == "" then
-									return "Any Damage"
-								end
-								return damageType:gsub("^%l", string.upper) .. " Damage"
-							end
-
-							local classInfo = (dmhub.GetTable("classes") or {})[slot.classid or ""]
-							local className = "Unknown Class"
-							if classInfo ~= nil then
-								className = classInfo:try_get("name", className)
-							end
-							if slot.subclassid ~= nil and slot.subclassid ~= "" then
-								local sub = (dmhub.GetTable("subclasses") or {})[slot.subclassid]
-								if sub ~= nil then
-									return string.format("%s: %s", className, sub:try_get("name", "Subclass"))
-								end
-							end
-							return className
-						end
+						--SlotKey/SlotLabel/SlotDescription/SetSlotActivation and the
+						--custom-uses accessors are file-scope helpers shared with the
+						--Add Uses... dialog (see ShowCustomUsesDialog above).
 
 						local children = {}
 
@@ -3123,6 +3673,8 @@ local ShowItemDetailsInternal = function(args)
 						--click re-attach to the same pooled scene (same key) instead of
 						--spinning up a fresh one; changing the slot's set changes the key,
 						--which naturally builds the new die and evicts the old.
+						--Sized slightly down (80px dice, 140px buttons) so the slot
+						--column beside the equip block still fits the action row.
 						local function MakeSlotColumn(args)
 							--The die previewed for this slot: the slot's own set, falling
 							--back to the default set for empty slots (that is what rolls).
@@ -3139,7 +3691,7 @@ local ShowItemDetailsInternal = function(args)
 								width = "auto",
 								height = "auto",
 								halign = "center",
-								hmargin = 12,
+								hmargin = 8,
 
 								--Live 3D die of the equipped set (pooled preview scene; the
 								--same mechanism as the shop tiles' spinning dice). The RT is
@@ -3153,13 +3705,14 @@ local ShowItemDetailsInternal = function(args)
 										tostring(previewSet), args.seq, 3.0, 0, args.faces),
 									bgcolor = "white",
 									blend = "premultiplied",
-									width = 96,
-									height = 96,
+									width = 80,
+									height = 80,
 									halign = "center",
 								},
 
 								MakeEquipButton{
 									text = args.text,
+									width = 140,
 									equipped = item.assetid == args.slotSet,
 									tooltip = args.tooltip,
 									click = args.click,
@@ -3167,7 +3720,12 @@ local ShowItemDetailsInternal = function(args)
 							}
 						end
 
-						children[#children+1] = gui.Panel{
+						--The equip block: the three die columns with the equip-for-all
+						--button beneath them. Fills the panel's left side; the slot
+						--column (below) sits to its right.
+						local equipBlockChildren = {}
+
+						equipBlockChildren[#equipBlockChildren+1] = gui.Panel{
 							flow = "horizontal",
 							width = "auto",
 							height = "auto",
@@ -3215,7 +3773,7 @@ local ShowItemDetailsInternal = function(args)
 
 						--Central equip-for-all: the viewed set becomes the default and the
 						--other slots clear, so every die uses it.
-						children[#children+1] = MakeEquipButton{
+						equipBlockChildren[#equipBlockChildren+1] = MakeEquipButton{
 							text = "Equip for All Dice",
 							width = 240,
 							equipped = item.assetid == equippedDefault and (equipped2 == nil or equipped2 == "") and (equippedD6 == nil or equippedD6 == ""),
@@ -3227,14 +3785,49 @@ local ShowItemDetailsInternal = function(args)
 							end,
 						}
 
-						--Slot activations, if this dice set has authored slots.
-						--pcall: dice.GetDiceSlots needs an engine build that has it.
-						local slots = nil
-						pcall(function() slots = dice.GetDiceSlots(item.assetid) end)
-						if slots ~= nil and #slots > 0 then
-							local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
+						children[#children+1] = gui.Panel{
+							flow = "vertical",
+							width = "auto",
+							height = "auto",
+							halign = "left",
+							valign = "top",
+							children = equipBlockChildren,
+						}
 
-							children[#children+1] = gui.Label{
+						--Slot activations: the set's authored slots plus the player's own
+						--custom "uses" (added via the Add Uses... dialog), deduped by
+						--key, as a column of toggle buttons to the right of the equip
+						--block. A gold (equipped-style) button means the slot is active
+						--for this set; clicking toggles it. The column always shows for
+						--owned dice -- the Add Uses... entry point lives at its foot even
+						--when the set has no slots yet. pcall: dice.GetDiceSlots needs an
+						--engine build that has it.
+						local authoredSlots = nil
+						pcall(function() authoredSlots = dice.GetDiceSlots(item.assetid) end)
+
+						local displaySlots = {}
+						local seenKeys = {}
+						for _,slot in ipairs(authoredSlots or {}) do
+							local key = SlotKey(slot)
+							if SlotIsComplete(slot) and not seenKeys[key] then
+								seenKeys[key] = true
+								displaySlots[#displaySlots+1] = { slot = slot, custom = false }
+							end
+						end
+						for _,slot in ipairs(GetCustomSlots(item.assetid)) do
+							local key = SlotKey(slot)
+							if SlotIsComplete(slot) and not seenKeys[key] then
+								seenKeys[key] = true
+								displaySlots[#displaySlots+1] = { slot = slot, custom = true }
+							end
+						end
+
+						local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped") or {}
+
+						local slotChildren = {}
+
+						if #displaySlots > 0 then
+							slotChildren[#slotChildren+1] = gui.Label{
 								text = "Or activate this set for...",
 								width = "auto",
 								height = "auto",
@@ -3245,40 +3838,71 @@ local ShowItemDetailsInternal = function(args)
 							}
 
 							local slotButtons = {}
-							for _,slot in ipairs(slots) do
+							for _,entry in ipairs(displaySlots) do
+								local slot = entry.slot
 								local key = SlotKey(slot)
+								local label = SlotLabel(slot)
 								local active = slotsEquipped[key] == item.assetid
+								local description = SlotDescription(slot, label)
+								if entry.custom then
+									description = description .. "\n\nA custom use you added (manage in Add Uses...)."
+								end
 								slotButtons[#slotButtons+1] = MakeEquipButton{
-									text = SlotLabel(slot),
-									width = 240,
+									text = label,
+									width = 210,
+									fontSize = 12,
 									equipped = active,
 									tooltip = cond(active,
-										"This set is activated for this purpose. Click to deactivate.",
-										cond(slot.slotType == "damage",
-											"Use this set when dealing this damage type.",
-											"Use this set when playing this class.")),
+										description .. "\n\nThis set is activated. Click to deactivate.",
+										description .. "\n\nClick to activate this set for this purpose."),
 									click = function()
 										SetSlotActivation(key, cond(active, nil, item.assetid))
 									end,
 								}
 							end
 
-							--Wrap slot buttons onto rows of two so many-slotted dice
-							--stay inside the panel's share of the action row.
-							for i = 1, #slotButtons, 2 do
-								local rowChildren = {}
-								for j = i, math.min(i + 1, #slotButtons) do
-									rowChildren[#rowChildren+1] = slotButtons[j]
-								end
-								children[#children+1] = gui.Panel{
-									flow = "horizontal",
-									width = "auto",
-									height = "auto",
-									halign = "center",
-									children = rowChildren,
-								}
-							end
+							--Scroll region: dice with many slots scroll here rather
+							--than stretching the action row (width leaves room for
+							--the scrollbar beside the 210px buttons).
+							slotChildren[#slotChildren+1] = gui.Panel{
+								flow = "vertical",
+								width = 234,
+								height = "auto",
+								maxHeight = 168,
+								halign = "center",
+								vscroll = true,
+								children = slotButtons,
+							}
 						end
+
+						--Add Uses...: opens the custom-uses dialog for this set.
+						slotChildren[#slotChildren+1] = MakeEquipButton{
+							text = "Add Uses...",
+							width = 210,
+							fontSize = 12,
+							tooltip = "Add your own uses to this set -- damage types, classes, or monster types these dice should roll for.",
+							click = function()
+								ShowCustomUsesDialog{
+									item = item,
+									host = element,
+									changed = function()
+										if element.valid then
+											element:FireEvent("rebuildEquip")
+										end
+									end,
+								}
+							end,
+						}
+
+						children[#children+1] = gui.Panel{
+							flow = "vertical",
+							width = "auto",
+							height = "auto",
+							halign = "left",
+							valign = "top",
+							lmargin = 16,
+							children = slotChildren,
+						}
 
 						element.children = children
 					end,
@@ -3819,7 +4443,7 @@ local function CreateShopScreenInternal(arguments)
 						local item = assets.shopItems[itemid]
 
 						if item ~= nil then
-							element:FireEvent("showItemDetails", item)
+							element:FireEvent("showItemDetails", item, "bundleLink")
 							return true
 						end
 					end
@@ -3854,15 +4478,38 @@ local function CreateShopScreenInternal(arguments)
 				end
 			end,
 
-			showItemDetails = function(element, item)
+			showItemDetails = function(element, item, source)
 				element:FireEventTree("hideProducts")
 				element:FireEventTree("showProductDetails", item)
 				element:FireEventTree("refreshCart", m_shoppingCart)
+
+				--Funnel attribution: which surface brought the user to this
+				--product page -- "featuredBanner" (top banner's View Dice),
+				--"productTile" (grid cards below), "cartRow", or "bundleLink".
+				--nil = a re-fire from inside the already-open details view
+				--(gallery presses), which is not a navigation, so not counted.
+				if source ~= nil then
+					analytics.Event{
+						type = "shopViewItem",
+						source = source,
+						itemid = item.id,
+						itemType = item.itemType,
+					}
+				end
 			end,
 
 			showProductsPage = function(element)
 				element:FireEventTree("showProducts")
 				element:FireEventTree("hideProductDetails")
+
+				--Returning to the main store grid (Go Back from details, leaving
+				--the cart, artist focus, searching). The deduplicate window
+				--collapses programmatic bursts -- e.g. the search box re-fires
+				--this on every text change -- into a single event.
+				analytics.Event{
+					type = "shopShowProducts",
+					deduplicate = 2,
+				}
 			end,
 
 			addToCart = function(element, item)

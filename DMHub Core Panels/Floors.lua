@@ -91,7 +91,7 @@ local appearanceTileStyles = {
 	},
 }
 
-local function ShowFloorSettings(floor)
+local function ShowFloorSettings(floor, onHeightChanged)
 
 	--Sub-layers (parentFloor ~= nil) are layers within a floor rather than floors in their
 	--own right. The roof/canopy/vision options only take effect on top-level floors, so for a
@@ -728,6 +728,56 @@ local function ShowFloorSettings(floor)
 		appearanceSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
 	end
 
+	--Floor height (thickness, base to ceiling). Only meaningful on top-level floors, and
+	--only shown when parallax rendering is on (matching the floors panel). Collapsed
+	--placeholder otherwise so the dialog's child list always has a valid panel in this slot.
+	local heightSection
+	if (not isLayer) and dmhub.useParallax then
+		heightSection = gui.Panel{
+			classes = {"formStackedRow"},
+			vmargin = 8,
+			gui.Label{
+				classes = {"formStacked"},
+				text = string.format("Height (%s):", string.lower(MeasurementSystem.UnitName())),
+			},
+			gui.Input{
+				classes = {"formStacked"},
+				text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
+				styles = {
+					{
+						selectors = {"invalid"},
+						color = "#ff5555",
+						borderColor = "#ff5555",
+						transitionTime = 0.6,
+					},
+				},
+				hover = gui.Tooltip(string.format("The height of this floor from its base to its ceiling: %s to %s.", MeasurementSystem.NativeToDisplayStringWithUnits(dmhub.unitsPerSquare), MeasurementSystem.NativeToDisplayStringWithUnits(20*dmhub.unitsPerSquare))),
+				change = function(element)
+					local n = MeasurementSystem.DisplayToNative(tonumber(element.text))
+					if n ~= nil then
+						n = n/dmhub.unitsPerSquare
+					end
+
+					if n == nil or n ~= round(n) or n < 1 or n > 20 then
+						element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+						element:PulseClass("invalid")
+						return
+					end
+
+					if n ~= floor.floorHeightInTiles then
+						floor.floorHeightInTiles = n
+						if onHeightChanged ~= nil then
+							onHeightChanged()
+						end
+					end
+					element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+				end,
+			},
+		}
+	else
+		heightSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	end
+
 	local dialogPanel = gui.Panel{
 		classes = {"framedPanel"},
 		width = 480,
@@ -767,6 +817,8 @@ local function ShowFloorSettings(floor)
 				},
 			},
 
+			heightSection,
+
 			typeSection,
 
 			appearanceSection,
@@ -805,6 +857,89 @@ local CreateDragTarget = function(index, belowGround, layerType)
 			belowGround = belowGround,
 		},
 
+	}
+end
+
+--Format a seam elevation (in tiles, relative to ground level) for display in the floors
+--list. Positive elevations get an explicit + so above/below ground is unambiguous;
+--MeasurementSystem supplies the - for negatives.
+local FormatRelativeElevation = function(tiles)
+	local text = MeasurementSystem.NativeToDisplayString(tiles*dmhub.unitsPerSquare)
+	if tiles > 0 then
+		text = "+" .. text
+	end
+	return text
+end
+
+--Apply a seam elevation value to a floating seam chip. val is the elevation in
+--tiles relative to ground level, or false to hide the chip. Chips also hide when
+--parallax rendering is off, matching the rest of the elevation UI.
+local ApplySeamElevation = function(element, val)
+	element.data.elevation = val
+	if val ~= false and val ~= nil then
+		element.text = FormatRelativeElevation(val)
+	end
+	element:SetClass("collapsed", val == false or val == nil or (not dmhub.useParallax))
+end
+
+--A floating chip straddling the seam line at the top edge of a floor row, showing
+--that boundary's elevation. A static child of the row so it renders above the row
+--it overlaps; the row below never paints over it because rows below are later
+--siblings of the row itself, not of the chip's half above. Value arrives via the
+--"seamElevations" event fired on the floor panel each refresh.
+local CreateSeamChip = function()
+	return gui.Label{
+		classes = {"floorSeamChip", "collapsed"},
+		floating = true,
+		interactable = false,
+		halign = "right",
+		valign = "top",
+		rmargin = 20,
+		y = -10,
+		data = {
+			elevation = false,
+		},
+		monitor = "useparallax",
+		events = {
+			monitor = function(element)
+				ApplySeamElevation(element, element.data.elevation)
+			end,
+			seamElevations = function(element, topVal)
+				ApplySeamElevation(element, topVal)
+			end,
+		},
+	}
+end
+
+--The bottom-of-map seam has no row below to host a chip, so it gets a zero-height
+--in-flow anchor carrying a floating chip centered on it. Recreated each refresh
+--with its value baked in. Sized/aligned like a floor row so the chip lines up
+--with the row chips.
+local CreateBottomSeamAnchor = function(elevationInTiles)
+	return gui.Panel{
+		classes = {cond(not dmhub.useParallax, "collapsed")},
+		width = "92%",
+		height = 0,
+		hmargin = 8,
+		halign = "left",
+		flow = "none",
+		interactable = false,
+		monitor = "useparallax",
+		events = {
+			monitor = function(element)
+				element:SetClass("collapsed", not dmhub.useParallax)
+			end,
+		},
+		gui.Label{
+			classes = {"floorSeamChip"},
+			floating = true,
+			interactable = false,
+			halign = "right",
+			valign = "top",
+			rmargin = 20,
+			y = -10,
+			text = FormatRelativeElevation(elevationInTiles),
+		},
 	}
 end
 
@@ -943,15 +1078,89 @@ CreateLayersPanel = function()
 						color = Styles.textColor,
 						text = "Ground Level",
 					},
+
+					--The ground line is elevation 0; showing it here anchors the seam
+					--chips displayed between the floor rows. Styled like the chips,
+					--sized down slightly to hug the 12px line panel. rmargin lines it
+					--up with the row chips (rows are 92% wide with an 8px margin).
+					gui.Label{
+						classes = {"floorSeamChip", cond(not dmhub.useParallax, "collapsed")},
+						monitor = "useparallax",
+						events = {
+							monitor = function(element)
+								element:SetClass("collapsed", not dmhub.useParallax)
+							end,
+						},
+						fontSize = 11,
+						vpad = 0,
+						halign = 'right',
+						valign = 'center',
+						rmargin = 39,
+						text = FormatRelativeElevation(0),
+					},
 				}
 			end
 			
 			local floors = currentMap.floors or {}
-			local children = {CreateDragTarget(#floors+1)}
+
+			--Calculate each top-level floor's top altitude (in tiles above the map bottom)
+			--and the altitude of the ground plane, so the seams between rows can display
+			--elevations relative to ground level = 0.
+			local floorTopAltitudes = {}
+			local totalAltitude = 0
+			for j=1,#floors do
+				local f = floors[j]
+				if f.parentFloor == nil then
+					totalAltitude = totalAltitude + f.floorHeightInTiles
+					floorTopAltitudes[f.floorid] = totalAltitude
+				end
+			end
+
+			local groundAltitude = 0
+			local groundIndex = currentMap.groundLevel or 1
+			if groundIndex > #floors then
+				groundAltitude = totalAltitude
+			elseif floors[groundIndex] ~= nil then
+				--the ground line sits below this floor (a layer counts as its parent floor).
+				local groundFloorId = floors[groundIndex].parentFloor or floors[groundIndex].floorid
+				for j=1,#floors do
+					local f = floors[j]
+					if f.floorid == groundFloorId then
+						break
+					end
+					if f.parentFloor == nil then
+						groundAltitude = groundAltitude + f.floorHeightInTiles
+					end
+				end
+			end
+
+			--Headroom so the topmost row's floating seam chip isn't clipped by the
+			--scroll region.
+			local children = {
+				gui.Panel{
+					classes = {cond(not dmhub.useParallax, "collapsed")},
+					width = "100%",
+					height = 10,
+					interactable = false,
+					monitor = "useparallax",
+					events = {
+						monitor = function(element)
+							element:SetClass("collapsed", not dmhub.useParallax)
+						end,
+					},
+				},
+			}
+			children[#children+1] = CreateDragTarget(#floors+1)
+
+			--Tracks whether the ground line rendered directly above the next floor
+			--row; its 0 marker labels that seam, so the row below suppresses its
+			--own chip.
+			local groundLineAbove = false
 
 			if currentMap.groundLevel == #floors+1 then
 				children[#children+1] = groundLevelPanel
 				children[#children+1] = CreateDragTarget(#floors+1, true)
+				groundLineAbove = true
 			end
 
 			local newFloorItems = {}
@@ -1058,7 +1267,11 @@ CreateLayersPanel = function()
 							end,
 						}
 
-						local elevationLabel =
+						--Per-floor height editor: shows and edits this floor's own thickness
+						--(floorHeightInTiles), the value actually stored on the floor. The
+						--derived elevations relative to ground level are shown on the seams
+						--between the rows instead (see CreateSeamChip).
+						local heightEditor =
 						gui.Panel{
 							classes = {cond(not dmhub.useParallax, "collapsed")},
 							monitor = "useparallax",
@@ -1072,70 +1285,45 @@ CreateLayersPanel = function()
 							height = 20,
 							gui.Label{
 								classes = {"floorLabel"},
-								text = "0",
-								width = 40,
+								text = "Height",
+								width = 44,
 								height = 20,
 								halign = "left",
-								textAlignment = "right",
-								characterLimit = 3,
-								editableOnDoubleClick = true,
-								data = {
-									elevation = nil,
-								},
+								valign = "center",
+								fontSize = 11,
+								minFontSize = 8,
+							},
+							gui.Label{
+								classes = {"floorHeightValue"},
+								text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
+								editable = true,
+								characterLimit = 4,
+								hover = gui.Tooltip(string.format("Height of this floor from its base to its ceiling, in %s.", string.lower(MeasurementSystem.UnitName()))),
 								change = function(element)
 									local n = MeasurementSystem.DisplayToNative(tonumber(element.text))
 									if n ~= nil then
 										n = n/dmhub.unitsPerSquare
 									end
 
-									if n == nil or n ~= round(n) then
-										element:FireEvent("elevation", element.data.elevation)
+									if n == nil or n ~= round(n) or n < 1 or n > 20 then
+										--rejected: restore the stored height and flash the box.
+										element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+										element:PulseClass("invalid")
 										return
 									end
 
-									--calculate the floor below us and what their height is.
-									local elevationLevel = 0
-									local mapFloors = currentMap.floors
-									local thisFloor = nil
-									for j=1,#mapFloors do
-										local f = mapFloors[j]
-										if f.parentFloor == nil then
-											elevationLevel = elevationLevel + f.floorHeightInTiles
-											thisFloor = f
-											if mapFloors[j].floorid == floor.floorid then
-												break
-											end
-										end
+									if n ~= floor.floorHeightInTiles then
+										floor.floorHeightInTiles = n
+										floorsList:FireEventTree("refreshGame")
 									end
-
-									if thisFloor == nil then
-										element:FireEvent("elevation", element.data.elevation)
-										return
-									end
-
-									local diff = n - elevationLevel
-									local newHeight = thisFloor.floorHeightInTiles + diff
-									if newHeight <= 0 or newHeight > 20 then
-										element:FireEvent("elevation", element.data.elevation)
-										return
-									end
-									
-									thisFloor.floorHeightInTiles = newHeight
-									floorsList:FireEventTree("refreshGame")
+									element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
 								end,
-								elevation = function(element, amount)
-									element.data.elevation = amount
-									element.text = MeasurementSystem.NativeToDisplayString(amount*dmhub.unitsPerSquare)
+								refreshGame = function(element)
+									if (not floor.valid) or element.hasFocus then
+										return
+									end
+									element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
 								end,
-							},
-							gui.Label{
-								classes = {"floorLabel"},
-                                text = "Height",
-								width = 44,
-								height = 20,
-								halign = "left",
-								fontSize = 11,
-                                minFontSize = 8,
 							},
 						}
 
@@ -1265,7 +1453,7 @@ CreateLayersPanel = function()
 								flow = "vertical",
 								width = "auto",
 								height = "100%",
-								elevationLabel,
+								heightEditor,
 								floorTokensPanel,
 							},
 
@@ -1277,9 +1465,15 @@ CreateLayersPanel = function()
 								width = 12,
 								height = 12,
 								click = function(element)
-									ShowFloorSettings(floor)
+									ShowFloorSettings(floor, function()
+										floorsList:FireEventTree("refreshGame")
+									end)
 								end,
 							},
+
+							--Seam elevation chip straddling this row's top edge (the boundary
+							--with the floor above).
+							CreateSeamChip(),
 
 							data = {
 								floorLabel = floorLabel,
@@ -1316,6 +1510,35 @@ CreateLayersPanel = function()
 										click = function()
 											element.popup = nil
 											mod.shared.ShowFloorRealignDialog(mapLayer, mapObj)
+										end,
+									}
+								end
+
+								--Non-drag path for setting the ground level (the ground line can also
+								--be dragged onto a floor seam). Makes this floor the lowest floor that
+								--is above ground. Mirrors the drag convention of pointing groundLevel
+								--at the floor's lowest layer index.
+								local mapFloors = currentMap.floors
+								local groundIndex = element.data.index
+								local isGroundFloor = currentMap.groundLevel == groundIndex
+								for j=1,#mapFloors do
+									if mapFloors[j].parentFloor == floor.floorid then
+										if j < groundIndex then
+											groundIndex = j
+										end
+										if currentMap.groundLevel == j then
+											isGroundFloor = true
+										end
+									end
+								end
+
+								if not isGroundFloor then
+									floorEntries[#floorEntries+1] = {
+										text = "Set as Ground Floor",
+										click = function()
+											element.popup = nil
+											currentMap.groundLevel = groundIndex
+											floorsList:FireEventTree("refreshGame")
 										end,
 									}
 								end
@@ -1518,25 +1741,16 @@ CreateLayersPanel = function()
 					end
 
 
-					--calculate the elevation level of this floor.
-
-					local elevationLevel = 0
-					for j=1,#floors do
-						local f = floors[j]
-						if f.parentFloor == nil then
-							elevationLevel = elevationLevel + f.floorHeightInTiles
-							if f.floorid == floor.floorid then
-								break
-							end
-						end
-					end
-
-					floorPanel:FireEventTree("elevation", elevationLevel)
-
-
-					elevationLevel = elevationLevel + floor.floorHeightInTiles
-
 					floorPanel.data.index = i
+
+					--Update this row's floating seam chip: the elevation of this floor's
+					--top, suppressed when the ground line (which carries its own 0
+					--marker) sits directly above this row.
+					local topElevation = false
+					if not groundLineAbove then
+						topElevation = floorTopAltitudes[floor.floorid] - groundAltitude
+					end
+					floorPanel:FireEventTree("seamElevations", topElevation)
 
 					floorPanel:SetClassTree('selected', currentFloor.actualFloor == floor.actualFloor)
 
@@ -1567,11 +1781,20 @@ CreateLayersPanel = function()
 
 					children[#children+1] = CreateDragTarget(dragTargetLevel)
 
+					groundLineAbove = false
 					if groundLevel ~= nil then
 						children[#children+1] = groundLevelPanel
 						children[#children+1] = CreateDragTarget(groundLevel, true)
+						groundLineAbove = true
 					end
 				end
+			end
+
+			--Bottom-of-map seam: the lowest floor's base. No row below to host a
+			--chip, so it rides an in-flow anchor. Suppressed when the ground line
+			--just rendered there.
+			if totalAltitude > 0 and not groundLineAbove then
+				children[#children+1] = CreateBottomSeamAnchor(-groundAltitude)
 			end
 
 			children[#children+1] = addFloorButton
@@ -1692,6 +1915,58 @@ CreateLayersPanel = function()
 			{
 				selectors = {'floorLabel', 'selected'},
 				color = "@fgInverse",
+			},
+			--Floating elevation chips straddling the seam lines between floor rows
+			--(relative to ground level = 0).
+			{
+				selectors = {'floorSeamChip'},
+				bgimage = 'panels/square.png',
+				bgcolor = 'black',
+				border = 1,
+				borderColor = '@border',
+				cornerRadius = 4,
+				fontSize = 12,
+				color = '@fg',
+				width = 'auto',
+				height = 'auto',
+				hpad = 5,
+				vpad = 1,
+				textAlignment = 'center',
+			},
+			--The editable per-floor height value. Bordered so it reads as editable
+			--without needing to discover a hidden double-click.
+			{
+				selectors = {'floorHeightValue'},
+				bgimage = 'panels/square.png',
+				bgcolor = 'clear',
+				border = 1,
+				borderColor = '@border',
+				cornerRadius = 3,
+				fontSize = 14,
+				color = '@fg',
+				width = 30,
+				height = 18,
+				halign = 'left',
+				valign = 'center',
+				textAlignment = 'center',
+			},
+			{
+				selectors = {'floorHeightValue', 'hover'},
+				borderColor = '@accent',
+			},
+			{
+				selectors = {'floorHeightValue', 'selected'},
+				color = '@fgInverse',
+				borderColor = '@fgInverse',
+			},
+			--Pulsed when an edit is rejected (non-numeric, fractional tiles, or
+			--outside the 1-20 tile range); fades back out over transitionTime.
+			{
+				selectors = {'floorHeightValue', 'invalid'},
+				priority = 20,
+				color = '#ff5555',
+				borderColor = '#ff5555',
+				transitionTime = 0.6,
 			},
 		}
 	end

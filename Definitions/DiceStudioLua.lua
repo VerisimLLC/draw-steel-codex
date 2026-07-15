@@ -1,6 +1,11 @@
 --- @class DiceStudioLua Provides the Lua interface for the Dice Studio, allowing creation and customization of dice sets. Admin-only.
 --- @field canSave boolean True if the current dice set has a file and can be saved.
 --- @field uploaded boolean True if the current dice set has been uploaded to the cloud.
+--- @field currentVersion number The version number of the version currently open in the studio.
+--- @field liveVersion number The version number of the loaded set's LIVE version -- the one users of the dice consume.
+--- @field isLiveVersion boolean True when the version currently open in the studio is the set's live version.
+--- @field notes string Artist notes about the current version (the Version Notes box). Saved and uploaded with the version.
+--- @field hasUnsavedChanges boolean True when the studio state differs from the current version's last save. Used to prompt before switching versions or dice sets. False while no set is loaded (or in the brief window before the post-load baseline snapshot is taken).
 --- @field dicePanelStyles table Gets or sets the dice panel style table containing bgcolor, trimcolor, and color fields.
 --- @field displayName string Gets or sets the player-facing display name for this dice set. This is the name shown to end users wherever a dice set is presented (e.g. the 'Dice Set' setting dropdown); it is independent of the internal/authoring name (which identifies the local file and cloud document). An empty string means 'no override -- fall back to the internal name'.
 --- @field font string Gets or sets the font name used for the dice face numbers.
@@ -9,7 +14,7 @@
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
 --- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
---- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, or playing a Shadow). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string. Purely descriptive metadata authored in the Dice Studio Slots section; it saves and uploads with the set and nothing on the engine side reads it.
+--- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, playing a Shadow, or playing an Undead monster). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string; 'monster' entries carry a groupid string (a MonsterGroup table id). Authored in the Dice Studio Slots section; saves and uploads with the set. Owners activate slots from the shop inventory's equip panel (the diceslotsequipped setting) and the roll dialog then skins matching rolls with the activated set (dice.SetRollSlotDice).
 --- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity for its look). A dice script can also toggle this per-die via die.halo.
 --- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
@@ -49,11 +54,6 @@
 --- @field finishVideoEffect DiceVideoEffect Gets the video effect played when dice finish rolling.
 --- @field availableMaterials DiceMaterialLua[] Gets a list of all available dice materials.
 --- @field previewScale number Gets or sets the scale of the dice shown in the dice studio preview.
---- @field currentVersion number The version number of the version currently open in the studio.
---- @field liveVersion number The version number of the loaded set's LIVE version -- the one users of the dice consume.
---- @field isLiveVersion boolean True when the version currently open in the studio is the set's live version.
---- @field notes string Artist notes about the current version (the Version Notes box). Saved and uploaded with the version.
---- @field hasUnsavedChanges boolean True when the studio state differs from the current version's last save. Used to prompt before switching versions or dice sets. False while no set is loaded (or in the brief window before the post-load baseline snapshot is taken).
 DiceStudioLua = {}
 
 --- Activate: Activates the Dice Studio view.
@@ -87,31 +87,6 @@ function DiceStudioLua:SaveAs(name)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetVersions: Lists the loaded set's saved versions, sorted ascending, each as a table with version (number), notes (string), and live (boolean) fields. Empty if no set is loaded.
---- @return {version: number, notes: string, live: boolean}[]
-function DiceStudioLua:GetVersions()
-	-- dummy implementation for documentation purposes only
-end
-
---- NewVersion: Creates a new version of the loaded set -- a clone of the studio's current state (including any unsaved edits; the version you were on keeps its last save) -- saves it, and switches the studio to it. The live version is unchanged. Returns the new version number, or 0 if no set is loaded.
---- @return number
-function DiceStudioLua:NewVersion()
-	-- dummy implementation for documentation purposes only
-end
-
---- LoadVersion: Loads the given version of the currently-loaded dice set into the studio, discarding any unsaved edits (callers should check hasUnsavedChanges first). No-op with an error log if that version has no saved file.
---- @param version number
---- @return nil
-function DiceStudioLua:LoadVersion(version)
-	-- dummy implementation for documentation purposes only
-end
-
---- SetLive: Makes the version currently open in the studio the set's LIVE version. Saves the version first, updates the local live copy, and -- when the set has been uploaded -- immediately pushes this version to the players' live doc at /CoreAssetsCurrent/dice/{id} (users pick it up on the live-asset push / next app start).
---- @return nil
-function DiceStudioLua:SetLive()
-	-- dummy implementation for documentation purposes only
-end
-
 --- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs -- which copies the currently-loaded dice -- New discards the current edits and starts from a clean slate.
 --- @param name string
 --- @return nil
@@ -138,10 +113,34 @@ function DiceStudioLua:GetLocalFiles()
 	-- dummy implementation for documentation purposes only
 end
 
---- DownloadCloudDice: Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. The set's full version history (/DiceVersions/{id}) is fetched asynchronously and materialized as local version files. Returns the local name on success, or nil if no uploaded dice has that id.
+--- DownloadCloudDice: Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. Returns the local name on success, or nil if no uploaded dice has that id.
 --- @param id string  The cloud dice id (guid), e.g. an entry's `id` from dice.GetAllDice().
 --- @return string|nil
 function DiceStudioLua:DownloadCloudDice(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetVersions: Lists the loaded set's saved versions, sorted ascending, each as a table with version (number), notes (string), and live (boolean) fields. Empty if no set is loaded.
+--- @return {version: number, notes: string, live: boolean}[]
+function DiceStudioLua:GetVersions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- NewVersion: Creates a new version of the loaded set -- a clone of the studio's current state (including any unsaved edits; the version you were on keeps its last save) -- saves it, and switches the studio to it. The live version is unchanged. Returns the new version number, or 0 if no set is loaded.
+--- @return number
+function DiceStudioLua:NewVersion()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LoadVersion: Loads the given version of the currently-loaded dice set into the studio, discarding any unsaved edits (callers should check hasUnsavedChanges first). No-op with an error log if that version has no saved file.
+--- @param version number
+function DiceStudioLua:LoadVersion(version)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetLive: Makes the version currently open in the studio the set's LIVE version. Saves the version first, updates the local live copy, and -- when the set has been uploaded -- immediately pushes this version to the players' live doc at /CoreAssetsCurrent/dice/{id} (users pick it up on the live-asset push / next app start).
+--- @return nil
+function DiceStudioLua:SetLive()
 	-- dummy implementation for documentation purposes only
 end
 

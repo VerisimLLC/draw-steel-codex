@@ -487,22 +487,22 @@ function dmhub.DebugTokenVisibility(search)
 	-- dummy implementation for documentation purposes only
 end
 
---- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
---- @return nil
-function dmhub.DumpRenderTextures()
-	-- dummy implementation for documentation purposes only
-end
-
---- DumpDiceBillboards: Diagnostic: logs the billboard-glow state of every DiceController currently in the scene (live rolls, dock/cage preview dice, the shop/studio preview scenes) plus the dice camera + composite setup. Per die: the authored StudioDiceInfo billboard fields, any dice-script overrides, the effective enabled/active decision, image resolution status, die fade, and the live child renderer's enabled/layer/queue/transform. Used to tell "the billboard never turns on" apart from "it renders into the dice RT but is lost at composite". Reusable tool.
+--- DumpDiceBillboards: Diagnostic: logs the billboard-glow state of every DiceController currently in the scene (live rolls, dock/cage preview dice, the shop/studio preview scenes) plus the dice camera + composite setup. Per die: the authored StudioDiceInfo billboard fields, any dice-script overrides, the effective enabled/active decision, image resolution status, die fade, and the live child renderer's enabled/layer/queue/transform. Used to tell 'the billboard never turns on' apart from 'it renders into the dice RT but is lost at composite'. Reusable tool.
 --- @return nil
 function dmhub.DumpDiceBillboards()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetDiceCompositeDebug: Diagnostic: switches the dice composite (the DiceRawImageShader drawing the dice RenderTexture over the UI, live + panel-embedded dice alike) into a debug view. 0 = normal; 1 = show the RT's ALPHA channel as opaque grayscale (what coverage the dice/glow actually wrote); 2 = show the RT's RGB with alpha forced opaque (what color is in the texture before the composite multiplies it by coverage - the rest of the screen goes black). Used to diagnose dice elements that render into the RT but vanish at composite, e.g. glows over the transparent background. Reusable tool.
+--- SetDiceCompositeDebug: Diagnostic: switches the dice composite (the DiceRawImageShader drawing the dice RenderTexture over the UI, live + panel-embedded dice alike) into a debug view. 0 = normal; 1 = show the RT's ALPHA channel as opaque grayscale (what coverage the dice/glow actually wrote); 2 = show the RT's RGB with alpha forced opaque (what color is in the texture before the composite multiplies it by coverage -- the rest of the screen goes black). Used to diagnose dice elements that render into the RT but vanish at composite, e.g. glows over the transparent background. Reusable tool.
 --- @param mode number
 --- @return nil
 function dmhub.SetDiceCompositeDebug(mode)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
+--- @return nil
+function dmhub.DumpRenderTextures()
 	-- dummy implementation for documentation purposes only
 end
 

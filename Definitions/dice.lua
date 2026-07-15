@@ -26,8 +26,8 @@ function dice.GetAllDice()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetDiceSlots: Returns the 'slots' authored on an uploaded dice set (see the Dice Studio Slots section): an array of tables, each with a slotType field -- 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string. Returns an empty table if the dice set has no slots or the id is unknown. The result is a copy; mutating it does not change the dice set.
---- @param assetid string The cloud dice id (guid).
+--- GetDiceSlots: Returns the 'slots' authored on an uploaded dice set (see the Dice Studio Slots section): an array of tables, each with a slotType field -- 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string; 'monster' entries carry a groupid string (a MonsterGroup table id). Returns an empty table if the dice set has no slots or the id is unknown. The result is a copy; mutating it does not change the dice set.
+--- @param assetid string  The cloud dice id (guid).
 --- @return table
 function dice.GetDiceSlots(assetid)
 	-- dummy implementation for documentation purposes only
@@ -108,5 +108,12 @@ end
 --- @param assetid string
 --- @return nil
 function dice.SetRollPreviewModel(assetid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetRollSlotDice: Makes subsequent rolls use the given dice-set asset id for EVERY die instead of the equipped loadout, because a dice 'slot' activation (the diceslotsequipped setting) matched the roll being prepared -- e.g. fire-damage dice for a power roll dealing fire damage. The roll dialog sets this when it opens on a matching roll and clears it when the roll completes or is cancelled. Unlike SetRollPreviewModel this is a real networked roll: each die records the set it was skinned with, so all clients replay the same look. A shop try-dice override or an active Dice Studio set takes precedence while it is up. Pass nil or an empty string to clear.
+--- @param assetid string|nil  The cloud dice id (guid), or nil/'' to clear.
+--- @return nil
+function dice.SetRollSlotDice(assetid)
 	-- dummy implementation for documentation purposes only
 end

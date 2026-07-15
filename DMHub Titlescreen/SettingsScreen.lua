@@ -17,9 +17,11 @@ end
 -- the Shopify account section is hidden.
 local g_devStorePreviewSetting = setting{
 	id = "dev:storepreview",
-	default = false,
+	default = true,
 	storage = "preference",
 }
+
+g_devStorePreviewSetting:Set(true)
 
 -- Pure order normalizers for the codex Shopify purchases list. Mirror the companion's
 -- src/shop/orders.js so codex and web render identically. ASCII only; never error.
@@ -658,6 +660,746 @@ local function CreateLocalAssetsSection()
 		},
 
 		statusLabel,
+	}
+end
+
+--Creator Organizations: create an organization (or convert your personal
+--creator id into one), manage members and one-use invite codes, join an
+--organization with an invite code, transfer ownership, or delete the
+--organization. Organizations publish modules under a shared author id; the
+--Publish As dropdown in the module share dialog lists the ones you belong to.
+local function CreateCreatorOrganizationsSection()
+
+	--engine support gate: on engine builds without the organizations API the
+	--section is hidden entirely. (Calling a missing member on the C# module
+	--interface raises, so probe with pcall.)
+	local hasOrgSupport = pcall(function()
+		module.GetOurOrganizations()
+	end)
+	if not hasOrgSupport then
+		return {}
+	end
+
+	local contentPanel = nil
+	local BuildContent = nil
+
+	local function Refresh()
+		module.RefreshOurOrganizations{
+			success = function(orgs)
+				if contentPanel == nil or (not contentPanel.valid) then
+					return
+				end
+				BuildContent()
+			end,
+		}
+	end
+
+	local function OwnedOrg(orgs)
+		for _,org in ipairs(orgs) do
+			if org.role == "owner" then
+				return org
+			end
+		end
+		return nil
+	end
+
+	--gui.ModalMessage needs the game hud, which does not exist on the
+	--titlescreen where this settings screen can also be shown. Use it when
+	--available and otherwise show a simple overlay dialog on our own sheet.
+	local function ShowMessage(args)
+		if rawget(_G, "gamehud") ~= nil then
+			gui.ModalMessage(args)
+			return
+		end
+
+		local root = nil
+		if contentPanel ~= nil and contentPanel.valid then
+			root = contentPanel.root
+		end
+		if root == nil then
+			return
+		end
+
+		local overlay = nil
+
+		local buttons = {}
+		local options = args.options or {{ text = "Okay" }}
+		for _,option in ipairs(options) do
+			buttons[#buttons+1] = gui.Button{
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "center",
+				valign = "center",
+				hmargin = 6,
+				text = option.text,
+				click = function(element)
+					overlay:DestroySelf()
+					if option.execute ~= nil then
+						option.execute()
+					end
+				end,
+			}
+		end
+
+		overlay = gui.Panel{
+			floating = true,
+			width = "100%",
+			height = "100%",
+			halign = "center",
+			valign = "center",
+			bgimage = "panels/square.png",
+			bgcolor = "#000000cc",
+
+			gui.Panel{
+				width = 600,
+				height = "auto",
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				bgimage = "panels/square.png",
+				bgcolor = "#111111f8",
+				border = 2,
+				borderColor = "#999999ff",
+				pad = 20,
+				borderBox = true,
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 22,
+					bold = true,
+					halign = "center",
+					textAlignment = "center",
+					text = args.title or "",
+				},
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 16,
+					halign = "center",
+					vmargin = 8,
+					text = args.message or "",
+				},
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					vmargin = 4,
+					children = buttons,
+				},
+			},
+		}
+
+		root:AddChild(overlay)
+	end
+
+	local function ErrorModal(title, msg)
+		ShowMessage{
+			title = title,
+			message = msg or "Something went wrong. Please try again.",
+		}
+	end
+
+	local function SubHeading(text)
+		return gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 20,
+			bold = true,
+			vmargin = 6,
+			text = text,
+		}
+	end
+
+	local function BodyText(text)
+		return gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 14,
+			vmargin = 2,
+			text = text,
+		}
+	end
+
+	local function MemberRow(org, member)
+		local removeButton = nil
+		if org.role == "owner" and (not member.owner) then
+			removeButton = gui.Button{
+				width = 100,
+				height = 26,
+				fontSize = 14,
+				valign = "center",
+				halign = "right",
+				text = "Remove",
+				click = function(element)
+					ShowMessage{
+						title = "Remove Member",
+						message = string.format("Remove %s from %s? They will no longer be able to publish or update the organization's modules.", member.displayName, org.displayName),
+						options = {
+							{ text = "Cancel" },
+							{
+								text = "Remove",
+								execute = function()
+									module.RemoveOrgMember{
+										orgid = org.id,
+										userid = member.userid,
+										success = Refresh,
+										failure = function(msg)
+											ErrorModal("Remove Member", msg)
+										end,
+									}
+								end,
+							},
+						},
+					}
+				end,
+			}
+		end
+
+		local memberText = member.displayName
+		if member.owner then
+			memberText = string.format("%s (owner)", member.displayName)
+		end
+
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 1,
+			gui.Label{
+				width = "60%",
+				height = "auto",
+				fontSize = 14,
+				valign = "center",
+				text = memberText,
+			},
+			removeButton,
+		}
+	end
+
+	local function InviteRow(org, invite)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 1,
+			gui.Label{
+				width = "60%",
+				height = "auto",
+				fontSize = 14,
+				valign = "center",
+				text = invite.inviteCode,
+			},
+			gui.Button{
+				width = 70,
+				height = 26,
+				fontSize = 14,
+				valign = "center",
+				text = "Copy",
+				click = function(element)
+					dmhub.CopyToClipboard(invite.inviteCode)
+				end,
+			},
+			gui.Panel{ width = 8, height = 1 },
+			gui.Button{
+				width = 90,
+				height = 26,
+				fontSize = 14,
+				valign = "center",
+				text = "Revoke",
+				click = function(element)
+					module.RevokeOrgInvite{
+						orgid = org.id,
+						code = invite.code,
+						success = Refresh,
+					}
+				end,
+			},
+		}
+	end
+
+	local function OrgCard(org)
+		local children = {}
+
+		local roleText = "member"
+		if org.role == "owner" then
+			roleText = "you own this organization"
+		end
+
+		children[#children+1] = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 20,
+			bold = true,
+			vmargin = 2,
+			text = string.format("%s (%s)", org.displayName, roleText),
+		}
+
+		children[#children+1] = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 14,
+			bold = true,
+			vmargin = 2,
+			text = "Members:",
+		}
+
+		for _,member in ipairs(org.members) do
+			children[#children+1] = MemberRow(org, member)
+		end
+
+		if org.role == "owner" then
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 2,
+				text = "Outstanding Invites:",
+			}
+
+			--the invite list loads asynchronously into this panel.
+			children[#children+1] = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				create = function(element)
+					module.GetOrgInvites{
+						orgid = org.id,
+						success = function(invites)
+							if not element.valid then
+								return
+							end
+							local rows = {}
+							for _,invite in ipairs(invites) do
+								rows[#rows+1] = InviteRow(org, invite)
+							end
+							if #rows == 0 then
+								rows[1] = gui.Label{
+									width = "100%",
+									height = "auto",
+									fontSize = 14,
+									italics = true,
+									text = "No outstanding invites.",
+								}
+							end
+							element.children = rows
+						end,
+						failure = function(msg)
+						end,
+					}
+				end,
+			}
+
+			--transfer-ownership row, revealed by the Transfer Ownership button.
+			local transferPanel = nil
+			local otherMembers = {}
+			for _,member in ipairs(org.members) do
+				if not member.owner then
+					otherMembers[#otherMembers+1] = { id = member.userid, text = member.displayName }
+				end
+			end
+
+			if #otherMembers > 0 then
+				local transferDropdown = gui.Dropdown{
+					options = otherMembers,
+					idChosen = otherMembers[1].id,
+					width = 220,
+					valign = "center",
+				}
+
+				transferPanel = gui.Panel{
+					classes = {"collapsed"},
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					vmargin = 4,
+					transferDropdown,
+					gui.Panel{ width = 8, height = 1 },
+					gui.Button{
+						width = 110,
+						height = 30,
+						fontSize = 14,
+						valign = "center",
+						text = "Transfer",
+						click = function(element)
+							local targetid = transferDropdown.idChosen
+							local targetName = targetid
+							for _,m in ipairs(otherMembers) do
+								if m.id == targetid then
+									targetName = m.text
+								end
+							end
+							ShowMessage{
+								title = "Transfer Ownership",
+								message = string.format("Transfer ownership of %s to %s? You will remain a member, but they will control the organization's members, invites, ownership, and deletion. You will not be able to undo this.", org.displayName, targetName),
+								options = {
+									{ text = "Cancel" },
+									{
+										text = "Transfer Ownership",
+										execute = function()
+											module.TransferOrgOwnership{
+												orgid = org.id,
+												userid = targetid,
+												success = Refresh,
+												failure = function(msg)
+													ErrorModal("Transfer Ownership", msg)
+												end,
+											}
+										end,
+									},
+								},
+							}
+						end,
+					},
+				}
+			end
+
+			local buttonsRow = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 4,
+			}
+
+			local buttons = {}
+			buttons[#buttons+1] = gui.Button{
+				width = 170,
+				height = 30,
+				fontSize = 14,
+				valign = "center",
+				text = "New Invite Code",
+				click = function(element)
+					module.CreateOrgInvite{
+						orgid = org.id,
+						success = function(code)
+							dmhub.CopyToClipboard(code)
+							ShowMessage{
+								title = "Invite Created",
+								message = string.format("One-use invite code (copied to your clipboard):\n\n%s\n\nGive it to the person you want to join %s. You can revoke it here until it is used.", code, org.displayName),
+							}
+							Refresh()
+						end,
+						failure = function(msg)
+							ErrorModal("New Invite Code", msg)
+						end,
+					}
+				end,
+			}
+
+			if transferPanel ~= nil then
+				buttons[#buttons+1] = gui.Panel{ width = 8, height = 1 }
+				buttons[#buttons+1] = gui.Button{
+					width = 190,
+					height = 30,
+					fontSize = 14,
+					valign = "center",
+					text = "Transfer Ownership...",
+					click = function(element)
+						transferPanel:SetClass("collapsed", not transferPanel:HasClass("collapsed"))
+					end,
+				}
+			end
+
+			buttons[#buttons+1] = gui.Panel{ width = 8, height = 1 }
+			buttons[#buttons+1] = gui.Button{
+				width = 190,
+				height = 30,
+				fontSize = 14,
+				valign = "center",
+				text = "Delete Organization",
+				click = function(element)
+					ShowMessage{
+						title = "Delete Organization",
+						message = string.format("Delete %s? All members will be removed and nobody will be able to publish or update its modules any more. Modules that were published remain available to the users who installed them. The organization id stays reserved to your account so nobody else can claim it. This cannot be undone.", org.displayName),
+						options = {
+							{ text = "Cancel" },
+							{
+								text = "Delete Organization",
+								execute = function()
+									module.DeleteOrganization{
+										orgid = org.id,
+										success = Refresh,
+										failure = function(msg)
+											ErrorModal("Delete Organization", msg)
+										end,
+									}
+								end,
+							},
+						},
+					}
+				end,
+			}
+
+			buttonsRow.children = buttons
+
+			children[#children+1] = buttonsRow
+			children[#children+1] = transferPanel
+		else
+			children[#children+1] = gui.Button{
+				width = 170,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				valign = "center",
+				vmargin = 4,
+				text = "Leave Organization",
+				click = function(element)
+					ShowMessage{
+						title = "Leave Organization",
+						message = string.format("Leave %s? You will no longer be able to publish or update its modules.", org.displayName),
+						options = {
+							{ text = "Cancel" },
+							{
+								text = "Leave",
+								execute = function()
+									module.LeaveOrganization{
+										orgid = org.id,
+										success = Refresh,
+										failure = function(msg)
+											ErrorModal("Leave Organization", msg)
+										end,
+									}
+								end,
+							},
+						},
+					}
+				end,
+			}
+		end
+
+		return gui.Panel{
+			flow = "vertical",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 6,
+			pad = 12,
+			borderBox = true,
+			bgimage = "panels/square.png",
+			bgcolor = "#00000066",
+			children = children,
+		}
+	end
+
+	local function CreateOrgPanels(children)
+		children[#children+1] = SubHeading("Create an Organization")
+		children[#children+1] = BodyText("An organization lets a group of creators publish modules under a shared id. You can create one organization and invite others to it with one-use invite codes.")
+
+		local orgIdInput = gui.Input{
+			width = 220,
+			height = 26,
+			fontSize = 16,
+			valign = "center",
+			characterLimit = 12,
+			placeholderText = "Organization id...",
+		}
+
+		children[#children+1] = gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 4,
+			orgIdInput,
+			gui.Panel{ width = 8, height = 1 },
+			gui.Button{
+				width = 110,
+				height = 30,
+				fontSize = 14,
+				valign = "center",
+				text = "Create",
+				click = function(element)
+					local orgid = string.gsub(orgIdInput.text or "", "%s+", "")
+					if orgid == "" then
+						ErrorModal("Create Organization", "Enter an id for your organization. It may contain the characters a-z, 0-9, and _.")
+						return
+					end
+
+					module.CreateOrganization{
+						orgid = orgid,
+						success = Refresh,
+						failure = function(msg)
+							ErrorModal("Create Organization", msg)
+						end,
+					}
+				end,
+			},
+		}
+
+		if module.savedAuthorid ~= nil then
+			children[#children+1] = BodyText(string.format("Alternatively, convert your creator id '%s' into an organization. Modules you have already published under it become organization modules, and your account will no longer have a personal creator id (you will choose a new one if you publish personally again).", module.savedAuthorid))
+			children[#children+1] = gui.Button{
+				width = 280,
+				height = 30,
+				fontSize = 14,
+				halign = "center",
+				valign = "center",
+				vmargin = 4,
+				text = string.format("Convert '%s' to an Organization", module.savedAuthorid),
+				click = function(element)
+					ShowMessage{
+						title = "Convert to Organization",
+						message = string.format("Convert your creator id '%s' into an organization? Your published modules become organization modules that any member you invite can update. This cannot be undone.", module.savedAuthorid),
+						options = {
+							{ text = "Cancel" },
+							{
+								text = "Convert",
+								execute = function()
+									module.ConvertAuthorIdToOrganization{
+										success = Refresh,
+										failure = function(msg)
+											ErrorModal("Convert to Organization", msg)
+										end,
+									}
+								end,
+							},
+						},
+					}
+				end,
+			}
+		end
+	end
+
+	local function JoinOrgPanels(children)
+		children[#children+1] = SubHeading("Join an Organization")
+		children[#children+1] = BodyText("Enter a one-use invite code given to you by an organization's owner.")
+
+		local joinStatusLabel = gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 14,
+			vmargin = 2,
+			italics = true,
+			text = "",
+		}
+
+		local codeInput = gui.Input{
+			width = 300,
+			height = 26,
+			fontSize = 16,
+			valign = "center",
+			placeholderText = "Invite code...",
+		}
+
+		children[#children+1] = gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 4,
+			codeInput,
+			gui.Panel{ width = 8, height = 1 },
+			gui.Button{
+				width = 110,
+				height = 30,
+				fontSize = 14,
+				valign = "center",
+				text = "Join",
+				click = function(element)
+					local text = string.gsub(codeInput.text or "", "%s+", "")
+					local orgid, code = string.match(text, "^([%w_]+):(%w+)$")
+					if orgid == nil then
+						joinStatusLabel.text = "That does not look like an invite code. Codes look like myorg:ABCDEFGHJKMNPQRS."
+						return
+					end
+
+					joinStatusLabel.text = "Joining..."
+
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/orgRedeemInvite",
+						data = {
+							orgid = string.lower(orgid),
+							code = code,
+						},
+						success = function(data)
+							if not joinStatusLabel.valid then
+								return
+							end
+							if type(data) == "table" and data.ok then
+								joinStatusLabel.text = ""
+								local message = string.format("You have joined %s. You can now publish modules as the organization from the module publishing dialog.", data.displayName or orgid)
+								if data.alreadyMember then
+									message = string.format("You are already a member of %s.", data.displayName or orgid)
+								end
+								ShowMessage{
+									title = "Organization Joined",
+									message = message,
+								}
+								Refresh()
+							else
+								local err = "Could not join the organization."
+								if type(data) == "table" and data.error ~= nil then
+									err = data.error
+								end
+								joinStatusLabel.text = err
+							end
+						end,
+						error = function(msg)
+							if not joinStatusLabel.valid then
+								return
+							end
+							joinStatusLabel.text = "Could not contact the server. Please try again."
+						end,
+					}
+				end,
+			},
+		}
+
+		children[#children+1] = joinStatusLabel
+	end
+
+	BuildContent = function()
+		local orgs = module.GetOurOrganizations()
+
+		local children = {}
+
+		for _,org in ipairs(orgs) do
+			children[#children+1] = OrgCard(org)
+		end
+
+		if OwnedOrg(orgs) == nil then
+			CreateOrgPanels(children)
+		end
+
+		JoinOrgPanels(children)
+
+		contentPanel.children = children
+	end
+
+	contentPanel = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		create = function(element)
+			--the cached list renders immediately; refresh from the server in
+			--case membership changed since login.
+			Refresh()
+		end,
+	}
+
+	BuildContent()
+
+	return {
+		gui.Label{
+			width = "100%",
+			height = 40,
+			fontSize = 26,
+			bold = true,
+			vmargin = 8,
+			text = "Creator Organizations",
+		},
+
+		BodyText("Organizations let a group of creators publish modules under a shared id. Modules published as an organization can be updated by any of its members, and show the organization as their author."),
+
+		contentPanel,
 	}
 end
 
@@ -2073,7 +2815,7 @@ function CreateSettingsScreen(dialog, args)
 								end,
 							}
 
-							return {
+							local children = {
 
 						gui.Panel{
 							flow = "vertical",
@@ -2201,7 +2943,15 @@ function CreateSettingsScreen(dialog, args)
 								shopifyOrdersListPanel,
 							},
 						},
-						} end,
+						}
+
+						--Creator Organizations lives at the bottom of the Account tab.
+						for _,panel in ipairs(CreateCreatorOrganizationsSection()) do
+							children[#children+1] = panel
+						end
+
+						return children
+					end,
 					},
 				}
 			},

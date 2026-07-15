@@ -18,6 +18,14 @@ local mod = dmhub.GetModLoading()
 --- player is still targeting (PlaceSquare/RemoveSquare below), so the wall
 --- appears as you go. Cancelling targeting tears the placed squares back down;
 --- a committed cast consumes the session instead of spawning the wall again.
+---
+--- Stacking limit: a tile's voxel column may not exceed the floor's ceiling
+--- (floor.ceilingHeightInTiles -- see WallCeiling/StackedToCeiling below).
+--- The action bar refuses clicks on at-ceiling columns and shows "Walls
+--- Stacked to Ceiling"; the engine treats at-ceiling columns as full-height
+--- blocks, so creatures cannot stand on or fly over them. While a wallStacking
+--- ability is targeting, each placed column shows its height as a floating
+--- number on the column's top face.
 ActivatedAbilityBuildWallBehavior = RegisterGameType("ActivatedAbilityBuildWallBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityBuildWallBehavior.summary = 'Build Wall'
@@ -37,6 +45,32 @@ ActivatedAbility.RegisterType
         }
     end
 }
+
+--play a stone "footstep" thunk each time a wall voxel drops into place, so
+--building a wall gets tactile per-square feedback. Dispatched (not just fired
+--locally) so EVERY client hears the wall go up, not only the player building
+--it -- the placement itself only runs on one client, so a local-only sound
+--would be silent for everyone else. Foot.Generic_Stone is the stone
+--walking-surface footstep; args.volume MULTIPLIES its (quiet) base volume. The
+--pitch is dropped well below the footstep default (1.0) so a settling stone
+--block reads heavier than a boot step, with a small random spread so a 20-wall
+--does not sound like the same click 20 times -- we roll our own because passing
+--args.pitch OVERRIDES the event's built-in pitchRand rather than adding to it.
+--Each receiving client's ignoreDuplicates window folds a whole wall spawned in
+--a single frame (e.g. a programmatic 20-square cast) down to one audible hit,
+--while squares placed as the player targets are naturally spaced out. Note this
+--sends one dispatch per voxel; the dedup is on the audible result, not the
+--number of network messages.
+local function PlayWallVoxelPlacedSound()
+    if audio == nil or audio.DispatchSoundEvent == nil then
+        return
+    end
+
+    audio.DispatchSoundEvent("Foot.Generic_Stone", {
+        volume = 2.0,
+        pitch = 0.65 + math.random()*0.15,
+    })
+end
 
 --spawn one wall voxel object at the given square and sync the tile's column so
 --the solid wall terrain materializes. Returns the spawned object, or nil.
@@ -61,6 +95,9 @@ local function SpawnWallVoxelAt(objectid, loc, ownerTag)
     if obj == nil then
         return nil
     end
+
+    --a voxel actually materialized on this tile: thunk.
+    PlayWallVoxelPlacedSound()
 
     if ownerTag ~= nil then
         local targetable = obj:GetComponent("Targetable")
@@ -124,6 +161,52 @@ local function DestroyPreviousWalls(casterToken, currentCastId)
     end
 end
 
+--- The maximum wall-voxel column height for the given tile: the floor's ceiling
+--- height in tiles (the primary floor slab's height -- see MapFloorLua
+--- ceilingHeightInTiles). Returns nil if the tile has no floor or no usable
+--- ceiling value. pcall-guarded so engine builds that predate the
+--- ceilingHeightInTiles bridge fall back to the floor's own height.
+function ActivatedAbilityBuildWallBehavior.WallCeiling(loc)
+    local floor = game.currentMap:GetFloorFromLoc(loc)
+    if floor == nil then
+        return nil
+    end
+
+    local ceiling = nil
+    pcall(function() ceiling = floor.ceilingHeightInTiles end)
+    if ceiling == nil or ceiling <= 0 then
+        pcall(function() ceiling = floor.floorHeightInTiles end)
+    end
+
+    if ceiling == nil or ceiling <= 0 then
+        return nil
+    end
+
+    return ceiling
+end
+
+--- True if the tile's wall-voxel column has reached the floor's ceiling: no
+--- further cubes can be stacked there (and the engine treats the column as a
+--- full-height block -- nothing can stand on top of it). The action bar checks
+--- this to refuse the click and show the "Walls Stacked to Ceiling" tooltip.
+function ActivatedAbilityBuildWallBehavior.StackedToCeiling(loc)
+    if loc == nil then
+        return false
+    end
+
+    local ceiling = ActivatedAbilityBuildWallBehavior.WallCeiling(loc)
+    if ceiling == nil then
+        return false
+    end
+
+    local floor = game.currentMap:GetFloorFromLoc(loc)
+    if floor == nil then
+        return false
+    end
+
+    return #floor:GetWallVoxelsAt(loc) >= ceiling
+end
+
 --find the Build Wall behavior that applies for the given mode index.
 local function FindBehaviorForMode(ability, mode)
     for _,behavior in ipairs(ability:try_get("behaviors", {})) do
@@ -152,10 +235,76 @@ end
 --------------------------------------------------------------------------------
 local g_session = nil
 
+--destroy every column-height number the session put on the map.
+local function DestroyHeightLabels(session)
+    if session == nil or session.heightLabels == nil then
+        return
+    end
+
+    for _,label in pairs(session.heightLabels) do
+        label:Destroy()
+    end
+
+    session.heightLabels = nil
+end
+
+--refresh the column-height number floating on the given tile's wall top. Only
+--stacking abilities show these (session.showHeights): a flat wall is always
+--height 1 and the numbers would be noise. The number is the tile's TOTAL
+--physical column height, so stacking onto a pre-existing wall reads correctly.
+local function UpdateHeightLabel(session, loc)
+    if session == nil or (not session.showHeights) or loc == nil then
+        return
+    end
+
+    session.heightLabels = session.heightLabels or {}
+
+    local key = loc.str
+    if session.heightLabels[key] ~= nil then
+        session.heightLabels[key]:Destroy()
+        session.heightLabels[key] = nil
+    end
+
+    local floor = game.currentMap:GetFloorFromLoc(loc)
+    if floor == nil then
+        return
+    end
+
+    local count = #floor:GetWallVoxelsAt(loc)
+    if count <= 0 then
+        return
+    end
+
+    --sit the number on the column's top face: point.z is world altitude in tiles
+    --and altitude parallaxes the canvas up with the wall (same recipe as the cube
+    --AoE labels in DrawSteelActionBar).
+    session.heightLabels[key] = dmhub.CreateCanvasOnMap{
+        point = core.Vector3(loc.x, loc.y, count),
+        floorIndex = loc.floor,
+        altitude = count,
+        sheet = gui.Label{
+            interactable = false,
+            halign = "center",
+            valign = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 0.4,
+            bold = true,
+            color = "white",
+            text = tostring(count),
+        },
+    }
+end
+
 --- Build one wall square immediately during targeting. Returns true if a voxel
 --- was placed (callers register a cancel destructor on the first success).
 function ActivatedAbilityBuildWallBehavior.PlaceSquare(ability, casterToken, symbols, loc)
     if loc == nil then
+        return false
+    end
+
+    --the column already reaches the floor's ceiling: no room for another cube.
+    if ActivatedAbilityBuildWallBehavior.StackedToCeiling(loc) then
         return false
     end
 
@@ -172,12 +321,21 @@ function ActivatedAbilityBuildWallBehavior.PlaceSquare(ability, casterToken, sym
     --the session is created before the spawn so its castid can be stamped onto
     --the voxel (see SpawnWallVoxelAt's ownerTag).
     if g_session == nil or g_session.committed or g_session.abilityGuid ~= ability.guid then
+        --a stale uncommitted session for another ability shouldn't exist here
+        --(beginCasting cancels it), but never leak its height labels.
+        if g_session ~= nil and not g_session.committed then
+            DestroyHeightLabels(g_session)
+        end
+
         g_session = {
             abilityGuid = ability.guid,
             castid = dmhub.GenerateGuid(),
             committed = false,
             placements = {},
             casterToken = casterToken, --for the map modification record's metadata.
+
+            --stacking walls show a height number on each column while targeting.
+            showHeights = ability.wallStacking,
         }
     end
 
@@ -192,6 +350,7 @@ function ActivatedAbilityBuildWallBehavior.PlaceSquare(ability, casterToken, sym
     end
 
     g_session.placements[#g_session.placements+1] = { loc = loc, obj = obj }
+    UpdateHeightLabel(g_session, loc)
     return true
 end
 
@@ -210,6 +369,8 @@ function ActivatedAbilityBuildWallBehavior.RemoveSquare(loc)
                 --our cubes are the newest on the tile, so the topmost cube is ours.
                 floor:DestroyWallVoxel(loc, 9999)
             end
+
+            UpdateHeightLabel(g_session, loc)
             break
         end
     end
@@ -225,6 +386,10 @@ function ActivatedAbilityBuildWallBehavior.CommitPlacement(ability)
     end
 
     g_session.committed = true
+
+    --the height numbers are a targeting aid; the cast is going through, so
+    --take them down.
+    DestroyHeightLabels(g_session)
 
     if #g_session.placements > 0 and rawget(_G, "game") ~= nil and game.AddMapModificationVoxel ~= nil then
         ActivatedAbility.BeginMapModificationRecording(ability, g_session.casterToken,
@@ -252,6 +417,8 @@ function ActivatedAbilityBuildWallBehavior.CancelPlacement()
             floor:DestroyWallVoxel(placement.loc, 9999)
         end
     end
+
+    DestroyHeightLabels(session)
 end
 
 --consume the session at cast time. Returns the session's castid if the wall was
@@ -317,8 +484,12 @@ function ActivatedAbilityBuildWallBehavior:Cast(ability, casterToken, targets, o
     end
 
     for _,loc in ipairs(locs) do
-        local obj = SpawnWallVoxelAt(self.objectid, loc, ownerTag)
-        RecordVoxelInModification(obj)
+        --programmatic casts respect the ceiling too: a column that already
+        --reaches the floor's ceiling cannot take another cube.
+        if not ActivatedAbilityBuildWallBehavior.StackedToCeiling(loc) then
+            local obj = SpawnWallVoxelAt(self.objectid, loc, ownerTag)
+            RecordVoxelInModification(obj)
+        end
     end
 
     ability:CommitToPaying(casterToken, options)

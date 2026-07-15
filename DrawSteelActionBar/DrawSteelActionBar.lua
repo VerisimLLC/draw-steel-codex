@@ -6170,6 +6170,16 @@ CreateAbilityController = function()
                         clickText = string.format(tr("Needs Tier %d - Click to Roll"), g_jumpHoverRequiredTier)
                     end
 
+                    --Wall building: the hovered square's voxel column already
+                    --reaches the floor's ceiling, so a click will be refused --
+                    --tell the player why.
+                    if g_currentAbility.targeting == "contiguous_wall" and loc ~= nil then
+                        local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                        if buildWall ~= nil and buildWall.StackedToCeiling ~= nil and buildWall.StackedToCeiling(loc) then
+                            clickText = tr("Walls Stacked to Ceiling")
+                        end
+                    end
+
                     local locs = g_pointTargeting.shape.locations
                     if locs == nil or #locs == 0 then
                         locs = { { withGroundAltitude = { point3 = point } } }
@@ -6433,6 +6443,16 @@ CreateAbilityController = function()
                             if not adjacent then
                                 return
                             end
+                        end
+                    end
+
+                    --wall building: a column that already reaches the floor's
+                    --ceiling cannot take another cube. Refuse the click; the
+                    --hover label explains with "Walls Stacked to Ceiling".
+                    if loc ~= nil and g_currentAbility.targeting == "contiguous_wall" then
+                        local buildWall = rawget(_G, "ActivatedAbilityBuildWallBehavior")
+                        if buildWall ~= nil and buildWall.StackedToCeiling ~= nil and buildWall.StackedToCeiling(loc) then
+                            return
                         end
                     end
 

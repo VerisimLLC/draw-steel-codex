@@ -1241,6 +1241,7 @@ ShowShopPanel = function(parentPanel)
                 minHeight = 60,
                 multiline = true,
                 width = 400,
+                characterLimit = 1024,
                 item = function(element, item)
                     element.text = item.details
                 end,

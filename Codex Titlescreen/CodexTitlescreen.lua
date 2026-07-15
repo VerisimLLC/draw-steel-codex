@@ -189,6 +189,12 @@ local function MakeStoreBannerDie(opts)
         y = opts.y or 0,
 
         beginDrag = function(element)
+            --Grabbing a banner die to spin it. deduplicate collapses a burst of
+            --regrabs while fidgeting into a single event.
+            track("shopTitleBannerDiceSpin", {
+                assetid = opts.assetid,
+                deduplicate = 5,
+            })
             pcall(function() dice.SetPreviewDragging(key, true) end)
         end,
         --Release: stop feeding cursor input; the spin coasts and decays to idle.
@@ -5337,6 +5343,7 @@ function CreateTitlescreen(dialog, options)
                 end,
 
                 click = function(element)
+                    track("shopTitleBannerClick", {})
                     audio.FireSoundEvent("Mouse.Click")
                     titlescreen:AddChild(CreateShopScreen{ titlescreen = titlescreen, inventory = false })
                 end,

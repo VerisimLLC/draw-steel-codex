@@ -13,9 +13,11 @@ end
 
 local g_devInventorySetting = setting{
     id = "dev:storepreview",
-    default = false,
+    default = true,
     storage = "preference",
 }
+
+g_devInventorySetting:Set(true)
 
 -- Open the shop/inventory screen. The screen needs a host panel that has a
 -- .data.dialog (for sizing) and that it can be parented to. On the
@@ -3300,7 +3302,11 @@ local function CreateTopBar()
 
         local bodyPanel = gui.Panel{
             width = 940,
-            height = 620,
+            --tall enough for the longest question (features: 9 options + an
+            --Other field) to sit centered without the option list colliding
+            --with the floating Back/Next footer. This also drops the footer
+            --into the room that was previously empty below it.
+            height = 690,
             flow = "vertical",
             halign = "center",
 

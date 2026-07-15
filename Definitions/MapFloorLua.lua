@@ -15,7 +15,8 @@
 --- @field opacityNoUpload any 
 --- @field floorOpacity any 
 --- @field floorOpacityNoUpload any 
---- @field floorHeightInTiles number 
+--- @field floorHeightInTiles number
+--- @field ceilingHeightInTiles number (Read-only) The floor's physical ceiling in tiles above floor zero: the primary floor slab's floorHeightInTiles (a layer reports its parent floor's). Solid terrain or wall voxels stacked to this height touch the ceiling.
 --- @field shadowCasting any 
 --- @field renderOrder any 
 --- @field shareLighting any 

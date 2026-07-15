@@ -46,9 +46,75 @@ function module.GetOurPurchasedModules()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetOurPublishedModules: Gets a list of module IDs that the current user has published.
+--- GetOurPublishedModules: Gets a list of module IDs that the current user has published, including modules published by organizations the user belongs to.
 --- @return string[]
 function module.GetOurPublishedModules()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetOurOrganizations: Gets the (cached) list of creator organizations the current user belongs to. Each entry has id, displayName, role ('owner' or 'member'), members (list of {userid, displayName, owner}), and modules (list of module ids). Use RefreshOurOrganizations to re-download the list.
+--- @return table[]
+function module.GetOurOrganizations()
+	-- dummy implementation for documentation purposes only
+end
+
+--- RefreshOurOrganizations: Re-downloads the list of creator organizations the current user belongs to, then calls options.success with the same list GetOurOrganizations returns.
+--- @param options table Options table with 'success' (function(table[])) field.
+function module.RefreshOurOrganizations(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateOrganization: Creates a new creator organization owned by the current user. A user may only create one organization. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'success' (function), and 'failure' (function(string)) fields.
+function module.CreateOrganization(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ConvertAuthorIdToOrganization: Converts the current user's personal creator id into an organization. All modules already published under the id are adopted by the organization, and the personal author id is cleared from the account. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'success' (function) and 'failure' (function(string)) fields.
+function module.ConvertAuthorIdToOrganization(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateOrgInvite: Creates a one-use invite code for an organization the current user owns. Calls options.success with the code string to give to the invitee, or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'success' (function(string)), and 'failure' (function(string)) fields.
+function module.CreateOrgInvite(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetOrgInvites: Gets the outstanding invite codes for an organization the current user owns. Calls options.success with a list of {code, inviteCode, created} entries, or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'success' (function(table[])), and 'failure' (function(string)) fields.
+function module.GetOrgInvites(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevokeOrgInvite: Revokes an outstanding invite code for an organization the current user owns. Calls options.success on success.
+--- @param options table Options table with 'orgid' (string), 'code' (string), and 'success' (function) fields.
+function module.RevokeOrgInvite(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RemoveOrgMember: Removes a member from an organization the current user owns. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'userid' (string), 'success' (function), and 'failure' (function(string)) fields.
+function module.RemoveOrgMember(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- TransferOrgOwnership: Transfers ownership of an organization the current user owns to another member. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'userid' (string), 'success' (function), and 'failure' (function(string)) fields.
+function module.TransferOrgOwnership(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DeleteOrganization: Deletes an organization the current user owns. The organization id remains reserved (tombstoned) so it can never be claimed by someone else. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'success' (function), and 'failure' (function(string)) fields.
+function module.DeleteOrganization(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LeaveOrganization: Leaves an organization the current user is a member (but not the owner) of. Calls options.success on success or options.failure with an error message.
+--- @param options table Options table with 'orgid' (string), 'success' (function), and 'failure' (function(string)) fields.
+function module.LeaveOrganization(options)
 	-- dummy implementation for documentation purposes only
 end
 

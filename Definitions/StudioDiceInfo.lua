@@ -7,6 +7,13 @@ function StudioDiceInfo:Save()
 	-- dummy implementation for documentation purposes only
 end
 
+--- WriteTo
+--- @param dir string
+--- @return nil
+function StudioDiceInfo:WriteTo(dir)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetSpecialMovement
 --- @return string
 function StudioDiceInfo:GetSpecialMovement()

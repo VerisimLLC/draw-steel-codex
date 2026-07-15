@@ -308,6 +308,109 @@ function GameHud.CreateEmbeddedRollDialog()
         g_holdingRollOpen = false
     end
 
+    --Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
+    --shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
+    --dice (see the diceslotsequipped setting and the Dice Studio Slots section). While
+    --this dialog is preparing a roll that matches one of the player's activations, the
+    --whole roll (preview cage included) is skinned with the activated set via the
+    --dice.SetRollSlotDice engine bridge. Set when the dialog shows; cleared when the
+    --roll completes or is cancelled (and on dialog destroy as a backstop).
+    --pcall: the bridge needs an engine build that has it.
+    local SetRollSlotDice = function(assetid)
+        pcall(function() dice.SetRollSlotDice(assetid) end)
+    end
+
+    --Resolves which activated slot set (if any) should skin the roll this dialog is
+    --showing. Builds candidate slot keys in most-specific-first order and returns the
+    --first one the player has an activation for:
+    --  1. "damage:<type>"                -- a power roll whose tiers deal that damage
+    --                                       type (e.g. "4 fire damage"); typed damage
+    --                                       only, plain "4 damage" matches nothing.
+    --  2. "class:<classid>:<subclassid>" -- the rolling hero's class + chosen subclass.
+    --  3. "class:<classid>"              -- the rolling hero's class.
+    --  4. "monster:<groupid>"            -- the rolling monster's type (MonsterGroup),
+    --                                       then the groups it inherits from,
+    --                                       breadth-first, so a direct match beats an
+    --                                       inherited one.
+    local ComputeSlotDiceForRoll = function(creatureArg, rollProps)
+        local slotsEquipped = dmhub.GetSettingValue("diceslotsequipped")
+        if type(slotsEquipped) ~= "table" or next(slotsEquipped) == nil then
+            return nil
+        end
+
+        local candidates = {}
+
+        --Damage types featured in the power roll tiers.
+        if rollProps ~= nil and rollProps.typeName == "RollPropertiesPowerTable" then
+            local ok, damageTypes = pcall(function() return rollProps:GetDamageTypes() end)
+            if ok and damageTypes ~= nil then
+                for _,damageType in ipairs(damageTypes) do
+                    if damageType ~= "untyped" then
+                        candidates[#candidates+1] = "damage:" .. damageType
+                    end
+                end
+            end
+        end
+
+        if creatureArg ~= nil then
+            --Hero class/subclass. GetClassesAndSubClasses interleaves each class with
+            --its chosen subclasses; collect subclass keys ahead of class keys so the
+            --subclass activation wins.
+            local classKeys = {}
+            local ok, classEntries = pcall(function() return creatureArg:GetClassesAndSubClasses() end)
+            if ok and classEntries ~= nil then
+                for _,entry in ipairs(classEntries) do
+                    local info = entry.class
+                    local id = info ~= nil and info:try_get("id") or nil
+                    if id ~= nil then
+                        if info:try_get("isSubclass", false) then
+                            local primary = info:try_get("primaryClassId", "")
+                            if primary ~= "" then
+                                candidates[#candidates+1] = string.format("class:%s:%s", primary, id)
+                            end
+                        else
+                            classKeys[#classKeys+1] = "class:" .. id
+                        end
+                    end
+                end
+            end
+            for _,key in ipairs(classKeys) do
+                candidates[#candidates+1] = key
+            end
+
+            --Monster type: the monster's own group, then inherited groups
+            --breadth-first. The seen guard also protects against inheritance cycles.
+            local okGroup, group = pcall(function() return creatureArg:MonsterGroup() end)
+            if okGroup and group ~= nil then
+                local groupsTable = dmhub.GetTable("MonsterGroup") or {}
+                local seen = {}
+                local queue = { group }
+                while #queue > 0 do
+                    local g = table.remove(queue, 1)
+                    local gid = g:try_get("id")
+                    if gid ~= nil and not seen[gid] then
+                        seen[gid] = true
+                        candidates[#candidates+1] = "monster:" .. gid
+                        for _,inheritid in ipairs(g:try_get("inherits") or {}) do
+                            if not seen[inheritid] and groupsTable[inheritid] ~= nil then
+                                queue[#queue+1] = groupsTable[inheritid]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        for _,key in ipairs(candidates) do
+            local assetid = slotsEquipped[key]
+            if assetid ~= nil and assetid ~= "" then
+                return assetid
+            end
+        end
+
+        return nil
+    end
+
 
     local styles = {
         Styles.Panel,
@@ -3157,6 +3260,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if not cleared then
             dmhub.CancelCurrentRoll()
         end
+        SetRollSlotDice(nil)
         OnHide()
         RelinquishPanel()
     end
@@ -4760,6 +4864,13 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 m_boons = 0
 
+                --Slot-activated dice: if one of the player's activated dice slots
+                --matches this roll, skin the whole roll with that set. Always called --
+                --a nil result clears any override left over from an earlier roll --
+                --and before CalculateRollText below so the dialog's preview cage
+                --already spawns with the slot set.
+                SetRollSlotDice(ComputeSlotDiceForRoll(creature, rollProperties))
+
                 resultPanel:FireEventTree('prepare', options)
 
                 baseRoll = options.roll
@@ -4819,6 +4930,10 @@ function GameHud.CreateEmbeddedRollDialog()
             end,
             destroy = function(element)
                 --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
+
+                --Backstop: never let a slot-activated dice override outlive the
+                --dialog that set it (the complete/cancel paths normally clear it).
+                SetRollSlotDice(nil)
 
                 --DIAG: the embedded roll dialog has been seen to vanish mid-roll,
                 --leaving orphaned, unresponsive preview dice. Log the Lua call
@@ -4973,6 +5088,11 @@ function GameHud.CreateEmbeddedRollDialog()
                 rollProperties = rollProperties or RollProperties.new {}
 
                 completeFunction = function(rollInfo)
+                    --The roll is accepted and done with the dice: release any
+                    --slot-activated dice override. (Re-rolls and triggers happen
+                    --before this; a follow-up roll re-resolves in ShowDialog.)
+                    SetRollSlotDice(nil)
+
                     local resourceConsumed = false
 
                     local surgesUsed = 0

@@ -3477,6 +3477,7 @@ function Encounter.Editor(self, options)
             width = "100%",
             height = "auto",
             minHeight = 30,
+            borderBox = true,
             fontSize = 13,
             multiline = true,
             textAlignment = "topleft",

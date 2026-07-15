@@ -9908,6 +9908,32 @@ function creature:GetConditionImmunities()
 	return result
 end
 
+--- Returns a custom in-character immunity message for a condition, if any active
+--- modifier that grants immunity to that condition also specifies an
+--- immunityMessage. Used to override the default immunity speech (e.g. an
+--- Olothec transformation effect grants Hidden-immunity but wants to say
+--- "I can't hide from that Olothec right now" instead of "I can't be Hidden!").
+--- Returns the first non-empty message found, or nil when none applies.
+--- @param condid string
+--- @return string|nil
+function creature:GetConditionImmunityMessage(condid)
+	local modifiers = self:GetActiveModifiers()
+	for i,mod in ipairs(modifiers) do
+		local m = mod.mod
+		if m.behavior == "conditionimmunity" then
+			local message = m:try_get("immunityMessage")
+			if message ~= nil and message ~= "" then
+				for j,c in ipairs(m:try_get("conditions", {})) do
+					if c == condid then
+						return message
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
 
 
 

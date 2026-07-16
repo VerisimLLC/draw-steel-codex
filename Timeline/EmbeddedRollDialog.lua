@@ -144,6 +144,16 @@ function PowerRollSpoilers.DefaultRevealed(text)
     return text ~= nil and string.find(text, "{#", 1, true) == nil
 end
 
+--- Remove spoiler markers from text, keeping the content (the editing
+--- counterpart of wrapping text in {#...}).
+function PowerRollSpoilers.Strip(text)
+    if text == nil then
+        return text
+    end
+    local result = string.gsub(text, "{[#!](.-)}", "%1")
+    return result
+end
+
 function PowerRollSpoilers.DocumentPath()
     return mod:GetDocumentPath(PowerRollSpoilers.documentId)
 end

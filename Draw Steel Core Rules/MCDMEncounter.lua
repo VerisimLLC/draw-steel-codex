@@ -47,6 +47,9 @@ Encounter = RegisterGameType('Encounter')
 
 Encounter.name = 'New Encounter'
 
+--Optional free-text notes about the encounter, edited in the encounter builder.
+Encounter.description = ''
+
 Encounter.tableName = 'encounters'
 
 Encounter.monsters = {}

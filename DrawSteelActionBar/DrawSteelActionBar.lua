@@ -2576,6 +2576,28 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
         end
     end
 
+    -- "Everything the Light Touches": a creature with Lightbender LoE Blocked
+    -- cannot have line of effect to any Lightbender-keyword creature.
+    local function hasLightbenderKeyword(tok)
+        if tok == nil or tok.properties == nil then return false end
+        local kws = tok.properties:Keywords()
+        return kws["Lightbender"] == true
+    end
+    if sourceToken.properties ~= nil
+        and (sourceToken.properties:CalculateNamedCustomAttribute("Lightbender LoE Blocked") or 0) > 0
+        and hasLightbenderKeyword(targetToken)
+    then
+        markers:AddLabel("No Line of Effect", "forbidden")
+        return
+    end
+    if targetToken.properties ~= nil
+        and (targetToken.properties:CalculateNamedCustomAttribute("Lightbender LoE Blocked") or 0) > 0
+        and hasLightbenderKeyword(sourceToken)
+    then
+        markers:AddLabel("No Line of Effect", "forbidden")
+        return
+    end
+
     -- Match the validity check in CalculateSpellTargetFocusing: failReason
     -- fires when distance >= range + unitsPerSquare (i.e. `not (range+1 > d)`).
     -- Draw Steel "free diagonals" makes the 3D distance Chebyshev:

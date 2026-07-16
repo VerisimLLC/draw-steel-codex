@@ -1448,40 +1448,32 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
     end
 
-    --pooled render panel for one page of the main view. Two layers: the
-    --panel itself shows the (cheap, already-cached-for-the-contents-pane)
-    --thumbnail immediately, and the child panel fades in the full-resolution
-    --render once it has loaded, so fast scrolling shows page previews rather
-    --than blank rectangles. Pressing a page that isn't the current page
-    --makes it the current (interactive) page.
-    local CreateMainPagePanel = function()
-        local fullPanel = gui.Panel {
-            classes = { "pdfPageFull" },
+    --one image layer (thumbnail or full-resolution render) of a pooled page
+    --panel. Layers are created FRESH for every image assignment and
+    --destroyed when replaced: the engine only reliably fires imageLoaded on
+    --a panel's first image (reassigned panels keep displaying their old
+    --texture, never re-fire the event, and report a stale bgimageInit), so
+    --fresh panels are the only way to reveal a render exactly when it is
+    --actually ready. Destroying the old layer also releases its texture.
+    local CreatePageImageLayer = function(imageid)
+        return gui.Panel {
+            classes = { "pdfPageLayer", "pdfImageLoading" },
             width = "100%",
             height = "100%",
-            bgimage = "panels/square.png",
+            bgimage = imageid,
             bgcolor = "white",
             interactable = false,
 
-            data = {
-                --true while bgimage is a real page render; guards against the
-                --placeholder square's imageLoaded revealing this layer.
-                live = false,
-            },
-
             imageLoaded = function(element)
-                if element.data.live then
-                    element:SetClass("fullLoaded", true)
-                end
+                element:SetClass("pdfImageLoading", false)
             end,
 
-            --imageLoaded does not reliably re-fire when bgimage is reassigned
-            --on a pooled panel, so also poll bgimageInit to reveal the
-            --full-resolution layer once its render is ready.
-            thinkTime = 0.1,
+            --insurance in case imageLoaded is missed: on a fresh panel
+            --bgimageInit genuinely tracks this image's load state.
+            thinkTime = 0.5,
             think = function(element)
-                if element.data.live and element.bgimageInit and (not element:HasClass("fullLoaded")) then
-                    element:SetClass("fullLoaded", true)
+                if element:HasClass("pdfImageLoading") and element.bgimageInit then
+                    element:SetClass("pdfImageLoading", false)
                 end
             end,
 
@@ -1493,8 +1485,17 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.selfStyle.inversion = dmhub.GetSettingValue("pdfdark")
             end,
         }
+    end
 
-        return gui.Panel {
+    --pooled render panel for one page of the main view. The panel itself is
+    --the blank white "paper"; a thumbnail layer gives a cheap preview and a
+    --full-resolution layer fades in over it once its render is ready. Each
+    --layer fades in only when ITS image has loaded, so a recycled panel
+    --never shows another page's content. Pressing a page that isn't the
+    --current page makes it the current (interactive) page.
+    local CreateMainPagePanel = function()
+        local panel
+        panel = gui.Panel {
             idprefix = "pdf-main-page",
             classes = { "pdfPageRender" },
             bgimage = "panels/square.png",
@@ -1507,10 +1508,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
             data = {
                 npage = nil,
-                fullPanel = fullPanel,
-                --the full-resolution image id currently assigned to the full
-                --layer, or nil if it only holds the placeholder.
+                thumbImage = nil,
                 fullImage = nil,
+                thumbLayer = nil,
+                fullLayer = nil,
             },
 
             inversion = dmhub.GetSettingValue("pdfdark"),
@@ -1521,35 +1522,50 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 element.selfStyle.inversion = dmhub.GetSettingValue("pdfdark")
             end,
 
-            setFullImage = function(element, imageid)
-                element.data.fullImage = imageid
-                fullPanel.data.live = true
-                fullPanel.bgimage = imageid
-                --reassigning a #PDF bgimage on a pooled panel keeps the
-                --PREVIOUS page's texture on screen (and bgimageInit true)
-                --until the new render arrives (~0.3s), so the think poll
-                --below would re-reveal this layer showing the OLD page --
-                --seen as the page flicking back and forth on navigation
-                --in one-page-at-a-time mode. Force bgimageInit off: the
-                --engine reasserts it (and fires imageLoaded) only once
-                --the new texture is actually bound.
-                fullPanel.bgimageInit = false
+            --rebuild the children list from the current layers; the full
+            --layer must come last so it draws above the thumbnail.
+            syncLayers = function(element)
+                local children = {}
+                children[#children + 1] = element.data.thumbLayer
+                children[#children + 1] = element.data.fullLayer
+                element.children = children
             end,
 
-            --hide the full-resolution layer (when the page leaves the window,
-            --or is displayed too small to need it). The bgimage is
-            --deliberately left in place: swapping a dynamic #PDF image out
-            --for a placeholder poisons the binding when the same id is later
-            --assigned again (the panel keeps rendering the placeholder), and
-            --a hidden pooled panel holding one stale page texture is bounded
-            --by the pool size.
+            setThumbImage = function(element, imageid)
+                if element.data.thumbImage == imageid then
+                    return
+                end
+                element.data.thumbImage = imageid
+                if element.data.thumbLayer ~= nil and element.data.thumbLayer.valid then
+                    element.data.thumbLayer:DestroySelf()
+                end
+                element.data.thumbLayer = CreatePageImageLayer(imageid)
+                element:FireEvent("syncLayers")
+            end,
+
+            setFullImage = function(element, imageid)
+                if element.data.fullImage == imageid then
+                    return
+                end
+                element.data.fullImage = imageid
+                if element.data.fullLayer ~= nil and element.data.fullLayer.valid then
+                    element.data.fullLayer:DestroySelf()
+                end
+                element.data.fullLayer = CreatePageImageLayer(imageid)
+                element:FireEvent("syncLayers")
+            end,
+
+            --drop the full-resolution layer (when the page leaves the window,
+            --or is displayed too small to need it), releasing its texture.
             clearFullImage = function(element)
                 if element.data.fullImage == nil then
                     return
                 end
                 element.data.fullImage = nil
-                fullPanel.data.live = false
-                fullPanel:SetClass("fullLoaded", false)
+                if element.data.fullLayer ~= nil and element.data.fullLayer.valid then
+                    element.data.fullLayer:DestroySelf()
+                end
+                element.data.fullLayer = nil
             end,
 
             press = function(element)
@@ -1565,9 +1581,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     RefreshPage { noscroll = true }
                 end
             end,
-
-            fullPanel,
         }
+        return panel
     end
 
     --interactive layer: carries all the machinery that works on the current
@@ -2354,13 +2369,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
         styles = {
             {
-                selectors = { "pdfPageFull" },
-                opacity = 0,
-            },
-            {
-                selectors = { "pdfPageFull", "fullLoaded" },
+                selectors = { "pdfPageLayer" },
                 opacity = 1,
                 transitionTime = 0.1,
+            },
+            {
+                selectors = { "pdfPageLayer", "pdfImageLoading" },
+                opacity = 0,
             },
         },
 
@@ -2539,7 +2554,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             if not continuous then
                 local cur = assigned[m_npage]
                 currentPageReady = cur ~= nil and cur.data.fullImage ~= nil
-                    and cur.data.fullPanel:HasClass("fullLoaded")
+                    and cur.data.fullLayer ~= nil and cur.data.fullLayer.valid
+                    and (not cur.data.fullLayer:HasClass("pdfImageLoading"))
             end
 
             local havePending = false
@@ -2556,7 +2572,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     panel.data.npage = i
                     panel:SetClass("hidden", false)
 
-                    panel.bgimage = document:GetPageThumbnailId(i)
+                    panel:FireEvent("setThumbImage", document:GetPageThumbnailId(i))
                 end
 
                 local fullImage = nil

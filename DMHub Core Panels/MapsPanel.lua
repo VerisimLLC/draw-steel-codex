@@ -193,6 +193,11 @@ local CreateMapNode = function(map)
 
 		styles = ThemeEngine.MergeTokens({
 			{ selectors = {"deleting"}, color = "@danger" },
+			-- The selected/current-map row draws the parchment @bgInverse
+			-- background, but the default label color is @fg (also parchment) --
+			-- same value, so the name becomes unreadable. Pair the selected
+			-- state with @fgInverse (the dark ink meant for inverse fills).
+			{ selectors = {"selected"}, color = "@fgInverse" },
 		}),
 
 		editable = false,
@@ -739,6 +744,11 @@ local CreatePlayerMapNode = function(map)
 		characterLimit = 32,
 		minWidth = 240,
 		editable = false,
+		-- Selected row uses the parchment @bgInverse fill; pair the text with
+		-- @fgInverse so the current map's name stays readable (see CreateMapNode).
+		styles = ThemeEngine.MergeTokens({
+			{ selectors = {"selected"}, color = "@fgInverse" },
+		}),
 		refreshMaps = function(element)
 			if map.valid then
 				element.text = map.description

@@ -204,6 +204,293 @@ local function MakeStoreBannerDie(opts)
     }
 end
 
+--All Dice shop items currently live on the store: the pool the banner's
+--rollable d10 draws a random set from. Recomputed on every (re)seed so it
+--tracks store changes, and returns {} until the shop items have downloaded
+--(the cage's think below just retries until the pool is non-empty).
+local function StoreBannerRollableDiceItems()
+    local result = {}
+    pcall(function()
+        for _, item in pairs(assets.shopItems) do
+            if item.itemType == "Dice" and item.onsale and item.assetid ~= nil and item.assetid ~= "" then
+                result[#result + 1] = item
+            end
+        end
+    end)
+    return result
+end
+
+--Whether the store banner's rollable die should have a live resting die
+--right now. The resting preview die is a real 3D object compositing over
+--the whole UI, so it must be cleared whenever the banner isn't visibly on
+--screen: on the other titlescreen states, while the titlescreen is hidden
+--behind the character sheet, while the banner is collapsed
+--(dev:storepreview off), and while a full-screen shop dialog covers it.
+local function StoreBannerDieEligible(element)
+    if not element.valid or not element:HasClass("selection-screen") then
+        return false
+    end
+    if not g_devStorePreviewSetting:Get() then
+        return false
+    end
+    if g_titlescreen ~= nil and g_titlescreen.valid and g_titlescreen:HasClass("titlescreenHidden") then
+        return false
+    end
+    local shopOpen = false
+    pcall(function() shopOpen = ShopDiceBanner.ShopScreenOpen() end)
+    return not shopOpen
+end
+
+--Builds the rollable d10 for the store banner's right-side black area: an
+--invisible dice-preview cage (like the shop details view's "try dice"
+--cages) with a "Drag to Roll" caption. A real 3D d10 in a RANDOM on-sale
+--dice set rests on the cage; a click or drag throws a full-screen preview
+--roll, and a fresh die in a newly picked random set is seeded after each
+--roll so the banner showcases the store's variety. The choice jukeboxes:
+--the same set is never seeded twice in a row (unless it is the only one on
+--sale). Every executed roll is tracked (shopTitleBannerDiceRoll) with the
+--dice set that was rolled.
+--
+--The cage seeds/clears itself to match the banner's actual visibility (see
+--StoreBannerDieEligible): the titlescreenStateChanged event fired by
+--SetTitlescreenState covers screen switches instantly, the dev:storepreview
+--monitor covers the banner's collapse gate, and a slow think reconciles the
+--rest (shop dialogs opening/closing over the banner, the shop-item list
+--arriving after the core assets download). All engine calls are
+--pcall-guarded so a Lua-only reload against an older binary degrades
+--gracefully rather than erroring.
+local function MakeStoreBannerRollDie()
+    --gui.DicePreview is the dedicated dice-preview cage panel type (the
+    --DicePreview* input methods and previewPanel roll-scoping only work on
+    --it); fall back to a plain panel on an older binary (Lua-only reload).
+    --(gui is engine userdata, so index via pcall rather than rawget.)
+    local diceCageCtor = gui.Panel
+    pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
+
+    return gui.Panel{
+        floating = true,
+        halign = "right",
+        valign = "center",
+        rmargin = 12,
+        width = 240,
+        height = "100%",
+        flow = "vertical",
+
+        styles = {
+            { selectors = {"bannerTryDie"}, transitionTime = 0.1 },
+            { selectors = {"bannerTryDie", "hover"}, scale = 1.15, brightness = 1.25 },
+        },
+
+        diceCageCtor{
+            classes = {"bannerTryDie"},
+            bgimage = true,
+            bgcolor = "white",
+            --Oversized invisible cage: the die renders over it and anchors to
+            --its world centre, so a bigger panel just widens the click/drag
+            --hitbox without moving the die. Lifted slightly (negative y = up)
+            --so the die sits above the caption label instead of covering it.
+            width = 150,
+            height = 108,
+            halign = "center",
+            valign = "center",
+            y = -14,
+            floating = true,
+            draggable = true,
+            dragMove = false,
+            --Keep the normal cursor while draggable (no drop target), like
+            --the showcase dice on the banner's left.
+            hoverCursor = "default",
+            data = { item = nil, seeded = false, reseedPending = false },
+
+            --Invisible-but-interactable cage: the real 3D die renders over it.
+            styles = {
+                gui.Style{ opacity = 0 },
+            },
+
+            create = function(element)
+                pcall(function() element:SetAsDicePreviewPanel(true) end)
+                --Thrown dice roll out to the real screen edges rather than a
+                --tight box around the cage (panel-scoped, unlike the shop's
+                --process-global SetPreviewRollScreenBounds, so it never leaks
+                --into other cages).
+                pcall(function() element.dicePreviewScreenBounds = true end)
+                --Pick up + drag lifts the die a little; a gentle release (no
+                --hurl) drops it from that altitude so it lands with an impact.
+                --A quick flick still tosses a full roll.
+                pcall(function() element.dicePreviewLiftDrop = true end)
+                --On binaries that support it, the resting die renders inside
+                --the panel (so dialogs opened over the banner cover it) and
+                --becomes a real 3D die while hovered, dragged or rolling.
+                pcall(function() element.dicePreviewVirtual = true end)
+                element:FireEvent("reconcileBannerDie")
+            end,
+            destroy = function(element)
+                pcall(function() element:CancelDicePreviewRoll() end)
+                pcall(function() element:SetAsDicePreviewPanel(false) end)
+                pcall(function() dice.SetRollPreviewModel(nil) end)
+            end,
+
+            --Slow reconciliation: catches shop dialogs opening/closing over
+            --the banner (nothing fires an event for those) and retries
+            --seeding until the shop-item list has downloaded.
+            thinkTime = 0.5,
+            think = function(element)
+                element:FireEvent("reconcileBannerDie")
+            end,
+
+            --Instant reconciliation on titlescreen screen switches (fired
+            --tree-wide by SetTitlescreenState)...
+            titlescreenStateChanged = function(element)
+                element:FireEvent("reconcileBannerDie")
+            end,
+            --...and on the dev:storepreview gate that collapses the banner.
+            multimonitor = { "dev:storepreview" },
+            monitor = function(element)
+                element:FireEvent("reconcileBannerDie")
+            end,
+
+            reconcileBannerDie = function(element)
+                local eligible = StoreBannerDieEligible(element)
+                if eligible == element.data.seeded then
+                    return
+                end
+                if eligible then
+                    element:FireEvent("seedBannerDie")
+                else
+                    element:FireEvent("clearBannerDie")
+                end
+            end,
+
+            --Seed a resting d10 in a freshly picked random on-sale dice set,
+            --armed so a click or drag executes this same local/silent roll
+            --(previewPanel scopes the seed and the armed roll to this cage,
+            --leaving any other cage's dice alone). When the roll finishes --
+            --or a too-weak drag cancels it -- re-seed shortly after with a
+            --new random set, so a fresh die is always resting here.
+            seedBannerDie = function(element)
+                if not element.valid then
+                    return
+                end
+                element.data.reseedPending = false
+                if not StoreBannerDieEligible(element) then
+                    element:FireEvent("clearBannerDie")
+                    return
+                end
+
+                local items = StoreBannerRollableDiceItems()
+                if #items == 0 then
+                    --Shop items haven't downloaded yet; the think retries.
+                    element.data.seeded = false
+                    return
+                end
+
+                --Jukebox the choice: never seed the same set twice in a row.
+                --data.item survives clear/seed cycles, so this also holds
+                --across the banner hiding and coming back. With a
+                --single-item pool there is nothing else to pick, so only
+                --then is a repeat allowed.
+                local prev = element.data.item
+                if prev ~= nil and #items > 1 then
+                    local filtered = {}
+                    for _, candidate in ipairs(items) do
+                        if candidate.id ~= prev.id then
+                            filtered[#filtered + 1] = candidate
+                        end
+                    end
+                    items = filtered
+                end
+                local item = items[math.random(#items)]
+                element.data.item = item
+
+                --Clear any existing resting die first so the freshly seeded
+                --die always picks up the new set's look, then override the
+                --roll appearance with the set (bypasses the equipped-dice
+                --ownership check, so unowned sets can be rolled too).
+                pcall(function() element:CancelDicePreviewRoll() end)
+                pcall(function() dice.SetRollPreviewModel(item.assetid) end)
+                element.data.seeded = true
+                dmhub.Roll{
+                    preview = true, ["local"] = true, silent = true,
+                    previewPanel = element,
+                    numDice = 1, numFaces = 10, numKeep = 0, description = "Try Dice",
+                    complete = function()
+                        --The seeded preview roll only executes when the user
+                        --clicks or drags the cage, so a completion here is a
+                        --real banner roll (cancel covers the too-weak-drag
+                        --and teardown paths).
+                        track("shopTitleBannerDiceRoll", {
+                            itemid = item.id,
+                            assetid = item.assetid,
+                            setName = item.name,
+                            dice = "1d10",
+                        })
+                        if element.valid then element:FireEvent("requestReseed") end
+                    end,
+                    cancel = function()
+                        if element.valid then element:FireEvent("requestReseed") end
+                    end,
+                }
+            end,
+
+            clearBannerDie = function(element)
+                element.data.seeded = false
+                element.data.reseedPending = false
+                pcall(function() element:CancelDicePreviewRoll() end)
+                --Hand back the roll-appearance override -- but not while a
+                --shop screen is open: the shop's details view owns the
+                --override then and clears it itself when it closes.
+                local shopOpen = false
+                pcall(function() shopOpen = ShopDiceBanner.ShopScreenOpen() end)
+                if not shopOpen then
+                    pcall(function() dice.SetRollPreviewModel(nil) end)
+                end
+            end,
+
+            requestReseed = function(element)
+                if not element.valid or element.data.reseedPending then
+                    return
+                end
+                element.data.reseedPending = true
+                element:ScheduleEvent("seedBannerDie", 0.6)
+            end,
+
+            --Hover wobble + click/drag-to-roll, routed through the
+            --panel-scoped DicePreview* methods so they only touch THIS
+            --cage's die. The click handler consumes the click, so unlike
+            --the banner background a click on the die rolls it rather than
+            --opening the store.
+            hover = function(element)
+                pcall(function() element:DicePreviewMouseEnter() end)
+            end,
+            dehover = function(element)
+                pcall(function() element:DicePreviewMouseLeave() end)
+            end,
+            click = function(element)
+                pcall(function() element:DicePreviewClick() end)
+            end,
+            dragging = function(element)
+                pcall(function() element:DicePreviewDragThink() end)
+            end,
+            drag = function(element)
+                pcall(function() element:DicePreviewDragEnd() end)
+            end,
+        },
+
+        gui.Label{
+            text = "Drag to Roll",
+            floating = true,
+            halign = "center",
+            valign = "bottom",
+            width = "auto",
+            height = "auto",
+            fontSize = 16,
+            fontFace = "book",
+            color = "#cfcfcf",
+            bmargin = 16,
+        },
+    }
+end
+
 local function ScaleDimensions(dim)
     return dim * math.max(1, (dmhub.screenDimensions.x / dmhub.screenDimensions.y) / (1920 / 1080))
 end
@@ -4168,6 +4455,11 @@ function CreateTitlescreen(dialog, options)
             titlescreen:SetClassTree(s, s == state)
         end
 
+        --Let panels that manage live state keyed off the current screen
+        --react immediately (the store banner's rollable die seeds/clears
+        --its real 3D resting die on this).
+        titlescreen:FireEventTree("titlescreenStateChanged", state)
+
         m_currentSearch = nil
 
         TopBar.UninstallSearchHandler(titlescreen.data.searchHandler)
@@ -5303,13 +5595,19 @@ function CreateTitlescreen(dialog, options)
                 bgimage = "panels/shop/title-storebanner.png",
                 bgcolor = "white",
 
+                --Linear gradient across the art: dark at the far left
+                --(backing the mini dice showcase, as before) and fading to a
+                --substantial block of black on the right, where the rollable
+                --d10 and its "Drag to Roll" caption sit.
                 gradient = {
-                    type = "radial",
-                    point_a = { x = 1.4, y = 0.5 },
-                    point_b = { x = 0, y = 1 },
+                    type = "linear",
+                    point_a = { x = 0, y = 0.5 },
+                    point_b = { x = 1, y = 0.5 },
                     stops = {
-                        { position = 0.0,  color = "#ffffffff" },
-                        { position = 0.65, color = "#ffffffff" },
+                        { position = 0.0,  color = "#000000ff" },
+                        { position = 0.28, color = "#ffffffff" },
+                        { position = 0.68, color = "#ffffffff" },
+                        { position = 0.88, color = "#000000ff" },
                         { position = 1.0,  color = "#000000ff" },
                     },
                 },
@@ -5333,11 +5631,13 @@ function CreateTitlescreen(dialog, options)
                 end,
 
                 --The whole banner is a button into the store. A click anywhere on
-                --it (background, the STORE button, or a tap on the dice) bubbles
-                --here and opens the shop, hosted on the titlescreen root the same
-                --way CodexTitleBar's OpenShopScreen does at the title screen.
-                --Dragging a die fires beginDrag/drag (never click), so spinning
-                --the dice does NOT open the store.
+                --it (background, the STORE button, or a tap on the showcase dice)
+                --bubbles here and opens the shop, hosted on the titlescreen root
+                --the same way CodexTitleBar's OpenShopScreen does at the title
+                --screen. Dragging a showcase die fires beginDrag/drag (never
+                --click), so spinning the dice does NOT open the store. The
+                --rollable d10 on the right has its own click handler (a click
+                --rolls it), so it never opens the store either.
                 hover = function(element)
                     audio.FireSoundEvent("Mouse.Hover")
                 end,
@@ -5451,6 +5751,12 @@ function CreateTitlescreen(dialog, options)
                         interactable = false,
                     },
                 },
+
+                --Rollable d10 in the black gradient area on the right: a real
+                --3D die in a random on-sale dice set, resting on an invisible
+                --dice-preview cage. Click or drag throws a full-screen roll;
+                --a new random set is seeded after each roll.
+                MakeStoreBannerRollDie(),
 
             },
 

@@ -40,6 +40,12 @@ end
 
 -- Check if we should share the ability timeline for this token.
 local function ShouldShareAbility(token)
+    -- The token can be stale/despawned by the time an invoke resolves (indexing
+    -- .canControl on an invalid token raises "Error indexing userdata"). Guard so
+    -- a sharing check can never throw and abort the caller (e.g. invokeAbility).
+    if token == nil or not token.valid then
+        return false
+    end
     if not token.canControl then
         return false
     end

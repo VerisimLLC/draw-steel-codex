@@ -14,7 +14,7 @@
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
 --- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
---- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, playing a Shadow, or playing an Undead monster). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string; 'monster' entries carry a groupid string (a MonsterGroup table id). Authored in the Dice Studio Slots section; saves and uploads with the set. Owners activate slots from the shop inventory's equip panel (the diceslotsequipped setting) and the roll dialog then skins matching rolls with the activated set (dice.SetRollSlotDice).
+--- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, playing a Shadow, or playing an Undead monster). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string; 'monster' entries carry a groupid string (a MonsterGroup table id). Authored in the Dice Studio Slots section; saves and uploads with the set. Owners activate slots from the shop (the diceslotsequipped setting) and the roll dialog skins matching rolls with the activated set (dice.SetRollSlotDice).
 --- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity for its look). A dice script can also toggle this per-die via die.halo.
 --- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
@@ -49,6 +49,8 @@
 --- @field textMaterialProperties DiceMaterialStudioProperties Gets the text material properties used for dice face number rendering.
 --- @field showText boolean Gets or sets whether dice face text/numbers are displayed in the studio.
 --- @field surfaceMaterialName nil|string Gets the name of the current surface material override, or nil if none is set.
+--- @field availableNumberMaterials string[] Gets the list of available numbers-material names (base-shader variants that draw the die numbers, e.g. the star-flood numbers material). Empty when none are registered.
+--- @field numbersMaterialName nil|string Gets or sets the current set's numbers-material name (a base-shader variant for the die numbers, e.g. 'StarfieldNumbersDiceMaterial'), or nil for the stock base.
 --- @field material nil|DiceMaterialLua Gets or sets the surface material override for the dice. Set to nil to clear.
 --- @field hideBaseMaterial boolean Whether the base dice material is hidden entirely so that only the custom surface material is shown. When true, the engraved face numbers and the border cage are not rendered. Has no visible effect unless a surface material is set.
 --- @field finishVideoEffect DiceVideoEffect Gets the video effect played when dice finish rolling.

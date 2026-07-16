@@ -335,6 +335,24 @@ function dmhub.SubmitSurveyResponse(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetMyTickets: Reads the local user's bug tickets from the cloud and calls callback(tickets, error). tickets is a table keyed by reportId (nil when the user has none); each ticket has reportId, title, status ('open' or 'closed'), createdAt/updatedAt/userSeenAt (epoch ms), lastDevMessageAt (epoch ms, present once a developer has responded) and messages (a table of {from ('user' or 'dev'), name (dev messages), text, timestamp} keyed by a chronologically sortable string). A developer response the user has not viewed yet is indicated by lastDevMessageAt > userSeenAt. error is nil on success.
+--- @param callback fun(tickets: nil|table, error: nil|string)
+function dmhub.GetMyTickets(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- AddTicketMessage: Appends a message from the local user to one of their bug tickets (see GetMyTickets). complete is called on success; error is called with a message on failure (after which it may be called again).
+--- @param options {reportId: string, text: string, complete: nil|fun(), error: nil|fun(message: string)}
+function dmhub.AddTicketMessage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- MarkTicketSeen: Records that the local user has viewed the given bug ticket, clearing its 'developer responded' marker. Fire-and-forget.
+--- @param reportId string
+function dmhub.MarkTicketSeen(reportId)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OpenFileDialog: Opens an operating system file dialog. id should uniquely identify this 'kind' of file open operation. The folder the user navigates to will be saved and future calls to this function with the same id will begin in that folder. The open callback will be called once for each file opened. If multiFiles is true, then openFiles will be called with a list of files opened. If the user cancels the interaction without opening a file, the cancel callback will be called. Extensions should contain possible file types that may be open, it should be in a format like {'wav', 'mp3', 'ogg'}
 --- @param options {id: string, extensions: string[], multiFiles: boolean, prompt: string, open: nil|(fun(path: string): nil), openFiles: nil|(fun(paths: string[]): nil), cancel: nil|(fun(): nil)}
 function dmhub.OpenFileDialog(options)

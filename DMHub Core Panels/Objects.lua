@@ -923,6 +923,13 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			local count = 0
 			if text ~= "" then
 				local nodeids = node:GetNodeIdsMatchingSearch(element.text)
+				--GetNodeIdsMatchingSearch returns nil if the C# search aborted (e.g. it hit a
+				--cyclic object-folder tree and threw before returning its result). Guard so we
+				--degrade to an empty result instead of erroring on pairs(nil) below and passing
+				--nil into the prepareSearch FireEventTree.
+				if nodeids == nil then
+					nodeids = {}
+				end
 				for k,v in pairs(nodeids) do
 					count = count + 1
 				end

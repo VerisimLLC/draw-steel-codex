@@ -106,7 +106,7 @@ function module.TransferOrgOwnership(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- DeleteOrganization: Deletes an organization the current user owns. The organization id remains reserved (tombstoned) so it can never be claimed by someone else. Calls options.success on success or options.failure with an error message.
+--- DeleteOrganization: Deletes an organization the current user owns. The organization id remains reserved (tombstoned) so it can never be claimed by someone else; modules published by the organization remain installed for users who have them. Calls options.success on success or options.failure with an error message.
 --- @param options table Options table with 'orgid' (string), 'success' (function), and 'failure' (function(string)) fields.
 function module.DeleteOrganization(options)
 	-- dummy implementation for documentation purposes only

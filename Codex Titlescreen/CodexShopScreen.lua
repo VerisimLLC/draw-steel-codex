@@ -9,6 +9,32 @@ local g_devStorePreviewSetting = setting{
     storage = "preference",
 }
 
+--Shop items in the "Preview in store" state (item.preview; set from the shop
+--admin panel) are shown in the shop only to users with this preference on.
+--No editor field, so it never appears in settings menus; flip on with
+--/set dev:storeitempreview true.
+local g_storeItemPreviewSetting = setting{
+    id = "dev:storeitempreview",
+    description = "Show preview-state items in the shop.",
+    default = false,
+    storage = "preference",
+}
+
+--True if the local user should see this item in the shop: live (onsale) items
+--for everyone, preview items only for users with dev:storeitempreview on.
+--preview is read defensively (the C# field may predate this build, like
+--featured/hidden); older builds just never show preview items.
+local function ItemVisibleInShop(item)
+    if item.onsale then
+        return true
+    end
+    if not g_storeItemPreviewSetting:Get() then
+        return false
+    end
+    local ok, val = pcall(function() return item.preview end)
+    return ok and val == true
+end
+
 --When true, the "Buy with Steam" button skips the actual Steam call and
 --triggers the success path locally after a 0.5s delay. Lets us iterate on
 --the post-purchase UI without doing a real Steam transaction (or any redeploy).
@@ -621,25 +647,6 @@ local shopStyles = {
 		valign = "center",
 		width = 325,
 		height = 180 + heightStretch,
-	},
-
-	{
-		selectors = {"friendLabel"},
-		bgimage = "panels/square.png",
-		bgcolor = "#00000000",
-		fontSize = 22,
-		width = "100%",
-		hpad = 8,
-	},
-	{
-		selectors = {"friendLabel", "hover"},
-		bgcolor = Styles.textColor,
-		color = "black",
-	},
-	{
-		selectors = {"friendLabel", "selected"},
-		bgcolor = Styles.textColor,
-		color = "black",
 	},
 
 	{
@@ -2285,7 +2292,7 @@ local MakeShopItemText = function(options)
 				else
 					local dollars = math.tointeger(math.floor(item.price/100))
 					local cents = math.tointeger(item.price%100)
-					element.text = string.format("$%d.%02d", dollars, cents)
+					element.text = string.format("$%d.%02dUS", dollars, cents)
 				end
 			end,
 
@@ -3516,7 +3523,7 @@ local ShowItemDetailsInternal = function(args)
 				},
 
 				MakeTryDiceCage{
-					x = 248,
+					x = 240,
 					width = 100,
 					cageWidth = 110,
 					numDice = 1,
@@ -4103,6 +4110,69 @@ function ShowShopItemDetails(args)
 	return gui.Panel(params)
 end
 
+--Builds one row displaying a gift code the user owns: item name, purchase
+--date, redemption status, and the code itself (press to copy). Used by both
+--the Gift Codes inventory tab and the Redeem a Gift Code screen.
+local MakeCouponRow = function(coupon)
+	local item = assets.shopItems[coupon.itemid]
+	local itemName = "(Unknown item)"
+	if item ~= nil then
+		itemName = item.name
+	end
+
+	return gui.Panel{
+		data = {
+			ord = coupon.ctime,
+		},
+		classes = {"couponInventoryRow"},
+		gui.Label{
+			classes = {"couponInventoryLabel"},
+			width = "25%",
+			text = itemName,
+		},
+
+		gui.Label{
+			classes = {"couponInventoryLabel"},
+			width = "7%",
+			text = dmhub.FormatTimestamp(coupon.ctime, "yyyy-MM-dd"),
+		},
+
+		gui.Label{
+			classes = {"couponInventoryLabel"},
+			width = "30%",
+			text = cond(coupon.redeemed, string.format(tr("Redeemed by %s on %s"), tostring(coupon.redeemUserFullName), dmhub.FormatTimestamp(coupon.mtime, "yyyy-MM-dd")), "Available for redemption"),
+		},
+
+		gui.Label{
+			classes = {"couponInventoryLabel"},
+			bgimage = "panels/square.png",
+			bgcolor = "#00000000",
+			width = "27%",
+			text = coupon.code,
+
+			press = function(element)
+				local tooltip = gui.Tooltip{text = tr("Copied to Clipboard"), valign = "top", borderWidth = 0}(element)
+				dmhub.CopyToClipboard(coupon.code)
+			end,
+
+			gui.Panel{
+				bgimage = "icons/icon_app/icon_app_108.png",
+				bgcolor = Styles.textColor,
+				width = 16,
+				height = 16,
+				valign = "center",
+				halign = "right",
+				styles = {
+					{
+						selectors = {"parent:hover"},
+						brightness = 1.5,
+					}
+				},
+			},
+		},
+	}
+end
+
 local function CreateShopScreenInternal(arguments)
 	analytics.Event{
 		type = "showShop",
@@ -4157,7 +4227,7 @@ local function CreateShopScreenInternal(arguments)
 	local shopItems = assets.shopItems
 
 	for k,shopItem in pairs(shopItems) do
-		if shopItem.onsale then
+		if ItemVisibleInShop(shopItem) then
 			productDatabase[#productDatabase+1] = shopItem
 		end
 
@@ -4514,6 +4584,18 @@ local function CreateShopScreenInternal(arguments)
 
 			addToCart = function(element, item)
 				m_shoppingCart[item.id] = true
+
+				--Adding an item the user already owns is only meaningful as a
+				--gift (the buttons read "Add as Gift" in that case), so force
+				--gift mode on rather than letting checkout buy a duplicate.
+				if shop:ItemInInventory(item.id) then
+					local giftButton = element:Get("giftButton")
+					if giftButton ~= nil and not giftButton:HasClass("checkoutButton") then
+						giftButton:SetClass("checkoutButton", true)
+						giftButton.parent:FireEventTree("refreshGift", true)
+					end
+				end
+
 				resultPanel:FireEventTree("refreshCart", m_shoppingCart, true)
 			end,
 
@@ -4919,6 +5001,15 @@ local function CreateShopScreenInternal(arguments)
 							resultPanel:SetClassTree("redeemingCoupon", false)
 						end,
 
+						--Programmatically select the Gift Codes tab -- used after a
+						--gift purchase so the user lands on their new codes.
+						showGiftCodes = function(element)
+							local codesPanel = element.data.panels["codes"]
+							if codesPanel ~= nil then
+								codesPanel:FireEvent("press")
+							end
+						end,
+
 					},
 				},
 
@@ -5125,7 +5216,68 @@ local function CreateShopScreenInternal(arguments)
 										resultPanel:FireEvent("showInventory")
 									end,
 								},
-							}
+							},
+
+							--The user's own purchased gift codes, listed here so codes
+							--remain findable (and their redemption status checkable)
+							--after the one-time post-purchase display.
+							gui.Panel{
+								width = "100%",
+								height = "auto",
+								flow = "vertical",
+								halign = "center",
+
+								create = function(element)
+									local header = gui.Label{
+										classes = {"collapsed"},
+										text = "Your Gift Codes",
+										fontWeight = "bold",
+										halign = "center",
+										fontSize = 24,
+										width = "auto",
+										vmargin = 30,
+									}
+
+									local rowsPanel = gui.Panel{
+										width = "100%",
+										height = "auto",
+										flow = "vertical",
+										halign = "center",
+									}
+
+									element.children = {header, rowsPanel}
+
+									--The header stays collapsed until a code actually
+									--arrives, so users with no codes see nothing extra.
+									shop:RetrieveGiftCodes(function(coupon)
+										header:SetClass("collapsed", false)
+										rowsPanel:AddChild(MakeCouponRow(coupon))
+
+										local children = rowsPanel.children
+										table.sort(children, function(a,b) return b.data.ord < a.data.ord end)
+										rowsPanel.children = children
+									end,
+									function(error)
+										header:SetClass("collapsed", false)
+										rowsPanel:AddChild(gui.Label{
+											classes = {"couponInventoryLabel"},
+											data = { ord = 0 },
+											width = "100%",
+											height = "auto",
+											color = "red",
+											text = string.format("Error: %s", error),
+										})
+									end,
+									function(allCoupons)
+									end)
+								end,
+
+								--After redeeming a code in this screen, rebuild the list
+								--so the redeemed code's status updates.
+								redeemed = function(element)
+									element:FireEvent("create")
+								end,
+							},
 						}
 					end,
 				},
@@ -5147,62 +5299,7 @@ local function CreateShopScreenInternal(arguments)
 
 						local ncodes = 0
 						ncodes = shop:RetrieveGiftCodes(function(coupon)
-							local item = assets.shopItems[coupon.itemid]
-							local itemName = "(Unknown item)"
-							if item ~= nil then
-								itemName = item.name
-							end
-							element:AddChild(gui.Panel{
-								data = {
-									ord = coupon.ctime,
-								},
-								classes = {"couponInventoryRow"},
-								gui.Label{
-									classes = {"couponInventoryLabel"},
-									width = "25%",
-									text = itemName,
-								},
-
-								gui.Label{
-									classes = {"couponInventoryLabel"},
-									width = "7%",
-									text = dmhub.FormatTimestamp(coupon.ctime, "yyyy-MM-dd"),
-								},
-
-								gui.Label{
-									classes = {"couponInventoryLabel"},
-									width = "30%",
-									text = cond(coupon.redeemed, string.format(tr("Redeemed by %s on %s"), tostring(coupon.redeemUserFullName), dmhub.FormatTimestamp(coupon.mtime, "yyyy-MM-dd")), "Available for redemption"),
-								},
-
-								gui.Label{
-									classes = {"couponInventoryLabel"},
-									bgimage = "panels/square.png",
-									bgcolor = "#00000000",
-									width = "27%",
-									text = coupon.code,
-
-									press = function(element)
-										local tooltip = gui.Tooltip{text = tr("Copied to Clipboard"), valign = "top", borderWidth = 0}(element)
-										dmhub.CopyToClipboard(coupon.code)
-									end,
-
-									gui.Panel{
-										bgimage = "icons/icon_app/icon_app_108.png",
-										bgcolor = Styles.textColor,
-										width = 16,
-										height = 16,
-										valign = "center",
-										halign = "right",
-										styles = {
-											{
-												selectors = {"parent:hover"},
-												brightness = 1.5,
-											}
-										},
-									},
-								},
-							})
+							element:AddChild(MakeCouponRow(coupon))
 
 							local children = element.children
 							table.sort(children, function(a,b) return b.data.ord < a.data.ord end)
@@ -5508,116 +5605,38 @@ local function CreateShopScreenInternal(arguments)
 								},
 							},
 
+							--Gift purchases always mint a redeemable gift code per item
+							--at checkout (see the gift branch of the Buy with Steam
+							--handler); there is no recipient to pick here.
 							gui.Panel{
+								classes = {"collapsed"},
 								flow = "vertical",
 								width = "auto",
 								height = "auto",
 								halign = "center",
 								refreshGift = function(element, val)
 									element:SetClass("collapsed", not val)
-
-									if not val then
-										return
-									end
-
-									element.children = {
-										gui.Label{
-											classes = {"shopDescription"},
-											text = "Who will receive this gift?",
-										},
-
-										gui.Input{
-											classes = {"giftFilterInput"},
-											width = 800,
-											height = 40,
-											vmargin = 8,
-											halign = "center",
-											placeholderText = "Filter by name...",
-											text = "",
-											editlag = 0.1,
-											edit = function(element)
-												element:FireEvent("change")
-											end,
-											change = function(element)
-												element.parent:FireEventTree("filterFriends", string.lower(element.text))
-											end,
-										},
-
-										gui.Panel{
-											height = "auto",
-											flow = "vertical",
-											width = 800,
-											vmargin = 12,
-											halign = "center",
-
-											create = function(element)
-												local friends = dmhub.GetFriendsList()
-
-												local children = {}
-
-												children[#children+1] = gui.Label{
-													classes = {"friendLabel", "selected"},
-													data = {
-														friendid = "code",
-													},
-													text = "Get a redeemable coupon code\n<i>A non-expiring code that can be redeemed anytime</i>",
-													press = function(element)
-														for i,child in ipairs(element.parent.children) do
-															child:SetClass("selected", child == element)
-														end
-
-														element:Get("giftNoteInput"):SetClass("collapsed", true)
-													end,
-
-													--the coupon option is not a person, so it stays visible regardless of the filter.
-													filterFriends = function(element)
-														element:SetClass("collapsed", false)
-													end,
-												}
-
-												for friendid,friend in pairs(friends) do
-													children[#children+1] = gui.Label{
-														classes = {"friendLabel"},
-														data = {
-															friendid = friendid,
-															searchText = string.lower((friend.aliases[1] or "") .. " " .. (friend.games[1] or "")),
-														},
-														text = string.format("%s\n<i>%s</i>", friend.aliases[1], friend.games[1]),
-														press = function(element)
-															for i,child in ipairs(element.parent.children) do
-																child:SetClass("selected", child == element)
-															end
-
-															element:Get("giftNoteInput"):SetClass("collapsed", false)
-														end,
-
-														filterFriends = function(element, filterText)
-															if filterText == nil or filterText == "" then
-																element:SetClass("collapsed", false)
-																return
-															end
-
-															element:SetClass("collapsed", string.find(element.data.searchText, filterText, 1, true) == nil)
-														end,
-													}
-												end
-
-												element.children = children
-											end,
-										},
-
-										gui.Input{
-											classes = {"collapsed"},
-											id = "giftNoteInput",
-											vmargin = 8,
-											width = 800,
-											height = 140,
-											characterLimit = 256,
-											placeholderText = "Enter a note...",
-											text = "",
-										},
-									}
 								end,
+
+								gui.Label{
+									classes = {"shopDescription"},
+									text = "You will get a gift code to send",
+
+									--One code is minted per item in the cart, so the
+									--message pluralizes with the cart contents.
+									refreshCart = function(element, shoppingCart)
+										local nitems = 0
+										for _ in pairs(shoppingCart) do
+											nitems = nitems + 1
+										end
+
+										if nitems > 1 then
+											element.text = string.format("You will get %d gift codes to send, one for each item", nitems)
+										else
+											element.text = "You will get a gift code to send"
+										end
+									end,
+								},
 							},
 						},
 
@@ -5706,14 +5725,21 @@ local function CreateShopScreenInternal(arguments)
 									end
 									if #itemids == 0 then return end
 
+									--Gift mode is the giftButton toggle above the cart. A
+									--gift purchase mints one redeemable gift code per item
+									--instead of granting the items to this account.
+									local giftButton = element:Get("giftButton")
+									local giftPurchase = giftButton ~= nil and giftButton:HasClass("checkoutButton")
+
 									analytics.Event{
 										type = "shopCheckoutSteam",
+										gift = giftPurchase,
 									}
 
 									element.data.purchasing = true
 									element.text = "Confirm in Steam..."
 
-									local function onSuccess(instanceids)
+									local function onSuccess(instanceids, giftcodes)
 										if not element.valid then return end
 										element.data.purchasing = false
 										element.text = element.data.originalText
@@ -5727,13 +5753,37 @@ local function CreateShopScreenInternal(arguments)
 											m_shoppingCart[k] = nil
 										end
 
+										--Gift mode is spent; clear the toggle so the next
+										--cart doesn't silently stay in gift mode.
+										if giftButton ~= nil and giftButton.valid then
+											giftButton:SetClass("checkoutButton", false)
+											giftButton.parent:FireEventTree("refreshGift", false)
+										end
+
 										--Close the cart panel first (showInventory only
 										--switches the title/content mode; it doesn't
 										--collapse the cart on its own), then transition
 										--to Inventory so the user sees their newly-
-										--granted item.
+										--granted item. Gift purchases land on the Gift
+										--Codes view instead, where the new codes are.
 										element:FireEventOnParents("hideCart")
 										resultPanel:FireEvent("showInventory")
+
+										if giftPurchase then
+											resultPanel:FireEventTree("showGiftCodes")
+
+											--The codes list reads accountInventory.coupons,
+											--which arrives over the /Patrons monitor and can
+											--lag the purchase by a moment; refresh the list
+											--again once the write has had time to propagate.
+											dmhub.Schedule(2, function()
+												if mod.unloaded then return end
+												if resultPanel == nil or not resultPanel.valid then return end
+												if resultPanel:HasClass("showingCouponInventory") then
+													resultPanel:FireEventTree("showcoupons")
+												end
+											end)
+										end
 									end
 
 									local function onFailure(err)
@@ -5750,12 +5800,34 @@ local function CreateShopScreenInternal(arguments)
 										--redeploying or going through the overlay.
 										dmhub.Schedule(0.5, function()
 											if mod.unloaded then return end
-											onSuccess(itemids)
+											if giftPurchase then
+												local fakeCodes = {}
+												for _ in ipairs(itemids) do
+													fakeCodes[#fakeCodes+1] = dmhub.GenerateGuid()
+												end
+												onSuccess({}, fakeCodes)
+											else
+												onSuccess(itemids)
+											end
 										end)
 										return
 									end
 
-									shop:BuyItemsWithSteam(itemids, onSuccess, onFailure)
+									--Fail safe: if the engine build predates gift support,
+									--the options argument would be silently dropped and the
+									--purchase granted to this account -- the exact self-grant
+									--bug gift mode exists to fix. Older builds error on the
+									--property read, hence the pcall.
+									if giftPurchase then
+										local supportsGifts = false
+										pcall(function() supportsGifts = shop.supportsGiftPurchases == true end)
+										if not supportsGifts then
+											onFailure(tr("Gift purchases require an updated version of the app."))
+											return
+										end
+									end
+
+									shop:BuyItemsWithSteam(itemids, onSuccess, onFailure, {gift = giftPurchase})
 								end,
 							},
 

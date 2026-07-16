@@ -16,8 +16,8 @@
 --- @field dmhubCanUse boolean 
 --- @field publishingProperties any 
 --- @field contentSummary any 
---- @field isdisabled boolean
---- @field ourModule boolean
+--- @field isdisabled boolean 
+--- @field ourModule boolean 
 --- @field org nil|string The organization id this module is published under, or nil for a personal module.
 --- @field publishedFromThisGame any 
 --- @field loadedVersion any 

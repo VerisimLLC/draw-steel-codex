@@ -5098,6 +5098,17 @@ CreateAbilityController = function()
 
             if g_actionBar == nil then return end
 
+            --The caster can be removed/despawned before this invoke fires: invokes whose
+            --caster is a parent-ability target (invokeOnCaster == false) route through
+            --ExecuteInvoke, which yields waiting for the action bar, so the target token can
+            --die in between. A gone caster has .valid == false / .properties == nil; there is
+            --nothing to cast, and proceeding would hide the drawers via
+            --SetClassTree("invokingAbility", true) below and never clear them (only
+            --cancelCasting clears it, and no cast begins) -- stranding the bar hidden.
+            if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                return
+            end
+
             g_invokerInfo = invokerInfo
             symbols.invoked = true
 

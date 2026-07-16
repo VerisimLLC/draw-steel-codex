@@ -47,6 +47,17 @@ ShowShopPanel = function(parentPanel)
         pcall(function() item.featured = val end)
     end
 
+    --Same defensive guard for item.preview (shown in the customer-facing shop
+    --only to users with the dev:storeitempreview preference on).
+    local function ItemPreview(item)
+        local ok, val = pcall(function() return item.preview end)
+        return ok and val == true
+    end
+
+    local function SetItemPreview(item, val)
+        pcall(function() item.preview = val end)
+    end
+
     --------------------------------------------------------------------------
     -- Featured-dice shop banner + shop-tile preview-display editor
     -- (Type == "Dice").
@@ -463,52 +474,75 @@ ShowShopPanel = function(parentPanel)
             m_couponMonitor.events:Listen(element)
         end,
 
-        gui.Check{
-            text = "Live on store",
-            item = function(element, item)
-                element.value = item.onsale
-            end,
-            change = function(element)
-                m_item.onsale = element.value
-                if element.value then
-                    --An item that is live on the store cannot also be hidden.
-                    SetItemHidden(m_item, false)
-                else
-                    --An item that is not live on the store cannot be featured.
-                    SetItemFeatured(m_item, false)
-                end
-                m_item:Upload()
-                --Refresh the Hidden/Featured checkboxes (they enable/disable on
-                --this) and the side list (highlighting + hidden depend on it).
-                editingPanel:FireEventTree("item", m_item)
-                itemsListPanel:FireEvent("refreshAssets")
-            end,
-        },
+        --Store status: aggregates the old "Live on store"/"Featured" checkboxes
+        --plus the new preview state into one dropdown. The backend fields are
+        --unchanged, just combined:
+        --  Not on store                 onsale=false preview=false featured=false
+        --  Preview in store             onsale=false preview=true  featured=false
+        --  Live on Store                onsale=true  preview=false featured=false
+        --  Live and Featured on Store   onsale=true  preview=false featured=true
+        --Preview items appear in the customer-facing shop only for users with
+        --the dev:storeitempreview preference on; clients without that flag (and
+        --older builds without the field) treat them as not on sale.
+        gui.Panel{
+            classes = {"formPanel"},
 
-        gui.Check{
-            text = "Featured",
-            tooltip = "Feature this item in the shop. Only items that are live on the store can be featured.",
-            styles = {
-                {
-                    selectors = {"disabled"},
-                    opacity = 0.4,
-                },
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Store status:",
             },
-            item = function(element, item)
-                element.value = ItemFeatured(item)
-                --Only live items can be featured, so lock the control otherwise.
-                element:SetClass("disabled", not item.onsale)
-            end,
-            change = function(element)
-                SetItemFeatured(m_item, element.value)
-                m_item:Upload()
-                itemsListPanel:FireEvent("refreshAssets")
-            end,
+
+            gui.Dropdown{
+                options = {
+                    {
+                        id = "notonstore",
+                        text = "Not on store",
+                    },
+                    {
+                        id = "preview",
+                        text = "Preview in store",
+                    },
+                    {
+                        id = "live",
+                        text = "Live on Store",
+                    },
+                    {
+                        id = "livefeatured",
+                        text = "Live and Featured on Store",
+                    },
+                },
+
+                item = function(element, item)
+                    if item.onsale then
+                        element.idChosen = cond(ItemFeatured(item), "livefeatured", "live")
+                    elseif ItemPreview(item) then
+                        element.idChosen = "preview"
+                    else
+                        element.idChosen = "notonstore"
+                    end
+                end,
+                change = function(element)
+                    local state = element.idChosen
+                    m_item.onsale = (state == "live" or state == "livefeatured")
+                    SetItemPreview(m_item, state == "preview")
+                    SetItemFeatured(m_item, state == "livefeatured")
+                    if state ~= "notonstore" then
+                        --An item that is on the store (preview or live) cannot
+                        --also be hidden.
+                        SetItemHidden(m_item, false)
+                    end
+                    m_item:Upload()
+                    --Refresh the Hidden checkbox (it enables/disables on this)
+                    --and the side list (highlighting + hidden depend on it).
+                    editingPanel:FireEventTree("item", m_item)
+                    itemsListPanel:FireEvent("refreshAssets")
+                end,
+            },
         },
 
         gui.Check{
             text = "Hidden",
-            tooltip = "Hide this item from the shop list. Items that are live on the store cannot be hidden.",
+            tooltip = "Hide this item from the shop list. Items that are on the store (live or preview) cannot be hidden.",
             styles = {
                 {
                     selectors = {"disabled"},
@@ -517,8 +551,9 @@ ShowShopPanel = function(parentPanel)
             },
             item = function(element, item)
                 element.value = ItemHidden(item)
-                --Live items cannot be hidden, so lock the control when onsale.
-                element:SetClass("disabled", item.onsale)
+                --Items on the store cannot be hidden, so lock the control when
+                --the item is live or in preview.
+                element:SetClass("disabled", item.onsale or ItemPreview(item))
             end,
             change = function(element)
                 SetItemHidden(m_item, element.value)
@@ -1566,15 +1601,20 @@ ShowShopPanel = function(parentPanel)
         vscroll = true,
         monitorAssets = true,
 
-        --Featured items are called out in bold purple in the list. Cascades to
-        --the list-item labels (descendants) that carry the "featured" class.
-        --Only color/bold are set, so the normal hover/selected wash still wins
-        --on the active row while bold keeps it recognizable.
+        --Featured items are called out in bold purple in the list; preview
+        --items in blue. Cascades to the list-item labels (descendants) that
+        --carry the "featured"/"previewOnStore" class. Only color/bold are set,
+        --so the normal hover/selected wash still wins on the active row while
+        --the accent keeps it recognizable.
         styles = {
             {
                 selectors = {"featured"},
                 color = "#c77dffff",
                 bold = true,
+            },
+            {
+                selectors = {"previewOnStore"},
+                color = "#7dc4ffff",
             },
         },
 
@@ -1588,9 +1628,9 @@ ShowShopPanel = function(parentPanel)
 
             --An item appears in the list unless it is soft-hidden (and we are
             --not showing hidden items) or it fails the text filter. An item
-            --that is live on the store is never treated as hidden.
+            --that is on the store (live or preview) is never treated as hidden.
             local function ItemVisible(v)
-                if (not m_showHidden) and (not v.onsale) and ItemHidden(v) then
+                if (not m_showHidden) and (not v.onsale) and (not ItemPreview(v)) and ItemHidden(v) then
                     return false
                 end
 
@@ -1670,7 +1710,7 @@ ShowShopPanel = function(parentPanel)
               if ItemVisible(v) then
                 local list = artistPanelChildren[v.artistid or "none"]
                 local text = v.name
-                if v.onsale then
+                if v.onsale or ItemPreview(v) then
                     if v.price <= 0 then
                         text = string.format("%s (FREE)", text)
                     else
@@ -1678,6 +1718,9 @@ ShowShopPanel = function(parentPanel)
                         local cents = math.tointeger(v.price%100)
                         text = string.format("%s: $%d.%02d", text, dollars, cents)
                     end
+                end
+                if ItemPreview(v) and not v.onsale then
+                    text = string.format("%s [preview]", text)
                 end
                 local listItem = Compendium.CreateListItem{
                     ord = v.ctime,
@@ -1692,9 +1735,12 @@ ShowShopPanel = function(parentPanel)
                         end
                     end,
                 }
-                --Featured (and still live) items stand out in bold purple.
+                --Featured (and still live) items stand out in bold purple;
+                --preview items in blue.
                 if ItemFeatured(v) and v.onsale then
                     listItem:SetClass("featured", true)
+                elseif ItemPreview(v) and not v.onsale then
+                    listItem:SetClass("previewOnStore", true)
                 end
                 list[#list+1] = listItem
               end

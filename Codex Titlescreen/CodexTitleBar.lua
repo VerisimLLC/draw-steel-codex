@@ -59,6 +59,112 @@ local function GetStoreMenuItems()
     }
 end
 
+--------------------------------------------------------------------------------
+--Bug ticket state (Report Feedback > Your Tickets).
+--
+--Submitting a bug report also opens a ticket at /Tickets/{userid}/{reportId}
+--in the cloud: the user-visible conversation where developers respond. This
+--module-level state caches the local user's tickets so the title bar can show
+--a new-content marker when a developer has responded to a ticket the user has
+--not viewed yet (ticket.lastDevMessageAt > ticket.userSeenAt).
+--
+--The C# bridge (dmhub.GetMyTickets and friends) may not exist on older builds,
+--so access goes through pcall and the feature quietly disappears without it.
+--------------------------------------------------------------------------------
+
+local g_ticketsState = {
+    tickets = nil,     --map of reportId -> ticket record; nil before any fetch.
+    hasUnseen = false, --true when any ticket has an unviewed developer response.
+}
+
+--marker panels (created by CreateCodexMenuItem for menus with newContentCheck)
+--that receive a "refreshAlert" event whenever the ticket state changes.
+local g_menuAlertPanels = {}
+
+--Tickets the user has viewed this session: reportId -> seen-through timestamp.
+--MarkTicketSeen's server write is fire-and-forget, so a fetch that lands
+--before it would resurrect the marker for a ticket the user just read; this
+--floor makes locally-viewed always win over stale server data.
+local g_localTicketSeenFloor = {}
+
+local function TicketBridgeAvailable()
+    local ok, fn = pcall(function() return dmhub.GetMyTickets end)
+    return ok and fn ~= nil
+end
+
+local function TicketHasUnseenResponse(t)
+    if type(t) ~= "table" then
+        return false
+    end
+    local lastDev = t.lastDevMessageAt
+    if lastDev == nil then
+        return false
+    end
+    local seen = t.userSeenAt
+    if t.reportId ~= nil then
+        local floor = g_localTicketSeenFloor[t.reportId]
+        if floor ~= nil and (seen == nil or floor > seen) then
+            seen = floor
+        end
+    end
+    return seen == nil or lastDev > seen
+end
+
+local function RefreshTicketAlerts()
+    local unseen = 0
+    if g_ticketsState.tickets ~= nil then
+        for _,t in pairs(g_ticketsState.tickets) do
+            if TicketHasUnseenResponse(t) then
+                unseen = unseen + 1
+            end
+        end
+    end
+    g_ticketsState.hasUnseen = (unseen > 0)
+
+    --notify the markers, pruning any belonging to a destroyed title bar.
+    local live = {}
+    for _,panel in ipairs(g_menuAlertPanels) do
+        if panel.valid then
+            live[#live+1] = panel
+            panel:FireEvent("refreshAlert")
+        end
+    end
+    g_menuAlertPanels = live
+
+    --TICKETS:: diagnostic; runs only on fetch/view so it is cheap, and makes
+    --a stuck or missing menu marker diagnosable straight from the console log.
+    print(string.format("TICKETS:: alerts refreshed: unseen=%d markerPanels=%d", unseen, #live))
+end
+
+--Fetches the user's tickets from the cloud, refreshes the marker state, then
+--calls callback(tickets, error) if given. Without the C# ticket bridge this
+--reports no tickets and no error.
+local function FetchTickets(callback)
+    if not TicketBridgeAvailable() then
+        if callback ~= nil then
+            callback(nil, nil)
+        end
+        return
+    end
+    dmhub.GetMyTickets(function(tickets, error)
+        if error == nil then
+            g_ticketsState.tickets = tickets or {}
+            RefreshTicketAlerts()
+        end
+        if callback ~= nil then
+            callback(tickets, error)
+        end
+    end)
+end
+
+--The engine fires "ticketAlert" when the account monitor (which already
+--streams /users/{userid}) sees the tickets dashboard bump the ticketAlert
+--field -- i.e. a developer just responded to one of our tickets. Refetch so
+--the Report Feedback marker appears immediately, with no polling.
+dmhub.RegisterEventHandler("ticketAlert", function()
+    FetchTickets()
+end)
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -69,6 +175,31 @@ local function CreateCodexMenuItem(args)
     args.name = nil
     local menuItems = args.menuItems
     args.menuItems = nil
+
+    --optional: a function returning true when this menu should show the
+    --new-content marker dot beside its name (e.g. an unviewed ticket
+    --response). The marker re-evaluates on the "refreshAlert" event, fired
+    --by RefreshTicketAlerts whenever ticket state changes.
+    local newContentCheck = args.newContentCheck
+    args.newContentCheck = nil
+
+    local alertPanel = nil
+    if newContentCheck ~= nil then
+        --visibility is toggled with the "collapsed" CLASS, not selfStyle:
+        --selfStyle writes from an async callback only mark styles dirty and
+        --were not repainting until a hover re-applied styles; SetClass is the
+        --documented reliable show/hide idiom (UI_BEST_PRACTICES.md).
+        alertPanel = gui.NewContentAlert{
+            x = 8,
+            y = 2,
+            valign = "top",
+            classes = {cond(newContentCheck(), nil, "collapsed")},
+            refreshAlert = function(element)
+                element:SetClass("collapsed", not newContentCheck())
+            end,
+        }
+        g_menuAlertPanels[#g_menuAlertPanels+1] = alertPanel
+    end
 
     if args.icon then
         iconPanel = gui.Panel{
@@ -126,6 +257,9 @@ local function CreateCodexMenuItem(args)
                 element.text = newname
             end,
             interactable = false,
+
+            --floating marker dot pinned to the label's top-right corner.
+            alertPanel,
         },
 
         collectMenuItems = function(element, result)
@@ -1817,6 +1951,10 @@ local function CreateTopBar()
 	local dmControlsPanel = nil
 	local layersPanel = nil
 
+    --fetch the user's bug tickets once at startup so the Report Feedback
+    --marker can appear without the menu ever being opened.
+    FetchTickets()
+
     local m_inGame = nil
     local m_searchBar = CreateSearchBar()
     local m_audioIndicator = CreateAudioIndicator()
@@ -1870,6 +2008,9 @@ local function CreateTopBar()
                 intro = "Describe the bug below and submit it directly to the Codex developers. Please make a separate report for each bug.",
                 placeholder = "Describe the bug: what happened, and what you expected to happen instead. If you can, include exact steps to reproduce it.",
                 thanks = "Your bug report has been submitted. Thank you!",
+                --shown alongside thanks when the ticket bridge exists: a bug
+                --report also opens a ticket the user can follow up on.
+                ticketInfo = "A ticket has been opened for your report. You can find it under Report Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
             },
             feature = {
                 title = "Request a Feature",
@@ -1898,6 +2039,9 @@ local function CreateTopBar()
         local m_attachments = {}
         local m_submitting = false
         local m_submitted = false
+        --The ticket id assigned to this report, captured once Submit completes.
+        --Surfaced to the user in statusLabel and copyable by clicking it.
+        local m_reportid = nil
 
         local m_includeLog = isBugReport
         local m_includeScreenshot = false
@@ -2113,6 +2257,16 @@ local function CreateTopBar()
             textWrap = true,
             tmargin = 8,
             text = "",
+
+            --After submitting, this label shows the ticket id; clicking copies
+            --it to the clipboard so the user can quote it back to us. No-ops
+            --until a report has actually been submitted (m_reportid is nil).
+            click = function(element)
+                if m_reportid ~= nil and m_reportid ~= "" then
+                    gui.Tooltip{ text = "Copied to Clipboard", valign = "top", borderWidth = 0 }(element)
+                    dmhub.CopyToClipboard(m_reportid)
+                end
+            end,
         }
 
         local submitButton
@@ -2153,10 +2307,22 @@ local function CreateTopBar()
                     complete = function(reportid)
                         m_submitting = false
                         m_submitted = true
+                        m_reportid = reportid
                         if statusLabel.valid then
-                            statusLabel.text = kindInfo.thanks
+                            local text = kindInfo.thanks
+                            if kindInfo.ticketInfo ~= nil and TicketBridgeAvailable() then
+                                text = text .. "\n\n" .. kindInfo.ticketInfo
+                            end
+                            if reportid ~= nil and reportid ~= "" then
+                                text = text .. string.format("\n\nYour ticket ID is %s (click to copy).", reportid)
+                            end
+                            statusLabel.text = text
                             submitButton:SetClass("hidden", true)
                         end
+
+                        --pick up the freshly created ticket so Your Tickets
+                        --and the menu marker reflect it immediately.
+                        FetchTickets()
                     end,
                     error = function(message)
                         m_submitting = false
@@ -2289,15 +2455,18 @@ local function CreateTopBar()
         formChildren[#formChildren + 1] = attachButton
         formChildren[#formChildren + 1] = m_attachmentsList
 
+        --sized so the whole form is visible without scrolling (the tallest
+        --variant is a bug report with a screenshot section); vscroll remains
+        --as a safety net for long attachment lists.
         local bodyPanel = gui.Panel{
                 width = 940,
-                height = 620,
+                height = 740,
                 flow = "vertical",
                 halign = "center",
 
                 gui.Panel{
                     width = "100%",
-                    height = 560,
+                    height = 680,
                     vscroll = true,
                     flow = "vertical",
                     halign = "center",
@@ -2351,6 +2520,12 @@ local function CreateTopBar()
             m_dialog = gamehud:ModalDialog{
                 title = kindInfo.title,
 
+                --ModalDialog's frame defaults to 768 tall; the 740-tall body
+                --(plus title and button strip) needs the same 900 the
+                --titlescreen host uses, or the form overflows out of the top.
+                width = 1024,
+                height = 900,
+
                 --we build our own buttons inside the body so Submit can stay open
                 --while the report uploads.
                 buttons = {},
@@ -2369,7 +2544,7 @@ local function CreateTopBar()
                     classes = {"framedPanel"},
                     floating = true,
                     width = 1024,
-                    height = 768,
+                    height = 900,
                     halign = "center",
                     valign = "center",
                     styles = ThemeEngine.GetStyles(),
@@ -2397,6 +2572,8 @@ local function CreateTopBar()
                 if gh ~= nil then
                     m_dialog = gh:ModalDialog{
                         title = kindInfo.title,
+                        width = 1024,
+                        height = 900,
                         buttons = {},
                         bodyPanel,
                     }
@@ -2406,6 +2583,621 @@ local function CreateTopBar()
                 end
             end
         end
+    end
+
+    --F3 (bound to the "bugreport" command in InputController.ResetBinds) opens the
+    --Report a Bug dialog directly, skipping the Report Feedback menu. Registered
+    --here inside CreateTopBar so the handler closes over the CreateBugReportDialog
+    --local above; CreateTopBar runs once at load, so this registers once.
+    Commands.RegisterMacro{
+        name = "bugreport",
+        summary = "report a bug",
+        doc = "Opens the Report a Bug dialog.",
+        command = function()
+            dmhub.BeginBugReport(function(report)
+                CreateBugReportDialog(report, "bug")
+            end)
+        end,
+    }
+
+    --Tickets dialog (Report Feedback > Your Tickets): lists the user's bug
+    --tickets, open and closed, and shows the conversation on each ticket so
+    --the user can read developer responses and add messages of their own.
+    --Opening a ticket marks it seen, clearing the "developer responded"
+    --marker on the Report Feedback menu.
+    local function CreateTicketsDialog()
+        local m_dialog = nil
+        local m_titlescreenModal = nil
+
+        local m_tickets = {}      --sorted array of ticket records.
+        local m_page = "loading"  --"loading", "error", "list" or "detail".
+        local m_errorMessage = nil
+        local m_selected = nil    --reportId of the ticket shown in detail view.
+        local m_sending = false
+        local m_localMessageCounter = 0
+
+        local function CloseDialog()
+            if m_titlescreenModal ~= nil then
+                if m_titlescreenModal.valid then
+                    m_titlescreenModal:DestroySelf()
+                end
+            elseif m_dialog ~= nil and m_dialog.valid then
+                m_dialog:FireEvent("close")
+            end
+        end
+
+        --forward declared; assigned below and captured by the page builders.
+        local contentPanel
+        local RefreshPage
+        local OpenDetail
+
+        local function SortedTickets()
+            local result = {}
+            for _,t in pairs(g_ticketsState.tickets or {}) do
+                if type(t) == "table" then
+                    result[#result+1] = t
+                end
+            end
+            table.sort(result, function(a, b)
+                return (a.updatedAt or a.createdAt or 0) > (b.updatedAt or b.createdAt or 0)
+            end)
+            return result
+        end
+
+        local function TicketById(reportId)
+            for _,t in ipairs(m_tickets) do
+                if t.reportId == reportId then
+                    return t
+                end
+            end
+            return nil
+        end
+
+        local function FormatDay(ms)
+            if type(ms) ~= "number" then
+                return ""
+            end
+            return os.date("%b %d, %Y", math.floor(ms / 1000))
+        end
+
+        local function FormatTime(ms)
+            if type(ms) ~= "number" then
+                return ""
+            end
+            return os.date("%b %d, %Y %H:%M", math.floor(ms / 1000))
+        end
+
+        --messages arrive as a map keyed by chronologically sortable strings;
+        --sort by timestamp with the key as a tiebreak.
+        local function SortedMessages(ticket)
+            local result = {}
+            for key,msg in pairs(ticket.messages or {}) do
+                if type(msg) == "table" then
+                    result[#result+1] = { key = key, msg = msg }
+                end
+            end
+            table.sort(result, function(a, b)
+                local ta = a.msg.timestamp or 0
+                local tb = b.msg.timestamp or 0
+                if ta == tb then
+                    return a.key < b.key
+                end
+                return ta < tb
+            end)
+            return result
+        end
+
+        local function BuildMessagePage(text)
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Label{
+                    fontSize = 18,
+                    width = 700,
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    textWrap = true,
+                    text = text,
+                },
+            }
+        end
+
+        local function StatusChip(ticket)
+            local closed = (ticket.status == "closed")
+            return gui.Label{
+                fontSize = 13,
+                bold = true,
+                width = 70,
+                height = "auto",
+                valign = "center",
+                textAlignment = "center",
+                color = cond(closed, "#999999", "#86c06c"),
+                text = cond(closed, "CLOSED", "OPEN"),
+            }
+        end
+
+        local function BuildListPage()
+            if #m_tickets == 0 then
+                return BuildMessagePage("You have not filed any bug reports yet.\n\nWhen you report a bug from the Report Feedback menu, a ticket is opened here where the developers can follow up with you.")
+            end
+
+            local rows = {}
+            for _,t in ipairs(m_tickets) do
+                local ticket = t
+                local unseen = TicketHasUnseenResponse(ticket)
+
+                local markerPanel = nil
+                if unseen then
+                    markerPanel = gui.NewContentAlert{
+                        floating = false,
+                        x = 0,
+                        halign = "center",
+                        valign = "center",
+                    }
+                end
+
+                rows[#rows+1] = gui.Panel{
+                    classes = {"ticketRow"},
+                    bgimage = "panels/square.png",
+                    width = "100%",
+                    height = "auto",
+                    valign = "top",
+                    flow = "horizontal",
+                    borderBox = true,
+                    pad = 6,
+                    vmargin = 2,
+
+                    press = function(element)
+                        OpenDetail(ticket.reportId)
+                    end,
+
+                    --fixed-width marker slot so titles align whether or not
+                    --the unseen-response dot is present.
+                    gui.Panel{
+                        width = 16,
+                        height = 20,
+                        halign = "left",
+                        valign = "center",
+                        interactable = false,
+                        markerPanel,
+                    },
+
+                    StatusChip(ticket),
+
+                    gui.Label{
+                        fontSize = 16,
+                        width = 500,
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                        lmargin = 8,
+                        textWrap = true,
+                        interactable = false,
+                        text = ticket.title or "(no title)",
+                    },
+
+                    gui.Label{
+                        fontSize = 14,
+                        color = "#aaaaaa",
+                        width = 110,
+                        height = "auto",
+                        halign = "right",
+                        valign = "center",
+                        interactable = false,
+                        text = ticket.reportId or "",
+                    },
+
+                    gui.Label{
+                        fontSize = 14,
+                        color = "#aaaaaa",
+                        width = 130,
+                        height = "auto",
+                        halign = "right",
+                        valign = "center",
+                        textAlignment = "right",
+                        interactable = false,
+                        text = FormatDay(ticket.updatedAt or ticket.createdAt),
+                    },
+                }
+            end
+
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Label{
+                    fontSize = 15,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    textWrap = true,
+                    vmargin = 4,
+                    text = "Your bug report tickets. Click a ticket to read developer responses and add more information.",
+                },
+
+                gui.Panel{
+                    width = "100%",
+                    height = 660,
+                    vscroll = true,
+                    flow = "vertical",
+                    children = rows,
+                },
+            }
+        end
+
+        local function BuildDetailPage()
+            local ticket = TicketById(m_selected)
+            if ticket == nil then
+                return BuildMessagePage("This ticket could not be found.")
+            end
+
+            local messagePanels = {}
+            for _,entry in ipairs(SortedMessages(ticket)) do
+                local msg = entry.msg
+                local fromDev = (msg.from == "dev")
+                local who = "You"
+                if fromDev then
+                    who = "Codex Team"
+                    if type(msg.name) == "string" and msg.name ~= "" then
+                        who = string.format("Codex Team (%s)", msg.name)
+                    end
+                end
+
+                messagePanels[#messagePanels+1] = gui.Panel{
+                    width = "100%-16",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "left",
+                    vmargin = 6,
+
+                    gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+
+                        gui.Label{
+                            fontSize = 14,
+                            bold = true,
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            color = cond(fromDev, "#86b4e0", "#d0c3a5"),
+                            text = who,
+                        },
+
+                        gui.Label{
+                            fontSize = 12,
+                            width = "auto",
+                            height = "auto",
+                            halign = "right",
+                            color = "#999999",
+                            text = FormatTime(msg.timestamp),
+                        },
+                    },
+
+                    gui.Label{
+                        fontSize = 15,
+                        width = "100%",
+                        height = "auto",
+                        halign = "left",
+                        tmargin = 2,
+                        textWrap = true,
+                        text = msg.text or "",
+                    },
+                }
+            end
+
+            local replyInput = gui.Input{
+                width = "100%",
+                height = 80,
+                fontSize = 15,
+                multiline = true,
+                characterLimit = 10000,
+                textAlignment = "topleft",
+                halign = "left",
+                tmargin = 8,
+                placeholderText = "Add a message to this ticket...",
+            }
+
+            local sendStatus = gui.Label{
+                fontSize = 14,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                text = "",
+            }
+
+            local sendButton = gui.Button{
+                classes = {"sizeM"},
+                text = "Send",
+                halign = "right",
+                valign = "center",
+                click = function(element)
+                    if m_sending then
+                        return
+                    end
+                    local text = replyInput.text
+                    if text == nil or text == "" then
+                        sendStatus.text = "Enter a message first."
+                        return
+                    end
+
+                    m_sending = true
+                    sendStatus.text = "Sending..."
+
+                    local ok = pcall(function()
+                        dmhub.AddTicketMessage{
+                            reportId = ticket.reportId,
+                            text = text,
+                            complete = function()
+                                m_sending = false
+                                --record the message locally so the thread
+                                --updates without waiting for a refetch.
+                                m_localMessageCounter = m_localMessageCounter + 1
+                                ticket.messages = ticket.messages or {}
+                                ticket.messages[string.format("zlocal%04d", m_localMessageCounter)] = {
+                                    from = "user",
+                                    text = text,
+                                    timestamp = os.time() * 1000,
+                                }
+                                ticket.updatedAt = os.time() * 1000
+                                RefreshPage()
+                            end,
+                            error = function(message)
+                                m_sending = false
+                                if sendStatus.valid then
+                                    sendStatus.text = "Could not send: " .. message
+                                end
+                            end,
+                        }
+                    end)
+
+                    if not ok then
+                        m_sending = false
+                        sendStatus.text = "Could not send the message."
+                    end
+                end,
+            }
+
+            local closedNotice = nil
+            if ticket.status == "closed" then
+                closedNotice = gui.Label{
+                    fontSize = 14,
+                    color = "#999999",
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    tmargin = 6,
+                    textWrap = true,
+                    text = "This ticket has been closed by the developers. You can still add a message if you have more information.",
+                }
+            end
+
+            return gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+
+                    gui.Button{
+                        classes = {"sizeS"},
+                        text = "Back",
+                        width = 90,
+                        halign = "left",
+                        valign = "center",
+                        click = function(element)
+                            m_page = "list"
+                            m_selected = nil
+                            RefreshPage()
+                        end,
+                    },
+
+                    gui.Label{
+                        fontSize = 20,
+                        width = 540,
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                        lmargin = 12,
+                        textWrap = true,
+                        text = ticket.title or "(no title)",
+                    },
+
+                    StatusChip(ticket),
+
+                    gui.Label{
+                        fontSize = 14,
+                        color = "#aaaaaa",
+                        width = "auto",
+                        height = "auto",
+                        halign = "right",
+                        valign = "center",
+                        text = ticket.reportId or "",
+                        hover = gui.Tooltip("Click to copy the ticket ID"),
+                        click = function(element)
+                            if ticket.reportId ~= nil then
+                                gui.Tooltip{ text = "Copied to Clipboard", valign = "top", borderWidth = 0 }(element)
+                                dmhub.CopyToClipboard(ticket.reportId)
+                            end
+                        end,
+                    },
+                },
+
+                gui.Panel{
+                    classes = {"bordered"},
+                    width = "100%",
+                    height = 440,
+                    vscroll = true,
+                    flow = "vertical",
+                    tmargin = 8,
+                    borderBox = true,
+                    pad = 8,
+                    children = messagePanels,
+                },
+
+                closedNotice,
+
+                replyInput,
+
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    tmargin = 6,
+
+                    sendStatus,
+                    sendButton,
+                },
+            }
+        end
+
+        OpenDetail = function(reportId)
+            m_selected = reportId
+            m_page = "detail"
+
+            local ticket = TicketById(reportId)
+            if ticket ~= nil then
+                --viewing the ticket clears the developer-responded marker;
+                --tell the server, and raise the local seen floor so a fetch
+                --racing the (fire-and-forget) server write cannot resurrect
+                --the marker for a ticket the user just read.
+                pcall(function() dmhub.MarkTicketSeen(reportId) end)
+                g_localTicketSeenFloor[reportId] = (ticket.lastDevMessageAt or 0) + 1
+                RefreshTicketAlerts()
+            end
+
+            RefreshPage()
+        end
+
+        RefreshPage = function()
+            if contentPanel == nil or not contentPanel.valid then
+                return
+            end
+
+            local page
+            if m_page == "loading" then
+                page = BuildMessagePage("Loading your tickets...")
+            elseif m_page == "error" then
+                page = BuildMessagePage(m_errorMessage or "Could not load your tickets.")
+            elseif m_page == "detail" then
+                page = BuildDetailPage()
+            else
+                page = BuildListPage()
+            end
+
+            contentPanel.children = { page }
+        end
+
+        contentPanel = gui.Panel{
+            width = "100%",
+            height = "100%",
+            flow = "vertical",
+
+            styles = {
+                { selectors = {"ticketRow"}, bgcolor = "#00000000", transitionTime = 0.1 },
+                { selectors = {"ticketRow", "hover"}, bgcolor = "#ffffff26" },
+            },
+        }
+
+        local bodyPanel = gui.Panel{
+            width = 940,
+            height = 740,
+            flow = "vertical",
+            halign = "center",
+
+            contentPanel,
+        }
+
+        local closeButton = gui.Button{
+            classes = {"closeButton"},
+            floating = true,
+            halign = "right",
+            valign = "top",
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                CloseDialog()
+            end,
+        }
+
+        if dmhub.inGame and not dmhub.isLobbyGame then
+            m_dialog = gamehud:ModalDialog{
+                title = "Your Tickets",
+                --same 900-tall frame as the bug dialog; the default 768 is too
+                --short for the 740-tall body plus title and button strip.
+                width = 1024,
+                height = 900,
+                buttons = {},
+                bodyPanel,
+            }
+            m_dialog:AddChild(closeButton)
+        else
+            --titlescreen host, mirroring the bug report dialog above.
+            local root = rawget(_G, "CodexTitlescreenRoot")
+            if root ~= nil and root.valid then
+                m_titlescreenModal = gui.Panel{
+                    classes = {"framedPanel"},
+                    floating = true,
+                    width = 1024,
+                    height = 900,
+                    halign = "center",
+                    valign = "center",
+                    styles = ThemeEngine.GetStyles(),
+
+                    gui.Panel{
+                        width = "100%-32",
+                        height = "100%-32",
+                        flow = "vertical",
+                        halign = "center",
+                        valign = "top",
+
+                        gui.Label{
+                            classes = {"dialogTitle"},
+                            text = "Your Tickets",
+                        },
+
+                        bodyPanel,
+                    },
+                }
+                root:AddChild(m_titlescreenModal)
+                m_titlescreenModal:AddChild(closeButton)
+            else
+                local gh = rawget(_G, "gamehud")
+                if gh ~= nil then
+                    m_dialog = gh:ModalDialog{
+                        title = "Your Tickets",
+                        width = 1024,
+                        height = 900,
+                        buttons = {},
+                        bodyPanel,
+                    }
+                    m_dialog:AddChild(closeButton)
+                end
+            end
+        end
+
+        RefreshPage()
+
+        FetchTickets(function(tickets, error)
+            if error ~= nil then
+                m_page = "error"
+                m_errorMessage = "Could not load your tickets: " .. error
+            else
+                m_tickets = SortedTickets()
+                m_page = "list"
+            end
+            RefreshPage()
+        end)
     end
 
     --Survey dialog (Report Feedback > Survey): reads the survey definition
@@ -3131,13 +3923,17 @@ local function CreateTopBar()
                 flow = "vertical",
 
                 --header pinned to the top: position in the survey plus a
-                --progress bar that fills as the user advances.
+                --progress bar that fills as the user advances. Offset down so
+                --it clears the host dialog's "Survey" title (the dialogTitle
+                --label, ~29px, is pinned to the same top edge) instead of
+                --overlapping it.
                 gui.Panel{
                     floating = true,
                     width = "100%",
                     height = "auto",
                     flow = "vertical",
                     valign = "top",
+                    tmargin = 44,
 
                     gui.Label{
                         fontSize = 13,
@@ -3566,7 +4362,16 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Report Feedback",
             mainmenu = "always",
+            --marker dot beside the menu name when a developer has responded
+            --to one of the user's tickets and they have not viewed it yet.
+            newContentCheck = function()
+                return g_ticketsState.hasUnseen
+            end,
             menuItems = function()
+                --opportunistically refresh ticket state whenever the menu is
+                --opened, so the markers stay current.
+                FetchTickets()
+
                 --each entry captures the screenshot before the dialog appears,
                 --then shows the dialog for that kind of feedback.
                 local function FeedbackMenuItem(text, feedbackType)
@@ -3580,17 +4385,34 @@ local function CreateTopBar()
                     }
                 end
 
-                return {
+                local items = {
                     FeedbackMenuItem("Bug Report", "bug"),
                     FeedbackMenuItem("Feature Request", "feature"),
                     FeedbackMenuItem("General Feedback", "feedback"),
-                    {
-                        text = "Survey",
-                        click = function()
-                            CreateSurveyDialog()
-                        end,
-                    },
                 }
+
+                --Your Tickets needs the C# ticket bridge; hide it on builds
+                --that predate it.
+                if TicketBridgeAvailable() then
+                    items[#items+1] = {
+                        text = "Your Tickets",
+                        hasNewContent = function()
+                            return g_ticketsState.hasUnseen
+                        end,
+                        click = function()
+                            CreateTicketsDialog()
+                        end,
+                    }
+                end
+
+                items[#items+1] = {
+                    text = "Survey",
+                    click = function()
+                        CreateSurveyDialog()
+                    end,
+                }
+
+                return items
             end,
         },
 

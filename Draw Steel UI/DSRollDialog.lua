@@ -843,7 +843,13 @@ function GameHud.CreateRollDialog(self)
 
                 element:SetClass("triggered", info.triggered)
 
-                label.text = info.modifier.name
+                local triggerName = info.modifier.name
+                if PowerRollSpoilers.HasSpoiler(triggerName) then
+                    local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(triggerName),
+                        PowerRollSpoilers.DefaultRevealed(triggerName))
+                    triggerName = PowerRollSpoilers.Format(triggerName, revealed)
+                end
+                label.text = triggerName
             end,
             --- @param element Panel
             ping = function(element, count)
@@ -1913,7 +1919,27 @@ function GameHud.CreateRollDialog(self)
                                 justification)
                         end
 
-                        local text = mod.modifier.name
+                        --Spoilered modifier names ({#...} markup, see
+                        --PowerRollSpoilers in Timeline/EmbeddedRollDialog):
+                        --players see a redaction bar until the director
+                        --reveals them; the director sees the plain text.
+                        local rawName = mod.modifier.name or ""
+                        local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
+                        local spoilerRevealed = false
+                        if spoiler then
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName),
+                                PowerRollSpoilers.DefaultRevealed(rawName))
+                            if dmhub.isDM or spoilerRevealed then
+                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+                            else
+                                tooltip = PowerRollSpoilers.Format(rawName, false)
+                            end
+                        end
+
+                        local text = rawName
+                        if spoiler then
+                            text = PowerRollSpoilers.Format(rawName, spoilerRevealed)
+                        end
                         if mod.modFromTarget then
                             text = string.format("Target is %s", text)
                         end

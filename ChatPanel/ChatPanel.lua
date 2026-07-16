@@ -10,6 +10,17 @@ setting{
 	storage = "preference",
 }
 
+-- Dev flag read by the refreshChat perf instrumentation here and in
+-- ActionLogPanel.lua. Newer engine builds register this in the engine's
+-- settings.txt; registering it here too keeps GetSettingValue from
+-- erroring on builds that predate that (unregistered setting ids throw
+-- a native error rather than returning nil).
+setting{
+	id = "dev:diceperf",
+	default = false,
+	storage = "preference",
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return

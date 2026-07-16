@@ -2383,6 +2383,36 @@ function GameHud.CreateRollDialog(self)
                 end
             end
 
+            --A trigger whose powerRollModifier sets applyToAllTargets extends to
+            --every target of the roll, not just the row it was activated on
+            --(e.g. Cannonfall's Buss Buffer: "the damage is halved for the
+            --cannonfall and each target also affected by the triggering
+            --ability"). Mirror only the modifier application onto this row;
+            --cost payment, reroll handling, and triggerInfo bookkeeping stay
+            --with the row that owns the trigger.
+            for otherIndex, other in ipairs(m_multitargets) do
+                if otherIndex ~= index then
+                    for _, trigger in ipairs(other.triggers or {}) do
+                        if trigger.triggered then
+                            local powerRollModifier = trigger.modifier:try_get("powerRollModifier")
+                            if powerRollModifier ~= nil and powerRollModifier:try_get("applyToAllTargets", false) then
+                                powerRollModifier._tmp_trigger = true
+                                powerRollModifier._tmp_triggerCharid = trigger.charid
+                                powerRollModifier:InstallSymbolsFromContext{
+                                    caster = creature,
+                                    target = targetCreature,
+                                }
+                                m_options.modifiers[#m_options.modifiers + 1] = {
+                                    hint = { result = true, justification = {} },
+                                    context = { mod = powerRollModifier },
+                                    modifier = powerRollModifier,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+
             resultPanel:FireEventTree('prepare', m_options)
             local roll = CalculateRollText {
                 surges = m_multitargets[index].surges or 0,

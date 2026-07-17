@@ -2865,7 +2865,7 @@ local function CreateToolsConfigSection()
         classes = { "input" },
         width = "94%",
         height = "auto",
-        minHeight = 40,
+        minHeight = 60,
         halign = "center",
         borderBox = true,
         vmargin = 2,

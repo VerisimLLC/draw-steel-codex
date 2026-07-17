@@ -2373,16 +2373,35 @@ local function CreateChecklistCategory(cat)
         data = { built = false },
     }
 
+    --building a whole category's rows in one frame causes a visible hitch on
+    --first expand (a 23-item category is ~27ms of widget construction before
+    --layout), so rows are built in small batches spread across frames.
+    local BUILD_BATCH_SIZE = 6
+
+    local function BuildRowsIncrementally(index)
+        if not contentPanel.valid then
+            return
+        end
+        local limit = math.min(index + BUILD_BATCH_SIZE - 1, #cat.items)
+        for i = index, limit do
+            contentPanel:AddChild(CreateChecklistItemRow(cat.items[i]))
+        end
+        if limit < #cat.items then
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded then
+                    return
+                end
+                BuildRowsIncrementally(limit + 1)
+            end)
+        end
+    end
+
     local function ToggleExpand()
         local nowExpanded = not arrow:HasClass("expanded")
         arrow:SetClass("expanded", nowExpanded)
         if nowExpanded and not contentPanel.data.built then
             contentPanel.data.built = true
-            local rows = {}
-            for _,item in ipairs(cat.items) do
-                rows[#rows + 1] = CreateChecklistItemRow(item)
-            end
-            contentPanel.children = rows
+            BuildRowsIncrementally(1)
         end
         contentPanel:SetClass("collapsed", not nowExpanded)
     end

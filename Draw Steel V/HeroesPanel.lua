@@ -2406,16 +2406,20 @@ local function CreateChecklistCategory(cat)
         contentPanel:SetClass("collapsed", not nowExpanded)
     end
 
+    --the arrow is visual only: the header's press handles clicks anywhere in
+    --the row, including on the arrow. Giving the arrow its own click handler
+    --too made one click toggle twice (expand then instantly collapse).
     arrow = gui.ExpandoArrow{
         halign = "left",
         valign = "center",
-        click = function(element)
-            ToggleExpand()
-        end,
+        interactable = false,
     }
 
+    --bgimage makes the whole row a hit target so clicks on the arrow and the
+    --empty space land on this press, not just clicks on the text labels.
     local header = gui.Panel{
-        classes = { "hoverable" },
+        classes = { "hoverable", "transparent" },
+        bgimage = true,
         width = "100%",
         height = "auto",
         minHeight = 24,

@@ -1683,3 +1683,848 @@ CreateGameRecorderPanel = function()
 
     return resultPanel
 end
+
+--------------------------------------------------------------------------------
+-- TestHarness: launch the app into an isolated, MCP-drivable UI.
+-- See TEST_HARNESS_PLAN.md at the engine repo root.
+--
+-- Launch:  Codex.exe --harness <id> [--harness-args <string>]
+--          (dev builds only; forces the MCP bridge on so Claude can drive it)
+-- Manual:  TestHarness.Show("<id>") from the dev console / MCP execute_lua.
+-- Probe:   TestHarness.Probe() returns machine-readable state of the active
+--          harness, for MCP assertions via execute_lua + json().
+--
+-- The harness shell is a fullscreen panel over the titlescreen root (the same
+-- parenting the ToS dialog uses), shown once the lobby game has loaded so the
+-- full game context (tables, documents, settings) is available underneath.
+--------------------------------------------------------------------------------
+
+TestHarness = rawget(_G, "TestHarness") or {}
+
+--registry is rebuilt on every reload; files re-register as they load. For now
+--all registrations live in this file, below.
+TestHarness.registry = {}
+
+--transient state for the currently-shown harness. NOT preserved across
+--reloads; the active (id, args) pair that IS preserved lives in the
+--g_TestHarnessActive global so a reload can rebuild with fresh code.
+local m_shell = nil        --the shell panel.
+local m_activeId = nil
+local m_activeCtx = nil    --fresh table per Show; create/probe share state here.
+local m_showGeneration = 0 --invalidates queued retries when a newer Show runs.
+
+function TestHarness.Register(info)
+    TestHarness.registry[info.id] = info
+    print("TestHarness:: registered", info.id)
+end
+
+--the titlescreen root + its host dialog, or nil if not available (yet).
+local function GetHarnessRoot()
+    local root = rawget(_G, "CodexTitlescreenRoot")
+    if root ~= nil and root.valid then
+        return root
+    end
+    return nil
+end
+
+function TestHarness.Hide()
+    if m_shell ~= nil and m_shell.valid then
+        m_shell:DestroySelf()
+    end
+    m_shell = nil
+    m_activeId = nil
+    m_activeCtx = nil
+    g_TestHarnessActive = nil
+end
+
+local function HarnessButton(text, onclick)
+    return gui.Label{
+        text = text,
+        fontSize = 14,
+        bold = true,
+        width = "auto",
+        height = 26,
+        minWidth = 70,
+        hpad = 10,
+        borderBox = true,
+        textAlignment = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#233248ff",
+        borderWidth = 1,
+        borderColor = "#5f7396ff",
+        cornerRadius = 6,
+        hmargin = 4,
+        valign = "center",
+        hoverCursor = "hand",
+        styles = {
+            { selectors = {"hover"}, brightness = 1.4, transitionTime = 0.1 },
+            { selectors = {"press"}, brightness = 0.7 },
+        },
+        click = function(element)
+            onclick(element)
+        end,
+    }
+end
+
+--Builds the chrome bar + content shell and mounts the harness's create()
+--result inside it. Any error inside create() is caught and shown in place so
+--a broken harness never takes the shell down with it.
+function TestHarness.Show(id, args)
+    m_showGeneration = m_showGeneration + 1
+    local generation = m_showGeneration
+
+    local root = GetHarnessRoot()
+    if root == nil then
+        --titlescreen not built yet (or rebuilt during a reload); retry until
+        --it exists. Bounded by generation: a newer Show abandons this one.
+        print("TestHarness:: waiting for titlescreen root to show", id)
+        dmhub.Schedule(0.25, function()
+            if mod.unloaded or generation ~= m_showGeneration then
+                return
+            end
+            TestHarness.Show(id, args)
+        end)
+        return
+    end
+
+    TestHarness.Hide()
+
+    --a Lua reload resets m_shell to nil while the pre-reload shell panel is
+    --still alive in the UI tree; Hide() above cannot see it. Destroy any
+    --shell found by id so re-shows never stack.
+    local stale = root:Get("testHarnessShell")
+    if stale ~= nil and stale.valid then
+        stale:DestroySelf()
+    end
+
+    m_showGeneration = generation --Hide cleared nothing else; keep our claim.
+
+    local reg = TestHarness.registry[id]
+    m_activeId = id
+    m_activeCtx = {}
+    g_TestHarnessActive = { id = id, args = args }
+
+    local contentPanel
+    if reg == nil then
+        contentPanel = gui.Label{
+            text = string.format("Unknown harness '%s'.\nRegistered: %s", tostring(id), table.concat(table.keys(TestHarness.registry), ", ")),
+            fontSize = 20,
+            color = "#ff9999ff",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        }
+    else
+        local ok, result = pcall(function()
+            return reg.create(args, m_activeCtx)
+        end)
+        if ok and result ~= nil then
+            contentPanel = result
+        else
+            print("TestHarness:: ERROR creating harness", id, ":", tostring(result))
+            contentPanel = gui.Label{
+                text = string.format("Harness '%s' failed to create:\n%s", tostring(id), tostring(result)),
+                fontSize = 16,
+                color = "#ff9999ff",
+                width = "80%",
+                height = "auto",
+                textWrap = true,
+                halign = "center",
+                valign = "center",
+            }
+        end
+    end
+
+    local dropdownOptions = {}
+    for _, key in ipairs(table.keys(TestHarness.registry)) do
+        dropdownOptions[#dropdownOptions + 1] = { id = key, text = key }
+    end
+    table.sort(dropdownOptions, function(a, b) return a.id < b.id end)
+
+    --size in titlescreen coordinate space, taken from the host dialog exactly
+    --as the ToS overlay does; fall back to the 1080-height convention.
+    local dialog = root.data ~= nil and root.data.dialog or nil
+    local shellWidth = dialog ~= nil and dialog.width or (1080 * dmhub.screenDimensions.x / dmhub.screenDimensions.y)
+    local shellHeight = dialog ~= nil and dialog.height or 1080
+
+    m_shell = gui.Panel{
+        id = "testHarnessShell",
+        floating = true,
+        halign = "center",
+        valign = "center",
+        width = shellWidth,
+        height = shellHeight,
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#0b1018ff",
+
+        styles = {
+            Styles.Default,
+        },
+
+        --chrome bar.
+        gui.Panel{
+            width = "100%",
+            height = 44,
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = "#141c2aff",
+            borderWidth = 1,
+            borderColor = "#31415cff",
+
+            gui.Label{
+                text = "TEST HARNESS",
+                fontSize = 16,
+                bold = true,
+                color = "#8fe3d2ff",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 14,
+                rmargin = 18,
+            },
+            gui.Dropdown{
+                width = 260,
+                height = 28,
+                valign = "center",
+                options = dropdownOptions,
+                idChosen = (reg ~= nil and id) or (dropdownOptions[1] ~= nil and dropdownOptions[1].id) or "",
+                change = function(element)
+                    if element.idChosen ~= m_activeId then
+                        TestHarness.Show(element.idChosen, args)
+                    end
+                end,
+            },
+            HarnessButton("Reload", function()
+                TestHarness.Show(m_activeId, args)
+            end),
+            gui.Label{
+                text = args ~= nil and ("args: " .. tostring(args)) or "",
+                fontSize = 12,
+                color = "#8295b2ff",
+                width = "auto",
+                height = "auto",
+                maxWidth = 500,
+                halign = "left",
+                valign = "center",
+                lmargin = 8,
+            },
+            HarnessButton("Close", function()
+                TestHarness.Hide()
+            end),
+        },
+
+        --content area.
+        gui.Panel{
+            id = "testHarnessContent",
+            width = "100%",
+            height = "100% available",
+            flow = "vertical",
+            contentPanel,
+        },
+    }
+
+    root:AddChild(m_shell)
+    print("TestHarness:: showing", id)
+end
+
+--The active harness's shared context table (whatever create() stashed there),
+--for ad-hoc debugging from the dev console / MCP execute_lua.
+function TestHarness.ActiveContext()
+    return m_activeCtx
+end
+
+--Machine-readable state of the active harness, for MCP assertions.
+function TestHarness.Probe()
+    local result = {
+        active = m_activeId,
+        shown = m_shell ~= nil and m_shell.valid or false,
+        registered = table.keys(TestHarness.registry),
+    }
+    local reg = m_activeId ~= nil and TestHarness.registry[m_activeId] or nil
+    if reg ~= nil and reg.probe ~= nil and m_activeCtx ~= nil then
+        local ok, probeResult = pcall(function()
+            return reg.probe(m_activeCtx)
+        end)
+        if ok then
+            result.probe = probeResult
+        else
+            result.probeError = tostring(probeResult)
+        end
+    end
+    return result
+end
+
+--------------------------------------------------------------------------------
+-- Built-in harnesses.
+--------------------------------------------------------------------------------
+
+--hello: the smallest possible harness; proves the shell, events, and probes.
+TestHarness.Register{
+    id = "hello",
+    create = function(args, ctx)
+        ctx.clicks = 0
+        local countLabel
+        countLabel = gui.Label{
+            text = "clicks: 0",
+            fontSize = 24,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+        }
+        return gui.Panel{
+            width = "100%",
+            height = "100%",
+            flow = "vertical",
+            gui.Label{
+                text = "Hello from the test harness.",
+                fontSize = 32,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                vmargin = 40,
+            },
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                HarnessButton("CLICK ME", function(element)
+                    ctx.clicks = ctx.clicks + 1
+                    countLabel.text = "clicks: " .. ctx.clicks
+                end),
+            },
+            countLabel,
+        }
+    end,
+    probe = function(ctx)
+        return { clicks = ctx.clicks }
+    end,
+}
+
+--editor: gui.TextEditor playground; the workbench for the seamless journal
+--editor project (JOURNAL_SEAMLESS_EDITOR_PLAN.md).
+local g_editorFixtures = {
+    {
+        id = "prose",
+        text = "The quick brown fox jumps over the lazy dog.\n\nA second paragraph of plain prose, long enough to wrap when the window is narrow, so caret navigation across wrapped lines can be exercised.\n\nA third paragraph.",
+    },
+    {
+        id = "markdown",
+        text = "# Heading One\n\nSome **bold text** and *italics* and a [link](Some Document).\n\n## Heading Two\n\n- bullet one\n- bullet two\n\n[[encounter]]\n\nProse after the island, long enough to verify the placeholder line reserves space and the text below sits under the widget overlay.\n\n1. ordered one\n2. ordered two\n\n| Col A | Col B |\n|-------|-------|\n| a1    | b1    |\n\n[[checkbox]] and a [x] Done item\n\n??? false\nhidden conditional region\n???",
+    },
+    {
+        id = "unicode",
+        --built from escapes so this source file stays ASCII-only.
+        text = "ASCII then emoji \u{1F409}\u{1F3B2} then CJK \u{4F60}\u{597D}\u{4E16}\u{754C} then accents caf\u{E9} r\u{E9}sum\u{E9} then done.\nSecond line after multibyte content.",
+    },
+}
+
+--Mini seamless-markdown decoration compiler for the editor harness. This is
+--deliberately throwaway: just enough construct coverage (headings, bold,
+--italic, links, bullets, [[tag]] islands) to exercise the C# display
+--transform end to end. The production compiler (Phase 4 of
+--JOURNAL_SEAMLESS_EDITOR_PLAN.md) lives with the journal in MarkdownDocument.lua.
+--Offsets are 1-based inclusive BYTE offsets, per the SetDecorations contract.
+local function HarnessComputeSeamlessDecorations(text)
+    local decs = {}
+    local group = 0
+    local pos = 1
+    local len = #text
+
+    while pos <= len + 1 do
+        local newlineAt = text:find("\n", pos, true)
+        local lineStop --absolute byte index of the last content byte of the line.
+        local nextPos
+        if newlineAt == nil then
+            if pos > len then
+                break
+            end
+            lineStop = len
+            nextPos = len + 1
+        else
+            lineStop = newlineAt - 1
+            nextPos = newlineAt + 1
+        end
+
+        local line = text:sub(pos, lineStop)
+        local function A(i) return pos + i - 1 end
+
+        local islandTag = line:match("^%[%[(.+)%]%]$")
+        if islandTag ~= nil then
+            --island covers the whole line INCLUDING the trailing newline.
+            group = group + 1
+            local toByte = lineStop
+            if newlineAt ~= nil then
+                toByte = newlineAt
+            end
+            decs[#decs + 1] = { kind = "island", from = pos, to = toByte, id = islandTag, height = 120, group = group }
+        elseif line ~= "" then
+            local hashes = line:match("^(#+) ")
+            if hashes ~= nil then
+                group = group + 1
+                local prefixLen = #hashes + 1
+                decs[#decs + 1] = { kind = "hide", from = A(1), to = A(prefixLen), group = group }
+                if lineStop >= pos + prefixLen then
+                    local size = 34 - #hashes * 5
+                    if size < 18 then size = 18 end
+                    decs[#decs + 1] = {
+                        kind = "style",
+                        from = A(prefixLen + 1),
+                        to = lineStop,
+                        open = string.format("<size=%d><b>", size),
+                        close = "</b></size>",
+                        group = group,
+                    }
+                end
+            end
+
+            if line:match("^%- ") then
+                group = group + 1
+                decs[#decs + 1] = { kind = "replace", from = A(1), to = A(2), text = "\u{2022} ", group = group }
+            end
+
+            --bold: **...**; blank the matches in a scratch copy so the italic
+            --pass below cannot see the asterisks.
+            local scratch = line
+            local searchFrom = 1
+            while true do
+                local s, e = scratch:find("%*%*..-%*%*", searchFrom)
+                if s == nil then break end
+                group = group + 1
+                decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = group }
+                if e - 2 >= s + 2 then
+                    decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<b>", close = "</b>", group = group }
+                end
+                decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = group }
+                scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+                searchFrom = e + 1
+            end
+
+            --italic: *...*
+            searchFrom = 1
+            while true do
+                local s, e = scratch:find("%*[^%*\1]-%*", searchFrom)
+                if s == nil or e <= s + 1 then
+                    if s == nil then break end
+                    searchFrom = e + 1
+                else
+                    group = group + 1
+                    decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = group }
+                    decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(e - 1), open = "<i>", close = "</i>", group = group }
+                    decs[#decs + 1] = { kind = "hide", from = A(e), to = A(e), group = group }
+                    searchFrom = e + 1
+                end
+            end
+
+            --links: [label](target); hide the brackets + target, style the label.
+            searchFrom = 1
+            while true do
+                local s, e, label = scratch:find("%[(..-)%]%(..-%)", searchFrom)
+                if s == nil then break end
+                group = group + 1
+                decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = group }
+                decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(s + #label), open = "<u><color=#7ab3ff>", close = "</color></u>", group = group }
+                decs[#decs + 1] = { kind = "hide", from = A(s + #label + 1), to = A(e), group = group }
+                searchFrom = e + 1
+            end
+        end
+
+        pos = nextPos
+    end
+
+    return decs
+end
+
+TestHarness.Register{
+    id = "editor",
+    create = function(args, ctx)
+        local fixtureId = "markdown"
+        if args ~= nil and type(args) == "string" and args ~= "" then
+            for _, f in ipairs(g_editorFixtures) do
+                if f.id == args then
+                    fixtureId = args
+                end
+            end
+        end
+
+        local function FixtureText(fid)
+            for _, f in ipairs(g_editorFixtures) do
+                if f.id == fid then
+                    return f.text
+                end
+            end
+            return ""
+        end
+
+        ctx.fixture = fixtureId
+        ctx.seamless = false
+        ctx.decorationCount = 0
+        ctx.islands = {}
+
+        local statusLabel = gui.Label{
+            text = "status",
+            fontSize = 13,
+            color = "#8fe3d2ff",
+            width = "100%",
+            height = 20,
+            halign = "left",
+            textAlignment = "left",
+        }
+
+        local editor
+        local editorWrap
+        local m_islandPanels = {}
+
+        local function ApplySeamlessDecorations()
+            if not ctx.seamless or editor == nil or not editor.valid then
+                return
+            end
+            local ok, err = pcall(function()
+                local decs = HarnessComputeSeamlessDecorations(editor.text or "")
+                ctx.decorationCount = #decs
+                editor:SetDecorations(decs)
+            end)
+            if not ok then
+                statusLabel.text = "SetDecorations error: " .. tostring(err)
+            end
+        end
+
+        local function SetSeamless(on)
+            local ok, err = pcall(function()
+                editor.richDisplay = on
+            end)
+            if not ok then
+                statusLabel.text = "richDisplay error (old binary?): " .. tostring(err)
+                return
+            end
+            ctx.seamless = on
+            if on then
+                ApplySeamlessDecorations()
+            else
+                ctx.decorationCount = 0
+                for _, p in pairs(m_islandPanels) do
+                    if p.valid then
+                        p:SetClass("hidden", true)
+                    end
+                end
+            end
+        end
+        ctx.SetSeamless = SetSeamless
+        ctx.ApplySeamlessDecorations = ApplySeamlessDecorations
+
+        editor = gui.TextEditor{
+            width = "100%",
+            height = "100%",
+            fontSize = 16,
+            multiline = true,
+            textAlignment = "topleft",
+            verticalScrollbar = true,
+            selectAllOnFocus = false,
+            --the SheetTextEditor prefab inherits characterLimit=256 from the
+            --SheetInput prefab it was duplicated from; a fixture longer than
+            --that silently swallows every keystroke. The journal always
+            --overrides this; so must we.
+            characterLimit = 200000,
+            text = FixtureText(fixtureId),
+            editlag = 0.25,
+            edit = function(element)
+                ApplySeamlessDecorations()
+            end,
+
+            --debug overlay for island geometry: draw a translucent panel at each
+            --reported rect so the export path is visually verifiable.
+            islandLayout = function(element, islands)
+                ctx.islands = islands
+                if editorWrap == nil or not editorWrap.valid then
+                    return
+                end
+                local seen = {}
+                for _, island in ipairs(islands or {}) do
+                    seen[island.id] = true
+                    local p = m_islandPanels[island.id]
+                    if p == nil or not p.valid then
+                        p = gui.Panel{
+                            floating = true,
+                            halign = "left",
+                            valign = "top",
+                            bgimage = "panels/square.png",
+                            bgcolor = "#2e7d3266",
+                            borderWidth = 2,
+                            borderColor = "#66ff88ff",
+                            interactable = false,
+                            gui.Label{
+                                text = island.id,
+                                fontSize = 14,
+                                color = "#ccffccff",
+                                width = "auto",
+                                height = "auto",
+                                halign = "center",
+                                valign = "center",
+                                interactable = false,
+                            },
+                        }
+                        m_islandPanels[island.id] = p
+                        editorWrap:AddChild(p)
+                    end
+                    p:SetClass("hidden", not island.visible)
+                    p.selfStyle.width = island.width
+                    p.selfStyle.height = island.height
+                    p.selfStyle.x = island.x
+                    p.selfStyle.y = island.y
+                    local label = p.children[1]
+                    if label ~= nil and label.valid then
+                        label.text = string.format("%s (y=%.0f h=%.0f)", island.id, island.y, island.height)
+                    end
+                end
+                for id, p in pairs(m_islandPanels) do
+                    if not seen[id] and p.valid then
+                        p:SetClass("hidden", true)
+                    end
+                end
+            end,
+        }
+        ctx.editor = editor
+
+        editorWrap = gui.Panel{
+            width = "100%",
+            height = "100% available",
+            flow = "none",
+            editor,
+        }
+
+        local fixtureOptions = {}
+        for _, f in ipairs(g_editorFixtures) do
+            fixtureOptions[#fixtureOptions + 1] = { id = f.id, text = "fixture: " .. f.id }
+        end
+
+        return gui.Panel{
+            width = "96%",
+            --the app's native version text / admin button overlay the bottom
+            --~50px of the screen in their own canvas; keep clear of them so
+            --the status strip stays readable.
+            height = "100%-60",
+            halign = "center",
+            valign = "top",
+            tmargin = 8,
+            flow = "vertical",
+
+            --toolbar.
+            gui.Panel{
+                width = "100%",
+                height = 36,
+                flow = "horizontal",
+                gui.Dropdown{
+                    width = 220,
+                    height = 28,
+                    valign = "center",
+                    options = fixtureOptions,
+                    idChosen = fixtureId,
+                    change = function(element)
+                        ctx.fixture = element.idChosen
+                        editor.text = FixtureText(element.idChosen)
+                        ApplySeamlessDecorations()
+                    end,
+                },
+                HarnessButton("Undo", function() editor:Undo() end),
+                HarnessButton("Redo", function() editor:Redo() end),
+                HarnessButton("Caret Start", function()
+                    editor:SetTextAndCaret(0, editor.text)
+                    editor.hasInputFocus = true
+                end),
+                HarnessButton("Caret End", function()
+                    editor:SetTextAndCaret(#editor.text, editor.text)
+                    editor.hasInputFocus = true
+                end),
+                HarnessButton("Find 'the'", function()
+                    local count = editor:Find("the", false)
+                    statusLabel.text = string.format("find 'the': %d matches", count or 0)
+                end),
+                HarnessButton("Seamless", function()
+                    SetSeamless(not ctx.seamless)
+                    statusLabel.text = "seamless = " .. tostring(ctx.seamless)
+                end),
+                HarnessButton("Validate", function()
+                    local ok, err = pcall(function()
+                        local result = editor:ValidateTransform()
+                        statusLabel.text = "validate: " .. tostring(result or "OK")
+                    end)
+                    if not ok then
+                        statusLabel.text = "validate error: " .. tostring(err)
+                    end
+                end),
+                --control comparison: gui.Input is exercised all over the
+                --titlescreen; if it receives typed text while the TextEditor
+                --does not, the fault is TextEditor-specific.
+                gui.Input{
+                    width = 180,
+                    height = 26,
+                    valign = "center",
+                    lmargin = 8,
+                    fontSize = 14,
+                    placeholderText = "gui.Input probe",
+                    edit = function(element)
+                        ctx.inputProbeText = element.text
+                    end,
+                    change = function(element)
+                        ctx.inputProbeText = element.text
+                    end,
+                },
+            },
+
+            editorWrap,
+
+            --live status strip; also mirrored by probe() for MCP assertions.
+            gui.Panel{
+                width = "100%",
+                height = 22,
+                flow = "horizontal",
+                thinkTime = 0.2,
+                think = function(element)
+                    if not editor.valid then
+                        return
+                    end
+                    statusLabel.text = string.format(
+                        "len=%d caret=%s anchor=%s undo=%s redo=%s fixture=%s seamless=%s decs=%d",
+                        #(editor.text or ""),
+                        tostring(editor.caretPosition),
+                        tostring(editor.selectionAnchorPosition),
+                        tostring(editor.canUndo),
+                        tostring(editor.canRedo),
+                        tostring(ctx.fixture),
+                        tostring(ctx.seamless),
+                        ctx.decorationCount or 0)
+                end,
+                statusLabel,
+            },
+        }
+    end,
+    probe = function(ctx)
+        local editor = ctx.editor
+        if editor == nil or not editor.valid then
+            return { editorValid = false }
+        end
+        local result = {
+            editorValid = true,
+            fixture = ctx.fixture,
+            textLength = #(editor.text or ""),
+            firstLine = string.match(editor.text or "", "^[^\n]*"),
+            caret = editor.caretPosition,
+            anchor = editor.selectionAnchorPosition,
+            canUndo = editor.canUndo,
+            canRedo = editor.canRedo,
+            hasInputFocus = editor.hasInputFocus,
+            inputProbeText = ctx.inputProbeText,
+            seamless = ctx.seamless,
+            decorationCount = ctx.decorationCount,
+            islands = ctx.islands,
+        }
+        if ctx.seamless then
+            pcall(function()
+                result.validate = editor:ValidateTransform() or "OK"
+                result.displayTextLength = #(editor.debugDisplayText or "")
+            end)
+        end
+        return result
+    end,
+}
+
+--seamless: the REAL journal seamless editor (MarkdownDocument:SeamlessEditPanel)
+--over a detached document, so the production decoration compiler, island
+--widgets, toolbar, and find bar can be driven without entering a game.
+TestHarness.Register{
+    id = "seamless",
+    create = function(args, ctx)
+        local doc = MarkdownDocument.new{
+            content = "# Session Notes\n\nThe party met **Lord Saxton** at *the crossroads* and agreed to a [contract](Contracts).\n\n## The Ambush\n\n- goblins in the treeline\n- a ~~concealed~~ pit trap\n\n[[encounter]]\n\n> We should have taken the river road.\n\nAfter the fight the party rested. See [Supplies] for what remains.\n\n1. rations x4\n2. rope, 50ft\n\n[[dice:Loot]]\n\n:<>## Dramatis Personae\n\n:<>a **centered** line of body text\n\n:>-- signed, the Steward\n\n:<>[[encounter]]\n\nThe end.",
+            annotations = {},
+            styleSheetId = false,
+        }
+        ctx.doc = doc
+
+        local panel = doc:SeamlessEditPanel{}
+        panel:SetClass("collapsed", false)
+        ctx.panel = panel
+
+        return gui.Panel{
+            width = "96%",
+            height = "100%-60",
+            halign = "center",
+            valign = "top",
+            tmargin = 8,
+            flow = "vertical",
+            panel,
+        }
+    end,
+    probe = function(ctx)
+        local result = { docValid = ctx.doc ~= nil }
+        local input = ctx.panel ~= nil and ctx.panel.valid and ctx.panel:Get("editorPanel") or nil
+        if input ~= nil and input.valid then
+            result.editorValid = true
+            result.textLength = #(input.text or "")
+            result.caret = input.caretPosition
+            result.canUndo = input.canUndo
+            pcall(function()
+                result.validate = input:ValidateTransform() or "OK"
+                result.displayTextLength = #(input.debugDisplayText or "")
+            end)
+            local annotations = {}
+            for k, _ in pairs(ctx.doc.annotations or {}) do
+                annotations[#annotations + 1] = k
+            end
+            result.annotations = annotations
+        else
+            result.editorValid = false
+        end
+        return result
+    end,
+}
+
+--------------------------------------------------------------------------------
+-- Harness-mode boot: when launched with --harness, wait for the lobby game
+-- (full game context) and take over the titlescreen with the named harness.
+-- The g_TestHarnessBooted global survives Lua reloads (same mechanism as the
+-- titlescreen's own TitlescreenVersion guard), so a reload re-shows the active
+-- harness with fresh code instead of re-running the boot.
+--------------------------------------------------------------------------------
+
+local function BootHarnessMode()
+    --tolerate running on a binary that predates the dmhub.harnessMode bridge.
+    local harnessMode = nil
+    local harnessArgs = nil
+    pcall(function()
+        harnessMode = dmhub.harnessMode
+        harnessArgs = dmhub.harnessArgs
+    end)
+
+    if harnessMode == nil or harnessMode == "" then
+        return
+    end
+
+    if rawget(_G, "g_TestHarnessBooted") == true then
+        --a Lua reload while the harness is up: rebuild it with the fresh code.
+        local active = rawget(_G, "g_TestHarnessActive")
+        if active ~= nil then
+            dmhub.Schedule(0.5, function()
+                if mod.unloaded then
+                    return
+                end
+                TestHarness.Show(active.id, active.args)
+            end)
+        end
+        return
+    end
+    g_TestHarnessBooted = true
+
+    print("TestHarness:: boot mode, waiting for lobby game; harness =", harnessMode)
+    lobby:EnterLobbyGame(function()
+        if mod.unloaded then
+            return
+        end
+        print("TestHarness:: lobby game loaded; showing", harnessMode)
+        TestHarness.Show(harnessMode, harnessArgs)
+    end)
+end
+
+BootHarnessMode()

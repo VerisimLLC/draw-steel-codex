@@ -8124,6 +8124,907 @@ function MarkdownDocument:LiveEditPanel(args)
     return resultPanel
 end
 
+--------------------------------------------------------------------------------
+--Seamless editor (v3 surface): ONE gui.TextEditor over the whole markdown
+--source with the engine display transform (richDisplay = true) hiding syntax
+--in place -- Obsidian-style. See JOURNAL_SEAMLESS_EDITOR_PLAN.md at the engine
+--repo root. The compiler below is the Lua half of the contract: it turns the
+--source into a flat list of hide/style/replace/island decorations (1-based
+--inclusive BYTE offsets, Lua string conventions) that the C# DisplayTransform
+--applies. The C# side owns reveal (the caret's line always shows raw source),
+--caret mapping, and island geometry export; widgets stay Lua panels floated
+--over the text from the islandLayout event.
+--------------------------------------------------------------------------------
+
+local Seamless = {}
+
+--Open/close TMP tag pair for a heading level's skin entry. Mirrors
+--SkinHeadingMarkup, but as a pair around a source RANGE rather than wrapping a
+--copied string. Case transforms (allcaps) are omitted: a display decoration
+--must never rewrite the text itself. Skin alignment (h.align) is not painted
+--in the editor yet; explicit :<>-marker alignment is handled by the line pass
+--(TMP stamps a line's alignment at its LAST char, so an align pair opening
+--mid-display-line -- e.g. while syntax is revealed -- still aligns the line).
+function Seamless.HeadingTags(h)
+    h = h or {}
+    local open, close = "", ""
+    if h.sizePct and h.sizePct ~= 100 then
+        open = open .. string.format("<size=%d%%>", h.sizePct)
+        close = "</size>" .. close
+    end
+    if h.weight == "bold" or h.weight == "black" then
+        open = open .. "<b>"
+        close = "</b>" .. close
+    end
+    local tracking = h.tracking or 0
+    if tracking ~= 0 then
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    local color = SkinColor(h.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    if h.caps == "smallcaps" then
+        open = open .. "<smallcaps>"
+        close = "</smallcaps>" .. close
+    end
+    if type(h.font) == "string" and h.font ~= "" and FontAvailable(h.font) then
+        open = string.format("<font=\"%s\">", h.font) .. open
+        close = close .. "</font>"
+    end
+    return open, close
+end
+
+--Open/close pair for link labels, per the link skin (color + underline).
+function Seamless.LinkTags(link)
+    link = link or {}
+    local color = SkinColor(link.color) or "#6fa8dc"
+    local open = string.format("<color=%s>", color)
+    local close = "</color>"
+    if link.underline ~= false then
+        open = open .. "<u>"
+        close = "</u>" .. close
+    end
+    return open, close
+end
+
+--Parse the run of justification markers (:< :> :<> :><) at the start of a
+--line. Mirrors the tokenizer's alternation order (<>|><|<|>) and its per-line
+--semantics: each marker overwrites the previous, so the LAST one wins.
+--Returns the winning alignment ("left"/"right"/"center", nil when the line
+--has no leading marker) and the 1-based offset of the first content char.
+--Mid-line markers are NOT handled here (they stay visible raw text in the
+--seamless editor; the display renderer splits such lines into side-by-side
+--labels, which a single TMP line cannot reproduce).
+function Seamless.ParseLeadingJustification(line)
+    local justification = nil
+    local restStart = 1
+    while true do
+        local m = line:match("^:<>", restStart) or line:match("^:><", restStart)
+            or line:match("^:<", restStart) or line:match("^:>", restStart)
+        if m == nil then
+            break
+        end
+        if m == ":<" then
+            justification = "left"
+        elseif m == ":>" then
+            justification = "right"
+        else
+            justification = "center"
+        end
+        restStart = restStart + #m
+    end
+    return justification, restStart
+end
+
+--Compile the source into a decoration list for the display transform, plus a
+--meta table for islands (islandMeta[id] = { text = tagText }) so the island
+--widget layer can resolve annotations and fire refreshTag like the display
+--renderer does. Line pass: headings, bullets, blockquotes. Inline pass: bold,
+--italics, strikethrough, [label](target) links. Island pass: block-level
+--rich tags (tag alone on its line), with candidate ids matching
+--RenderMarkdownTokens' annotation keys (tagsSeen dedup over all tag tokens in
+--document order). Tables / power rolls / styleblocks / collapse regions stay
+--raw text in v1 (they reveal and edit as source).
+function Seamless.CompileDecorations(doc, text)
+    text = (text or ""):gsub("\v", "\n") --length-preserving; byte offsets stable.
+    local decs = {}
+    local islandMeta = {}
+    if text == "" then
+        return decs, islandMeta
+    end
+
+    local resolvedSkin = nil
+    pcall(function()
+        local sheet = doc:GetResolvedStylesheet()
+        resolvedSkin = sheet ~= nil and sheet.base or nil
+    end)
+    resolvedSkin = resolvedSkin or {}
+    local headingSkins = resolvedSkin.headings or {}
+
+    local group = 0
+    local function G()
+        group = group + 1
+        return group
+    end
+
+    --1-based absolute byte offset of each line's first byte.
+    local lines = string.split_allow_duplicates(text, "\n")
+    local lineOffsets = {}
+    local off = 1
+    for i = 1, #lines do
+        lineOffsets[i] = off
+        off = off + #lines[i] + 1
+    end
+
+    --lines claimed by multi-line block tokens (tables, power rolls, style
+    --blocks...); left raw so they edit as plain source.
+    local blockLines = {}
+    --lines consumed by islands; skipped entirely by the line/inline passes.
+    local islandLines = {}
+
+    --island + block passes run off the journal's own tokenizer so structure
+    --matches the display renderer exactly.
+    local tokens = nil
+    pcall(function()
+        tokens = BreakdownRichTags(text, nil, { player = false, trackPositions = true })
+    end)
+
+    local tagsSeen = {}
+    for _, token in ipairs(tokens or {}) do
+        if token.type == "tag" then
+            local tname, suffix = token.text:match("^(.-):(.*)$")
+            if suffix == nil then
+                tname = token.text
+            end
+            local richTagInfo = MarkdownDocument.RichTagRegistry[string.lower(tname or "")]
+            if richTagInfo ~= nil then
+                local candidate = token.text
+                local index = 1
+                while tagsSeen[candidate] do
+                    candidate = token.text .. '-' .. index
+                    index = index + 1
+                end
+                tagsSeen[candidate] = true
+
+                local li = token.srcLine
+                local line = li ~= nil and lines[li] or nil
+                if line ~= nil and not islandLines[li] then
+                    --block-level tag: the tag alone on its line, optionally
+                    --preceded by justification markers (:<>[[scene:image]]
+                    --centers the widget). The island range covers the whole
+                    --line, so the markers never display; the alignment rides
+                    --the refreshTag token stub like the display renderer's
+                    --token.justification.
+                    local justification, restStart = Seamless.ParseLeadingJustification(line)
+                    --only claim the line as an island if the widget layer can
+                    --actually build a display for it: an annotation object
+                    --exists (hasEdit tags; the annotations scan runs before
+                    --decorations compile) or a registry pattern matches
+                    --(RichSetting-style tags have hasEdit = false, never get
+                    --annotations, and instantiate from the registry default
+                    --instead). Otherwise leave the line as raw editable text:
+                    --hiding the source behind a widgetless reservation made
+                    --such tags vanish into an anonymous blank strip.
+                    local canWidget = false
+                    local ann = doc.annotations
+                    if ann ~= nil then
+                        local obj = ann[candidate]
+                        if obj ~= nil and getmetatable(obj) ~= nil then
+                            canWidget = true
+                        end
+                    end
+                    if not canWidget then
+                        for _, registryTag in pairs(MarkdownDocument.RichTagRegistry) do
+                            if registryTag.pattern and regex.MatchGroups(token.text, registryTag.pattern) ~= nil then
+                                canWidget = true
+                                break
+                            end
+                        end
+                    end
+                    if canWidget and line:sub(restStart) == "[[" .. token.text .. "]]" then
+                        islandLines[li] = true
+                        local from = lineOffsets[li]
+                        local to = from + #line - 1
+                        if li < #lines then
+                            to = to + 1 --the island consumes its trailing newline.
+                        end
+                        decs[#decs + 1] = {
+                            kind = "island",
+                            from = from,
+                            to = to,
+                            id = candidate,
+                            height = 80, --refined by the widget layer once measured.
+                            group = G(),
+                        }
+                        islandMeta[candidate] = { text = token.text, justification = justification }
+                    end
+                end
+            end
+        elseif token.srcLine ~= nil and
+               (token.type == "power_roll" or token.type == "rollable_table" or token.type == "row" or
+                token.type == "styleblock" or token.type == "collapse_node") then
+            for li = token.srcLine, math.min(token.srcLineEnd or token.srcLine, #lines) do
+                blockLines[li] = true
+            end
+        end
+    end
+
+    for li = 1, #lines do
+        if not islandLines[li] and not blockLines[li] then
+            local line = lines[li]
+            local base = lineOffsets[li]
+            local function A(i) return base + i - 1 end
+
+            --leading justification markers (:< :> :<> :><): hide the marker
+            --run and align the line's content with a TMP <align> pair. TMP
+            --alignment is per visual line and the value stamped at a line's
+            --LAST character wins, so the </align> right before the newline
+            --still leaves the whole line aligned -- including while the line
+            --is revealed (styles stay active during reveal, so the raw
+            --':<>## Heading' source edits as a centered line).
+            local justification, restStart = Seamless.ParseLeadingJustification(line)
+            local rest = restStart > 1 and line:sub(restStart) or line
+            if justification ~= nil then
+                local g = G()
+                decs[#decs + 1] = { kind = "hide", from = A(1), to = A(restStart - 1), group = g }
+                if #line >= restStart then
+                    decs[#decs + 1] = { kind = "style", from = A(restStart), to = A(#line),
+                        open = string.format("<align=%s>", justification), close = "</align>", group = g }
+                end
+            end
+
+            --headings: hide the '#+ ' prefix, style the rest per the skin.
+            --Level 6 renders as body text (matches ApplySkinToText), so 1..5.
+            --Matched after any justification marker: the tokenizer consumes
+            --the marker before ApplySkinToText sees the line, so
+            --':<>## Heading' is a centered heading in the display renderer.
+            local hashes = rest:match("^(#+) ")
+            if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
+                local g = G()
+                local level = #hashes
+                decs[#decs + 1] = { kind = "hide", from = A(restStart), to = A(restStart + level), group = g }
+                if #rest > level + 1 then
+                    local open, close = Seamless.HeadingTags(headingSkins[level])
+                    if open ~= "" then
+                        decs[#decs + 1] = { kind = "style", from = A(restStart + level + 1), to = A(#line), open = open, close = close, group = g }
+                    end
+                end
+            elseif rest:match("^([%-%*]) ") then
+                --unordered bullet: swap the marker for the skin glyph.
+                local g = G()
+                local bullet = resolvedSkin.bullet or {}
+                local glyph = bullet.glyph
+                if glyph == nil or glyph == false or glyph == "" then glyph = "\u{2022}" end
+                local markerColor = SkinColor(bullet.color)
+                if markerColor ~= nil then
+                    glyph = string.format("<color=%s>%s</color>", markerColor, glyph)
+                end
+                decs[#decs + 1] = { kind = "replace", from = A(restStart), to = A(restStart), text = glyph, group = g }
+            elseif justification == nil and line:match("^> ") then
+                --blockquote: hide the marker, style the text per the quote skin.
+                --The rendered bar/inset frame cannot be replicated in-line, so
+                --when the skin gives quotes no look of their own, fall back to
+                --italic + muted so quotes stay visually distinct while editing.
+                --Gated on no justification marker: the tokenizer's blockquote
+                --match runs against the RAW line, so ':<>> text' is centered
+                --literal '> text' in the display renderer, not a quote.
+                local g = G()
+                decs[#decs + 1] = { kind = "hide", from = A(1), to = A(2), group = g }
+                if #line > 2 then
+                    local quote = resolvedSkin.quote or {}
+                    local open, close = "", ""
+                    local qcolor = SkinColor(quote.color) or "#c8c8c8dd"
+                    open = open .. string.format("<color=%s>", qcolor)
+                    close = "</color>" .. close
+                    if quote.italic ~= false or SkinColor(quote.color) == nil then
+                        open = open .. "<i>"
+                        close = "</i>" .. close
+                    end
+                    decs[#decs + 1] = { kind = "style", from = A(3), to = A(#line), open = open, close = close, group = g }
+                end
+            end
+
+            --inline pass. The scratch line is progressively blanked (with \1
+            --filler, same length) so later scans cannot see consumed syntax:
+            --rich [[..]] tags first (never inline-styled), then bold before
+            --italic (shared asterisks), then links.
+            local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+
+            --bold: **...**
+            local searchFrom = 1
+            while true do
+                local s, e = scratch:find("%*%*..-%*%*", searchFrom)
+                if s == nil then break end
+                local g = G()
+                decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
+                if e - 2 >= s + 2 then
+                    decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<b>", close = "</b>", group = g }
+                end
+                decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
+                scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+                searchFrom = e + 1
+            end
+
+            --strikethrough: ~~...~~
+            searchFrom = 1
+            while true do
+                local s, e = scratch:find("~~..-~~", searchFrom)
+                if s == nil then break end
+                local g = G()
+                decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
+                if e - 2 >= s + 2 then
+                    decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<s>", close = "</s>", group = g }
+                end
+                decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
+                scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+                searchFrom = e + 1
+            end
+
+            --italic: *...* (bold already blanked)
+            searchFrom = 1
+            while true do
+                local s, e = scratch:find("%*[^%*\1]-%*", searchFrom)
+                if s == nil then break end
+                if e <= s + 1 then
+                    searchFrom = e + 1
+                else
+                    local g = G()
+                    decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = g }
+                    decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(e - 1), open = "<i>", close = "</i>", group = g }
+                    decs[#decs + 1] = { kind = "hide", from = A(e), to = A(e), group = g }
+                    scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+                    searchFrom = e + 1
+                end
+            end
+
+            --links: [label](target) -- hide '[' + '](target)', style the label.
+            --Image syntax (![alt](src)) is left raw.
+            local linkOpen, linkClose = Seamless.LinkTags(resolvedSkin.link)
+            searchFrom = 1
+            while true do
+                local s, e, label = scratch:find("%[([^%[%]\1]-)%]%([^%(%)\1]-%)", searchFrom)
+                if s == nil then break end
+                if s > 1 and scratch:sub(s - 1, s - 1) == "!" then
+                    searchFrom = e + 1
+                elseif #label == 0 then
+                    searchFrom = e + 1
+                else
+                    local g = G()
+                    decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = g }
+                    decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(s + #label), open = linkOpen, close = linkClose, group = g }
+                    decs[#decs + 1] = { kind = "hide", from = A(s + #label + 1), to = A(e), group = g }
+                    scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+                    searchFrom = e + 1
+                end
+            end
+
+            --shorthand links: [Label] (expanded to a link at render time).
+            --Style the label like a link; the brackets stay visible so a bare
+            --[Label] remains distinguishable from plain text while editing.
+            --Checkbox forms ([x], [ ]) are skipped.
+            searchFrom = 1
+            while true do
+                local s, e, label = scratch:find("%[([^%[%]\1]-)%]", searchFrom)
+                if s == nil then break end
+                if #label > 0 and not label:match("^[xX ]$") then
+                    local g = G()
+                    decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(s + #label), open = linkOpen, close = linkClose, group = g }
+                end
+                searchFrom = e + 1
+            end
+        end
+    end
+
+    return decs, islandMeta
+end
+
+--Test hooks.
+MarkdownDocument.__SeamlessCompileDecorations = Seamless.CompileDecorations
+
+--The seamless single-surface editor. Mirrors ClassicEditPanel's document
+--contract (refreshDocument/needsave/savedoc/checkChanges + toolbar +
+--annotations + find bar) with one richDisplay TextEditor over the whole
+--source, plus the island widget overlay.
+function MarkdownDocument:SeamlessEditPanel(args)
+    args = args or {}
+
+    local resultPanel
+    local m_doc = self
+
+    local editInput
+    local editorWrap
+    local m_islandMeta = {}
+    local m_islandPanels = {} --id -> { wrapper, inner, tag, lastHeight }
+
+    local m_annotationsPanel = CreateAnnotationsPanel{
+        GetDocument = function()
+            return m_doc
+        end,
+    }
+
+    local m_autocomplete = CreateMarkdownAutocomplete{
+        GetDocument = function()
+            return m_doc
+        end,
+    }
+
+    local function RecompileDecorations()
+        if editInput == nil or not editInput.valid then
+            return
+        end
+        local ok, err = pcall(function()
+            local decs, meta = Seamless.CompileDecorations(m_doc, editInput.text or "")
+            --carry over measured widget heights so islands do not snap back to
+            --the default on every recompile.
+            for _, d in ipairs(decs) do
+                if d.kind == "island" then
+                    local entry = m_islandPanels[d.id]
+                    if entry ~= nil and entry.lastHeight ~= nil then
+                        d.height = entry.lastHeight
+                    end
+                end
+            end
+            m_islandMeta = meta
+            editInput:SetDecorations(decs)
+        end)
+        if not ok then
+            print("SeamlessEditPanel:: decoration compile error:", tostring(err))
+        end
+    end
+
+    --island widgets: pooled panels floated over the editor at the rects the
+    --engine exports. Annotation resolution matches RenderMarkdownTokens
+    --(doc.annotations[candidate]; the annotations panel's scan creates missing
+    --entries on every edit, which runs before RecompileDecorations).
+    local function IslandLayout(islands)
+        if editorWrap == nil or not editorWrap.valid then
+            return
+        end
+        local seen = {}
+        for _, island in ipairs(islands or {}) do
+            seen[island.id] = true
+            local entry = m_islandPanels[island.id]
+            if entry == nil or not entry.wrapper.valid then
+                local meta = m_islandMeta[island.id]
+                local richTag = nil
+                local patternMatch = nil
+                if meta ~= nil and m_doc.annotations ~= nil then
+                    richTag = m_doc.annotations[island.id]
+                    if richTag ~= nil and getmetatable(richTag) == nil then
+                        richTag = nil
+                    end
+                end
+                if richTag == nil and meta ~= nil then
+                    --pattern-based tags (RichSetting, RichResource, ...) have
+                    --no annotation object (hasEdit = false); mirror the display
+                    --renderer: instantiate a copy of the registry default and
+                    --hand refreshTag the tag's own pattern match (its named
+                    --groups, e.g. settingid), not the generic text:name split.
+                    for _, registryTag in pairs(MarkdownDocument.RichTagRegistry) do
+                        if registryTag.pattern then
+                            local m = nil
+                            pcall(function() m = regex.MatchGroups(meta.text, registryTag.pattern) end)
+                            if m ~= nil then
+                                patternMatch = m
+                                richTag = DeepCopy(registryTag)
+                                break
+                            end
+                        end
+                    end
+                end
+                if richTag ~= nil then
+                    local inner = nil
+                    pcall(function()
+                        inner = richTag:CreateDisplay()
+                    end)
+                    if inner ~= nil then
+                        local islandId = island.id
+                        entry = {
+                            inner = inner,
+                            tag = richTag,
+                            lastHeight = nil,
+                        }
+                        --shown instead of the widget while the island is open
+                        --for editing (revealed): a frame marking the reserved
+                        --rectangle the source text is centered in. Border-only
+                        --(four edge strips): a full-rect graphic would swallow
+                        --the clicks meant for the editable text inside it.
+                        local frameEdge = function(args)
+                            local edge = {
+                                floating = true,
+                                bgimage = "panels/square.png",
+                                bgcolor = "#aaaaaa55",
+                            }
+                            for k, v in pairs(args) do
+                                edge[k] = v
+                            end
+                            return gui.Panel(edge)
+                        end
+                        entry.frame = gui.Panel{
+                            classes = {"collapsed"},
+                            floating = true,
+                            halign = "left",
+                            valign = "top",
+                            width = "100%",
+                            height = 80,
+                            flow = "none",
+                            frameEdge{ halign = "left", valign = "top", width = "100%", height = 1 },
+                            frameEdge{ halign = "left", valign = "bottom", width = "100%", height = 1 },
+                            frameEdge{ halign = "left", valign = "top", width = 1, height = "100%" },
+                            frameEdge{ halign = "right", valign = "top", width = 1, height = "100%" },
+                        }
+                        entry.wrapper = gui.Panel{
+                            floating = true,
+                            halign = "left",
+                            valign = "top",
+                            width = 200,
+                            height = "auto",
+                            flow = "vertical",
+                            inner,
+                            entry.frame,
+
+                            --measure the widget and reserve exactly its height.
+                            --Compared against the height the last islandLayout
+                            --event reported (the transform's actual reservation),
+                            --not a local memory, so a decoration reset that
+                            --reverted the height is always re-asserted.
+                            thinkTime = 0.25,
+                            think = function(element)
+                                if editInput == nil or not editInput.valid then
+                                    return
+                                end
+                                --while the island is open its rect shows the
+                                --frame, not the widget; measuring that would
+                                --feed the reservation back into itself.
+                                if entry.revealedMode then
+                                    return
+                                end
+                                local h = 0
+                                pcall(function() h = element.renderedHeight or 0 end)
+                                if h > 4 then
+                                    local hh = math.ceil(h) + 6
+                                    --require two consecutive identical measurements
+                                    --before the FIRST assertion: a freshly created
+                                    --panel can report the default 100x100 size
+                                    --before its first real layout pass, which
+                                    --permanently inflated empty islands (the
+                                    --mystery 106px gap under a bare image tag).
+                                    if entry.lastHeight == nil and hh ~= entry.pendingHeight then
+                                        entry.pendingHeight = hh
+                                        return
+                                    end
+                                    local current = entry.currentHeight or entry.lastHeight
+                                    if current == nil or math.abs(hh - current) > 2 then
+                                        entry.lastHeight = hh
+                                        editInput:SetIslandHeight(islandId, hh)
+                                    end
+                                end
+                            end,
+                        }
+                        m_islandPanels[island.id] = entry
+                        editorWrap:AddChild(entry.wrapper)
+                        richTag._tmp_document = m_doc
+                        local match = patternMatch
+                        if match == nil then
+                            pcall(function()
+                                match = regex.MatchGroups(meta.text, "^(?<text>.+?):(?<name>.+)$")
+                            end)
+                        end
+                        --token stub: widgets read plain-table fields off the token
+                        --(stylingInfo, justification, ...); islands have no live
+                        --render token, so hand them an empty one rather than nil.
+                        --justification comes from the line's :<>-style markers;
+                        --alignment-aware widgets (image/scene/macro/video) set
+                        --their own halign from it, centering within the wrapper
+                        --(which spans the full editor width). editor = true tells
+                        --widgets they live in the seamless editor (RichImage shows
+                        --its empty-state placeholder and polls for annotation
+                        --edits only there).
+                        entry.match = match
+                        entry.justification = meta.justification
+                        entry.wrapper:FireEventTree("refreshTag", richTag, match, { type = "tag", text = meta.text, justification = meta.justification, editor = true })
+                    end
+                end
+            end
+            if entry ~= nil and entry.wrapper.valid then
+                --re-assert alignment when the line's justification markers
+                --changed (e.g. the user typed :<> before an existing island):
+                --the wrapper is pooled, so the creation-time refreshTag alone
+                --would go stale. Also re-resolve the annotation object: the
+                --annotations scan can REPLACE one (its metatable-patch path),
+                --and a pooled wrapper must follow the live object or edits to
+                --the new annotation never reach the widget.
+                local meta = m_islandMeta[island.id]
+                if meta ~= nil then
+                    local freshTag = nil
+                    if m_doc.annotations ~= nil then
+                        freshTag = m_doc.annotations[island.id]
+                        if freshTag ~= nil and getmetatable(freshTag) == nil then
+                            freshTag = nil
+                        end
+                    end
+                    local tagChanged = freshTag ~= nil and freshTag ~= entry.tag
+                    if tagChanged then
+                        entry.tag = freshTag
+                        entry.tag._tmp_document = m_doc
+                    end
+                    if tagChanged or entry.justification ~= meta.justification then
+                        entry.justification = meta.justification
+                        entry.wrapper:FireEventTree("refreshTag", entry.tag, entry.match, { type = "tag", text = meta.text, justification = meta.justification, editor = true })
+                    end
+                end
+                --revealed = the island is open for editing: its source renders
+                --centered in the reserved rect, so swap the widget for the
+                --frame that marks the rectangle (and stop the height feedback;
+                --see the wrapper's think).
+                local revealed = island.revealed == true
+                if revealed ~= (entry.revealedMode == true) then
+                    entry.revealedMode = revealed
+                    entry.inner:SetClass("collapsed", revealed)
+                    entry.frame:SetClass("collapsed", not revealed)
+                end
+                if revealed then
+                    entry.frame.selfStyle.height = island.height
+                end
+                entry.wrapper:SetClass("hidden", not island.visible)
+                entry.wrapper.selfStyle.x = island.x
+                entry.wrapper.selfStyle.y = island.y
+                entry.wrapper.selfStyle.width = island.width
+                entry.currentHeight = island.height
+            end
+        end
+        for id, entry in pairs(m_islandPanels) do
+            if not seen[id] and entry.wrapper.valid then
+                entry.wrapper:SetClass("hidden", true)
+            end
+        end
+    end
+
+    --find bar state (same recipe as the classic editor's).
+    local findInput, findBar, findCountLabel
+    local OpenFind, CloseFind, UpdateFindUI
+
+    editInput = gui.TextEditor{
+        id = "editorPanel",
+        width = "100%",
+        height = "100%",
+        fontSize = CustomDocument.ScaleFontSize(16),
+        multiline = true,
+        textAlignment = "topleft",
+        text = self:GetTextContent(),
+        verticalScrollbar = true,
+        selectAllOnFocus = false,
+        characterLimit = CustomDocument.MaxLength,
+        richDisplay = true,
+        editlag = 0.3,
+        thinkTime = 0.2,
+
+        create = function(element)
+            m_annotationsPanel:FireEvent("editDocument", element.text)
+            RecompileDecorations()
+        end,
+
+        edit = function(element)
+            --the annotation scan CREATES missing annotation objects for typed
+            --tags, which the island layer needs; run it before recompiling.
+            m_annotationsPanel:FireEvent("editDocument", element.text)
+            RecompileDecorations()
+            m_autocomplete.Update(element)
+
+            local documentPanel = element:FindParentWithClass("documentPanel")
+            if documentPanel ~= nil then
+                documentPanel:FireEvent("documentEdited")
+            end
+        end,
+
+        islandLayout = function(element, islands)
+            IslandLayout(islands)
+        end,
+
+        refreshDocument = function(element)
+            element.text = m_doc:GetTextContent()
+            RecompileDecorations()
+        end,
+
+        needsave = function(element, result)
+            if m_doc:GetTextContent() ~= element.text or m_doc:try_get("_tmp_styleDirty") == true then
+                result.save = true
+            end
+        end,
+
+        savedoc = function(element)
+            m_doc:SetTextContent(element.text)
+            element.text = m_doc:GetTextContent()
+            m_doc._tmp_styleDirty = nil
+        end,
+
+        checkChanges = function(element, baseDoc)
+            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent() or m_doc:try_get("_tmp_styleDirty") == true)
+        end,
+
+        caretReady = function(element)
+            m_autocomplete.Update(element)
+        end,
+
+        find = function(element)
+            OpenFind()
+        end,
+
+        think = function(element)
+            if #m_autocomplete.state.results > 0 then
+                local searchText, bracketPos, contextType = m_autocomplete.FindLinkContext(element.text or "", element.caretPosition or 0)
+                if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
+                    m_autocomplete.Dismiss(element)
+                end
+            else
+                m_autocomplete.UpdateLinkInfo(element)
+            end
+        end,
+    }
+
+    --belt and suspenders: constructor args are applied before the control's
+    --Init() (which historically could reset engine-side state), so re-assert
+    --the display transform after construction.
+    editInput.richDisplay = true
+
+    findCountLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        hmargin = 8,
+        fontSize = 12,
+        color = "#bbbbbb",
+        text = "",
+    }
+
+    findInput = gui.Input{
+        width = "45%",
+        height = 22,
+        valign = "center",
+        fontSize = 14,
+        placeholderText = "Find",
+        text = "",
+        lineType = "SingleLine",
+        edit = function(element)
+            editInput:Find(element.text, false)
+            UpdateFindUI()
+        end,
+        submit = function(element)
+            editInput:FindNext()
+            UpdateFindUI()
+        end,
+    }
+
+    UpdateFindUI = function()
+        local total = editInput:FindCount()
+        if total <= 0 then
+            findCountLabel.text = (findInput.text ~= "" and "No results") or ""
+        else
+            findCountLabel.text = string.format("%d / %d", editInput:FindCurrent(), total)
+        end
+    end
+
+    OpenFind = function()
+        findBar:SetClass("collapsed", false)
+        findBar.captureEscape = true
+        editInput.resetOnDeActivation = false
+        findInput.hasInputFocus = true
+        if findInput.text ~= "" then
+            editInput:Find(findInput.text, false)
+        end
+        UpdateFindUI()
+    end
+
+    CloseFind = function()
+        findBar:SetClass("collapsed", true)
+        findBar.captureEscape = false
+        editInput:ClearFind()
+        editInput.resetOnDeActivation = true
+        editInput.hasInputFocus = true
+    end
+
+    findBar = gui.Panel{
+        classes = { "collapsed" },
+        floating = true,
+        width = "100%-8",
+        height = 30,
+        halign = "center",
+        valign = "top",
+        tmargin = 4,
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "#1a1a1af0",
+        hpad = 6,
+        vpad = 4,
+        borderBox = true,
+
+        captureEscape = false,
+        escapePriority = EscapePriority.DMHUB_POPUP,
+        escape = function(element)
+            CloseFind()
+        end,
+
+        findInput,
+        findCountLabel,
+        gui.Button{
+            text = "Prev", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() editInput:FindPrev() UpdateFindUI() findInput.hasInputFocus = true end,
+        },
+        gui.Button{
+            text = "Next", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() editInput:FindNext() UpdateFindUI() findInput.hasInputFocus = true end,
+        },
+        gui.Button{
+            text = "Close", width = 50, height = 20, fontSize = 11, hmargin = 2, valign = "center",
+            press = function() CloseFind() end,
+        },
+    }
+
+    --formatting toolbar, shared with the other editors. The single input never
+    --needs the live editor's reactivation dance.
+    local toolbar = CreateMarkdownToolbar{
+        GetInput = function()
+            return editInput
+        end,
+        GetStylesheetId = function()
+            return m_doc.styleSheetId or ""
+        end,
+        OnStylesheetChanged = function(chosen)
+            m_doc.styleSheetId = (chosen ~= "" and chosen) or false
+            ResolveStylesheet.ClearCache()
+            m_doc._tmp_styleDirty = true
+            RecompileDecorations()
+            if resultPanel ~= nil then
+                resultPanel:SetClassTree("changes", true)
+            end
+        end,
+    }
+
+    --the editor surface; islands parent here so they float over the text.
+    editorWrap = gui.Panel{
+        width = "98%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+        flow = "none",
+        editInput,
+        findBar,
+    }
+
+    resultPanel = gui.Panel{
+        classes = { "collapsed" },
+        styles = ThemeEngine.GetStyles(),
+        width = "100%",
+        height = "100%-0",
+        valign = "top",
+        tmargin = 2,
+        flow = "vertical",
+
+        refreshDocument = function(element, doc)
+            if doc ~= nil then
+                m_doc = doc
+            end
+        end,
+
+        toolbar,
+        editorWrap,
+
+        gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffff26",
+        },
+
+        m_annotationsPanel,
+    }
+
+    return resultPanel
+end
+
 local MarkdownReferenceTooltip
 
 --The Obsidian-style live block editor (LiveEditPanel) is the journal's editor
@@ -8145,7 +9046,43 @@ local liveEditSetting = setting{
     editor = "check",
 }
 
+--The seamless single-surface editor (SeamlessEditPanel): one editor over the
+--whole document with markdown syntax hidden in place via the engine display
+--transform. Dev-gated until it reaches parity with the block editor; when on,
+--it takes precedence over the live block editor.
+local seamlessEditSetting = setting{
+    id = "journal:seamlessedit",
+    description = "Journal: seamless editing (experimental)",
+    help = "Edit journal pages as one seamless surface with markdown syntax revealed only at the caret (Obsidian-style). Experimental; requires an engine build with display-transform support.",
+    storage = "preference",
+    section = "general",
+    devonly = true,
+    default = false,
+    editor = "check",
+}
+
+--One-time capability check: the display transform needs an engine build that
+--exposes TextEditor.richDisplay. On an older binary the seamless setting falls
+--through to the other editors rather than presenting a broken surface.
+local g_seamlessSupported = nil
+local function SeamlessSupported()
+    if g_seamlessSupported == nil then
+        g_seamlessSupported = false
+        pcall(function()
+            local probe = gui.TextEditor{ width = 1, height = 1, text = "" }
+            g_seamlessSupported = pcall(function()
+                probe.richDisplay = false
+            end)
+            probe:DestroySelf()
+        end)
+    end
+    return g_seamlessSupported
+end
+
 function MarkdownDocument:EditPanel(args)
+    if seamlessEditSetting:Get() and SeamlessSupported() then
+        return self:SeamlessEditPanel(args)
+    end
     if liveEditSetting:Get() then
         return self:LiveEditPanel(args)
     end

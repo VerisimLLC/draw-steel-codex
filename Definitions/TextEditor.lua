@@ -17,6 +17,9 @@
 --- @field canUndo boolean True if there is an edit that can be undone.
 --- @field canRedo boolean True if there is an edit that can be redone.
 --- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
+--- @field richDisplay boolean (default=false) Enables display-transform (seamless markdown) mode: the text property stays the raw source and all positions remain source positions, but the rendered display hides syntax and applies TMP style tags per the decoration list supplied via @see SetDecorations. The line/selection at the caret always reveals its raw source (Obsidian-style).
+--- @field debugDisplayText string Debug: the exact string currently handed to the TMP label (the display string in richDisplay mode). For test assertions.
+--- @field debugTransform string|nil Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
 TextEditor = {}
 
 --- SetTextAndCaret: Sets the text and moves the caret to the given position reliably, even when the editor needs to be re-focused. Fires a 'caretReady' event when the caret is in position.
@@ -113,6 +116,41 @@ function TextEditor:ClearColorSpans()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetDecorations: Replace the display decoration set (requires richDisplay). Pass a list of tables, each { kind = 'hide'|'style'|'replace'|'island', from = number, to = number, ... }. from/to are 1-based inclusive BYTE offsets into the current text (Lua string.find conventions). kind='hide' renders the range as nothing. kind='style' additionally takes open/close TMP tag strings wrapped around the range. kind='replace' takes text (the atomic replacement display text). kind='island' takes id (stable string) and height (reserved pixel height) and renders the range -- whole lines including the trailing newline -- as a fixed-height blank line for an overlay widget. An optional group number links decorations of one markdown construct: the whole group is revealed as raw text while the caret's line or selection touches it.
+--- @param decorations {kind: string, from: number, to: number, open: string|nil, close: string|nil, text: string|nil, id: string|nil, height: number|nil, group: number|nil}[]
+--- @return nil
+function TextEditor:SetDecorations(decorations)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetForcedReveal: Pin a source byte range (1-based, inclusive) revealed as raw text regardless of the caret. Islands intersecting the range render as raw source. Use for edit-in-place affordances.
+--- @param fromByte number
+--- @param toByte number
+--- @return nil
+function TextEditor:SetForcedReveal(fromByte, toByte)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearForcedReveal: Clear the forced reveal set by @see SetForcedReveal.
+--- @return nil
+function TextEditor:ClearForcedReveal()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetIslandHeight: Update the reserved height of the island with the given id (e.g. after its widget was measured).
+--- @param id string
+--- @param height number
+--- @return nil
+function TextEditor:SetIslandHeight(id, height)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ValidateTransform: Debug: run the display transform's invariant checks. Returns nil when everything holds, else a description of the violation. Returns nil when richDisplay is off.
+--- @return string|nil
+function TextEditor:ValidateTransform()
+	-- dummy implementation for documentation purposes only
+end
+
 --- @class TextEditorArgs:PanelArgs 
 --- @field text nil|string The text held in this editor.
 --- @field textNoNotify nil|string An alias of @see text, but if set, no events will fire on the panel. Setting this also resets the undo history so the assigned text becomes the baseline.
@@ -132,4 +170,6 @@ end
 --- @field canUndo nil|boolean True if there is an edit that can be undone.
 --- @field canRedo nil|boolean True if there is an edit that can be redone.
 --- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
+--- @field richDisplay nil|boolean (default=false) Enables display-transform (seamless markdown) mode. See TextEditor.richDisplay.
+--- @field islandLayout nil|fun(element: TextEditor, islands: {id: string, x: number, y: number, width: number, height: number, visible: boolean, revealed: boolean}[]) Event: fired in richDisplay mode whenever island placeholder rects change (edit, scroll, resize). Coordinates are relative to the editor panel's top-left corner in panel units. revealed = the island is open for editing (its source is shown centered in the reserved rect); hosts should swap the widget for a frame and stop asserting heights while revealed.
 TextEditorArgs = {}

@@ -13,28 +13,91 @@ function RichImage.Create()
 end
 
 function RichImage.CreateDisplay(self)
+    --The seamless editor's island layer marks its refresh tokens with
+    --editor = true; display-mode render tokens never carry the flag. In editor
+    --mode we (a) show a placeholder frame when no image is chosen (an empty
+    --image renders 0x0, which left the island's reserved space as an
+    --unexplained blank gap) and (b) poll for annotation edits: the annotation
+    --editors mutate the tag object directly with no change event, so a set
+    --image would otherwise never appear until the editor was recreated.
+    --Read mode is unchanged: no placeholder, no poll.
+    local m_editorMode = false
+    local m_lastImage = nil
+    local m_applied = false
+
+    local imagePanel
+    local placeholderPanel
+    local UpdateState
+
+    UpdateState = function()
+        local img = self.image or nil
+        if img ~= m_lastImage or not m_applied then
+            m_lastImage = img
+            m_applied = true
+            imagePanel.bgimage = img
+        end
+        imagePanel.selfStyle.uiscale = self.uiscale
+        placeholderPanel:SetClass("collapsed", not m_editorMode or m_lastImage ~= nil)
+    end
+
+    imagePanel = gui.Panel{
+        classes = {"image"},
+        maxWidth = self.maxWidth,
+        width = "auto",
+        height = "auto",
+        autosizeimage = true,
+        uiscale = self.uiscale,
+        refreshTag = function(element, tag, match, token)
+            self = tag or self
+            UpdateState()
+        end,
+    }
+
+    placeholderPanel = gui.Panel{
+        classes = {"collapsed"},
+        width = 340,
+        height = 64,
+        halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = "#00000044",
+        border = 1,
+        borderColor = "#99999977",
+        gui.Label{
+            text = "No image set. Choose one in the annotations strip below.",
+            fontSize = 14,
+            color = "#aaaaaa",
+            width = "auto",
+            height = "auto",
+            maxWidth = 320,
+            textAlignment = "center",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
     return gui.Panel{
         width = "auto",
         height = "auto",
         valign = "center",
-        refreshTag = function(element, tag, match, token)
-            element.selfStyle.halign = token.justification or tag.halign
-        end,
+        flow = "vertical",
         halign = self.halign,
-    
-        gui.Panel{
-            classes = {"image"},
-            maxWidth = self.maxWidth,
-            width = "auto",
-            height = "auto",
-            autosizeimage = true,
-            uiscale = self.uiscale,
-            refreshTag = function(element, tag, match, token)
-                tag = tag or self
-                element.bgimage = tag.image or nil
-                element.selfStyle.uiscale = tag.uiscale
-            end,
-        }
+        refreshTag = function(element, tag, match, token)
+            element.selfStyle.halign = (token ~= nil and token.justification) or (tag or self).halign
+            if token ~= nil and token.editor then
+                m_editorMode = true
+                UpdateState()
+            end
+        end,
+
+        thinkTime = 0.35,
+        think = function(element)
+            if m_editorMode then
+                UpdateState()
+            end
+        end,
+
+        imagePanel,
+        placeholderPanel,
     }
 end
 

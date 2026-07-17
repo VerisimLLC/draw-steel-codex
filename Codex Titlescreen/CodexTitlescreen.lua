@@ -155,6 +155,40 @@ local g_selectionBannerHeight = 200
 local g_storeBannerDiceNoxa = "62e2ade2-95a6-493b-81bb-3f9f08cc8312"
 local g_storeBannerDiceSeaOfStars = "8a2a0ab2-d9e2-4ee4-a215-a480033ef6a6"
 
+--Per-set banner art: when the rollable d10 on the banner's right seeds a
+--dice set (see MakeStoreBannerRollDie), the banner's background art
+--cross-fades to that set's banner. Keyed by the dice set assetid -- the
+--same id the roll die seeds by -- so a set with no entry here simply falls
+--back to the default art. The images live in Assets/UIImages/panels/shop/
+--(same 1044x202 layout as the default art) and ship via
+--import-ui-images.ps1 + a build, like any other UI image.
+local g_storeBannerDefaultArt = "panels/shop/title-storebanner.png"
+local g_storeBannerArtByAsset = {
+    ["28c8efb2-81d9-416a-996a-436f8b09e840"] = "panels/shop/soulkiller-banner.png",   --Soulkiller Dice
+    ["8a2a0ab2-d9e2-4ee4-a215-a480033ef6a6"] = "panels/shop/sea-of-stars-banner.png", --Sea of Stars
+    ["c9606a08-22a6-49f0-ab2e-3d137ed7c874"] = "panels/shop/llianar-banner.png",      --Llianar
+    ["67dcc6a6-e39c-4e36-8f12-67be4b6b51c2"] = "panels/shop/terran-steel-banner.png", --Terran Steel
+    ["a1dd7e1a-585e-4203-9fb1-bb3477da32ce"] = "panels/shop/zodiakol-banner.png",     --Zodiakol
+}
+
+--Linear gradient across the banner art: dark at the far left (backing the
+--mini dice showcase, as before) and fading to a substantial block of black
+--on the right, where the rollable d10 and its "Drag to Roll" caption sit.
+--Shared by the banner panel's own bgimage and its cross-fade art layer so
+--the incoming art composites identically over the outgoing art.
+local g_storeBannerGradient = {
+    type = "linear",
+    point_a = { x = 0, y = 0.5 },
+    point_b = { x = 1, y = 0.5 },
+    stops = {
+        { position = 0.0,  color = "#000000ff" },
+        { position = 0.28, color = "#ffffffff" },
+        { position = 0.68, color = "#ffffffff" },
+        { position = 0.88, color = "#000000ff" },
+        { position = 1.0,  color = "#000000ff" },
+    },
+}
+
 --Builds one spinning, drag-to-spin preview die for the store banner showcase.
 --opts: assetid (dice set), size (px, square), and placement (halign/valign/x/y).
 --The die idle-spins on its own (pooled preview scene); grabbing it spins it
@@ -205,9 +239,11 @@ local function MakeStoreBannerDie(opts)
 end
 
 --All Dice shop items currently live on the store: the pool the banner's
---rollable d10 draws a random set from. Recomputed on every (re)seed so it
---tracks store changes, and returns {} until the shop items have downloaded
---(the cage's think below just retries until the pool is non-empty).
+--rollable d10 rotates through. Recomputed on every (re)seed so it tracks
+--store changes, and returns {} until the shop items have downloaded (the
+--cage's think below just retries until the pool is non-empty). Sorted by
+--name (id tiebreak) so the rotation order is deterministic regardless of
+--the engine's shop-item iteration order.
 local function StoreBannerRollableDiceItems()
     local result = {}
     pcall(function()
@@ -216,6 +252,12 @@ local function StoreBannerRollableDiceItems()
                 result[#result + 1] = item
             end
         end
+        table.sort(result, function(a, b)
+            if a.name ~= b.name then
+                return a.name < b.name
+            end
+            return a.id < b.id
+        end)
     end)
     return result
 end
@@ -243,13 +285,14 @@ end
 
 --Builds the rollable d10 for the store banner's right-side black area: an
 --invisible dice-preview cage (like the shop details view's "try dice"
---cages) with a "Drag to Roll" caption. A real 3D d10 in a RANDOM on-sale
---dice set rests on the cage; a click or drag throws a full-screen preview
---roll, and a fresh die in a newly picked random set is seeded after each
---roll so the banner showcases the store's variety. The choice jukeboxes:
---the same set is never seeded twice in a row (unless it is the only one on
---sale). Every executed roll is tracked (shopTitleBannerDiceRoll) with the
---dice set that was rolled.
+--cages) with a "Drag to Roll" caption. A real 3D d10 rests on the cage; a
+--click or drag throws a full-screen preview roll. The FIRST seed of the
+--session picks a random on-sale dice set; after that, each executed roll
+--reseeds with the NEXT set in the name-sorted live-store rotation, so
+--repeated rolls walk the whole catalog deterministically. Reseeds that
+--are not rolls -- the banner coming back into view, too-weak drags --
+--keep the current set. Every executed roll is tracked
+--(shopTitleBannerDiceRoll) with the dice set that was rolled.
 --
 --The cage seeds/clears itself to match the banner's actual visibility (see
 --StoreBannerDieEligible): the titlescreenStateChanged event fired by
@@ -361,13 +404,13 @@ local function MakeStoreBannerRollDie()
                 end
             end,
 
-            --Seed a resting d10 in a freshly picked random on-sale dice set,
-            --armed so a click or drag executes this same local/silent roll
-            --(previewPanel scopes the seed and the armed roll to this cage,
-            --leaving any other cage's dice alone). When the roll finishes --
-            --or a too-weak drag cancels it -- re-seed shortly after with a
-            --new random set, so a fresh die is always resting here.
-            seedBannerDie = function(element)
+            --Seed a resting d10, armed so a click or drag executes this
+            --same local/silent roll (previewPanel scopes the seed and the
+            --armed roll to this cage, leaving any other cage's dice alone).
+            --advance is true when the reseed follows an executed roll: it
+            --rotates to the next set; every other path keeps the current
+            --set (or picks the random starting set on the very first seed).
+            seedBannerDie = function(element, advance)
                 if not element.valid then
                     return
                 end
@@ -384,23 +427,39 @@ local function MakeStoreBannerRollDie()
                     return
                 end
 
-                --Jukebox the choice: never seed the same set twice in a row.
-                --data.item survives clear/seed cycles, so this also holds
-                --across the banner hiding and coming back. With a
-                --single-item pool there is nothing else to pick, so only
-                --then is a repeat allowed.
+                --Deterministic rotation through the live store dice: find
+                --the previous set in the name-sorted pool, then step to the
+                --next one when this reseed follows an executed roll, or
+                --stay put for non-roll reseeds (visibility flips, cancelled
+                --drags). data.item survives clear/seed cycles, so the
+                --rotation also holds across the banner hiding and coming
+                --back. Taking the fresh pool entry (rather than reusing
+                --prev) keeps the item's fields current with the store.
+                local item = nil
                 local prev = element.data.item
-                if prev ~= nil and #items > 1 then
-                    local filtered = {}
-                    for _, candidate in ipairs(items) do
-                        if candidate.id ~= prev.id then
-                            filtered[#filtered + 1] = candidate
+                if prev ~= nil then
+                    for i, candidate in ipairs(items) do
+                        if candidate.id == prev.id then
+                            if advance then
+                                item = items[i % #items + 1]
+                            else
+                                item = candidate
+                            end
+                            break
                         end
                     end
-                    items = filtered
                 end
-                local item = items[math.random(#items)]
+                if item == nil then
+                    --Very first seed of the session -- or the previous set
+                    --has left the store: start (or re-anchor) at random.
+                    item = items[math.random(#items)]
+                end
                 element.data.item = item
+
+                --Tell the banner which set now rests on the cage, so its
+                --background art can cross-fade to that set's banner art
+                --(handled by storeBannerSetSeeded on the banner panel).
+                element:FireEventOnParents("storeBannerSetSeeded", item)
 
                 --Clear any existing resting die first so the freshly seeded
                 --die always picks up the new set's look, then override the
@@ -417,14 +476,15 @@ local function MakeStoreBannerRollDie()
                         --The seeded preview roll only executes when the user
                         --clicks or drags the cage, so a completion here is a
                         --real banner roll (cancel covers the too-weak-drag
-                        --and teardown paths).
+                        --and teardown paths). Only a real roll advances the
+                        --set rotation.
                         track("shopTitleBannerDiceRoll", {
                             itemid = item.id,
                             assetid = item.assetid,
                             setName = item.name,
                             dice = "1d10",
                         })
-                        if element.valid then element:FireEvent("requestReseed") end
+                        if element.valid then element:FireEvent("requestReseed", true) end
                     end,
                     cancel = function()
                         if element.valid then element:FireEvent("requestReseed") end
@@ -446,12 +506,14 @@ local function MakeStoreBannerRollDie()
                 end
             end,
 
-            requestReseed = function(element)
+            --advance passes through to seedBannerDie: true when the reseed
+            --follows an executed roll (rotate to the next set).
+            requestReseed = function(element, advance)
                 if not element.valid or element.data.reseedPending then
                     return
                 end
                 element.data.reseedPending = true
-                element:ScheduleEvent("seedBannerDie", 0.6)
+                element:ScheduleEvent("seedBannerDie", 0.6, advance)
             end,
 
             --Hover wobble + click/drag-to-roll, routed through the
@@ -5592,25 +5654,30 @@ function CreateTitlescreen(dialog, options)
                 --array and drop it.
                 classes = { 'king-panel', 'shop-banner', 'storeBannerZoom', cond(g_devStorePreviewSetting:Get(), nil, "collapsed") },
 
-                bgimage = "panels/shop/title-storebanner.png",
+                bgimage = g_storeBannerDefaultArt,
                 bgcolor = "white",
 
-                --Linear gradient across the art: dark at the far left
-                --(backing the mini dice showcase, as before) and fading to a
-                --substantial block of black on the right, where the rollable
-                --d10 and its "Drag to Roll" caption sit.
-                gradient = {
-                    type = "linear",
-                    point_a = { x = 0, y = 0.5 },
-                    point_b = { x = 1, y = 0.5 },
-                    stops = {
-                        { position = 0.0,  color = "#000000ff" },
-                        { position = 0.28, color = "#ffffffff" },
-                        { position = 0.68, color = "#ffffffff" },
-                        { position = 0.88, color = "#000000ff" },
-                        { position = 1.0,  color = "#000000ff" },
-                    },
-                },
+                --Linear gradient across the art (shared with the cross-fade
+                --layer below; see g_storeBannerGradient for the shape).
+                --gradient = g_storeBannerGradient,
+
+                --The banner art currently committed to our own bgimage (or
+                --being faded to). Used to skip no-op fades when the newly
+                --seeded set maps to the art already showing (e.g. two
+                --consecutive sets that both fall back to the default art).
+                data = { bannerArt = g_storeBannerDefaultArt },
+
+                --The rollable d10 seeded a new dice set (fired up from the
+                --cage via FireEventOnParents): cross-fade the banner art to
+                --that set's banner, when it has one and it isn't already up.
+                storeBannerSetSeeded = function(element, item)
+                    local art = g_storeBannerArtByAsset[tostring(item.assetid)] or g_storeBannerDefaultArt
+                    if art == element.data.bannerArt then
+                        return
+                    end
+                    element.data.bannerArt = art
+                    element:FireEventTree("storeBannerArtChanged", art)
+                end,
 
                 borderWidth = 1.5,
                 borderColor = "white",
@@ -5669,6 +5736,87 @@ function CreateTitlescreen(dialog, options)
                         transitionTime = 0.12,
                         imageRect = { x1 = 0.02, x2 = 0.98, y1 = 0.02, y2 = 0.98 },
                     },
+                },
+
+                --Cross-fade art layer: a full-banner floating panel sitting
+                --over the banner's own bgimage and under everything else on
+                --the banner (first child = drawn behind all later siblings).
+                --On a set change the incoming art loads here at opacity 0
+                --(invisible panels still load their bgimage, so this doubles
+                --as a preload), fades in over the outgoing art, and once
+                --fully opaque is committed to the banner's own bgimage --
+                --identical pixels, so releasing this layer afterwards causes
+                --no visible change regardless of how the opacity eases back.
+                gui.Panel{
+                    classes = { "storeBannerFadeLayer" },
+                    floating = true,
+                    interactable = false,
+                    width = "100%",
+                    height = "100%",
+                    halign = "center",
+                    valign = "center",
+                    bgimage = g_storeBannerDefaultArt,
+                    bgcolor = "white",
+                    gradient = g_storeBannerGradient,
+
+                    --fadeSeq stamps each art change; the scheduled fade
+                    --begin/commit events carry the stamp and bail when a
+                    --newer change has superseded them, so a stale commit can
+                    --never overwrite a newer fade's art.
+                    data = { art = nil, fadeSeq = 0 },
+
+                    styles = {
+                        { selectors = { "storeBannerFadeLayer" }, opacity = 0 },
+                        {
+                            selectors = { "storeBannerFadeLayer", "bannerFadeIn" },
+                            opacity = 1,
+                            transitionTime = 0.6,
+                        },
+                        --Track the banner's hover zoom (storeBannerZoom above)
+                        --so the two art layers stay pixel-aligned when a fade
+                        --crosses a hover.
+                        {
+                            selectors = { "storeBannerFadeLayer", "parent:hover" },
+                            transitionTime = 0.12,
+                            imageRect = { x1 = 0.02, x2 = 0.98, y1 = 0.02, y2 = 0.98 },
+                        },
+                    },
+
+                    storeBannerArtChanged = function(element, art)
+                        element.data.art = art
+                        element.data.fadeSeq = element.data.fadeSeq + 1
+                        --Snap invisible and swap in the new art while
+                        --transparent, then start the fade a beat later so the
+                        --texture has a few frames to decode (a same-frame
+                        --swap-and-show can flash stale white).
+                        element:SetClass("bannerFadeIn", false)
+                        element.bgimage = art
+                        element:ScheduleEvent("bannerFadeBegin", 0.1, element.data.fadeSeq)
+                    end,
+
+                    bannerFadeBegin = function(element, seq)
+                        if seq ~= element.data.fadeSeq then
+                            return
+                        end
+                        element:SetClass("bannerFadeIn", true)
+                        --Commit shortly after the 0.6s opacity transition
+                        --has landed.
+                        element:ScheduleEvent("bannerFadeCommit", 0.7, seq)
+                    end,
+
+                    bannerFadeCommit = function(element, seq)
+                        if seq ~= element.data.fadeSeq then
+                            return
+                        end
+                        --Fully opaque: commit the art to the banner's own
+                        --bgimage (already decoded here, so no load flash)
+                        --and release this layer back to invisible.
+                        local banner = element.parent
+                        if banner ~= nil and banner.valid then
+                            banner.bgimage = element.data.art
+                        end
+                        element:SetClass("bannerFadeIn", false)
+                    end,
                 },
 
                 gui.Panel{
@@ -5753,9 +5901,9 @@ function CreateTitlescreen(dialog, options)
                 },
 
                 --Rollable d10 in the black gradient area on the right: a real
-                --3D die in a random on-sale dice set, resting on an invisible
-                --dice-preview cage. Click or drag throws a full-screen roll;
-                --a new random set is seeded after each roll.
+                --3D die resting on an invisible dice-preview cage. Starts in a
+                --random on-sale dice set; click or drag throws a full-screen
+                --roll, and each roll rotates to the next live-store set.
                 MakeStoreBannerRollDie(),
 
             },

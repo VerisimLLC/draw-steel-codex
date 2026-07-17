@@ -2,7 +2,7 @@
 --- @field events EventSourceLua Gets the event source for store-related events such as inventory refreshes.
 --- @field inventoryItems {[string]: ShopItemInstance} Gets a table of all inventory item instances owned by the current user, keyed by item instance ID.
 --- @field steamAvailable boolean True if the build is running under Steam with the Steamworks API initialized, so Steam Microtransactions can be used.
---- @field supportsGiftPurchases boolean True if this build supports gift purchases (the options.gift flag on BuyItemsWithSteam). Builds that predate gift support lack this property entirely, so read it defensively (pcall) and refuse gift checkout when absent.
+--- @field supportsGiftPurchases boolean True if this build supports gift purchases (the options.gift flag on BuyItemsWithSteam). Builds that predate gift support lack this property entirely, so Lua must read it defensively (pcall) and refuse gift checkout when absent -- otherwise the gift flag would be silently dropped and the purchase granted to the buyer.
 shop = {}
 
 --- ItemInInventory: Returns true if the user's inventory contains an item with the given item ID.

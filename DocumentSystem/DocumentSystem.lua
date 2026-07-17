@@ -1562,7 +1562,7 @@ function CustomDocument:CreateInterface(args)
     end
 
     local m_topBar = gui.Panel {
-        classes = {"surfaceLinear"},
+        classes = {"surfaceLinear", "journalTopBar"},
         width = "100%",
         height = "auto",
         halign = "center",
@@ -1571,6 +1571,12 @@ function CustomDocument:CreateInterface(args)
         bgimage = "panels/square.png",
         bgcolor = "#0d0d0d",
         styles = ThemeEngine.MergeTokens(dsTopBarStyles),
+
+        --window-shade: the tabbed viewer rolls up to just the tab strip, so
+        --the breadcrumb/search and tool rows hide along with the body.
+        journalShade = function(element, shaded)
+            element:SetClass("collapsed", shaded)
+        end,
 
         -- Row 1: breadcrumb + search + close. Design metrics: 11px vertical
         -- breathing room, 16px inset from the edges.
@@ -1754,6 +1760,13 @@ function CustomDocument:CreateInterface(args)
             vscroll = self.vscroll,
             halign = "center",
             bmargin = 8,
+
+            --window-shade: the tabbed viewer collapses the document body,
+            --leaving only the tab strip visible.
+            journalShade = function(element, shaded)
+                element:SetClass("collapsed", shaded)
+            end,
+
             writePanel,
             readPanel,
 
@@ -2039,6 +2052,12 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
         press = function(element)
             tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
+        --window-shade: double-clicking a tab rolls the window up to just the
+        --tab strip (and back). The press above still runs, which just
+        --switches to this tab -- harmless.
+        doubleclick = function(element)
+            tabbedViewer:FireEvent("toggleShade")
+        end,
         rightClick = function(element)
             --Director-side: add the tab's document to the Run panel. rawget
             --because the RunAgenda hook lives in CampaignTrackerPanel.
@@ -2304,6 +2323,12 @@ function CustomDocument.GetOrCreateTabbedViewer()
         halign = "left",
         valign = "bottom",
         press = function(element)
+            --if the window is shaded, unshade it first: pinning the rail
+            --into a rolled-up window would show a squeezed sliver of tree.
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil and v.data.shaded then
+                v:FireEvent("toggleShade")
+            end
             local open = not g_journalTreeRailSetting:Get()
             g_journalTreeRailSetting:Set(open)
             treeRail:SetClass("collapsed", not open)
@@ -2331,6 +2356,14 @@ function CustomDocument.GetOrCreateTabbedViewer()
         bgimage = "panels/square.png",
         bgcolor = "#0a0a0b",
         styles = ThemeEngine.MergeTokens(dsTabStyles),
+        --window-shade: double-clicking the empty strip area rolls the window
+        --up to just the tab strip (and back).
+        doubleclick = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil then
+                v:FireEvent("toggleShade")
+            end
+        end,
         treeToggleButton,
         tabButtonsPanel,
         newTabButton,
@@ -2519,6 +2552,21 @@ function CustomDocument.GetOrCreateTabbedViewer()
             treeRailScroll.children = { tree }
         end,
 
+        --window-shade: hide the rail while shaded; on unshade, restore the
+        --user's pin preference (and rebuild, since refreshTree bails while
+        --collapsed).
+        journalShade = function(element, shaded)
+            if shaded then
+                element:SetClass("collapsed", true)
+            else
+                local open = g_journalTreeRailSetting:Get()
+                element:SetClass("collapsed", not open)
+                if open then
+                    element:FireEvent("refreshTree")
+                end
+            end
+        end,
+
         treeRailScroll,
 
         --hairline separating the rail from the document content.
@@ -2584,6 +2632,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
         activeTab.contentPanel:DestroySelf()
         activeTab.contentPanel = newDoc:CreateInterface(navArgs)
         contentArea:AddChild(activeTab.contentPanel)
+        --a panel built while the window is shaded starts with its body hidden.
+        if viewer ~= nil and viewer.data.shaded then
+            activeTab.contentPanel:FireEventTree("journalShade", true)
+        end
     end
 
     -- Build a tab's content panel on demand. No-op if already realized.
@@ -2605,6 +2657,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
         contentPanel:SetClass("collapsed", true)  -- switchToTab un-collapses the active one
         tabData.contentPanel = contentPanel
         contentArea:AddChild(contentPanel)
+        --a panel built while the window is shaded starts with its body hidden.
+        if viewer ~= nil and viewer.data.shaded then
+            contentPanel:FireEventTree("journalShade", true)
+        end
     end
 
     -- local viewerStyles = ThemeEngine.GetStyles()
@@ -2623,6 +2679,23 @@ function CustomDocument.GetOrCreateTabbedViewer()
     -- for _, s in ipairs(BuildJournalTabStyles()) do
     --     viewerStyles[#viewerStyles + 1] = s
     -- end
+
+    local resizePanel = gui.DialogResizePanel({}, dialogWidth, dialogHeight)
+
+    --window-shade support: set the viewer height and keep the floating
+    --resize handles in sync. The handles are positioned by absolute x/y and
+    --only follow size changes via "resize" delta events, so a programmatic
+    --height change must broadcast the same delta a drag would.
+    local function SetViewerHeight(element, newHeight)
+        local old = element.selfStyle.height
+        if type(old) ~= "number" then
+            old = element.renderedHeight
+        end
+        element.selfStyle.height = newHeight
+        if type(old) == "number" and math.abs(newHeight - old) > 0.5 then
+            resizePanel:FireEventTree("resize", nil, {deltay = newHeight - old})
+        end
+    end
 
     -- Outer Journal Panel
     viewer = gui.Panel {
@@ -2668,6 +2741,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 element.data.visSig = sig
                 refreshTabVisibility(element)
             end
+
+            --while shaded, keep the window height hugging the top bar (its
+            --height settles a layout pass after a tab is first realized, and
+            --changes on tab switch / breadcrumb navigation).
+            if element.data.shaded then
+                element:FireEvent("updateShadeHeight")
+            end
         end,
 
         data = {
@@ -2677,9 +2757,60 @@ function CustomDocument.GetOrCreateTabbedViewer()
             scrollOffset = 0,
             history = {},
             forwardHistory = {},
+            shaded = false,
         },
 
+        --window-shade: roll the window up so only the tab strip remains,
+        --or roll it back down. Toggled by double-clicking the tab strip.
+        toggleShade = function(element)
+            --the engine can deliver a double-click to several overlapping
+            --panels (a tab and the strip under it), each of which fires this
+            --event; debounce so multi-delivery nets a single toggle.
+            local now = dmhub.Time()
+            if element.data.lastShadeToggle ~= nil and now - element.data.lastShadeToggle < 0.25 then
+                return
+            end
+            element.data.lastShadeToggle = now
+
+            local shaded = not element.data.shaded
+            element.data.shaded = shaded
+            if shaded then
+                local cur = element.selfStyle.height
+                if type(cur) ~= "number" then
+                    cur = element.renderedHeight or loc.height
+                end
+                element.data.unshadedHeight = cur
+                element:FireEventTree("journalShade", true)
+                element:FireEvent("updateShadeHeight")
+            else
+                element:FireEventTree("journalShade", false)
+                SetViewerHeight(element, element.data.unshadedHeight or loc.height)
+            end
+        end,
+
+        updateShadeHeight = function(element)
+            if not element.data.shaded then
+                return
+            end
+            local h = tabBar.renderedHeight or 0
+            if h < TAB_BAR_HEIGHT then
+                h = TAB_BAR_HEIGHT
+            end
+            h = h + 1  --the hairline under the tab strip
+            local cur = element.selfStyle.height
+            if type(cur) == "number" and math.abs(cur - h) < 0.5 then
+                return
+            end
+            SetViewerHeight(element, h)
+        end,
+
         addTab = function(element, doc, args)
+            --opening a document into a shaded window unshades it: the user
+            --asked to see content.
+            if element.data.shaded then
+                element:FireEvent("toggleShade")
+            end
+
             for _, tab in ipairs(element.data.tabs) do
                 if tab.docId == doc.id then
                     element:FireEvent("switchToTab", tab.tabId)
@@ -2891,7 +3022,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             element:FireEventTree("refreshNavButtons")
         end,
 
-        gui.DialogResizePanel({}, dialogWidth, dialogHeight),
+        resizePanel,
 
         innerPanel,
     }

@@ -1929,6 +1929,178 @@ function SafetyTools.OpenJournal()
     end
 end
 
+--------------------------------------------------------------------------------
+-- CONTENT WARNING
+--
+-- The Director writes a freeform content warning for the campaign (stored as
+-- a game setting so it syncs to every client; edited from the Safety Tools
+-- panel's Tools in Play card). When a user enters the game they see a
+-- blocking dialog with the warning. "Don't show again" remembers the exact
+-- acknowledged text per user per campaign, so a changed warning shows again.
+--------------------------------------------------------------------------------
+
+local g_contentWarningSetting = setting{
+    id = "safetytools:contentwarning",
+    description = "Content warning",
+    storage = "game",
+    default = "",
+}
+
+local g_contentWarningAckSetting = setting{
+    id = "safetytools:contentwarningack",
+    description = "Content warning acknowledged text",
+    storage = "pergamepreference",
+    default = "",
+}
+
+function SafetyTools.ContentWarningText()
+    local text = g_contentWarningSetting:Get()
+    if type(text) ~= "string" then
+        return ""
+    end
+    return text:trim()
+end
+
+function SafetyTools.SetContentWarningText(text)
+    g_contentWarningSetting:Set(text or "")
+end
+
+--- Shows the blocking content warning dialog. Only the two buttons dismiss
+--- it: Continue just closes; the second button also remembers the current
+--- text for this user+campaign so the dialog stays away until the text
+--- changes.
+function SafetyTools.ShowContentWarningDialog()
+    local gamehud = GameHud.instance
+    if gamehud == nil or gamehud == false then
+        return
+    end
+
+    local text = SafetyTools.ContentWarningText()
+    if text == "" then
+        return
+    end
+
+    local function Hairline(vmargin)
+        return gui.Panel{
+            width = "100%",
+            height = 1,
+            bgimage = true,
+            classes = { "bgDisabled" },
+            vmargin = vmargin or 0,
+        }
+    end
+
+    local dialog = gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000fa",
+        styles = ThemeEngine.GetStyles(),
+
+        gui.Panel{
+            classes = { "framedPanel" },
+            width = 700,
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+
+            gui.Panel{
+                width = "100%",
+                height = 36,
+                hpad = 16,
+                borderBox = true,
+                flow = "horizontal",
+                gui.Label{
+                    classes = { "sizeS", "bold" },
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    text = "CONTENT WARNING",
+                },
+                gui.Label{
+                    classes = { "sizeXs", "fgMuted" },
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "center",
+                    text = "Campaign",
+                },
+            },
+            Hairline(),
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                pad = 24,
+                borderBox = true,
+                flow = "vertical",
+                gui.Label{
+                    classes = { "sizeXl", "bold" },
+                    width = "100%",
+                    height = "auto",
+                    text = "Before you continue",
+                },
+                gui.Label{
+                    classes = { "sizeM" },
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 12,
+                    text = text,
+                },
+                gui.Label{
+                    classes = { "sizeM" },
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 8,
+                    text = "These themes were set by your Director for this campaign.",
+                },
+                gui.Label{
+                    classes = { "sizeS", "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 12,
+                    text = "<i>Take the time you need. The game will wait for you.</i>",
+                },
+                Hairline(16),
+                gui.Button{
+                    classes = { "sizeL", "selected" },
+                    width = "100%",
+                    halign = "center",
+                    text = "CONTINUE",
+                    click = function(element)
+                        gamehud:CloseModal()
+                    end,
+                },
+                gui.Button{
+                    classes = { "sizeS" },
+                    width = "100%",
+                    height = 30,
+                    halign = "center",
+                    tmargin = 8,
+                    text = "CONTINUE - DON'T SHOW AGAIN FOR THIS CAMPAIGN",
+                    click = function(element)
+                        g_contentWarningAckSetting:Set(SafetyTools.ContentWarningText())
+                        gamehud:CloseModal()
+                    end,
+                },
+                gui.Label{
+                    classes = { "sizeXs", "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 12,
+                    textAlignment = "center",
+                    text = "You can review this warning anytime in the Safety Tools panel.",
+                },
+            },
+        },
+    }
+
+    gamehud:ShowModal(dialog)
+end
+
 local function SafetyDescribeAgo(seconds)
     if seconds < 60 then
         return "just now"
@@ -2680,6 +2852,41 @@ local function CreateToolsConfigSection()
         }
     end
 
+    children[#children + 1] = gui.Label{
+        classes = { "sizeS", "bold" },
+        width = "94%",
+        height = "auto",
+        halign = "center",
+        tmargin = 10,
+        text = "Content Warning",
+    }
+    children[#children + 1] = SafetyCaption("Shown to everyone when they enter this game. Leave empty for no warning. Changing the text shows it again to players who dismissed it.")
+    children[#children + 1] = gui.Input{
+        classes = { "input" },
+        width = "94%",
+        height = "auto",
+        minHeight = 40,
+        halign = "center",
+        borderBox = true,
+        vmargin = 2,
+        multiline = true,
+        placeholderText = "e.g. This campaign contains depictions of plague and body horror.",
+        text = SafetyTools.ContentWarningText(),
+        change = function(element)
+            SafetyTools.SetContentWarningText(element.text)
+        end,
+    }
+    children[#children + 1] = gui.Button{
+        classes = { "sizeXs" },
+        width = 90,
+        halign = "center",
+        vmargin = 4,
+        text = "Preview",
+        click = function(element)
+            SafetyTools.ShowContentWarningDialog()
+        end,
+    }
+
     return gui.Panel{
         classes = { "bordered" },
         width = "100%",
@@ -2745,3 +2952,32 @@ DockablePanel.Register{
         return CreateSafetyToolsPanel()
     end,
 }
+
+--show the content warning when entering the game, unless this user already
+--acknowledged this exact text for this campaign.
+dmhub.RegisterEventHandler("EnterGame", function()
+    if mod.unloaded then
+        return
+    end
+
+    local text = SafetyTools.ContentWarningText()
+    if text == "" or g_contentWarningAckSetting:Get() == text then
+        return
+    end
+
+    dmhub.Coroutine(function()
+        while (not GameHud.instance) or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) do
+            coroutine.yield()
+        end
+
+        for i = 1, 5 do
+            coroutine.yield()
+        end
+
+        if mod.unloaded then
+            return
+        end
+
+        SafetyTools.ShowContentWarningDialog()
+    end)
+end)

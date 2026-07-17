@@ -2546,6 +2546,7 @@ local function CreateStarsWishesSection()
         wishInput,
         gui.Button{
             classes = { "sizeS" },
+            width = 170,
             halign = "center",
             vmargin = 4,
             text = "Send to Director",

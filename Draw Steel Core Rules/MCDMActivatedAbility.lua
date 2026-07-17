@@ -626,7 +626,10 @@ function ActivatedAbility:Render(options, params)
             break
         elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
             --if we invoke a power roll ability try to pull that out.
-            for _, subbehavior in ipairs(behavior.customAbility.behaviors) do
+            --customAbility has no class default and may be unset even when
+            --abilityType resolves to "custom" (the class default), so read it safely.
+            local customAbility = behavior:try_get("customAbility")
+            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                     powerTableBehavior = subbehavior
                 end
@@ -1301,7 +1304,10 @@ function ActivatedAbility:Render(options, params)
             break
         elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
             --if we invoke a power roll ability try to pull that out.
-            for _, subbehavior in ipairs(behavior.customAbility.behaviors) do
+            --customAbility has no class default and may be unset even when
+            --abilityType resolves to "custom" (the class default), so read it safely.
+            local customAbility = behavior:try_get("customAbility")
+            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                     powerTableBehavior = subbehavior
                 end

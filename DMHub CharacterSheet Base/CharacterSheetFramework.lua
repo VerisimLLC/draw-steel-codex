@@ -101,6 +101,28 @@ function CharSheet.DeregisterTab(tabid)
 
 end
 
+CharSheet.SheetActions = {}
+
+--Registers an action button shown in the character sheet's top right corner
+--button strip, before the windowed/close buttons. Game systems use this to add
+--sheet-level commands (e.g. export) without the base framework knowing about them.
+--action = {
+--   id = string,
+--   icon = string,
+--   tooltip = nil|string,
+--   visible = nil|function(creature) -> boolean,  --defaults to always visible
+--   click = function(token),
+--}
+function CharSheet.RegisterSheetAction(action)
+	local index = #CharSheet.SheetActions+1
+	for i,a in ipairs(CharSheet.SheetActions) do
+		if a.id == action.id then
+			index = i
+		end
+	end
+	CharSheet.SheetActions[index] = action
+end
+
 dmhub.IsDialogOpen = function()
 	if g_charSheet ~= nil and g_charSheet.valid and g_charSheet.enabled then
 		return true
@@ -1252,7 +1274,66 @@ function CharSheet.CreateCharacterSheet(params)
 	local resultPanel
 
 	local contextInfo = nil
-	
+
+	--The top right corner button strip: registered sheet actions first, then the
+	--windowed toggle and close buttons.
+	local cornerButtons = {}
+
+	for _,action in ipairs(CharSheet.SheetActions) do
+		local actionInfo = action
+		local hoverTooltip = nil
+		if actionInfo.tooltip ~= nil then
+			hoverTooltip = gui.Tooltip(actionInfo.tooltip)
+		end
+		cornerButtons[#cornerButtons+1] = gui.Button{
+			classes = {"sizeL"},
+			icon = actionInfo.icon,
+			valign = "center",
+			hover = hoverTooltip,
+			refreshToken = function(element, info)
+				local visible = true
+				if actionInfo.visible ~= nil then
+					visible = false
+					pcall(function()
+						visible = (actionInfo.visible(info.token.properties) and true) or false
+					end)
+				end
+				element:SetClass("collapsed", not visible)
+			end,
+			click = function(element)
+				if contextInfo ~= nil and contextInfo.token ~= nil then
+					actionInfo.click(contextInfo.token, element)
+				end
+			end,
+		}
+	end
+
+	cornerButtons[#cornerButtons+1] = gui.Button{
+		classes = {"sizeL"},
+		icon = "drawsteel/Icons_Nav_MinWindow.png",
+		valign = "center",
+		setResizeIcon = function(element)
+			local isWindowed = dmhub.GetSettingValue("sheet:windowed")
+			element:Get("characterSheetHarness"):SetClass("windowed", isWindowed)
+			element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
+		end,
+		create = function(element)
+			element:FireEvent("setResizeIcon")
+		end,
+		click = function(element)
+			dmhub.SetSettingValue("sheet:windowed", not dmhub.GetSettingValue("sheet:windowed"))
+			element:FireEvent("setResizeIcon")
+		end,
+	}
+
+	cornerButtons[#cornerButtons+1] = gui.Button{
+		classes = {"closeButton", "sizeL"},
+		valign = "center",
+		escapePriority = EscapePriority.EXIT_CHARACTER_SHEET,
+		click = function(element)
+			resultPanel:FireEvent("escape")
+		end,
+	}
 
 	local args = {
 		id = "characterSheetHarness",
@@ -1361,32 +1442,7 @@ function CharSheet.CreateCharacterSheet(params)
 			halign = "right",
 			valign = "top",
 
-			gui.Button{
-				classes = {"sizeL"},
-				icon = "drawsteel/Icons_Nav_MinWindow.png",
-				valign = "center",
-				setResizeIcon = function(element)
-					local isWindowed = dmhub.GetSettingValue("sheet:windowed")
-					element:Get("characterSheetHarness"):SetClass("windowed", isWindowed)
-					element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
-				end,
-				create = function(element)
-					element:FireEvent("setResizeIcon")
-				end,
-				click = function(element)
-					dmhub.SetSettingValue("sheet:windowed", not dmhub.GetSettingValue("sheet:windowed"))
-					element:FireEvent("setResizeIcon")
-				end,
-			},
-
-			gui.Button{
-				classes = {"closeButton", "sizeL"},
-				valign = "center",
-				escapePriority = EscapePriority.EXIT_CHARACTER_SHEET,
-				click = function(element)
-					resultPanel:FireEvent("escape")
-				end,
-			},
+			children = cornerButtons,
 		}
 	}
 

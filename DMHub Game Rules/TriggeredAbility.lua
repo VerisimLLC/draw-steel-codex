@@ -911,6 +911,44 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		return
 	end
 
+	--Remote execution: an accepted trigger shipped to this client because it
+	--controls the caster (see SendTriggerCastToController). The dispatching
+	--machine already validated the gates, offered the prompt, and recorded
+	--the acceptance -- jump straight to executing the cast with the shipped
+	--targets and symbols so the interactive stages (placement pickers, roll
+	--dialogs) open on this machine. The gates are not re-evaluated here: the
+	--triggering subject may have despawned in transit (e.g. the dead minion
+	--that triggered Rise!), which would spuriously fail them.
+	if argOptions.remoteExecution ~= nil then
+		local remoteExecution = argOptions.remoteExecution
+
+		symbols = table.shallow_copy(symbols or {})
+		symbols.mode = symbols.mode or 1
+		if symbols.subject == nil then
+			symbols.subject = creature
+		end
+
+		self:ExecuteTriggerCast{
+			dismiss = remoteExecution.dismiss,
+			argOptions = {alreadyPaid = remoteExecution.alreadyPaid},
+			casterToken = casterToken,
+			symbols = symbols,
+			targets = remoteExecution.targets,
+			characterModifier = characterModifier,
+			creature = creature,
+			auraControllerToken = auraControllerToken,
+			modContext = modContext or {},
+		}
+
+		--A dismissed trigger only executes its On Dismiss behaviors; it does
+		--not count as "using" the ability, so skip the finishability event.
+		if not remoteExecution.dismiss then
+			creature:DispatchEvent("finishability", {usedability = self})
+		end
+
+		return
+	end
+
     local subjectTarget = self:try_get("subject", "self")
     local subject = symbols and symbols.subject
 
@@ -1203,71 +1241,17 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
     end
 
 	local executeTrigger = function(isDismiss)
-
-		local isDismissExec = isDismiss == true
-		argOptions.dismiss = isDismissExec
-		--Parallel to "useability" (which CountsAsRegularAbilityCast excludes triggered
-		--abilities from): announce that a creature used a TRIGGERED action, so a
-		--subject:enemy data trigger can react to a triggered action taken outside the
-		--actor's own turn. Dispatched on the acting creature with no info.subject, so
-		--DispatchEventOnOthers installs subject = the actor for every other token.
-		--Skipped on dismiss (the reaction was declined, not used).
-		--Gate on the normal trigger resource so free triggered actions don't count.
-		if not isDismissExec and self:ActionResource() == CharacterResource.triggerResourceId then
-			casterToken.properties:DispatchEvent("usetriggeredaction", {usedability = self, cast = symbols and symbols.cast})
-		end
-		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
-		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
-		if not needCoroutine then
-			--A dismissed trigger never costs resources, even when On Dismiss
-			--behaviors run -- the player declined to use the reaction.
-			if not options.alreadyPaid and not isDismissExec then
-				self:ConsumeResources(casterToken, {
-					costOverride = options.costOverride,
-				})
-
-			end
-
-			-- Call OnFinishCastHandlers so that instant behaviors
-			-- (e.g. ActivatedAbilityApplyAbilityDurationEffect) can
-			-- schedule their cleanup and the triggerBefore complete
-			-- callback fires.
-			for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
-				handler(self, casterToken, options)
-			end
-
-			return
-		end
-
-		--For the coroutine path, consume resources upfront if behaviors
-		--may not call CommitToPaying (e.g. triggers without damage/invoke behaviors).
-		--A dismissed trigger never costs resources -- even when On Dismiss
-		--behaviors run -- so mark it paid without actually charging anything,
-		--which also stops the downstream Cast/CastCoroutine payment steps.
-		if not argOptions.alreadyPaid then
-			if not isDismissExec then
-				self:ConsumeResources(casterToken, {})
-			end
-			argOptions.alreadyPaid = true
-		end
-
-		local nframe = dmhub.FrameCount()
-
-		if nframe ~= g_triggerDepthFrame then
-			g_triggerDepth = 0
-			g_triggerDepthFrame = nframe
-		end
-
-		if g_triggerDepth > 8 then
-			printf("Too many triggers stacked in the same frame, aborting.")
-			return
-		end
-
-		g_triggerDepth = g_triggerDepth + 1
-
-		dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, characterModifier, casterToken, creature, symbols, auraControllerToken, modContext, argOptions)
-
-		g_triggerDepth = g_triggerDepth - 1
+		self:ExecuteTriggerCast{
+			dismiss = isDismiss,
+			argOptions = argOptions,
+			casterToken = casterToken,
+			symbols = symbols,
+			targets = targets,
+			characterModifier = characterModifier,
+			creature = creature,
+			auraControllerToken = auraControllerToken,
+			modContext = modContext,
+		}
 	end
 
     print("MANDATORY::", json(symbols.remote), "mandatory =", self:IsMandatory(cond(symbols.remote, nil, casterToken)))
@@ -1525,19 +1509,282 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 end
 
 				local isDismiss = dismissed
-				dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
-					executeTrigger(isDismiss)
-					--A dismissed trigger only executes its On Dismiss behaviors;
-					--it does not count as "using" the ability, so skip the
-					--finishability event (which can chain other triggers).
-					if not isDismiss then
-						casterToken.properties:DispatchEvent("finishability", {usedability = self})
-					end
-				end)
+				--The cast can include interactive stages (placement pickers, roll
+				--dialogs, teleport destination picks) which must open on the
+				--machine of the player controlling the caster -- not on whichever
+				--machine happened to process the trigger event (e.g. the
+				--Director's client raising creaturedeath locally when confirming
+				--a minion death). When another connected client is better suited
+				--to respond (activeControllerId ~= nil), ship the execution there
+				--via the remoteInvokes queue. Run locally when we are the
+				--controller, when the ability has no guid for the remote side to
+				--look it up by, or when the caller is waiting on a completion
+				--callback (the triggerBefore flows), which cannot cross machines.
+				local controllerid = casterToken.activeControllerId
+				if controllerid ~= nil and self:try_get("guid") ~= nil and argOptions.complete == nil then
+					self:SendTriggerCastToController(controllerid, {
+						dismiss = isDismiss,
+						alreadyPaid = argOptions.alreadyPaid,
+						casterToken = casterToken,
+						symbols = symbols,
+						targets = targets,
+						auraControllerToken = auraControllerToken,
+					})
+				else
+					dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
+						executeTrigger(isDismiss)
+						--A dismissed trigger only executes its On Dismiss behaviors;
+						--it does not count as "using" the ability, so skip the
+						--finishability event (which can chain other triggers).
+						if not isDismiss then
+							casterToken.properties:DispatchEvent("finishability", {usedability = self})
+						end
+					end)
+				end
 			end
 		end)
 	end
 
+end
+
+--Runs the cast for an accepted (or mandatory auto-fired) trigger. Extracted
+--from the executeTrigger closure in Trigger() so that remote execution
+--(TriggeredAbilityRemoteExecution below) can run the identical pipeline on
+--the controlling player's machine.
+--args: dismiss, argOptions, casterToken, symbols, targets, characterModifier,
+--creature, auraControllerToken, modContext.
+function TriggeredAbility:ExecuteTriggerCast(args)
+	local argOptions = args.argOptions or {}
+	local casterToken = args.casterToken
+	local symbols = args.symbols
+	local targets = args.targets
+
+	local isDismissExec = args.dismiss == true
+	argOptions.dismiss = isDismissExec
+	--Parallel to "useability" (which CountsAsRegularAbilityCast excludes triggered
+	--abilities from): announce that a creature used a TRIGGERED action, so a
+	--subject:enemy data trigger can react to a triggered action taken outside the
+	--actor's own turn. Dispatched on the acting creature with no info.subject, so
+	--DispatchEventOnOthers installs subject = the actor for every other token.
+	--Skipped on dismiss (the reaction was declined, not used).
+	--Gate on the normal trigger resource so free triggered actions don't count.
+	if not isDismissExec and self:ActionResource() == CharacterResource.triggerResourceId then
+		casterToken.properties:DispatchEvent("usetriggeredaction", {usedability = self, cast = symbols and symbols.cast})
+	end
+	local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid, dismiss = isDismissExec }
+	local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
+	if not needCoroutine then
+		--A dismissed trigger never costs resources, even when On Dismiss
+		--behaviors run -- the player declined to use the reaction.
+		if not options.alreadyPaid and not isDismissExec then
+			self:ConsumeResources(casterToken, {
+				costOverride = options.costOverride,
+			})
+		end
+
+		-- Call OnFinishCastHandlers so that instant behaviors
+		-- (e.g. ActivatedAbilityApplyAbilityDurationEffect) can
+		-- schedule their cleanup and the triggerBefore complete
+		-- callback fires.
+		for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
+			handler(self, casterToken, options)
+		end
+
+		return
+	end
+
+	--For the coroutine path, consume resources upfront if behaviors
+	--may not call CommitToPaying (e.g. triggers without damage/invoke behaviors).
+	--A dismissed trigger never costs resources -- even when On Dismiss
+	--behaviors run -- so mark it paid without actually charging anything,
+	--which also stops the downstream Cast/CastCoroutine payment steps.
+	if not argOptions.alreadyPaid then
+		if not isDismissExec then
+			self:ConsumeResources(casterToken, {})
+		end
+		argOptions.alreadyPaid = true
+	end
+
+	local nframe = dmhub.FrameCount()
+
+	if nframe ~= g_triggerDepthFrame then
+		g_triggerDepth = 0
+		g_triggerDepthFrame = nframe
+	end
+
+	if g_triggerDepth > 8 then
+		printf("Too many triggers stacked in the same frame, aborting.")
+		return
+	end
+
+	g_triggerDepth = g_triggerDepth + 1
+
+	dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
+
+	g_triggerDepth = g_triggerDepth - 1
+end
+
+--A trigger accepted on one machine whose cast must run on the machine of the
+--player controlling the caster (see the acceptance routing in Trigger above).
+--Records travel on the caster's remoteInvokes queue: PumpRemoteInvokes in
+--Creature.lua deserializes the record on the controlling client and calls
+--Invoke(), mirroring AbilityInvocation in AbilityInvokeAbility.lua.
+TriggeredAbilityRemoteExecution = RegisterGameType("TriggeredAbilityRemoteExecution")
+
+--Ships an accepted trigger cast to the caster's controlling client. Symbols
+--and targets are made serialization-safe: GenerateSymbols function wrappers
+--are unwrapped to their underlying creatures, and SerializeEventValue
+--converts live tokens/creatures into string refs which PumpRemoteInvokes
+--resolves back to live objects on the receiving machine.
+function TriggeredAbility:SendTriggerCastToController(controllerid, args)
+	local casterToken = args.casterToken
+
+	local visited = {}
+	local serializedSymbols = {}
+	for k,v in pairs(args.symbols or {}) do
+		if type(v) == "function" then
+			--GenerateSymbols wrappers: unwrap to the underlying creature so it
+			--serializes as a charid ref rather than being dropped.
+			local unwrapped = nil
+			pcall(function() unwrapped = v("self") end)
+			v = unwrapped
+		end
+		serializedSymbols[k] = SerializeEventValue(v, visited)
+	end
+
+	local serializedTargets = {}
+	for _,entry in ipairs(args.targets or {}) do
+		serializedTargets[#serializedTargets+1] = {
+			loc = entry.loc,
+			token = SerializeEventValue(entry.token, visited),
+			--lets the receiver distinguish "never had a token" (loc-only
+			--targets, e.g. pathmoved) from "the token despawned in transit".
+			hadToken = entry.token ~= nil,
+		}
+	end
+
+	local auraControllerId = nil
+	if args.auraControllerToken ~= nil and args.auraControllerToken.charid ~= casterToken.charid then
+		auraControllerId = args.auraControllerToken.charid
+	end
+
+	local invocation = TriggeredAbilityRemoteExecution.new{
+		timestamp = ServerTimestamp(),
+		userid = controllerid,
+		abilityGuid = self:try_get("guid"),
+		abilityName = self.name,
+		casterid = casterToken.charid,
+		auraControllerId = auraControllerId,
+		symbols = serializedSymbols,
+		targets = serializedTargets,
+		dismiss = args.dismiss == true,
+		alreadyPaid = args.alreadyPaid == true,
+	}
+
+	--Held back until the casts currently resolving on this client complete,
+	--mirroring the runOnController path in AbilityInvokeAbility.lua: the
+	--acceptance may arrive while the triggering ability is still resolving
+	--here, and delivering mid-cast prompts the remote player while this
+	--machine is still resolving. The timestamp is refreshed at delivery so
+	--the deferral doesn't consume the 30-second staleness window checked by
+	--PumpRemoteInvokes.
+	print("RemoteTrigger:: shipping", self.name, "to controller", controllerid)
+
+	ActivatedAbility.RunWhenCastsComplete(function()
+		if casterToken == nil or not casterToken.valid then
+			return
+		end
+		invocation.timestamp = ServerTimestamp()
+		casterToken:ModifyProperties{
+			description = "Invoke Trigger",
+			undoable = false,
+			execute = function()
+				local invokes = casterToken.properties:get_or_add("remoteInvokes", {})
+				invokes[#invokes+1] = DeepCopy(invocation)
+			end,
+		}
+	end)
+end
+
+--Invoked by PumpRemoteInvokes on the controlling client. Reconstructs the
+--modifier context and ability from the caster's active modifiers (the same
+--lookup CharacterModifier:TriggerEvent performs), then re-enters Trigger()
+--through the public entry point -- so the modifytrigger wrapper in
+--MCDMModifyTriggers.lua reapplies -- with argOptions.remoteExecution set,
+--which jumps straight to executing the cast.
+function TriggeredAbilityRemoteExecution:Invoke()
+	local casterid = self:try_get("casterid")
+	if casterid == nil then
+		return false
+	end
+
+	local casterToken = dmhub.GetCharacterById(casterid)
+	if casterToken == nil or not casterToken.valid then
+		return false
+	end
+
+	print("RemoteTrigger:: received", self:try_get("abilityName"), "for caster", casterid)
+
+	local casterCreature = casterToken.properties
+
+	local characterModifier = nil
+	local modContext = nil
+	local abilityGuid = self:try_get("abilityGuid")
+	for _,entry in ipairs(casterCreature:GetActiveModifiers()) do
+		local triggeredAbility = entry.mod:try_get("triggeredAbility")
+		if triggeredAbility ~= nil and triggeredAbility:try_get("guid") == abilityGuid then
+			characterModifier = entry.mod
+			modContext = entry
+			break
+		end
+	end
+
+	if characterModifier == nil then
+		printf("RemoteTrigger:: could not find triggered ability %s (%s) on the caster; dropping remote trigger execution.", tostring(self:try_get("abilityName")), tostring(abilityGuid))
+		return false
+	end
+
+	--PumpRemoteInvokes already deserialized token/creature refs back into
+	--live objects.
+	local symbols = self:try_get("symbols") or {}
+	local targets = {}
+	for _,entry in ipairs(self:try_get("targets") or {}) do
+		local tokenAlive = entry.token ~= nil and entry.token.valid
+		if entry.hadToken and not tokenAlive then
+			--this target despawned in transit; drop it, matching the despawn
+			--filtering the accepting machine performs before executing locally.
+		else
+			targets[#targets+1] = { loc = entry.loc, token = entry.token }
+		end
+	end
+
+	if #targets == 0 then
+		return false
+	end
+
+	--Mirror CharacterModifier:TriggerEvent: install per-modifier context
+	--symbols, then apply the creature's Modify Abilities pass.
+	characterModifier:InstallSymbolsFromContext(modContext)
+	for k,v in pairs(characterModifier._tmp_symbols or {}) do
+		symbols[k] = v
+	end
+
+	local ability = casterCreature:ApplyAbilityModifiers(characterModifier.triggeredAbility, nil, "triggered") or characterModifier.triggeredAbility
+
+	local auraControllerToken = nil
+	if self:has_key("auraControllerId") then
+		auraControllerToken = dmhub.GetCharacterById(self.auraControllerId)
+	end
+
+	ability:Trigger(characterModifier, casterCreature, symbols, auraControllerToken, modContext, {
+		remoteExecution = {
+			targets = targets,
+			dismiss = self:try_get("dismiss", false),
+			alreadyPaid = self:try_get("alreadyPaid", false),
+		},
+	})
+
+	return true
 end
 
 function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, creature, symbols, auraControllerToken, modContext, argOptions)

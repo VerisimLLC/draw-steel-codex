@@ -5056,6 +5056,12 @@ ActivatedAbilityForcedMovementBehavior.moveTypeOptions = {
 }
 
 ActivatedAbilityForcedMovementBehavior.moveType = "push"
+
+--Optional override for the prompt shown when the movement resolves. Blank uses the
+--generic "You may push/pull the target N squares". Supports {GoblinScript} formulas
+--and <<range>> for the post-adjustment distance.
+ActivatedAbilityForcedMovementBehavior.promptText = ""
+
 function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targets, options)
     ability:CommitToPaying(casterToken, options)
 
@@ -5148,6 +5154,15 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 
 			local abilityName = "Forced Movement: " .. self.moveType
 			local description = string.format("You may %s the target %d square%s", self.moveType, range, range > 1 and "s" or "")
+
+			--An authored promptText replaces the generic wording. <<range>> resolves to
+			--the distance after Stability and the other adjustments below, so a custom
+			--prompt keeps naming the number of squares the target will actually move.
+			local promptText = self:try_get("promptText", "")
+			if trim(promptText) ~= "" then
+				description = string.gsub(promptText, "<<range>>", string.format("%d", range))
+				description = StringInterpolateGoblinScript(description, casterToken.properties:LookupSymbol{})
+			end
 
 			local abilityAttr = {
 				name = string.gsub(self.moveType, "^%l", string.upper) .. "!",

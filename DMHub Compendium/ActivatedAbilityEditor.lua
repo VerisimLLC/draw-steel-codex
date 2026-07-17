@@ -3003,6 +3003,22 @@ function ActivatedAbilityBehavior:ForcedMovementEditor(parentPanel, list)
 
 		},
 	}
+
+	list[#list+1] = gui.Panel{
+		classes = "formPanel",
+		gui.Label{
+			classes = "formLabel",
+			text = "Prompt Text:",
+		},
+		gui.Input{
+			classes = "formInput",
+			text = self:try_get("promptText", ""),
+			placeholderText = "You may pull the target 4 squares",
+			change = function(element)
+				self.promptText = element.text
+			end,
+		},
+	}
 end
 
 --'half'/'none'

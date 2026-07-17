@@ -1493,7 +1493,7 @@ SafetyTools.Checklist = {
     },
     {
         id = "hate",
-        name = "Hate speech/discrimination/violence based on",
+        name = "Hate speech, discrimination, or violence based on",
         items = {
             { id = "hate-disability", text = "Disability" },
             { id = "hate-gender", text = "Gender" },
@@ -2696,6 +2696,7 @@ local function CreateSafetyToolsPanel()
         width = "100%",
         height = "auto",
         hpad = 6,
+        borderBox = true,
         flow = "vertical",
         bgimage = true,
         bgcolor = "clear",

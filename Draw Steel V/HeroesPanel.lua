@@ -2577,6 +2577,17 @@ local function CreateStarsWishesSection()
         text = "",
     }
 
+    local journalButton = gui.Button{
+        classes = { "sizeS", "collapsed" },
+        width = 200,
+        halign = "center",
+        vmargin = 4,
+        text = "Open Director's Journal",
+        click = function(element)
+            SafetyTools.OpenJournal()
+        end,
+    }
+
     local dmSummary = gui.Panel{
         width = "100%",
         height = "auto",
@@ -2603,18 +2614,13 @@ local function CreateStarsWishesSection()
             else
                 dmCountLabel.text = string.format("%d submissions, collected in your Director's Journal.", count)
             end
+
+            --no point offering the journal until there is something in it.
+            local haveJournal = count > 0 or doc.data.journalDocId ~= nil
+            journalButton:SetClass("collapsed", not haveJournal)
         end,
         dmCountLabel,
-        gui.Button{
-            classes = { "sizeS" },
-            width = 200,
-            halign = "center",
-            vmargin = 4,
-            text = "Open Director's Journal",
-            click = function(element)
-                SafetyTools.OpenJournal()
-            end,
-        },
+        journalButton,
     }
 
     local captionText = "End-of-session feedback for the Director. Submissions include your name."

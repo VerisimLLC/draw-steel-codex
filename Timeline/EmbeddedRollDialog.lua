@@ -3483,6 +3483,52 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    --"Re-roll for 1 Intel": a campaign option (The Condemned's Intel Tracker).
+    --It rides the same "shownWhenPending" gate as the native Re-roll button,
+    --and additionally hides itself whenever the party has no Intel to spend --
+    --so in campaigns that do not use Intel (pool always 0) it never appears.
+    --The whole feature is experimental and lives behind the per-user
+    --"dev:trackintel" flag (declared in CampaignTrackerPanel.lua).
+    --On press it spends 1 Intel, then drives the existing reroll path.
+    local intelRerollButton = gui.PrettyButton {
+        text = "Re-roll for 1 Intel",
+        classes = { "shownWhenPending", "collapsed" },
+        width = 200,
+        height = 26,
+        fontSize = 16,
+        halign = "center",
+        tmargin = 2,
+        bmargin = 2,
+        monitorGame = (rawget(_G, "IntelTracker") ~= nil) and IntelTracker.Path() or nil,
+        refreshGame = function(element)
+            element:FireEvent("refreshIntel")
+        end,
+        create = function(element)
+            element:FireEvent("refreshIntel")
+        end,
+        multimonitor = { "dev:trackintel" },
+        monitor = function(element)
+            element:FireEvent("refreshIntel")
+        end,
+        refreshIntel = function(element)
+            local it = rawget(_G, "IntelTracker")
+            local pool = (it ~= nil) and it.Pool() or 0
+            --hide entirely when the dev:trackintel flag is off or there is no
+            --Intel to spend (also the "not this campaign" case). The
+            --shownWhenPending style handles the rest.
+            local enabled = dmhub.GetSettingValue("dev:trackintel") and true or false
+            element:SetClass("collapsed", (not enabled) or pool < 1)
+        end,
+        press = function(element)
+            local it = rawget(_G, "IntelTracker")
+            if it == nil then return end
+            if g_activeRoll == nil or not g_activeRoll.amendable then return end
+            if it.Spend(1, "Re-rolled a power roll") then
+                rollAgainButton:FireEvent("press")
+            end
+        end,
+    }
+
     -- gui.DicePreview is a dedicated dice-preview cage panel type; fall back to a plain
     -- gui.Panel on an older binary (Lua-only reload) that predates it. (gui is engine
     -- userdata, so index via pcall rather than rawget.)
@@ -3617,6 +3663,7 @@ function GameHud.CreateEmbeddedRollDialog()
             triggersWithTabContainer,
             rollDisabledLabel,
             buttonPanel,
+            intelRerollButton,
         }
     }
 

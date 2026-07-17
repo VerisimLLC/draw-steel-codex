@@ -1791,7 +1791,12 @@ end
 --  { kind = "flag",    key, value }         -- set a boolean flag
 --  { kind = "counter", key, delta | set }   -- adjust or set a counter
 --  { kind = "exit",    key }                -- record an exit as taken
-function CampaignState.Apply(writes, ledgerText)
+--
+--ledgerExtra (optional): a table of extra fields merged onto the ledger
+--entry. Generic readers only touch .text, so features can stash their
+--own structured metadata here (the Intel Tracker records .intel/.name so
+--it can draw a delta-styled row where the Rail just shows the text).
+function CampaignState.Apply(writes, ledgerText, ledgerExtra)
     local doc = mod:GetDocumentSnapshot(CAMPAIGN_STATE_DOC)
     doc:BeginChange()
     local data = doc.data
@@ -1814,12 +1819,1065 @@ function CampaignState.Apply(writes, ledgerText)
         end
     end
 
-    data.ledger[#data.ledger + 1] = {
+    local entry = {
         t = dmhub.serverTimeMilliseconds,
         text = ledgerText or "",
     }
+    if type(ledgerExtra) == "table" then
+        for k, v in pairs(ledgerExtra) do
+            entry[k] = v
+        end
+    end
+    data.ledger[#data.ledger + 1] = entry
 
     doc:CompleteChange(ledgerText or "Campaign state change")
+end
+
+----------------------------------------------------------------------
+-- The Intel Tracker
+-- -----------------
+-- A shared party-resource pool (labelled "Intel") with an append-only
+-- ledger, presented as a dockable panel. The pool is a generic campaign
+-- counter ("intel") so it round-trips through CampaignState like any
+-- other tracked number: scene exits can grant it, and it already pins as
+-- a chip on the Rail. A sibling "alarm" counter rides alongside as the
+-- opposing pressure track.
+--
+-- Players see the pool, the reminder, and the ledger. The Director also
+-- gets grant / spend / adjust controls, and raises or lowers the alarm.
+-- (The offer-a-spend workflow and the roll/reroll cards from the design
+-- spec are later slices.)
+----------------------------------------------------------------------
+
+--Bind to the campaign's existing counter keys so the tracker reflects the
+--real pool and the alarm that scene exits already write to (The Condemned
+--seeds "intel_score" and "alarm_level").
+local INTEL_COUNTER = "intel_score"
+local ALARM_COUNTER = "alarm_level"
+local ALARM_MAX = 5
+
+--The pool's own hue -- earned leverage, kept below the gold accent so it
+--does not out-shout the map. Alarm borrows the warm status-warn amber.
+local INTEL_ACCENT = "#56b8b0"
+local ALARM_ACCENT = "#e8a030"
+
+local INTEL_LABEL = "Intel"
+local INTEL_REMINDER = "Your team's gathered leverage. Earned by exploring; spent to open doors -- literal and otherwise."
+
+--Earn (amount > 0) or spend (amount < 0) the pool, logging a delta-styled
+--ledger line. name is the human reason shown on the ledger row.
+local function IntelAdjust(amount, name)
+    if amount == 0 then return end
+    name = (name ~= nil and name ~= "") and name or "Intel adjusted"
+    CampaignState.Apply(
+        { { kind = "counter", key = INTEL_COUNTER, delta = amount } },
+        string.format("INTEL %+d: %s", amount, name),
+        { intel = amount, name = name }
+    )
+end
+
+--Small public API for other modules (the roll dialog's "Re-roll for 1 Intel"
+--button uses it) so the intel specifics -- counter key, label, ledger format
+--- stay encapsulated here. Callers guard with rawget(_G, "IntelTracker"); the
+--methods no-op safely when CampaignState is not loaded.
+IntelTracker = rawget(_G, "IntelTracker") or {}
+
+function IntelTracker.Label()
+    return INTEL_LABEL
+end
+
+function IntelTracker.Pool()
+    if rawget(_G, "CampaignState") == nil then return 0 end
+    return CampaignState.GetCounter(INTEL_COUNTER)
+end
+
+--The monitor path for panels that show/hide as the pool changes (nil if the
+--campaign-state system is not loaded).
+function IntelTracker.Path()
+    if rawget(_G, "CampaignState") == nil then return nil end
+    return CampaignState.Path()
+end
+
+--Spend `amount` (default 1) if the party can afford it, logging `reason`.
+--Returns true iff it was spent.
+function IntelTracker.Spend(amount, reason)
+    amount = amount or 1
+    if amount <= 0 or IntelTracker.Pool() < amount then return false end
+    IntelAdjust(-amount, reason or "Spent")
+    return true
+end
+
+--Raise or lower the alarm by delta, clamped to [0, ALARM_MAX], logging
+--the direction it moved.
+local function AlarmBump(delta)
+    local cur = CampaignState.GetCounter(ALARM_COUNTER)
+    local nextValue = math.max(0, math.min(ALARM_MAX, cur + delta))
+    if nextValue == cur then return end
+    local verb = nextValue > cur and "raised" or "lowered"
+    CampaignState.Apply(
+        { { kind = "counter", key = ALARM_COUNTER, set = nextValue } },
+        string.format("ALARM %s to %d", verb, nextValue)
+    )
+end
+
+----------------------------------------------------------------------
+-- The offer/spend workflow. The Director offers a NAMED spend at a price
+-- (optionally reducible, optionally gated on the party signalling ready);
+-- the whole table sees the live card; the Director confirms and the pool
+-- is spent, which logs the spend as a ledger row (the receipt). A single
+-- live offer lives in its own shared doc so it syncs to every client.
+----------------------------------------------------------------------
+
+local OFFER_DOC = "inteltrackeroffer"
+
+mod:RegisterDocumentForCheckpointBackups(OFFER_DOC)
+
+local function OfferPath()
+    return mod:GetDocumentPath(OFFER_DOC)
+end
+
+--The live offer table, or nil if none is on the table. Returns a COPY:
+--callers mutate a field and pass it back to SetOffer, and mutating the live
+--snapshot data in place before BeginChange would leave CompleteChange with
+--no diff to broadcast (the change would silently not sync).
+local function GetOffer()
+    local doc = mod:GetDocumentSnapshot(OFFER_DOC)
+    if doc.data.offer == nil then
+        return nil
+    end
+    return DeepCopy(doc.data.offer)
+end
+
+--Replace (or clear, with nil) the live offer and sync it.
+local function SetOffer(offer, description)
+    local doc = mod:GetDocumentSnapshot(OFFER_DOC)
+    doc:BeginChange()
+    doc.data.offer = offer
+    doc:CompleteChange(description or "Update the intel offer")
+end
+
+--The current price: the base price less one for each ticked reduction.
+local function OfferPrice(offer)
+    local p = offer.basePrice or 0
+    for _, r in ipairs(offer.reductions or {}) do
+        if r.on then p = p - 1 end
+    end
+    if p < 0 then p = 0 end
+    return p
+end
+
+--The non-Director, still-connected users -- the "table" that signals ready.
+local function PartyUsers()
+    local out = {}
+    for _, uid in ipairs(dmhub.users or {}) do
+        local si = dmhub.GetSessionInfo(uid)
+        if si ~= nil and si.dm ~= true and si.loggedOut ~= true then
+            out[#out + 1] = { id = uid, name = si.displayName or "Player" }
+        end
+    end
+    return out
+end
+
+--A small "- [n] +" stepper. Returns the panel and a getter for its value.
+local function IntelStepper(initial)
+    local m_value = math.max(1, initial or 1)
+    local valueLabel
+    local function SetValue(v)
+        m_value = math.max(1, v)
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = tostring(m_value)
+        end
+    end
+    valueLabel = gui.Label {
+        classes = { "fgStrong", "bold" },
+        width = 26,
+        height = "auto",
+        fontSize = 15,
+        textAlignment = "center",
+        valign = "center",
+        text = tostring(m_value),
+    }
+    local panel = gui.Panel {
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        children = {
+            gui.Button {
+                classes = { "sizeXxs" },
+                text = "-",
+                halign = "left",
+                valign = "center",
+                press = function() SetValue(m_value - 1) end,
+            },
+            valueLabel,
+            gui.Button {
+                classes = { "sizeXxs" },
+                text = "+",
+                halign = "left",
+                valign = "center",
+                press = function() SetValue(m_value + 1) end,
+            },
+        },
+    }
+    return panel, function() return m_value end
+end
+
+--One live offer card. Renders per status (open / confirm / declined); every
+--control writes the offer doc so all clients re-render. isDM gates the
+--Director controls; players see the card and, in the confirm step, signal
+--ready. Paying spends the pool via IntelAdjust (which logs the receipt row)
+--and clears the offer.
+local function CreateOfferCard(offer, pool)
+    local isDM = dmhub.isDM
+    local status = offer.status or "open"
+    local price = OfferPrice(offer)
+    local short = pool < price
+
+    --spend the pool and clear the offer. allowShort bypasses the shortfall.
+    local function Pay(allowShort)
+        local pr = OfferPrice(offer)
+        if pool < pr and not allowShort then return end
+        IntelAdjust(-pr, offer.name or "Spend")
+        SetOffer(nil, "Pay the intel offer")
+    end
+
+    -- ---- declined: a collapsed line the Director can revive ----
+    if status == "declined" then
+        local row = {
+            gui.Label {
+                classes = { "fgMuted" },
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                fontSize = 12,
+                italics = true,
+                text = string.format("The party holds their %s -- %s declined.",
+                    string.lower(INTEL_LABEL), offer.name or "the spend"),
+            },
+        }
+        if isDM then
+            row[#row + 1] = gui.Button {
+                classes = { "sizeXs" }, text = "Re-offer",
+                halign = "left", valign = "center", lmargin = 8,
+                press = function()
+                    offer.status = "open"
+                    offer.confirmedBy = {}
+                    SetOffer(offer, "Re-offer the spend")
+                end,
+            }
+            row[#row + 1] = gui.Button {
+                classes = { "sizeXs" }, text = "Clear",
+                halign = "left", valign = "center", lmargin = 4,
+                press = function() SetOffer(nil, "Clear the offer") end,
+            }
+        end
+        return gui.Panel {
+            classes = { "bordered" },
+            flow = "horizontal",
+            wrap = true,
+            width = "100%",
+            height = "auto",
+            borderBox = true,
+            pad = 8,
+            bmargin = 8,
+            children = row,
+        }
+    end
+
+    local children = {}
+
+    children[#children + 1] = gui.Label {
+        width = "100%", height = "auto", fontSize = 9, bold = true,
+        color = INTEL_ACCENT,
+        text = string.format("%s SPEND OFFERED", string.upper(INTEL_LABEL)),
+    }
+    children[#children + 1] = gui.Label {
+        classes = { "fgStrong" },
+        width = "100%", height = "auto", fontSize = 15, bold = true, tmargin = 2,
+        text = offer.name or "A spend",
+    }
+
+    --price
+    children[#children + 1] = gui.Panel {
+        flow = "horizontal", width = "100%", height = "auto", valign = "center", tmargin = 4,
+        children = {
+            gui.Label {
+                width = "auto", height = "auto", halign = "left", valign = "center",
+                fontSize = 26, bold = true, color = INTEL_ACCENT, rmargin = 6,
+                text = tostring(price),
+            },
+            gui.Label {
+                classes = { "fgMuted" },
+                width = "auto", height = "auto", halign = "left", valign = "center",
+                fontSize = 13, text = INTEL_LABEL,
+            },
+        },
+    }
+
+    --reductions: Director-toggleable, each worth -1.
+    if #(offer.reductions or {}) > 0 then
+        local redChildren = {}
+        for i, r in ipairs(offer.reductions) do
+            redChildren[#redChildren + 1] = gui.Check {
+                text = string.format("%s  (-1)", r.label or "Reduction"),
+                value = r.on == true,
+                width = 280, height = 22, minWidth = 0, fontSize = 12,
+                halign = "left",
+                interactable = isDM,
+                change = function(element)
+                    if not isDM then element.value = r.on == true; return end
+                    offer.reductions[i].on = element.value == true
+                    SetOffer(offer, "Adjust a reduction")
+                end,
+            }
+        end
+        children[#children + 1] = gui.Panel {
+            flow = "vertical", width = "100%", height = "auto", tmargin = 4,
+            children = redChildren,
+        }
+    end
+
+    --shortfall
+    if short then
+        children[#children + 1] = gui.Label {
+            width = "100%", height = "auto", fontSize = 12, tmargin = 4,
+            color = ALARM_ACCENT,
+            text = string.format("%d needed -- the party has %d.", price, pool),
+        }
+    end
+
+    --confirm step: the table's ready pips.
+    if status == "confirm" then
+        local pipChildren = {}
+        local party = PartyUsers()
+        if #party == 0 then
+            pipChildren[#pipChildren + 1] = gui.Label {
+                classes = { "fgMuted" }, width = "auto", height = "auto", halign = "left",
+                fontSize = 11, italics = true, text = "No players connected.",
+            }
+        end
+        for _, p in ipairs(party) do
+            local ready = offer.confirmedBy ~= nil and offer.confirmedBy[p.id] == true
+            pipChildren[#pipChildren + 1] = gui.Label {
+                width = "auto", height = "auto", halign = "left", valign = "center",
+                rmargin = 10, fontSize = 12,
+                color = ready and INTEL_ACCENT or nil,
+                text = string.format("%s %s", ready and "[x]" or "[ ]", p.name),
+            }
+        end
+        children[#children + 1] = gui.Panel {
+            classes = { "bordered" }, flow = "vertical", width = "100%", height = "auto",
+            borderBox = true, pad = 8, tmargin = 6,
+            children = {
+                gui.Label {
+                    width = "100%", height = "auto", fontSize = 9, bold = true,
+                    color = INTEL_ACCENT, text = "WAITING FOR THE TABLE...",
+                },
+                gui.Panel {
+                    flow = "horizontal", wrap = true, width = "100%", height = "auto", tmargin = 4,
+                    children = pipChildren,
+                },
+                gui.Label {
+                    classes = { "fgMuted" }, width = "100%", height = "auto",
+                    fontSize = 11, italics = true, tmargin = 4,
+                    text = "Pips are a signal, not a vote -- the Director's confirm finalizes.",
+                },
+            },
+        }
+        if not isDM then
+            local mine = offer.confirmedBy ~= nil and offer.confirmedBy[dmhub.userid] == true
+            children[#children + 1] = gui.Button {
+                classes = { "sizeS" },
+                text = mine and "Ready (undo)" or "Signal ready",
+                halign = "left", valign = "center", tmargin = 6,
+                press = function()
+                    offer.confirmedBy = offer.confirmedBy or {}
+                    offer.confirmedBy[dmhub.userid] = (not mine) or nil
+                    SetOffer(offer, "Signal ready")
+                end,
+            }
+        end
+    end
+
+    --action buttons
+    local actions = {}
+    if isDM then
+        if status == "open" then
+            if offer.requireConfirm then
+                actions[#actions + 1] = gui.Button {
+                    classes = { "sizeS" }, text = "Ask the table",
+                    halign = "left", valign = "center",
+                    press = function()
+                        offer.status = "confirm"
+                        SetOffer(offer, "Ask the table")
+                    end,
+                }
+            else
+                actions[#actions + 1] = gui.Button {
+                    classes = { "sizeS" }, text = string.format("Pay %d", price),
+                    halign = "left", valign = "center", interactable = not short,
+                    press = function() Pay(false) end,
+                }
+            end
+        elseif status == "confirm" then
+            actions[#actions + 1] = gui.Button {
+                classes = { "sizeS" }, text = string.format("Confirm -- pay %d", price),
+                halign = "left", valign = "center", interactable = not short,
+                press = function() Pay(false) end,
+            }
+        end
+        actions[#actions + 1] = gui.Button {
+            classes = { "sizeS" }, text = "Decline",
+            halign = "left", valign = "center", lmargin = 6,
+            press = function()
+                offer.status = "declined"
+                SetOffer(offer, "Decline the offer")
+            end,
+        }
+    else
+        actions[#actions + 1] = gui.Label {
+            classes = { "fgMuted" }, width = "auto", height = "auto",
+            halign = "left", valign = "center", fontSize = 12, italics = true,
+            text = "The Director resolves this spend.",
+        }
+    end
+    children[#children + 1] = gui.Panel {
+        flow = "horizontal", width = "100%", height = "auto", valign = "center", tmargin = 8,
+        children = actions,
+    }
+
+    --Director shortfall override
+    if isDM and short and (status == "confirm" or (status == "open" and not offer.requireConfirm)) then
+        children[#children + 1] = gui.Button {
+            classes = { "sizeXs" }, text = "Allow anyway (override)",
+            halign = "left", valign = "center", tmargin = 4,
+            press = function() Pay(true) end,
+        }
+    end
+
+    return gui.Panel {
+        classes = { "bordered" },
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        borderBox = true,
+        pad = 10,
+        bmargin = 8,
+        borderColor = INTEL_ACCENT,
+        children = children,
+    }
+end
+
+--The headline: the big pool number, its label + reminder, and the alarm
+--track. Reactive (rebuilt on state change) but near-constant in height, so
+--it never pushes the controls below it around. It sits ABOVE the ledger:
+--the ledger is the one element that grows, and a growing element that lives
+--above a stable sibling gets that sibling culled offscreen without the
+--engine reviving it -- so the grower goes last (see CreateIntelLedger).
+local function CreateIntelHeadline()
+    --Persistent (never rebuilt) so the number can animate: rebuilding the
+    --label each refresh would kill any in-flight tween. The alarm row, which
+    --does not animate, IS rebuilt in place.
+    local numberLabel, ghostLabel, alarmArea, alarmValueLabel
+    local m_shown = nil     -- the value currently on screen
+    local m_animToken = 0   -- bumps to cancel a superseded odometer run
+
+    --Odometer: tick the number from m_shown to target over ~0.3s.
+    local function AnimateTo(target)
+        m_animToken = m_animToken + 1
+        local token = m_animToken
+        local from = m_shown or target
+        if numberLabel == nil or not numberLabel.valid then m_shown = target return end
+        if from == target then
+            numberLabel.text = tostring(target)
+            m_shown = target
+            return
+        end
+        local steps, i = 12, 0
+        local function step()
+            if mod.unloaded or numberLabel == nil or not numberLabel.valid then return end
+            if token ~= m_animToken then return end
+            i = i + 1
+            local v = math.floor(from + (target - from) * (i / steps) + 0.5)
+            numberLabel.text = tostring(v)
+            if i < steps then
+                dmhub.Schedule(0.025, step)
+            else
+                numberLabel.text = tostring(target)
+                m_shown = target
+            end
+        end
+        step()
+    end
+
+    --Ghost: one reused floating label snaps to the number, then rises + fades.
+    local function SpawnGhost(delta)
+        if ghostLabel == nil or not ghostLabel.valid then return end
+        ghostLabel.text = string.format("%+d", delta)
+        ghostLabel.selfStyle.color = delta > 0 and INTEL_ACCENT or ALARM_ACCENT
+        ghostLabel.selfStyle.transitionTime = 0
+        ghostLabel.selfStyle.y = 0
+        ghostLabel.selfStyle.opacity = 1
+        dmhub.Schedule(0.03, function()
+            if mod.unloaded or ghostLabel == nil or not ghostLabel.valid then return end
+            ghostLabel.selfStyle.transitionTime = 0.9
+            ghostLabel.selfStyle.y = -26
+            ghostLabel.selfStyle.opacity = 0
+        end)
+    end
+
+    numberLabel = gui.Label {
+        width = "auto", height = "auto", halign = "left", valign = "center",
+        rmargin = 12, fontSize = 44, bold = true, color = INTEL_ACCENT,
+        text = "0",
+    }
+    ghostLabel = gui.Label {
+        floating = true, halign = "right", valign = "top",
+        x = 10, y = 0, opacity = 0,
+        fontSize = 15, bold = true, color = INTEL_ACCENT, text = "",
+    }
+    alarmValueLabel = gui.Label {
+        width = "auto", height = "auto", halign = "left", rmargin = 12, valign = "center",
+        fontSize = 15, bold = true, text = "0/" .. ALARM_MAX,
+    }
+    alarmArea = gui.Panel {
+        flow = "horizontal", width = "100%", height = "auto", valign = "center", bmargin = 4,
+    }
+
+    local function RefreshAlarm(alarm)
+        local segs = {}
+        for i = 1, ALARM_MAX do
+            segs[#segs + 1] = gui.Panel {
+                classes = { "bordered" },
+                width = 24, height = 8, halign = "left", rmargin = 3,
+                borderBox = true, bgimage = "panels/square.png",
+                bgcolor = i <= alarm and ALARM_ACCENT or "#00000000",
+            }
+        end
+        alarmValueLabel.text = string.format("%d/%d", alarm, ALARM_MAX)
+        alarmValueLabel.selfStyle.color = alarm > 0 and ALARM_ACCENT or nil
+        alarmArea.children = {
+            gui.Label {
+                classes = { "fgMuted", "bold" },
+                width = "auto", height = "auto", halign = "left", rmargin = 8, valign = "center",
+                fontSize = 11, text = "ALARM",
+            },
+            alarmValueLabel,
+            gui.Panel {
+                flow = "horizontal", width = "auto", height = "auto",
+                halign = "left", valign = "center", children = segs,
+            },
+        }
+    end
+
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        monitorGame = CampaignState.Path(),
+        refreshGame = function(element)
+            element:FireEvent("refreshHeadline")
+        end,
+        create = function(element)
+            element:FireEvent("refreshHeadline")
+        end,
+        refreshHeadline = function(element)
+            local pool = CampaignState.GetCounter(INTEL_COUNTER)
+            local alarm = CampaignState.GetCounter(ALARM_COUNTER)
+            if m_shown == nil then
+                m_shown = pool
+                if numberLabel ~= nil and numberLabel.valid then
+                    numberLabel.text = tostring(pool)
+                end
+            elseif pool ~= m_shown then
+                SpawnGhost(pool - m_shown)
+                AnimateTo(pool)
+            end
+            RefreshAlarm(alarm)
+        end,
+        children = {
+            gui.Panel {
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                bmargin = 8,
+                children = {
+                    gui.Panel {
+                        flow = "horizontal",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                        children = { numberLabel, ghostLabel },
+                    },
+                    gui.Panel {
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        valign = "center",
+                        children = {
+                            gui.Label {
+                                classes = { "fgMuted", "bold" },
+                                width = "auto",
+                                height = "auto",
+                                fontSize = 12,
+                                text = string.format("PARTY %s", string.upper(INTEL_LABEL)),
+                            },
+                            gui.Label {
+                                classes = { "fgMuted" },
+                                width = 210,
+                                height = "auto",
+                                fontSize = 12,
+                                italics = true,
+                                tmargin = 3,
+                                text = INTEL_REMINDER,
+                            },
+                        },
+                    },
+                },
+            },
+            alarmArea,
+        },
+    }
+end
+
+--The Director's controls: a stable sibling (NOT rebuilt on state change) so
+--an in-progress name entry survives a co-Director's edit. Buttons read live
+--campaign state at press time. Rows STACK vertically (label / input / a
+--stepper+action line) so nothing overflows the narrow dock and clips.
+local function CreateIntelDirectorControls()
+    local m_grantName = ""
+    local m_spendName = ""
+    local grantInput, spendInput
+    local getGrantAmt, getSpendAmt
+
+    local grantStepper, spendStepper
+    grantStepper, getGrantAmt = IntelStepper(1)
+    spendStepper, getSpendAmt = IntelStepper(1)
+
+    grantInput = gui.Input {
+        width = "100%",
+        height = 26,
+        fontSize = 13,
+        borderBox = true,
+        placeholderText = "Reason for the grant...",
+        text = "",
+        change = function(element) m_grantName = element.text or "" end,
+    }
+
+    spendInput = gui.Input {
+        width = "100%",
+        height = 26,
+        fontSize = 13,
+        borderBox = true,
+        placeholderText = "What it buys...",
+        text = "",
+        change = function(element) m_spendName = element.text or "" end,
+    }
+
+    local function ClearInputs()
+        m_grantName, m_spendName = "", ""
+        if grantInput ~= nil and grantInput.valid then grantInput.text = "" end
+        if spendInput ~= nil and spendInput.valid then spendInput.text = "" end
+    end
+
+    local function SectionLabel(text)
+        return gui.Label {
+            classes = { "fgMuted", "bold" },
+            width = "100%",
+            height = "auto",
+            fontSize = 11,
+            tmargin = 8,
+            bmargin = 3,
+            text = text,
+        }
+    end
+
+    --stepper on the left, action button beside it, on one line.
+    local function ActionRow(stepper, button)
+        return gui.Panel {
+            flow = "horizontal",
+            width = "100%",
+            height = "auto",
+            valign = "center",
+            tmargin = 4,
+            children = { stepper, button },
+        }
+    end
+
+    -- offer authoring: name + price + optional reductions + confirm toggle.
+    local m_offerName = ""
+    local m_requireConfirm = false
+    local m_reductions = {}          -- pending list of { label }
+    local m_reductionDraft = ""
+
+    local offerNameInput, reductionInput, reductionsListPanel, confirmCheck
+    local priceStepper, getPrice
+    priceStepper, getPrice = IntelStepper(3)
+
+    offerNameInput = gui.Input {
+        width = "100%", height = 26, fontSize = 13, borderBox = true,
+        placeholderText = "What the spend buys...",
+        text = "",
+        change = function(element) m_offerName = element.text or "" end,
+    }
+
+    local function RebuildReductions()
+        local rows = {}
+        for i, r in ipairs(m_reductions) do
+            rows[#rows + 1] = gui.Panel {
+                flow = "horizontal", width = "100%", height = "auto", valign = "center", vpad = 1,
+                children = {
+                    gui.Label {
+                        classes = { "fgMuted" }, width = "auto", height = "auto",
+                        halign = "left", valign = "center", fontSize = 12, rmargin = 6,
+                        text = string.format("- %s (-1)", r.label),
+                    },
+                    gui.Button {
+                        classes = { "sizeXxs" }, text = "x",
+                        halign = "left", valign = "center",
+                        press = function()
+                            table.remove(m_reductions, i)
+                            RebuildReductions()
+                        end,
+                    },
+                },
+            }
+        end
+        if reductionsListPanel ~= nil and reductionsListPanel.valid then
+            reductionsListPanel.children = rows
+        end
+    end
+
+    reductionInput = gui.Input {
+        width = 236, height = 24, fontSize = 12, borderBox = true,
+        halign = "left",
+        placeholderText = "Add a reduction (each -1)...",
+        text = "",
+        change = function(element) m_reductionDraft = element.text or "" end,
+    }
+
+    reductionsListPanel = gui.Panel {
+        flow = "vertical", width = "100%", height = "auto",
+    }
+
+    confirmCheck = gui.Check {
+        text = "Ask the party to confirm",
+        value = false, width = "100%", height = 22, minWidth = 0, fontSize = 12,
+        halign = "left",
+        change = function(element) m_requireConfirm = element.value == true end,
+    }
+
+    local function ClearOfferDraft()
+        m_offerName, m_reductionDraft = "", ""
+        m_reductions = {}
+        m_requireConfirm = false
+        if offerNameInput ~= nil and offerNameInput.valid then offerNameInput.text = "" end
+        if reductionInput ~= nil and reductionInput.valid then reductionInput.text = "" end
+        if confirmCheck ~= nil and confirmCheck.valid then confirmCheck.value = false end
+        RebuildReductions()
+    end
+
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        tmargin = 8,
+        children = {
+            gui.Panel { classes = { "bordered" }, width = "100%", height = 1, bmargin = 2 },
+
+            SectionLabel(string.format("GRANT %s", string.upper(INTEL_LABEL))),
+            grantInput,
+            ActionRow(grantStepper, gui.Button {
+                classes = { "sizeS" },
+                text = "Grant",
+                halign = "left",
+                valign = "center",
+                lmargin = 10,
+                press = function()
+                    IntelAdjust(getGrantAmt(), m_grantName)
+                    ClearInputs()
+                end,
+            }),
+
+            SectionLabel(string.format("SPEND %s", string.upper(INTEL_LABEL))),
+            spendInput,
+            ActionRow(spendStepper, gui.Button {
+                classes = { "sizeS" },
+                text = "Spend",
+                halign = "left",
+                valign = "center",
+                lmargin = 10,
+                press = function()
+                    local pool = CampaignState.GetCounter(INTEL_COUNTER)
+                    local amt = math.min(getSpendAmt(), pool)
+                    if amt <= 0 then return end
+                    IntelAdjust(-amt, m_spendName)
+                    ClearInputs()
+                end,
+            }),
+
+            SectionLabel("ALARM"),
+            gui.Panel {
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                valign = "center",
+                children = {
+                    gui.Button {
+                        classes = { "sizeXxs" },
+                        text = "-",
+                        halign = "left",
+                        valign = "center",
+                        press = function() AlarmBump(-1) end,
+                    },
+                    gui.Button {
+                        classes = { "sizeXxs" },
+                        text = "+",
+                        halign = "left",
+                        valign = "center",
+                        lmargin = 6,
+                        press = function() AlarmBump(1) end,
+                    },
+                },
+            },
+
+            SectionLabel("OFFER A SPEND"),
+            offerNameInput,
+            gui.Panel {
+                flow = "horizontal", width = "100%", height = "auto", valign = "center", tmargin = 4,
+                children = {
+                    gui.Label {
+                        classes = { "fgMuted", "bold" }, width = "auto", height = "auto",
+                        halign = "left", valign = "center", fontSize = 11, rmargin = 6, text = "PRICE",
+                    },
+                    priceStepper,
+                },
+            },
+            confirmCheck,
+            gui.Panel {
+                flow = "horizontal", width = "100%", height = "auto", valign = "center", tmargin = 4,
+                children = {
+                    reductionInput,
+                    gui.Button {
+                        classes = { "sizeXxs" }, text = "+",
+                        halign = "left", valign = "center", lmargin = 6,
+                        press = function()
+                            local lbl = (m_reductionDraft or ""):match("^%s*(.-)%s*$")
+                            if lbl == nil or lbl == "" then return end
+                            m_reductions[#m_reductions + 1] = { label = lbl }
+                            m_reductionDraft = ""
+                            if reductionInput ~= nil and reductionInput.valid then reductionInput.text = "" end
+                            RebuildReductions()
+                        end,
+                    },
+                },
+            },
+            reductionsListPanel,
+            gui.Button {
+                classes = { "sizeM" },
+                text = "Offer spend",
+                halign = "left", valign = "center", tmargin = 6,
+                press = function()
+                    local name = (m_offerName or ""):match("^%s*(.-)%s*$")
+                    if name == nil or name == "" then name = "Unnamed spend" end
+                    local reductions = {}
+                    for _, r in ipairs(m_reductions) do
+                        reductions[#reductions + 1] = { id = dmhub.GenerateGuid(), label = r.label, on = false }
+                    end
+                    SetOffer({
+                        id = dmhub.GenerateGuid(),
+                        name = name,
+                        basePrice = getPrice(),
+                        reductions = reductions,
+                        requireConfirm = m_requireConfirm,
+                        status = "open",
+                        confirmedBy = {},
+                    }, "Offer a spend")
+                    ClearOfferDraft()
+                end,
+            },
+        },
+    }
+end
+
+--The live area: the current offer card (if any) sits above the ledger, and
+--the two rebuild TOGETHER. This whole block goes LAST in the panel: the
+--ledger grows and the offer card appears and vanishes, and a variable-height
+--reactive block only lays out cleanly when nothing sits below it to be
+--culled. It watches the offer doc (its own monitorGame) and campaign state
+--(a sibling monitor), so an offer change, a spend, or a grant all refresh it.
+local function CreateIntelLiveArea()
+    local content
+    content = gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        tmargin = 8,
+        monitorGame = OfferPath(),
+        refreshGame = function(element)
+            element:FireEvent("refreshLive")
+        end,
+        create = function(element)
+            element:FireEvent("refreshLive")
+        end,
+        refreshLive = function(element)
+            local children = {}
+            local pool = CampaignState.GetCounter(INTEL_COUNTER)
+
+            local offer = GetOffer()
+            if offer ~= nil then
+                children[#children + 1] = CreateOfferCard(offer, pool)
+            end
+
+            children[#children + 1] = gui.Label {
+                classes = { "fgMuted", "bold" },
+                width = "100%",
+                height = "auto",
+                fontSize = 11,
+                bmargin = 2,
+                text = "LEDGER",
+            }
+
+            local ledger = CampaignState.Get().ledger
+            if #ledger == 0 then
+                children[#children + 1] = gui.Label {
+                    classes = { "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 12,
+                    italics = true,
+                    text = INTEL_REMINDER,
+                }
+            else
+                local shown = 0
+                for i = #ledger, 1, -1 do
+                    shown = shown + 1
+                    if shown > 20 then break end
+                    local e = ledger[i]
+                    if e.intel ~= nil then
+                        local delta = e.intel
+                        children[#children + 1] = gui.Panel {
+                            flow = "horizontal",
+                            width = "100%",
+                            height = "auto",
+                            vpad = 3,
+                            children = {
+                                gui.Label {
+                                    width = 34,
+                                    height = "auto",
+                                    halign = "left",
+                                    valign = "center",
+                                    fontSize = 13,
+                                    bold = true,
+                                    color = delta > 0 and INTEL_ACCENT or ALARM_ACCENT,
+                                    text = string.format("%+d", delta),
+                                },
+                                gui.Label {
+                                    classes = { "fgStrong" },
+                                    width = "auto",
+                                    height = "auto",
+                                    halign = "left",
+                                    valign = "center",
+                                    fontSize = 13,
+                                    text = e.name or e.text or "",
+                                },
+                            },
+                        }
+                    else
+                        children[#children + 1] = gui.Label {
+                            classes = { "fgMuted" },
+                            width = "100%",
+                            height = "auto",
+                            fontSize = 12,
+                            tmargin = 3,
+                            text = "- " .. (e.text or ""),
+                        }
+                    end
+                end
+            end
+
+            element.children = children
+        end,
+    }
+
+    --the ledger lives in campaign state, the offer in the offer doc; content's
+    --children are reassigned wholesale so it cannot host a second monitor. A
+    --1x1 sibling watches campaign state and refreshes the block.
+    local stateMonitor = gui.Panel {
+        width = 1,
+        height = 1,
+        monitorGame = CampaignState.Path(),
+        refreshGame = function()
+            if content ~= nil and content.valid then
+                content:FireEvent("refreshLive")
+            end
+        end,
+    }
+
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        children = { content, stateMonitor },
+    }
+end
+
+local function CreateIntelTrackerPanel()
+    local children = { CreateIntelHeadline() }
+    if dmhub.isDM then
+        children[#children + 1] = CreateIntelDirectorControls()
+    end
+    --the live area (offer card + growing ledger) always goes last.
+    children[#children + 1] = CreateIntelLiveArea()
+    return gui.Panel {
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        children = children,
+    }
+end
+
+--The Intel Tracker is experimental: it only surfaces when the per-user
+--"dev:trackintel" flag is on (toggle with "/toggle dev:trackintel" in chat).
+--Flipping the flag registers/deregisters the dock panel live -- on the way
+--out we hide any open instance first, since deregistering alone leaves the
+--docked panel on screen. The roll dialog's "Re-roll for 1 Intel" button
+--checks the same flag (see EmbeddedRollDialog.lua).
+local function RegisterIntelTrackerPanel()
+    DockablePanel.Register {
+        name = "Intel Tracker",
+        icon = "icons/standard/Icon_App_Journal.png",
+        vscroll = true,
+        dmonly = false,
+        minHeight = 200,
+        content = function()
+            return CreateIntelTrackerPanel()
+        end,
+    }
+end
+
+local g_trackIntelSetting
+g_trackIntelSetting = setting{
+    id = "dev:trackintel",
+    default = false,
+    storage = "preference",
+    onchange = function()
+        if g_trackIntelSetting:Get() then
+            RegisterIntelTrackerPanel()
+        else
+            DockablePanel.LaunchPanelByName("Intel Tracker", "hide")
+            DockablePanel.Deregister("Intel Tracker")
+        end
+    end,
+}
+
+if g_trackIntelSetting:Get() then
+    RegisterIntelTrackerPanel()
 end
 
 ----------------------------------------------------------------------

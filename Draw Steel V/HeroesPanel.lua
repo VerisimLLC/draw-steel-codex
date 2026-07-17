@@ -2048,6 +2048,10 @@ function SafetyTools.ShowContentWarningDialog()
                     width = "100%",
                     height = "auto",
                     tmargin = 12,
+                    -- The Director-authored warning renders as markdown so they
+                    -- can bold/italicize themes or list them (the edit field
+                    -- above stores the raw markdown source).
+                    markdown = true,
                     text = text,
                 },
                 gui.Label{
@@ -2861,7 +2865,7 @@ local function CreateToolsConfigSection()
         text = "Content Warning",
     }
     children[#children + 1] = SafetyCaption("Shown to everyone when they enter this game. Leave empty for no warning. Changing the text shows it again to players who dismissed it.")
-    children[#children + 1] = gui.Input{
+    local contentWarningInput = gui.Input{
         classes = { "input" },
         width = "94%",
         height = "auto",
@@ -2877,15 +2881,55 @@ local function CreateToolsConfigSection()
             SafetyTools.SetContentWarningText(element.text)
         end,
     }
-    children[#children + 1] = gui.Button{
-        classes = { "sizeXs" },
-        width = 90,
+    children[#children + 1] = contentWarningInput
+
+    -- A gui.Input only commits its text on `change` (which fires on blur), so an
+    -- edit made right before a Codex reload could be lost. Save commits the
+    -- current text immediately; the label confirms it landed.
+    local savedLabel = gui.Label{
+        classes = { "sizeXs", "fgMuted", "collapsed" },
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        text = "Saved.",
+    }
+    children[#children + 1] = gui.Panel{
+        width = "94%",
+        height = "auto",
         halign = "center",
+        flow = "horizontal",
         vmargin = 4,
-        text = "Preview",
-        click = function(element)
-            SafetyTools.ShowContentWarningDialog()
-        end,
+        gui.Button{
+            classes = { "sizeXs" },
+            width = 90,
+            halign = "left",
+            text = "Save",
+            click = function(element)
+                SafetyTools.SetContentWarningText(contentWarningInput.text)
+                savedLabel:SetClass("collapsed", false)
+                dmhub.Schedule(3, function()
+                    if mod.unloaded then
+                        return
+                    end
+                    if savedLabel ~= nil and savedLabel.valid then
+                        savedLabel:SetClass("collapsed", true)
+                    end
+                end)
+            end,
+        },
+        gui.Button{
+            classes = { "sizeXs" },
+            width = 90,
+            halign = "left",
+            lmargin = 8,
+            text = "Preview",
+            click = function(element)
+                SafetyTools.ShowContentWarningDialog()
+            end,
+        },
+        savedLabel,
     }
 
     return gui.Panel{

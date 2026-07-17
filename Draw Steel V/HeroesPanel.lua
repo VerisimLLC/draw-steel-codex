@@ -2870,6 +2870,7 @@ local function CreateToolsConfigSection()
         borderBox = true,
         vmargin = 2,
         multiline = true,
+        characterLimit = 384,
         placeholderText = "e.g. This campaign contains depictions of plague and body horror.",
         text = SafetyTools.ContentWarningText(),
         change = function(element)

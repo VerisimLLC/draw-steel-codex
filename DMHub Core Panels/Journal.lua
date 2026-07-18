@@ -1092,8 +1092,22 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                         element:SetClass("collapsed", true)
                                     else
                                         element:SetClass("collapsed", false)
-                                        element.bgimage = cond(member.nodeType == "pdf",
-                                            "icons/icon_app/icon_app_137.png", "icons/icon_app/icon_app_34.png") --choose pdf or image icon.
+                                        if member.nodeType == "pdf" then
+                                            element.bgimage = "icons/icon_app/icon_app_137.png"
+                                        elseif member.nodeType == "custom" or member.nodeType == "negotiation" then
+                                            --journal documents show their full-colour semantic-type
+                                            --icon (narration/combat/montage/negotiation/note/...).
+                                            local typeIcon = nil
+                                            pcall(function() typeIcon = CustomDocument.DocTypeIcon(member) end)
+                                            if typeIcon ~= nil then
+                                                element.bgimage = typeIcon
+                                                element.selfStyle.bgcolor = "white"
+                                            else
+                                                element.bgimage = "icons/icon_app/icon_app_34.png"
+                                            end
+                                        else
+                                            element.bgimage = "icons/icon_app/icon_app_34.png" --image / fragment
+                                        end
                                     end
                                 end,
                             },

@@ -62,6 +62,194 @@ ActivatedAbilitySummonBehavior.copyAbilities = false
 ActivatedAbilitySummonBehavior.copyTriggers = false
 ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
 
+--Custom looks for the creatures a caster summons. Keyed by monster_type
+--(several bestiary entries can share one monster_type; monsters without one
+--fall back to their bestiary id). In each entry, nil means "not customized":
+--the summon keeps its bestiary value, except portraitFrame where nil means
+--"copy the caster's frame" and "" means "no frame".
+--- @field creature.summonAppearances table Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+creature.summonAppearances = {}
+
+--- Returns the caster's custom look for this look key, or nil.
+--- @param lookKey string
+--- @return table|nil
+function creature:GetSummonAppearance(lookKey)
+    local t = self:try_get("summonAppearances")
+    if t == nil then
+        return nil
+    end
+    return t[lookKey]
+end
+
+--Every creature type this caster has ever summoned. The Summons tab lists these.
+--- @field creature.summonHistory table Map of look key -> true.
+creature.summonHistory = {}
+
+--- Records a summoned creature type. Call from inside ModifyProperties.
+--- @param lookKey string
+function creature:RecordSummonHistory(lookKey)
+    local t = self:get_or_add("summonHistory", {})
+    t[lookKey] = true
+end
+
+--- Returns the look key for a bestiary monster: its monster_type, or its id if it has none.
+--- @param monster any Entry of assets.monsters.
+--- @param monsterid string
+--- @return string
+function ActivatedAbilitySummonBehavior.SummonLookKey(monster, monsterid)
+    return monster.properties:try_get("monster_type") or monsterid
+end
+
+--- Finds the bestiary entry for a look key. When several entries share the
+--- monster_type, prefers one that is not hidden.
+--- @param lookKey string
+--- @return string|nil monsterid
+--- @return any|nil monster
+function ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
+    local best = nil
+    for k,monster in pairs(assets.monsters) do
+        if monster.properties:try_get("monster_type") == lookKey then
+            if best == nil or assets:GetMonsterNode(best.monsterid).hidden then
+                best = { monsterid = k, monster = monster }
+            end
+        end
+    end
+    if best ~= nil then
+        return best.monsterid, best.monster
+    end
+
+    --the key may be a bestiary id for a monster with no monster_type.
+    local direct = assets.monsters[lookKey]
+    if direct ~= nil then
+        return lookKey, direct
+    end
+    return nil, nil
+end
+
+--- Applies the caster's custom look to a summoned token. With no custom look,
+--- falls back to copying the caster's frame. Does not upload the token.
+--- @param casterToken CharacterToken
+--- @param token CharacterToken
+--- @param lookKey string
+function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
+    local custom = casterToken.properties:GetSummonAppearance(lookKey)
+    if custom ~= nil then
+        if custom.portrait ~= nil and custom.portrait ~= "" then
+            token.portrait = custom.portrait
+        end
+        if custom.portraitFrame ~= nil then
+            token.portraitFrame = custom.portraitFrame
+        end
+        if custom.portraitFrameHueShift ~= nil then
+            token.portraitFrameHueShift = custom.portraitFrameHueShift
+        end
+        if custom.tokenScale ~= nil then
+            token.tokenScale = custom.tokenScale
+        end
+        if custom.portraitZoom ~= nil then
+            token.portraitZoom = custom.portraitZoom
+        end
+        if custom.portraitOffset ~= nil then
+            token.portraitOffset = custom.portraitOffset
+        end
+        return
+    end
+
+    --if the caster controls the summoned tokens then they mimic its appearance.
+    local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
+    local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
+
+    if summonerHasFrame == tokenHasFrame then
+        token.portraitFrame = casterToken.portraitFrame
+        token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+    end
+end
+
+--- Returns the creatures this caster can customize, as a sorted list of
+--- { key, monsterid, monster }: their summon history, plus anything with a
+--- stored look, plus their live summons on the current map.
+--- @param casterToken CharacterToken
+--- @return table[]
+function ActivatedAbilitySummonBehavior.GetCustomizableSummons(casterToken)
+    local props = casterToken.properties
+    if props == nil then
+        return {}
+    end
+
+    local byType = {}
+    for k,monster in pairs(assets.monsters) do
+        local t = monster.properties:try_get("monster_type")
+        if t ~= nil then
+            if byType[t] == nil or (assets:GetMonsterNode(byType[t].monsterid).hidden and not assets:GetMonsterNode(k).hidden) then
+                byType[t] = { monsterid = k, monster = monster }
+            end
+        end
+    end
+
+    local seen = {}
+    local result = {}
+
+    local function AddKey(lookKey)
+        if lookKey == nil or seen[lookKey] ~= nil then
+            return
+        end
+        local entry = byType[lookKey]
+        if entry == nil then
+            local monster = assets.monsters[lookKey]
+            if monster == nil then
+                return
+            end
+            entry = { monsterid = lookKey, monster = monster }
+        end
+        seen[lookKey] = true
+        result[#result+1] = { key = lookKey, monsterid = entry.monsterid, monster = entry.monster }
+    end
+
+    for lookKey,_ in pairs(props:try_get("summonHistory") or {}) do
+        AddKey(lookKey)
+    end
+
+    --anything with a stored look is listed so it can be reverted.
+    for lookKey,_ in pairs(props:try_get("summonAppearances") or {}) do
+        AddKey(lookKey)
+    end
+
+    --live summons on the current map.
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil then
+            AddKey(tok.properties:try_get("monster_type"))
+        end
+    end
+
+    table.sort(result, function(a,b) return (a.monster.name or "") < (b.monster.name or "") end)
+    return result
+end
+
+--- Updates the caster's live summons of this creature type on the current map:
+--- reset to the bestiary look, then apply the current custom look, then upload.
+--- @param casterToken CharacterToken
+--- @param lookKey string
+function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
+    local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
+    if monster == nil then
+        return
+    end
+    local monsterType = monster.properties:try_get("monster_type", lookKey)
+
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
+            tok.portrait = monster.info.portrait
+            tok.portraitFrame = monster.info.portraitFrame
+            tok.portraitFrameHueShift = monster.info.portraitFrameHueShift
+            tok.tokenScale = monster.info.tokenScale
+            tok.portraitZoom = monster.info.portraitZoom
+            tok.portraitOffset = monster.info.portraitOffset
+            ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
+            tok:UploadAppearance()
+        end
+    end
+end
+
 
 setting{
 	id = "summoncrcheck",
@@ -1560,6 +1748,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         local summonedTokens = {}
         local summonerEntries = {}
+        local summonedMonsterids = {}
 
         local summonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
@@ -1756,14 +1945,10 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             summonedTokens[#summonedTokens+1] = token
 
             if self.casterControls then
-                --if the caster controls the summoned tokens then they mimic its appearance.
-                local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
-                local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
+                local lookKey = ActivatedAbilitySummonBehavior.SummonLookKey(chosenOption, chosenOption.id)
 
-                if summonerHasFrame == tokenHasFrame then
-                    token.portraitFrame = casterToken.portraitFrame
-                    token.portraitFrameHueShift = casterToken.portraitFrameHueShift
-                end
+                ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
+                summonedMonsterids[lookKey] = true
 
                 --if the caster controls the summoned tokens then they inherit the caster's party.
                 token.partyid = casterToken.partyid
@@ -1816,6 +2001,26 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     execute = function()
                         for _,entry in ipairs(summonerEntries) do
                             casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
+                        end
+                    end,
+                }
+            end
+
+            --add newly summoned creature types to the caster's summon history.
+            local newHistory = {}
+            local existingHistory = casterToken.properties:try_get("summonHistory")
+            for monsterid,_ in pairs(summonedMonsterids) do
+                if existingHistory == nil or existingHistory[monsterid] == nil then
+                    newHistory[#newHistory+1] = monsterid
+                end
+            end
+            if #newHistory > 0 then
+                casterToken:ModifyProperties{
+                    description = "Record summon history",
+                    undoable = false,
+                    execute = function()
+                        for _,monsterid in ipairs(newHistory) do
+                            casterToken.properties:RecordSummonHistory(monsterid)
                         end
                     end,
                 }

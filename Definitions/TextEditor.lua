@@ -30,6 +30,20 @@ function TextEditor:SetTextAndCaret(caretPos, newText)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetTextUndoable: Sets the text as an undoable programmatic edit WITHOUT grabbing keyboard focus or moving the caret (for widget-driven edits like the table island grid). Unlike setting @see text, the undo history is always preserved -- the assignment is recorded as an undoable step even when the editor has no prior edit history.
+--- @param newText string
+--- @return nil
+function TextEditor:SetTextUndoable(newText)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ScrollByWheel: Scrolls the editor view as if the mouse wheel moved by the given delta (only the sign matters; positive = up). Use from a panel's 'wheel' event to forward wheel input from overlay widgets floating over the editor (e.g. seamless-editor island widgets), which would otherwise swallow it.
+--- @param delta number
+--- @return nil
+function TextEditor:ScrollByWheel(delta)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetCharWorldPosition: Returns the world-space position of the character at the given 1-based index and its line height. Returns nil if the text info is not yet available. Use this to position popups near a specific character.
 --- @param charIndex number
 --- @return any

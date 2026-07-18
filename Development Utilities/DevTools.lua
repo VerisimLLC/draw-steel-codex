@@ -2437,7 +2437,7 @@ TestHarness.Register{
     id = "seamless",
     create = function(args, ctx)
         local doc = MarkdownDocument.new{
-            content = "# Session Notes\n\nThe party met **Lord Saxton** at *the crossroads* and agreed to a [contract](Contracts).\n\n## The Ambush\n\n- goblins in the treeline\n- a ~~concealed~~ pit trap\n\n[[encounter]]\n\n> We should have taken the river road.\n\nAfter the fight the party rested. See [Supplies] for what remains.\n\n1. rations x4\n2. rope, 50ft\n\n[[dice:Loot]]\n\n:<>## Dramatis Personae\n\n:<>a **centered** line of body text\n\n:>-- signed, the Steward\n\n:<>[[encounter]]\n\nThe end.",
+            content = "# Session Notes\n\nThe party met **Lord Saxton** at *the crossroads* and agreed to a [contract](Contracts).\n\n## The Ambush\n\n- goblins in the treeline\n- a ~~concealed~~ pit trap\n\n[[encounter]]\n\n> We should have taken the river road.\n\nAfter the fight the party rested. See [Supplies] for what remains.\n\n|Item|Cost|Notes|\n|:---|:---:|---:|\n|Sword|10g|fine steel|\n|Shield|5g|oak|\n\n1. rations x4\n2. rope, 50ft\n\n[[dice:Loot]]\n\n|Loot: 2d6\n|Nothing|\n|A **sword**|\n|A gem|\n\n:<>## Dramatis Personae\n\n:<>a **centered** line of body text\n\n:>-- signed, the Steward\n\n:<>[[encounter]]\n\nThe end.",
             annotations = {},
             styleSheetId = false,
         }

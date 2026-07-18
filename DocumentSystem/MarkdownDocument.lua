@@ -78,8 +78,14 @@ local g_defaultSkin = {
     page    = { bgcolor = false },
     blocks  = {
         powerRoll     = { box = {}, inner = {} },
-        table         = { box = {}, inner = {} },
-        rollableTable = { box = {}, inner = {} },
+        -- header: text styling for a table's header row. Applied only when
+        -- the table DECLARES a header with a |---| separator row (GFM); the
+        -- first row of a separator-less table keeps the legacy look, so
+        -- existing documents are unaffected. sizePct is % of body text --
+        -- deliberately modest so headers read as headings without towering
+        -- over their rows.
+        table         = { box = {}, inner = {}, header = { bold = true, sizePct = 105, color = nil } },
+        rollableTable = { box = {}, inner = {}, header = { bold = true, sizePct = 105, color = nil } },
         collapse      = { box = {}, inner = {} },
     },
     embed   = { box = {} },
@@ -131,8 +137,9 @@ local function MergeSkin(parent, child)
     local cblk = child.blocks or {}
     for _, btype in ipairs({"powerRoll", "table", "rollableTable", "collapse"}) do
         out.blocks[btype] = {
-            box   = MergeSection((pblk[btype] or {}).box,   (cblk[btype] or {}).box),
-            inner = MergeSection((pblk[btype] or {}).inner, (cblk[btype] or {}).inner),
+            box    = MergeSection((pblk[btype] or {}).box,    (cblk[btype] or {}).box),
+            inner  = MergeSection((pblk[btype] or {}).inner,  (cblk[btype] or {}).inner),
+            header = MergeSection((pblk[btype] or {}).header, (cblk[btype] or {}).header),
         }
     end
     return out
@@ -520,6 +527,13 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         sheet.base.blocks[bkey].inner = sheet.base.blocks[bkey].inner or {}
         return sheet.base.blocks[bkey].inner
     end
+    local function ownBlockHeader(bkey)
+        sheet.base = sheet.base or {}
+        sheet.base.blocks = sheet.base.blocks or {}
+        sheet.base.blocks[bkey] = sheet.base.blocks[bkey] or {}
+        sheet.base.blocks[bkey].header = sheet.base.blocks[bkey].header or {}
+        return sheet.base.blocks[bkey].header
+    end
     children[#children+1] = gui.Label{ classes = {"formStacked"}, text = "Blocks" }
     for _, bt in ipairs(blockTypes) do
         local rbox = (((resolvedBase.blocks or {})[bt.key]) or {}).box or {}
@@ -549,6 +563,18 @@ JournalStyleEditor_BuildForm = function(sheet, upload, panel)
         if bt.key == "table" or bt.key == "rollableTable" then
             children[#children+1] = JSE_ColorRow("    Alt row tint:", rinner.altcolor, function(c)
                 ownBlockInner(bt.key).altcolor = c; upload()
+            end)
+            --header row text styling (applies when a |---| separator row
+            --declares the table's first row a header).
+            local rheader = (((resolvedBase.blocks or {})[bt.key]) or {}).header or {}
+            children[#children+1] = JSE_CheckRow("    Header bold", rheader.bold ~= false, function(b)
+                ownBlockHeader(bt.key).bold = b; upload()
+            end)
+            children[#children+1] = JSE_NumberRow("    Header size %:", rheader.sizePct, function(n)
+                ownBlockHeader(bt.key).sizePct = n; upload()
+            end)
+            children[#children+1] = JSE_ColorRow("    Header color:", rheader.color, function(c)
+                ownBlockHeader(bt.key).color = c; upload()
             end)
         end
     end
@@ -1607,6 +1633,11 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
     local parsingRollableTable = false
 
+    --rows emitted by the table currently being parsed; resets on any
+    --non-row line. Used to recognize a GitHub-style header separator
+    --(|---|:---:|), which is only valid directly under the first row.
+    local tableRowCount = 0
+
     local skipLines = 0
 
     for i, line in ipairs(lines) do
@@ -1832,37 +1863,83 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         if tableMatch ~= nil then
             EmitText()
 
-            result[#result + 1] = {
-                type = "row",
-                player = isPlayer,
-            }
-            StampLine(result[#result], i)
-
-            local linePrefix = "|"
-
             local cells = string.split_with_square_brackets(tableMatch.row, "|")
-            for j, cell in ipairs(cells) do
-                result[#result + 1] = {
-                    type = "cell",
-                    player = isPlayer,
-                }
-                BreakdownRichTags(cell, result, {
-                    player = options.player,
-                    linePrefix = linePrefix,
-                    linesContext = lines,
-                    lineIndexContext = i,
-                    stylingInfo = stylingInfo,
-                }, extraOutput)
 
-                linePrefix = linePrefix .. cell .. "|"
+            --GitHub-style header separator (|---|:---:|), only recognized
+            --directly under a table's first row (the GFM position). It is not
+            --a data row: emit a row token flagged separator = true -- still
+            --stamped, so the live editor's block partitioner keeps the table
+            --as one block -- with the per-column alignments (:--- left,
+            --:---: center, ---: right) and NO cell/end_row children. The
+            --renderer skips it and applies the alignments to the table.
+            local isSeparator = tableRowCount == 1 and #cells > 0
+            if isSeparator then
+                for _, cell in ipairs(cells) do
+                    if regex.MatchGroups(cell, "^ *:?-+:? *$") == nil then
+                        isSeparator = false
+                        break
+                    end
+                end
             end
 
-            result[#result + 1] = {
-                type = "end_row",
-                player = isPlayer,
-            }
+            if isSeparator then
+                local alignments = {}
+                for j, cell in ipairs(cells) do
+                    local c = trim(cell)
+                    local leading = string.starts_with(c, ":")
+                    local trailing = string.ends_with(c, ":")
+                    if leading and trailing then
+                        alignments[j] = "center"
+                    elseif trailing then
+                        alignments[j] = "right"
+                    elseif leading then
+                        alignments[j] = "left"
+                    end
+                end
+                result[#result + 1] = {
+                    type = "row",
+                    separator = true,
+                    alignments = alignments,
+                    player = isPlayer,
+                }
+                StampLine(result[#result], i)
+                str = ""
+            else
+                tableRowCount = tableRowCount + 1
 
-            str = ""
+                result[#result + 1] = {
+                    type = "row",
+                    player = isPlayer,
+                }
+                StampLine(result[#result], i)
+
+                local linePrefix = "|"
+
+                for j, cell in ipairs(cells) do
+                    result[#result + 1] = {
+                        type = "cell",
+                        player = isPlayer,
+                    }
+                    BreakdownRichTags(cell, result, {
+                        player = options.player,
+                        linePrefix = linePrefix,
+                        linesContext = lines,
+                        lineIndexContext = i,
+                        stylingInfo = stylingInfo,
+                    }, extraOutput)
+
+                    linePrefix = linePrefix .. cell .. "|"
+                end
+
+                result[#result + 1] = {
+                    type = "end_row",
+                    player = isPlayer,
+                }
+
+                str = ""
+            end
+        else
+            tableRowCount = 0
         end
 
         if tableMatch == nil and i ~= 1 and not skipping then
@@ -3244,6 +3321,14 @@ local function RenderMarkdownTokens(ctx, tokens)
     local m_richPanels = ctx.pools.richPanels
     local m_richFrames = ctx.pools.richFrames
     local m_richRows = ctx.pools.richRows
+    --table-cell rows pool separately from the text/tag rich rows: pooled
+    --panels keep every instance style ever written to them, and widget code
+    --(e.g. RichResource's height="auto", which the selfStyle setter parses
+    --as 100%) leaves overrides that resolve catastrophically when the panel
+    --is later laid out inside a gui.Table row. Quarantined pools keep cell
+    --panels construction-clean. (`or {}` tolerates render contexts created
+    --before this pool existed.)
+    local m_cellRows = ctx.pools.cellRows or {}
     local m_rollableTables = ctx.pools.rollableTables
     local m_tables = ctx.pools.tables
     local m_tableRows = ctx.pools.tableRows
@@ -3275,6 +3360,7 @@ local function RenderMarkdownTokens(ctx, tokens)
     local newRichPanels = {}
     local newRichFrames = {}
     local newRichRows = {}
+    local newCellRows = {}
     local newPowerTables = {}
     local newEmbeds = {}
     local newTreeNodes = {}
@@ -3524,6 +3610,19 @@ local function RenderMarkdownTokens(ctx, tokens)
             newRollableTables[tableName] = panel
 
             children[#children + 1] = panel
+        elseif token.type == "row" and token.separator then
+            --GitHub-style header separator (|---|:---:|): renders nothing.
+            --Its render effects -- per-column alignments and the header-row
+            --declaration -- ride the enclosing table (the table-creation
+            --look-ahead already set both; re-assert for consistency). A
+            --separator is only recognized directly under a table's first
+            --row, so currentTable is already live here.
+            if currentTable ~= nil then
+                currentTable.data.alignments = token.alignments
+                currentTable.data.hasHeader = true
+            end
+            currentRichRow = nil
+            currentTableRow = nil
         elseif token.type == "row" then
             currentRichRow = nil
             if currentTable == nil then
@@ -3576,6 +3675,31 @@ local function RenderMarkdownTokens(ctx, tokens)
                 currentTable = tableWrapper.data.tablePanel
 
                 currentTable.data.children = {}
+                --pooled table: clear alignments/header state from a previous
+                --render; a separator row (if any) re-establishes them.
+                currentTable.data.alignments = nil
+                currentTable.data.hasHeader = nil
+                --the skin's table-header text styling; applied to the first
+                --row's labels only when hasHeader is set (a separator row
+                --declares the header -- separator-less tables keep the
+                --legacy look, so existing documents are unaffected).
+                currentTable.data.headerSkin = blockSkin.header
+
+                --look ahead for a GitHub-style separator row directly under
+                --this first row: its alignments and header styling apply to
+                --the whole table INCLUDING this header row, which renders
+                --before the separator token is reached. The next "row" token
+                --in the stream is either our separator or another table's
+                --first row (never flagged), so scanning to it is safe.
+                for j = i + 1, #tokens do
+                    if tokens[j].type == "row" then
+                        if tokens[j].separator then
+                            currentTable.data.alignments = tokens[j].alignments
+                            currentTable.data.hasHeader = true
+                        end
+                        break
+                    end
+                end
 
                 ApplyBlockFrame(tableWrapper, blockSkin.box)
 
@@ -3607,6 +3731,8 @@ local function RenderMarkdownTokens(ctx, tokens)
             -- that were previously a header row but got repositioned.
             local isHeaderRow = #currentTable.data.children == 0
             currentTableRow:SetClass("headerRow", isHeaderRow)
+            --always assigned: rows are pooled.
+            currentTableRow.data.isHeaderRow = isHeaderRow or nil
 
             newTableRows[#newTableRows + 1] = currentTableRow
 
@@ -3641,13 +3767,16 @@ local function RenderMarkdownTokens(ctx, tokens)
             currentTableRow = nil
             currentRichRow = nil
         elseif token.type == "cell" then
-            currentRichRow = m_richRows[#newRichRows + 1] or gui.Panel {
+            --cells draw from their own pool (see m_cellRows above), so the
+            --panel is guaranteed construction-clean: no stale height/pad
+            --overrides from a life as a text or tag row.
+            currentRichRow = m_cellRows[#newCellRows + 1] or gui.Panel {
                 flow = "horizontal",
                 height = "auto",
                 vmargin = 0,
                 pad = 4,
             }
-            if m_richRows[#newRichRows + 1] ~= nil then
+            if m_cellRows[#newCellRows + 1] ~= nil then
                 currentRichRow:Unparent()
             end
             currentRichRow.data.children = {}
@@ -3656,12 +3785,20 @@ local function RenderMarkdownTokens(ctx, tokens)
             currentRichRow.selfStyle.width = "auto"
             currentRichRow.selfStyle.valign = "center"
 
-            --scan for the number of cells in this row.
+            --scan for the number of cells in this row, and this cell's
+            --1-based column index (for separator-declared alignments).
             local beginRowIndex = i
             for j=i,1,-1 do
                 if tokens[j].type == "row" then
                     beginRowIndex = j
                     break
+                end
+            end
+
+            local cellIndex = 0
+            for j=beginRowIndex,i do
+                if tokens[j].type == "cell" then
+                    cellIndex = cellIndex + 1
                 end
             end
 
@@ -3680,10 +3817,37 @@ local function RenderMarkdownTokens(ctx, tokens)
                 tableHeaderSpacing = 80/cellCount
             end
 
-            --currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
             currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
 
-            newRichRows[#newRichRows + 1] = currentRichRow
+            --column alignment from a GitHub-style separator row, if declared.
+            --Tables render COMPACT by default (auto-width cells sized to
+            --content); declaring alignments opts the table into fixed
+            --percent-width cells, because alignment needs stable column
+            --slots to mean anything. The extra 10 covers the rich row's pad
+            --(4 each side) plus slack so N fixed-width cells plus the
+            --table's margin still fit inside the page; without it the last
+            --column's right-aligned text lands past the panel edge and is
+            --stencil-clipped. Always assigned: pooled cell rows must not
+            --carry a previous render's alignment.
+            local align = nil
+            if currentTable ~= nil and currentTable.data.alignments ~= nil then
+                align = currentTable.data.alignments[cellIndex]
+                currentRichRow.selfStyle.width = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing) + 10)
+            end
+            currentRichRow.data.cellAlign = align
+
+            --header-row cell (a separator row declared this table's first
+            --row a header): carry the skin's table-header text styling for
+            --the text branch to apply to the cell's labels. Always
+            --assigned: pooled rich rows must not keep a stale header skin.
+            local headerSkin = nil
+            if currentTable ~= nil and currentTable.data.hasHeader == true
+               and currentTableRow ~= nil and currentTableRow.data.isHeaderRow == true then
+                headerSkin = currentTable.data.headerSkin
+            end
+            currentRichRow.data.headerSkin = headerSkin
+
+            newCellRows[#newCellRows + 1] = currentRichRow
             if currentTableRow ~= nil then
                 currentTableRow.data.children[#currentTableRow.data.children + 1] = currentRichRow
             end
@@ -3849,6 +4013,20 @@ local function RenderMarkdownTokens(ctx, tokens)
                 local textPanel = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
 
                 textPanel.selfStyle.halign = token.justification or "left"
+                --pooled labels: an aligned table cell sets textAlignment and
+                --a table-header cell sets bold/fontSize/color, so every
+                --acquisition re-establishes the construction defaults. The
+                --color reset is flag-tracked -- other code (ApplyBlockInner)
+                --also writes selfStyle.color and owns its own restore.
+                textPanel.selfStyle.textAlignment = "topleft"
+                textPanel.selfStyle.bold = false
+                --nil is not a legal fontSize clear ("Unrecognized font size"
+                --warning); re-assert the construction value instead.
+                textPanel.selfStyle.fontSize = CustomDocument.ScaleFontSize(14)
+                if textPanel.data.headerColored then
+                    textPanel.selfStyle.color = nil
+                    textPanel.data.headerColored = nil
+                end
 
                 if m_textPanels[#newTextPanels + 1] ~= nil then
                     textPanel:Unparent()
@@ -3913,6 +4091,33 @@ local function RenderMarkdownTokens(ctx, tokens)
                         textPanel.selfStyle.maxWidth = "100%"
                     end
                     textPanel.selfStyle.valign = "center"
+                    --table-cell column alignment (from a GitHub-style separator
+                    --row): fill the fixed-width cell and align the text inside.
+                    --(the acquisition site above reset textAlignment already.)
+                    local cellAlign = currentRichRow.data.cellAlign
+                    if cellAlign == "center" or cellAlign == "right" then
+                        textPanel.selfStyle.width = "100%"
+                        textPanel.selfStyle.textAlignment = cond(cellAlign == "center", "top", "topright")
+                    end
+                    --table header row (declared by a |---| separator): style
+                    --the label per the skin's table-header config. sizePct is
+                    --relative to the body label size (14); bold defaults on.
+                    --(the acquisition site reset bold/fontSize/color.)
+                    local headerSkin = currentRichRow.data.headerSkin
+                    if headerSkin ~= nil then
+                        if headerSkin.bold ~= false then
+                            textPanel.selfStyle.bold = true
+                        end
+                        local pct = headerSkin.sizePct
+                        if type(pct) == "number" and pct > 0 and pct ~= 100 then
+                            textPanel.selfStyle.fontSize = CustomDocument.ScaleFontSize(14 * pct / 100)
+                        end
+                        local headerColor = SkinColor(headerSkin.color)
+                        if headerColor ~= nil then
+                            textPanel.selfStyle.color = headerColor
+                            textPanel.data.headerColored = true
+                        end
+                    end
                     currentRichRow.data.children[#currentRichRow.data.children + 1] = textPanel
                 else
                     -- Only widen for stylesheet alignment when the author did not set an explicit
@@ -3945,6 +4150,7 @@ local function RenderMarkdownTokens(ctx, tokens)
                 for _, seg in ipairs(segments) do
                     local label = m_textPanels[#newTextPanels + 1] or MakeTextLabel()
                     label.selfStyle.halign = token.justification or "left"
+                    label.selfStyle.textAlignment = "topleft" --pooled: see fast path.
                     if m_textPanels[#newTextPanels + 1] ~= nil then
                         label:Unparent()
                     end
@@ -4198,6 +4404,11 @@ local function RenderMarkdownTokens(ctx, tokens)
         row.data.children = nil
     end
 
+    for i, row in ipairs(newCellRows) do
+        row.children = row.data.children
+        row.data.children = nil
+    end
+
     for i, row in ipairs(newTableRows) do
         row.children = row.data.children
         row.data.children = nil
@@ -4216,6 +4427,7 @@ local function RenderMarkdownTokens(ctx, tokens)
     ctx.pools.rollableTableRowLabels = newRollableTableRowLabels
     ctx.pools.rollableTables = newRollableTables
     ctx.pools.richRows = newRichRows
+    ctx.pools.cellRows = newCellRows
     ctx.pools.richPanels = newRichPanels
     ctx.pools.richFrames = newRichFrames
     ctx.pools.textPanels = newTextPanels
@@ -4247,6 +4459,7 @@ local function CreateMarkdownRenderContext(doc, embedDepth)
             richPanels = {},
             richFrames = {},
             richRows = {},
+            cellRows = {},
             rollableTables = {},
             tables = {},
             tableRows = {},
@@ -6432,6 +6645,9 @@ end
 --                             Return nil to make the action a no-op.
 --  GetStylesheetId()        - current stylesheet id ("" for none).
 --  OnStylesheetChanged(id)  - host-specific stylesheet application.
+--  OnToggleRaw() (optional) - hosts with a raw markdown mode (the seamless
+--                             editor) get a right-side Raw toggle button;
+--                             GetRawMode() supplies its pressed state.
 local function CreateMarkdownToolbar(opts)
     --caretOverride: hosts that had to reactivate an editor pass the intended
     --caret explicitly, because SetTextAndCaret defers actual caret placement
@@ -6553,6 +6769,12 @@ local function CreateMarkdownToolbar(opts)
         {
             selectors = { "label", "button", "press" },
             bgcolor = DS_SURFACE,
+            borderColor = DS_GOLD_BD_HI,
+        },
+        {
+            --pressed-in look for toggle buttons (the Raw mode toggle).
+            selectors = { "label", "button", "selected" },
+            bgcolor = DS_GOLD_DIM,
             borderColor = DS_GOLD_BD_HI,
         },
         {
@@ -6782,6 +7004,10 @@ local function CreateMarkdownToolbar(opts)
         ToolbarButton("List",    14, 52, LineHandler("* ")),
         ToolbarButton("Divider", 14, 68, InsertHandler("\n---\n", 5)),
         ToolbarButton("Link",    14, 50, InsertHandler("[]", 1)),
+        --starter 2x2 table; caret lands on the first header cell. The
+        --separator row is optional in our dialect but emitting it keeps the
+        --markdown portable (GitHub/Obsidian) and carries column alignment.
+        ToolbarButton("Table",   14, 56, InsertHandler("\n|Header|Header|\n|---|---|\n|Cell|Cell|\n|Cell|Cell|\n", 2)),
 
         --group: insert. Not pushed to the right edge: a "100% available"
         --spacer renders zero wide here, and it fills the wrap line exactly,
@@ -6811,6 +7037,34 @@ local function CreateMarkdownToolbar(opts)
                     element.idChosen = ""
                 end
             end,
+        },
+
+        --group: raw markdown mode toggle, hosts that support it only (the
+        --seamless editor). Same nil-hole-free wrapper recipe as the history
+        --group.
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            children = (opts.OnToggleRaw ~= nil) and {
+                GroupDivider(),
+                gui.Button{
+                    text = "Raw",
+                    width = 48,
+                    height = 30,
+                    fontSize = 14,
+                    valign = "center",
+                    hmargin = 3,
+                    create = function(element)
+                        element:SetClass("selected", opts.GetRawMode ~= nil and opts.GetRawMode() == true)
+                    end,
+                    press = function(element)
+                        opts.OnToggleRaw()
+                        element:SetClass("selected", opts.GetRawMode ~= nil and opts.GetRawMode() == true)
+                    end,
+                },
+            } or {},
         },
 
     }
@@ -8259,11 +8513,14 @@ function Seamless.CompileDecorations(doc, text)
         off = off + #lines[i] + 1
     end
 
-    --lines claimed by multi-line block tokens (tables, power rolls, style
-    --blocks...); left raw so they edit as plain source.
+    --lines claimed by multi-line block tokens (power rolls, style blocks,
+    --collapse wrappers); left raw so they edit as plain source.
     local blockLines = {}
     --lines consumed by islands; skipped entirely by the line/inline passes.
     local islandLines = {}
+    --contiguous line ranges of markdown tables (row / rollable_table
+    --tokens); each becomes a table island (an editable grid widget) below.
+    local tableRanges = {}
 
     --island + block passes run off the journal's own tokenizer so structure
     --matches the display renderer exactly.
@@ -8344,9 +8601,64 @@ function Seamless.CompileDecorations(doc, text)
                 end
             end
         elseif token.srcLine ~= nil and
-               (token.type == "power_roll" or token.type == "rollable_table" or token.type == "row" or
+               (token.type == "row" or token.type == "rollable_table") then
+            --tables (including rollable tables and their separator rows)
+            --island as an editable grid; collect each table's contiguous
+            --line range here, emitted as island decorations below. Ranges
+            --merge on line adjacency, which is exactly the display
+            --renderer's table-continuation rule.
+            local first = token.srcLine
+            local last = math.min(token.srcLineEnd or token.srcLine, #lines)
+            local range = tableRanges[#tableRanges]
+            if range ~= nil and first <= range.last + 1 then
+                if last > range.last then
+                    range.last = last
+                end
+            else
+                tableRanges[#tableRanges + 1] = { first = first, last = last }
+            end
+        elseif token.srcLine ~= nil and
+               (token.type == "power_roll" or
                 token.type == "styleblock" or token.type == "collapse_node") then
             for li = token.srcLine, math.min(token.srcLineEnd or token.srcLine, #lines) do
+                blockLines[li] = true
+            end
+        end
+    end
+
+    --emit each table as one island over its whole line range (trailing
+    --newline included, per the island contract). Ids are document-order
+    --("//table-N"): a leading "//" can never collide with a rich-tag
+    --annotation key. If the range does not round-trip through the table
+    --model parser (it always should -- the tokenizer just matched it),
+    --degrade to raw editable text rather than risk a widget that cannot
+    --rebuild the source it edits.
+    for tindex, range in ipairs(tableRanges) do
+        local from = lineOffsets[range.first]
+        local to = lineOffsets[range.last] + #lines[range.last] - 1
+        if range.last < #lines then
+            to = to + 1
+        end
+        local tableText = text:sub(from, to)
+        if MarkdownDocument.ParseTableIslandSource(tableText) ~= nil then
+            local id = string.format("//table-%d", tindex)
+            for li = range.first, range.last do
+                islandLines[li] = true
+            end
+            decs[#decs + 1] = {
+                kind = "island",
+                from = from,
+                to = to,
+                id = id,
+                --estimate close to the grid's natural height so the layout
+                --jump when a table becomes an island mid-typing stays small;
+                --the widget's height feedback refines it.
+                height = 40 + 26 * (range.last - range.first + 1),
+                group = G(),
+            }
+            islandMeta[id] = { kind = "table", from = from, to = to, tableText = tableText }
+        else
+            for li = range.first, range.last do
                 blockLines[li] = true
             end
         end
@@ -8524,6 +8836,1062 @@ end
 --Test hooks.
 MarkdownDocument.__SeamlessCompileDecorations = Seamless.CompileDecorations
 
+--=============================================================================
+-- Table islands: the seamless editor renders each markdown table as an
+-- editable grid widget (see Seamless.CompileDecorations, which islands the
+-- table's source lines). The model below round-trips the island's source
+-- text; every edit serializes the model and splices it back over the
+-- island's byte range through the editor's undoable text property. The
+-- caret-reveal escape hatch (arrowing into the table, or the grid's "</>"
+-- button) still edits the raw source.
+--=============================================================================
+
+--Parse the source text of one markdown table (an island's byte range) into
+--an editable model. Returns nil when any line fails to parse; the compiler
+--then leaves the range as raw editable text.
+--model = {
+--  rollable = { name, dice, raw } or nil    -- "|Name: 2d6" header line
+--  rows = { { cells = {string,...}, trailingPipe = bool }, ... }
+--  separator = { raw, alignments } or nil   -- GitHub-style |---|:---:| row;
+--                                           -- alignments dense per column:
+--                                           -- "left"/"center"/"right"/false
+--  cols = number                            -- max cell count across rows
+--  trailingNewline = bool                   -- island included a final \n
+--}
+function MarkdownDocument.ParseTableIslandSource(srcText)
+    local text = srcText or ""
+    local trailingNewline = string.ends_with(text, "\n")
+    if trailingNewline then
+        text = text:sub(1, -2)
+    end
+    if text == "" then
+        return nil
+    end
+
+    local model = { rows = {}, trailingNewline = trailingNewline }
+    local lines = string.split_allow_duplicates(text, "\n")
+    for i, line in ipairs(lines) do
+        local handled = false
+        if i == 1 then
+            --rollable-table header; mirrors the tokenizer's pattern.
+            local name, dice = line:match("^|([^:|]+): *(%d+d%d+) *$")
+            if name ~= nil then
+                model.rollable = { name = name, dice = dice, raw = line }
+                handled = true
+            end
+        end
+        if not handled then
+            local inner = line:match("^|(.*)| *$")
+            local trailingPipe = true
+            if inner == nil then
+                --rollable tables accept rows without the trailing pipe.
+                inner = line:match("^|(.*)$")
+                trailingPipe = false
+            end
+            if inner == nil then
+                return nil
+            end
+            local cells = string.split_with_square_brackets(inner, "|")
+
+            --GitHub-style separator, in its GFM position only (directly
+            --under the first row); mirrors the tokenizer's rule.
+            local isSep = false
+            if #model.rows == 1 and model.separator == nil and #cells > 0 then
+                isSep = true
+                for _, cell in ipairs(cells) do
+                    if string.match(trim(cell), "^:?%-+:?$") == nil then
+                        isSep = false
+                        break
+                    end
+                end
+            end
+
+            if isSep then
+                local alignments = {}
+                for ci, cell in ipairs(cells) do
+                    local c = trim(cell)
+                    local leading = string.starts_with(c, ":")
+                    local trailingColon = string.ends_with(c, ":")
+                    if leading and trailingColon then
+                        alignments[ci] = "center"
+                    elseif trailingColon then
+                        alignments[ci] = "right"
+                    elseif leading then
+                        alignments[ci] = "left"
+                    else
+                        alignments[ci] = false
+                    end
+                end
+                model.separator = { raw = line, alignments = alignments }
+            else
+                model.rows[#model.rows + 1] = { cells = cells, trailingPipe = trailingPipe }
+            end
+        end
+    end
+
+    if #model.rows == 0 then
+        return nil
+    end
+
+    local cols = 1
+    for _, row in ipairs(model.rows) do
+        if #row.cells > cols then
+            cols = #row.cells
+        end
+    end
+    model.cols = cols
+    return model
+end
+
+--Serialize a table model back to markdown source. Content-preserving: rows
+--emit their cells verbatim (trailing-pipe style preserved); the rollable
+--header and separator re-emit their raw line unless an edit regenerated it.
+function MarkdownDocument.SerializeTableIsland(model)
+    local out = {}
+    if model.rollable ~= nil then
+        out[#out + 1] = model.rollable.raw
+    end
+    for ri, row in ipairs(model.rows) do
+        local line = "|" .. table.concat(row.cells, "|")
+        if row.trailingPipe then
+            line = line .. "|"
+        end
+        out[#out + 1] = line
+        if ri == 1 and model.separator ~= nil then
+            out[#out + 1] = model.separator.raw
+        end
+    end
+    local s = table.concat(out, "\n")
+    if model.trailingNewline then
+        s = s .. "\n"
+    end
+    return s
+end
+
+--Build a separator row line from a dense alignments list.
+function MarkdownDocument.TableIslandSeparatorRaw(alignments, cols)
+    local parts = {}
+    for ci = 1, cols do
+        local a = alignments ~= nil and alignments[ci] or false
+        if a == "center" then
+            parts[#parts + 1] = ":---:"
+        elseif a == "right" then
+            parts[#parts + 1] = "---:"
+        elseif a == "left" then
+            parts[#parts + 1] = ":---"
+        else
+            parts[#parts + 1] = "---"
+        end
+    end
+    return "|" .. table.concat(parts, "|") .. "|"
+end
+
+--Strip characters a cell cannot hold: newlines (a row is one source line)
+--and unbracketed pipes (they would change the column count; pipes inside
+--square brackets -- rich tags, link labels -- survive the row split).
+function MarkdownDocument.SanitizeTableCell(textValue)
+    local s = (textValue or ""):gsub("[\r\n\v]", " ")
+    local out = {}
+    local depth = 0
+    for i = 1, #s do
+        local c = s:sub(i, i)
+        if c == "[" then
+            depth = depth + 1
+        elseif c == "]" then
+            depth = depth - 1
+        end
+        if c ~= "|" or depth > 0 then
+            out[#out + 1] = c
+        end
+    end
+    return table.concat(out)
+end
+
+--The editable grid widget shown in place of a table island.
+--opts:
+--  CommitTableEdit(meta, newTableText) -> updated meta or nil: splice the
+--    regenerated table over the island's byte range (host-owned).
+--  EditSource(meta): put the editor caret on the table's first line so the
+--    island opens as raw source (the escape hatch).
+local function CreateTableIslandWidget(opts)
+    local m_meta = nil
+    local m_model = nil
+    local m_editing = nil        --{row, col} while a cell input has focus
+    local m_pendingRefresh = nil --meta that arrived while a cell was edited
+    local m_cellPanels = {}      --[row][col] = cell panel
+    local m_headerSkin = nil     --skin blocks.table.header when the model has a separator
+    local m_colWidths = nil      --px per column in compact mode; nil = stretch (separator)
+    local resultPanel
+    local Rebuild
+
+    local COLOR_TEXT      = "#e4ddd0"
+    local COLOR_DIM       = "#a09a8c"
+    local COLOR_BORDER    = "#ffffff26"
+    local COLOR_BORDER_HI = "#ffffff59"
+    local COLOR_HEADER_BG = "#ffffff14"
+    local COLOR_ROW_A     = "#00000055"
+    local COLOR_ROW_B     = "#00000033"
+
+    local GUTTER = 20    --row-handle gutter width
+    local RIGHT_PAD = 44 --right strip: add-column plus edit-source
+    local HANDLE_H = 16
+
+    local function ColCount()
+        if m_model == nil then
+            return 1
+        end
+        return m_model.cols
+    end
+
+    local function RecomputeCols()
+        local cols = 1
+        for _, row in ipairs(m_model.rows) do
+            if #row.cells > cols then
+                cols = #row.cells
+            end
+        end
+        m_model.cols = cols
+    end
+
+    local function CellValue(r, c)
+        local row = m_model ~= nil and m_model.rows[r] or nil
+        if row == nil then
+            return ""
+        end
+        return row.cells[c] or ""
+    end
+
+    local function SetCellValue(r, c, value)
+        local row = m_model.rows[r]
+        if row == nil then
+            return false
+        end
+        for ci = #row.cells + 1, c do
+            row.cells[ci] = ""
+        end
+        if row.cells[c] == value then
+            return false
+        end
+        row.cells[c] = value
+        return true
+    end
+
+    local function Commit()
+        if m_meta == nil or m_model == nil then
+            return
+        end
+        local newText = MarkdownDocument.SerializeTableIsland(m_model)
+        local updated = opts.CommitTableEdit(m_meta, newText)
+        if updated ~= nil then
+            m_meta = updated
+        end
+    end
+
+    local function AlignmentFor(c)
+        if m_model ~= nil and m_model.separator ~= nil then
+            local a = m_model.separator.alignments[c]
+            if a ~= false then
+                return a
+            end
+        end
+        return nil
+    end
+
+    local function RegenerateSeparator()
+        for ci = 1, ColCount() do
+            if m_model.separator.alignments[ci] == nil then
+                m_model.separator.alignments[ci] = false
+            end
+        end
+        m_model.separator.raw = MarkdownDocument.TableIslandSeparatorRaw(m_model.separator.alignments, ColCount())
+    end
+
+    --structural operations: mutate the model, commit once, rebuild the grid.
+    local function BlankRow()
+        local cells = {}
+        for ci = 1, ColCount() do
+            cells[ci] = ""
+        end
+        return { cells = cells, trailingPipe = true }
+    end
+
+    local function OpInsertRow(at)
+        table.insert(m_model.rows, at, BlankRow())
+        Commit()
+        Rebuild()
+    end
+
+    local function OpDeleteRow(at)
+        if #m_model.rows <= 1 then
+            return
+        end
+        table.remove(m_model.rows, at)
+        RecomputeCols()
+        Commit()
+        Rebuild()
+    end
+
+    local function OpMoveRow(at, delta)
+        local target = at + delta
+        if target < 1 or target > #m_model.rows then
+            return
+        end
+        local row = table.remove(m_model.rows, at)
+        table.insert(m_model.rows, target, row)
+        Commit()
+        Rebuild()
+    end
+
+    local function OpInsertColumn(at)
+        for _, row in ipairs(m_model.rows) do
+            for ci = #row.cells + 1, at - 1 do
+                row.cells[ci] = ""
+            end
+            table.insert(row.cells, at, "")
+        end
+        RecomputeCols()
+        if m_model.separator ~= nil then
+            table.insert(m_model.separator.alignments, at, false)
+            RegenerateSeparator()
+        end
+        Commit()
+        Rebuild()
+    end
+
+    local function OpDeleteColumn(at)
+        if ColCount() <= 1 then
+            return
+        end
+        for _, row in ipairs(m_model.rows) do
+            if #row.cells >= at then
+                table.remove(row.cells, at)
+            end
+        end
+        RecomputeCols()
+        if m_model.separator ~= nil then
+            if #m_model.separator.alignments >= at then
+                table.remove(m_model.separator.alignments, at)
+            end
+            RegenerateSeparator()
+        end
+        Commit()
+        Rebuild()
+    end
+
+    local function OpMoveColumn(at, delta)
+        local target = at + delta
+        if target < 1 or target > ColCount() then
+            return
+        end
+        for _, row in ipairs(m_model.rows) do
+            for ci = #row.cells + 1, math.max(at, target) do
+                row.cells[ci] = ""
+            end
+            row.cells[at], row.cells[target] = row.cells[target], row.cells[at]
+        end
+        if m_model.separator ~= nil then
+            local a = m_model.separator.alignments
+            a[at], a[target] = a[target], a[at]
+            RegenerateSeparator()
+        end
+        Commit()
+        Rebuild()
+    end
+
+    local function OpSetAlignment(at, align)
+        if m_model.separator == nil then
+            m_model.separator = { raw = "", alignments = {} }
+        end
+        m_model.separator.alignments[at] = align or false
+        RegenerateSeparator()
+        Commit()
+        Rebuild()
+    end
+
+    local function OpDeleteTable()
+        if m_meta ~= nil then
+            opts.CommitTableEdit(m_meta, "")
+        end
+    end
+
+    local function CellLabelText(r, c)
+        local v = CellValue(r, c)
+        if v == "" then
+            return " "
+        end
+        return v
+    end
+
+    --Compact mode (no separator): estimate per-column pixel widths from
+    --content length, so the grid sizes to its content like the display's
+    --compact tables. Stretch mode (separator declared): nil -> percent
+    --slots, matching the display's fixed-width aligned tables.
+    local function ComputeColumnWidths()
+        if m_model.separator ~= nil then
+            return nil
+        end
+        local widths = {}
+        for c = 1, ColCount() do
+            local maxLen = 0
+            for _, row in ipairs(m_model.rows) do
+                local t = row.cells[c] or ""
+                if #t > maxLen then
+                    maxLen = #t
+                end
+            end
+            widths[c] = math.max(80, math.min(320, 22 + maxLen * 8))
+        end
+        return widths
+    end
+
+    local function CellWidth(c)
+        if m_colWidths ~= nil then
+            return m_colWidths[c]
+        end
+        return string.format("%.2f%%", 100 / ColCount())
+    end
+
+    local function CellsContainerWidth()
+        if m_colWidths ~= nil then
+            return "auto"
+        end
+        return string.format("100%%-%d", GUTTER + RIGHT_PAD)
+    end
+
+    --Row/strip panels: full width in stretch mode; shrink-to-content and
+    --left-pack in compact mode -- a "100%" horizontal-flow panel distributes
+    --its auto-width children across the leftover space, which scattered the
+    --hover handles away from a compact table.
+    local function RowPanelWidth()
+        if m_colWidths ~= nil then
+            return "auto"
+        end
+        return "100%"
+    end
+
+    local function TotalCellsWidth()
+        local total = 0
+        for c = 1, ColCount() do
+            total = total + (m_colWidths[c] or 80)
+        end
+        return total
+    end
+
+    --commit=false restores the label without touching the model (escape).
+    --skipUpload defers the source splice to the caller (tab batching).
+    --Returns true when the model changed.
+    local function EndCellEdit(commit, skipUpload)
+        local editing = m_editing
+        if editing == nil then
+            return false
+        end
+        m_editing = nil
+        local cellPanel = (m_cellPanels[editing.row] or {})[editing.col]
+        local changed = false
+        if cellPanel ~= nil and cellPanel.valid then
+            local input = cellPanel.data.input
+            local label = cellPanel.data.label
+            if commit then
+                local value = MarkdownDocument.SanitizeTableCell(input.text or "")
+                changed = SetCellValue(editing.row, editing.col, value)
+            end
+            input:SetClass("collapsed", true)
+            label:SetClass("collapsed", false)
+            label.text = CellLabelText(editing.row, editing.col)
+        end
+        if changed and not skipUpload then
+            Commit()
+        end
+        if m_pendingRefresh ~= nil and m_editing == nil then
+            local meta = m_pendingRefresh
+            m_pendingRefresh = nil
+            m_meta = meta
+            m_model = MarkdownDocument.ParseTableIslandSource(meta.tableText)
+            Rebuild()
+        end
+        return changed
+    end
+
+    local function BeginCellEdit(r, c)
+        if m_model == nil or m_model.rows[r] == nil then
+            return
+        end
+        if m_editing ~= nil then
+            if m_editing.row == r and m_editing.col == c then
+                return
+            end
+            EndCellEdit(true)
+        end
+        local cellPanel = (m_cellPanels[r] or {})[c]
+        if cellPanel == nil or not cellPanel.valid then
+            return
+        end
+        m_editing = { row = r, col = c }
+        local input = cellPanel.data.input
+        local label = cellPanel.data.label
+        label:SetClass("collapsed", true)
+        input:SetClass("collapsed", false)
+        input.text = CellValue(r, c)
+        input.hasInputFocus = true
+    end
+
+    local function TabAdvance(element, shift)
+        local r, c = element.data.row, element.data.col
+        if m_editing == nil or m_editing.row ~= r or m_editing.col ~= c then
+            return
+        end
+        local changed = EndCellEdit(true, true)
+        local nr, nc = r, c
+        if shift then
+            nc = c - 1
+            if nc < 1 then
+                nr = r - 1
+                nc = ColCount()
+            end
+            if nr < 1 then
+                if changed then
+                    Commit()
+                end
+                return
+            end
+        else
+            nc = c + 1
+            if nc > ColCount() then
+                nr = r + 1
+                nc = 1
+            end
+            if nr > #m_model.rows then
+                --tab off the last cell appends a fresh row (the
+                --Obsidian/Notion gesture) in the same undo step.
+                m_model.rows[#m_model.rows + 1] = BlankRow()
+                Commit()
+                Rebuild()
+                BeginCellEdit(nr, 1)
+                return
+            end
+        end
+        if changed then
+            Commit()
+        end
+        BeginCellEdit(nr, nc)
+    end
+
+    local function RowMenu(element, r)
+        element.popup = gui.ContextMenu{
+            entries = {
+                { text = "Insert Row Above", click = function() element.popup = nil OpInsertRow(r) end },
+                { text = "Insert Row Below", click = function() element.popup = nil OpInsertRow(r + 1) end },
+                { text = "Move Up", click = function() element.popup = nil OpMoveRow(r, -1) end },
+                { text = "Move Down", click = function() element.popup = nil OpMoveRow(r, 1) end },
+                { text = "Delete Row", click = function() element.popup = nil OpDeleteRow(r) end },
+                { text = "Delete Table", click = function() element.popup = nil OpDeleteTable() end },
+            },
+        }
+    end
+
+    local function ColumnMenu(element, c)
+        element.popup = gui.ContextMenu{
+            entries = {
+                { text = "Insert Column Left", click = function() element.popup = nil OpInsertColumn(c) end },
+                { text = "Insert Column Right", click = function() element.popup = nil OpInsertColumn(c + 1) end },
+                { text = "Move Left", click = function() element.popup = nil OpMoveColumn(c, -1) end },
+                { text = "Move Right", click = function() element.popup = nil OpMoveColumn(c, 1) end },
+                { text = "Align Left", click = function() element.popup = nil OpSetAlignment(c, false) end },
+                { text = "Align Center", click = function() element.popup = nil OpSetAlignment(c, "center") end },
+                { text = "Align Right", click = function() element.popup = nil OpSetAlignment(c, "right") end },
+                { text = "Delete Column", click = function() element.popup = nil OpDeleteColumn(c) end },
+            },
+        }
+    end
+
+    local function BuildCell(r, c)
+        local isHeader = r == 1
+        local align = AlignmentFor(c)
+        --header text styling mirrors the display renderer: the skin's
+        --blocks.table.header (bold/sizePct/color), applied only when a
+        --separator row declares the header (m_headerSkin, set in Rebuild).
+        --Separator-less tables get the plain legacy look here too.
+        local bold = false
+        local size = 14
+        local color = COLOR_TEXT
+        if isHeader and m_headerSkin ~= nil then
+            bold = m_headerSkin.bold ~= false
+            local pct = m_headerSkin.sizePct
+            if type(pct) == "number" and pct > 0 then
+                size = 14 * pct / 100
+            end
+            local headerColor = SkinColor(m_headerSkin.color)
+            if headerColor ~= nil then
+                color = headerColor
+            end
+        end
+        local label = gui.Label{
+            width = "100%",
+            height = "auto",
+            minHeight = 18,
+            fontSize = size,
+            bold = bold,
+            color = color,
+            textAlignment = (align == "center" and "top") or (align == "right" and "topright") or "topleft",
+            text = CellLabelText(r, c),
+        }
+        local input = gui.Input{
+            classes = { "collapsed" },
+            width = "100%",
+            height = 20,
+            fontSize = 14,
+            characterLimit = 1000,
+            lineType = "SingleLine",
+            restoreOriginalTextOnEscape = true,
+            consumeTab = true,
+            text = "",
+            data = { row = r, col = c },
+            change = function(element)
+                if m_editing ~= nil and m_editing.row == r and m_editing.col == c then
+                    EndCellEdit(true)
+                end
+            end,
+            submit = function(element)
+                if m_editing ~= nil and m_editing.row == r and m_editing.col == c then
+                    EndCellEdit(true)
+                    if m_model ~= nil and m_model.rows[r + 1] ~= nil then
+                        BeginCellEdit(r + 1, c)
+                    end
+                end
+            end,
+            tab = function(element)
+                local shift = false
+                pcall(function()
+                    local mods = dmhub.modKeys
+                    shift = mods ~= nil and mods.shift == true
+                end)
+                TabAdvance(element, shift)
+            end,
+            --escape restores the original text WITHOUT firing change (the
+            --restored text equals the baseline), so close the edit swap on
+            --focus loss explicitly. Guarded: during tab-advance the next
+            --cell already owns m_editing by the time this fires.
+            defocus = function(element)
+                if m_editing ~= nil and m_editing.row == r and m_editing.col == c then
+                    EndCellEdit(true)
+                end
+            end,
+            deselect = function(element)
+                if m_editing ~= nil and m_editing.row == r and m_editing.col == c then
+                    EndCellEdit(true)
+                end
+            end,
+        }
+        local cellPanel
+        cellPanel = gui.Panel{
+            classes = { "tableIslandCell" },
+            flow = "vertical",
+            width = CellWidth(c),
+            height = "auto",
+            bgimage = "panels/square.png",
+            bgcolor = cond(isHeader, COLOR_HEADER_BG, cond(r % 2 == 0, COLOR_ROW_A, COLOR_ROW_B)),
+            border = 1,
+            borderColor = COLOR_BORDER,
+            pad = 3,
+            borderBox = true,
+            data = { label = label, input = input },
+            press = function()
+                BeginCellEdit(r, c)
+            end,
+            label,
+            input,
+        }
+        return cellPanel
+    end
+
+    local function HandleLabel(args)
+        local base = {
+            classes = { "tableIslandHandle" },
+            fontSize = 12,
+            color = COLOR_DIM,
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            textAlignment = "center",
+        }
+        for k, v in pairs(args) do
+            base[k] = v
+        end
+        return gui.Label(base)
+    end
+
+    local function BuildRow(r)
+        m_cellPanels[r] = {}
+        local cells = {}
+        for c = 1, ColCount() do
+            local cellPanel = BuildCell(r, c)
+            m_cellPanels[r][c] = cellPanel
+            cells[#cells + 1] = cellPanel
+        end
+
+        return gui.Panel{
+            flow = "horizontal",
+            width = RowPanelWidth(),
+            halign = "left",
+            height = "auto",
+            HandleLabel{
+                width = GUTTER - 4,
+                height = 18,
+                valign = "top",
+                text = "\u{2022}",
+                hmargin = 2,
+                press = function(element)
+                    RowMenu(element, r)
+                end,
+            },
+            gui.Panel{
+                flow = "horizontal",
+                width = CellsContainerWidth(),
+                height = "auto",
+                valign = "top",
+                children = cells,
+            },
+        }
+    end
+
+    local function BuildTopStrip()
+        local handles = {}
+        for c = 1, ColCount() do
+            handles[#handles + 1] = HandleLabel{
+                width = CellWidth(c),
+                height = HANDLE_H,
+                text = "\u{2022}\u{2022}\u{2022}",
+                press = function(element)
+                    ColumnMenu(element, c)
+                end,
+            }
+        end
+        return gui.Panel{
+            flow = "horizontal",
+            width = RowPanelWidth(),
+            halign = "left",
+            height = HANDLE_H,
+            gui.Panel{ width = GUTTER, height = 1 },
+            gui.Panel{
+                flow = "horizontal",
+                width = CellsContainerWidth(),
+                height = HANDLE_H,
+                children = handles,
+            },
+            HandleLabel{
+                width = 16,
+                height = HANDLE_H,
+                text = "+",
+                fontSize = 14,
+                press = function(element)
+                    OpInsertColumn(ColCount() + 1)
+                end,
+            },
+            HandleLabel{
+                width = 26,
+                height = HANDLE_H,
+                text = "</>",
+                fontSize = 10,
+                press = function(element)
+                    if m_meta ~= nil then
+                        opts.EditSource(m_meta)
+                    end
+                end,
+            },
+        }
+    end
+
+    local function BuildAddRowStrip()
+        local stripWidth
+        if m_colWidths ~= nil then
+            stripWidth = TotalCellsWidth()
+        else
+            stripWidth = string.format("100%%-%d", GUTTER + RIGHT_PAD)
+        end
+        return gui.Panel{
+            flow = "horizontal",
+            width = RowPanelWidth(),
+            halign = "left",
+            height = 14,
+            gui.Panel{ width = GUTTER, height = 1 },
+            HandleLabel{
+                width = stripWidth,
+                height = 14,
+                text = "+",
+                fontSize = 13,
+                press = function(element)
+                    OpInsertRow(#m_model.rows + 1)
+                end,
+            },
+        }
+    end
+
+    local function BuildRollableBar()
+        if m_model.rollable == nil then
+            return nil
+        end
+        local nameInput = gui.Input{
+            width = 180,
+            height = 20,
+            fontSize = 13,
+            lineType = "SingleLine",
+            restoreOriginalTextOnEscape = true,
+            text = m_model.rollable.name,
+            change = function(element)
+                local name = trim(element.text or "")
+                if name == "" or name:find(":", 1, true) ~= nil or name:find("|", 1, true) ~= nil then
+                    element.text = m_model.rollable.name
+                    return
+                end
+                if name ~= m_model.rollable.name then
+                    m_model.rollable.name = name
+                    m_model.rollable.raw = "|" .. name .. ": " .. m_model.rollable.dice
+                    Commit()
+                end
+            end,
+        }
+        local diceInput = gui.Input{
+            width = 56,
+            height = 20,
+            fontSize = 13,
+            lineType = "SingleLine",
+            restoreOriginalTextOnEscape = true,
+            text = m_model.rollable.dice,
+            change = function(element)
+                local dice = trim(element.text or "")
+                if dice:match("^%d+d%d+$") == nil then
+                    element.text = m_model.rollable.dice
+                    return
+                end
+                if dice ~= m_model.rollable.dice then
+                    m_model.rollable.dice = dice
+                    m_model.rollable.raw = "|" .. m_model.rollable.name .. ": " .. dice
+                    Commit()
+                end
+            end,
+        }
+        return gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            halign = "left",
+            height = "auto",
+            bmargin = 2,
+            gui.Panel{ width = GUTTER, height = 1 },
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 12,
+                color = COLOR_DIM,
+                valign = "center",
+                rmargin = 4,
+                text = "Rollable:",
+            },
+            nameInput,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 12,
+                color = COLOR_DIM,
+                valign = "center",
+                hmargin = 4,
+                text = "Roll",
+            },
+            diceInput,
+        }
+    end
+
+    Rebuild = function()
+        m_cellPanels = {}
+        m_editing = nil
+        if resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        if m_model == nil then
+            resultPanel.children = {}
+            return
+        end
+        --resolve the skin's header styling for this table's block type; only
+        --a separator-declared header uses it (mirrors the display renderer).
+        m_headerSkin = nil
+        if m_model.separator ~= nil and opts.GetHeaderSkin ~= nil then
+            m_headerSkin = opts.GetHeaderSkin(m_model.rollable ~= nil)
+        end
+        m_colWidths = ComputeColumnWidths()
+        local children = {}
+        local rollableBar = BuildRollableBar()
+        if rollableBar ~= nil then
+            children[#children + 1] = rollableBar
+        end
+        children[#children + 1] = BuildTopStrip()
+        for r = 1, #m_model.rows do
+            children[#children + 1] = BuildRow(r)
+        end
+        children[#children + 1] = BuildAddRowStrip()
+        resultPanel.children = children
+        --a rebuild while the pointer is over the grid replaces every child
+        --AFTER the hover event set the class tree; re-assert it so freshly
+        --built handles are not stuck invisible until the next hover-enter.
+        resultPanel:SetClassTree("tableHover", resultPanel:HasClass("tableHover") == true)
+    end
+
+    resultPanel = gui.Panel{
+        classes = { "tableIsland" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        styles = {
+            { selectors = { "tableIslandHandle" }, opacity = 0 },
+            { selectors = { "tableIslandHandle", "tableHover" }, opacity = 0.55, transitionTime = 0.1 },
+            { selectors = { "tableIslandHandle", "hover" }, opacity = 1 },
+            { selectors = { "tableIslandCell", "hover" }, borderColor = COLOR_BORDER_HI },
+        },
+        hover = function(element)
+            element:SetClassTree("tableHover", true)
+        end,
+        dehover = function(element)
+            element:SetClassTree("tableHover", false)
+        end,
+        refreshTable = function(element, meta)
+            if m_editing ~= nil then
+                m_pendingRefresh = meta
+                return
+            end
+            m_meta = meta
+            m_model = MarkdownDocument.ParseTableIslandSource(meta.tableText)
+            Rebuild()
+        end,
+    }
+
+    resultPanel.data.SetMeta = function(meta)
+        --offset-only update (edits elsewhere in the document shift the
+        --island's byte range without changing its text).
+        if m_editing == nil and m_pendingRefresh == nil then
+            m_meta = meta
+        end
+    end
+
+    return resultPanel
+end
+
+--Raw-mode syntax highlighting: computes SetColorSpans entries for markdown
+--source. Offsets are 1-based inclusive BYTES (string.find conventions, the
+--same space SetColorSpans consumes). The scheme dims syntax punctuation and
+--tints structural lines while body text keeps the editor's normal color --
+--the Obsidian raw-view look. Colors follow the Codex Design System accents
+--the editor toolbar already uses.
+local RAW_HEADING     = "#c8a45a" --gold: heading lines
+local RAW_MARK        = "#7a7468" --warm-muted: markdown punctuation
+local RAW_TAG         = "#e8a030" --amber: [[rich tags]]
+local RAW_QUOTE       = "#4db88c" --green: blockquote lines
+
+function MarkdownDocument.ComputeRawColorSpans(text)
+    local spans = {}
+    local claimed = {}
+    local function overlapsClaimed(a, b)
+        for _, c in ipairs(claimed) do
+            if a <= c[2] and b >= c[1] then
+                return true
+            end
+        end
+        return false
+    end
+    local function add(a, b, color)
+        if a == nil or b == nil or b < a then
+            return
+        end
+        spans[#spans + 1] = { from = a, to = b, color = color }
+    end
+    local function claim(a, b, color)
+        if overlapsClaimed(a, b) then
+            return
+        end
+        claimed[#claimed + 1] = { a, b }
+        add(a, b, color)
+    end
+
+    local len = #text
+    local pos = 1
+    while pos <= len do
+        local nl = string.find(text, "\n", pos, true)
+        local stop = (nl or (len + 1)) - 1
+        local line = string.sub(text, pos, stop)
+        local base = pos - 1 --line-relative index i -> absolute base + i
+
+        if string.match(line, "^#+[ \t]") ~= nil or string.match(line, "^#+$") ~= nil then
+            add(pos, stop, RAW_HEADING)
+        elseif string.match(line, "^[ \t]*>") ~= nil then
+            add(pos, stop, RAW_QUOTE)
+        elseif string.match(line, "^%-%-%-+[ \t]*$") ~= nil then
+            add(pos, stop, RAW_MARK)
+        elseif string.match(line, "^|[ \t:%-|]*|?[ \t]*$") ~= nil and string.find(line, "-", 1, true) ~= nil then
+            --GFM separator row: whole line is syntax.
+            add(pos, stop, RAW_MARK)
+        else
+            --per-line claims reset each line.
+            claimed = {}
+
+            --justification markers (:<>, :>, :<) at line start.
+            local js, je = string.find(line, "^:[<>]+")
+            if js ~= nil then
+                claim(base + js, base + je, RAW_MARK)
+            end
+
+            --list markers: bullets and ordered.
+            local ms, me = string.find(line, "^[ \t]*[%*%-%+][ \t]")
+            if ms == nil then
+                ms, me = string.find(line, "^[ \t]*%d+%.[ \t]")
+            end
+            if ms ~= nil then
+                claim(base + ms, base + me, RAW_HEADING)
+            end
+
+            --table pipes on row lines (incl. rollable |Name: NdM headers).
+            local pipeAt = string.find(line, "|", 1, true)
+            while pipeAt ~= nil do
+                claim(base + pipeAt, base + pipeAt, RAW_MARK)
+                pipeAt = string.find(line, "|", pipeAt + 1, true)
+            end
+
+            --rich [[tag]] markup (media/widget islands, dice tables, note links).
+            local init = 1
+            while true do
+                local s, e = string.find(line, "%[%[.-%]%]", init)
+                if s == nil then break end
+                claim(base + s, base + e, RAW_TAG)
+                init = e + 1
+            end
+
+            --markdown links [label](target): label gold, target muted.
+            init = 1
+            while true do
+                local s, mid, e = string.match(line, "()%[[^%[%]]*%]()%([^%)]*%)()", init)
+                if s == nil then break end
+                claim(base + s, base + mid - 1, RAW_HEADING)
+                claim(base + mid, base + e - 1, RAW_MARK)
+                init = e
+            end
+
+            --emphasis / spoiler / color-tag punctuation, dimmed.
+            for _, pat in ipairs({ "%*%*", "__", "~~", "%*", "{", "}", "</?color[^>]*>" }) do
+                init = 1
+                while true do
+                    local s, e = string.find(line, pat, init)
+                    if s == nil then break end
+                    claim(base + s, base + e, RAW_MARK)
+                    init = e + 1
+                end
+            end
+        end
+
+        if nl == nil then
+            break
+        end
+        pos = nl + 1
+    end
+    return spans
+end
+
 --The seamless single-surface editor. Mirrors ClassicEditPanel's document
 --contract (refreshDocument/needsave/savedoc/checkChanges + toolbar +
 --annotations + find bar) with one richDisplay TextEditor over the whole
@@ -8536,8 +9904,10 @@ function MarkdownDocument:SeamlessEditPanel(args)
 
     local editInput
     local editorWrap
+    local islandLayer
     local m_islandMeta = {}
     local m_islandPanels = {} --id -> { wrapper, inner, tag, lastHeight }
+    local m_rawMode = false   --Raw toggle: plain markdown editing, no islands.
 
     local m_annotationsPanel = CreateAnnotationsPanel{
         GetDocument = function()
@@ -8551,8 +9921,50 @@ function MarkdownDocument:SeamlessEditPanel(args)
         end,
     }
 
+    --Sync one table island's grid widget against the current compiled meta.
+    --entry.sourceText is the text the grid currently represents (pre-staged
+    --by its own commits); entry.metaText is the last meta text SEEN here.
+    --The distinction defends against stale islandLayout ticks that fire
+    --between a grid commit and the debounced recompile: their meta still
+    --holds the pre-commit text, which must not rebuild the grid backwards.
+    local function SyncTableEntry(islandId, meta)
+        local entry = m_islandPanels[islandId]
+        if entry == nil or not entry.isTable or not entry.wrapper.valid then
+            return
+        end
+        if meta.tableText == entry.sourceText then
+            --meta agrees with the grid: push fresh byte offsets (edits
+            --elsewhere in the document shift the island's range).
+            entry.metaText = meta.tableText
+            entry.inner.data.SetMeta(meta)
+        elseif meta.tableText ~= entry.metaText then
+            --a genuine external change (undo, raw-source editing): rebuild.
+            entry.metaText = meta.tableText
+            entry.sourceText = meta.tableText
+            entry.inner:FireEvent("refreshTable", meta)
+        end
+        --else: stale meta from before the recompile; ignore it.
+    end
+
     local function RecompileDecorations()
         if editInput == nil or not editInput.valid then
+            return
+        end
+        if m_rawMode then
+            --raw markdown mode: an EMPTY decoration set makes the display
+            --transform the identity (source shown verbatim, no islands --
+            --the resulting empty islandLayout tick hides every wrapper),
+            --and syntax coloring rides the SetColorSpans channel. Caret and
+            --selection positions are source positions in both modes, so
+            --toggling never moves the caret.
+            local ok, err = pcall(function()
+                m_islandMeta = {}
+                editInput:SetDecorations({})
+                editInput:SetColorSpans(MarkdownDocument.ComputeRawColorSpans(editInput.text or ""))
+            end)
+            if not ok then
+                print("SeamlessEditPanel:: raw mode compile error:", tostring(err))
+            end
             return
         end
         local ok, err = pcall(function()
@@ -8569,18 +9981,117 @@ function MarkdownDocument:SeamlessEditPanel(args)
             end
             m_islandMeta = meta
             editInput:SetDecorations(decs)
+            --sync table grids HERE, not only from islandLayout ticks: a grid
+            --commit that does not change the island's rects never fires
+            --another layout event, so this is the only reliable post-edit
+            --sync point.
+            for id, m in pairs(meta) do
+                if m.kind == "table" then
+                    SyncTableEntry(id, m)
+                end
+            end
         end)
         if not ok then
             print("SeamlessEditPanel:: decoration compile error:", tostring(err))
         end
     end
 
+    --Raw toggle: switch between the seamless surface and plain markdown
+    --editing (courier face via the rawmode class style, syntax coloring,
+    --no island widgets). Same editor, same text, same undo history.
+    local function SetRawMode(raw)
+        raw = raw == true
+        if raw == m_rawMode then
+            return
+        end
+        m_rawMode = raw
+        if islandLayer ~= nil and islandLayer.valid then
+            --instant belt-and-suspenders hide; the empty islandLayout tick
+            --that follows the recompile hides the wrappers individually.
+            islandLayer:SetClass("hidden", raw)
+        end
+        if editInput ~= nil and editInput.valid then
+            editInput:SetClass("rawmode", raw)
+            if not raw then
+                editInput:ClearColorSpans()
+            end
+            RecompileDecorations()
+            editInput.hasInputFocus = true
+        end
+    end
+
+    --Commit a table widget's edit: splice newTableText over the island's
+    --byte range in the editor (through the undoable text property; no focus
+    --steal, so the grid keeps its input focus). Returns the updated meta on
+    --success, nil when the range went stale and could not be relocated.
+    local function CommitTableEdit(islandId, meta, newTableText)
+        if editInput == nil or not editInput.valid then
+            return nil
+        end
+        local current = editInput.text or ""
+        local from, to = meta.from, meta.to
+        if current:sub(from, to) ~= meta.tableText then
+            --edits elsewhere shifted the range between recompiles: relocate
+            --the exact table text; refuse ambiguous or missing matches.
+            local s = string.find(current, meta.tableText, 1, true)
+            if s == nil then
+                print("TableIsland:: stale table range; edit dropped")
+                return nil
+            end
+            if string.find(current, meta.tableText, s + 1, true) ~= nil then
+                print("TableIsland:: ambiguous table range; edit dropped")
+                return nil
+            end
+            from = s
+            to = s + #meta.tableText - 1
+        end
+        local entry = m_islandPanels[islandId]
+        if entry ~= nil then
+            --pre-stage the new source so the recompile-driven refresh does
+            --not rebuild the grid under the user's focus.
+            entry.sourceText = newTableText
+        end
+        local caret = editInput.caretPosition or 0
+        local newText = current:sub(1, from - 1) .. newTableText .. current:sub(to + 1)
+        --SetTextUndoable records the splice as an undoable step without
+        --grabbing focus (the grid keeps its cell input focused). The plain
+        --text setter is the fallback for binaries that predate the bridge
+        --method; it behaves identically except it wipes a virgin undo
+        --history.
+        local undoable = false
+        pcall(function()
+            editInput:SetTextUndoable(newText)
+            undoable = true
+        end)
+        if not undoable then
+            editInput.text = newText
+        end
+        --keep an after-the-table caret stable across the splice (the editor
+        --is unfocused during grid edits; this matters when focus returns).
+        if caret >= to then
+            editInput.caretPosition = caret + (#newTableText - (to - from + 1))
+        end
+        return { kind = "table", from = from, to = from + #newTableText - 1, tableText = newTableText }
+    end
+
+    --the table grid's "</>" escape hatch: focus the editor with the caret on
+    --the table's first line, which opens the island as raw source (the
+    --caret-reveal invariant does the rest).
+    local function EditTableSource(meta)
+        if editInput == nil or not editInput.valid then
+            return
+        end
+        editInput:SetTextAndCaret(math.max(0, (meta.from or 1) - 1), editInput.text or "")
+    end
+
     --island widgets: pooled panels floated over the editor at the rects the
     --engine exports. Annotation resolution matches RenderMarkdownTokens
     --(doc.annotations[candidate]; the annotations panel's scan creates missing
     --entries on every edit, which runs before RecompileDecorations).
+    --Table islands (islandMeta kind == "table") resolve to the editable grid
+    --widget instead; they have no annotation object.
     local function IslandLayout(islands)
-        if editorWrap == nil or not editorWrap.valid then
+        if islandLayer == nil or not islandLayer.valid then
             return
         end
         local seen = {}
@@ -8591,13 +10102,47 @@ function MarkdownDocument:SeamlessEditPanel(args)
                 local meta = m_islandMeta[island.id]
                 local richTag = nil
                 local patternMatch = nil
-                if meta ~= nil and m_doc.annotations ~= nil then
+                local inner = nil
+                local isTable = meta ~= nil and meta.kind == "table"
+                if isTable then
+                    --table island: the editable grid widget. No annotation
+                    --object; the widget round-trips the island's source.
+                    local tableIslandId = island.id
+                    inner = CreateTableIslandWidget{
+                        CommitTableEdit = function(meta2, newTableText)
+                            return CommitTableEdit(tableIslandId, meta2, newTableText)
+                        end,
+                        EditSource = EditTableSource,
+                        --skin header styling for the grid's header row
+                        --(applied by the widget only when a separator
+                        --declares one, mirroring the display renderer).
+                        GetHeaderSkin = function(isRollable)
+                            local header = nil
+                            pcall(function()
+                                local sheet = m_doc:GetResolvedStylesheet()
+                                local base = sheet ~= nil and sheet.base or nil
+                                local blocks = base ~= nil and base.blocks or nil
+                                local blockCfg = nil
+                                if blocks ~= nil then
+                                    if isRollable then
+                                        blockCfg = blocks.rollableTable
+                                    else
+                                        blockCfg = blocks.table
+                                    end
+                                end
+                                header = blockCfg ~= nil and blockCfg.header or nil
+                            end)
+                            return header
+                        end,
+                    }
+                end
+                if not isTable and meta ~= nil and m_doc.annotations ~= nil then
                     richTag = m_doc.annotations[island.id]
                     if richTag ~= nil and getmetatable(richTag) == nil then
                         richTag = nil
                     end
                 end
-                if richTag == nil and meta ~= nil then
+                if not isTable and richTag == nil and meta ~= nil then
                     --pattern-based tags (RichSetting, RichResource, ...) have
                     --no annotation object (hasEdit = false); mirror the display
                     --renderer: instantiate a copy of the registry default and
@@ -8615,16 +10160,18 @@ function MarkdownDocument:SeamlessEditPanel(args)
                         end
                     end
                 end
-                if richTag ~= nil then
-                    local inner = nil
-                    pcall(function()
-                        inner = richTag:CreateDisplay()
-                    end)
+                if richTag ~= nil or inner ~= nil then
+                    if inner == nil then
+                        pcall(function()
+                            inner = richTag:CreateDisplay()
+                        end)
+                    end
                     if inner ~= nil then
                         local islandId = island.id
                         entry = {
                             inner = inner,
                             tag = richTag,
+                            isTable = isTable,
                             lastHeight = nil,
                         }
                         --shown instead of the widget while the island is open
@@ -8666,6 +10213,19 @@ function MarkdownDocument:SeamlessEditPanel(args)
                             inner,
                             entry.frame,
 
+                            --island widgets float OVER the text editor but
+                            --live outside its transform, so a wheel notch
+                            --over one bubbles up past the editor and dies
+                            --instead of scrolling the document. Forward it.
+                            --pcall: ScrollByWheel needs the 7/17+ binary; on
+                            --older builds the engine never fires 'wheel'
+                            --anyway, so this is belt-and-suspenders.
+                            wheel = function(element, delta)
+                                if editInput ~= nil and editInput.valid then
+                                    pcall(function() editInput:ScrollByWheel(delta) end)
+                                end
+                            end,
+
                             --measure the widget and reserve exactly its height.
                             --Compared against the height the last islandLayout
                             --event reported (the transform's actual reservation),
@@ -8705,7 +10265,15 @@ function MarkdownDocument:SeamlessEditPanel(args)
                             end,
                         }
                         m_islandPanels[island.id] = entry
-                        editorWrap:AddChild(entry.wrapper)
+                        islandLayer:AddChild(entry.wrapper)
+                        if isTable then
+                            --the grid parses its model from the island's
+                            --source text; sourceText/metaText are the change
+                            --detectors SyncTableEntry uses.
+                            entry.sourceText = meta.tableText
+                            entry.metaText = meta.tableText
+                            inner:FireEvent("refreshTable", meta)
+                        else
                         richTag._tmp_document = m_doc
                         local match = patternMatch
                         if match == nil then
@@ -8726,10 +10294,22 @@ function MarkdownDocument:SeamlessEditPanel(args)
                         entry.match = match
                         entry.justification = meta.justification
                         entry.wrapper:FireEventTree("refreshTag", richTag, match, { type = "tag", text = meta.text, justification = meta.justification, editor = true })
+                        end
                     end
                 end
             end
             if entry ~= nil and entry.wrapper.valid then
+                if entry.isTable then
+                    --table island: keep the widget's byte range current and
+                    --rebuild the grid on genuine external changes (undo,
+                    --raw-source edits). SyncTableEntry defends against the
+                    --stale meta a layout tick can carry between a grid
+                    --commit and the debounced recompile.
+                    local meta = m_islandMeta[island.id]
+                    if meta ~= nil and meta.kind == "table" then
+                        SyncTableEntry(island.id, meta)
+                    end
+                else
                 --re-assert alignment when the line's justification markers
                 --changed (e.g. the user typed :<> before an existing island):
                 --the wrapper is pooled, so the creation-time refreshTag alone
@@ -8755,6 +10335,7 @@ function MarkdownDocument:SeamlessEditPanel(args)
                         entry.justification = meta.justification
                         entry.wrapper:FireEventTree("refreshTag", entry.tag, entry.match, { type = "tag", text = meta.text, justification = meta.justification, editor = true })
                     end
+                end
                 end
                 --revealed = the island is open for editing: its source renders
                 --centered in the reserved rect, so swap the widget for the
@@ -8801,6 +10382,15 @@ function MarkdownDocument:SeamlessEditPanel(args)
         richDisplay = true,
         editlag = 0.3,
         thinkTime = 0.2,
+
+        --raw markdown mode renders the source in a monospace face; the
+        --class is toggled by SetRawMode.
+        styles = {
+            {
+                selectors = { "rawmode" },
+                fontFace = "courier",
+            },
+        },
 
         create = function(element)
             m_annotationsPanel:FireEvent("editDocument", element.text)
@@ -8969,6 +10559,12 @@ function MarkdownDocument:SeamlessEditPanel(args)
         GetInput = function()
             return editInput
         end,
+        GetRawMode = function()
+            return m_rawMode
+        end,
+        OnToggleRaw = function()
+            SetRawMode(not m_rawMode)
+        end,
         GetStylesheetId = function()
             return m_doc.styleSheetId or ""
         end,
@@ -8977,13 +10573,50 @@ function MarkdownDocument:SeamlessEditPanel(args)
             ResolveStylesheet.ClearCache()
             m_doc._tmp_styleDirty = true
             RecompileDecorations()
+            --table grids style their header row from the skin; rebuild them
+            --so a stylesheet swap shows immediately (SyncTableEntry only
+            --refreshes on TEXT changes). Mid-edit grids defer via their
+            --pendingRefresh path.
+            for id, entry in pairs(m_islandPanels) do
+                if entry.isTable and entry.wrapper.valid then
+                    local meta = m_islandMeta[id]
+                    if meta ~= nil and meta.kind == "table" then
+                        entry.inner:FireEvent("refreshTable", meta)
+                    end
+                end
+            end
             if resultPanel ~= nil then
                 resultPanel:SetClassTree("changes", true)
             end
         end,
     }
 
-    --the editor surface; islands parent here so they float over the text.
+    --hosts the floating island widgets/frames. A dedicated CLIPPED layer:
+    --wrappers position at viewport-local rects, which go negative when the
+    --document scrolls an island partially off the top, and a tall widget
+    --(a big image) otherwise paints right over the toolbar and page frame.
+    --clip uses the panel's own bgimage as the mask (Unity Mask semantics),
+    --so WITHOUT a bgimage clip = true silently clips nothing; clipHidden
+    --keeps the mask image from drawing, and interactable = false keeps the
+    --layer from blocking clicks meant for the text underneath (per-panel:
+    --its widget children still receive theirs). Live-verified: image crops
+    --at the editor edge, caret clicks pass through. Sits between the text
+    --and the find bar so find stays on top.
+    islandLayer = gui.Panel{
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "top",
+        flow = "none",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        clip = true,
+        clipHidden = true,
+        interactable = false,
+    }
+
+    --the editor surface; islands parent into islandLayer so they float over
+    --the text but clip to the editor's bounds.
     editorWrap = gui.Panel{
         width = "98%",
         height = "100% available",
@@ -8991,6 +10624,7 @@ function MarkdownDocument:SeamlessEditPanel(args)
         valign = "top",
         flow = "none",
         editInput,
+        islandLayer,
         findBar,
     }
 

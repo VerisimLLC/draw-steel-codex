@@ -839,6 +839,12 @@ function dmhub.CancelCurrentRoll()
 	-- dummy implementation for documentation purposes only
 end
 
+--- ClearChatPreviewDice: Clears the chat-driven roll-preview dice (a roll dialog's or typed '/roll' preview), leaving armed 'try dice' cages (the Dice dock, the shop) and rolls that have already begun untouched. Roll dialogs whose preview was seeded via chat.PreviewChat('/roll ...') must call this when they cancel: the empty-text chat path skips clearing while an unarmed dice cage is registered, which orphans the dialog's dice and leaves the action bar hidden (preview-dice mode) for the rest of the session.
+--- @return nil
+function dmhub.ClearChatPreviewDice()
+	-- dummy implementation for documentation purposes only
+end
+
 --- ParseRoll: Parses a textual roll description into a structured table suitable for passing to Roll().
 --- @param text string
 --- @param lookupFunction function

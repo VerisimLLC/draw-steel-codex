@@ -24,6 +24,7 @@ function RichImage.CreateDisplay(self)
     local m_editorMode = false
     local m_lastImage = nil
     local m_applied = false
+    local m_halign = nil
 
     local imagePanel
     local placeholderPanel
@@ -37,6 +38,10 @@ function RichImage.CreateDisplay(self)
             imagePanel.bgimage = img
         end
         imagePanel.selfStyle.uiscale = self.uiscale
+        if m_editorMode then
+            imagePanel.selfStyle.halign = m_halign or "left"
+            placeholderPanel.selfStyle.halign = m_halign or "left"
+        end
         placeholderPanel:SetClass("collapsed", not m_editorMode or m_lastImage ~= nil)
     end
 
@@ -82,10 +87,18 @@ function RichImage.CreateDisplay(self)
         flow = "vertical",
         halign = self.halign,
         refreshTag = function(element, tag, match, token)
-            element.selfStyle.halign = (token ~= nil and token.justification) or (tag or self).halign
+            local halign = (token ~= nil and token.justification) or (tag or self).halign
             if token ~= nil and token.editor then
                 m_editorMode = true
+                --fill the island wrapper so imagePanel's maxWidth="100%"
+                --resolves against the real editor width (under auto-width
+                --parents a large image renders at natural size and spills
+                --out of the page); alignment moves to the image panel.
+                element.selfStyle.width = "100%"
+                m_halign = halign
                 UpdateState()
+            else
+                element.selfStyle.halign = halign
             end
         end,
 

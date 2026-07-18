@@ -7492,6 +7492,39 @@ local function FeatureChosenTexts(feature, creature)
     return texts
 end
 
+--Re-attach an edited custom feature into the sheet's CURRENT properties.
+--While a feature PopupEditor is open, any remote update makes the sheet
+--re-bind to a freshly fetched token.properties object; the popup then keeps
+--mutating an orphaned feature, so when it finally notifies the sheet to
+--refresh/upload, the diff against the new properties sees nothing and the
+--authored content is silently lost. Resolving the list at commit time and
+--swapping the edited object in by guid heals that. Passed as the `commit`
+--option to PopupEditor / ListEditor for every sheet-hosted feature editor.
+local function CommitCustomFeature(feature)
+    local c = nil
+    pcall(function() c = CharacterSheet.instance.data.info.token.properties end)
+    if c == nil then
+        return
+    end
+    local guid = feature:try_get("guid")
+    local items = c:try_get("characterFeatures", {})
+    for i,f in ipairs(items) do
+        if f == feature then
+            --still attached; nothing to heal.
+            return
+        end
+        if guid ~= nil and f:try_get("guid") == guid then
+            items[i] = feature
+            c.characterFeatures = items
+            return
+        end
+    end
+    --not in the current list at all: the add that created it never landed
+    --(or a re-bind raced it) -- attach it so the edit is not lost.
+    items[#items+1] = feature
+    c.characterFeatures = items
+end
+
 local function FeaturesIndexPanel()
     local resultPanel
 
@@ -7615,7 +7648,7 @@ local function FeaturesIndexPanel()
                     classes = {"sizeS"},
                     text = "Edit",
                     click = function(element)
-                        local editor = entry.feature:PopupEditor()
+                        local editor = entry.feature:PopupEditor{ commit = CommitCustomFeature }
                         editor.data.notifyElement = resultPanel
                         CharacterSheet.instance:AddChild(editor)
                     end,
@@ -8250,7 +8283,7 @@ local function FeaturesIndexPanel()
                 c.characterFeatures = items
                 element.popup = nil
                 CharacterSheet.instance:FireEvent("refreshAll")
-                local editor = feature:PopupEditor()
+                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
                 editor.data.notifyElement = resultPanel
                 CharacterSheet.instance:AddChild(editor)
             end,
@@ -8537,7 +8570,7 @@ function CharSheet.InnerFeaturesPanel()
                 refreshToken = function(element, info)
                     if info.token.properties ~= element.data.properties then
                         element.children = { CharacterFeature.ListEditor(info.token.properties, 'characterFeatures',
-                            { dialog = CharacterSheet.instance, notify = CharacterSheet.instance }) }
+                            { dialog = CharacterSheet.instance, notify = CharacterSheet.instance, commit = CommitCustomFeature }) }
                         element.data.properties = info.token.properties
                     end
                 end,

@@ -1986,6 +1986,21 @@ DockablePanel = {
 		end
 	end,
 
+	--Look up a panel registration by its registered name (case-insensitive).
+	--Returns the registration args table (name, icon, content, vscroll,
+	--minHeight, maxHeight, dmonly, devonly, ...) or nil. Used by the document
+	--system's PanelDocument bridge to host dockable panel content inside
+	--document windows.
+	GetRegistration = function(name)
+		name = string.lower(name)
+		for _,v in pairs(dockablePanels) do
+			if string.lower(v.name) == name then
+				return v
+			end
+		end
+		return nil
+	end,
+
 	GetMenuItems = function(flat)
 		local subfolders = {}
 		local result = {}

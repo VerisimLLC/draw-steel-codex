@@ -1386,11 +1386,16 @@ CreateJournalPanel = function()
             height = "100% available",
 
             styles = ThemeEngine.MergeTokens({
+                --icon/label carry an explicit halign: children of a
+                --horizontal-flow row center themselves without one, which
+                --only shows up outside the dock (e.g. the icon rail's
+                --panel windows) where no ancestor supplies an alignment.
                 {
                     selectors = { "icon" },
                     width = 16,
                     height = 16,
                     bgcolor = "@fg",
+                    halign = "left",
                     valign = "center",
                     hmargin = 4,
                 },
@@ -1415,6 +1420,7 @@ CreateJournalPanel = function()
                     hmargin = 4,
                     width = "auto",
                     height = "auto",
+                    halign = "left",
                     valign = "center",
                 },
                 {

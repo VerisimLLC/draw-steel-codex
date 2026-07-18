@@ -1530,15 +1530,22 @@ function CustomDocument:CreateInterface(args)
             bgcolor = "#222228",
             borderColor = "#ffffff99",
         },
+        --priority 6: the theme's {iconButton, selected} rule is priority 5 and
+        --fills the chrome @accent -- the same color the theme tints the selected
+        --glyph (and near-identical to @fg in the default scheme) -- so without
+        --outranking it the icon vanishes into its own highlight. The dim fill
+        --below keeps the @accent glyph readable.
         {
             selectors = { "iconButton", "selected" },
             bgcolor = "#ffffff1f",
             borderColor = "#ffffff99",
+            priority = 6,
         },
         {
             selectors = { "iconButton", "selected", "hover" },
             bgcolor = "#ffffff59",
             borderColor = "#ffffff99",
+            priority = 6,
         },
         --design icon-button footprint: 34px squares (the themed sizeS
         --default is smaller) with breathing room between the outlined

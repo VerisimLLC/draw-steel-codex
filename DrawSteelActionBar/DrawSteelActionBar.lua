@@ -6746,7 +6746,10 @@ local function CalculateSpellTargetFocusing(symbols)
         if g_currentAbility.targetAllegiance == "dead" then
             allTokens = dmhub.allTokensIncludingObjects
         elseif g_currentAbility.objectTarget == false then
-            allTokens = dmhub.allTokens
+            --Objects can still grant targeting to non-object abilities via
+            --their additionalTargetFilter (ObjectGrantsTargeting), so include
+            --object tokens and let TargetPassesFilter sort them out.
+            allTokens = dmhub.allTokensIncludingObjects
         elseif g_currentAbility.targetAllegiance == "none" then
             allTokens = dmhub.allTokensIncludingObjects
         else

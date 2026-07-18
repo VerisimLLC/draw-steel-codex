@@ -2402,6 +2402,201 @@ local function CreateCuesStrip(self, info)
     }
 end
 
+-- A single custom encounter-action button: a script-driven button the live
+-- encounter carries (LiveEncounter.customButtons -- see LIVE_ENCOUNTER.md).
+-- Clicking executes the button's command line via dmhub.Execute; one-shot
+-- buttons (the default) remove themselves first so a slow interactive command
+-- cannot be double-fired. Right-click dismisses without executing. Reuses the
+-- villain-action drawer chrome so these read as the same family as
+-- reinforcements and cues.
+local function CreateEncounterActionButton(info, button)
+    local function RemoveAndRefresh(element)
+        local q = info.initiativeQueue
+        if q == nil then return end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then return end
+
+        liveEncounter:RemoveCustomButton(button.id)
+        info.UploadInitiative()
+
+        local strip = element:FindParentWithClass("encounterActionsStrip")
+        if strip ~= nil then
+            strip:FireEvent("refresh")
+        end
+    end
+
+    local summaryLabel = nil
+    if button.summary ~= nil and button.summary ~= "" then
+        summaryLabel = gui.Label{
+            classes = {"vaDrawerSummary"},
+            text = button.summary,
+        }
+    end
+
+    return gui.Panel{
+        classes = {"vaDrawer", "available", "encounterActionButton"},
+        data = { buttonid = button.id },
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            text = button.name or "Action",
+        },
+        summaryLabel,
+
+        hover = function(element)
+            local text = button.tooltip
+            if text == nil or text == "" then
+                text = string.format("%s. Right-click to dismiss.", button.name or "Execute")
+            end
+            gui.Tooltip{ text = text }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            if q == nil then return end
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+
+            --re-resolve the button so we execute the current version, not the
+            --one captured when the strip was last rebuilt.
+            local current = liveEncounter:GetCustomButton(button.id)
+            if current == nil then return end
+
+            if not current.sticky then
+                liveEncounter:RemoveCustomButton(current.id)
+                info.UploadInitiative()
+            end
+
+            if current.command ~= nil and current.command ~= "" then
+                dmhub.Execute(current.command)
+            end
+
+            local strip = element:FindParentWithClass("encounterActionsStrip")
+            if strip ~= nil then
+                strip:FireEvent("refresh")
+            end
+        end,
+
+        rightClick = function(element)
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Dismiss",
+                        click = function()
+                            element.popup = nil
+                            RemoveAndRefresh(element)
+                        end,
+                    },
+                },
+            }
+        end,
+    }
+end
+
+-- Encounter Actions strip: a DM-only band below the cues strip that surfaces
+-- the live encounter's script-driven custom buttons (see
+-- LiveEncounter:GetCustomButtons and LIVE_ENCOUNTER.md). Mirrors the
+-- reinforcements strip: polls the queue and rebuilds its buttons only when the
+-- button set actually changes.
+local function CreateEncounterActionsStrip(self, info)
+    local buttonsRow = gui.Panel{
+        classes = {"vaDrawerRow"},
+    }
+
+    return gui.Panel{
+        classes = {"encounterActionsStrip"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) },
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "ENCOUNTER ACTIONS",
+            },
+        },
+
+        buttonsRow,
+
+        data = {
+            currentSignature = nil,
+            themeListener = nil,
+        },
+
+        refresh = function(element)
+            if not dmhub.isDM then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local q = info.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local liveEncounter = q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                return
+            end
+
+            local buttons = liveEncounter:GetCustomButtons()
+            if #buttons == 0 then
+                element:SetClass("collapsed", true)
+                element.data.currentSignature = nil
+                buttonsRow.children = {}
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            local sig = ""
+            for _, button in ipairs(buttons) do
+                sig = string.format("%s%s|%s|%s;", sig, button.id, button.name or "", button.summary or "")
+            end
+            if sig == element.data.currentSignature then
+                return
+            end
+            element.data.currentSignature = sig
+
+            local panels = {}
+            for _, button in ipairs(buttons) do
+                panels[#panels + 1] = CreateEncounterActionButton(info, button)
+            end
+            buttonsRow.children = panels
+        end,
+
+        thinkTime = 0.7,
+        think = function(element)
+            if not dmhub.isDM then return end
+            element:FireEvent("refresh")
+        end,
+
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles) }
+                end
+            end)
+            element:FireEvent("refresh")
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
+    }
+end
+
 -- Public hook: mount the cues strip outside the initiative bar (the Run
 -- panel's Rail surfaces cue banners in its NOW zone). The shim info
 -- resolves the initiative queue dynamically on every poll, mirroring
@@ -4013,6 +4208,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			CreateVillainActionStrip(self, info),
 			CreateReinforcementsStrip(self, info),
 			CreateCuesStrip(self, info),
+			CreateEncounterActionsStrip(self, info),
 		},
 
 		-- Player-side strip container: mirror of the monster-side container,

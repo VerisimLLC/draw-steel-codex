@@ -123,6 +123,13 @@ function InitiativeQueue.Create()
 		hidden = false,
         gameMode = "combat",
 		entries = CreateTable(),
+		--every new queue carries at least a basic empty live encounter (see
+		--LiveEncounter.CreateEmpty), so combat systems can rely on the field
+		--being a LiveEncounter. The "Draw Steel!" flow replaces it with one
+		--built from the chosen authored encounter, or with a seeded empty one
+		--for Custom combats (DSInitiativeRoll.lua). Old queues from before
+		--this change can still hold false/nil, so readers stay defensive.
+		liveEncounter = LiveEncounter.CreateEmpty(),
 	}
 end
 

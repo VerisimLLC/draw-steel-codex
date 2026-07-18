@@ -1311,6 +1311,38 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
 end
 
 
+--Objects can opt into being targeted by abilities that do not normally target
+--objects: if the object's properties (e.g. a Targetable component's
+--TargetableObject) carry a non-empty additionalTargetFilter GoblinScript and it
+--passes when evaluated with this ability bound to the "ability" symbol, the
+--object is targetable by this ability. e.g. 'Ability.Keywords has "Strike"'
+--makes any strike able to target the object.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean
+function ActivatedAbility:ObjectGrantsTargeting(casterToken, targetToken, symbols)
+	if not targetToken.isAttackableObject then
+		return false
+	end
+
+	local props = targetToken.properties
+	if props == nil then
+		return false
+	end
+
+	local filter = props:try_get("additionalTargetFilter", "")
+	if filter == "" then
+		return false
+	end
+
+	local filterSymbols = table.shallow_copy(symbols or {})
+	filterSymbols.ability = GenerateSymbols(self)
+	filterSymbols.caster = GenerateSymbols(casterToken.properties)
+
+	return GoblinScriptTrue(ExecuteGoblinScript(filter, props:LookupSymbol(filterSymbols), 0, string.format("Additional targeting filter for %s", self.name)))
+end
+
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @param symbols table
@@ -1368,7 +1400,11 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     else
 
         if (not self.objectTarget) and targetToken.isObject then
-            return false
+            --the object may still grant targeting to this ability via its
+            --additionalTargetFilter (see ObjectGrantsTargeting).
+            if not self:ObjectGrantsTargeting(casterToken, targetToken, symbols) then
+                return false
+            end
         elseif self.objectTarget and targetToken.isObject and (not targetToken.isAttackableObject) then
             return false
         end

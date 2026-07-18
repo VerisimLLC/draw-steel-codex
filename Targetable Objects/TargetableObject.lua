@@ -4,6 +4,12 @@ local mod = dmhub.GetModLoading()
 TargetableObject = RegisterGameType("TargetableObject", "creature")
 TargetableObject.resourceid = CharacterResource.maliceResourceId
 
+--GoblinScript evaluated with the "ability" symbol bound to an ability that
+--does not normally target objects; if it passes, the ability can target this
+--object anyway. Empty = normal targeting rules only. Consumed by
+--ActivatedAbility:ObjectGrantsTargeting.
+TargetableObject.additionalTargetFilter = ""
+
 function TargetableObject:DispatchEvent(eventName, args)
     creature.DispatchEvent(self, eventName, args)
 end
@@ -202,6 +208,54 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
                     end,
                 },
             }
+        },
+
+        gui.Panel{
+            classes = {"field-editor-panel"},
+            flow = "vertical",
+            minHeight = 0,
+            gui.Label{
+                classes = {"field-editor-label"},
+                text = "Also Targetable By:",
+                halign = "left",
+            },
+            gui.GoblinScriptInput{
+                width = 250,
+                halign = "left",
+                value = components[1].properties:try_get("additionalTargetFilter", ""),
+                change = function(element)
+                    for _, component in ipairs(components) do
+                        component:BeginChanges()
+                        component.properties.additionalTargetFilter = element.value
+                        component:CompleteChanges("Change additional targeting filter")
+                    end
+                end,
+                documentation = {
+                    help = "Abilities that do not normally target objects can target this object if this GoblinScript passes. Leave blank to use normal targeting rules only.",
+                    output = "boolean",
+                    subject = creature.helpSymbols,
+                    subjectDescription = "This object",
+                    symbols = {
+                        ability = {
+                            name = "Ability",
+                            type = "ability",
+                            desc = "The ability being checked against this object.",
+                            examples = {
+                                'Ability.Keywords has "Strike"',
+                                'Ability.Keywords has "Melee"',
+                            },
+                        },
+                        caster = {
+                            name = "Caster",
+                            type = "creature",
+                            desc = "The creature using the ability.",
+                            examples = {
+                                "Caster.Level > 2",
+                            },
+                        },
+                    },
+                },
+            },
         },
 
         gui.Panel{

@@ -2858,6 +2858,7 @@ local function CreateTopBar()
                     height = "auto",
                     flow = "vertical",
                     halign = "left",
+                    valign = "top",
                     vmargin = 6,
 
                     gui.Panel{

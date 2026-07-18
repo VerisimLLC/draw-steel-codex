@@ -33,11 +33,13 @@ local VICTORY_ICON = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png"
 --
 -- Fun titles awarded from the live encounter's per-round hero stats (see
 -- Draw Steel Core Rules/STATS_TRACKING.md for the stats and their layout).
--- Candidate roles are evaluated in priority order, most interesting first;
--- each hero is shown the single highest-priority role they earned, so a hero
--- who is both the top damage dealer and the round-1 Initiator shows only
--- Damage Dealer. A role whose winner earned a better role is simply not shown
--- for anyone (its criteria name a unique winner).
+-- Candidate roles are evaluated in priority order, most interesting first.
+-- A role is only ever awarded to its WINNER -- the single top-ranked hero for
+-- that role's criteria -- and each hero shows just one role, so a hero who
+-- both dealt the most damage and opened with the round-1 Initiator strike
+-- shows only Damage Dealer, and Initiator goes unawarded rather than sliding
+-- down to the runner-up. A hero who wins nothing shows no role at all, so a
+-- role on a card always means "nobody beat you at this".
 --
 -- Stats consumed: damageDealt, damageTaken, damagePrevention, overkill, kills,
 -- minionKills, criticals (recorded by the shipped Critical Hit content),
@@ -138,11 +140,13 @@ local function ComputeHeroRolesInternal(live)
     end
 
     --Candidate roles, built in priority order (most interesting first). Each
-    --role carries a RANKED list of qualifying heroes: when it is awarded, it
-    --goes to the highest-ranked qualifier who has no role yet, so a role whose
-    --winner earned something better falls through to the runner-up instead of
-    --vanishing. allowDuplicates marks floor roles (Pacifist/Tourist) that may
-    --appear on several cards at once.
+    --role carries a RANKED list of qualifying heroes, but only the WINNER (rank
+    --1) is ever awarded it: a role whose winner shows something better is not
+    --awarded at all rather than sliding down to a runner-up. The rest of the
+    --ranked list is still built, for role tooltips ("X dealt N damage") and the
+    --Stats Debugger's eligibility view, where a rank above 1 now reads as "you
+    --qualified but did not win this". allowDuplicates marks floor roles
+    --(Pacifist/Tourist) that may appear on several cards at once.
     local candidates = {}
     local function AddRole(role, entries, allowDuplicates)
         if entries ~= nil and #entries > 0 then
@@ -194,9 +198,24 @@ local function ComputeHeroRolesInternal(live)
         AddRole("Initiator", entries)
     end
 
-    --Big Hitter: the biggest single-round damage total, excluding round 1
-    --(round-1 alpha strikes belong to Initiator).
+    --Big Hitter: the biggest single round of damage anyone had, which must have
+    --landed after round 1 -- a round-1 alpha strike is the Initiator's, not a
+    --Big Hitter's. The bar to clear is the biggest single round ANY hero had in
+    --ANY round, round 1 included, so a round-2+ spike that a round-1 opener beat
+    --does not qualify: if the encounter's biggest round WAS a round-1 opener,
+    --nobody is a Big Hitter that fight.
     do
+        --the bar: the biggest single round anyone had, round 1 included.
+        local bestAnyRound = 0
+        for _, d in ipairs(data) do
+            for n, _ in pairs(d.rounds) do
+                local v = RoundStat(d, n, "damageDealt")
+                if v > bestAnyRound then
+                    bestAnyRound = v
+                end
+            end
+        end
+
         local ranked = RankBy(function(d)
             local best = 0
             for n, _ in pairs(d.rounds) do
@@ -206,6 +225,11 @@ local function ComputeHeroRolesInternal(live)
                         best = v
                     end
                 end
+            end
+            --anything short of the encounter's biggest round is not "the big
+            --hit", so it does not qualify at all. Matching it (a tie) does.
+            if best < bestAnyRound then
+                return nil
             end
             return best
         end)
@@ -842,31 +866,28 @@ local function ComputeHeroRolesInternal(live)
         end
     end
 
-    --Build one scored hero<->role edge per (interesting role, qualifier), then
-    --assign greedily by score. Each interesting role goes to a single hero and
-    --each hero takes at most one, so a role shadowed for its best qualifier
-    --still falls through to a runner-up, exactly as the old priority loop did --
-    --and with no history the scores collapse to plain priority order, so the
-    --behavior is unchanged until a hero has actually repeated a role.
+    --Build one scored edge per interesting role, from that role's WINNER only,
+    --then assign greedily by score. A hero who wins several roles takes the
+    --best-scoring one; the other roles they won go unawarded, and a hero who
+    --won nothing finishes with no role. With no history the scores collapse to
+    --plain priority order, so a hero shows the most interesting role they won.
     local edges = {}
     for priorityIdx, candidate in ipairs(interestingCandidates) do
-        for rank, entry in ipairs(candidate.entries) do
+        local entry = candidate.entries[1]
+        if entry ~= nil then
             edges[#edges+1] = {
                 candidate = candidate,
                 entry = entry,
                 charid = entry.d.token.charid,
                 priorityIdx = priorityIdx,
-                rank = rank,
                 score = -(priorityIdx - 1) * INTEREST_WEIGHT
                         - RoleCount(entry.d, candidate.role) * FATIGUE_WEIGHT,
             }
         end
     end
 
-    --Highest score first; deterministic tiebreaks (priority, then rank within a
-    --role, then charid) so every client resolves ties identically. Rank lives
-    --only here, never in the score, so it orders qualifiers and breaks ties but
-    --can never let a worse-ranked hero leapfrog a more interesting role.
+    --Highest score first, then priority, then charid, so every client resolves
+    --ties identically.
     table.sort(edges, function(a, b)
         if a.score ~= b.score then
             return a.score > b.score
@@ -874,22 +895,19 @@ local function ComputeHeroRolesInternal(live)
         if a.priorityIdx ~= b.priorityIdx then
             return a.priorityIdx < b.priorityIdx
         end
-        if a.rank ~= b.rank then
-            return a.rank < b.rank
-        end
         return a.charid < b.charid
     end)
 
-    local roleTaken = {}
+    --One edge per role (built above), so each hero simply takes the first role
+    --they win and no role can be handed out twice.
     for _, edge in ipairs(edges) do
         local charid = edge.charid
-        if roles[charid] == nil and not roleTaken[edge.candidate.role] then
+        if roles[charid] == nil then
             roles[charid] = {
                 role = edge.candidate.role,
                 text = edge.entry.text,
                 tooltip = edge.entry.tooltip,
             }
-            roleTaken[edge.candidate.role] = true
         end
     end
 
@@ -966,6 +984,8 @@ function DSVictoryScreen.ComputeHeroRoleDebugInfo(live)
         --Candidates are already in priority order (most interesting first, floor
         --roles last), so collecting the entries this hero appears in preserves
         --that order; rank is the hero's standing among that role's qualifiers.
+        --Only rank 1 can ever be awarded a (non-floor) role, so a rank above 1
+        --here means "qualified, but someone else won it".
         local eligible = {}
         for _, candidate in ipairs(candidates) do
             for rank, entry in ipairs(candidate.entries) do

@@ -13,8 +13,11 @@ in the UI. Hand this to a fresh session before touching encounter / initiative c
 - `LiveEncounter` is the **runtime state** of an encounter that is currently being
   played. It derives from `Encounter` and is literally a deep copy of an authored
   `Encounter`, re-typed as a `LiveEncounter`.
-- An initiative queue holds at most one live encounter in its `liveEncounter` field
-  (or `false` when combat was started "Custom", i.e. with no encounter).
+- An initiative queue holds exactly one live encounter in its `liveEncounter`
+  field. Combats started "Custom" (no authored encounter) get a **basic empty
+  `LiveEncounter`** (`LiveEncounter.CreateEmpty()`), not `false` — every new
+  queue is created carrying one. Only queues persisted before this convention
+  can still hold `false`/`nil`, which is why readers stay defensive.
 
 Both types are defined in **`Draw Steel Core Rules/MCDMEncounter.lua`**.
 
@@ -88,11 +91,15 @@ callers should treat `nil` as "unnamed".
 `InitiativeQueue` (defined in `Draw Steel Core Rules/MCDMInitiativeQueue.lua`) has:
 
 ```lua
-InitiativeQueue.liveEncounter = false   -- default: no live encounter
+InitiativeQueue.liveEncounter = false   -- type default, for deserializing old queues
 ```
 
-The field is either `false` (combat started Custom / no encounter) or a
-`LiveEncounter` object. Initiative queues are stored **per map** in the game document
+`InitiativeQueue.Create()` sets the field to `LiveEncounter.CreateEmpty()` on
+every new queue, so at runtime the field is a `LiveEncounter` object for any
+queue created since that convention landed (including Custom combats and
+non-combat game-mode queues like respite/downtime, where the empty encounter is
+inert: no objective, no boss bar, no reinforcements). The `false` type default
+only matters for old persisted queues. Initiative queues are stored **per map** in the game document
 (`gameDetails.initiativeQueues[mapid]`) and networked to all clients, so the
 `liveEncounter` (and its full copied encounter data) rides along with the queue.
 
@@ -125,13 +132,20 @@ All in `Draw Steel UI/DSInitiativeRoll.lua`:
    actually created later, in a different function.
 3. The Draw Steel banner coroutine (controller/DM only) creates the queue:
    ```lua
-   info.initiativeQueue = InitiativeQueue.Create()
+   info.initiativeQueue = InitiativeQueue.Create()  -- carries an empty LiveEncounter already
    ...
    if g_selectedEncounterOpenInitiative ~= nil then
        info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
    else
-       info.initiativeQueue.liveEncounter = false
+       --Custom combat: build a basic live encounter and seed onsetMonsterCount
+       --from the actual non-minion monster tokens entering combat (the empty
+       --encounter has no authored monsters, and without a nonzero onset count
+       --CheckVictory short-circuits: "no monsters -> nothing to win").
+       local live = LiveEncounter.Create(Encounter.new())
+       live.onsetMonsterCount = <count of non-minion monsters entering combat>
+       info.initiativeQueue.liveEncounter = live
    end
+   info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
    g_selectedEncounterOpenInitiative = nil
    Commands.rollinitiative()
    ```
@@ -336,8 +350,9 @@ Both are read-only views; mutate only through `IncrementStat`.
 - **Serialization hinges on raw `typeName`.** If you write new code that clones/retypes
   encounters, set the raw `typeName` field (not just the metatable), or it will
   round-trip as the wrong type.
-- **Read `liveEncounter` defensively** (`try_get` + `type == "table"`): it can be
-  `false`, `nil`, or a table.
+- **Read `liveEncounter` defensively** (`try_get` + `type == "table"`): every
+  new queue carries a `LiveEncounter`, but queues persisted before that
+  convention can still hold `false` or `nil`.
 - **Inherited `waves`.** `Encounter` now supports reinforcement `waves`
   (`Encounter.AddWave` / `WaveRoundText`, and `Describe` annotates wave monsters).
   `LiveEncounter` inherits all of this for free — useful when live combat needs to know
@@ -381,6 +396,31 @@ Both are read-only views; mutate only through `IncrementStat`.
   `Draw Steel Core Rules/MCDMInitiativeBar.lua` (mounted just below the villain action
   strip): a deploy button per available wave, styled with the same `vaDrawer` chrome.
   Click deploys; right-click → Dismiss marks the wave deployed without spawning.
+- **Custom buttons (script-driven).** `LiveEncounter` can also carry
+  `customButtons` — action buttons that are *not* authored into the encounter but
+  added/removed at runtime by code (map-object scripts, macros). Surfaced by the
+  **Encounter Actions strip** in `MCDMInitiativeBar.lua` (DM-only, below the cues
+  strip, same `vaDrawer` chrome). A button is a flat table of scalars:
+  `{ id, name, summary, tooltip, command, sticky }`. `command` is a chat-style
+  command line without the leading slash (e.g. `"gnollarmy summon"`), executed via
+  `dmhub.Execute` on the Director's client when clicked. By default a button is
+  one-shot: the strip removes it (and uploads the queue) *before* executing, so a
+  slow interactive command can't be double-fired; `sticky = true` keeps it until
+  code removes it. Right-click → Dismiss removes without executing.
+  - Instance API (mutations don't upload; network afterwards):
+    `GetCustomButtons()`, `GetCustomButton(id)`, `SetCustomButton(button)`
+    (upsert by id, copy-on-write, returns true if changed),
+    `RemoveCustomButton(id)`.
+  - Static safe helpers (find the current queue's live encounter, mutate, and
+    upload via `dmhub:UploadInitiativeQueue()`; no-ops cleanly when combat is
+    inactive or the queue predates the always-present live encounter):
+    `LiveEncounter.EnsureCustomButton(button)`,
+    `LiveEncounter.DismissCustomButton(id)`. Both are pcall-wrapped and return
+    true on change. Call on the Director's client only.
+  - Custom combats carry an empty `LiveEncounter` (see above), so buttons work
+    there too. Only queues persisted before the always-present convention can
+    lack one; scripts that must support those should offer a slash-command
+    fallback.
 - **Lua-only changes** reload at runtime; no C# rebuild needed. Files are ASCII-only;
   forward-declare self-referencing locals (see `draw-steel-codex/CLAUDE.md`).
 

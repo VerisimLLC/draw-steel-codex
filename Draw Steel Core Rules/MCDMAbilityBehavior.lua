@@ -222,7 +222,15 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
         noDamage = count > 0
     end
 
-    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount, "noDamage:", noDamage, "patron:", patrondamage)
+    --"ignore immunity" / "this damage ignores immunity" clause attached to the
+    --damage tier text. Maps to the cannotBeReduced symbol consumed by
+    --InflictDamageInstance, which bypasses positive DR but keeps vulnerability.
+    local ignoreImmunity = false
+    if match.ignoreimmunity then
+        ignoreImmunity = true
+    end
+
+    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount, "noDamage:", noDamage, "patron:", patrondamage, "ignoreImmunity:", ignoreImmunity)
 
     if damage == nil then
         local complete = false
@@ -302,6 +310,9 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             local halfText = string.rep("(half) ", halfCount)
             damageMessage = damageMessage .. " " .. string.trim(halfText)
         end
+        if ignoreImmunity then
+            damageMessage = damageMessage .. " (ignores immunity)"
+        end
         ability.RecordTokenMessage(targetToken, options, damageMessage)
 
         if not noDamage then
@@ -309,7 +320,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage})
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
 
                     --Damage halved away by (half) power-roll modifiers counts as
@@ -406,10 +417,10 @@ local g_rulePatterns = {
     },
     --]]
     {
-        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
-            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip, ]+ or [MARIPmarip]+)(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip])(?![a-z])(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)",
+        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip, ]+ or [MARIPmarip]+)(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[MARIPmarip])(?![a-z])(\\s+(?<type>[a-z]+))?\\s*damage(?<mods>(\\s*\\((?:half|no damage)\\))*)(?<ignoreimmunity>[,;]? ?(this damage )?(ignores?|ignoring) (the targets? )?(damage )?immunit(y|ies))?",
         },
         execute = ExecuteDamage,
         isdamage = true,

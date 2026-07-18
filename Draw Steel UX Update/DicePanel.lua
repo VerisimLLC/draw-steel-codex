@@ -614,11 +614,15 @@ local DEFAULT_BRIDGE   = "http://127.0.0.1:17211"
 -- dmhub.StartDiceBridge. Lifecycle feedback goes to the dev console, not
 -- chat (the Physical Dice panel's status line is the user-facing surface).
 local function syncBridgeProcess(enabled)
+    -- A settings toggle is the user saying "try again": clear the
+    -- heartbeat loop's failed-start pause.
+    CodexGoDiceBridge.bridgeStartFailed = false
     if enabled then
         if dmhub.StartDiceBridge ~= nil then
             if dmhub.StartDiceBridge() then
                 print("CGB: dice bridge started")
             else
+                CodexGoDiceBridge.bridgeStartFailed = true
                 print("CGB: could not start the dice bridge -- set 'Physical Dice Bridge Program' in settings to the bridge executable, or start it manually")
             end
         end
@@ -660,6 +664,9 @@ local g_externalDiceBridgePath = setting{
 local g_externalDiceBridgeUrl = setting{
     id = SETTING_BRIDGE,
     description = "Physical Dice Bridge URL",
+    help = "Where the game looks for the dice bridge. Leave as "
+        .. DEFAULT_BRIDGE .. " -- the auto-started bridge always runs there. "
+        .. "Only change this if you run the bridge manually on another port.",
     characterLimit = 200,
     editor = "input",
     storage = "preference",
@@ -1291,11 +1298,18 @@ local function heartbeatLoop()
         CGB.sendHeartbeat()
         -- Self-heal: if the bridge died (crash, idle timeout) while the
         -- feature is on, bring it back rather than waiting for the user
-        -- to toggle the checkbox.
+        -- to toggle the checkbox. But when a start attempt FAILS (usually
+        -- no bridge executable in this install), stop trying: retrying
+        -- every tick can never succeed and floods the log. Toggling the
+        -- setting clears the pause.
         if dmhub.IsDiceBridgeRunning ~= nil and dmhub.StartDiceBridge ~= nil
-                and not dmhub.IsDiceBridgeRunning() then
+                and not dmhub.IsDiceBridgeRunning()
+                and not CGB.bridgeStartFailed then
             log("bridge process not running; restarting")
-            dmhub.StartDiceBridge()
+            if not dmhub.StartDiceBridge() then
+                CGB.bridgeStartFailed = true
+                log("bridge failed to start (no executable?); pausing auto-restart until Use Physical Dice is toggled")
+            end
         end
     end
     dmhub.Schedule(5, heartbeatLoop)

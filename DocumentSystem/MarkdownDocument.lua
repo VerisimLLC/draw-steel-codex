@@ -11512,16 +11512,27 @@ function MarkdownDocument:MatchesSearch(search)
     return false
 end
 
-CustomDocument.Register {
-    id = "markdown",
-    text = "New Text Document",
-    create = function()
-        return MarkdownDocument.new {
-            content = "",
-            annotations = {},
-        }
-    end,
-}
+--Register each plain document type as a "New Document" creation option, so
+--the creation menu doubles as the type palette (each option shows its type
+--icon and pre-sets docType). Functional subtypes (montage/negotiation) keep
+--their own creation paths. The "narration" option retains the legacy
+--"markdown" id for back-compat.
+for _, docTypeId in ipairs({ "note", "narration", "exploration", "combat", "location", "npc" }) do
+    local info = CustomDocument.docTypeInfo[docTypeId]
+    CustomDocument.Register {
+        id = docTypeId == "narration" and "markdown" or docTypeId,
+        text = "New " .. info.text,
+        docType = docTypeId,
+        icon = info.icon,
+        create = function()
+            return MarkdownDocument.new {
+                content = "",
+                annotations = {},
+                docType = docTypeId,
+            }
+        end,
+    }
+end
 
 local g_markdownSamples = {
     "# Title", "*italics*", "**bold**", "__underline__", "~~strike~~",

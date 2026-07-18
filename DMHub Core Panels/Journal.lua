@@ -548,7 +548,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
             for k, member in pairs(members) do
                 local p
 
-                if member.nodeType == "pdf" or member.nodeType == "image" or member.nodeType == "pdffragment" or member.nodeType == "custom" then
+                if member.nodeType == "pdf" or member.nodeType == "image" or member.nodeType == "pdffragment" or member.nodeType == "custom" or member.nodeType == "negotiation" then
                     p = m_documentPanels[k] or gui.Panel {
                         gui.Panel{
                             classes = {"dragDocumentSiblingSpacer"},

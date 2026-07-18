@@ -32,6 +32,113 @@ CustomDocument.MaxLength = 8192*4
 
 CustomDocument.documentTypes = {}
 
+----------------------------------------------------------------------
+-- Document semantic types
+-- -----------------------
+-- A fixed, presentational classification of a document -- what KIND of
+-- beat or reference it is -- so the tree, the Run, the Flow lens, and
+-- (later) tabs can show one consistent glyph and users know a doc's
+-- purpose at a glance. This is separate from `nodeType` (the Lua kind,
+-- used for tree filtering) and from `documentTypes` (the "New Document"
+-- creation menu): it is a per-instance field, defaulting to narration,
+-- pinned by the functional subtypes (Montage, Negotiation).
+--
+-- `beat` splits the taxonomy: beats sequence on the Run and appear as
+-- Flow nodes (narration, exploration, combat, montage, negotiation);
+-- references (location, npc) get an icon in the tree and inline links
+-- but never enter the Run/Flow.
+--
+-- App icons (Icon_App_*) are full-colour: render them with bgcolor
+-- "white" -- an inline theme-token bgcolor paints them invisible.
+----------------------------------------------------------------------
+
+CustomDocument.docType = "narration"
+
+--Fixed registry, keyed by type id. glyph = single-letter Flow badge.
+--NOTE: exploration + location share a placeholder map icon until Phase 5
+--commissions distinct art (combat already reuses the encounter glyph).
+CustomDocument.docTypeInfo = {
+    note        = { text = "Note",        icon = "icons/standard/Icon_App_Clipboard.png",        beat = false, glyph = "~", ord = 5 },
+    narration   = { text = "Narration",   icon = "icons/standard/Icon_App_Journal.png",          beat = true,  glyph = "N", ord = 10 },
+    exploration = { text = "Exploration", icon = "icons/standard/Icon_App_MapSettings.png",      beat = true,  glyph = "E", ord = 20 },
+    combat      = { text = "Combat",      icon = "icons/standard/Icon_App_EncounterCreator.png", beat = true,  glyph = "C", ord = 30 },
+    montage     = { text = "Montage",     icon = "icons/standard/Icon_App_Respite.png",          beat = true,  glyph = "M", ord = 40 },
+    negotiation = { text = "Negotiation", icon = "icons/standard/Icon_App_Negotiation.png",      beat = true,  glyph = "G", ord = 50 },
+    location    = { text = "Location",    icon = "icons/standard/Icon_App_MapSettings.png",      beat = false, glyph = "L", ord = 60 },
+    npc         = { text = "NPC",         icon = "icons/standard/Icon_App_Character.png",         beat = false, glyph = "P", ord = 70 },
+}
+
+--The document's semantic type id, always a valid key (falls back to
+--narration for unset or unknown values -- pre-migration docs included).
+--Read docType via direct index, NOT try_get: the functional subtypes pin
+--their type as a TYPE-LEVEL default (MontageDocument.docType = "montage"),
+--which try_get does not see (it only checks the instance's raw fields).
+--Direct index walks the type chain; the base default makes it safe.
+function CustomDocument.DocTypeId(doc)
+    local t = nil
+    pcall(function() t = doc.docType end)
+    if t == nil or CustomDocument.docTypeInfo[t] == nil then
+        return "narration"
+    end
+    return t
+end
+
+--The registry entry for a document's semantic type (never nil).
+function CustomDocument.DocTypeInfo(doc)
+    return CustomDocument.docTypeInfo[CustomDocument.DocTypeId(doc)]
+end
+
+--Convenience readers used by the read-sites (tree/Run/Flow).
+function CustomDocument.DocTypeIcon(doc)
+    return CustomDocument.DocTypeInfo(doc).icon
+end
+
+function CustomDocument.DocTypeIsBeat(doc)
+    return CustomDocument.DocTypeInfo(doc).beat == true
+end
+
+--One-time, per-game migration: backfill docType on plain custom docs from
+--their legacy italic-subtitle word (the same words the Flow lens reads). Only
+--touches docs still at the default narration, and only sets a non-narration
+--type, so it is safe to re-run and never clobbers an explicitly-set type.
+--Uploads are spaced one-per-frame via dmhub.Schedule -- same-table uploads in
+--a single frame drop all but the last. Call from the console per game;
+--onDone(typedCount, scannedCount) fires when finished.
+function CustomDocument.BackfillDocTypesFromSubtitles(onDone)
+    local SUBTITLE_TYPE = {
+        combat = "combat", montage = "montage", negotiation = "negotiation",
+        exploration = "exploration", location = "location", npc = "npc",
+    }
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    local queue = {}
+    for _, doc in pairs(docs) do
+        if not doc.hidden and doc.nodeType == "custom" and CustomDocument.DocTypeId(doc) == "narration" then
+            queue[#queue + 1] = doc
+        end
+    end
+    local i, typed = 0, 0
+    local function step()
+        if mod.unloaded then return end
+        i = i + 1
+        if i > #queue then
+            if onDone then onDone(typed, #queue) end
+            return
+        end
+        local doc = queue[i]
+        local content = doc:GetTextContent() or ""
+        local italic = string.match(content, "\n%*([^%*\n]+)%*")
+        local word = string.lower(string.match(italic or "", "^(%a+)") or "")
+        local mapped = SUBTITLE_TYPE[word]
+        if mapped ~= nil then
+            doc.docType = mapped
+            doc:Upload()
+            typed = typed + 1
+        end
+        dmhub.Schedule(0.05, step)
+    end
+    step()
+end
+
 local g_tabbedViewer = nil
 
 -- Tab system sizes
@@ -340,10 +447,15 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
     local foldersToMembers = {}
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
     for k, doc in pairs(customDocs) do
-        if not doc.hidden and doc.nodeType == "custom" and (dmhub.isDM or not doc.hiddenFromPlayers) then
+        --custom pages plus prep docs that live in the journal (negotiations are
+        --journal documents seeded from a compendium archetype, so they belong
+        --in the tree alongside pages; they carry their own type icon).
+        if not doc.hidden and (doc.nodeType == "custom" or doc.nodeType == "negotiation")
+            and (dmhub.isDM or not doc.hiddenFromPlayers) then
             local pf = doc.parentFolder or "private"
             foldersToMembers[pf] = foldersToMembers[pf] or {}
-            foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }
+            foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled",
+                icon = CustomDocument.DocTypeIcon(doc) }
         end
     end
     --PDF books, image documents, and PDF page fragments -- the same member
@@ -482,9 +594,10 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 children[#children + 1] = buildFolderEntry(member.id, member.description, expandThis, subChildren)
             else
                 local isCurrentDoc = (member.id == currentDocId)
-                --icons match the journal panel: book for PDFs, image icon
-                --for image docs and page fragments, page icon for documents.
-                local memberIcon = "icons/icon_app/icon_app_107.png"
+                --docs show their full-colour semantic-type icon (member.icon);
+                --pdf/image keep the monochrome glyphs the journal panel uses.
+                local memberIcon = member.icon or "icons/icon_app/icon_app_107.png"
+                local isTypeIcon = member.type == "doc" and member.icon ~= nil
                 if member.type == "pdf" then
                     memberIcon = "icons/icon_app/icon_app_137.png"
                 elseif member.type == "image" or member.type == "pdffragment" then
@@ -535,7 +648,9 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
 
                     gui.Panel {
                         bgimage = memberIcon,
-                        bgcolor = cond(isCurrentDoc, "white", "#aaaaaa"),
+                        --full-colour type icons render untinted (white); the
+                        --monochrome pdf/image glyphs keep the grey/white tint.
+                        bgcolor = (isTypeIcon or isCurrentDoc) and "white" or "#aaaaaa",
                         width = 14,
                         height = 14,
                         halign = "left",
@@ -615,8 +730,10 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     m_pickHandled = false
                 end,
                 gui.Panel {
-                    bgimage = "icons/icon_app/icon_app_107.png",
-                    bgcolor = "#aaaaaa",
+                    --a registered type carries its own (full-colour) icon;
+                    --fall back to the generic page glyph for any that do not.
+                    bgimage = v.icon or "icons/icon_app/icon_app_107.png",
+                    bgcolor = v.icon and "white" or "#aaaaaa",
                     width = 14,
                     height = 14,
                     halign = "left",
@@ -1195,6 +1312,70 @@ function CustomDocument:CreateInterface(args)
     end
 
     m_controlMenuButtons[#m_controlMenuButtons + 1] = m_titlePanel
+
+    --Document type picker: an icon + label that opens a menu of the plain
+    --types (narration/exploration/combat/location/npc). Shown only for plain
+    --docs -- the functional subtypes (montage/negotiation) pin their type and
+    --so never resolve to a plain id here -- and only to editors.
+    do
+        local plainTypes = { "note", "narration", "exploration", "combat", "location", "npc" }
+        local currentId = CustomDocument.DocTypeId(self)
+        local isPlain = false
+        for _, t in ipairs(plainTypes) do
+            if t == currentId then isPlain = true break end
+        end
+
+        if isPlain and (dmhub.isDM or self:HaveEditPermissions()) then
+            local typeIconPanel, typeLabel
+            local function SyncType()
+                local info = CustomDocument.DocTypeInfo(self)
+                if typeIconPanel ~= nil and typeIconPanel.valid then typeIconPanel.bgimage = info.icon end
+                if typeLabel ~= nil and typeLabel.valid then typeLabel.text = info.text end
+            end
+            typeIconPanel = gui.Panel {
+                width = 14, height = 14, valign = "center",
+                bgimage = CustomDocument.DocTypeIcon(self),
+                bgcolor = "white", --full-colour app icon
+            }
+            typeLabel = gui.Label {
+                classes = { "fgMuted" },
+                width = "auto", height = "auto", valign = "center",
+                fontSize = 13, lmargin = 5,
+                text = CustomDocument.DocTypeInfo(self).text,
+            }
+            m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.Panel {
+                flow = "horizontal",
+                width = "auto", height = "auto",
+                halign = "left", valign = "center",
+                hmargin = 8, borderBox = true, hpad = 6, vpad = 3,
+                bgimage = "panels/square.png",
+                styles = ThemeEngine.MergeTokens({
+                    { bgcolor = "clear", cornerRadius = 4 },
+                    { selectors = { "hover" }, bgcolor = "@fgMuted" },
+                }),
+                linger = function(element)
+                    gui.Tooltip("Document type")(element)
+                end,
+                press = function(element)
+                    local entries = {}
+                    for _, t in ipairs(plainTypes) do
+                        local info = CustomDocument.docTypeInfo[t]
+                        entries[#entries + 1] = {
+                            text = info.text,
+                            click = function()
+                                element.popup = nil
+                                self.docType = t
+                                self:Upload()
+                                SyncType()
+                            end,
+                        }
+                    end
+                    element.popup = gui.ContextMenu { entries = entries }
+                end,
+                children = { typeIconPanel, typeLabel },
+            }
+        end
+    end
 
     local m_closeButton = gui.Button {
         classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },

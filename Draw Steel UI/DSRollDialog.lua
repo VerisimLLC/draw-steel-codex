@@ -2090,6 +2090,20 @@ function GameHud.CreateRollDialog(self)
         end
         resultPanel:SetClass('hidden', true)
         chat.PreviewChat('')
+        --chat.PreviewChat('') above is meant to clear this dialog's preview dice, but
+        --the engine's empty-text path skips clearing while ANY unarmed registered dice
+        --cage exists (so plain chat typing can't wipe an embedded dialog's dice) -- and
+        --with the Dice dock open one usually does. When it skips, our dice are orphaned:
+        --they pin __previewdice=true and the action bar stays hidden for the rest of the
+        --session (bug XPWBKEQA). Clear them explicitly, scoped the same way they were
+        --seeded so armed try-dice tiles (Dice dock, shop) are never touched. pcall +
+        --fallback so an older binary without the scoped method still clears -- the
+        --global cancel also wipes dock tiles' resting dice, acceptable only as a
+        --fallback. Mirrors EmbeddedRollDialog's CancelRollDialog.
+        local cleared = pcall(function() dmhub.ClearChatPreviewDice() end)
+        if not cleared then
+            dmhub.CancelCurrentRoll()
+        end
         OnHide()
         RelinquishPanel()
     end

@@ -94,6 +94,17 @@ function GameHud.CreateRollOnTableDialog(self)
 	local OnHide = function()
 		if m_shown > 0 then
 		    chat.PreviewChat('')
+			--The show handler seeds resting preview dice via chat.PreviewChat('/roll ...').
+			--chat.PreviewChat('') above only clears them while NO unarmed registered dice
+			--cage exists (the engine's empty-text path is guarded so chat typing can't wipe
+			--a roll dialog's dice); otherwise they are orphaned and pin __previewdice=true,
+			--hiding the action bar for the rest of the session (same leak as bug XPWBKEQA
+			--in DSRollDialog). Clear them explicitly, scoped so armed try-dice tiles (Dice
+			--dock, shop) are untouched; after a completed roll this is a no-op since the
+			--real roll consumed the preview dice. pcall for older binaries -- no global
+			--CancelCurrentRoll fallback here, since wiping the Dice dock's resting dice on
+			--every table-roll close is worse than the (rare) stale preview it would cover.
+			pcall(function() dmhub.ClearChatPreviewDice() end)
 			chat.events:Unlisten(resultPanel)
 			--chat.events:Pop()
 			m_shown = m_shown-1

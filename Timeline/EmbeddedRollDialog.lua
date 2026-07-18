@@ -1407,6 +1407,24 @@ function GameHud.CreateEmbeddedRollDialog()
             },
         }
 
+        --Before the roll is made a trigger cannot be activated (or its
+        --controller pinged) -- a trigger is a reaction to the roll result.
+        --This describes who will be able to activate it once the roll lands:
+        --"You" when the local player controls the trigger's token, otherwise
+        --the controlling player's name.
+        local NotReadyTooltipText = function()
+            local controllerName = "The trigger controller"
+            local tok = m_info.charid and dmhub.GetTokenById(m_info.charid)
+            if tok ~= nil and tok.valid then
+                if tok.canControl then
+                    controllerName = "You"
+                else
+                    controllerName = tok.playerNameOrNil or "The trigger controller"
+                end
+            end
+            return string.format("%s will be able to activate the trigger once the roll is made.", controllerName)
+        end
+
         triggerPanel = gui.Panel {
             classes = { "hideWhenMinimized", "triggerPanel", cond(dmhub.LookupTokenId(creature) == info.charid, "selftrigger", "othertrigger") },
             width = 80,
@@ -1415,6 +1433,10 @@ function GameHud.CreateEmbeddedRollDialog()
             flow = "vertical",
 
             hover = function(element)
+                if not resultPanel:HasClass("finishedRolling") then
+                    gui.Tooltip(NotReadyTooltipText())(element)
+                    return
+                end
                 local tok = dmhub.GetTokenById(m_info.charid)
                 if tok ~= nil then
                     local rules = StringInterpolateGoblinScript(m_info.modifier:try_get("rules", ""), tok.properties)
@@ -1485,6 +1507,12 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
                 if m_info.notakeback then
                     --this is a once-only trigger
+                    return
+                end
+                if not resultPanel:HasClass("finishedRolling") then
+                    --the roll has not been made yet, so the trigger cannot be
+                    --activated (or its controller pinged) -- explain instead.
+                    gui.Tooltip(NotReadyTooltipText())(element)
                     return
                 end
                 if element:HasClass("selftrigger") then

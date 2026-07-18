@@ -2457,16 +2457,20 @@ local function CreateTopBar()
 
         --sized so the whole form is visible without scrolling (the tallest
         --variant is a bug report with a screenshot section); vscroll remains
-        --as a safety net for long attachment lists.
+        --as a safety net for long attachment lists. Below the scroll region
+        --the body reserves ~140 of slack so the post-submit status text
+        --(thanks + ticket info + ticket id, ~6 wrapped lines) plus the
+        --bottom button bar always fit inside the frame instead of pushing
+        --the bar out of the bottom of the dialog.
         local bodyPanel = gui.Panel{
                 width = 940,
-                height = 740,
+                height = 830,
                 flow = "vertical",
                 halign = "center",
 
                 gui.Panel{
                     width = "100%",
-                    height = 680,
+                    height = 640,
                     vscroll = true,
                     flow = "vertical",
                     halign = "center",
@@ -2520,11 +2524,12 @@ local function CreateTopBar()
             m_dialog = gamehud:ModalDialog{
                 title = kindInfo.title,
 
-                --ModalDialog's frame defaults to 768 tall; the 740-tall body
-                --(plus title and button strip) needs the same 900 the
-                --titlescreen host uses, or the form overflows out of the top.
+                --ModalDialog's frame defaults to 768 tall; the 830-tall body
+                --plus the title and ModalDialog's (empty) 60-tall button
+                --strip needs the same 960 the titlescreen host uses, or the
+                --body overflows out of the frame.
                 width = 1024,
-                height = 900,
+                height = 960,
 
                 --we build our own buttons inside the body so Submit can stay open
                 --while the report uploads.
@@ -2544,7 +2549,7 @@ local function CreateTopBar()
                     classes = {"framedPanel"},
                     floating = true,
                     width = 1024,
-                    height = 900,
+                    height = 960,
                     halign = "center",
                     valign = "center",
                     styles = ThemeEngine.GetStyles(),
@@ -2573,7 +2578,7 @@ local function CreateTopBar()
                     m_dialog = gh:ModalDialog{
                         title = kindInfo.title,
                         width = 1024,
-                        height = 900,
+                        height = 960,
                         buttons = {},
                         bodyPanel,
                     }

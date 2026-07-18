@@ -686,6 +686,14 @@ function GameHud:CreateRestingDialog(requestid, request)
 			click = function(element)
 				dmhub.CancelActionRequest(requestid)
 				chat.PreviewChat('')
+				--This dialog seeds resting preview dice via chat.PreviewChat('/roll ...')
+				--(hit-dice rolls). chat.PreviewChat('') above only clears them while NO
+				--unarmed registered dice cage exists (the engine's empty-text path is
+				--guarded); otherwise the dice are orphaned and pin __previewdice=true,
+				--hiding the action bar for the rest of the session (same leak as bug
+				--XPWBKEQA in DSRollDialog). Clear explicitly, scoped so armed try-dice
+				--tiles are untouched; pcall for older binaries without the method.
+				pcall(function() dmhub.ClearChatPreviewDice() end)
 
 				for k,tok in pairs(request.info.tokens) do
 					local token = dmhub.GetTokenById(k)

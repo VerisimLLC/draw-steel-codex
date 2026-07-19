@@ -2001,6 +2001,26 @@ DockablePanel = {
 		return nil
 	end,
 
+	--The ordered list of panel names currently docked in one side's dock
+	--("left"/"right"). The read-side mirror of SetDockPanels; used by the
+	--Views feature to capture the working layout.
+	GetDockPanels = function(side)
+		local result = {}
+		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+			return result
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return result
+		end
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				result[#result+1] = instance.data.name
+			end
+		end
+		return result
+	end,
+
 	--Replace the panels docked in one side's dock ("left"/"right") with the
 	--named panels, in that order (one container per panel). No-op when the
 	--dock already shows exactly these panels, so it is cheap to call from a

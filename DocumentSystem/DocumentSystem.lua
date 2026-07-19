@@ -402,6 +402,12 @@ function CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
     return false
 end
 
+--Expand/collapse choices made in the viewer tree (docked rail or dropdown
+--popup) survive rebuilds for the session: folderId -> bool. Nil means use
+--the default (built-in roots open, like the journal panel; subfolders open
+--only on the current document's ancestor chain).
+local g_journalTreeExpanded = {}
+
 --- Builds a popup tree view of the journal hierarchy
 --- @param currentDocId string The ID of the currently displayed document
 --- @param dialogPanel Panel The dialog panel with navigation handlers
@@ -510,12 +516,131 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         return false
     end
 
+    --Shared look for the whole tree, mirroring the journal panel's tree
+    --styles (Journal.lua, CreateFolderContentsPanel + its styles block):
+    --20px rows, fontSize 14, hover = @fgStrong fill with @bg content,
+    --folder headers filled @bg (@bgAlt + muted label when nested), and one
+    --fixed row grammar: [18px expander slot][icon][name]. Attached to the
+    --tree's root container so it cascades to every row in both the docked
+    --rail and the dropdown popup.
+    local treeStyles = ThemeEngine.MergeTokens({
+        {
+            selectors = { "treeRow" },
+            width = "100%",
+            height = 20,
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            flow = "horizontal",
+            halign = "left",
+        },
+        {
+            priority = 5,
+            selectors = { "treeRow", "currentDoc" },
+            bgcolor = "@bgAlt",
+        },
+        {
+            priority = 5,
+            selectors = { "treeRow", "folderRow" },
+            bgcolor = "@bg",
+        },
+        {
+            priority = 6,
+            selectors = { "treeRow", "folderRow", "subfolder" },
+            bgcolor = "@bgAlt",
+        },
+        {
+            priority = 7,
+            selectors = { "treeRow", "hover" },
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = { "treeLabel" },
+            color = "@fg",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            lmargin = 4,
+            textWrap = false,
+        },
+        {
+            priority = 5,
+            selectors = { "treeLabel", "parent:subfolder" },
+            color = "@fgMuted",
+        },
+        {
+            priority = 6,
+            selectors = { "treeLabel", "parent:currentDoc" },
+            color = "@fgStrong",
+            bold = true,
+        },
+        {
+            priority = 7,
+            selectors = { "treeLabel", "parent:hover" },
+            color = "@bg",
+        },
+        {
+            selectors = { "treeIcon" },
+            width = 16,
+            height = 16,
+            bgcolor = "@fg",
+            halign = "left",
+            valign = "center",
+            hmargin = 4,
+        },
+        {
+            priority = 5,
+            selectors = { "treeIcon", "parent:hover" },
+            bgcolor = "@bg",
+        },
+        --triangles match the journal panel: @fg glyphs that invert on row
+        --hover. A "ghost" triangle holds its 18px slot in the row but is
+        --invisible (rows that cannot expand keep the slot so their icons
+        --line up with sibling folder labels).
+        {
+            priority = 5,
+            selectors = { "triangle" },
+            bgcolor = "@fg",
+        },
+        {
+            priority = 6,
+            selectors = { "triangle", "parent:hover" },
+            bgcolor = "@bg",
+        },
+        {
+            priority = 10,
+            selectors = { "triangle", "ghost" },
+            bgcolor = "clear",
+        },
+    })
+
+    --the 18px expander slot for rows that can never expand: same triangle
+    --geometry as a folder's toggle (8px glyph + 5px margins) but ghosted,
+    --exactly like the journal panel's doc rows.
+    local function makeExpanderGhost()
+        return gui.Panel {
+            bgimage = "panels/triangle.png",
+            classes = { "triangle", "ghost" },
+            styles = gui.TriangleStyles,
+        }
+    end
+
     -- Build a single folder entry (row + collapsible children)
-    local function buildFolderEntry(folderId, description, isExpanded, childrenPanels)
+    local function buildFolderEntry(folderId, description, isExpanded, childrenPanels, isRoot)
+        --a toggle the user made earlier this session wins over the default.
+        if g_journalTreeExpanded[folderId] ~= nil then
+            isExpanded = g_journalTreeExpanded[folderId]
+        end
         local isCollapsed = not isExpanded
 
         local contentPanel = gui.Panel {
-            width = "100%",
+            --the indent ladder, identical to the journal panel: each
+            --folder's contents shift ALL children (doc rows and subfolder
+            --headers alike) one 16px step right, contained (halign left +
+            --reduced width) so nesting never overflows the rail.
+            halign = "left",
+            width = "100%-16",
             height = "auto",
             flow = "vertical",
             lmargin = 16,
@@ -523,41 +648,30 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
             children = childrenPanels,
         }
 
-        local arrow = gui.ExpandoArrow {
-            classes = cond(not isCollapsed, {"expanded"}),
-            halign = "left",
-            valign = "center",
-            lmargin = 4,
+        local arrow = gui.Panel {
+            bgimage = "panels/triangle.png",
+            classes = { "triangle", cond(not isCollapsed, "expanded") },
+            styles = gui.TriangleStyles,
         }
 
         local folderRow = gui.Panel {
-            width = "100%",
-            height = 22,
-            flow = "horizontal",
-            halign = "left",
-            valign = "center",
-            bgimage = "panels/square.png",
-            styles = ThemeEngine.MergeTokens({
-                { bgcolor = "clear" },
-                { selectors = {"hover"}, bgcolor = "@fgMuted" },
-            }),
+            classes = { "treeRow", "folderRow", cond(not isRoot, "subfolder") },
             press = function(element)
                 isCollapsed = not isCollapsed
+                --remember the choice for the session ("newdocument" is the
+                --popup's create header, not a real folder; always start it
+                --closed).
+                if folderId ~= "newdocument" then
+                    g_journalTreeExpanded[folderId] = not isCollapsed
+                end
                 contentPanel:SetClass("collapsed", isCollapsed)
                 arrow:SetClass("expanded", not isCollapsed)
             end,
 
             arrow,
             gui.Label {
-                classes = {"fgMuted"},
+                classes = { "treeLabel" },
                 text = description,
-                fontSize = 12,
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                lmargin = 4,
-                textWrap = false,
             },
         }
 
@@ -604,18 +718,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     memberIcon = "icons/icon_app/icon_app_34.png"
                 end
                 children[#children + 1] = gui.Panel {
-                    width = "100%",
-                    height = 22,
-                    flow = "horizontal",
-                    halign = "left",
-                    valign = "center",
-                    bgimage = "panels/square.png",
-                    classes = isCurrentDoc and {"currentDoc"} or {},
-                    styles = ThemeEngine.MergeTokens({
-                        { bgcolor = "clear" },
-                        { selectors = {"currentDoc"}, bgcolor = "@bgAlt" },
-                        { selectors = {"hover"}, bgcolor = "@fgMuted" },
-                    }),
+                    classes = { "treeRow", cond(isCurrentDoc, "currentDoc") },
                     press = function(element)
                         if m_pickHandled then return end
                         --non-doc members (pdf/image/pdffragment) open via
@@ -646,28 +749,19 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                         m_pickHandled = false
                     end,
 
+                    makeExpanderGhost(),
                     gui.Panel {
+                        classes = { "treeIcon" },
                         bgimage = memberIcon,
-                        --full-colour type icons render untinted (white); the
-                        --monochrome pdf/image glyphs keep the grey/white tint.
-                        bgcolor = (isTypeIcon or isCurrentDoc) and "white" or "#aaaaaa",
-                        width = 14,
-                        height = 14,
-                        halign = "left",
-                        valign = "center",
-                        lmargin = 4,
+                        --full-colour type icons render untinted (white,
+                        --selfStyle so hover inversion leaves them alone);
+                        --monochrome pdf/image glyphs tint @fg via the
+                        --cascade, inverting on hover like the panel.
+                        bgcolor = cond(isTypeIcon, "white", nil),
                     },
                     gui.Label {
+                        classes = { "treeLabel" },
                         text = member.description,
-                        fontSize = 12,
-                        color = cond(isCurrentDoc, "white", "#cccccc"),
-                        bold = isCurrentDoc,
-                        width = "auto",
-                        height = "auto",
-                        halign = "left",
-                        valign = "center",
-                        lmargin = 4,
-                        textWrap = false,
                     },
                 }
             end
@@ -686,9 +780,9 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         if root then
             local subChildren = buildFolderChildren(rootId)
             if #subChildren > 0 then
-                local expandThis = isAncestorOf(rootId, currentDocId)
-                    or (customDocs[currentDocId] and (customDocs[currentDocId].parentFolder or "private") == rootId)
-                rootChildren[#rootChildren + 1] = buildFolderEntry(rootId, root.description, expandThis, subChildren)
+                --journal panel parity: built-in root folders start open
+                --(a session toggle, remembered in buildFolderEntry, wins).
+                rootChildren[#rootChildren + 1] = buildFolderEntry(rootId, root.description, true, subChildren, true)
             end
         end
     end
@@ -710,16 +804,7 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         table.sort(sortedTypes, function(a, b) return (a.text or "") < (b.text or "") end)
         for _, v in ipairs(sortedTypes) do
             typeRows[#typeRows + 1] = gui.Panel {
-                width = "100%",
-                height = 22,
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                bgimage = "panels/square.png",
-                styles = ThemeEngine.MergeTokens({
-                    { bgcolor = "clear" },
-                    { selectors = {"hover"}, bgcolor = "@fgMuted" },
-                }),
+                classes = { "treeRow" },
                 press = function(element)
                     if m_pickHandled then return end
                     m_pickHandled = true
@@ -729,32 +814,22 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 resetPickLatch = function(element)
                     m_pickHandled = false
                 end,
+                makeExpanderGhost(),
                 gui.Panel {
+                    classes = { "treeIcon" },
                     --a registered type carries its own (full-colour) icon;
                     --fall back to the generic page glyph for any that do not.
                     bgimage = v.icon or "icons/icon_app/icon_app_107.png",
-                    bgcolor = v.icon and "white" or "#aaaaaa",
-                    width = 14,
-                    height = 14,
-                    halign = "left",
-                    valign = "center",
-                    lmargin = 4,
+                    bgcolor = cond(v.icon ~= nil, "white", nil),
                 },
                 gui.Label {
+                    classes = { "treeLabel" },
                     text = v.text,
-                    fontSize = 12,
-                    color = "#cccccc",
-                    width = "auto",
-                    height = "auto",
-                    halign = "left",
-                    valign = "center",
-                    lmargin = 4,
-                    textWrap = false,
                 },
             }
         end
 
-        headerPanels[#headerPanels + 1] = buildFolderEntry("newdocument", "New Document", false, typeRows)
+        headerPanels[#headerPanels + 1] = buildFolderEntry("newdocument", "New Document", false, typeRows, true)
         --hairline separating the create entry from the journal tree.
         headerPanels[#headerPanels + 1] = gui.Panel {
             width = "100%",
@@ -776,6 +851,19 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
         popupChildren[#popupChildren + 1] = p
     end
 
+    --the tree body shared by both hosts: an 8px left gutter (the journal
+    --panel's root indent step) containing the rows.
+    local function makeTreeBody()
+        return gui.Panel {
+            halign = "left",
+            width = "100%-8",
+            height = "auto",
+            flow = "vertical",
+            lmargin = 8,
+            children = popupChildren,
+        }
+    end
+
     --bare mode: return just the tree rows (no popup chrome, no fixed size),
     --for callers that host the tree in their own container -- the viewer's
     --docked tree rail. The popup wrapper below stays for dropdown callers.
@@ -786,7 +874,8 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
             halign = "left",
             valign = "top",
             flow = "vertical",
-            children = popupChildren,
+            styles = treeStyles,
+            makeTreeBody(),
         }
     end
 
@@ -822,7 +911,8 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 maxHeight = 392,
                 flow = "vertical",
                 vscroll = true,
-                children = popupChildren,
+                styles = treeStyles,
+                makeTreeBody(),
             },
         },
     }
@@ -3283,6 +3373,11 @@ function CustomDocument:PresentDocument(args)
         height = loc.height,
         halign = "left",
         valign = "top",
+        --presses anywhere in the window stay in the window: without this
+        --a right-click inside (e.g. a journal row's context menu) also
+        --reaches the map, whose menu replaces ours. Self-dragging is
+        --unaffected -- swallowPress only stops PARENT propagation.
+        swallowPress = true,
         draggable = true,
         drag = function(element)
             element.x = element.xdrag
@@ -3620,6 +3715,7 @@ function PanelDocument:CreateInterface(args)
     local m_activeKey = nil
     local m_constructing = true
     local tabStrip
+    local addTabButton
     local contentArea
     local hairline
     local header
@@ -3715,6 +3811,13 @@ function PanelDocument:CreateInterface(args)
     local function BuildContentWrapper(reg)
         local content = reg.content()
         content.selfStyle.valign = "top"
+        --anchor the hosted content left as well: without an alignment
+        --from an ancestor, panel content centers in the window host
+        --(never in the dock, which supplies one). This is the correct
+        --level for the fix -- forcing halign inside content styles (the
+        --old approach) overrides flow positioning row by row and
+        --scrambles layouts like the journal tree's folder headers.
+        content.selfStyle.halign = "left"
         if reg.vscroll ~= false then
             local hideObjectsOutOfScroll = reg.hideObjectsOutOfScroll
             if hideObjectsOutOfScroll == nil then
@@ -3815,20 +3918,31 @@ function PanelDocument:CreateInterface(args)
         }
     end
 
-    --each chip carries its own close x, hidden while the window has only
-    --one tab (closing the last tab is the window close button's job).
+    --each chip carries its own close x, shown even when it is the only
+    --tab (Lisa+David review 2026-07-19: closing the last tab closes the
+    --whole window). Hidden only in non-tabbed hosts (e.g. the journal
+    --viewer), where the host owns closing.
     local function SyncChipCloseButtons()
-        local single = #m_tabs <= 1
         for _, t in ipairs(m_tabs) do
             if t.chipClose ~= nil and t.chipClose.valid then
-                t.chipClose:SetClass("collapsed", single)
+                t.chipClose:SetClass("collapsed", not tabbed)
             end
         end
     end
 
     local function RemoveTab(key)
         local tab, idx = FindTab(key)
-        if tab == nil or #m_tabs <= 1 then
+        if tab == nil then
+            return
+        end
+        --closing the ONLY tab closes the whole window: same path as the
+        --header close button (Lisa+David review 2026-07-19).
+        if #m_tabs <= 1 then
+            if args.close ~= nil then
+                args.close()
+            elseif dialog ~= nil and dialog.valid then
+                dialog:DestroySelf()
+            end
             return
         end
         table.remove(m_tabs, idx)
@@ -3937,6 +4051,10 @@ function PanelDocument:CreateInterface(args)
         m_tabs[#m_tabs + 1] = tab
         tab.chip = BuildChip(tab)
         tabStrip:AddChild(tab.chip)
+        --the + affordance stays after the last chip.
+        if addTabButton ~= nil and addTabButton.valid then
+            addTabButton:SetAsLastSibling()
+        end
         SwitchTab(tab.key)
         SyncDialogTabs()
         SyncChipCloseButtons()
@@ -3945,6 +4063,39 @@ function PanelDocument:CreateInterface(args)
         if header ~= nil and header.valid then
             header:ScheduleEvent("syncPanelHeader", 0.05)
         end
+    end
+
+    --the + at the end of the tab strip: same add-a-panel menu as
+    --right-clicking the bar, in the tab chips' visual language
+    --(Lisa+David review 2026-07-19). Kept as the strip's last child as
+    --chips come and go.
+    if tabbed then
+        addTabButton = gui.Panel{
+            classes = {"panelDocumentTab"},
+            flow = "none",
+            width = g_panelDocumentHeaderHeight - 6,
+            height = g_panelDocumentHeaderHeight - 6,
+            bgimage = true,
+            halign = "left",
+            valign = "center",
+            hmargin = 1,
+            vmargin = 3,
+
+            click = function(element)
+                ShowAddMenu(element)
+            end,
+
+            gui.Label{
+                classes = {"panelDocumentTitle"},
+                text = "+",
+                fontSize = 16,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+        }
     end
 
     --Tab chips wrap to extra rows when the strip runs out of width (the
@@ -3957,6 +4108,7 @@ function PanelDocument:CreateInterface(args)
         wrap = true,
         halign = "left",
         valign = "center",
+        addTabButton,
     }
 
     header = gui.Panel{
@@ -3966,6 +4118,9 @@ function PanelDocument:CreateInterface(args)
         minHeight = g_panelDocumentHeaderHeight,
         flow = "horizontal",
         bgimage = true,
+        --NO swallowPress here: the press must propagate to the dialog,
+        --whose draggable is what makes the window movable by its bar.
+        --Map-menu containment lives on the dialog root instead.
 
         doubleclick = function(element)
             ToggleShade()
@@ -4170,6 +4325,9 @@ local g_railTransientKey = nil
 --set when a button drag ends, so the click the engine may deliver on
 --release does not also toggle a window.
 local g_railDragTime = nil
+--the layout key that just landed from a drop: the rebuild marks that
+--button "justDropped" so it settles in with a scale-down animation.
+local g_railJustDropped = nil
 
 local function IconRailPins()
     return dmhub.GetSettingValue("iconrailpins") or {}
@@ -4200,37 +4358,94 @@ end
 --pitch is one button plus one gap.
 local ICON_RAIL_MAX_SLOT = 16
 
---The current button layout: available panels partitioned onto the two
---sides, each a list of {key, name, slot} sorted by slot (slots may have
---holes). Legacy entries (ord, no slot) compact into the lowest free
---slots in their old order; slot collisions bump downward.
+--The current button layout. Returns TWO values:
+--  sides: available panels partitioned onto the two rails -- each a list
+--    of {key, name, slot} sorted by slot (holes allowed = blank spots).
+--  inert: entries preserved in storage but not rendered -- panels that
+--    are unavailable here (absent mod, dmonly for this user, devonly)
+--    or parked with side = "off". Inert entries must survive every save
+--    so applying and re-saving a layout in a reduced context never
+--    strips panels from it (Views brief, amendment A3).
+--ANY registered panel may appear in the layout; the curated
+--g_iconRailPanels list only provides first-run defaults for panels
+--without a stored entry. Legacy entries (ord, no slot) compact into the
+--lowest free slots; slot collisions bump downward.
 local function RailLayout()
     local stored = dmhub.GetSettingValue("iconraillayout") or {}
     local sides = { left = {}, right = {} }
-    for i, name in ipairs(g_iconRailPanels) do
-        if PanelDocument.Get(name) ~= nil then
-            local key = string.lower(name)
-            local entry = stored[key]
-            local side = "left"
-            local slot = nil
-            local ord = i * 10
-            if entry ~= nil then
-                if entry.side == "right" then
-                    side = "right"
-                end
-                if entry.slot ~= nil then
-                    slot = entry.slot
-                end
-                if entry.ord ~= nil then
-                    ord = entry.ord
-                end
+    local inert = {}
+    local seen = {}
+
+    local function place(key, displayName, entry, defaultOrd)
+        if seen[key] then
+            return
+        end
+        seen[key] = true
+
+        local side = "left"
+        local slot = nil
+        local ord = defaultOrd or 9999
+        if entry ~= nil then
+            if entry.side == "right" or entry.side == "off" then
+                side = entry.side
             end
-            local list = sides[side]
-            list[#list + 1] = { key = key, name = name, slot = slot, ord = ord }
+            if entry.slot ~= nil then
+                slot = entry.slot
+            end
+            if entry.ord ~= nil then
+                ord = entry.ord
+            end
+        end
+
+        if side == "off" then
+            --parked off the rails; only worth remembering if stored.
+            if entry ~= nil then
+                inert[#inert + 1] = { key = key, side = "off", slot = slot }
+            end
+            return
+        end
+
+        --"doc:<id>" entries are journal document shortcuts; anything else
+        --is a registered panel.
+        local available
+        local docid = string.match(key, "^doc:(.+)$")
+        if docid ~= nil then
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local doc = docs[docid]
+            available = doc ~= nil and (not doc.hidden)
+            if available then
+                displayName = doc.description or "Document"
+            end
+        else
+            available = PanelDocument.Get(displayName) ~= nil
+        end
+
+        if not available then
+            --unavailable in this game/for this role: keep the stored
+            --entry inert; render nothing.
+            if entry ~= nil then
+                inert[#inert + 1] = { key = key, side = side, slot = slot }
+            end
+            return
+        end
+        local list = sides[side]
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid }
+    end
+
+    --curated panels first: they carry the first-run default ordering.
+    for i, name in ipairs(g_iconRailPanels) do
+        place(string.lower(name), name, stored[string.lower(name)], i * 10)
+    end
+    --then any other stored panels (put on the rail by views or menus).
+    for key, entry in pairs(stored) do
+        if type(entry) == "table" then
+            local reg = DockablePanel.GetRegistration(key)
+            place(key, (reg ~= nil and reg.name) or key, entry, nil)
         end
     end
+
     for _, sideList in pairs(sides) do
-        --explicit slots first (ascending), then legacy entries by ord.
+        --explicit slots first (ascending), then default entries by ord.
         table.sort(sideList, function(a, b)
             if (a.slot ~= nil) ~= (b.slot ~= nil) then
                 return a.slot ~= nil
@@ -4254,14 +4469,19 @@ local function RailLayout()
         end
         table.sort(sideList, function(a, b) return a.slot < b.slot end)
     end
-    return sides
+    return sides, inert
 end
 
-local function SaveRailLayout(sides)
+local function SaveRailLayout(sides, inert)
     local stored = {}
     for side, list in pairs(sides) do
         for _, e in ipairs(list) do
             stored[e.key] = { side = side, slot = e.slot }
+        end
+    end
+    for _, e in ipairs(inert or {}) do
+        if stored[e.key] == nil then
+            stored[e.key] = { side = e.side, slot = e.slot }
         end
     end
     dmhub.SetSettingValue("iconraillayout", stored)
@@ -4319,6 +4539,18 @@ local g_railDragGhost = nil
 local ShowRailGhost
 local HideRailGhost
 
+--Whether a slot on a side holds a button other than excludeKey (the
+--dragged button's own slot never reads as occupied).
+local function RailSlotOccupied(side, slot, excludeKey)
+    local sides = RailLayout()
+    for _, e in ipairs(sides[side]) do
+        if e.slot == slot and e.key ~= excludeKey then
+            return true
+        end
+    end
+    return false
+end
+
 --While the rail is on, the docks' own slide-away handle tabs are
 --redundant (each rail's tray button owns its dock's visibility), so we
 --hide them; they come back the moment the mode is turned off. Docks are
@@ -4328,7 +4560,7 @@ local function SyncDockHandles()
     if gamehud == nil or rawget(gamehud, "leftDock") == nil then
         return
     end
-    local railOn = dmhub.GetSettingValue("iconrail") == true
+    local railOn = dmhub.GetSettingValue("iconrail") == true and devmode()
     for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
         if dock ~= nil and dock.valid then
             for _, child in ipairs(dock.children) do
@@ -4422,44 +4654,62 @@ end
 --cascade.
 local function IconRailStyles()
     return ThemeEngine.MergeTokens({
+        --buttons are borderless (Lisa+David review 2026-07-19), on a
+        --black partially-transparent frosted backdrop (Lisa 2026-07-19
+        --follow-up: black + blur; blurBackground is set on the button
+        --panels). Icons wear the panels' font color (@fg) so the rail
+        --matches the panel windows; hover/active brighten to @fgStrong.
+        --The active state stays icon + underline, never a border.
         {
             selectors = {"iconRailButton"},
-            bgcolor = "#0a0a0b73",
-            border = 1,
-            borderColor = "#ffffff2e",
+            bgcolor = "#000000cc",
+            border = 0,
             cornerRadius = 8,
             transitionTime = 0.15,
         },
         {
             selectors = {"iconRailButton", "hover"},
-            bgcolor = "#0a0a0bd9",
-            borderColor = "#ffffff99",
+            bgcolor = "#000000ee",
         },
+        --a freshly dropped button lands slightly oversized and settles
+        --to rest through the transition when the class clears.
         {
-            selectors = {"iconRailButton", "active"},
-            bgcolor = "#0a0a0beb",
-            borderColor = "#ffffff99",
+            selectors = {"iconRailButton", "justDropped"},
+            scale = 1.25,
         },
         {
             selectors = {"iconRailIcon"},
-            bgcolor = "#ffffffb3",
+            bgcolor = "@fg",
             transitionTime = 0.15,
         },
         {
             selectors = {"iconRailIcon", "parent:hover"},
-            bgcolor = "white",
+            bgcolor = "@fgStrong",
         },
         {
             selectors = {"iconRailIcon", "parent:active"},
-            bgcolor = "white",
+            bgcolor = "@fgStrong",
         },
-        --the dock-handle art is coloured; desaturate + brighten it to
-        --the rail's white language (same treatment the dock handle
-        --itself gets). Mirrored on the left to match the left dock's
-        --handle; the right keeps the art's native facing.
+        --the active underline: a short bar under the icon of any button
+        --whose panel is currently visible.
+        {
+            selectors = {"iconRailActiveMark"},
+            bgcolor = "@fgStrong",
+            opacity = 0,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailActiveMark", "parent:active"},
+            opacity = 1,
+        },
+        --the dock-handle art is coloured; desaturate + brighten it into
+        --the rail's language (same treatment the dock handle itself
+        --gets), tinted to the panels' font color like the other icons.
+        --Mirrored on the left to match the left dock's handle; the
+        --right keeps the art's native facing.
         {
             selectors = {"iconRailTrayIcon"},
-            bgcolor = "#ffffffb3",
+            bgcolor = "@fg",
             saturation = 0,
             brightness = 2,
             scale = {x = -1},
@@ -4471,28 +4721,50 @@ local function IconRailStyles()
         },
         {
             selectors = {"iconRailTrayIcon", "parent:hover"},
-            bgcolor = "white",
+            bgcolor = "@fgStrong",
         },
         {
             selectors = {"iconRailTrayIcon", "parent:active"},
-            bgcolor = "white",
+            bgcolor = "@fgStrong",
         },
         {
             selectors = {"iconRailHairline"},
             bgcolor = "#ffffff26",
         },
-        --the drag ghost: an empty slot outline showing where the dragged
-        --button will land.
+        --the drop placeholder: a lightly filled rounded box marking the
+        --slot a dragged button/document will land in (the buttons below
+        --shift down live to open the gap it sits in).
         {
             selectors = {"iconRailGhost"},
-            bgcolor = "#ffffff14",
-            border = 1,
-            borderColor = "#ffffff66",
+            bgcolor = "#ffffff26",
+            border = 0,
             cornerRadius = 8,
         },
         {
             selectors = {"iconRailGhost", "hidden"},
             hidden = 1,
+        },
+        --the Views toast box and its text (the chip itself is gone --
+        --Lisa+David review 2026-07-19 -- but the toast reuses its look).
+        {
+            selectors = {"iconRailViewChip"},
+            bgcolor = "#0a0a0bb3",
+            border = 1,
+            borderColor = "#ffffff2e",
+            cornerRadius = 6,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"label", "iconRailViewChipLabel"},
+            color = "#e8e8e8",
+            fontSize = 11,
+            bold = true,
+        },
+        {
+            selectors = {"label", "iconRailViewToastUndo"},
+            color = "#ffffff",
+            fontSize = 11,
+            bold = true,
         },
         {
             selectors = {"label", "iconRailLabel"},
@@ -4501,7 +4773,7 @@ local function IconRailStyles()
             border = 1,
             borderColor = "#ffffff47",
             cornerRadius = 6,
-            color = "#e8e8e8",
+            color = "@fg",
             fontSize = 11,
             bold = true,
             transitionTime = 0.15,
@@ -4513,15 +4785,40 @@ local function IconRailStyles()
     })
 end
 
+--The buttons currently shifted to open a drag gap ({panel, base}), and
+--the signature of the shift so a drag hovering the same slot doesn't
+--re-apply margins every frame. (selfStyle properties are write-mostly:
+--reading them back is unreliable, so we track what we shifted.)
+local g_railShifted = {}
+local g_railShiftSig = nil
+
+--Undo any gap ShowRailGhost opened: shifted buttons return to their
+--constructed margins.
+local function RailRestoreShift()
+    for _, info in ipairs(g_railShifted) do
+        if info.panel ~= nil and info.panel.valid then
+            info.panel.selfStyle.tmargin = info.base
+        end
+    end
+    g_railShifted = {}
+    g_railShiftSig = nil
+end
+
 HideRailGhost = function()
+    RailRestoreShift()
     if g_railDragGhost ~= nil and g_railDragGhost.valid then
         g_railDragGhost:SetClass("hidden", true)
     end
 end
 
---A ghosted button showing where a dragged button would land. One shared
---panel, repositioned as the drag moves.
-ShowRailGhost = function(side, slot)
+--Live preview of where a dragged button/document will land (Lisa+David
+--review 2026-07-19): a lightly filled placeholder box sits at the target
+--slot, and when that slot is occupied the buttons from it down SHIFT to
+--open a real gap for the box (extra tmargin on the first affected
+--button; vertical flow carries everything below it along). excludeKey
+--is the dragged button's own key: its slot never reads as occupied and
+--it never shifts (the engine is already moving it with the cursor).
+ShowRailGhost = function(side, slot, excludeKey)
     if GameHud.instance == nil or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) then
         return
     end
@@ -4538,8 +4835,59 @@ ShowRailGhost = function(side, slot)
         }
         GameHud.instance.documentsPanel:AddChild(g_railDragGhost)
     end
-    g_railDragGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    g_railDragGhost.y = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+
+    local sig = tostring(side) .. ":" .. tostring(slot) .. ":" .. tostring(excludeKey)
+    if sig ~= g_railShiftSig then
+        RailRestoreShift()
+        g_railShiftSig = sig
+
+        if RailSlotOccupied(side, slot, excludeKey) then
+            local rail = g_iconRails[side]
+            if rail ~= nil and rail.valid then
+                local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+                local shiftedSlot = nil
+                for _, child in ipairs(rail.children) do
+                    if child.valid then
+                        local d = nil
+                        pcall(function() d = child.data end)
+                        if d ~= nil and d.slot ~= nil and d.baseMargin ~= nil and d.slot >= slot and d.key ~= excludeKey then
+                            g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
+                            child.selfStyle.tmargin = d.baseMargin + pitch
+                            shiftedSlot = d.slot
+                            break
+                        end
+                    end
+                end
+                --When the shifted button sits ABOVE the dragged button in
+                --the flow, the shift would carry the dragged button's
+                --LAYOUT anchor down with it -- and the engine measures
+                --ydrag from that anchor, so the computed drop slot would
+                --jump up a pitch, close the gap, and re-open it forever
+                --(the flicker Lisa saw). Pin the anchor: give the dragged
+                --button a compensating negative margin so its layout spot
+                --never moves; the buttons between shuffle into its hole,
+                --which is the right visual anyway.
+                if shiftedSlot ~= nil and excludeKey ~= nil then
+                    for _, child in ipairs(rail.children) do
+                        if child.valid then
+                            local d = nil
+                            pcall(function() d = child.data end)
+                            if d ~= nil and d.key == excludeKey and d.slot ~= nil and d.baseMargin ~= nil and d.slot > shiftedSlot then
+                                g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
+                                child.selfStyle.tmargin = d.baseMargin - pitch
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
+    local slotTop = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    g_railDragGhost.x = railX
+    g_railDragGhost.y = slotTop
     g_railDragGhost:SetClass("hidden", false)
 end
 
@@ -4559,6 +4907,7 @@ local function CreateDockTrayButton(side)
         classes = {"iconRailDockButton", "iconRailButton"},
         styles = IconRailStyles(),
         bgimage = true,
+        blurBackground = true,
         floating = true,
         width = ICON_RAIL_BUTTON,
         height = ICON_RAIL_BUTTON,
@@ -4595,7 +4944,7 @@ local function EnsureDockTrayButtons()
     if gamehud == nil or rawget(gamehud, "leftDock") == nil then
         return
     end
-    local railOn = dmhub.GetSettingValue("iconrail") == true
+    local railOn = dmhub.GetSettingValue("iconrail") == true and devmode()
     for _, info in ipairs({ { dock = gamehud.leftDock, side = "left" }, { dock = gamehud.rightDock, side = "right" } }) do
         local dock = info.dock
         if dock ~= nil and dock.valid then
@@ -4616,6 +4965,233 @@ end
 
 --forward-declared: button drag handlers rebuild the rails.
 local RebuildIconRails
+
+--Non-drag rearrangement (accessibility parity, Views brief A9a): the
+--same moves dragging performs, driven from the rail-button context menu.
+--op: "up" | "down" | "side" | "remove".
+local function RailMovePanel(key, op)
+    local sides, inert = RailLayout()
+    local entry, sideName, list, idx
+    for sn, l in pairs(sides) do
+        for i, e in ipairs(l) do
+            if e.key == key then
+                entry, sideName, list, idx = e, sn, l, i
+            end
+        end
+    end
+    if entry == nil then
+        return
+    end
+
+    if op == "up" or op == "down" then
+        local target = entry.slot + cond(op == "up", -1, 1)
+        if target < 0 then
+            return
+        end
+        for _, e in ipairs(list) do
+            if e ~= entry and e.slot == target then
+                e.slot = entry.slot
+            end
+        end
+        entry.slot = target
+    elseif op == "side" then
+        table.remove(list, idx)
+        local otherList = sides[cond(sideName == "left", "right", "left")]
+        table.insert(otherList, entry)
+        table.sort(otherList, function(a, b)
+            if a.slot == b.slot then
+                return a == entry
+            end
+            return a.slot < b.slot
+        end)
+        local used = {}
+        for _, e in ipairs(otherList) do
+            local s = e.slot
+            while used[s] do
+                s = s + 1
+            end
+            used[s] = true
+            e.slot = s
+        end
+    elseif op == "remove" then
+        table.remove(list, idx)
+        inert[#inert + 1] = { key = key, side = "off", slot = entry.slot }
+    end
+
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
+--Add a panel to a rail at the next free slot (the inverse of "Remove
+--from rail"; also how non-curated panels first reach the rail).
+local function RailAddPanel(name, side)
+    local sides, inert = RailLayout()
+    local key = string.lower(name)
+    for _, l in pairs(sides) do
+        for _, e in ipairs(l) do
+            if e.key == key then
+                return
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+    local list = sides[side]
+    local maxSlot = -1
+    for _, e in ipairs(list) do
+        if e.slot > maxSlot then
+            maxSlot = e.slot
+        end
+    end
+    list[#list + 1] = { key = key, name = name, slot = maxSlot + 1 }
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
+--Which rail slot a drag target corresponds to: a rail button maps to
+--its own slot (the drop inserts there), the rail background or the tray
+--appends to the end of that side. nil when the target is not a rail.
+local function RailNextFreeSlot(side)
+    local sides = RailLayout()
+    local maxSlot = -1
+    for _, e in ipairs(sides[side]) do
+        if e.slot > maxSlot then
+            maxSlot = e.slot
+        end
+    end
+    return maxSlot + 1
+end
+
+local function RailDocDropSlot(target)
+    if target == nil or not target.valid then
+        return nil
+    end
+    if target:HasClass("iconRailButton") then
+        local rail = target.parent
+        if rail ~= nil and rail.valid and rail:HasClass("iconRail") then
+            local slot = nil
+            pcall(function() slot = target.data.slot end)
+            if slot ~= nil then
+                return rail.data.side, slot
+            end
+            return rail.data.side, RailNextFreeSlot(rail.data.side)
+        end
+        return nil
+    end
+    if target:HasClass("iconRail") then
+        return target.data.side, RailNextFreeSlot(target.data.side)
+    end
+    return nil
+end
+
+--Journal-to-rail shortcut API, called from the journal panel's document
+--rows (Journal.lua): dragging a document over a rail previews the slot
+--with the ghost; dropping stores a "doc:<id>" layout entry there.
+function IconRailDocDragging(target)
+    local side, slot = RailDocDropSlot(target)
+    if side ~= nil then
+        ShowRailGhost(side, slot, nil)
+    else
+        HideRailGhost()
+    end
+end
+
+function IconRailDocDrop(docid, target)
+    HideRailGhost()
+    local side, slot = RailDocDropSlot(target)
+    if side == nil or docid == nil then
+        return false
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    if docs[docid] == nil then
+        return false
+    end
+
+    local key = "doc:" .. docid
+    local sides, inert = RailLayout()
+    --already on a rail (or parked inert): move rather than duplicate.
+    for _, l in pairs(sides) do
+        for i, e in ipairs(l) do
+            if e.key == key then
+                table.remove(l, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+
+    local list = sides[side]
+    local entry = { key = key, slot = slot }
+    g_railJustDropped = key
+    table.insert(list, entry)
+    table.sort(list, function(a, b)
+        if a.slot == b.slot then
+            return a == entry
+        end
+        return a.slot < b.slot
+    end)
+    local used = {}
+    for _, e in ipairs(list) do
+        local s = e.slot
+        while used[s] do
+            s = s + 1
+        end
+        used[s] = true
+        e.slot = s
+    end
+
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+    return true
+end
+
+--Menu path (no drag): append a document shortcut to the given rail.
+--The non-drag parity for the journal-to-rail gesture (A9a).
+function IconRailDocAdd(docid, side)
+    if side ~= "left" and side ~= "right" then
+        side = "left"
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    if docid == nil or docs[docid] == nil then
+        return false
+    end
+    local key = "doc:" .. docid
+    local sides, inert = RailLayout()
+    for _, l in pairs(sides) do
+        for i, e in ipairs(l) do
+            if e.key == key then
+                table.remove(l, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+    local list = sides[side]
+    local maxSlot = -1
+    for _, e in ipairs(list) do
+        if e.slot > maxSlot then
+            maxSlot = e.slot
+        end
+    end
+    list[#list + 1] = { key = key, slot = maxSlot + 1 }
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+    return true
+end
 
 local function CreateIconRail(side, entries)
     local buttons = {}
@@ -4643,9 +5219,14 @@ local function CreateIconRail(side, entries)
     buttons[#buttons + 1] = gui.Panel{
         classes = {"iconRailButton"},
         bgimage = true,
+        blurBackground = true,
         width = ICON_RAIL_BUTTON,
         height = ICON_RAIL_BUTTON,
         flow = "none",
+        swallowPress = true,
+        --empty data so the drag-reflow sweeps can read .data on every
+        --rail child without the engine logging index errors.
+        data = {},
 
         gui.Panel{
             classes = trayIconClasses,
@@ -4707,6 +5288,39 @@ local function CreateIconRail(side, entries)
         refreshRail = function(element)
             element:SetClass("active", not dmhub.GetSettingValue(dockSettingId))
         end,
+
+        --right-click the tray: add any available panel to this rail
+        --(the inverse of "Remove from rail", and the door for the ~40
+        --registered panels beyond the curated defaults).
+        rightClick = function(element)
+            local onRail = {}
+            local sides = RailLayout()
+            for _, l in pairs(sides) do
+                for _, e in ipairs(l) do
+                    onRail[e.key] = true
+                end
+            end
+            local entries = {}
+            local items = DockablePanel.GetMenuItems(true)
+            table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
+            for _, item in ipairs(items) do
+                local name = item.text
+                if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
+                    entries[#entries + 1] = {
+                        text = "Add: " .. name,
+                        click = function()
+                            element.popup = nil
+                            RailAddPanel(name, side)
+                        end,
+                    }
+                end
+            end
+            if #entries > 0 then
+                element.popup = gui.ContextMenu{
+                    entries = entries,
+                }
+            end
+        end,
     }
 
     --separator between the tray button and the panel icons; pointless on
@@ -4716,6 +5330,7 @@ local function CreateIconRail(side, entries)
             width = "100%",
             height = 12,
             flow = "none",
+            data = {},
             gui.Panel{
                 classes = {"iconRailHairline"},
                 bgimage = true,
@@ -4730,8 +5345,26 @@ local function CreateIconRail(side, entries)
     local prevSlot = -1
     for i, entry in ipairs(entries) do
         local panelName = entry.name
-        local reg = DockablePanel.GetRegistration(panelName)
         local key = entry.key
+        local docid = entry.docid
+
+        --panel buttons draw their registration icon; document shortcuts
+        --draw the doc's semantic-type icon.
+        local reg = nil
+        local buttonIcon = "icons/icon_app/icon_app_107.png"
+        if docid == nil then
+            reg = DockablePanel.GetRegistration(panelName)
+            if reg ~= nil and reg.icon ~= nil then
+                buttonIcon = reg.icon
+            end
+        else
+            buttonIcon = "icons/standard/Icon_App_Journal.png"
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local doc = docs[docid]
+            if doc ~= nil then
+                pcall(function() buttonIcon = CustomDocument.DocTypeIcon(doc) end)
+            end
+        end
         --buttons sit at their SLOT: gaps between occupied slots render
         --as blank space. A button's top edge is slot * pitch from the
         --start of the panel area, so its margin is the distance from the
@@ -4755,21 +5388,61 @@ local function CreateIconRail(side, entries)
             labelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
         end
 
+        --a button rebuilt right after landing from a drop settles in with
+        --a scale-down animation: it constructs oversized (justDropped)
+        --and sheds the class a moment later, riding the transition.
+        local buttonClasses = {"iconRailButton"}
+        if g_railJustDropped ~= nil and g_railJustDropped == key then
+            buttonClasses[#buttonClasses + 1] = "justDropped"
+            g_railJustDropped = nil
+        end
+
         buttons[#buttons + 1] = gui.Panel{
-            classes = {"iconRailButton"},
+            classes = buttonClasses,
             bgimage = true,
+            blurBackground = true,
             width = ICON_RAIL_BUTTON,
             height = ICON_RAIL_BUTTON,
             flow = "none",
             tmargin = buttonMargin,
+            --without this, a real right-click ALSO reaches the map and
+            --the map's context menu replaces ours (popups are exclusive).
+            swallowPress = true,
+            --journal documents can be dropped onto buttons (insert at
+            --this slot); data.slot is how the drop finds it. key and
+            --baseMargin are for the live drag reflow (ShowRailGhost).
+            dragTarget = true,
+            data = { slot = index, key = key, baseMargin = buttonMargin },
+
+            create = function(element)
+                if element:HasClass("justDropped") then
+                    element:ScheduleEvent("settleDrop", 0.05)
+                end
+            end,
+            settleDrop = function(element)
+                element:SetClass("justDropped", false)
+            end,
 
             gui.Panel{
                 classes = {"iconRailIcon"},
-                bgimage = reg.icon or "icons/icon_app/icon_app_107.png",
+                bgimage = buttonIcon,
                 width = 20,
                 height = 20,
                 halign = "center",
                 valign = "center",
+            },
+
+            --the active underline (chromeless buttons: the open state is
+            --a full-white icon plus this small bar, not a box).
+            gui.Panel{
+                classes = {"iconRailActiveMark"},
+                bgimage = true,
+                width = 16,
+                height = 2,
+                halign = "center",
+                valign = "bottom",
+                y = -3,
+                interactable = false,
             },
 
             gui.Label{
@@ -4790,14 +5463,15 @@ local function CreateIconRail(side, entries)
             },
 
             --drag a button to rearrange: drop position decides which rail
-            --it lands on (screen half) and which slot. A ghosted button
-            --previews the landing slot while dragging. Empty slots stay
+            --it lands on (screen half) and which slot. While dragging, a
+            --placeholder box marks the landing slot and occupied buttons
+            --below shift down live to open the gap. Empty slots stay
             --empty (blank spots are part of the layout); dropping onto an
             --occupied slot bumps the occupant down.
             draggable = true,
             dragging = function(element)
                 local targetSide, targetSlot = RailDropTarget(side, index, element)
-                ShowRailGhost(targetSide, targetSlot)
+                ShowRailGhost(targetSide, targetSlot, key)
             end,
             drag = function(element)
                 g_railDragTime = dmhub.Time()
@@ -4810,7 +5484,7 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                local sides = RailLayout()
+                local sides, inert = RailLayout()
 
                 local dragged = nil
                 for _, sideList in pairs(sides) do
@@ -4847,7 +5521,8 @@ local function CreateIconRail(side, entries)
                     e.slot = s
                 end
 
-                SaveRailLayout(sides)
+                g_railJustDropped = key
+                SaveRailLayout(sides, inert)
                 RebuildIconRails()
             end,
 
@@ -4855,6 +5530,17 @@ local function CreateIconRail(side, entries)
                 --the release at the end of a rearrange drag can also
                 --deliver a click; ignore it.
                 if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+                    return
+                end
+
+                --document shortcut: open the doc in the journal viewer.
+                if docid ~= nil then
+                    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+                    local d = docs[docid]
+                    if d ~= nil then
+                        d:ShowDocument()
+                    end
+                    RefreshRails()
                     return
                 end
 
@@ -4902,51 +5588,155 @@ local function CreateIconRail(side, entries)
                 RefreshRails()
             end,
 
-            --right-click is additive: open the panel already pinned,
-            --leaving the current transient window alone -- or pin an
-            --open transient right where it sits.
+            --right-click: context menu with the non-drag equivalents of
+            --every rail gesture (Views brief A9a) plus the pinned-open
+            --act that used to BE the bare right-click.
             rightClick = function(element)
                 if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
                     return
                 end
 
-                local doc = PanelDocument.Get(panelName)
-                if doc == nil then
+                --document shortcuts get the reduced menu: open + moves.
+                if docid ~= nil then
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Open",
+                                click = function()
+                                    element.popup = nil
+                                    element:FireEvent("click")
+                                end,
+                            },
+                            {
+                                text = "Move up",
+                                click = function()
+                                    element.popup = nil
+                                    RailMovePanel(key, "up")
+                                end,
+                            },
+                            {
+                                text = "Move down",
+                                click = function()
+                                    element.popup = nil
+                                    RailMovePanel(key, "down")
+                                end,
+                            },
+                            {
+                                text = "Move to other side",
+                                click = function()
+                                    element.popup = nil
+                                    RailMovePanel(key, "side")
+                                end,
+                            },
+                            {
+                                text = "Remove from rail",
+                                click = function()
+                                    element.popup = nil
+                                    RailMovePanel(key, "remove")
+                                end,
+                            },
+                        },
+                    }
                     return
                 end
 
-                if doc:PresentDocumentOpen() then
-                    local pins = IconRailPins()
-                    if pins[key] == nil then
-                        local d = doc:try_get("_tmp_dialog")
-                        if d ~= nil and d.valid then
-                            pins[key] = { x = d.x, y = d.y, tabs = d.data.panelTabs }
-                            SetIconRailPins(pins)
-                            if g_railTransientKey == key then
-                                g_railTransientKey = nil
+                local function openPinned()
+                    local doc = PanelDocument.Get(panelName)
+                    if doc == nil then
+                        return
+                    end
+                    if doc:PresentDocumentOpen() then
+                        local pins = IconRailPins()
+                        if pins[key] == nil then
+                            local d = doc:try_get("_tmp_dialog")
+                            if d ~= nil and d.valid then
+                                pins[key] = { x = d.x, y = d.y, tabs = d.data.panelTabs }
+                                SetIconRailPins(pins)
+                                if g_railTransientKey == key then
+                                    g_railTransientKey = nil
+                                end
                             end
                         end
+                    elseif PanelDocument.FindHostDialog(key) ~= nil then
+                        local host = PanelDocument.FindHostDialog(key)
+                        host:SetAsLastSibling()
+                        host:FireEventTree("activatePanelTab", key)
+                    else
+                        local anchorX, anchorY = RailAnchor(side, index)
+                        local pins = IconRailPins()
+                        pins[key] = { x = anchorX, y = anchorY }
+                        SetIconRailPins(pins)
+                        OpenIconRailWindow(panelName, {
+                            x = anchorX,
+                            y = anchorY,
+                        })
                     end
-                elseif PanelDocument.FindHostDialog(key) ~= nil then
-                    --already visible as a tab elsewhere: just raise it.
-                    local host = PanelDocument.FindHostDialog(key)
-                    host:SetAsLastSibling()
-                    host:FireEventTree("activatePanelTab", key)
-                else
-                    local anchorX, anchorY = RailAnchor(side, index)
-                    local pins = IconRailPins()
-                    pins[key] = { x = anchorX, y = anchorY }
-                    SetIconRailPins(pins)
-                    OpenIconRailWindow(panelName, {
-                        x = anchorX,
-                        y = anchorY,
-                    })
+                    RefreshRails()
                 end
 
-                RefreshRails()
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Open",
+                            click = function()
+                                element.popup = nil
+                                element:FireEvent("click")
+                            end,
+                        },
+                        {
+                            text = "Open pinned",
+                            click = function()
+                                element.popup = nil
+                                openPinned()
+                            end,
+                        },
+                        {
+                            text = "Move up",
+                            click = function()
+                                element.popup = nil
+                                RailMovePanel(key, "up")
+                            end,
+                        },
+                        {
+                            text = "Move down",
+                            click = function()
+                                element.popup = nil
+                                RailMovePanel(key, "down")
+                            end,
+                        },
+                        {
+                            text = "Move to other side",
+                            click = function()
+                                element.popup = nil
+                                RailMovePanel(key, "side")
+                            end,
+                        },
+                        {
+                            text = "Remove from rail",
+                            click = function()
+                                element.popup = nil
+                                RailMovePanel(key, "remove")
+                            end,
+                        },
+                    },
+                }
             end,
 
             refreshRail = function(element)
+                if docid ~= nil then
+                    --a document shortcut is lit while its doc is open as
+                    --a tab in the journal viewer.
+                    local lit = false
+                    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
+                        for _, tab in ipairs(g_tabbedViewer.data.tabs or {}) do
+                            if tab.docId == docid then
+                                lit = true
+                            end
+                        end
+                    end
+                    element:SetClass("active", lit)
+                    return
+                end
                 --lit while the panel is visible anywhere: its own
                 --window or a tab in another window.
                 element:SetClass("active", PanelDocument.IsPanelShown(key))
@@ -4964,6 +5754,14 @@ local function CreateIconRail(side, entries)
         width = ICON_RAIL_BUTTON,
         height = "auto",
         flow = "vertical",
+        --journal documents dropped on the rail background append to the
+        --end of this side. The near-invisible surface gives the root a
+        --hit area so drops between/around buttons resolve, not just
+        --drops exactly on a button (field-tested: the bare container
+        --never resolved as a drag target).
+        dragTarget = true,
+        bgimage = true,
+        bgcolor = "#00000001",
 
         data = {
             side = side,
@@ -4974,8 +5772,17 @@ local function CreateIconRail(side, entries)
         --dock-mounted tray button is the way back); the other side is
         --unaffected. Children collapse individually rather than the rail
         --root so the root's think keeps running to un-collapse later.
+        --The map's drawable area must be recalculated when dock
+        --visibility changes: the dock handles used to do this from their
+        --monitor events, but the rail collapses those handles and
+        --collapsed panels don't process events -- without this call the
+        --map stays squeezed as if the docks were still on screen.
         syncDockMode = function(element)
             local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
+            if element.data.lastDockVisible ~= dockVisible then
+                element.data.lastDockVisible = dockVisible
+                dmhub.UpdateScreenHudArea(1)
+            end
             for _, child in ipairs(element.children) do
                 if child.valid then
                     child:SetClass("collapsed", dockVisible)
@@ -5013,15 +5820,13 @@ local function CreateIconRail(side, entries)
                 SyncDockHandles()
                 EnsureDockTrayButtons()
             end
-            --while this side's dock is visible it mirrors this rail's
-            --panel list (SetDockPanels no-ops when already matching).
-            if not dmhub.GetSettingValue(side .. "dockoffscreen") then
-                local names = {}
-                for _, e in ipairs(RailLayout()[side]) do
-                    names[#names + 1] = e.name
-                end
-                DockablePanel.SetDockPanels(side, names)
-            end
+            --NOTE: the dock is only mirrored from the rail ONCE, when the
+            --tray opens it. No continuous enforcement here: a running
+            --sync fought the user's own dock management (closing a
+            --rail-layout panel in the dock snapped it back open within
+            --half a second; earlier it also destroyed panels opened via
+            --the Panels menu). The dock is free-form while open;
+            --re-toggling the tray re-syncs it to the rail.
         end,
 
         --Rail styling: shared with the dock-mounted tray button, see
@@ -5042,6 +5847,9 @@ local function BuildIconRails()
 end
 
 local function DestroyIconRails()
+    --any drag-gap shift dies with the buttons that carried it.
+    g_railShifted = {}
+    g_railShiftSig = nil
     for side, rail in pairs(g_iconRails) do
         if rail ~= nil and rail.valid then
             rail:DestroySelf()
@@ -5058,7 +5866,7 @@ end
 --drag rearranges them). Open windows are untouched.
 RebuildIconRails = function()
     DestroyIconRails()
-    if dmhub.GetSettingValue("iconrail") and GameHud.instance ~= nil and GameHud.instance.documentsPanel and GameHud.instance.documentsPanel.valid then
+    if dmhub.GetSettingValue("iconrail") and devmode() and GameHud.instance ~= nil and GameHud.instance.documentsPanel and GameHud.instance.documentsPanel.valid then
         BuildIconRails()
     end
 end
@@ -5066,7 +5874,10 @@ end
 --Create or destroy the rails to match the setting; restore pinned windows
 --when they come up. Safe to call any time.
 function EnsureIconRail()
-    local enabled = dmhub.GetSettingValue("iconrail")
+    --DEV-GATED trial: the rail (and everything riding it -- Views, doc
+    --shortcuts, dock handoff) only activates in devmode, so shipping
+    --this code exposes nothing to users until we deliberately open it.
+    local enabled = dmhub.GetSettingValue("iconrail") == true and devmode()
 
     if not enabled then
         DestroyIconRails()
@@ -5074,6 +5885,7 @@ function EnsureIconRail()
         --tray buttons.
         SyncDockHandles()
         EnsureDockTrayButtons()
+        dmhub.UpdateScreenHudArea(1)
         return
     end
 
@@ -5092,7 +5904,7 @@ function EnsureIconRail()
     --stacked under the new one, and its clicks open windows the new
     --generation cannot see).
     for _, child in ipairs(GameHud.instance.documentsPanel.children) do
-        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost")) then
+        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
             child:DestroySelf()
         end
     end
@@ -5111,6 +5923,9 @@ function EnsureIconRail()
     BuildIconRails()
     SyncDockHandles()
     EnsureDockTrayButtons()
+    --recalculate the map's drawable area (see syncDockMode): fixes a
+    --stale squeeze left from before the rail owned this.
+    dmhub.UpdateScreenHudArea(1)
 
     for key, p in pairs(IconRailPins()) do
         OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })
@@ -5136,5 +5951,883 @@ dmhub.RegisterEventHandler("EnterGame", function()
         end
 
         EnsureIconRail()
+
+        --Players get the Player built-in view applied on first entry
+        --(Lisa+David review 2026-07-19: switching views is an advanced
+        --feature, so the default is chosen for them; the Director's
+        --default stays Custom). Only when the rail mode is on, no view
+        --is active, and there is no evidence they have ever used views
+        --(an empty per-game stash is the proxy) -- so it applies once,
+        --and never tramples an arrangement they've built.
+        if (not dmhub.isDM) and devmode() and dmhub.GetSettingValue("iconrail") == true and (dmhub.GetSettingValue("viewsactive") or "") == "" then
+            local stash = dmhub.GetSettingValue("viewsstash")
+            local stashEmpty = true
+            if type(stash) == "table" then
+                for _ in pairs(stash) do
+                    stashEmpty = false
+                    break
+                end
+            end
+            if stashEmpty and rawget(_G, "ViewsSwitchTo") ~= nil then
+                ViewsSwitchTo("builtin:player")
+            end
+        end
     end)
 end)
+
+----------------------------------------------------------------------
+-- Workspace Views
+-- ---------------
+-- Named saved workspace arrangements (rail sides/slots/blanks, pinned
+-- windows with tabs, dock contents and visibility), switchable from a
+-- chip on the left rail and the Panels menu. Built-ins: Map Maker /
+-- Director / Player (code templates; a user's Save on a built-in stores
+-- a personal overlay). Design brief (LOCKED 2026-07-19):
+-- principlesnstuff/views-brief.md. Key semantics:
+--  - Switching is NON-destructive (A1): the outgoing view's live
+--    arrangement stashes per-game under its id; switching back restores
+--    it. The saved definition only applies when no stash exists, or via
+--    the explicit Reset to saved.
+--  - Unavailable panels filter at render, never at save (A3).
+--  - Apply diffs live windows rather than rebuilding them (A4).
+--  - The no-view state is "Custom" (A5): active id "", stash key
+--    "custom"; nothing is applied until the user's first explicit act.
+----------------------------------------------------------------------
+
+--Personal view library, follows the user across games and machines:
+--{ [viewid] = { name=, layout=, seededFrom=?, registry=?, savedAt=? } }.
+--Built-in overlays use the built-in's id ("builtin:director"); customs
+--use "view:<guid>".
+setting{
+    id = "viewslibrary",
+    storage = "account",
+    default = {},
+}
+
+--The active view id in this game ("" = the Custom/no-view state).
+setting{
+    id = "viewsactive",
+    storage = "pergamepreference",
+    default = "",
+}
+
+--Per-game working-state stashes, keyed by view id (or "custom"):
+--{ [key] = layoutPayload }. Written on every switch (A1).
+setting{
+    id = "viewsstash",
+    storage = "pergamepreference",
+    default = {},
+}
+
+--Built-in templates (Views brief D4: no pins, docks closed, both rails).
+--Editable freely: these are the stock arrangements, iterated in-app.
+local g_viewBuiltins = {
+    {
+        id = "builtin:mapmaker",
+        name = "Map Maker",
+        dmonly = true,
+        layout = {
+            rail = {
+                ["terrain editor"] = { side = "left", slot = 0 },
+                ["objects"] = { side = "left", slot = 1 },
+                ["building editor"] = { side = "left", slot = 2 },
+                ["effects editor"] = { side = "left", slot = 3 },
+                ["elevation editor"] = { side = "left", slot = 4 },
+                ["floors & layers"] = { side = "left", slot = 5 },
+                ["map settings"] = { side = "right", slot = 0 },
+                ["editor settings"] = { side = "right", slot = 1 },
+                ["time of day/lighting"] = { side = "right", slot = 2 },
+                ["weather"] = { side = "right", slot = 3 },
+                ["clipboard"] = { side = "right", slot = 4 },
+            },
+            pins = {},
+            docks = { left = {}, right = {} },
+            leftDockOff = true,
+            rightDockOff = true,
+        },
+    },
+    {
+        id = "builtin:director",
+        name = "Director",
+        dmonly = true,
+        layout = {
+            rail = {
+                ["run"] = { side = "left", slot = 0 },
+                ["journal"] = { side = "left", slot = 1 },
+                ["campaign tracker"] = { side = "left", slot = 2 },
+                ["encounter creator"] = { side = "left", slot = 3 },
+                ["bestiary"] = { side = "left", slot = 4 },
+                ["heroes"] = { side = "left", slot = 5 },
+                ["action log"] = { side = "right", slot = 0 },
+                ["dice"] = { side = "right", slot = 1 },
+                ["triggers"] = { side = "right", slot = 2 },
+                ["audio"] = { side = "right", slot = 3 },
+                ["game controls"] = { side = "right", slot = 4 },
+                ["safety tools"] = { side = "right", slot = 5 },
+            },
+            pins = {},
+            docks = { left = {}, right = {} },
+            leftDockOff = true,
+            rightDockOff = true,
+        },
+    },
+    {
+        id = "builtin:player",
+        name = "Player",
+        dmonly = false,
+        layout = {
+            rail = {
+                ["character"] = { side = "left", slot = 0 },
+                ["heroes"] = { side = "left", slot = 1 },
+                ["dice"] = { side = "left", slot = 2 },
+                ["action log"] = { side = "left", slot = 3 },
+                ["journal"] = { side = "left", slot = 4 },
+                ["campaign tracker"] = { side = "right", slot = 0 },
+                ["downtime projects"] = { side = "right", slot = 1 },
+                ["triggers"] = { side = "right", slot = 2 },
+                ["audio"] = { side = "right", slot = 3 },
+                ["safety tools"] = { side = "right", slot = 4 },
+            },
+            pins = {},
+            docks = { left = {}, right = {} },
+            leftDockOff = true,
+            rightDockOff = true,
+        },
+    },
+}
+
+local function ViewsDeepEqual(a, b)
+    if a == b then
+        return true
+    end
+    if type(a) ~= "table" or type(b) ~= "table" then
+        return false
+    end
+    for k, v in pairs(a) do
+        if not ViewsDeepEqual(v, b[k]) then
+            return false
+        end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then
+            return false
+        end
+    end
+    return true
+end
+
+local function ViewsLibrary()
+    local lib = dmhub.GetSettingValue("viewslibrary")
+    if type(lib) ~= "table" then
+        return {}
+    end
+    return lib
+end
+
+--The active view id, or nil for the Custom (no-view) state.
+function ViewsActiveId()
+    local v = dmhub.GetSettingValue("viewsactive")
+    if v == nil or v == "" then
+        return nil
+    end
+    return v
+end
+
+local function ViewsBuiltinTemplate(id)
+    for _, b in ipairs(g_viewBuiltins) do
+        if b.id == id then
+            return b
+        end
+    end
+    return nil
+end
+
+--The resolved definition of a view: a library entry (custom view, or a
+--personal overlay of a built-in -- A2) beats the built-in template.
+--Returns { name, layout, builtin?, seededFrom?, registry? } or nil.
+function ViewsGetDefinition(id)
+    local lib = ViewsLibrary()
+    local entry = lib[id]
+    local template = ViewsBuiltinTemplate(id)
+    if entry ~= nil then
+        return {
+            name = (template ~= nil and template.name) or entry.name or id,
+            layout = entry.layout,
+            builtin = template ~= nil,
+            overlaid = template ~= nil,
+            seededFrom = entry.seededFrom,
+            registry = entry.registry,
+        }
+    end
+    if template ~= nil then
+        return { name = template.name, layout = template.layout, builtin = true }
+    end
+    return nil
+end
+
+--All views this user can see here, in display order: built-ins (role
+--gated, D6) then customs by name.
+function ViewsListForUser()
+    local result = {}
+    for _, b in ipairs(g_viewBuiltins) do
+        if (not b.dmonly) or dmhub.isDM then
+            result[#result + 1] = { id = b.id, name = b.name, builtin = true }
+        end
+    end
+    local customs = {}
+    for id, entry in pairs(ViewsLibrary()) do
+        if ViewsBuiltinTemplate(id) == nil and type(entry) == "table" then
+            customs[#customs + 1] = { id = id, name = entry.name or id, builtin = false }
+        end
+    end
+    table.sort(customs, function(a, b) return string.lower(a.name) < string.lower(b.name) end)
+    for _, c in ipairs(customs) do
+        result[#result + 1] = c
+    end
+    return result
+end
+
+--Snapshot of the current working layout (the capture side of a view).
+function ViewsCaptureLayout()
+    return {
+        rail = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {}),
+        pins = DeepCopy(dmhub.GetSettingValue("iconrailpins") or {}),
+        docks = {
+            left = DockablePanel.GetDockPanels("left"),
+            right = DockablePanel.GetDockPanels("right"),
+        },
+        leftDockOff = dmhub.GetSettingValue("leftdockoffscreen") == true,
+        rightDockOff = dmhub.GetSettingValue("rightdockoffscreen") == true,
+    }
+end
+
+--The current list of registered panel names (for A8 registry stamps).
+local function ViewsRegistrySnapshot()
+    local names = {}
+    for _, item in ipairs(DockablePanel.GetMenuItems(true)) do
+        if item.text ~= nil then
+            names[#names + 1] = string.lower(item.text)
+        end
+    end
+    table.sort(names)
+    return names
+end
+
+--Why a layout entry can't render here, or nil if it can. Returns
+--{name, reason} -- reasons: "Director only", "dev only", "deleted",
+--"not in this game". Used for the A3 skip notices, which name the
+--skipped panels rather than just counting them.
+function ViewsEntryUnavailable(key)
+    local docid = string.match(key, "^doc:(.+)$")
+    if docid ~= nil then
+        local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+        local d = docs[docid]
+        if d ~= nil and not d.hidden then
+            return nil
+        end
+        if d ~= nil then
+            return { name = d.description or "a journal document", reason = "deleted" }
+        end
+        return { name = "a journal document", reason = "not in this game" }
+    end
+    if PanelDocument.Get(key) ~= nil then
+        return nil
+    end
+    local reg = DockablePanel.GetRegistration(key)
+    if reg == nil then
+        return { name = key, reason = "not in this game" }
+    end
+    if reg.dmonly and not dmhub.isDM then
+        return { name = reg.name, reason = "Director only" }
+    end
+    if reg.devonly then
+        return { name = reg.name, reason = "dev only" }
+    end
+    return { name = reg.name, reason = "unavailable" }
+end
+
+--Everything in a view's saved layout that can't render here, deduped:
+--list of {name, reason}. Used by apply notices and the Manage dialog.
+function ViewsUnavailableForLayout(layout)
+    layout = layout or {}
+    local result = {}
+    local seen = {}
+    local function check(key)
+        local info = ViewsEntryUnavailable(key)
+        if info ~= nil and not seen[info.name] then
+            seen[info.name] = true
+            result[#result + 1] = info
+        end
+    end
+    for key in pairs(layout.rail or {}) do
+        check(key)
+    end
+    for key in pairs(layout.pins or {}) do
+        check(key)
+    end
+    local docks = layout.docks or {}
+    for _, side in ipairs({"left", "right"}) do
+        for _, name in ipairs(docks[side] or {}) do
+            check(string.lower(name))
+        end
+    end
+    return result
+end
+
+--Apply a layout payload to the live workspace. Diff-based (A4): open
+--windows shared between the outgoing and incoming arrangements keep
+--their live instances and are repositioned; dock panel instances are
+--reused by SetDockPanels. Pins clamp to the current screen (A7).
+--Returns the list of skipped-as-unavailable entries ({name, reason};
+--A3).
+function ViewsApplyLayout(layout)
+    layout = layout or {}
+    local skipped = ViewsUnavailableForLayout(layout)
+
+    --rail layout: store verbatim (unavailable entries stay inert -- A3;
+    --RailLayout filters at render).
+    local rail = DeepCopy(layout.rail or {})
+    dmhub.SetSettingValue("iconraillayout", rail)
+
+    --pins: clamp to this screen (A7).
+    local pins = DeepCopy(layout.pins or {})
+    local uiW = IconRailUIWidth()
+    for key, p in pairs(pins) do
+        if type(p) == "table" then
+            if type(p.x) == "number" then
+                p.x = math.max(8, math.min(p.x, uiW - PanelDocument.DefaultWidth - 8))
+            end
+            if type(p.y) == "number" then
+                p.y = math.max(40, math.min(p.y, 1000 - PanelDocument.DefaultHeight / 8))
+            end
+        end
+    end
+    dmhub.SetSettingValue("iconrailpins", pins)
+
+    --windows: close what the incoming layout doesn't pin; reposition
+    --survivors in place (A4); open what's newly pinned.
+    g_railTransientKey = nil
+    for key, doc in pairs(g_panelDocuments) do
+        local dlg = doc:try_get("_tmp_dialog")
+        if dlg ~= nil and dlg.valid then
+            local pin = pins[key]
+            if pin == nil then
+                doc:ClosePanel()
+            else
+                dlg.x = pin.x or dlg.x
+                dlg.y = pin.y or dlg.y
+                if pin.tabs ~= nil then
+                    for _, k in ipairs(pin.tabs) do
+                        dlg:FireEventTree("addPanelTab", k)
+                    end
+                end
+            end
+        end
+    end
+    for key, pin in pairs(pins) do
+        if type(pin) == "table" then
+            local doc = PanelDocument.Get(key)
+            if doc ~= nil and not doc:PresentDocumentOpen() then
+                OpenIconRailWindow(key, { x = pin.x, y = pin.y, tabs = pin.tabs })
+            end
+        end
+    end
+
+    --docks: contents filtered to available panels at apply time (the
+    --stored view keeps the full list -- A3), then visibility.
+    local docks = layout.docks or {}
+    for _, side in ipairs({"left", "right"}) do
+        local names = {}
+        for _, name in ipairs(docks[side] or {}) do
+            if PanelDocument.Get(name) ~= nil then
+                names[#names + 1] = name
+            end
+        end
+        DockablePanel.SetDockPanels(side, names)
+    end
+    dmhub.SetSettingValue("leftdockoffscreen", layout.leftDockOff ~= false)
+    dmhub.SetSettingValue("rightdockoffscreen", layout.rightDockOff ~= false)
+
+    RebuildIconRails()
+    return skipped
+end
+
+--Switch to a view (id), or to the Custom no-view state (id nil). The
+--outgoing arrangement stashes under its key; the incoming view restores
+--its stash, falling back to its saved definition (A1). Returns skipped
+--panel count, or nil if the switch did not happen.
+function ViewsSwitchTo(id)
+    local currentKey = ViewsActiveId() or "custom"
+    local targetKey = id or "custom"
+    if currentKey == targetKey then
+        return {}
+    end
+
+    local incomingLayout = nil
+    local stash = DeepCopy(dmhub.GetSettingValue("viewsstash") or {})
+    if id ~= nil then
+        local def = ViewsGetDefinition(id)
+        if def == nil then
+            return nil
+        end
+        incomingLayout = stash[targetKey] or def.layout
+    else
+        --Custom: restore the stashed pre-view arrangement; with no stash
+        --there is nothing to restore -- keep the current arrangement.
+        incomingLayout = stash[targetKey]
+    end
+
+    stash[currentKey] = ViewsCaptureLayout()
+    dmhub.SetSettingValue("viewsstash", stash)
+    dmhub.SetSettingValue("viewsactive", id or "")
+
+    if incomingLayout == nil then
+        return {}
+    end
+    return ViewsApplyLayout(DeepCopy(incomingLayout))
+end
+
+--Save the working layout into the active view: a custom view updates in
+--place; a built-in takes a personal overlay (A2). Keeps the previous
+--snapshot for one-step undo (A9d). No-op in the Custom state (Save-as
+--is the verb there -- A5).
+function ViewsSave()
+    local id = ViewsActiveId()
+    if id == nil then
+        return false
+    end
+    local lib = DeepCopy(ViewsLibrary())
+    local template = ViewsBuiltinTemplate(id)
+    local entry = lib[id]
+    if entry == nil then
+        entry = { name = (template ~= nil and template.name) or id }
+    end
+    entry.previous = entry.layout
+    entry.layout = ViewsCaptureLayout()
+    entry.registry = ViewsRegistrySnapshot()
+    lib[id] = entry
+    dmhub.SetSettingValue("viewslibrary", lib)
+    return true
+end
+
+--Undo the last Save/Reset on the active view (A9d).
+function ViewsUndoSave()
+    local id = ViewsActiveId()
+    if id == nil then
+        return false
+    end
+    local lib = DeepCopy(ViewsLibrary())
+    local entry = lib[id]
+    if entry == nil or entry.previous == nil then
+        return false
+    end
+    entry.layout, entry.previous = entry.previous, entry.layout
+    lib[id] = entry
+    dmhub.SetSettingValue("viewslibrary", lib)
+    return true
+end
+
+--Save the working layout as a new custom view and make it active.
+function ViewsSaveAs(name)
+    local id = "view:" .. dmhub.GenerateGuid()
+    local lib = DeepCopy(ViewsLibrary())
+    lib[id] = {
+        name = name,
+        layout = ViewsCaptureLayout(),
+        seededFrom = ViewsActiveId(),
+        registry = ViewsRegistrySnapshot(),
+    }
+    dmhub.SetSettingValue("viewslibrary", lib)
+    dmhub.SetSettingValue("viewsactive", id)
+    return id
+end
+
+--Re-apply the active view's saved definition, discarding working drift
+--(the explicit act that replaced the switch confirm -- A1).
+function ViewsResetToSaved()
+    local id = ViewsActiveId()
+    if id == nil then
+        return nil
+    end
+    local def = ViewsGetDefinition(id)
+    if def == nil then
+        return nil
+    end
+    return ViewsApplyLayout(DeepCopy(def.layout))
+end
+
+--Clear a built-in's personal overlay (Manage: "Reset to stock" -- A2).
+function ViewsResetToStock(id)
+    if ViewsBuiltinTemplate(id) == nil then
+        return false
+    end
+    local lib = DeepCopy(ViewsLibrary())
+    if lib[id] == nil then
+        return false
+    end
+    lib[id] = nil
+    dmhub.SetSettingValue("viewslibrary", lib)
+    if ViewsActiveId() == id then
+        ViewsApplyLayout(DeepCopy(ViewsBuiltinTemplate(id).layout))
+    end
+    return true
+end
+
+--Whether the working layout differs from the active view's saved
+--definition (the chip dot + drift text; suppressed in Custom -- A5).
+function ViewsIsDrifted()
+    local id = ViewsActiveId()
+    if id == nil then
+        return false
+    end
+    local def = ViewsGetDefinition(id)
+    if def == nil then
+        return false
+    end
+    return not ViewsDeepEqual(ViewsCaptureLayout(), def.layout)
+end
+
+--Panels registered since the active view was last saved (A8 notice).
+function ViewsNewPanelsSinceSaved(id)
+    local def = ViewsGetDefinition(id or ViewsActiveId() or "")
+    if def == nil or def.registry == nil then
+        return {}
+    end
+    local known = {}
+    for _, n in ipairs(def.registry) do
+        known[n] = true
+    end
+    local result = {}
+    for _, n in ipairs(ViewsRegistrySnapshot()) do
+        if not known[n] then
+            local reg = DockablePanel.GetRegistration(n)
+            result[#result + 1] = (reg ~= nil and reg.name) or n
+        end
+    end
+    return result
+end
+
+----------------------------------------------------------------------
+-- Views UI: the save-undo toast (A9d), the save-as naming dialog and
+-- the Manage dialog. The rail chip was removed by Lisa+David's review
+-- (2026-07-19): the Panels menu (CodexTitleBar.lua) is the only
+-- switcher UI, and it drives these globals.
+----------------------------------------------------------------------
+
+--transient confirmation with one-step undo (A9d); self-destructs after
+--a few seconds. Global: the Panels-menu Views group uses it too.
+function ViewsToast(text, undoFn)
+    if GameHud.instance == nil or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) then
+        return
+    end
+    local toast
+    local children = {
+        gui.Label{
+            classes = {"iconRailViewChipLabel"},
+            text = text,
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = false,
+        },
+    }
+    if undoFn ~= nil then
+        children[#children + 1] = gui.Label{
+            classes = {"iconRailViewToastUndo"},
+            text = "Undo",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            lmargin = 10,
+            textWrap = false,
+            click = function(element)
+                undoFn()
+                if toast ~= nil and toast.valid then
+                    toast:DestroySelf()
+                end
+            end,
+        }
+    end
+    toast = gui.Panel{
+        classes = {"iconRailViewChip", "iconRailViewToast"},
+        styles = IconRailStyles(),
+        bgimage = true,
+        halign = "left",
+        valign = "top",
+        --where the view chip used to sit, above the left rail.
+        x = ICON_RAIL_LEFT,
+        y = ICON_RAIL_TOP - 34,
+        width = "auto",
+        height = 26,
+        flow = "horizontal",
+        hpad = 9,
+        children = children,
+    }
+    GameHud.instance.documentsPanel:AddChild(toast)
+    dmhub.Schedule(5.0, function()
+        if toast ~= nil and toast.valid then
+            toast:DestroySelf()
+        end
+    end)
+end
+
+--Passive post-apply notices (A3 skipped panels -- named, with reasons
+--where they help -- and A8 new-since-saved). Global for the Panels-menu
+--switch path.
+function ViewsPostApplyNotices(id, skipped)
+    local parts = {}
+    if type(skipped) == "table" and #skipped > 0 then
+        local names = {}
+        for i, s in ipairs(skipped) do
+            if i <= 4 then
+                local n = s.name
+                if s.reason == "Director only" or s.reason == "deleted" then
+                    n = string.format("%s (%s)", n, s.reason)
+                end
+                names[#names + 1] = n
+            end
+        end
+        local text = "Unavailable here: " .. table.concat(names, ", ")
+        if #skipped > 4 then
+            text = text .. string.format(" +%d more", #skipped - 4)
+        end
+        parts[#parts + 1] = text
+    end
+    if id ~= nil then
+        local newPanels = ViewsNewPanelsSinceSaved(id)
+        if #newPanels > 0 then
+            parts[#parts + 1] = "New since saved: " .. table.concat(newPanels, ", ")
+        end
+    end
+    if #parts > 0 then
+        ViewsToast(table.concat(parts, "  -  "))
+    end
+end
+
+--Library lifecycle verbs (Manage dialog; D5 -- names and deletion only,
+--never arrangement).
+function ViewsRename(id, name)
+    if ViewsBuiltinTemplate(id) ~= nil or name == nil or name == "" then
+        return false
+    end
+    local lib = DeepCopy(ViewsLibrary())
+    if lib[id] == nil then
+        return false
+    end
+    lib[id].name = name
+    dmhub.SetSettingValue("viewslibrary", lib)
+    return true
+end
+
+function ViewsDuplicate(id)
+    local def = ViewsGetDefinition(id)
+    if def == nil then
+        return nil
+    end
+    local newId = "view:" .. dmhub.GenerateGuid()
+    local lib = DeepCopy(ViewsLibrary())
+    lib[newId] = {
+        name = "Copy of " .. def.name,
+        layout = DeepCopy(def.layout),
+        seededFrom = id,
+        registry = def.registry or ViewsRegistrySnapshot(),
+    }
+    dmhub.SetSettingValue("viewslibrary", lib)
+    return newId
+end
+
+function ViewsDelete(id)
+    if ViewsBuiltinTemplate(id) ~= nil then
+        return false
+    end
+    local lib = DeepCopy(ViewsLibrary())
+    if lib[id] == nil then
+        return false
+    end
+    lib[id] = nil
+    dmhub.SetSettingValue("viewslibrary", lib)
+    if ViewsActiveId() == id then
+        dmhub.SetSettingValue("viewsactive", "")
+    end
+    return true
+end
+
+--Global: opened from the Panels-menu Views group.
+ViewsManageDialog = function()
+    local lib = ViewsLibrary()
+    local rows = {}
+
+    for _, v in ipairs(ViewsListForUser()) do
+        local vid = v.id
+        local isBuiltin = v.builtin
+        local hasOverlay = isBuiltin and lib[vid] ~= nil
+
+        local nameControl
+        if isBuiltin then
+            nameControl = gui.Label{
+                text = v.name .. cond(hasOverlay, " (customized)", ""),
+                width = 240,
+                height = "auto",
+                fontSize = 16,
+                halign = "left",
+                valign = "center",
+            }
+        else
+            nameControl = gui.Input{
+                text = v.name,
+                width = 240,
+                height = 26,
+                halign = "left",
+                valign = "center",
+                change = function(element)
+                    ViewsRename(vid, element.text)
+                end,
+            }
+        end
+
+        local actionButtons = {}
+        actionButtons[#actionButtons + 1] = gui.Button{
+            classes = {"sizeS"},
+            text = "Duplicate",
+            halign = "right",
+            valign = "center",
+            hmargin = 4,
+            click = function(element)
+                ViewsDuplicate(vid)
+                gamehud:CloseModal()
+                ViewsManageDialog()
+            end,
+        }
+        if isBuiltin then
+            if hasOverlay then
+                actionButtons[#actionButtons + 1] = gui.Button{
+                    classes = {"sizeS"},
+                    text = "Reset to stock",
+                    halign = "right",
+                    valign = "center",
+                    hmargin = 4,
+                    click = function(element)
+                        ViewsResetToStock(vid)
+                        gamehud:CloseModal()
+                        ViewsManageDialog()
+                    end,
+                }
+            end
+        else
+            --two-step delete: first click arms, second confirms. Avoids
+            --stacking modals while still guarding the destructive act.
+            actionButtons[#actionButtons + 1] = gui.Button{
+                classes = {"sizeS"},
+                text = "Delete",
+                halign = "right",
+                valign = "center",
+                hmargin = 4,
+                data = { armed = false },
+                click = function(element)
+                    if not element.data.armed then
+                        element.data.armed = true
+                        element.text = "Confirm delete?"
+                        return
+                    end
+                    ViewsDelete(vid)
+                    gamehud:CloseModal()
+                    ViewsManageDialog()
+                end,
+            }
+        end
+
+        local rowChildren = { nameControl }
+        for _, b in ipairs(actionButtons) do
+            rowChildren[#rowChildren + 1] = b
+        end
+        rows[#rows + 1] = gui.Panel{
+            width = "100%",
+            height = 38,
+            flow = "horizontal",
+            children = rowChildren,
+        }
+
+        --A3: name what this view can't show here, and why.
+        local def = ViewsGetDefinition(vid)
+        local unavailable = def ~= nil and ViewsUnavailableForLayout(def.layout) or {}
+        if #unavailable > 0 then
+            local names = {}
+            for _, s in ipairs(unavailable) do
+                names[#names + 1] = string.format("%s (%s)", s.name, s.reason)
+            end
+            rows[#rows + 1] = gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 12,
+                color = "#999999",
+                bmargin = 6,
+                text = "Unavailable here: " .. table.concat(names, ", "),
+            }
+        end
+    end
+
+    --ModalDialog consumes width/height for the dialog frame, leaving the
+    --client panel auto-sized; an explicit inner container keeps the rows
+    --full width. The rows stack inside an auto-height content panel so
+    --the scroll region doesn't distribute them across its height.
+    gamehud:ModalDialog{
+        title = "Manage Views",
+        width = 620,
+        height = 500,
+        flow = "vertical",
+        gui.Panel{
+            width = 560,
+            height = 320,
+            halign = "center",
+            valign = "top",
+            vscroll = true,
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                valign = "top",
+                flow = "vertical",
+                vpad = 8,
+                children = rows,
+            },
+        },
+    }
+end
+
+--Global: opened from the Panels-menu Views group.
+function ViewsSaveAsDialog()
+    local input = gui.Input{
+        text = "",
+        placeholderText = "View name",
+        width = 300,
+        height = 28,
+        halign = "center",
+        valign = "center",
+    }
+    gamehud:ModalDialog{
+        title = "Save as new view",
+        width = 480,
+        height = 220,
+        flow = "vertical",
+        buttons = {
+            {
+                text = "Save",
+                click = function()
+                    local name = input.text
+                    if name == nil or name == "" then
+                        name = "New View"
+                    end
+                    ViewsSaveAs(name)
+                    ViewsToast(string.format("Saved view: %s", name))
+                end,
+            },
+            {
+                text = "Cancel",
+                escapeActivates = true,
+            },
+        },
+        input,
+    }
+end
+

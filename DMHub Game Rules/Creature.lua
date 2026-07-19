@@ -5981,6 +5981,63 @@ function creature:OnTeleport()
 	self:DispatchEvent("teleport")
 end
 
+--Teleport opportunity-attack support. A teleport places the token directly at its
+--destination without running OnMove's stepped leaveadjacent dispatch, so teleporting
+--out of reach never provokes. These helpers let a creature carrying the "Opportunity
+--Attack On Any Movement" custom attribute make an opportunity attack when an enemy
+--teleports away from it: capture the flagged enemies adjacent to the origin BEFORE
+--the teleport (CaptureTeleportOpportunityAttackers), then dispatch leaveadjacent to
+--any no longer adjacent AFTER it (DispatchTeleportOpportunityAttacks). Both are cheap
+--no-ops when nobody nearby carries the attribute (result stays nil / observers nil).
+--Call the pair around any Lua-level teleport that should provoke.
+function creature:CaptureTeleportOpportunityAttackers(originLoc)
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil or originLoc == nil then
+        return nil
+    end
+    local ourCharid = dmhub.LookupTokenId(self)
+    local result = nil
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.charid ~= ourCharid then
+            local p = tok.properties
+            if p:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0
+               and (not tok:IsFriend(self))
+               and p._tmp_grabbedby ~= ourCharid
+               and p:CanUseTriggeredAbilities()
+               and tok.loc ~= nil
+               and originLoc:DistanceInTiles(tok.loc) <= 1 then
+                result = result or {}
+                result[#result+1] = tok
+            end
+        end
+    end
+    return result
+end
+
+function creature:DispatchTeleportOpportunityAttacks(observers)
+    if observers == nil then
+        return
+    end
+    local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil then
+        return
+    end
+    for _,tok in ipairs(observers) do
+        --Mirror the OnMove dispatch checks so a teleport can't provoke an OA the
+        --stepped path would suppress: no longer adjacent, not a friend, no bane on
+        --the generic free strike ("you cannot have a bane on the attack"), and the
+        --observer passes the opportunity-attack filter.
+        if tok.valid
+           and tok.loc ~= nil
+           and ourToken.loc:DistanceInTiles(tok.loc) > 1
+           and (not tok:IsFriend(self))
+           and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
+           and tok.properties:TargetPassesFilter("opportunityattack", self) then
+            tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
+        end
+    end
+end
+
 function creature:CanUseTriggeredAbilities()
     return (not self:IsDead()) and self:CalculateNamedCustomAttribute("Cannot Use Triggered Abilities") == 0
 end
@@ -6168,7 +6225,9 @@ function creature:OnMove(path)
             end
         end
 
-        if not immuneFromOpportunityAttacks then
+        do  -- OA-immunity gate moved per-observer (below) so a creature carrying the
+            -- "Opportunity Attack On Any Movement" custom attribute still provokes
+            -- when an enemy shifts / is force-moved / uses a no-provoke feature.
             for k,tok in pairs(previousAdjacent) do
                 if not adjacentTokens[k] then
                     --Vertical reach gate. This used to live in each opportunity-
@@ -6187,7 +6246,14 @@ function creature:OnMove(path)
                     local attackerTileSize = tok.tileSize
                     local withinVerticalReach = previousStepAltitude == nil or ((previousStepAltitude + ourTileSize) >= attackerAltitude and previousStepAltitude <= (attackerAltitude + attackerTileSize))
 
-                    if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
+                    --Per-observer OA-immunity gate: normally shift/forced moves and
+                    --"Immunity from Opportunity Attack" suppress the dispatch for
+                    --everyone. A creature with the "Opportunity Attack On Any
+                    --Movement" custom attribute ignores that suppression, so it still
+                    --provokes when an enemy shifts, is force-moved, or uses a feature
+                    --that normally would not provoke. (Beastheart "Reflexes Perfected".)
+                    local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or (tok.properties:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0)
+                    if notImmuneForThisObserver and withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
                         tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
                         self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
                     end

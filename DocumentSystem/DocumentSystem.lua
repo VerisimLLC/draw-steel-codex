@@ -4020,10 +4020,17 @@ function PanelDocument:CreateInterface(args)
             floating = true,
             TooltipAlignment = function()
                 --tooltips open away from whichever half of the screen the
-                --window sits on.
+                --window sits on. Measure the parent layer's width; the
+                --aspect formula over-estimates it (see IconRailUIWidth).
                 local d = args.dialog
                 if d ~= nil and d.valid then
-                    local uiWidth = 1080 * (dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y)
+                    local uiWidth = nil
+                    if d.parent ~= nil and d.parent.valid then
+                        uiWidth = d.parent.renderedWidth
+                    end
+                    if type(uiWidth) ~= "number" or uiWidth <= 100 then
+                        uiWidth = 1080 * (dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y)
+                    end
                     local center = (d.x or 0) + (d.renderedWidth or 0) / 2
                     if center > uiWidth / 2 then
                         return "left"
@@ -4126,9 +4133,19 @@ setting{
     end,
 }
 
---Pinned rail windows for this game: { [panelKey] = {x = ..., y = ...} }.
+--Pinned rail windows for this game: { [panelKey] = {x = ..., y = ..., tabs = {...}} }.
 setting{
     id = "iconrailpins",
+    storage = "pergamepreference",
+    default = {},
+}
+
+--Which rail each panel button lives on and in what order:
+--{ [panelKey] = { side = "left"|"right", ord = number } }. Panels absent
+--from the table default to the left rail in curated order. Written when
+--the user drags a button to rearrange.
+setting{
+    id = "iconraillayout",
     storage = "pergamepreference",
     default = {},
 }
@@ -4141,10 +4158,18 @@ local ICON_RAIL_GAP = 8
 local ICON_RAIL_LEFT = 12
 local ICON_RAIL_TOP = 64
 --vertical space the dock/tray button and its separator occupy above the
---panel buttons (button + 12px separator strip).
+--panel buttons (button + 12px separator strip). Both rails carry a tray.
 local ICON_RAIL_TRAY_OFFSET = ICON_RAIL_BUTTON + 12
 
-local g_iconRail = nil
+--the two rails, keyed "left"/"right".
+local g_iconRails = {}
+--the panel key of the current click-opened (un-pinned) window. Shared
+--across both rails: there is one transient window, whichever side it
+--was summoned from.
+local g_railTransientKey = nil
+--set when a button drag ends, so the click the engine may deliver on
+--release does not also toggle a window.
+local g_railDragTime = nil
 
 local function IconRailPins()
     return dmhub.GetSettingValue("iconrailpins") or {}
@@ -4152,6 +4177,167 @@ end
 
 local function SetIconRailPins(pins)
     dmhub.SetSettingValue("iconrailpins", pins)
+end
+
+--the width of the rail's coordinate space. MEASURED from the documents
+--panel (the parent everything rail-related lives in): computing it from
+--the screen aspect over-estimates by ~40 units (the layer is 1048 UI
+--units tall, not 1080), which visibly pushed right-anchored ghosts and
+--windows past the right rail. Falls back to the aspect formula before
+--the first layout pass.
+local function IconRailUIWidth()
+    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+        local w = GameHud.instance.documentsPanel.renderedWidth
+        if type(w) == "number" and w > 100 then
+            return w
+        end
+    end
+    return 1080 * (dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y)
+end
+
+--Buttons occupy SLOTS on their rail: a sparse column where empty slots
+--render as gaps, so users can leave blank spots between buttons. Slot
+--pitch is one button plus one gap.
+local ICON_RAIL_MAX_SLOT = 16
+
+--The current button layout: available panels partitioned onto the two
+--sides, each a list of {key, name, slot} sorted by slot (slots may have
+--holes). Legacy entries (ord, no slot) compact into the lowest free
+--slots in their old order; slot collisions bump downward.
+local function RailLayout()
+    local stored = dmhub.GetSettingValue("iconraillayout") or {}
+    local sides = { left = {}, right = {} }
+    for i, name in ipairs(g_iconRailPanels) do
+        if PanelDocument.Get(name) ~= nil then
+            local key = string.lower(name)
+            local entry = stored[key]
+            local side = "left"
+            local slot = nil
+            local ord = i * 10
+            if entry ~= nil then
+                if entry.side == "right" then
+                    side = "right"
+                end
+                if entry.slot ~= nil then
+                    slot = entry.slot
+                end
+                if entry.ord ~= nil then
+                    ord = entry.ord
+                end
+            end
+            local list = sides[side]
+            list[#list + 1] = { key = key, name = name, slot = slot, ord = ord }
+        end
+    end
+    for _, sideList in pairs(sides) do
+        --explicit slots first (ascending), then legacy entries by ord.
+        table.sort(sideList, function(a, b)
+            if (a.slot ~= nil) ~= (b.slot ~= nil) then
+                return a.slot ~= nil
+            end
+            if a.slot ~= nil then
+                return a.slot < b.slot
+            end
+            return a.ord < b.ord
+        end)
+        local used = {}
+        for _, e in ipairs(sideList) do
+            local s = e.slot or 0
+            if s < 0 then
+                s = 0
+            end
+            while used[s] do
+                s = s + 1
+            end
+            used[s] = true
+            e.slot = s
+        end
+        table.sort(sideList, function(a, b) return a.slot < b.slot end)
+    end
+    return sides
+end
+
+local function SaveRailLayout(sides)
+    local stored = {}
+    for side, list in pairs(sides) do
+        for _, e in ipairs(list) do
+            stored[e.key] = { side = side, slot = e.slot }
+        end
+    end
+    dmhub.SetSettingValue("iconraillayout", stored)
+end
+
+--Where a window summoned from a rail icon lands: beside that rail,
+--level with the icon, clamped on screen. Computed at click time so it
+--tracks the live screen width.
+local function RailAnchor(side, index)
+    local anchorY = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local maxY = 1080 - PanelDocument.DefaultHeight - 40
+    if anchorY > maxY then
+        anchorY = maxY
+    end
+    local anchorX
+    if side == "left" then
+        anchorX = ICON_RAIL_LEFT + ICON_RAIL_BUTTON + 10
+    else
+        anchorX = IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON - 10 - PanelDocument.DefaultWidth
+    end
+    return anchorX, anchorY
+end
+
+local function RefreshRails()
+    for _, rail in pairs(g_iconRails) do
+        if rail ~= nil and rail.valid then
+            rail:FireEventTree("refreshRail")
+        end
+    end
+end
+
+--Where a button being dragged from (side, slot) would land right now:
+--which rail (screen half) and which slot. Shared by the live ghost and
+--the drop itself so they can never disagree.
+local function RailDropTarget(side, slot, element)
+    local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
+    local baseY = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local dropX = baseX + (element.xdrag or 0) + ICON_RAIL_BUTTON / 2
+    local dropY = baseY + (element.ydrag or 0)
+
+    local targetSide = cond(dropX > IconRailUIWidth() / 2, "right", "left")
+    local targetSlot = math.floor((dropY - ICON_RAIL_TOP - ICON_RAIL_TRAY_OFFSET) / (ICON_RAIL_BUTTON + ICON_RAIL_GAP) + 0.5)
+    if targetSlot < 0 then
+        targetSlot = 0
+    end
+    if targetSlot > ICON_RAIL_MAX_SLOT then
+        targetSlot = ICON_RAIL_MAX_SLOT
+    end
+    return targetSide, targetSlot
+end
+
+--the drag ghost panel and its helpers live below IconRailStyles, which
+--they depend on.
+local g_railDragGhost = nil
+local ShowRailGhost
+local HideRailGhost
+
+--While the rail is on, the docks' own slide-away handle tabs are
+--redundant (each rail's tray button owns its dock's visibility), so we
+--hide them; they come back the moment the mode is turned off. Docks are
+--rebuilt by reloads and theme changes, so the rail's think re-applies
+--this continuously rather than relying on a one-shot.
+local function SyncDockHandles()
+    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        return
+    end
+    local railOn = dmhub.GetSettingValue("iconrail") == true
+    for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
+        if dock ~= nil and dock.valid then
+            for _, child in ipairs(dock.children) do
+                if child.valid and child:HasClass("dockHandle") then
+                    child:SetClass("collapsed", railOn)
+                end
+            end
+        end
+    end
 end
 
 --Open a rail window for the named panel. placement = {x=,y=,tabs=} anchors
@@ -4170,8 +4356,8 @@ local function OpenIconRailWindow(panelName, placement)
             local pins = IconRailPins()
             pins[key] = { x = element.x, y = element.y, tabs = element.data.panelTabs }
             SetIconRailPins(pins)
-            if g_iconRail ~= nil and g_iconRail.valid and g_iconRail.data.transientKey == key then
-                g_iconRail.data.transientKey = nil
+            if g_railTransientKey == key then
+                g_railTransientKey = nil
             end
         end,
 
@@ -4182,13 +4368,11 @@ local function OpenIconRailWindow(panelName, placement)
                 pins[key] = nil
                 SetIconRailPins(pins)
             end
-            if g_iconRail ~= nil and g_iconRail.valid and g_iconRail.data.transientKey == key then
-                g_iconRail.data.transientKey = nil
+            if g_railTransientKey == key then
+                g_railTransientKey = nil
             end
             doc:ClosePanel()
-            if g_iconRail ~= nil and g_iconRail.valid then
-                g_iconRail:FireEventTree("refreshRail")
-            end
+            RefreshRails()
         end,
 
         --adding or removing a tab pins the window: a multi-panel window
@@ -4201,12 +4385,10 @@ local function OpenIconRailWindow(panelName, placement)
             local pins = IconRailPins()
             pins[key] = { x = d.x, y = d.y, tabs = keys }
             SetIconRailPins(pins)
-            if g_iconRail ~= nil and g_iconRail.valid then
-                if g_iconRail.data.transientKey == key then
-                    g_iconRail.data.transientKey = nil
-                end
-                g_iconRail:FireEventTree("refreshRail")
+            if g_railTransientKey == key then
+                g_railTransientKey = nil
             end
+            RefreshRails()
         end,
     }
     if placement ~= nil then
@@ -4232,13 +4414,232 @@ local function OpenIconRailWindow(panelName, placement)
     end
 end
 
-local function CreateIconRail()
+--Rail styling: the over-map scrim ladder from the B&W design system --
+--warm black at graded alphas with the single white accent for borders
+--and icons. These values are intentionally scheme-independent (the rail
+--floats over the battlemap, not over a themed surface). Shared by the
+--rails and the dock-mounted tray button, which lives outside the rail
+--cascade.
+local function IconRailStyles()
+    return ThemeEngine.MergeTokens({
+        {
+            selectors = {"iconRailButton"},
+            bgcolor = "#0a0a0b73",
+            border = 1,
+            borderColor = "#ffffff2e",
+            cornerRadius = 8,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailButton", "hover"},
+            bgcolor = "#0a0a0bd9",
+            borderColor = "#ffffff99",
+        },
+        {
+            selectors = {"iconRailButton", "active"},
+            bgcolor = "#0a0a0beb",
+            borderColor = "#ffffff99",
+        },
+        {
+            selectors = {"iconRailIcon"},
+            bgcolor = "#ffffffb3",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailIcon", "parent:hover"},
+            bgcolor = "white",
+        },
+        {
+            selectors = {"iconRailIcon", "parent:active"},
+            bgcolor = "white",
+        },
+        --the dock-handle art is coloured; desaturate + brighten it to
+        --the rail's white language (same treatment the dock handle
+        --itself gets). Mirrored on the left to match the left dock's
+        --handle; the right keeps the art's native facing.
+        {
+            selectors = {"iconRailTrayIcon"},
+            bgcolor = "#ffffffb3",
+            saturation = 0,
+            brightness = 2,
+            scale = {x = -1},
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailTrayIcon", "rightSide"},
+            scale = {x = 1},
+        },
+        {
+            selectors = {"iconRailTrayIcon", "parent:hover"},
+            bgcolor = "white",
+        },
+        {
+            selectors = {"iconRailTrayIcon", "parent:active"},
+            bgcolor = "white",
+        },
+        {
+            selectors = {"iconRailHairline"},
+            bgcolor = "#ffffff26",
+        },
+        --the drag ghost: an empty slot outline showing where the dragged
+        --button will land.
+        {
+            selectors = {"iconRailGhost"},
+            bgcolor = "#ffffff14",
+            border = 1,
+            borderColor = "#ffffff66",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"iconRailGhost", "hidden"},
+            hidden = 1,
+        },
+        {
+            selectors = {"label", "iconRailLabel"},
+            opacity = 0,
+            bgcolor = "#0a0a0beb",
+            border = 1,
+            borderColor = "#ffffff47",
+            cornerRadius = 6,
+            color = "#e8e8e8",
+            fontSize = 11,
+            bold = true,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"label", "iconRailLabel", "parent:hover"},
+            opacity = 1,
+        },
+    })
+end
+
+HideRailGhost = function()
+    if g_railDragGhost ~= nil and g_railDragGhost.valid then
+        g_railDragGhost:SetClass("hidden", true)
+    end
+end
+
+--A ghosted button showing where a dragged button would land. One shared
+--panel, repositioned as the drag moves.
+ShowRailGhost = function(side, slot)
+    if GameHud.instance == nil or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) then
+        return
+    end
+    if g_railDragGhost == nil or not g_railDragGhost.valid then
+        g_railDragGhost = gui.Panel{
+            classes = {"iconRailGhost"},
+            styles = IconRailStyles(),
+            bgimage = true,
+            width = ICON_RAIL_BUTTON,
+            height = ICON_RAIL_BUTTON,
+            halign = "left",
+            valign = "top",
+            interactable = false,
+        }
+        GameHud.instance.documentsPanel:AddChild(g_railDragGhost)
+    end
+    g_railDragGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
+    g_railDragGhost.y = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    g_railDragGhost:SetClass("hidden", false)
+end
+
+--A tray-style button mounted ON a visible dock (bottom, poking out past
+--the dock's inner edge where the old slide handle lived): clicking it
+--slides that dock away, which brings the rail's buttons back. Built by
+--EnsureDockTrayButtons while the rail mode is on.
+local function CreateDockTrayButton(side)
+    local dockSettingId = side .. "dockoffscreen"
+
+    local iconClasses = {"iconRailTrayIcon"}
+    if side == "right" then
+        iconClasses[#iconClasses + 1] = "rightSide"
+    end
+
+    return gui.Panel{
+        classes = {"iconRailDockButton", "iconRailButton"},
+        styles = IconRailStyles(),
+        bgimage = true,
+        floating = true,
+        width = ICON_RAIL_BUTTON,
+        height = ICON_RAIL_BUTTON,
+        flow = "none",
+        valign = "bottom",
+        halign = cond(side == "left", "right", "left"),
+        x = cond(side == "left", ICON_RAIL_BUTTON + 12, -(ICON_RAIL_BUTTON + 12)),
+        y = -8,
+
+        gui.Panel{
+            classes = iconClasses,
+            bgimage = "panels/dock-handle.png",
+            width = 14,
+            height = 28,
+            halign = "center",
+            valign = "center",
+        },
+
+        click = function(element)
+            dmhub.SetSettingValue(dockSettingId, true)
+            for _, rail in pairs(g_iconRails) do
+                if rail ~= nil and rail.valid then
+                    rail:FireEvent("syncDockMode")
+                end
+            end
+        end,
+    }
+end
+
+--Keep a dock tray button mounted on each dock while the rail mode is
+--on, and remove them when it is off. Docks rebuild their child lists on
+--layout changes, so this is re-applied from the rail's think.
+local function EnsureDockTrayButtons()
+    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        return
+    end
+    local railOn = dmhub.GetSettingValue("iconrail") == true
+    for _, info in ipairs({ { dock = gamehud.leftDock, side = "left" }, { dock = gamehud.rightDock, side = "right" } }) do
+        local dock = info.dock
+        if dock ~= nil and dock.valid then
+            local existing = nil
+            for _, child in ipairs(dock.children) do
+                if child.valid and child:HasClass("iconRailDockButton") then
+                    existing = child
+                end
+            end
+            if railOn and existing == nil then
+                dock:AddChild(CreateDockTrayButton(info.side))
+            elseif (not railOn) and existing ~= nil then
+                existing:DestroySelf()
+            end
+        end
+    end
+end
+
+--forward-declared: button drag handlers rebuild the rails.
+local RebuildIconRails
+
+local function CreateIconRail(side, entries)
     local buttons = {}
 
-    --The dock/tray button (David's ask): sits above the panel icons and
-    --toggles the classic docks back on screen. Lit while any dock is
-    --visible. Uses the same handle art as the docks' own slide handles,
-    --mirrored to match the left dock's.
+    --This side's dock-visibility setting: each rail's tray button drives
+    --its own dock independently.
+    local dockSettingId = side .. "dockoffscreen"
+
+    --The dock/tray button: sits above the panel icons and toggles this
+    --side's classic dock back on screen. Lit while that dock is visible.
+    --Uses the same handle art as the docks' own slide handles, mirrored
+    --per side to match.
+    local trayIconClasses = {"iconRailTrayIcon"}
+    if side == "right" then
+        trayIconClasses[#trayIconClasses + 1] = "rightSide"
+    end
+
+    local trayLabelArgs
+    if side == "left" then
+        trayLabelArgs = { x = ICON_RAIL_BUTTON + 10 }
+    else
+        trayLabelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
+    end
+
     buttons[#buttons + 1] = gui.Panel{
         classes = {"iconRailButton"},
         bgimage = true,
@@ -4247,7 +4648,7 @@ local function CreateIconRail()
         flow = "none",
 
         gui.Panel{
-            classes = {"iconRailTrayIcon"},
+            classes = trayIconClasses,
             bgimage = "panels/dock-handle.png",
             width = 14,
             height = 28,
@@ -4258,11 +4659,12 @@ local function CreateIconRail()
         gui.Label{
             classes = {"iconRailLabel"},
             floating = true,
-            x = ICON_RAIL_BUTTON + 10,
+            x = trayLabelArgs.x,
+            halign = trayLabelArgs.halign,
             valign = "center",
             interactable = false,
             bgimage = true,
-            text = "DOCKS",
+            text = "DOCK",
             width = "auto",
             height = "auto",
             hpad = 8,
@@ -4272,207 +4674,311 @@ local function CreateIconRail()
         },
 
         click = function(element)
-            --if any dock is hidden, bring both back; otherwise slide
-            --both away. The docks' own monitor events handle the rest.
-            local restore = dmhub.GetSettingValue("leftdockoffscreen") or dmhub.GetSettingValue("rightdockoffscreen")
-            dmhub.SetSettingValue("leftdockoffscreen", not restore)
-            dmhub.SetSettingValue("rightdockoffscreen", not restore)
+            local restoring = dmhub.GetSettingValue(dockSettingId) == true
+            if restoring then
+                --the dock mirrors this rail: same panels, same order --
+                --and it takes over hosting them, so this side's open
+                --rail windows close (pins stay saved in the setting).
+                local entries = RailLayout()[side]
+                local names = {}
+                for _, e in ipairs(entries) do
+                    names[#names + 1] = e.name
+                end
+                DockablePanel.SetDockPanels(side, names)
+                for _, e in ipairs(entries) do
+                    local doc = PanelDocument.Get(e.name)
+                    if doc ~= nil and doc:PresentDocumentOpen() then
+                        if g_railTransientKey == e.key then
+                            g_railTransientKey = nil
+                        end
+                        doc:ClosePanel()
+                    end
+                end
+            end
+            dmhub.SetSettingValue(dockSettingId, not dmhub.GetSettingValue(dockSettingId))
             element:FireEvent("refreshRail")
-            if element.parent ~= nil and element.parent.valid then
-                element.parent:FireEvent("syncDockMode")
+            for _, rail in pairs(g_iconRails) do
+                if rail ~= nil and rail.valid then
+                    rail:FireEvent("syncDockMode")
+                end
             end
         end,
 
         refreshRail = function(element)
-            local visible = (not dmhub.GetSettingValue("leftdockoffscreen")) or (not dmhub.GetSettingValue("rightdockoffscreen"))
-            element:SetClass("active", visible)
+            element:SetClass("active", not dmhub.GetSettingValue(dockSettingId))
         end,
     }
 
-    --separator between the tray button and the panel icons.
-    buttons[#buttons + 1] = gui.Panel{
-        width = "100%",
-        height = 12,
-        flow = "none",
-        gui.Panel{
-            classes = {"iconRailHairline"},
-            bgimage = true,
-            width = 24,
-            height = 1,
-            halign = "center",
-            valign = "center",
-        },
-    }
-
-    local panelIndex = 0
-    for _, panelName in ipairs(g_iconRailPanels) do
-        if PanelDocument.Get(panelName) ~= nil then
-            local reg = DockablePanel.GetRegistration(panelName)
-            local key = string.lower(panelName)
-            local index = panelIndex
-            panelIndex = panelIndex + 1
-
-            --where a window summoned from this icon lands: beside the
-            --rail, level with the icon, clamped on screen.
-            local anchorX = ICON_RAIL_LEFT + ICON_RAIL_BUTTON + 10
-            local anchorY = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
-            local maxY = 1080 - PanelDocument.DefaultHeight - 40
-            if anchorY > maxY then
-                anchorY = maxY
-            end
-
-            buttons[#buttons + 1] = gui.Panel{
-                classes = {"iconRailButton"},
+    --separator between the tray button and the panel icons; pointless on
+    --a rail with no panel buttons (a fresh right rail is just the tray).
+    if #entries > 0 then
+        buttons[#buttons + 1] = gui.Panel{
+            width = "100%",
+            height = 12,
+            flow = "none",
+            gui.Panel{
+                classes = {"iconRailHairline"},
                 bgimage = true,
-                width = ICON_RAIL_BUTTON,
-                height = ICON_RAIL_BUTTON,
-                flow = "none",
-                tmargin = cond(index > 0, ICON_RAIL_GAP, 0),
+                width = 24,
+                height = 1,
+                halign = "center",
+                valign = "center",
+            },
+        }
+    end
 
-                gui.Panel{
-                    classes = {"iconRailIcon"},
-                    bgimage = reg.icon or "icons/icon_app/icon_app_107.png",
-                    width = 20,
-                    height = 20,
-                    halign = "center",
-                    valign = "center",
-                },
-
-                gui.Label{
-                    classes = {"iconRailLabel"},
-                    floating = true,
-                    x = ICON_RAIL_BUTTON + 10,
-                    valign = "center",
-                    interactable = false,
-                    bgimage = true,
-                    text = string.upper(panelName),
-                    width = "auto",
-                    height = "auto",
-                    hpad = 8,
-                    vpad = 4,
-                    borderBox = true,
-                    textWrap = false,
-                },
-
-                click = function(element)
-                    local doc = PanelDocument.Get(panelName)
-                    if doc == nil then
-                        return
-                    end
-
-                    if doc:PresentDocumentOpen() then
-                        --clicking the icon of an open window closes it,
-                        --pinned or not.
-                        local pins = IconRailPins()
-                        if pins[key] ~= nil then
-                            pins[key] = nil
-                            SetIconRailPins(pins)
-                        end
-                        doc:ClosePanel()
-                        if g_iconRail ~= nil and g_iconRail.valid and g_iconRail.data.transientKey == key then
-                            g_iconRail.data.transientKey = nil
-                        end
-                    elseif PanelDocument.FindHostDialog(key) ~= nil then
-                        --the panel lives as a tab in another window: raise
-                        --that window and switch to the tab.
-                        local host = PanelDocument.FindHostDialog(key)
-                        host:SetAsLastSibling()
-                        host:FireEventTree("activatePanelTab", key)
-                    else
-                        --one transient window at a time: opening a panel
-                        --closes the previous un-pinned one.
-                        local rail = g_iconRail
-                        if rail ~= nil and rail.valid and rail.data.transientKey ~= nil and rail.data.transientKey ~= key then
-                            local prev = PanelDocument.Get(rail.data.transientKey)
-                            if prev ~= nil then
-                                prev:ClosePanel()
-                            end
-                        end
-                        if rail ~= nil and rail.valid then
-                            rail.data.transientKey = key
-                        end
-
-                        OpenIconRailWindow(panelName, {
-                            x = anchorX,
-                            y = anchorY,
-                        })
-                    end
-
-                    element.parent:FireEventTree("refreshRail")
-                end,
-
-                --right-click is additive: open the panel already pinned,
-                --leaving the current transient window alone -- or pin an
-                --open transient right where it sits.
-                rightClick = function(element)
-                    local doc = PanelDocument.Get(panelName)
-                    if doc == nil then
-                        return
-                    end
-                    local rail = g_iconRail
-
-                    if doc:PresentDocumentOpen() then
-                        local pins = IconRailPins()
-                        if pins[key] == nil then
-                            local d = doc:try_get("_tmp_dialog")
-                            if d ~= nil and d.valid then
-                                pins[key] = { x = d.x, y = d.y, tabs = d.data.panelTabs }
-                                SetIconRailPins(pins)
-                                if rail ~= nil and rail.valid and rail.data.transientKey == key then
-                                    rail.data.transientKey = nil
-                                end
-                            end
-                        end
-                    elseif PanelDocument.FindHostDialog(key) ~= nil then
-                        --already visible as a tab elsewhere: just raise it.
-                        local host = PanelDocument.FindHostDialog(key)
-                        host:SetAsLastSibling()
-                        host:FireEventTree("activatePanelTab", key)
-                    else
-                        local pins = IconRailPins()
-                        pins[key] = { x = anchorX, y = anchorY }
-                        SetIconRailPins(pins)
-                        OpenIconRailWindow(panelName, {
-                            x = anchorX,
-                            y = anchorY,
-                        })
-                    end
-
-                    element.parent:FireEventTree("refreshRail")
-                end,
-
-                refreshRail = function(element)
-                    --lit while the panel is visible anywhere: its own
-                    --window or a tab in another window.
-                    element:SetClass("active", PanelDocument.IsPanelShown(key))
-                end,
-            }
+    local prevSlot = -1
+    for i, entry in ipairs(entries) do
+        local panelName = entry.name
+        local reg = DockablePanel.GetRegistration(panelName)
+        local key = entry.key
+        --buttons sit at their SLOT: gaps between occupied slots render
+        --as blank space. A button's top edge is slot * pitch from the
+        --start of the panel area, so its margin is the distance from the
+        --previous button's bottom edge (or the area start).
+        local index = entry.slot
+        local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+        local buttonMargin
+        if prevSlot < 0 then
+            buttonMargin = index * pitch
+        else
+            buttonMargin = (index - prevSlot) * pitch - ICON_RAIL_BUTTON
         end
+        prevSlot = index
+
+        --hover labels open toward the screen centre: right of the button
+        --on the left rail, left of the button on the right rail.
+        local labelArgs
+        if side == "left" then
+            labelArgs = { x = ICON_RAIL_BUTTON + 10 }
+        else
+            labelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
+        end
+
+        buttons[#buttons + 1] = gui.Panel{
+            classes = {"iconRailButton"},
+            bgimage = true,
+            width = ICON_RAIL_BUTTON,
+            height = ICON_RAIL_BUTTON,
+            flow = "none",
+            tmargin = buttonMargin,
+
+            gui.Panel{
+                classes = {"iconRailIcon"},
+                bgimage = reg.icon or "icons/icon_app/icon_app_107.png",
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+            },
+
+            gui.Label{
+                classes = {"iconRailLabel"},
+                floating = true,
+                x = labelArgs.x,
+                halign = labelArgs.halign,
+                valign = "center",
+                interactable = false,
+                bgimage = true,
+                text = string.upper(panelName),
+                width = "auto",
+                height = "auto",
+                hpad = 8,
+                vpad = 4,
+                borderBox = true,
+                textWrap = false,
+            },
+
+            --drag a button to rearrange: drop position decides which rail
+            --it lands on (screen half) and which slot. A ghosted button
+            --previews the landing slot while dragging. Empty slots stay
+            --empty (blank spots are part of the layout); dropping onto an
+            --occupied slot bumps the occupant down.
+            draggable = true,
+            dragging = function(element)
+                local targetSide, targetSlot = RailDropTarget(side, index, element)
+                ShowRailGhost(targetSide, targetSlot)
+            end,
+            drag = function(element)
+                g_railDragTime = dmhub.Time()
+                HideRailGhost()
+
+                local targetSide, targetSlot = RailDropTarget(side, index, element)
+                if targetSide == side and targetSlot == index then
+                    --dropped back where it started.
+                    RebuildIconRails()
+                    return
+                end
+
+                local sides = RailLayout()
+
+                local dragged = nil
+                for _, sideList in pairs(sides) do
+                    for j, e in ipairs(sideList) do
+                        if e.key == key then
+                            dragged = table.remove(sideList, j)
+                            break
+                        end
+                    end
+                end
+                if dragged == nil then
+                    return
+                end
+
+                dragged.slot = targetSlot
+                local targetList = sides[targetSide]
+                table.insert(targetList, dragged)
+
+                --resolve collisions: the dragged button wins the contested
+                --slot; anything in the way bumps to the next free slot down.
+                table.sort(targetList, function(a, b)
+                    if a.slot == b.slot then
+                        return a == dragged
+                    end
+                    return a.slot < b.slot
+                end)
+                local used = {}
+                for _, e in ipairs(targetList) do
+                    local s = e.slot
+                    while used[s] do
+                        s = s + 1
+                    end
+                    used[s] = true
+                    e.slot = s
+                end
+
+                SaveRailLayout(sides)
+                RebuildIconRails()
+            end,
+
+            click = function(element)
+                --the release at the end of a rearrange drag can also
+                --deliver a click; ignore it.
+                if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+                    return
+                end
+
+                local doc = PanelDocument.Get(panelName)
+                if doc == nil then
+                    return
+                end
+
+                if doc:PresentDocumentOpen() then
+                    --clicking the icon of an open window closes it,
+                    --pinned or not.
+                    local pins = IconRailPins()
+                    if pins[key] ~= nil then
+                        pins[key] = nil
+                        SetIconRailPins(pins)
+                    end
+                    doc:ClosePanel()
+                    if g_railTransientKey == key then
+                        g_railTransientKey = nil
+                    end
+                elseif PanelDocument.FindHostDialog(key) ~= nil then
+                    --the panel lives as a tab in another window: raise
+                    --that window and switch to the tab.
+                    local host = PanelDocument.FindHostDialog(key)
+                    host:SetAsLastSibling()
+                    host:FireEventTree("activatePanelTab", key)
+                else
+                    --one transient window at a time: opening a panel
+                    --closes the previous un-pinned one.
+                    if g_railTransientKey ~= nil and g_railTransientKey ~= key then
+                        local prev = PanelDocument.Get(g_railTransientKey)
+                        if prev ~= nil then
+                            prev:ClosePanel()
+                        end
+                    end
+                    g_railTransientKey = key
+
+                    local anchorX, anchorY = RailAnchor(side, index)
+                    OpenIconRailWindow(panelName, {
+                        x = anchorX,
+                        y = anchorY,
+                    })
+                end
+
+                RefreshRails()
+            end,
+
+            --right-click is additive: open the panel already pinned,
+            --leaving the current transient window alone -- or pin an
+            --open transient right where it sits.
+            rightClick = function(element)
+                if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+                    return
+                end
+
+                local doc = PanelDocument.Get(panelName)
+                if doc == nil then
+                    return
+                end
+
+                if doc:PresentDocumentOpen() then
+                    local pins = IconRailPins()
+                    if pins[key] == nil then
+                        local d = doc:try_get("_tmp_dialog")
+                        if d ~= nil and d.valid then
+                            pins[key] = { x = d.x, y = d.y, tabs = d.data.panelTabs }
+                            SetIconRailPins(pins)
+                            if g_railTransientKey == key then
+                                g_railTransientKey = nil
+                            end
+                        end
+                    end
+                elseif PanelDocument.FindHostDialog(key) ~= nil then
+                    --already visible as a tab elsewhere: just raise it.
+                    local host = PanelDocument.FindHostDialog(key)
+                    host:SetAsLastSibling()
+                    host:FireEventTree("activatePanelTab", key)
+                else
+                    local anchorX, anchorY = RailAnchor(side, index)
+                    local pins = IconRailPins()
+                    pins[key] = { x = anchorX, y = anchorY }
+                    SetIconRailPins(pins)
+                    OpenIconRailWindow(panelName, {
+                        x = anchorX,
+                        y = anchorY,
+                    })
+                end
+
+                RefreshRails()
+            end,
+
+            refreshRail = function(element)
+                --lit while the panel is visible anywhere: its own
+                --window or a tab in another window.
+                element:SetClass("active", PanelDocument.IsPanelShown(key))
+            end,
+        }
     end
 
     return gui.Panel{
         classes = {"iconRail"},
-        halign = "left",
+        halign = side,
         valign = "top",
-        lmargin = ICON_RAIL_LEFT,
+        lmargin = cond(side == "left", ICON_RAIL_LEFT, 0),
+        rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
         tmargin = ICON_RAIL_TOP,
         width = ICON_RAIL_BUTTON,
         height = "auto",
         flow = "vertical",
 
         data = {
-            --the panel key of the current click-opened (un-pinned) window.
-            transientKey = nil,
+            side = side,
         },
 
-        --the rail and the classic docks are mutually exclusive: while any
-        --dock is on screen the panel buttons (and separator) collapse,
-        --leaving just the tray button to flip back.
+        --each rail and its own side's dock are mutually exclusive: while
+        --this side's dock is on screen the whole rail collapses (the
+        --dock-mounted tray button is the way back); the other side is
+        --unaffected. Children collapse individually rather than the rail
+        --root so the root's think keeps running to un-collapse later.
         syncDockMode = function(element)
-            local docksVisible = (not dmhub.GetSettingValue("leftdockoffscreen")) or (not dmhub.GetSettingValue("rightdockoffscreen"))
-            for i, child in ipairs(element.children) do
-                if i > 1 and child.valid then
-                    child:SetClass("collapsed", docksVisible)
+            local dockVisible = not dmhub.GetSettingValue(side .. "dockoffscreen")
+            for _, child in ipairs(element.children) do
+                if child.valid then
+                    child:SetClass("collapsed", dockVisible)
                 end
             end
         end,
@@ -4491,115 +4997,88 @@ local function CreateIconRail()
                 element:DestroySelf()
                 return
             end
-            local key = element.data.transientKey
-            if key ~= nil then
-                local doc = PanelDocument.Get(key)
+            if g_railTransientKey ~= nil then
+                local doc = PanelDocument.Get(g_railTransientKey)
                 if doc == nil or not doc:PresentDocumentOpen() then
-                    element.data.transientKey = nil
+                    g_railTransientKey = nil
                 end
             end
             element:FireEventTree("refreshRail")
-            --docks may have been toggled from their own handles or the
-            --Panels menu; keep the rail's collapsed state in step.
+            --docks may have been toggled from the Panels menu, and docks
+            --rebuild their children on layout changes; keep the rail's
+            --collapsed state, the hidden dock handles, and the
+            --dock-mounted tray buttons all in step.
             element:FireEvent("syncDockMode")
+            if side == "left" then
+                SyncDockHandles()
+                EnsureDockTrayButtons()
+            end
+            --while this side's dock is visible it mirrors this rail's
+            --panel list (SetDockPanels no-ops when already matching).
+            if not dmhub.GetSettingValue(side .. "dockoffscreen") then
+                local names = {}
+                for _, e in ipairs(RailLayout()[side]) do
+                    names[#names + 1] = e.name
+                end
+                DockablePanel.SetDockPanels(side, names)
+            end
         end,
 
-        --Rail styling: the over-map scrim ladder from the B&W design
-        --system -- warm black at graded alphas with the single white
-        --accent for borders/icons. These values are intentionally
-        --scheme-independent (the rail floats over the battlemap, not
-        --over a themed surface).
-        styles = ThemeEngine.MergeTokens({
-            {
-                selectors = {"iconRailButton"},
-                bgcolor = "#0a0a0b73",
-                border = 1,
-                borderColor = "#ffffff2e",
-                cornerRadius = 8,
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"iconRailButton", "hover"},
-                bgcolor = "#0a0a0bd9",
-                borderColor = "#ffffff99",
-            },
-            {
-                selectors = {"iconRailButton", "active"},
-                bgcolor = "#0a0a0beb",
-                borderColor = "#ffffff99",
-            },
-            {
-                selectors = {"iconRailIcon"},
-                bgcolor = "#ffffffb3",
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"iconRailIcon", "parent:hover"},
-                bgcolor = "white",
-            },
-            {
-                selectors = {"iconRailIcon", "parent:active"},
-                bgcolor = "white",
-            },
-            --the dock-handle art is coloured; desaturate + brighten it to
-            --the rail's white language (same treatment the dock handle
-            --itself gets), mirrored to match the left dock's handle.
-            {
-                selectors = {"iconRailTrayIcon"},
-                bgcolor = "#ffffffb3",
-                saturation = 0,
-                brightness = 2,
-                scale = {x = -1},
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"iconRailTrayIcon", "parent:hover"},
-                bgcolor = "white",
-            },
-            {
-                selectors = {"iconRailTrayIcon", "parent:active"},
-                bgcolor = "white",
-            },
-            {
-                selectors = {"iconRailHairline"},
-                bgcolor = "#ffffff26",
-            },
-            {
-                selectors = {"label", "iconRailLabel"},
-                opacity = 0,
-                bgcolor = "#0a0a0beb",
-                border = 1,
-                borderColor = "#ffffff47",
-                cornerRadius = 6,
-                color = "#e8e8e8",
-                fontSize = 11,
-                bold = true,
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"label", "iconRailLabel", "parent:hover"},
-                opacity = 1,
-            },
-        }),
+        --Rail styling: shared with the dock-mounted tray button, see
+        --IconRailStyles.
+        styles = IconRailStyles(),
 
         children = buttons,
     }
 end
 
---Create or destroy the rail to match the setting; restore pinned windows
---when it comes up. Safe to call any time.
+local function BuildIconRails()
+    local sides = RailLayout()
+    for _, side in ipairs({"left", "right"}) do
+        local rail = CreateIconRail(side, sides[side])
+        g_iconRails[side] = rail
+        GameHud.instance.documentsPanel:AddChild(rail)
+    end
+end
+
+local function DestroyIconRails()
+    for side, rail in pairs(g_iconRails) do
+        if rail ~= nil and rail.valid then
+            rail:DestroySelf()
+        end
+        g_iconRails[side] = nil
+    end
+    if g_railDragGhost ~= nil and g_railDragGhost.valid then
+        g_railDragGhost:DestroySelf()
+    end
+    g_railDragGhost = nil
+end
+
+--Tear down and rebuild both rails from the saved layout (after a button
+--drag rearranges them). Open windows are untouched.
+RebuildIconRails = function()
+    DestroyIconRails()
+    if dmhub.GetSettingValue("iconrail") and GameHud.instance ~= nil and GameHud.instance.documentsPanel and GameHud.instance.documentsPanel.valid then
+        BuildIconRails()
+    end
+end
+
+--Create or destroy the rails to match the setting; restore pinned windows
+--when they come up. Safe to call any time.
 function EnsureIconRail()
     local enabled = dmhub.GetSettingValue("iconrail")
 
     if not enabled then
-        if g_iconRail ~= nil and g_iconRail.valid then
-            g_iconRail:DestroySelf()
-        end
-        g_iconRail = nil
+        DestroyIconRails()
+        --restore the docks' own handles and remove the dock-mounted
+        --tray buttons.
+        SyncDockHandles()
+        EnsureDockTrayButtons()
         return
     end
 
-    if g_iconRail ~= nil and g_iconRail.valid then
+    local existing = g_iconRails.left
+    if existing ~= nil and existing.valid then
         return
     end
 
@@ -4607,18 +5086,31 @@ function EnsureIconRail()
         return
     end
 
-    --sweep rails left behind by a previous module generation: panels
-    --outlive a Lua reload, and a stale rail's closures reference dead
-    --module state (it renders identically, stacked under the new one,
-    --and its clicks open windows the new generation cannot see).
+    --sweep rails (and dock tray buttons) left behind by a previous
+    --module generation: panels outlive a Lua reload, and a stale rail's
+    --closures reference dead module state (it renders identically,
+    --stacked under the new one, and its clicks open windows the new
+    --generation cannot see).
     for _, child in ipairs(GameHud.instance.documentsPanel.children) do
-        if child.valid and child:HasClass("iconRail") then
+        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost")) then
             child:DestroySelf()
         end
     end
+    if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
+        for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
+            if dock ~= nil and dock.valid then
+                for _, child in ipairs(dock.children) do
+                    if child.valid and child:HasClass("iconRailDockButton") then
+                        child:DestroySelf()
+                    end
+                end
+            end
+        end
+    end
 
-    g_iconRail = CreateIconRail()
-    GameHud.instance.documentsPanel:AddChild(g_iconRail)
+    BuildIconRails()
+    SyncDockHandles()
+    EnsureDockTrayButtons()
 
     for key, p in pairs(IconRailPins()) do
         OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })

@@ -2001,6 +2001,73 @@ DockablePanel = {
 		return nil
 	end,
 
+	--Replace the panels docked in one side's dock ("left"/"right") with the
+	--named panels, in that order (one container per panel). No-op when the
+	--dock already shows exactly these panels, so it is cheap to call from a
+	--sync loop. Existing instances of kept panels are reused (preserving
+	--their state), instances of dropped panels are destroyed -- the same
+	--mechanics as Deserialize. Used by the icon rail so a dock opened from
+	--the rail carries that rail side's panels.
+	SetDockPanels = function(side, names)
+		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+			return
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return
+		end
+
+		local existing = {}
+		local currentOrder = {}
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				existing[instance.data.identifier] = instance
+				currentOrder[#currentOrder+1] = string.lower(instance.data.name)
+			end
+		end
+
+		local matches = #currentOrder == #names
+		if matches then
+			for i,name in ipairs(names) do
+				if currentOrder[i] ~= string.lower(name) then
+					matches = false
+					break
+				end
+			end
+		end
+		if matches then
+			return
+		end
+
+		dock:FireEvent("clearPanels")
+
+		for _,name in ipairs(names) do
+			for k,p in pairs(dockablePanels) do
+				if string.lower(p.name) == string.lower(name) then
+					local instance = existing[p.identifier]
+					existing[p.identifier] = nil
+					if instance == nil or not instance.valid then
+						instance = CreateDockablePanelInstance(p)
+					end
+					local newPanel = CreateDockablePanelTabbedContainer{
+						panelInstances = {instance},
+					}
+					dock:FireEvent("addPanel", newPanel)
+				end
+			end
+		end
+
+		for _,instance in pairs(existing) do
+			if instance.valid then
+				instance:DestroySelf()
+			end
+		end
+
+		dock:FireEvent("fitChildren")
+		dock:FireEventTree("layoutChanged")
+		DockablePanel.Serialize()
+	end,
+
 	GetMenuItems = function(flat)
 		local subfolders = {}
 		local result = {}

@@ -10,6 +10,24 @@ TargetableObject.resourceid = CharacterResource.maliceResourceId
 --ActivatedAbility:ObjectGrantsTargeting.
 TargetableObject.additionalTargetFilter = ""
 
+--When true this object is exempt from the standard collision damage exchange in
+--both directions: the creature knocked into it takes no damage from the Collision
+--global rule, and the object itself takes none either. Collision triggers still
+--fire on both sides, so the object's Custom Collision Behavior (custom_collision)
+--is the sole source of damage and effects for the crash. Consumed by
+--TargetableObject.TokenSuppressesCollisionDamage.
+TargetableObject.no_collision_damage = false
+
+--True if the given token is an object flagged to skip standard collision damage.
+--Safe to call with any token: nil, non-objects and plain creatures return false.
+function TargetableObject.TokenSuppressesCollisionDamage(token)
+    if token == nil or not token.isObject or token.properties == nil then
+        return false
+    end
+
+    return token.properties:try_get("no_collision_damage", false) == true
+end
+
 function TargetableObject:DispatchEvent(eventName, args)
     creature.DispatchEvent(self, eventName, args)
 end
@@ -87,7 +105,7 @@ function TargetableObject:OnCollide(collidingToken, symbols)
             self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
         end
     else
-        if symbols.speed then
+        if symbols.speed and not self:try_get("no_collision_damage", false) then
             local token = dmhub.LookupToken(self)
             if token ~= nil then
                 token:ModifyProperties{
@@ -262,6 +280,20 @@ function TargetableObject.CreateMultiPropertiesEditor(components)
             classes = {"field-editor-panel"},
             flow = "vertical",
             minHeight = 0,
+            gui.Check{
+                text = "No Collision Damage",
+                value = components[1].properties:try_get("no_collision_damage", false),
+                fontSize = 14,
+                change = function(element)
+                    local val = element.value
+                    for _, component in ipairs(components) do
+                        component:BeginChanges()
+                        component.properties.no_collision_damage = val
+                        component:CompleteChanges("Change collision damage")
+                    end
+                end,
+            },
+
             gui.Check{
                 text = "Custom Collision Behavior",
                 value = components[1].properties:try_get("custom_collision", false) ~= false,

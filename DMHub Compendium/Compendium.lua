@@ -437,6 +437,7 @@ local CreateListItem = function(options)
 
 			data = {
 				ord = options.ord,
+				key = options.key,
                 RepeatSearch = function(element)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
@@ -5423,11 +5424,25 @@ local LibraryPanel = function()
 				searchBox:FireEvent("edit")
 			end
 		else
-			local targetName = item.name
-			if targetName ~= nil then
-				target = contentPanel:FindChildRecursive(function(e)
-					return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading") and e.text == targetName
-				end)
+			-- Select the row by its exact key, not its display text. A
+			-- soft-deleted (hidden) item keeps its row in the list (rendered
+			-- collapsed) and, if it shares a name with a live item, a text
+			-- match can press that stale row and open the deleted item. The key
+			-- is unique, so it always selects the row the search result pointed
+			-- at. Fall back to a name match (skipping collapsed/deleted rows)
+			-- for any list page whose rows do not carry a key.
+			target = contentPanel:FindChildRecursive(function(e)
+				return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading")
+					and e.data ~= nil and e.data.key == targetKey
+			end)
+			if target == nil then
+				local targetName = item.name
+				if targetName ~= nil then
+					target = contentPanel:FindChildRecursive(function(e)
+						return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading")
+							and not e:HasClass("collapsed") and e.text == targetName
+					end)
+				end
 			end
 		end
 

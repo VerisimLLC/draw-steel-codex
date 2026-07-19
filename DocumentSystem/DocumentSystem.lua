@@ -188,7 +188,9 @@ function CustomDocument:IsPlayerView(element)
 end
 
 local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
-    if writePanel:HasClass("collapsed") then
+    --writePanel is nil until the user first enters edit mode (it is built
+    --lazily); no edit panel means nothing unsaved.
+    if writePanel == nil or writePanel:HasClass("collapsed") then
         onProceed()
         return
     end
@@ -717,9 +719,30 @@ function CustomDocument:CreateInterface(args)
 
     args = args or {}
     local readPanel = self:DisplayPanel{ relatedFooter = true }
-    local writePanel = self:EditPanel(args)
 
-    writePanel:SetClass("collapsed", true)
+    --The edit panel is the most expensive part of opening a document and most
+    --opens never edit, so it is built lazily on first entry into edit mode.
+    --nil until then; every consumer treats nil as "not editing".
+    local writePanel = nil
+    local m_bodyPanel --the writePanel/readPanel host; assigned below.
+
+    local function GetOrCreateWritePanel()
+        if writePanel ~= nil and writePanel.valid then
+            return writePanel
+        end
+        writePanel = self:EditPanel(args)
+        writePanel:SetClass("collapsed", true)
+        --splice ahead of readPanel: the font-size monitor on m_bodyPanel
+        --replaces the LAST child assuming it is readPanel.
+        local children = m_bodyPanel.children
+        table.insert(children, #children, writePanel)
+        m_bodyPanel.children = children
+        return writePanel
+    end
+
+    local function IsEditing()
+        return writePanel ~= nil and writePanel.valid and not writePanel:HasClass("collapsed")
+    end
 
     --forward-declared (defined with the find state below): the edit-mode
     --toggle re-fires the active find term at whichever panel it reveals.
@@ -904,7 +927,9 @@ function CustomDocument:CreateInterface(args)
         --a new attempt supersedes any previously displayed save error.
         resultPanel:SetClassTree("saveError", false)
 
-        writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
+        if writePanel ~= nil and writePanel.valid then
+            writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal)
+        end
         return true
     end
 
@@ -984,7 +1009,7 @@ function CustomDocument:CreateInterface(args)
             halign = "left",
             hmargin = 4,
             press = function(element)
-                if not writePanel:HasClass("collapsed") then
+                if IsEditing() then
                     resultPanel:FireEventTree("savedoc")
                     if not dmhub.DeepEqual(self, resultPanel.data.original) then
                         self:Upload(resultPanel.data.original)
@@ -994,6 +1019,7 @@ function CustomDocument:CreateInterface(args)
                     resultPanel.data.pendingOriginal = nil
                     resultPanel.data.pendingUpload = nil
                 end
+                GetOrCreateWritePanel()
                 writePanel:SetClass("collapsed", not writePanel:HasClass("collapsed"))
                 readPanel:SetClass("collapsed", not readPanel:HasClass("collapsed"))
                 element:SetClass("selected", not writePanel:HasClass("collapsed"))
@@ -1012,7 +1038,9 @@ function CustomDocument:CreateInterface(args)
                 --compare against the most recent save the user has asked for
                 --(confirmed or still pending) so the unsaved-changes indicator
                 --clears as soon as they hit save, not when the server confirms.
-                writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal or resultPanel.data.original)
+                if writePanel ~= nil and writePanel.valid then
+                    writePanel:FireEventTree("checkChanges", resultPanel.data.pendingOriginal or resultPanel.data.original)
+                end
             end,
 
             hover = function(element)
@@ -1623,6 +1651,36 @@ function CustomDocument:CreateInterface(args)
         monitorGame = "/assets/objectTables/documents/table/" .. self.id
     end
 
+    m_bodyPanel = gui.Panel {
+        width = "100%-24",
+        height = "100% available",
+        vscroll = self.vscroll,
+        halign = "center",
+        bmargin = 8,
+
+        --window-shade: the tabbed viewer collapses the document body,
+        --leaving only the tab strip visible.
+        journalShade = function(element, shaded)
+            element:SetClass("collapsed", shaded)
+        end,
+
+        --writePanel is spliced in ahead of readPanel by GetOrCreateWritePanel
+        --on first entry into edit mode.
+        readPanel,
+
+        multimonitor = { "journal:fontsize" },
+        monitor = function(element)
+            g_scale = nil
+            local newReadPanel = self:DisplayPanel{ relatedFooter = true }
+            newReadPanel:SetClass("collapsed", readPanel:HasClass("collapsed"))
+            readPanel = newReadPanel
+
+            local children = element.children
+            children[#children] = newReadPanel
+            element.children = children
+        end,
+    }
+
     resultPanel = gui.Panel {
         classes = {"documentPanel"},
         monitorGame = monitorGame,
@@ -1717,7 +1775,7 @@ function CustomDocument:CreateInterface(args)
             --Only while actually editing. BeginSaveAttempt clears the timers and no-ops via
             --its DeepEqual guard if nothing truly changed (e.g. edits that cancelled out), in
             --which case we clear the timers here so we don't re-check every tick.
-            if resultPanel.data.firstEditTime ~= nil and not writePanel:HasClass("collapsed") then
+            if resultPanel.data.firstEditTime ~= nil and IsEditing() then
                 local now = dmhub.Time()
                 if (now - resultPanel.data.editTime) >= AUTOSAVE_IDLE_DELAY or (now - resultPanel.data.firstEditTime) >= AUTOSAVE_MAX_DELAY then
                     if BeginSaveAttempt(false) then
@@ -1761,34 +1819,7 @@ function CustomDocument:CreateInterface(args)
 
         m_topBar,
 
-        gui.Panel {
-            width = "100%-24",
-            height = "100% available",
-            vscroll = self.vscroll,
-            halign = "center",
-            bmargin = 8,
-
-            --window-shade: the tabbed viewer collapses the document body,
-            --leaving only the tab strip visible.
-            journalShade = function(element, shaded)
-                element:SetClass("collapsed", shaded)
-            end,
-
-            writePanel,
-            readPanel,
-
-            multimonitor = { "journal:fontsize" },
-            monitor = function(element)
-                g_scale = nil
-                local newReadPanel = self:DisplayPanel{ relatedFooter = true }
-                newReadPanel:SetClass("collapsed", readPanel:HasClass("collapsed"))
-                readPanel = newReadPanel
-
-                local children = element.children
-                children[#children] = newReadPanel
-                element.children = children
-            end,
-        },
+        m_bodyPanel,
     }
 
     --Carry-the-term navigation: a search-result jump stores the term on the
@@ -2635,21 +2666,75 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end
     end
 
-    local function replaceTabContent(activeTab, newDoc, navArgs)
-        activeTab.contentPanel:DestroySelf()
-        activeTab.contentPanel = newDoc:CreateInterface(navArgs)
-        contentArea:AddChild(activeTab.contentPanel)
-        --a panel built while the window is shaded starts with its body hidden.
-        if viewer ~= nil and viewer.data.shaded then
-            activeTab.contentPanel:FireEventTree("journalShade", true)
-        end
+    --Instant shell: instead of building a document's interface synchronously
+    --inside the click frame (hundreds of ms for a big page), the tab gets a
+    --lightweight placeholder immediately -- so the window, tab strip, and
+    --chrome paint this frame -- and the real interface is built on the next
+    --scheduled tick. The placeholder stands in as tabData.contentPanel until
+    --the build lands; the build only attaches if the tab still owns that
+    --exact placeholder, so closing or navigating the tab while pending
+    --abandons the stale build.
+    --
+    --resolveDoc is called at build time so the freshest table copy renders
+    --(mirroring the old realize-time lookup semantics).
+    local function beginDeferredTabContent(tabData, resolveDoc, buildArgs)
+        local placeholder = gui.Panel{
+            width = "100%",
+            height = "100%",
+
+            --closing while the real interface is still pending: nothing can
+            --be unsaved yet, so route the close events (normally handled by
+            --the built interface's close button) straight through.
+            closetab = function(element)
+                tabData.close()
+            end,
+            closedocuments = function(element)
+                tabData.close()
+            end,
+
+            gui.LoadingIndicator{},
+        }
+        tabData.contentPanel = placeholder
+        contentArea:AddChild(placeholder)
+
+        dmhub.Schedule(0.01, function()
+            if mod.unloaded then return end
+            --abandon if the tab was closed or navigated away while pending.
+            if not placeholder.valid or tabData.contentPanel ~= placeholder then
+                return
+            end
+            local doc = resolveDoc()
+            if doc == nil then return end
+
+            local contentPanel = doc:CreateInterface(buildArgs)
+            contentPanel:SetClass("collapsed", placeholder:HasClass("collapsed"))
+            tabData.contentPanel = contentPanel
+            contentArea:AddChild(contentPanel)
+            placeholder:DestroySelf()
+
+            if viewer ~= nil and viewer.valid then
+                --a panel built while the window is shaded starts hidden.
+                if viewer.data.shaded then
+                    contentPanel:FireEventTree("journalShade", true)
+                end
+                --nav buttons and other chrome synced against the placeholder;
+                --refresh them now the real interface's handlers exist.
+                viewer:FireEventTree("refreshNavButtons")
+            end
+        end)
     end
 
-    -- Build a tab's content panel on demand. No-op if already realized.
-    -- tabData.tabArgs is the full args table captured at addTab time (dialog,
-    -- close, bubbleIcon, etc), so the lazily-built panel is identical to the
-    -- one addTab used to build eagerly. switchToTab calls this on activation
-    -- so opening the journal only builds the tab the user actually lands on.
+    local function replaceTabContent(activeTab, newDoc, navArgs)
+        activeTab.contentPanel:DestroySelf()
+        beginDeferredTabContent(activeTab, function() return newDoc end, navArgs)
+    end
+
+    -- Build a tab's content panel on demand. No-op if already realized (or
+    -- pending: the placeholder counts as realized). tabData.tabArgs is the
+    -- full args table captured at addTab time (dialog, close, bubbleIcon,
+    -- etc), so the lazily-built panel is identical to the one addTab used to
+    -- build eagerly. switchToTab calls this on activation so opening the
+    -- journal only builds the tab the user actually lands on.
     local function realizeTab(tabData)
         if tabData.contentPanel ~= nil then return end
         local docs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -2660,14 +2745,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
         local doc = docs[tabData.docId] or tabData.doc
         if doc == nil then return end
 
-        local contentPanel = doc:CreateInterface(tabData.tabArgs)
-        contentPanel:SetClass("collapsed", true)  -- switchToTab un-collapses the active one
-        tabData.contentPanel = contentPanel
-        contentArea:AddChild(contentPanel)
-        --a panel built while the window is shaded starts with its body hidden.
-        if viewer ~= nil and viewer.data.shaded then
-            contentPanel:FireEventTree("journalShade", true)
-        end
+        beginDeferredTabContent(tabData, function()
+            local t = dmhub.GetTable(CustomDocument.tableName) or {}
+            return t[tabData.docId] or tabData.doc
+        end, tabData.tabArgs)
+        --switchToTab's collapse pass runs right after this and un-collapses
+        --the active tab's placeholder; the built panel copies that state.
+        tabData.contentPanel:SetClass("collapsed", true)
     end
 
     -- local viewerStyles = ThemeEngine.GetStyles()

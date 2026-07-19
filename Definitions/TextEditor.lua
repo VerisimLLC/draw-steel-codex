@@ -9,8 +9,8 @@
 --- @field characterLimit number The maximum number of characters this editor can contain.
 --- @field hasInputFocus boolean True if this editor has the input focus.
 --- @field selectAllOnFocus boolean If set to true, the text will be selected when the user clicks on the editor.
---- @field caretPosition number The position of the cursor within the editor.
---- @field selectionAnchorPosition number The opposite bounds of the selection from @see caretPosition. If equal to caretPosition there is no selection.
+--- @field caretPosition number The position of the cursor within the editor: the number of BYTES of text before the cursor (Lua string conventions, so text:sub(1, caretPosition) is the text before the cursor).
+--- @field selectionAnchorPosition number The opposite bounds of the selection from @see caretPosition, in the same byte-offset space. If equal to caretPosition there is no selection.
 --- @field blockChangesWhenEditing boolean If set to true, setting @see text in code will fail if the user is editing the text.
 --- @field resetOnDeActivation boolean (default=true) When false, the current selection stays highlighted after the editor loses focus (e.g. to a find bar's search field). Set false while a find UI is open so the match stays visible, then restore to true.
 --- @field placeholderAlpha number The alpha value of placeholder text. (default=0.6)
@@ -19,10 +19,10 @@
 --- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
 --- @field richDisplay boolean (default=false) Enables display-transform (seamless markdown) mode: the text property stays the raw source and all positions remain source positions, but the rendered display hides syntax and applies TMP style tags per the decoration list supplied via @see SetDecorations. The line/selection at the caret always reveals its raw source (Obsidian-style).
 --- @field debugDisplayText string Debug: the exact string currently handed to the TMP label (the display string in richDisplay mode). For test assertions.
---- @field debugTransform string|nil Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
+--- @field debugTransform string Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
 TextEditor = {}
 
---- SetTextAndCaret: Sets the text and moves the caret to the given position reliably, even when the editor needs to be re-focused. Fires a 'caretReady' event when the caret is in position.
+--- SetTextAndCaret: Sets the text and moves the caret to the given position (a byte offset into the NEW text, same space as @see caretPosition) reliably, even when the editor needs to be re-focused. Fires a 'caretReady' event when the caret is in position.
 --- @param caretPos number
 --- @param newText string
 --- @return nil
@@ -44,7 +44,7 @@ function TextEditor:ScrollByWheel(delta)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetCharWorldPosition: Returns the world-space position of the character at the given 1-based index and its line height. Returns nil if the text info is not yet available. Use this to position popups near a specific character.
+--- GetCharWorldPosition: Returns the world-space position of the character at the given 1-based byte index (Lua string.find conventions, same space as @see caretPosition) and its line height. Returns nil if the text info is not yet available. Use this to position popups near a specific character.
 --- @param charIndex number
 --- @return any
 function TextEditor:GetCharWorldPosition(charIndex)
@@ -117,7 +117,7 @@ function TextEditor:ClearFind()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetColorSpans: Apply per-character color highlighting to the text. Pass a list of span tables, each { from = number, to = number, color = color }, where from/to are 1-based character positions (inclusive) and color is any color value (e.g. '#e06c75' or core.Color). Spans should not overlap. The colors are preserved across editing, scrolling and find. Pass an empty list (or call ClearColorSpans) to remove all coloring. This does NOT change the text itself -- only how it is rendered, so the source markdown and caret positions are unaffected.
+--- SetColorSpans: Apply per-character color highlighting to the text. Pass a list of span tables, each { from = number, to = number, color = color }, where from/to are 1-based inclusive BYTE offsets (Lua string.find conventions, same space as @see SetDecorations) and color is any color value (e.g. '#e06c75' or core.Color). Spans should not overlap. The colors are preserved across editing, scrolling and find. Pass an empty list (or call ClearColorSpans) to remove all coloring. This does NOT change the text itself -- only how it is rendered, so the source markdown and caret positions are unaffected.
 --- @param spans any
 --- @return nil
 function TextEditor:SetColorSpans(spans)
@@ -131,7 +131,7 @@ function TextEditor:ClearColorSpans()
 end
 
 --- SetDecorations: Replace the display decoration set (requires richDisplay). Pass a list of tables, each { kind = 'hide'|'style'|'replace'|'island', from = number, to = number, ... }. from/to are 1-based inclusive BYTE offsets into the current text (Lua string.find conventions). kind='hide' renders the range as nothing. kind='style' additionally takes open/close TMP tag strings wrapped around the range. kind='replace' takes text (the atomic replacement display text). kind='island' takes id (stable string) and height (reserved pixel height) and renders the range -- whole lines including the trailing newline -- as a fixed-height blank line for an overlay widget. An optional group number links decorations of one markdown construct: the whole group is revealed as raw text while the caret's line or selection touches it.
---- @param decorations {kind: string, from: number, to: number, open: string|nil, close: string|nil, text: string|nil, id: string|nil, height: number|nil, group: number|nil}[]
+--- @param decorations any
 --- @return nil
 function TextEditor:SetDecorations(decorations)
 	-- dummy implementation for documentation purposes only
@@ -160,7 +160,7 @@ function TextEditor:SetIslandHeight(id, height)
 end
 
 --- ValidateTransform: Debug: run the display transform's invariant checks. Returns nil when everything holds, else a description of the violation. Returns nil when richDisplay is off.
---- @return string|nil
+--- @return any
 function TextEditor:ValidateTransform()
 	-- dummy implementation for documentation purposes only
 end
@@ -176,14 +176,15 @@ end
 --- @field characterLimit nil|number The maximum number of characters this editor can contain.
 --- @field hasInputFocus nil|boolean True if this editor has the input focus.
 --- @field selectAllOnFocus nil|boolean If set to true, the text will be selected when the user clicks on the editor.
---- @field caretPosition nil|number The position of the cursor within the editor.
---- @field selectionAnchorPosition nil|number The opposite bounds of the selection from @see caretPosition. If equal to caretPosition there is no selection.
+--- @field caretPosition nil|number The position of the cursor within the editor: the number of BYTES of text before the cursor (Lua string conventions, so text:sub(1, caretPosition) is the text before the cursor).
+--- @field selectionAnchorPosition nil|number The opposite bounds of the selection from @see caretPosition, in the same byte-offset space. If equal to caretPosition there is no selection.
 --- @field blockChangesWhenEditing nil|boolean If set to true, setting @see text in code will fail if the user is editing the text.
 --- @field resetOnDeActivation nil|boolean (default=true) When false, the current selection stays highlighted after the editor loses focus (e.g. to a find bar's search field). Set false while a find UI is open so the match stays visible, then restore to true.
 --- @field placeholderAlpha nil|number The alpha value of placeholder text. (default=0.6)
 --- @field canUndo nil|boolean True if there is an edit that can be undone.
 --- @field canRedo nil|boolean True if there is an edit that can be redone.
 --- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
---- @field richDisplay nil|boolean (default=false) Enables display-transform (seamless markdown) mode. See TextEditor.richDisplay.
---- @field islandLayout nil|fun(element: TextEditor, islands: {id: string, x: number, y: number, width: number, height: number, visible: boolean, revealed: boolean}[]) Event: fired in richDisplay mode whenever island placeholder rects change (edit, scroll, resize). Coordinates are relative to the editor panel's top-left corner in panel units. revealed = the island is open for editing (its source is shown centered in the reserved rect); hosts should swap the widget for a frame and stop asserting heights while revealed.
+--- @field richDisplay nil|boolean (default=false) Enables display-transform (seamless markdown) mode: the text property stays the raw source and all positions remain source positions, but the rendered display hides syntax and applies TMP style tags per the decoration list supplied via @see SetDecorations. The line/selection at the caret always reveals its raw source (Obsidian-style).
+--- @field debugDisplayText nil|string Debug: the exact string currently handed to the TMP label (the display string in richDisplay mode). For test assertions.
+--- @field debugTransform nil|string Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
 TextEditorArgs = {}

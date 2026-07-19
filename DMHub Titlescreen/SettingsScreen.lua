@@ -1405,9 +1405,13 @@ end
 
 local g_imageEditorSetupDialog = nil
 local function ShowImageEditorSetupDialog(onProceed)
+	--The dialog is shown with gui.ShowModal, so it must be dismissed by popping
+	--the modal stack. Destroying the panel directly leaves the invisible
+	--full-screen modal blocker up, freezing all mouse input except the top bar.
+	--CloseModal orphans the dialog, which destroys it.
 	local function closeDialog()
 		if g_imageEditorSetupDialog ~= nil and g_imageEditorSetupDialog.valid then
-			g_imageEditorSetupDialog:DestroySelf()
+			gui.CloseModal()
 		end
 		g_imageEditorSetupDialog = nil
 	end

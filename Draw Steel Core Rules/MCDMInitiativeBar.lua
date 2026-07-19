@@ -2409,6 +2409,11 @@ end
 -- cannot be double-fired. Right-click dismisses without executing. Reuses the
 -- villain-action drawer chrome so these read as the same family as
 -- reinforcements and cues.
+--
+-- Buttons with a malice cost (button.malice > 0) show the action bar's malice
+-- cost diamond overlapping the drawer's top edge; the strip's refresh hides
+-- them entirely while the Director cannot afford the cost, and clicking spends
+-- the malice (before running the command).
 local function CreateEncounterActionButton(info, button)
     local function RemoveAndRefresh(element)
         local q = info.initiativeQueue
@@ -2433,6 +2438,49 @@ local function CreateEncounterActionButton(info, button)
         }
     end
 
+    --Malice cost diamond: the same rotated-square + inner-diamond visual the
+    --action bar's malice drawer uses (classes from Styles.ActionMenu), shrunk
+    --to the compact vaDrawer scale and floated half above the top edge.
+    local maliceDiamond = nil
+    local maliceCost = tonumber(button.malice) or 0
+    if maliceCost > 0 then
+        maliceDiamond = gui.Panel{
+            classes = {"costDiamond", "malice"},
+            styles = { Styles.ActionMenu },
+            floating = true,
+            interactable = false,
+            rotate = 135,
+            width = 22,
+            height = 22,
+            halign = "center",
+            valign = "top",
+            hmargin = 0,
+            vmargin = -9,
+            bgcolor = "white",
+            border = { x1 = 0, y1 = 2, x2 = 2, y2 = 0 },
+            gradient = Styles.Ability.maliceDiamondGradient,
+
+            gui.Panel{
+                classes = {"costInnerDiamond", "malice"},
+                interactable = false,
+
+                gui.Label{
+                    interactable = false,
+                    text = string.format("%d", maliceCost),
+                    rotate = -135,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    fontSize = 12,
+                    bold = true,
+                    color = "white",
+                },
+            },
+        }
+    end
+
     return gui.Panel{
         classes = {"vaDrawer", "available", "encounterActionButton"},
         data = { buttonid = button.id },
@@ -2444,6 +2492,7 @@ local function CreateEncounterActionButton(info, button)
             text = button.name or "Action",
         },
         summaryLabel,
+        maliceDiamond,
 
         hover = function(element)
             local text = button.tooltip
@@ -2464,9 +2513,21 @@ local function CreateEncounterActionButton(info, button)
             local current = liveEncounter:GetCustomButton(button.id)
             if current == nil then return end
 
+            --re-check affordability at click time (the strip hides
+            --unaffordable malice buttons, but malice can change between
+            --refreshes).
+            local cost = tonumber(current.malice) or 0
+            if cost > 0 and CharacterResource.GetMalice() < cost then
+                return
+            end
+
             if not current.sticky then
                 liveEncounter:RemoveCustomButton(current.id)
                 info.UploadInitiative()
+            end
+
+            if cost > 0 then
+                CharacterResource.SetMalice(CharacterResource.GetMalice() - cost, current.name or "Encounter action")
             end
 
             if current.command ~= nil and current.command ~= "" then
@@ -2547,7 +2608,17 @@ local function CreateEncounterActionsStrip(self, info)
                 return
             end
 
-            local buttons = liveEncounter:GetCustomButtons()
+            --malice-cost buttons are only offered while the Director can
+            --afford them; a button dropping in or out of the visible set
+            --changes the signature, so affordability flips rebuild the strip.
+            local buttons = {}
+            for _, button in ipairs(liveEncounter:GetCustomButtons()) do
+                local cost = tonumber(button.malice) or 0
+                if cost <= 0 or CharacterResource.GetMalice() >= cost then
+                    buttons[#buttons + 1] = button
+                end
+            end
+
             if #buttons == 0 then
                 element:SetClass("collapsed", true)
                 element.data.currentSignature = nil
@@ -2559,7 +2630,7 @@ local function CreateEncounterActionsStrip(self, info)
 
             local sig = ""
             for _, button in ipairs(buttons) do
-                sig = string.format("%s%s|%s|%s;", sig, button.id, button.name or "", button.summary or "")
+                sig = string.format("%s%s|%s|%s|%s;", sig, button.id, button.name or "", button.summary or "", tostring(button.malice or ""))
             end
             if sig == element.data.currentSignature then
                 return

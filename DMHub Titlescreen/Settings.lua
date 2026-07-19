@@ -1665,6 +1665,11 @@ setting{
             text = "Custom Shape",
             bind = "ctrl+p",
         },
+        {
+            value = "crosssection",
+            text = "Cross Section",
+            bind = "alt+x",
+        },
 	},
 }
 
@@ -1751,12 +1756,14 @@ setting{
 	editor = "dropdown",
 	default = "ignorediagonals",
 
-	-- Only relevant for the Ruler when snapping to the grid, since the choice
-	-- only affects how diagonal grid steps are counted. Without snapping the
-	-- ruler already reports the straight-line (Euclidean) length.
+	-- Only relevant for the Ruler and Cross Section when snapping to the grid,
+	-- since the choice only affects how diagonal grid steps are counted (both
+	-- report tile-stepping distances). Without snapping they already report the
+	-- straight-line (Euclidean) length.
 	monitorVisible = {'measure:shape', 'measure:snap'},
 	visible = function()
-		return dmhub.GetSettingValue('measure:shape') == "ruler" and dmhub.GetSettingValue('measure:snap') ~= "none"
+		local shape = dmhub.GetSettingValue('measure:shape')
+		return (shape == "ruler" or shape == "crosssection") and dmhub.GetSettingValue('measure:snap') ~= "none"
 	end,
 
 	enum = {
@@ -1781,6 +1788,13 @@ setting{
 	editor = "check",
 	default = false,
 	classes = {"dmonly"},
+
+	--the cross-section shape is a live diagram with deliberately no persist-on-map
+	--option (MeasureTool skips its persist branch for it too).
+	monitorVisible = {'measure:shape'},
+	visible = function()
+		return dmhub.GetSettingValue('measure:shape') ~= "crosssection"
+	end,
 }
 
 setting{

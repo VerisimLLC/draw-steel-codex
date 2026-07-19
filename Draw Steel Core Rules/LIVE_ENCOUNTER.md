@@ -401,12 +401,16 @@ Both are read-only views; mutate only through `IncrementStat`.
   added/removed at runtime by code (map-object scripts, macros). Surfaced by the
   **Encounter Actions strip** in `MCDMInitiativeBar.lua` (DM-only, below the cues
   strip, same `vaDrawer` chrome). A button is a flat table of scalars:
-  `{ id, name, summary, tooltip, command, sticky }`. `command` is a chat-style
+  `{ id, name, summary, tooltip, command, sticky, malice }`. `command` is a chat-style
   command line without the leading slash (e.g. `"gnollarmy summon"`), executed via
   `dmhub.Execute` on the Director's client when clicked. By default a button is
   one-shot: the strip removes it (and uploads the queue) *before* executing, so a
   slow interactive command can't be double-fired; `sticky = true` keeps it until
   code removes it. Right-click → Dismiss removes without executing.
+  `malice` (optional number) marks the button as costing malice: the strip shows
+  the cost in the action bar's malice diamond overlapping the button's top edge,
+  hides the button entirely while `CharacterResource.GetMalice()` is below the
+  cost, and spends the malice on click before running the command.
   - Instance API (mutations don't upload; network afterwards):
     `GetCustomButtons()`, `GetCustomButton(id)`, `SetCustomButton(button)`
     (upsert by id, copy-on-write, returns true if changed),

@@ -22,6 +22,7 @@ local typeOrderTable = {
     CharacterDeityChoice                = 130,
     CharacterDomainChoice               = 140,
     CharacterSubclassChoice             = 150,
+    CharacterCompanionChoice            = 152,
     SignatureAbilityPlaceholder         = 155,
     CharacterFeatureChoice              = 160,
     CharacterSkillChoice                = 170,

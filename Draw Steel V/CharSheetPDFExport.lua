@@ -219,6 +219,13 @@ function CharSheetPDFExport.Export(token, templateId)
         return
     end
 
+    --PDF form filling is a newer engine feature; on an out-of-date build the C#
+    --PDFDocument:FillForm method is absent. Silently no-op (the export button is
+    --already hidden on such builds) rather than crash on a nil method call.
+    if docAsset.doc.FillForm == nil then
+        return
+    end
+
     local fields = CharSheetPDFExport.BuildFields(template, token)
 
     docAsset.doc:FillForm{
@@ -258,6 +265,11 @@ function CharSheetPDFExport.DumpFields(templateId)
     local docAsset = CharSheetPDFExport.ResolveDocumentAsset(template)
     if docAsset == nil or docAsset.doc == nil then
         print("PDFExport:: could not resolve PDF asset for", templateId)
+        return
+    end
+
+    if docAsset.doc.GetFormFields == nil then
+        print("PDFExport:: GetFormFields is unavailable in this build")
         return
     end
 
@@ -334,6 +346,11 @@ end
 --with the token name (which lives on the token, not the properties) so the file is
 --self-contained. dmhub.ToJson / dmhub.FromJson are the engine's matched round-trip pair.
 function CharSheetPDFExport.ExportJson(token)
+    --No save API on out-of-date builds; silently no-op (the button is hidden there).
+    if dmhub.SaveFileDialog == nil then
+        return
+    end
+
     local export = {
         codexHero = true,
         formatVersion = 1,
@@ -374,6 +391,14 @@ function CharSheetPDFExport.GetExportOptions(token)
         text = "Codex JSON",
         run = function() CharSheetPDFExport.ExportJson(token) end,
     }
+    --Prototype: only offered once the Forge Steel builder (in the MCDM mapping file)
+    --has loaded.
+    if CharSheetPDFExport.ExportForgeSteel ~= nil then
+        options[#options+1] = {
+            text = "Forge Steel (Beta)",
+            run = function() CharSheetPDFExport.ExportForgeSteel(token) end,
+        }
+    end
     return options
 end
 
@@ -388,7 +413,10 @@ CharSheet.RegisterSheetAction{
     icon = "game-icons/cloud-download.png",
     tooltip = "Export",
     visible = function(creature)
-        return creature.typeName == "character"
+        --dmhub.SaveFileDialog is a newer engine method that every export path needs to
+        --write its file. On an out-of-date build it (and PDFDocument:FillForm) are
+        --absent, so hide the whole button rather than let a click crash.
+        return creature.typeName == "character" and dmhub.SaveFileDialog ~= nil
     end,
     click = function(token, element)
         local options = CharSheetPDFExport.GetExportOptions(token)

@@ -99,6 +99,57 @@ creature.RegisterSymbol {
     },
 }
 
+--GoblinScript symbol: is THIS creature's summoned companion currently
+--rampaging? Caster/summoner-side and nil-safe -- returns false when there is
+--no summoned companion (GetCompanionToken() == nil), so a summoner-hosted
+--filterCondition/activationCondition can gate on "my companion is rampaging"
+--without the two-hop `Companion.Rampaging` chain ERRORING on an unsummoned
+--companion (which, in a filterCondition, would otherwise fail OPEN to the
+--default-pass). Mirrors the `rampaging` symbol's Rampage>=8 check, applied to
+--the companion token. Usage: `Self.CompanionRampaging`.
+creature.RegisterSymbol {
+    symbol = "companionrampaging",
+    lookup = function(c)
+        local companionToken = c:GetCompanionToken()
+        if companionToken == nil or (not companionToken.valid) then
+            return false
+        end
+
+        local p = companionToken.properties
+        if p == nil or (not p:IsCompanion()) then
+            return false
+        end
+
+        local quantity = p:GetUnboundedResourceQuantity(g_rampageResourceId) or 0
+        return quantity >= 8
+    end,
+    help = {
+        name = "Companion Rampaging",
+        type = "boolean",
+        desc = "True when this creature's summoned companion is currently rampaging (Rampage 8 or more). False when there is no summoned companion. Nil-safe for gating summoner-side effects.",
+        examples = {"Self.CompanionRampaging", "Caster.CompanionRampaging"},
+        seealso = {"Companion", "Rampaging"},
+    },
+}
+
+--GoblinScript symbol: is this creature's light source currently switched on?
+--The engine treats the light loadout (selectedLoadout == 1) as "light on" (see
+--the /light macro in Creature.lua and the light readouts in GameHud /
+--MCDMCharacterPanel). Used by the Lightbender "Lightbearer" feature to impose a
+--bane on strikes against it while it is glowing (light on) and rampaging.
+creature.RegisterSymbol {
+    symbol = "sheddinglight",
+    lookup = function(c)
+        return c:try_get("selectedLoadout", 0) == 1
+    end,
+    help = {
+        name = "Shedding Light",
+        type = "boolean",
+        desc = "True when this creature's light source is switched on (the light loadout is active). False otherwise.",
+        examples = {"Self.SheddingLight", "Target.SheddingLight"},
+    },
+}
+
 --GoblinScript function symbol: "is the creature I am shown grabbed by MY
 --animal companion?". Caster-side and fully nil-safe -- returns false when the
 --beastheart has no companion, so callers avoid `Caster.Companion and ...`,
@@ -146,6 +197,53 @@ creature.RegisterSymbol {
         desc = "A function shown a creature; returns true if that creature is grabbed by this creature's animal companion (Beastheart partner). False when there is no companion or the grab was applied by anyone else.",
         examples = {"Caster.CompanionIsGrabbing(Target)"},
         seealso = {"Companion"},
+    },
+}
+
+--GoblinScript symbol: the human-readable name of the companion type this
+--creature has chosen, or "" if it has none. GetCompanionType() returns the
+--chosen bestiary id from any behavior=="companion" feature (class-agnostic,
+--not beastheart-specific); we resolve it to the stat-block name the same way
+--the companion picker builds its option text (see DSModifierCompanion.lua).
+creature.RegisterSymbol {
+    symbol = "companiontype",
+    lookup = function(c)
+        local companionType = c:GetCompanionType()
+        if companionType == nil or companionType == "" then
+            return ""
+        end
+
+        local monster = assets.monsters[companionType]
+        if monster == nil then
+            return ""
+        end
+
+        return monster.name or monster.properties.monster_type or "Companion"
+    end,
+    help = {
+        name = "Companion Type",
+        type = "text",
+        desc = "The readable name of the companion this creature has chosen (from any companion feature), or empty if it has none. Use Companion to reach a currently-summoned companion's stats.",
+        examples = {"Self.CompanionType is not \"\"", "Caster.CompanionType is \"Wolf\""},
+        seealso = {"Companion", "Has Companion"},
+    },
+}
+
+--GoblinScript symbol: does this creature have a companion type chosen? True
+--for any creature with a behavior=="companion" feature that has picked a
+--companion; distinct from the Companion symbol, which resolves a currently-
+--summoned companion token.
+creature.RegisterSymbol {
+    symbol = "hascompanion",
+    lookup = function(c)
+        return c:GetCompanionType() ~= nil
+    end,
+    help = {
+        name = "Has Companion",
+        type = "boolean",
+        desc = "True when this creature has a companion type chosen (from any companion feature). Use Companion to reach a currently-summoned companion's stats.",
+        examples = {"Self.HasCompanion", "Caster.HasCompanion"},
+        seealso = {"Companion", "Companion Type"},
     },
 }
 

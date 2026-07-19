@@ -267,6 +267,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             local groundLoc = destLoc.withGroundAltitude
             local teleportLoc = groundLoc:WithAltitude(math.max(groundLoc.altitude, destLoc.altitude))
 
+            --Teleport bypasses OnMove's leaveadjacent dispatch, so capture enemies
+            --with "Opportunity Attack On Any Movement" adjacent to the origin now
+            --(relocate is a silent reposition that does not provoke, so gate on
+            --teleport only).
+            local teleportOAObservers = nil
+            if movementType == "teleport" then
+                teleportOAObservers = casterToken.properties:CaptureTeleportOpportunityAttackers(casterToken.loc)
+            end
+
         	casterToken:Teleport(teleportLoc)
 
             casterToken.properties._tmp_suppressTeleportEvent = nil
@@ -337,6 +346,12 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
             if casterToken.valid then
                 casterToken:TryFall()
+            end
+
+            --Now that the teleport (and any fall) has resolved, let flagged enemies
+            --that are no longer adjacent opportunity-attack the departure.
+            if teleportOAObservers ~= nil and casterToken.valid then
+                casterToken.properties:DispatchTeleportOpportunityAttacks(teleportOAObservers)
             end
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)

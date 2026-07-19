@@ -378,6 +378,33 @@ local function ImportPDFDialog(path)
     g_modalDialog = dialogPanel
 end
 
+--Context-menu entries putting a journal document on the icon rail (the
+--non-drag path for the shortcut feature). Returns a list to APPEND to
+--the document row's normal context menu -- never a menu of its own,
+--which would shadow the standard verbs (Share to Chat, Rename, ...).
+--Empty when the rail trial mode is off (it is dev-gated).
+local function RailAddMenuEntries(element, doc)
+    local result = {}
+    if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not dmhub.GetSettingValue("iconrail") or not devmode() then
+        return result
+    end
+    result[#result + 1] = {
+        text = "Add to left rail",
+        click = function()
+            element.popup = nil
+            IconRailDocAdd(doc.id, "left")
+        end,
+    }
+    result[#result + 1] = {
+        text = "Add to right rail",
+        click = function()
+            element.popup = nil
+            IconRailDocAdd(doc.id, "right")
+        end,
+    }
+    return result
+end
+
 local CreateFolderContentsPanel
 
 local function CreateFolderPanel(journalPanel, folderid)
@@ -406,7 +433,17 @@ local function CreateFolderPanel(journalPanel, folderid)
 
         draggable = not builtinFolder,
         canDragOnto = function(element, target)
-            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
+            if target == nil then
+                return false
+            end
+            --accept the folder ANY way the engine offers it: the TreeNode
+            --root (class documentFolder) or its header (class "folder",
+            --which is also where the dragTarget flag actually lands --
+            --see gui.TreeNode).
+            if target:HasClass("documentFolder") then
+                return true
+            end
+            return (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
                 target:FindParentWithClass("documentFolder") ~= nil
         end,
         drag = function(element, target)
@@ -416,7 +453,9 @@ local function CreateFolderPanel(journalPanel, folderid)
 
             local originalTarget = target
 
-            target = target:FindParentWithClass("documentFolder")
+            if not target:HasClass("documentFolder") then
+                target = target:FindParentWithClass("documentFolder")
+            end
             if target == nil then
                 return
             end
@@ -511,16 +550,31 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
 
     local dragTarget = true
 
+    --The tree's indent ladder lives HERE and only here: every contents
+    --panel shifts ALL of its children (document rows and subfolder
+    --headers alike, so same-depth siblings share a left edge) one step
+    --right of its folder's header. The root panel (folderid "") uses a
+    --smaller step, which is the tree's left gutter.
+    local indent = 16
+    if folderid == "" then
+        indent = 8
+    end
 
     contentPanel = gui.Panel {
-        width = "100%+12", --make it take the whole space of the parent + scrollbar area
+        --explicit halign: a flow child with no alignment centers itself
+        --in the icon-rail window host (the dock resolves it left). With
+        --the old width overhang ("100%+12") centering both cancelled the
+        --lmargin indent and shifted each level LEFT, collapsing the
+        --ladder so nested rows drew left of root headers. Left-aligned
+        --with a contained width, both hosts lay out identically.
+        halign = "left",
+        width = "100%-" .. indent,
         height = "auto",
         flow = "vertical",
         dragTarget = dragTarget,
         dragTargetPriority = 1,
         classes = { "contentPanel" },
-        x = 0,
-        lmargin = 8,
+        lmargin = indent,
 
         expand = function(element)
             if m_invalidated then
@@ -549,6 +603,142 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                 local p
 
                 if member.nodeType == "pdf" or member.nodeType == "image" or member.nodeType == "pdffragment" or member.nodeType == "custom" or member.nodeType == "negotiation" then
+                    --One shared context menu for the whole document row: the
+                    --container, the inner row, and the name label all route
+                    --here, because right-clicks land on whichever child is
+                    --topmost and press-family events don't bubble through
+                    --interactive children. Holds the standard document verbs
+                    --plus the icon-rail shortcut entries appended at the end.
+                    local showDocumentMenu = function(element)
+                        local container = element
+                        if not container:HasClass("itemContainer") then
+                            container = element:FindParentWithClass("itemContainer") or element
+                        end
+                        local entries = {
+                            {
+                                text = "Share to Chat...",
+                                click = function()
+                                    if member.nodeType == "pdf" then
+                                        dmhub.Coroutine(function()
+                                            local pdf = assets.pdfDocumentsTable[k]
+                                            if pdf == nil then
+                                                return
+                                            end
+
+                                            for i = 0, 300 do
+                                                if pdf.doc.summary ~= nil and pdf.doc.summary.pageWidth ~= nil then
+                                                    break
+                                                end
+
+                                                coroutine.yield(0.01)
+                                            end
+
+                                            if pdf.doc.summary == nil then
+                                                --failed to load document.
+                                                return
+                                            end
+
+                                            local wrapper = PDFWrapper.new {
+                                                docid = k,
+                                                width = pdf.doc.summary.pageWidth,
+                                                height = pdf.doc.summary.pageHeight,
+                                            }
+
+                                            chat.ShareData(wrapper)
+                                        end)
+                                    elseif member.nodeType == "pdffragment" then
+                                        chat.ShareData(member)
+                                    elseif type(member) == "table" and member.IsDerivedFrom("CustomDocument") then
+                                        chat.ShareData(CustomDocumentRef.new {
+                                            docid = k
+                                        })
+                                    else
+                                        local imageWrapper = ImageDocument.new {
+                                            imageid = k,
+                                            width = member.width,
+                                            height = member.height,
+                                        }
+
+                                        chat.ShareData(imageWrapper)
+                                    end
+
+                                    element.popup = nil
+                                end,
+                            },
+                            {
+                                text = "Add to Run",
+                                --documents only; the Run panel is Director-side, and the
+                                --RunAgenda hook loads late (DocumentSystem), hence rawget.
+                                hidden = member.nodeType ~= "custom" or not dmhub.isDM or rawget(_G, "RunAgenda") == nil,
+                                click = function()
+                                    element.popup = nil
+                                    RunAgenda.AddDocument(member)
+                                end,
+                            },
+                            {
+                                text = "Rename",
+                                hidden = not member:HaveEditPermissions(),
+                                click = function()
+                                    element.popup = nil
+                                    container:FireEventTree("rename")
+                                end,
+                            },
+                            {
+                                text = "Duplicate",
+                                hidden = member.nodeType ~= "custom",
+                                click = function()
+                                    element.popup = nil
+
+                                    local newDoc = DeepCopy(member)
+                                    newDoc.id = dmhub.GenerateGuid()
+                                    newDoc.description = "Copy of " .. (member.description or "")
+                                    newDoc.updateid = ""
+                                    newDoc.ord = (member.ord or 0) + 0.5
+                                    if not dmhub.isDM then
+                                        newDoc.ownerid = dmhub.loginUserid
+                                    end
+
+                                    newDoc.textStorage = false
+                                    newDoc:SetTextContent(member:GetTextContent())
+
+                                    newDoc:Upload()
+                                end,
+                            },
+                            {
+                                text = "Delete",
+                                hidden = not member:HaveEditPermissions(),
+                                click = function()
+                                    element.popup = nil
+                                    local doc = container.data.doc or member
+                                    doc.hidden = true
+                                    doc:Upload()
+                                end,
+                            }
+                        }
+
+                        if member.nodeType == "pdf" or member.nodeType == "custom" then
+                            entries[#entries + 1] = {
+                                text = "Set Keybind...",
+                                click = function()
+                                    element.popup = Keybinds.ShowBindPopup {
+                                        name = string.format("Open %s", member.description),
+                                        command = string.format("doc %s", k),
+                                        destroy = function(element)
+                                        end,
+                                    }
+                                end,
+                            }
+                        end
+
+                        for _, e in ipairs(RailAddMenuEntries(element, member)) do
+                            entries[#entries + 1] = e
+                        end
+
+                        element.popup = gui.ContextMenu {
+                            entries = entries,
+                        }
+                    end
+
                     p = m_documentPanels[k] or gui.Panel {
                         gui.Panel{
                             classes = {"dragDocumentSiblingSpacer"},
@@ -644,17 +834,49 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             element.tooltip:MakeNonInteractiveRecursive()
                         end,
                         canDragOnto = function(element, target)
-                            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
+                            if target == nil then
+                                return false
+                            end
+                            --the icon rail accepts documents as shortcut
+                            --buttons, alongside the existing folder
+                            --reparent/reorder targets.
+                            if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
+                                return true
+                            end
+                            --accept the folder as its TreeNode root
+                            --(documentFolder) OR its header ("folder" --
+                            --where the dragTarget flag actually lands).
+                            if target:HasClass("documentFolder") then
+                                return true
+                            end
+                            return (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
                                 target:FindParentWithClass("documentFolder") ~= nil
+                        end,
+                        dragging = function(element, target)
+                            --live slot preview while hovering a rail.
+                            if rawget(_G, "IconRailDocDragging") ~= nil then
+                                IconRailDocDragging(target)
+                            end
                         end,
                         drag = function(element, target)
                             if target == nil then
                                 return
                             end
 
+                            --dropped on a rail: create a shortcut button
+                            --there instead of reparenting.
+                            if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
+                                if rawget(_G, "IconRailDocDrop") ~= nil then
+                                    IconRailDocDrop(element.data.doc.id, target)
+                                end
+                                return
+                            end
+
                             local originalTarget = target
 
-                            target = target:FindParentWithClass("documentFolder")
+                            if not target:HasClass("documentFolder") then
+                                target = target:FindParentWithClass("documentFolder")
+                            end
                             if target == nil then
                                 return
                             end
@@ -698,126 +920,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             CustomDocument.OpenContent(member)
                         end,
 
-                        rightClick = function(element)
-                            local entries = {
-                                {
-                                    text = "Share to Chat...",
-                                    click = function()
-                                        if member.nodeType == "pdf" then
-                                            dmhub.Coroutine(function()
-                                                local pdf = assets.pdfDocumentsTable[k]
-                                                if pdf == nil then
-                                                    return
-                                                end
-
-                                                for i = 0, 300 do
-                                                    if pdf.doc.summary ~= nil and pdf.doc.summary.pageWidth ~= nil then
-                                                        break
-                                                    end
-
-                                                    coroutine.yield(0.01)
-                                                end
-
-                                                if pdf.doc.summary == nil then
-                                                    --failed to load document.
-                                                    return
-                                                end
-
-                                                local wrapper = PDFWrapper.new {
-                                                    docid = k,
-                                                    width = pdf.doc.summary.pageWidth,
-                                                    height = pdf.doc.summary.pageHeight,
-                                                }
-
-                                                chat.ShareData(wrapper)
-                                            end)
-                                        elseif member.nodeType == "pdffragment" then
-                                            chat.ShareData(member)
-                                        elseif type(member) == "table" and member.IsDerivedFrom("CustomDocument") then
-                                            chat.ShareData(CustomDocumentRef.new {
-                                                docid = k
-                                            })
-                                        else
-                                            local imageWrapper = ImageDocument.new {
-                                                imageid = k,
-                                                width = member.width,
-                                                height = member.height,
-                                            }
-
-                                            chat.ShareData(imageWrapper)
-                                        end
-
-                                        element.popup = nil
-                                    end,
-                                },
-                                {
-                                    text = "Add to Run",
-                                    --documents only; the Run panel is Director-side, and the
-                                    --RunAgenda hook loads late (DocumentSystem), hence rawget.
-                                    hidden = member.nodeType ~= "custom" or not dmhub.isDM or rawget(_G, "RunAgenda") == nil,
-                                    click = function()
-                                        element.popup = nil
-                                        RunAgenda.AddDocument(member)
-                                    end,
-                                },
-                                {
-                                    text = "Rename",
-                                    hidden = not member:HaveEditPermissions(),
-                                    click = function()
-                                        element.popup = nil
-                                        element:FireEventTree("rename")
-                                    end,
-                                },
-                                {
-                                    text = "Duplicate",
-                                    hidden = member.nodeType ~= "custom",
-                                    click = function()
-                                        element.popup = nil
-
-                                        local newDoc = DeepCopy(member)
-                                        newDoc.id = dmhub.GenerateGuid()
-                                        newDoc.description = "Copy of " .. (member.description or "")
-                                        newDoc.updateid = ""
-                                        newDoc.ord = (member.ord or 0) + 0.5
-                                        if not dmhub.isDM then
-                                            newDoc.ownerid = dmhub.loginUserid
-                                        end
-
-                                        newDoc.textStorage = false
-                                        newDoc:SetTextContent(member:GetTextContent())
-
-                                        newDoc:Upload()
-                                    end,
-                                },
-                                {
-                                    text = "Delete",
-                                    hidden = not member:HaveEditPermissions(),
-                                    click = function()
-                                        element.popup = nil
-                                        element.data.doc.hidden = true
-                                        element.data.doc:Upload()
-                                    end,
-                                }
-                            }
-
-                            if member.nodeType == "pdf" or member.nodeType == "custom" then
-                                entries[#entries + 1] = {
-                                    text = "Set Keybind...",
-                                    click = function()
-                                        element.popup = Keybinds.ShowBindPopup {
-                                            name = string.format("Open %s", member.description),
-                                            command = string.format("doc %s", k),
-                                            destroy = function(element)
-                                            end,
-                                        }
-                                    end,
-                                }
-                            end
-
-                            element.popup = gui.ContextMenu {
-                                entries = entries,
-                            }
-                        end,
+                        rightClick = showDocumentMenu,
 
 
                         refreshDoc = function(element, doc)
@@ -903,7 +1006,10 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     else
                                         existingBookmark = gui.Panel {
                                             classes = { "item" },
-                                            x = 8,
+                                            --bookmark rows have no expander slot; 34 puts a
+                                            --bookmark's icon one 16px ladder step right of its
+                                            --PDF row's icon (which sits at 18-slot + 4 margin).
+                                            x = 34,
                                             click = function(element)
                                                 mod.shared.ShowPDFViewerDialog(member, page)
                                             end,
@@ -1021,16 +1127,28 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                         gui.Panel {
                             classes = { "item" },
 
+                            rightClick = showDocumentMenu,
+
+                            --Every document row carries this expander triangle so the
+                            --row layout is one fixed grammar: [expander slot][icon][name].
+                            --Rows that cannot expand (no PDF bookmarks) keep the slot but
+                            --"ghost" it (invisible, inert) instead of collapsing it, so
+                            --document icons line up with each other and with their
+                            --sibling folder headers' triangles.
                             gui.Panel {
                                 bgimage = 'panels/triangle.png',
-                                classes = { "triangle", "collapsed" },
+                                classes = { "triangle", "ghost" },
                                 styles = gui.TriangleStyles,
 
                                 refreshDoc = function(element, doc)
-                                    element:SetClass("collapsed", doc.bookmarks == nil or next(doc.bookmarks) == nil)
+                                    element:SetClass("ghost", doc.bookmarks == nil or next(doc.bookmarks) == nil)
                                 end,
 
                                 press = function(element)
+                                    if element:HasClass("ghost") then
+                                        return
+                                    end
+
                                     local parentPanel = element:FindParentWithClass("itemContainer")
                                     if parentPanel == nil or parentPanel.data.doc == nil then
                                         return
@@ -1114,6 +1232,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             gui.Label {
                                 data = {},
                                 characterLimit = 64,
+                                rightClick = showDocumentMenu,
                                 rename = function(element)
                                     element:BeginEditing()
                                 end,
@@ -1385,17 +1504,23 @@ CreateJournalPanel = function()
             width = "100%",
             height = "100% available",
 
+            --TREE LAYOUT MODEL: a classic ladder. Indentation comes from
+            --exactly one place: each folder's contents panel (see
+            --CreateFolderContentsPanel) indents ALL its children -- doc
+            --rows and subfolder headers alike -- by one 16px step (8px at
+            --the root, which is the gutter). Inside a row the grammar is
+            --fixed: [expander slot 18px][icon][name], where the expander
+            --slot is a folder's toggle triangle, a doc row's bookmark
+            --triangle, or a ghosted triangle when the row cannot expand.
+            --So expanders align at +5, and doc icons align with sibling
+            --folder LABELS at +22. Do not add per-depth or per-kind
+            --margins on top of this.
             styles = ThemeEngine.MergeTokens({
-                --icon/label carry an explicit halign: children of a
-                --horizontal-flow row center themselves without one, which
-                --only shows up outside the dock (e.g. the icon rail's
-                --panel windows) where no ancestor supplies an alignment.
                 {
                     selectors = { "icon" },
                     width = 16,
                     height = 16,
                     bgcolor = "@fg",
-                    halign = "left",
                     valign = "center",
                     hmargin = 4,
                 },
@@ -1420,8 +1545,36 @@ CreateJournalPanel = function()
                     hmargin = 4,
                     width = "auto",
                     height = "auto",
-                    halign = "left",
                     valign = "center",
+                },
+                --Anchor row children left EXPLICITLY: a horizontal-flow
+                --child with no alignment centers itself in the icon-rail
+                --window host (the dock resolves it left), and mixed
+                --alignments overlap. Scoped to parent:item so labels
+                --outside the tree rows are untouched.
+                {
+                    selectors = { "icon", "parent:item" },
+                    halign = "left",
+                },
+                {
+                    selectors = { "label", "parent:item" },
+                    halign = "left",
+                    lmargin = 4,
+                },
+                --small gap between a header's expand triangle and its
+                --name; 4 here (after the triangle's own 5px margin) also
+                --puts folder labels at +22, flush with doc-row icons.
+                {
+                    selectors = { "folderLabel" },
+                    lmargin = 4,
+                },
+                --a ghosted expander holds its 18px slot in the row but is
+                --invisible and never highlights (rows that cannot expand;
+                --see the doc-row triangle in CreateFolderContentsPanel).
+                {
+                    priority = 10,
+                    selectors = { "triangle", "ghost" },
+                    bgcolor = "clear",
                 },
                 {
                     selectors = { "item", "hover" },

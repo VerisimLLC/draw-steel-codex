@@ -693,6 +693,19 @@ function LiveEncounter.Create(encounter)
     return result
 end
 
+-- A basic live encounter with no authored content: Encounter defaults (1
+-- Victory reward, "all monsters defeated" victory condition), empty stats.
+-- Every new initiative queue is created carrying one of these (see
+-- InitiativeQueue.Create), so combat systems -- custom buttons, stat tracking,
+-- victory awarding -- can rely on queue.liveEncounter being a LiveEncounter
+-- even when combat was started without an authored encounter. Note
+-- onsetMonsterCount comes out 0 (there are no authored monsters); callers that
+-- know the real starting roster should seed it, as the Custom branch of the
+-- "Draw Steel!" flow does (DSInitiativeRoll.lua).
+function LiveEncounter.CreateEmpty()
+    return LiveEncounter.Create(Encounter.new())
+end
+
 -- Returns the current number of Recoveries available to a hero (max minus those spent
 -- on a long rest), and their maximum. Used both to snapshot the onset state and to read
 -- the live state for the victory screen's "Recoveries: onset -> current/max" display.
@@ -1091,6 +1104,157 @@ function LiveEncounter:GetAvailableCues(currentRound)
             end
         end
     end
+    return result
+end
+
+-- Custom buttons: script-driven action buttons surfaced to the Director on the
+-- initiative bar (the Encounter Actions strip in MCDMInitiativeBar.lua). Unlike
+-- waves and cues these are not authored into the encounter: runtime code (map
+-- object scripts, macros, etc.) adds and removes them on the live encounter
+-- while combat runs. Each button is a plain table of scalars:
+--   id      : required stable string identifying the button.
+--   name    : title shown on the button.
+--   summary : optional subtitle shown under the title.
+--   tooltip : optional hover text; defaults to the name.
+--   command : chat-style command line (no leading slash, e.g.
+--             "gnollarmy summon") executed via dmhub.Execute on the
+--             Director's client when the button is clicked.
+--   sticky  : optional; by default a button removes itself when clicked so a
+--             slow interactive command cannot be double-fired. Set true to
+--             keep the button until code removes it.
+--   malice  : optional malice cost (number). The strip renders the cost in a
+--             malice diamond on the button, hides the button entirely while
+--             the Director has less malice than the cost, and spends the
+--             malice on click (before running the command).
+-- Buttons ride inside the networked initiative queue like all other live
+-- encounter state, so mutations must be followed by an upload
+-- (info.UploadInitiative() / dmhub:UploadInitiativeQueue()). The static
+-- Ensure/Dismiss helpers below handle the lookup and upload for callers.
+LiveEncounter.customButtons = {}
+
+-- Shallow comparison of two custom-button tables (buttons are flat tables of
+-- scalars, so a shallow compare is exact).
+local function CustomButtonsEqual(a, b)
+    for k, v in pairs(a) do
+        if b[k] ~= v then
+            return false
+        end
+    end
+    for k, v in pairs(b) do
+        if a[k] ~= v then
+            return false
+        end
+    end
+    return true
+end
+
+-- The list of custom buttons currently on this live encounter (empty if none).
+function LiveEncounter:GetCustomButtons()
+    return self:try_get("customButtons", {})
+end
+
+-- Find a custom button by id, or nil.
+function LiveEncounter:GetCustomButton(buttonid)
+    for _, button in ipairs(self:try_get("customButtons", {})) do
+        if button.id == buttonid then
+            return button
+        end
+    end
+    return nil
+end
+
+-- Add or update (by id) a custom button. Copy-on-write so the shared type
+-- default is never mutated. Returns true if anything actually changed; callers
+-- must network the change afterwards.
+function LiveEncounter:SetCustomButton(button)
+    if type(button) ~= "table" or button.id == nil then
+        return false
+    end
+
+    local existing = self:GetCustomButton(button.id)
+    if existing ~= nil and CustomButtonsEqual(existing, button) then
+        return false
+    end
+
+    local buttons = DeepCopy(self:try_get("customButtons", {}))
+    local replaced = false
+    for i, b in ipairs(buttons) do
+        if b.id == button.id then
+            buttons[i] = DeepCopy(button)
+            replaced = true
+            break
+        end
+    end
+    if not replaced then
+        buttons[#buttons + 1] = DeepCopy(button)
+    end
+    self.customButtons = buttons
+    return true
+end
+
+-- Remove a custom button by id. Returns true if it was present. Callers must
+-- network the change afterwards.
+function LiveEncounter:RemoveCustomButton(buttonid)
+    local buttons = self:try_get("customButtons")
+    if buttons == nil then
+        return false
+    end
+    local result = {}
+    local removed = false
+    for _, button in ipairs(buttons) do
+        if button.id == buttonid then
+            removed = true
+        else
+            result[#result + 1] = button
+        end
+    end
+    if removed then
+        self.customButtons = result
+    end
+    return removed
+end
+
+-- Safe static entry point for scripts: upsert the button on the current live
+-- encounter and network the change. Does nothing (cleanly) when there is no
+-- active combat or the combat has no live encounter (combat started Custom).
+-- Call on the Director's client. Returns true if the button was added/updated.
+function LiveEncounter.EnsureCustomButton(button)
+    local result = false
+    pcall(function()
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            return
+        end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then
+            return
+        end
+        if liveEncounter:SetCustomButton(button) then
+            dmhub:UploadInitiativeQueue()
+            result = true
+        end
+    end)
+    return result
+end
+
+-- Safe static counterpart to EnsureCustomButton: remove the button from the
+-- current live encounter and network the change. Returns true if it was there.
+function LiveEncounter.DismissCustomButton(buttonid)
+    local result = false
+    pcall(function()
+        local q = dmhub.initiativeQueue
+        if q == nil then
+            return
+        end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then
+            return
+        end
+        if liveEncounter:RemoveCustomButton(buttonid) then
+            dmhub:UploadInitiativeQueue()
+            result = true
+        end
+    end)
     return result
 end
 

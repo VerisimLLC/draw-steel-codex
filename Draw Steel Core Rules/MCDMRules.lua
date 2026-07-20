@@ -1084,6 +1084,22 @@ TriggeredAbility.RegisterTrigger{
     },
 }
 
+--As leaveadjacent, but a shift away counts as moving away. Use this for
+--abilities whose trigger reads "moves or shifts away" (e.g. the ogre's Swat the
+--Fly), which are triggered actions rather than opportunity attacks. Forced
+--movement still does not trigger it.
+TriggeredAbility.RegisterTrigger{
+    id = "leaveadjacentorshift",
+    text = "Creature Moved or Shifted Away From",
+    symbols = {
+        movingcreature = {
+            name = "Moving Creature",
+            type = "creature",
+            desc = "The creature moving or shifting away.",
+        },
+    },
+}
+
 TriggeredAbility.RegisterTrigger{
     id = "gaintempstamina",
     text = "Gain Temporary Stamina",
@@ -1201,6 +1217,19 @@ local friendlyFire = setting{
 
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
+		return false
+	end
+
+	-- Targeting Group (general isolation primitive): any creature with a non-zero
+	-- "Targeting Group" custom attribute may only target / be targeted by creatures
+	-- that share the SAME group value. Unflagged creatures (group 0) are unaffected,
+	-- so this whole check is inert unless the mechanic is in use. Set the same group
+	-- value on a set of creatures to isolate them together (they can still affect each
+	-- other, but not anyone outside the group, and no one outside can affect them).
+	-- Used by "Let's Take This Outside" (group key = the beastheart's Id).
+	local casterGroup = casterToken.properties:CalculateNamedCustomAttribute("Targeting Group")
+	local targetGroup = targetToken.properties:CalculateNamedCustomAttribute("Targeting Group")
+	if (casterGroup ~= 0 or targetGroup ~= 0) and casterGroup ~= targetGroup then
 		return false
 	end
 

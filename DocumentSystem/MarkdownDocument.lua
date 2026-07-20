@@ -1293,13 +1293,6 @@ end
 -- Test hook.
 MarkdownDocument.__ApplyInlineClasses = ApplyInlineClasses
 
-local showPreviewSetting = setting{
-    id = "markdownEditorShowPreview",
-    name = "Show Preview Pane in Markdown Editor",
-    default = true,
-    storage = "preferences",
-}
-
 ---@class RichTag
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
@@ -6635,13 +6628,15 @@ local function CreateAnnotationsPanel(opts)
     }
 end
 
---Formatting toolbar shared by the classic and live editors: inline wraps
---(bold/italic/...), heading and list line prefixes, spoilers, link/divider
---inserts, media/widget rich tags, and the stylesheet picker. opts:
---  GetInput()               - returns the input to apply an action to. May
---                             activate an editor first (the live editor
---                             reactivates the last edited block, since
---                             clicking a button defocuses and commits it).
+--Forward-declared here because the toolbar's Formatting Guide button closes
+--over it, but its body builds live MarkdownDocument samples and so has to be
+--defined at the end of the file, after the rest of the module exists.
+local MarkdownReferenceTooltip
+
+--Formatting toolbar for the seamless editor: inline wraps (bold/italic/...),
+--heading and list line prefixes, spoilers, link/divider inserts, media/widget
+--rich tags, the Formatting Guide, and the stylesheet picker. opts:
+--  GetInput()               - returns the input to apply an action to.
 --                             Return nil to make the action a no-op.
 --  GetStylesheetId()        - current stylesheet id ("" for none).
 --  OnStylesheetChanged(id)  - host-specific stylesheet application.
@@ -7067,6 +7062,26 @@ local function CreateMarkdownToolbar(opts)
             } or {},
         },
 
+
+        --comment out the guide for now. Maybe add it back later?
+        --[[
+        --group: the markdown syntax reference. Hover-only (the tooltip IS the
+        --content); this was the classic editor's "Formatting Guide" link and
+        --moved onto the toolbar when that editor was removed.
+        GroupDivider(),
+        gui.Button{
+            text = "Guide",
+            width = 62,
+            height = 30,
+            fontSize = 14,
+            valign = "center",
+            hmargin = 3,
+            hover = function(element)
+                element.tooltip = MarkdownReferenceTooltip()
+            end,
+        },
+        ]]
+
     }
 
     --Bar 4 per the handoff: the stylesheet picker is its own row with an
@@ -7128,1254 +7143,6 @@ local function CreateMarkdownToolbar(opts)
         stylesheetRow,
         ToolbarHairline(),
     }
-end
-
---Obsidian-style live edit surface: the journal's editor (see EditPanel).
---The document is partitioned into blocks (PartitionTokensIntoBlocks); each
---block renders through RenderMarkdownTokens exactly like display mode, with
---a floating click-guard over it. Clicking a block swaps it for a multiline
---input seeded with that block's source lines; deactivating (click away,
---escape, focus loss) splices the edited lines back into the document and
---re-renders. Gap lines between blocks (blanks, false ??? regions) are
---preserved verbatim across splices.
---v1 limitations (see JOURNAL_EDITOR_PLAN.md in the dmhubclient repo):
---selection is confined to the active block; interactive widgets inside
---blocks are inert while this surface is up (the guard captures clicks);
---remote edits are ignored while a block is actively being edited.
-function MarkdownDocument:LiveEditPanel(args)
-    args = args or {}
-
-    local resultPanel
-    local m_doc = self
-
-    local m_lines = {}       --master document state, as normalized lines.
-    local m_blocks = {}      --current partition of m_lines into edit blocks.
-    local m_blockPanels = {} --pooled per-block wrapper panels, by block index.
-    local m_activeIndex = nil
-    local m_editInput = nil  --single input reused for whichever block is active.
-    local m_activateTime = 0 --guards the focus watchdog against the focus race.
-    local m_lastEdit = nil   --{line, caret} of the most recent edit; lets the
-                             --toolbar reactivate where the user was typing.
-    local m_activeRenderedHeight = nil --the active block's rendered height,
-                             --measured at activation; held as the edit
-                             --input's minHeight so swapping a tall rendered
-                             --block (widget, table, heading rule) for its
-                             --shorter raw source does not make the content
-                             --below it jump up.
-    local m_findTerm = nil   --find-in-page state (findInPage event), marked
-                             --over the rendered blocks exactly as in
-                             --DisplayPanel. The active block's input is
-                             --never marked: injected mark tags would become
-                             --part of the block's raw source.
-    local m_findIndex = 1
-    local m_findCallback = nil
-    local m_findGeneration = 0
-    local m_savedContent = nil --the doc content as of the last load/save;
-                             --distinguishes local unsaved work from a clean
-                             --view so remote refreshes never clobber edits.
-    local m_renderGeneration = 0 --bumped when blocks must re-render even
-                             --with unchanged source (saves adopt merged
-                             --content and annotation configs; stylesheet
-                             --changes; remote adoption).
-    local m_undoStack = {}   --content snapshots, one per committed change;
-                             --drives Ctrl+Z / the toolbar Undo button.
-    local m_redoStack = {}   --snapshots popped by undo, replayed by Ctrl+Y.
-
-    --link/rich-tag autocomplete + link-info popups on the active block input,
-    --shared machinery with the classic editor.
-    local m_autocomplete = CreateMarkdownAutocomplete{
-        GetDocument = function()
-            return m_doc
-        end,
-        OnTextChanged = function(newText)
-            --the service just rewrote the input's text and will re-focus it;
-            --renew the watchdog grace period so the block is not committed
-            --mid-completion.
-            m_activateTime = dmhub.Time()
-        end,
-        --no GetPopupPositioning override: use the service default, which
-        --anchors the popup at the typed bracket (GetCharWorldPosition) so
-        --suggestions appear at the caret rather than pinned to the block's
-        --frame at the end of the line.
-    }
-
-    --rich-tag annotation editor strip (encounter pickers, dice configs...),
-    --shared machinery with the classic editor. Its scan also CREATES missing
-    --annotation objects for typed tags, which the block renderer needs: a
-    --tag with no annotation renders as nothing. Therefore the scan must run
-    --after every content change and BEFORE blocks re-render.
-    local m_annotationsPanel = CreateAnnotationsPanel{
-        GetDocument = function()
-            return m_doc
-        end,
-    }
-
-    local function RefreshAnnotations(content)
-        m_annotationsPanel:FireEvent("editDocument", content)
-    end
-
-    local m_listPanel
-    local m_pagePanel --the scrollable page surface; painted with the
-                      --stylesheet's page color each refresh, like DisplayPanel.
-
-    --forward declarations: these reference each other from closures.
-    local ActivateBlock
-    local DeactivateBlock
-    local RefreshBlockPanels
-
-    local function GetContent()
-        return table.concat(m_lines, "\n")
-    end
-
-    local function SetLinesFromContent(content)
-        content = (content or ""):gsub("\v", "\n"):gsub("\r", "")
-        m_lines = string.split_allow_duplicates(content, "\n")
-    end
-
-    local function BlockSource(block)
-        return table.concat(m_lines, "\n", block.lineStart, block.lineEnd)
-    end
-
-    --Snapshot the pre-change content so Ctrl+Z can restore it. One entry per
-    --committed change (block granularity); any new change invalidates redo.
-    local UNDO_LIMIT = 50
-    local function PushUndo(content)
-        if m_undoStack[#m_undoStack] == content then
-            return
-        end
-        m_undoStack[#m_undoStack + 1] = content
-        if #m_undoStack > UNDO_LIMIT then
-            table.remove(m_undoStack, 1)
-        end
-        m_redoStack = {}
-    end
-
-    local function IsHeadingLine(line)
-        return line ~= nil and line:match("^#+[ \t]") ~= nil
-    end
-
-    --Long prose runs tokenize as one text token, so the partitioner hands
-    --back blocks that can span a heading plus everything around it. Split
-    --those so each heading line edits as its own block (letting the input
-    --mirror the heading's rendered size; see BlockEditFont) while the prose
-    --between headings stays one block. Only blocks whose stamped tokens are
-    --all plain text are split - tables, widgets, styleblocks, and collapse
-    --wrappers keep their existing grouping. Sub-blocks re-tokenize their own
-    --source; per-block token line stamps are only used for rendering, so
-    --relative positions are fine.
-    local function SplitHeadingBlocks(blocks)
-        local result = {}
-        for _, block in ipairs(blocks) do
-            local textOnly = true
-            for _, token in ipairs(block.tokens) do
-                if token.srcLine ~= nil and token.type ~= "text" and token.type ~= "justification" then
-                    textOnly = false
-                    break
-                end
-            end
-            local hasHeading = false
-            if textOnly and block.lineEnd > block.lineStart then
-                for i = block.lineStart, block.lineEnd do
-                    if IsHeadingLine(m_lines[i]) then
-                        hasHeading = true
-                        break
-                    end
-                end
-            end
-
-            if not (textOnly and hasHeading) then
-                result[#result + 1] = block
-            else
-                --blank edge lines belong to no block (the splice model
-                --preserves them verbatim), so trim them off each run.
-                local function EmitRun(s, e)
-                    while s <= e and trim(m_lines[s] or "") == "" do s = s + 1 end
-                    while e >= s and trim(m_lines[e] or "") == "" do e = e - 1 end
-                    if s > e then
-                        return
-                    end
-                    local src = table.concat(m_lines, "\n", s, e)
-                    result[#result + 1] = {
-                        lineStart = s,
-                        lineEnd = e,
-                        tokens = BreakdownRichTags(src, nil, { player = false }),
-                    }
-                end
-                local runStart = nil
-                for i = block.lineStart, block.lineEnd do
-                    if IsHeadingLine(m_lines[i]) then
-                        if runStart ~= nil then
-                            EmitRun(runStart, i - 1)
-                            runStart = nil
-                        end
-                        EmitRun(i, i)
-                    elseif runStart == nil then
-                        runStart = i
-                    end
-                end
-                if runStart ~= nil then
-                    EmitRun(runStart, block.lineEnd)
-                end
-            end
-        end
-        return result
-    end
-
-    --Tokenize and partition the current content. Note player=false: ranges
-    --must map to the true source (StripSpoilers rewrites the string, which
-    --would corrupt splicing), and anyone on this surface can already see the
-    --raw source in the input, exactly like the classic edit tab.
-    local function RebuildBlockData()
-        local tokens = BreakdownRichTags(GetContent(), nil, { player = false, trackPositions = true })
-        m_blocks = SplitHeadingBlocks(MarkdownDocument.PartitionTokensIntoBlocks(tokens))
-
-        if #m_blocks == 0 then
-            --empty document: synthesize one block covering everything so
-            --there is something to click on.
-            m_blocks = {
-                {
-                    lineStart = 1,
-                    lineEnd = math.max(1, #m_lines),
-                    tokens = {},
-                    placeholder = true,
-                },
-            }
-        end
-    end
-
-    --If the doc grows past its limit the input refuses further characters;
-    --budget = whatever the rest of the document is not using.
-    local function ActiveCharacterBudget(blockSourceLength)
-        return math.max(1, CustomDocument.MaxLength - (#GetContent() - blockSourceLength))
-    end
-
-    --Splices the active block's input text back into m_lines. Returns the
-    --resulting change in total line count (0 if nothing was active).
-    local function CommitActiveBlock()
-        if m_activeIndex == nil or m_editInput == nil then
-            return 0
-        end
-        local block = m_blocks[m_activeIndex]
-        if block == nil then
-            return 0
-        end
-
-        local oldCount = block.lineEnd - block.lineStart + 1
-        local editedText = (m_editInput.text or ""):gsub("\v", "\n"):gsub("\r", "")
-        local edited = string.split_allow_duplicates(editedText, "\n")
-
-        local oldContent = GetContent()
-
-        local newLines = {}
-        for i = 1, block.lineStart - 1 do
-            newLines[#newLines + 1] = m_lines[i]
-        end
-        for _, line in ipairs(edited) do
-            newLines[#newLines + 1] = line
-        end
-        for i = block.lineEnd + 1, #m_lines do
-            newLines[#newLines + 1] = m_lines[i]
-        end
-        m_lines = newLines
-
-        if GetContent() ~= oldContent then
-            PushUndo(oldContent)
-        end
-
-        return #edited - oldCount
-    end
-
-    --Master content with the active block's uncommitted input text spliced
-    --in virtually; used for save/dirty checks without disturbing the edit.
-    local function GetContentIncludingActive()
-        if m_activeIndex == nil or m_editInput == nil then
-            return GetContent()
-        end
-        local block = m_blocks[m_activeIndex]
-        if block == nil then
-            return GetContent()
-        end
-
-        local parts = {}
-        if block.lineStart > 1 then
-            parts[#parts + 1] = table.concat(m_lines, "\n", 1, block.lineStart - 1)
-        end
-        parts[#parts + 1] = m_editInput.text or ""
-        if block.lineEnd < #m_lines then
-            parts[#parts + 1] = table.concat(m_lines, "\n", block.lineEnd + 1, #m_lines)
-        end
-        return table.concat(parts, "\n")
-    end
-
-    --1-based line the caret is on within the input's text (same counting
-    --technique as SyncPreviewScroll; caretPosition is 0-based).
-    local function CaretLine(input)
-        local text = input.text or ""
-        local caret = input.caretPosition or 0
-        local line = 1
-        for i = 1, math.min(caret, #text) do
-            if text:sub(i, i) == "\n" then
-                line = line + 1
-            end
-        end
-        return line
-    end
-
-    local function CountLines(text)
-        local _, newlines = (text or ""):gsub("\n", "")
-        return newlines + 1
-    end
-
-    --Heading level (1-6) when the block's source is a single heading line,
-    --nil otherwise. Used to mirror the rendered heading treatment while the
-    --block is being edited.
-    local function BlockHeadingLevel(src)
-        local line = trim(src or "")
-        if line == "" or line:find("\n", 1, true) ~= nil then
-            return nil
-        end
-        local hashes = line:match("^(#+)[ \t]")
-        if hashes ~= nil and #hashes <= 6 then
-            return #hashes
-        end
-        return nil
-    end
-
-    --The font size the live-edit input should use for a block, plus the
-    --skin's heading entry when the block is a heading: body size normally,
-    --scaled by the heading's sizePct so entering edit mode keeps the text
-    --at the size it renders at. The default skin mirrors g_markdownStyle
-    --(200%..120%), so unskinned headings match too.
-    local function BlockEditFont(src, skin)
-        local size = CustomDocument.ScaleFontSize(14)
-        local heading = nil
-        local level = BlockHeadingLevel(src)
-        if level ~= nil then
-            heading = ((skin or {}).headings or {})[level] or {}
-            local pct = heading.sizePct or 100
-            if pct ~= 100 then
-                size = size * pct / 100
-            end
-        end
-        return size, heading
-    end
-
-    local function EnsureEditInput()
-        if m_editInput ~= nil and m_editInput.valid then
-            return m_editInput
-        end
-
-        m_editInput = gui.Input{
-            --match the rendered document: body text renders at
-            --ScaleFontSize(14) in the theme's label face (inputs default to
-            --the @input face, so re-point the base face at @label), so the
-            --block barely changes appearance when it swaps to the input.
-            --The default input chrome (dark @bg fill + border) is stripped
-            --so the stylesheet's page color shows through the edit area,
-            --exactly like the rendered blocks around it. The stylesheet's
-            --body/heading font face, size, and ink color are applied
-            --per-activation in RefreshBlockPanels (they change with the
-            --skin and with the block being a heading).
-            --pad/margin zeroed to match the rendered labels (pad 0), so the
-            --block's height barely changes when it swaps to the input;
-            --minHeight is set per-activation to one line of the block's
-            --edit font rather than a fixed 30px for the same reason.
-            styles = ThemeEngine.MergeTokens({
-                {
-                    selectors = { "input" },
-                    fontFace = "@label",
-                    bgcolor = "#00000000",
-                    border = 0,
-                    pad = 0,
-                    margin = 0,
-                },
-            }),
-            width = "100%",
-            height = "auto",
-            multiline = true,
-            textAlignment = "topleft",
-            fontSize = CustomDocument.ScaleFontSize(14),
-            selectAllOnFocus = false,
-
-            thinkTime = 0.2,
-            editlag = 0.3,
-
-            edit = function(element)
-                --track the live caret while it is trustworthy (focused);
-                --this is what the toolbar reactivates after its click
-                --defocuses and commits the block.
-                if m_activeIndex ~= nil then
-                    local block = m_blocks[m_activeIndex]
-                    if block ~= nil then
-                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
-                    end
-                end
-                m_autocomplete.Update(element)
-                --keep the annotation strip live while typing, like the
-                --classic editor; this also pre-creates annotations so the
-                --widget renders the moment the block commits.
-                RefreshAnnotations(GetContentIncludingActive())
-            end,
-
-            caretReady = function(element)
-                m_autocomplete.Update(element)
-            end,
-
-            --autocomplete dismissal + link-info refresh, mirroring the
-            --classic editor's input think handler.
-            think = function(element)
-                if m_activeIndex ~= nil and element.hasInputFocus then
-                    local block = m_blocks[m_activeIndex]
-                    if block ~= nil then
-                        m_lastEdit = { line = block.lineStart, caret = element.caretPosition }
-                    end
-                end
-                if #m_autocomplete.state.results > 0 then
-                    local searchText, bracketPos, contextType = m_autocomplete.FindLinkContext(element.text or "", element.caretPosition or 0)
-                    if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
-                        m_autocomplete.Dismiss(element)
-                    end
-                else
-                    m_autocomplete.UpdateLinkInfo(element)
-                end
-            end,
-
-            --fires when the input loses focus after edits.
-            change = function(element)
-                if element.popup ~= nil then
-                    --an autocomplete/link popup is mid-interaction; the
-                    --service re-focuses the input itself after accepting.
-                    return
-                end
-                DeactivateBlock()
-            end,
-
-            --escape is handled by the surface's captureEscape route (see
-            --resultPanel), which outranks the journal window's close handler;
-            --a handler here too would deactivate (clearing captureEscape)
-            --before the capture pass resolves, letting the same keypress
-            --fall through and close the whole journal.
-
-            --arrow keys at the block's edge flow into the neighboring block,
-            --so the cursor travels the document like a single continuous
-            --editor. The engine fires these on every keypress while focused;
-            --we only act at the boundary lines.
-            uparrow = function(element)
-                if m_activeIndex ~= nil and m_activeIndex > 1
-                   and CaretLine(element) <= 1 then
-                    ActivateBlock(m_activeIndex - 1, "end")
-                end
-            end,
-
-            downarrow = function(element)
-                if m_activeIndex ~= nil and m_activeIndex < #m_blocks
-                   and CaretLine(element) >= CountLines(element.text) then
-                    ActivateBlock(m_activeIndex + 1, "start")
-                end
-            end,
-        }
-        return m_editInput
-    end
-
-    local function CreateBlockPanel()
-        local ctx = CreateMarkdownRenderContext(m_doc, 0)
-
-        local contentPanel = gui.Panel{
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-            halign = "left",
-        }
-
-        local inputHost = gui.Panel{
-            classes = { "collapsed" },
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-        }
-
-        --The wrapper itself is the click target: it carries a hit-testable
-        --transparent background and the press handler, and the rendered
-        --content is made non-interactive after each render
-        --(MakeNonInteractiveRecursive in RefreshBlockPanels). This makes the
-        --whole block clickable, leaves widgets inside inert while live
-        --editing, and avoids overlay geometry entirely (a floating
-        --height="100%" child of an auto-height parent does not track the
-        --block's real bounds). bgcolor lives in styles, never inline, so the
-        --hover highlight can apply; the editing class suppresses it while
-        --the block hosts the input.
-        local wrapper
-        wrapper = gui.Panel{
-            classes = { "liveEditBlock" },
-            flow = "vertical",
-            width = "100%",
-            height = "auto",
-            valign = "top",
-            halign = "left",
-            vmargin = 2,
-            --I-beam over editable chunks: signals click-to-type like any
-            --text editor, alongside the (deliberately faint) hover wash.
-            hoverCursor = "text",
-            bgimage = "panels/square.png",
-            --selector arity: the theme paints bare panels with its dark
-            --surface via a {panel} rule, so these must carry
-            --{panel, liveEditBlock} to stay transparent and let the
-            --stylesheet's page color show through. Hover wash is gold-dim
-            --so it reads on both dark and parchment pages.
-            styles = {
-                {
-                    selectors = { "panel", "liveEditBlock" },
-                    bgcolor = "#00000000",
-                },
-                {
-                    selectors = { "panel", "liveEditBlock", "hover" },
-                    --deliberately faint: just enough to signal the block is
-                    --clickable without strobing as the mouse travels the page.
-                    bgcolor = "#ffffff0a",
-                },
-                {
-                    selectors = { "panel", "liveEditBlock", "hover", "editing" },
-                    bgcolor = "#00000000",
-                },
-            },
-            press = function(element)
-                --map the click's position within the block to a source line
-                --and column so the caret lands near where the user aimed.
-                --mousePoint is normalized within the panel with y running
-                --bottom-up (Unity convention); invert for a from-top
-                --fraction. Approximate (rendered heights vary per line and
-                --the face is proportional), but far better than always
-                --landing at the end.
-                local fraction = nil
-                local xFraction = nil
-                local point = element.mousePoint
-                if point ~= nil then
-                    fraction = 1 - point.y
-                    xFraction = point.x
-                end
-                ActivateBlock(element.data.index, {
-                    fraction = fraction,
-                    xFraction = xFraction,
-                    pixelWidth = element.renderedWidth,
-                })
-            end,
-            data = {
-                index = nil,
-                ctx = ctx,
-                contentPanel = contentPanel,
-                inputHost = inputHost,
-                placeholderLabel = nil,
-            },
-            contentPanel,
-            inputHost,
-        }
-        return wrapper
-    end
-
-    --Find-in-page over the live editor: walk the block wrappers in document
-    --order, marking matches in their rendered labels (same marks and scroll
-    --scheme as DisplayPanel). Placeholder blocks and the active block are
-    --skipped - the active block shows its raw source in an input, and marks
-    --injected there would be committed into the document. Runs at the end
-    --of every RefreshBlockPanels pass; the pass renders fresh labels
-    --whenever a term is active (see the generation bump there), so a label
-    --is never marked twice (re-marking would nest mark tags).
-    local function ApplyLiveFindMarks()
-        if m_findTerm == nil then
-            return
-        end
-        local total = 0
-        local currentLabel = nil
-        for index, block in ipairs(m_blocks) do
-            local wrapper = m_blockPanels[index]
-            if (not block.placeholder) and index ~= m_activeIndex
-               and wrapper ~= nil and wrapper.valid
-               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
-                local rel = m_findIndex - total
-                if rel < 1 then
-                    rel = nil
-                end
-                local cnt, cur = ApplyFindMarks(wrapper.data.contentPanel, m_findTerm, rel)
-                if cur ~= nil then
-                    currentLabel = cur
-                end
-                total = total + cnt
-            end
-        end
-        if m_findCallback ~= nil then
-            m_findCallback(total)
-        end
-        if currentLabel ~= nil then
-            --layout has not run for the fresh labels; retry the scroll
-            --until heights are real. The generation guard abandons stale
-            --retries when the term or index moves on.
-            m_findGeneration = m_findGeneration + 1
-            local generation = m_findGeneration
-            local attempts = 12
-            local function tryScroll()
-                if mod.unloaded or generation ~= m_findGeneration then
-                    return
-                end
-                if ScrollFindTargetIntoView(currentLabel) then
-                    return
-                end
-                attempts = attempts - 1
-                if attempts > 0 then
-                    dmhub.Schedule(0.1, tryScroll)
-                end
-            end
-            dmhub.Schedule(0.05, tryScroll)
-        end
-    end
-
-    RefreshBlockPanels = function()
-        --with an active find term every pass must render fresh labels so
-        --the mark pass at the end never marks an already-marked label and
-        --index moves repaint the current-match color.
-        if m_findTerm ~= nil then
-            m_renderGeneration = m_renderGeneration + 1
-        end
-
-        --resolve the skin once per refresh and share it into every block's
-        --render context, mirroring what DisplayPanel does per render.
-        local resolvedStylesheet = m_doc:GetResolvedStylesheet()
-        local resolvedSkin = resolvedStylesheet.base
-        local render = {
-            skin = resolvedSkin,
-            classes = resolvedStylesheet.classes,
-            ruledLevels = HeadingRuleLevels(resolvedSkin),
-            usesAlign = SkinUsesAlign(resolvedSkin),
-            pageColor = SkinColor((resolvedSkin.page or {}).bgcolor),
-        }
-
-        --paint the stylesheet's page onto the live-edit surface, exactly as
-        --DisplayPanel does: page color behind all blocks so skinned content
-        --sits on its intended background, and the page margin inset.
-        --Cleared when the skin sets none so the default look is untouched.
-        if m_pagePanel ~= nil then
-            if render.pageColor then
-                m_pagePanel.bgimage = "panels/square.png"
-                m_pagePanel.bgcolor = render.pageColor
-            else
-                m_pagePanel.bgimage = nil
-                m_pagePanel.bgcolor = nil
-            end
-            local pageMargin = (resolvedSkin.page or {}).margin
-            if type(pageMargin) == "number" and pageMargin > 0 then
-                m_pagePanel.hpad = pageMargin
-                m_pagePanel.vpad = pageMargin
-                m_pagePanel.borderBox = true
-            else
-                m_pagePanel.hpad = nil
-                m_pagePanel.vpad = nil
-                m_pagePanel.borderBox = nil
-            end
-        end
-
-        --the editor surface itself can be destroyed out from under a queued
-        --refresh (dialog closed, Lua reload); writing children to a dead
-        --panel is useless and the pooled wrappers below are dead too.
-        if m_listPanel == nil or not m_listPanel.valid then
-            return
-        end
-
-        local children = {}
-        for index, block in ipairs(m_blocks) do
-            local wrapper = m_blockPanels[index]
-            --a pooled wrapper can be invalidated out from under us (the same
-            --hazard the placeholderLabel guard below covers): reads on a
-            --destroyed panel return nil, so wrapper.data.index would crash
-            --the whole refresh. Rebuild the wrapper instead.
-            if wrapper == nil or not wrapper.valid then
-                wrapper = CreateBlockPanel()
-                m_blockPanels[index] = wrapper
-            end
-            wrapper.data.index = index
-            wrapper.data.ctx.doc = m_doc
-            wrapper.data.ctx.render = render
-
-            local active = (index == m_activeIndex)
-            wrapper.data.inputHost:SetClass("collapsed", not active)
-            wrapper.data.contentPanel:SetClass("collapsed", active)
-            wrapper:SetClass("editing", active)
-
-            if active then
-                local input = EnsureEditInput()
-                --match the input to what the block renders as: the
-                --stylesheet's body face and size normally, the heading
-                --face/size/weight when the block is a heading line, so
-                --entering edit mode does not jar the text. Unset or
-                --unavailable faces fall back to the default face (same
-                --rule as SkinFont).
-                local size, heading = BlockEditFont(BlockSource(block), resolvedSkin)
-                local face = (resolvedSkin.body or {}).font
-                local bold = false
-                --the stylesheet's ink: heading color when the block is a
-                --heading and sets one, else the body color. nil falls back
-                --to the theme's default input color - right for dark pages,
-                --while light-page stylesheets set an explicit dark ink.
-                local ink = SkinColor((resolvedSkin.body or {}).color)
-                if heading ~= nil then
-                    if type(heading.font) == "string" and heading.font ~= "" then
-                        face = heading.font
-                    end
-                    bold = (heading.weight == "bold" or heading.weight == "black")
-                    ink = SkinColor(heading.color) or ink
-                end
-                input.selfStyle.fontSize = size
-                input.selfStyle.bold = bold
-                input.selfStyle.color = ink
-                --one line of the edit font, so an empty block still shows a
-                --caret without padding the block taller than its render; when
-                --the block's rendered form was measured at activation, hold
-                --that height instead so the page does not reflow on entry
-                --(raw source is usually shorter than widgets/tables render).
-                local minHeight = math.ceil(size * 1.4)
-                if m_activeRenderedHeight ~= nil and m_activeRenderedHeight > minHeight then
-                    minHeight = m_activeRenderedHeight
-                end
-                input.selfStyle.minHeight = minHeight
-                if type(face) == "string" and face ~= "" and FontAvailable(face) then
-                    input.selfStyle.fontFace = face
-                else
-                    input.selfStyle.fontFace = nil
-                end
-                if input.parent ~= wrapper.data.inputHost then
-                    if input.parent ~= nil then
-                        input:Unparent()
-                    end
-                    wrapper.data.inputHost.children = { input }
-                end
-            elseif block.placeholder then
-                if wrapper.data.placeholderLabel == nil or not wrapper.data.placeholderLabel.valid then
-                    wrapper.data.placeholderLabel = gui.Label{
-                        classes = { "fg" },
-                        text = "Click to start writing...",
-                        fontSize = CustomDocument.ScaleFontSize(14),
-                        opacity = 0.5,
-                        width = "auto",
-                        height = "auto",
-                        vpad = 8,
-                    }
-                end
-                wrapper.data.contentPanel.children = { wrapper.data.placeholderLabel }
-                wrapper.data.contentPanel:MakeNonInteractiveRecursive()
-                wrapper.data.renderedSource = nil
-            else
-                --only re-render blocks whose source, stylesheet, or render
-                --generation changed; on a typical commit every other block
-                --is byte-identical and reuses its rendered panels as-is.
-                --resolvedStylesheet is memoized, so identity comparison
-                --detects stylesheet edits (ClearCache yields a new table).
-                local source = BlockSource(block)
-                if wrapper.data.renderedSource ~= source
-                   or wrapper.data.renderedStylesheet ~= resolvedStylesheet
-                   or wrapper.data.renderedGeneration ~= m_renderGeneration then
-                    wrapper.data.contentPanel.children = RenderMarkdownTokens(wrapper.data.ctx, block.tokens)
-                    --clicks anywhere on the block must reach the wrapper's
-                    --press handler, so the rendered content is flattened to
-                    --non-interactive -- EXCEPT rich-tag widgets that declare
-                    --data.editorInteractive (checkboxes): those stay live so
-                    --they can be ticked in place without entering edit mode.
-                    --Their PatchToken splices against full-document token
-                    --positions, so a tick saves exactly as in the plain
-                    --viewer; a non-interactable parent does not block events
-                    --reaching an interactable child.
-                    wrapper.data.contentPanel:MakeNonInteractiveRecursive()
-                    for _, tagPanel in pairs(wrapper.data.ctx.pools.richPanels or {}) do
-                        if tagPanel.valid and tagPanel.data ~= nil and tagPanel.data.editorInteractive then
-                            tagPanel.interactable = true
-                        end
-                    end
-                    wrapper.data.renderedSource = source
-                    wrapper.data.renderedStylesheet = resolvedStylesheet
-                    wrapper.data.renderedGeneration = m_renderGeneration
-                end
-            end
-
-            children[#children + 1] = wrapper
-        end
-
-        for i = #m_blocks + 1, #m_blockPanels do
-            m_blockPanels[i] = nil
-        end
-
-        m_listPanel.children = children
-
-        ApplyLiveFindMarks()
-    end
-
-    DeactivateBlock = function()
-        if m_activeIndex == nil then
-            return
-        end
-        if m_editInput ~= nil and m_editInput.valid then
-            m_autocomplete.Dismiss(m_editInput)
-            m_editInput.popup = nil
-        end
-        --m_lastEdit (where the toolbar reactivates) is tracked while the
-        --input is focused - the caret is not reliable after defocus, so it
-        --is deliberately NOT re-read here.
-        CommitActiveBlock()
-        m_activeIndex = nil
-        m_activeRenderedHeight = nil
-        if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.captureEscape = false
-        end
-        RebuildBlockData()
-        RefreshAnnotations(GetContent())
-        RefreshBlockPanels()
-    end
-
-    --caretPlacement: "start" puts the caret at the beginning of the block's
-    --source (arriving from above), anything else at the end (default; also
-    --used when arriving from below).
-    ActivateBlock = function(index, caretPlacement)
-        if index == nil or index == m_activeIndex then
-            return
-        end
-        local target = m_blocks[index]
-        if target == nil then
-            return
-        end
-        local targetLine = target.lineStart
-
-        if m_activeIndex ~= nil then
-            --commit the current edit first; the target block's lines may
-            --shift if the edit changed the line count above it.
-            local active = m_blocks[m_activeIndex]
-            local delta = CommitActiveBlock()
-            if active ~= nil and targetLine > active.lineEnd then
-                targetLine = targetLine + delta
-            end
-            m_activeIndex = nil
-            RebuildBlockData()
-            RefreshAnnotations(GetContent())
-
-            index = nil
-            for i, block in ipairs(m_blocks) do
-                if targetLine <= block.lineEnd then
-                    index = i
-                    break
-                end
-            end
-            if index == nil and #m_blocks > 0 then
-                index = #m_blocks
-            end
-        end
-
-        --measure the block's rendered height before RefreshBlockPanels
-        --collapses it, so the edit input can hold the block at its rendered
-        --size. The pooled wrapper at this index still shows the pre-edit
-        --render here (RefreshBlockPanels has not run since the commit above),
-        --which is exactly the height the user is looking at.
-        m_activeRenderedHeight = nil
-        if index ~= nil then
-            local wrapper = m_blockPanels[index]
-            if wrapper ~= nil and wrapper.valid
-               and wrapper.data.contentPanel ~= nil and wrapper.data.contentPanel.valid then
-                local h = wrapper.data.contentPanel.renderedHeight
-                if type(h) == "number" and h > 0 then
-                    m_activeRenderedHeight = h
-                end
-            end
-        end
-
-        m_activeIndex = index
-        RefreshBlockPanels()
-
-        if m_activeIndex ~= nil then
-            local block = m_blocks[m_activeIndex]
-            local src = BlockSource(block)
-            m_activateTime = dmhub.Time()
-            m_editInput.characterLimit = ActiveCharacterBudget(#src)
-            local caret = #src
-            if caretPlacement == "start" then
-                caret = 0
-            elseif type(caretPlacement) == "table" and caretPlacement.fraction ~= nil then
-                --caret on the source line nearest the click's vertical
-                --position within the block, at the column nearest its
-                --horizontal position.
-                local lineCount = CountLines(src)
-                local targetLine = math.floor(caretPlacement.fraction * lineCount) + 1
-                if targetLine < 1 then targetLine = 1 end
-                if targetLine > lineCount then targetLine = lineCount end
-
-                --1-based [first, last] char span of the target line in src.
-                local lineFirst = 1
-                if targetLine > 1 then
-                    local seen = 0
-                    for i = 1, #src do
-                        if src:sub(i, i) == "\n" then
-                            seen = seen + 1
-                            if seen == targetLine - 1 then
-                                lineFirst = i + 1
-                                break
-                            end
-                        end
-                    end
-                end
-                local lineLast = #src
-                local nl = src:find("\n", lineFirst, true)
-                if nl ~= nil then
-                    lineLast = nl - 1
-                end
-
-                caret = lineLast --caret is 0-based; this is end-of-line.
-                if caretPlacement.xFraction ~= nil
-                   and caretPlacement.pixelWidth ~= nil
-                   and caretPlacement.pixelWidth > 0 then
-                    --approximate a column from the click's pixel offset,
-                    --assuming an average glyph is about half the font size
-                    --wide (using the size the block will actually edit at,
-                    --which is larger for heading blocks). Proportional
-                    --faces and markdown syntax make this inexact; clamping
-                    --to the line keeps it sane.
-                    local editFontSize = BlockEditFont(src, m_doc:GetResolvedStylesheet().base)
-                    local approxCharWidth = editFontSize * 0.5
-                    local px = caretPlacement.xFraction * caretPlacement.pixelWidth
-                    local col = math.floor(px / approxCharWidth + 0.5)
-                    local lineLen = lineLast - lineFirst + 1
-                    if col < 0 then col = 0 end
-                    if col > lineLen then col = lineLen end
-                    caret = (lineFirst - 1) + col
-                end
-            end
-            m_editInput:SetTextAndCaret(caret, src)
-            m_editInput.hasInputFocus = true
-            m_lastEdit = { line = block.lineStart, caret = caret }
-        end
-
-        --intercept escape only while a block is active (see resultPanel's
-        --escape handler).
-        if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.captureEscape = (m_activeIndex ~= nil)
-        end
-    end
-
-    --Appends a fresh empty paragraph after the last block and opens it for
-    --editing; the click-below-the-document affordance. The new paragraph
-    --gets a synthetic block over a fresh blank line (blank lines belong to
-    --no block, so the partitioner cannot produce one); once the user types
-    --and the block commits, it becomes a real content block.
-    local function AppendParagraph()
-        DeactivateBlock()
-
-        if #m_lines == 0 or trim(m_lines[#m_lines] or "") ~= "" then
-            m_lines[#m_lines + 1] = "" --separator from the last content line.
-        end
-        m_lines[#m_lines + 1] = ""     --the new paragraph's home line.
-
-        RebuildBlockData()
-        if m_blocks[#m_blocks] == nil or not m_blocks[#m_blocks].placeholder then
-            m_blocks[#m_blocks + 1] = {
-                lineStart = #m_lines,
-                lineEnd = #m_lines,
-                tokens = {},
-                placeholder = true,
-            }
-        end
-        RefreshBlockPanels()
-        ActivateBlock(#m_blocks)
-    end
-
-    --Adopt restored content wholesale (undo/redo): rebuild everything and
-    --refresh the changes indicator against the last saved content.
-    local function RestoreContent(content)
-        SetLinesFromContent(content)
-        m_lastEdit = nil
-        m_renderGeneration = m_renderGeneration + 1
-        RebuildBlockData()
-        RefreshAnnotations(GetContent())
-        RefreshBlockPanels()
-        if resultPanel ~= nil then
-            resultPanel:SetClassTree("changes", GetContent() ~= m_savedContent)
-        end
-    end
-
-    --Ctrl+Z / the toolbar Undo button. A mid-edit block is committed first
-    --(pushing its own snapshot), so undo reverts the thing the user just did.
-    local function PerformUndo()
-        if m_activeIndex ~= nil then
-            DeactivateBlock()
-        end
-        local prev = m_undoStack[#m_undoStack]
-        if prev == nil then
-            return
-        end
-        m_undoStack[#m_undoStack] = nil
-        m_redoStack[#m_redoStack + 1] = GetContent()
-        RestoreContent(prev)
-    end
-
-    local function PerformRedo()
-        --deactivating a dirty block commits a fresh change, which clears the
-        --redo stack via PushUndo; that is the correct outcome (a new edit
-        --invalidates redo history).
-        if m_activeIndex ~= nil then
-            DeactivateBlock()
-        end
-        local nxt = m_redoStack[#m_redoStack]
-        if nxt == nil then
-            return
-        end
-        m_redoStack[#m_redoStack] = nil
-        --push directly (not PushUndo) so the redo stack survives.
-        m_undoStack[#m_undoStack + 1] = GetContent()
-        RestoreContent(nxt)
-    end
-
-    --the formatting toolbar, shared with the classic editor. Toolbar clicks
-    --defocus the input, which commits and deactivates the block before the
-    --button handler runs; GetInput reactivates the last edited block (line
-    --anchored, caret restored) so the action lands where the user was typing.
-    local m_toolbar = CreateMarkdownToolbar{
-        OnUndo = PerformUndo,
-        OnRedo = PerformRedo,
-        GetInput = function()
-            if m_activeIndex ~= nil then
-                return m_editInput
-            end
-            if m_lastEdit == nil then
-                return nil
-            end
-            local index = nil
-            for i, block in ipairs(m_blocks) do
-                if m_lastEdit.line <= block.lineEnd then
-                    index = i
-                    break
-                end
-            end
-            if index == nil then
-                return nil
-            end
-            ActivateBlock(index)
-            if m_activeIndex == nil or m_editInput == nil or not m_editInput.valid then
-                return nil
-            end
-            --hand the intended caret to the action explicitly: the caret set
-            --during activation is still pending (deferred across the focus
-            --race), so reading input.caretPosition here would act on a stale
-            --position.
-            local caret = nil
-            if m_lastEdit ~= nil and m_lastEdit.caret ~= nil then
-                caret = math.min(m_lastEdit.caret, #(m_editInput.text or ""))
-            end
-            return m_editInput, caret
-        end,
-        GetStylesheetId = function()
-            return m_doc.styleSheetId or ""
-        end,
-        OnStylesheetChanged = function(chosen)
-            m_doc.styleSheetId = (chosen ~= "" and chosen) or false
-            ResolveStylesheet.ClearCache()
-            m_doc._tmp_styleDirty = true
-            m_renderGeneration = m_renderGeneration + 1
-            RefreshBlockPanels()
-            if resultPanel ~= nil then
-                resultPanel:SetClassTree("changes", true)
-            end
-        end,
-    }
-
-    m_listPanel = gui.Panel{
-        flow = "vertical",
-        width = "100%",
-        height = "auto",
-        valign = "top",
-    }
-
-    m_pagePanel = gui.Panel{
-        width = "98%",
-        height = "100% available",
-        halign = "center",
-        valign = "top",
-        vscroll = true,
-        flow = "vertical",
-        m_listPanel,
-
-        --click below the last block to append a new paragraph
-        --(hairline-free: this is content space, not chrome). Same selector
-        --arity note as the block wrappers: {panel, class} keeps the theme's
-        --panel fill from painting this dark.
-        gui.Panel{
-            classes = { "liveEditAppend" },
-            width = "100%",
-            height = 48,
-            hoverCursor = "text",
-            bgimage = "panels/square.png",
-            styles = {
-                {
-                    selectors = { "panel", "liveEditAppend" },
-                    bgcolor = "#00000000",
-                },
-                {
-                    selectors = { "panel", "liveEditAppend", "hover" },
-                    --kept in step with the block hover wash above.
-                    bgcolor = "#ffffff0a",
-                },
-            },
-            press = function(element)
-                AppendParagraph()
-            end,
-        },
-    }
-
-    resultPanel = gui.Panel{
-        classes = { "collapsed" },
-        styles = ThemeEngine.GetStyles(),
-        width = "100%",
-        height = "100%-0",
-        valign = "top",
-        tmargin = 2,
-        flow = "vertical",
-
-        --document-level history: Ctrl+Z/Ctrl+Y route here when the engine
-        --dispatches them as input events (the focused block input handles
-        --its own in-edit undo natively).
-        inputEvents = { "undo", "redo" },
-        undo = function(element)
-            PerformUndo()
-        end,
-        redo = function(element)
-            PerformRedo()
-        end,
-
-        --escape while a block is being edited commits the block and stays in
-        --the journal instead of bubbling to the window's EXIT_DIALOG close.
-        --Same pattern as the editor's find bar: DMHUB_POPUP outranks
-        --EXIT_DIALOG, and captureEscape is toggled with block activation
-        --(ActivateBlock/DeactivateBlock) so escape with no active block
-        --still closes the journal window as usual.
-        captureEscape = false,
-        escapePriority = EscapePriority.DMHUB_POPUP,
-        escape = function(element)
-            DeactivateBlock()
-        end,
-
-        --Find-in-page driver, same contract as DisplayPanel's: re-renders
-        --with term occurrences marked, reports the match count through the
-        --callback (synchronously, during this event), and scrolls to match
-        --number index. A nil or empty term clears the highlights. An active
-        --block is committed first so its content is rendered, countable,
-        --and safe to mark.
-        findInPage = function(element, findArgs)
-            local term = findArgs ~= nil and findArgs.term or nil
-            if term == "" then
-                term = nil
-            end
-            m_findTerm = term
-            m_findIndex = findArgs ~= nil and findArgs.index or 1
-            m_findCallback = findArgs ~= nil and findArgs.callback or nil
-            m_findGeneration = m_findGeneration + 1
-            --render fresh labels even when the term was just cleared, so
-            --stale marks drop out.
-            m_renderGeneration = m_renderGeneration + 1
-            if m_activeIndex ~= nil then
-                DeactivateBlock()
-            else
-                RefreshBlockPanels()
-            end
-            m_findCallback = nil
-        end,
-
-        --focus watchdog: if the active input silently lost focus (clicked
-        --into another panel entirely) commit and re-render. The grace period
-        --covers the input's multi-frame focus acquisition.
-        thinkTime = 0.25,
-        think = function(element)
-            if m_activeIndex == nil then
-                return
-            end
-            if dmhub.Time() - m_activateTime < 0.5 then
-                return
-            end
-            if m_editInput ~= nil and m_editInput.valid and m_editInput.popup ~= nil then
-                --an autocomplete/link popup owns the interaction right now.
-                return
-            end
-            if m_editInput == nil or (not m_editInput.valid) or (not m_editInput.hasInputFocus) then
-                DeactivateBlock()
-            end
-        end,
-
-        refreshDocument = function(element, doc)
-            if doc ~= nil then
-                m_doc = doc
-            end
-
-            local hasLocalWork = (m_activeIndex ~= nil)
-                or (m_savedContent ~= nil and GetContent() ~= m_savedContent)
-            if hasLocalWork then
-                --an active edit or committed-but-unsaved local changes:
-                --never clobber them with a refresh. TextStorage merges
-                --disjoint-region edits when we save; if the stored content
-                --has moved on, surface it through the changes indicator so
-                --the user knows a save will merge.
-                local remote = (m_doc:GetTextContent() or ""):gsub("\v", "\n"):gsub("\r", "")
-                if remote ~= GetContentIncludingActive() then
-                    resultPanel:SetClassTree("changes", true)
-                end
-                return
-            end
-
-            m_lastEdit = nil
-            SetLinesFromContent(m_doc:GetTextContent())
-            m_savedContent = GetContent()
-            m_renderGeneration = m_renderGeneration + 1
-            RebuildBlockData()
-            RefreshAnnotations(GetContent())
-            RefreshBlockPanels()
-        end,
-
-        needsave = function(element, result)
-            if m_doc:GetTextContent() ~= GetContentIncludingActive() then
-                result.save = true
-            end
-        end,
-
-        savedoc = function(element)
-            DeactivateBlock()
-            m_doc:SetTextContent(GetContent())
-            --re-read: SetTextContent routes through TextStorage, which may
-            --have merged concurrent remote edits into the stored result.
-            SetLinesFromContent(m_doc:GetTextContent())
-            m_savedContent = GetContent()
-            m_renderGeneration = m_renderGeneration + 1
-            RebuildBlockData()
-            RefreshAnnotations(GetContent())
-            RefreshBlockPanels()
-        end,
-
-        checkChanges = function(element, baseDoc)
-            resultPanel:SetClassTree("changes", GetContentIncludingActive() ~= baseDoc:GetTextContent())
-        end,
-
-        m_toolbar,
-
-        m_pagePanel,
-
-        --hairline above the annotation strip, continuing the design's
-        --row-separation rhythm.
-        gui.Panel{
-            width = "100%",
-            height = 1,
-            bgimage = "panels/square.png",
-            bgcolor = "#ffffff26",
-        },
-
-        m_annotationsPanel,
-    }
-
-    SetLinesFromContent(m_doc:GetTextContent())
-    m_savedContent = GetContent()
-    RebuildBlockData()
-    RefreshAnnotations(GetContent())
-    RefreshBlockPanels()
-
-    return resultPanel
 end
 
 --------------------------------------------------------------------------------
@@ -8480,8 +7247,9 @@ end
 --italics, strikethrough, [label](target) links. Island pass: block-level
 --rich tags (tag alone on its line), with candidate ids matching
 --RenderMarkdownTokens' annotation keys (tagsSeen dedup over all tag tokens in
---document order). Tables / power rolls / styleblocks / collapse regions stay
---raw text in v1 (they reveal and edit as source).
+--document order). Tables island as an editable grid; power rolls island as
+--the display renderer's styled block with click-to-caret. Styleblocks /
+--collapse regions stay raw text (they reveal and edit as source).
 function Seamless.CompileDecorations(doc, text)
     text = (text or ""):gsub("\v", "\n") --length-preserving; byte offsets stable.
     local decs = {}
@@ -8521,6 +7289,9 @@ function Seamless.CompileDecorations(doc, text)
     --contiguous line ranges of markdown tables (row / rollable_table
     --tokens); each becomes a table island (an editable grid widget) below.
     local tableRanges = {}
+    --power_roll tokens in document order; each becomes a power-roll island
+    --(the display renderer's styled block, click-to-caret) below.
+    local powerRollTokens = {}
 
     --island + block passes run off the journal's own tokenizer so structure
     --matches the display renderer exactly.
@@ -8617,9 +7388,13 @@ function Seamless.CompileDecorations(doc, text)
             else
                 tableRanges[#tableRanges + 1] = { first = first, last = last }
             end
+        elseif token.srcLine ~= nil and token.type == "power_roll" then
+            --power rolls island as the display renderer's styled block; a
+            --click on the widget focuses the editor at the nearest source
+            --position (see CreatePowerRollIslandWidget). Emitted below.
+            powerRollTokens[#powerRollTokens + 1] = token
         elseif token.srcLine ~= nil and
-               (token.type == "power_roll" or
-                token.type == "styleblock" or token.type == "collapse_node") then
+               (token.type == "styleblock" or token.type == "collapse_node") then
             for li = token.srcLine, math.min(token.srcLineEnd or token.srcLine, #lines) do
                 blockLines[li] = true
             end
@@ -8662,6 +7437,47 @@ function Seamless.CompileDecorations(doc, text)
                 blockLines[li] = true
             end
         end
+    end
+
+    --emit each power roll as one island over its whole line range (trailing
+    --newline included, per the island contract). Ids are document-order
+    --("//powerroll-N" -- the same collision-proof namespace as table ids).
+    --The widget renders the display block read-only and never edits the
+    --source, so no round-trip check is needed; the meta carries the token
+    --(name/attr/tiers/preset) for refreshPowerRoll plus the source text for
+    --the click-to-caret mapping.
+    for pindex, token in ipairs(powerRollTokens) do
+        local first = token.srcLine
+        local last = math.min(token.srcLineEnd or token.srcLine, #lines)
+        local from = lineOffsets[first]
+        local to = lineOffsets[last] + #lines[last] - 1
+        if last < #lines then
+            to = to + 1
+        end
+        local id = string.format("//powerroll-%d", pindex)
+        for li = first, last do
+            islandLines[li] = true
+        end
+        local tierCount = 3
+        pcall(function() tierCount = math.max(1, #(token.tiers or {})) end)
+        decs[#decs + 1] = {
+            kind = "island",
+            from = from,
+            to = to,
+            id = id,
+            --estimate close to the block's natural height (title row + tier
+            --rows) so the layout jump when it becomes an island stays small;
+            --the widget's height feedback refines it.
+            height = 34 + 32 * tierCount,
+            group = G(),
+        }
+        islandMeta[id] = {
+            kind = "powerroll",
+            from = from,
+            to = to,
+            sourceText = text:sub(from, to),
+            token = token,
+        }
     end
 
     for li = 1, #lines do
@@ -9774,6 +8590,273 @@ local function CreateTableIslandWidget(opts)
     return resultPanel
 end
 
+--The power-roll island widget: the display renderer's PowerRollDisplay panel
+--(visual parity, including the stylesheet's powerRoll block skin) as one
+--click-to-caret surface -- a click maps to the nearest source position and
+--focuses the editor there, and the caret-reveal invariant then opens the
+--island as raw source with the caret where the user clicked. The widget's
+--root takes the press itself and the display subtree is made
+--non-interactable, which both routes every click here and keeps the
+--display's own press handlers (roll requests, preset cycling) from firing
+--inside the editor. NOT a floating 100%-height overlay: a percent height
+--inside the wrapper's auto-height chain resolves circularly and the
+--oversized invisible overlay swallowed clicks meant for the islands below
+--it. The click mapping walks PowerRollDisplay's child structure (header
+--panel {title label, preset label} + four TierRoll rows {icon, text
+--label}); keep the two in sync.
+--opts:
+--  GetDocument() -> the document (PowerRollDisplay's constructor wants it;
+--    its press handlers never fire -- the subtree is non-interactable).
+--  FocusSourceAt(byteOffset): put the editor caret at the 1-based source
+--    byte offset (focuses the editor).
+--  GetBlockSkin() -> the resolved stylesheet's blocks.powerRoll config, or
+--    nil for the default dark look.
+local function CreatePowerRollIslandWidget(opts)
+    local m_meta = nil
+    local resultPanel
+
+    local display = PowerRollDisplay(opts.GetDocument())
+
+    --mousePoint is geometric, not raycast-based, so the click mapping below
+    --still reads positions off non-interactable rows and labels.
+    local function DisableInteraction(el)
+        pcall(function() el.interactable = false end)
+        local kids = nil
+        pcall(function() kids = el.children end)
+        if kids ~= nil then
+            for _, c in ipairs(kids) do
+                DisableInteraction(c)
+            end
+        end
+    end
+    DisableInteraction(display)
+
+    local function ApplySkin()
+        local cfg = nil
+        pcall(function() cfg = opts.GetBlockSkin() end)
+        cfg = cfg or {}
+        ApplyBlockFrame(display, cfg.box)
+        ApplyBlockInner(display, cfg.inner, "powerRoll")
+    end
+
+    --the island's source lines (the island contract includes the trailing
+    --newline, which splits into a final empty entry; drop it).
+    local function SourceLines()
+        local lines = string.split_allow_duplicates(m_meta.sourceText or "", "\n")
+        if #lines > 0 and lines[#lines] == "" then
+            lines[#lines] = nil
+        end
+        return lines
+    end
+
+    --Estimate the character offset of the mouse within a text label:
+    --normalized mousePoint.x -> label-local pixels -> characters at an
+    --average glyph width of half the font size. Approximate by design (the
+    --face is proportional and rendered text hides markdown syntax) -- the
+    --caret just needs to land close, and clicks past the end of the text
+    --clamp to the end of the line. Returns nil when the mouse is not over
+    --the label.
+    local function CharOffsetInLabel(label, contentLen, fontSize)
+        local frac = nil
+        local width = 0
+        pcall(function()
+            local p = label.mousePoint
+            if p ~= nil and (p.x ~= 0 or p.y ~= 0)
+                    and p.x >= 0 and p.x <= 1 and p.y >= 0 and p.y <= 1 then
+                frac = p.x
+                width = label.renderedWidth or 0
+            end
+        end)
+        if frac == nil or width <= 0 then
+            return nil
+        end
+        local avg = math.max(1, (fontSize or 16) * 0.5)
+        local chars = math.floor((frac * width) / avg + 0.5)
+        return math.max(0, math.min(contentLen, chars))
+    end
+
+    --Map the current mouse position (during the surface's press) to a
+    --1-based source byte offset for the caret. Row -> source line; x within
+    --the row's text label -> character within the line's content (after the
+    --'|' marker). Preset-form rolls have only two source lines: the header
+    --and the preset name; every tier row maps to the preset line.
+    local function MapClickToSource(surface)
+        if m_meta == nil then
+            return nil
+        end
+        local lines = SourceLines()
+        if #lines == 0 then
+            return m_meta.from
+        end
+        local isPreset = false
+        pcall(function() isPreset = m_meta.token.preset ~= nil end)
+
+        --rows in visual order: display.children = header + TierRoll 1..4.
+        local rows = {}
+        pcall(function()
+            for i, child in ipairs(display.children) do
+                local line
+                if i == 1 then
+                    line = 1
+                elseif isPreset then
+                    line = 2
+                else
+                    line = i
+                end
+                rows[#rows + 1] = { panel = child, line = math.min(line, #lines), index = i }
+            end
+        end)
+        if #rows == 0 then
+            return m_meta.from
+        end
+
+        local hitRow = nil
+        for _, row in ipairs(rows) do
+            local inside = false
+            pcall(function()
+                if not row.panel:HasClass("collapsed") then
+                    local p = row.panel.mousePoint
+                    inside = p ~= nil and (p.x ~= 0 or p.y ~= 0)
+                        and p.x >= 0 and p.x <= 1 and p.y >= 0 and p.y <= 1
+                end
+            end)
+            if inside then
+                hitRow = row
+                break
+            end
+        end
+        if hitRow == nil then
+            --between rows (block padding): pick a row from the surface's
+            --vertical fraction over the visible rows. mousePoint.y runs
+            --bottom-up.
+            local yFrac = nil
+            pcall(function()
+                local p = surface.mousePoint
+                if p ~= nil and (p.x ~= 0 or p.y ~= 0) then
+                    yFrac = 1 - p.y
+                end
+            end)
+            if yFrac == nil then
+                return m_meta.from
+            end
+            local visible = {}
+            for _, row in ipairs(rows) do
+                local collapsed = false
+                pcall(function() collapsed = row.panel:HasClass("collapsed") end)
+                if not collapsed then
+                    visible[#visible + 1] = row
+                end
+            end
+            if #visible == 0 then
+                return m_meta.from
+            end
+            local idx = math.max(1, math.min(#visible, 1 + math.floor(yFrac * #visible)))
+            hitRow = visible[idx]
+        end
+
+        --the row's text label and its font size (see PowerRollDisplay /
+        --TierRoll). In the header row a preset-form roll shows the preset
+        --name label next to the title; a click on it maps to the preset
+        --source line.
+        local lineIndex = hitRow.line
+        local label = nil
+        local fontSize = CustomDocument.ScaleFontSize(16)
+        if hitRow.index == 1 then
+            pcall(function()
+                local kids = hitRow.panel.children
+                local presetLabel = kids[2]
+                local pp = nil
+                if isPreset and presetLabel ~= nil then
+                    pp = presetLabel.mousePoint
+                end
+                if pp ~= nil and (pp.x ~= 0 or pp.y ~= 0) then
+                    label = presetLabel
+                    lineIndex = math.min(2, #lines)
+                else
+                    label = kids[1]
+                    fontSize = CustomDocument.ScaleFontSize(18)
+                end
+            end)
+        else
+            pcall(function()
+                label = hitRow.panel.children[2]
+            end)
+        end
+
+        local lineText = lines[lineIndex] or ""
+        local lineStart = m_meta.from
+        for i = 1, lineIndex - 1 do
+            lineStart = lineStart + #lines[i] + 1
+        end
+        --the line's content begins after its '|' marker (which may sit
+        --after list indentation).
+        local pipePos = lineText:find("|", 1, true) or 0
+        local contentLen = math.max(0, #lineText - pipePos)
+
+        local chars = nil
+        if label ~= nil then
+            chars = CharOffsetInLabel(label, contentLen, fontSize)
+        end
+        if chars == nil then
+            --not over a text label (the tier icon, or right of the
+            --auto-width title): snap to the start or end of the content by
+            --which side of the row was clicked.
+            local frac = 0
+            pcall(function()
+                local p = hitRow.panel.mousePoint
+                if p ~= nil then
+                    frac = p.x
+                end
+            end)
+            chars = 0
+            if frac > 0.35 then
+                chars = contentLen
+            end
+        end
+
+        return lineStart + pipePos + chars
+    end
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        --the click-to-caret surface: flow-sized to exactly the display
+        --block (never larger -- see the overlay note in the header comment),
+        --with an invisible bgimage so the whole rect is hit-testable.
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        press = function(element)
+            local offset = nil
+            pcall(function() offset = MapClickToSource(element) end)
+            if offset ~= nil then
+                opts.FocusSourceAt(offset)
+            end
+        end,
+        display,
+        data = {
+            --meta refresh channel (mirrors the table widget's): offsets are
+            --pushed every layout tick / recompile; the display re-renders
+            --and the skin re-applies only when the source text changed.
+            SetMeta = function(meta)
+                if meta == nil or meta.token == nil then
+                    return
+                end
+                local changed = m_meta == nil or m_meta.sourceText ~= meta.sourceText
+                m_meta = meta
+                if changed then
+                    resultPanel:FireEventTree("refreshPowerRoll", meta.token)
+                    ApplySkin()
+                end
+            end,
+        },
+    }
+
+    return resultPanel
+end
+
 --Raw-mode syntax highlighting: computes SetColorSpans entries for markdown
 --source. Offsets are 1-based inclusive BYTES (string.find conventions, the
 --same space SetColorSpans consumes). The scheme dims syntax punctuation and
@@ -9892,10 +8975,10 @@ function MarkdownDocument.ComputeRawColorSpans(text)
     return spans
 end
 
---The seamless single-surface editor. Mirrors ClassicEditPanel's document
---contract (refreshDocument/needsave/savedoc/checkChanges + toolbar +
---annotations + find bar) with one richDisplay TextEditor over the whole
---source, plus the island widget overlay.
+--The seamless single-surface editor -- the journal's only editor. Implements
+--the document contract (refreshDocument/needsave/savedoc/checkChanges +
+--toolbar + annotations + find bar) with one richDisplay TextEditor over the
+--whole source, plus the island widget overlay.
 function MarkdownDocument:SeamlessEditPanel(args)
     args = args or {}
 
@@ -9904,10 +8987,19 @@ function MarkdownDocument:SeamlessEditPanel(args)
 
     local editInput
     local editorWrap
+    local editorColumn
     local islandLayer
     local m_islandMeta = {}
     local m_islandPanels = {} --id -> { wrapper, inner, tag, lastHeight }
     local m_rawMode = false   --Raw toggle: plain markdown editing, no islands.
+
+    --Raw mode's live preview (the classic editor's split view, revived):
+    --source on the left, rendered document on the right. Collapsed and never
+    --rendered while the seamless surface is active (the surface IS the
+    --preview there).
+    local previewDoc, previewBody, previewPanel
+    local EnsurePreviewPanel --defined with the preview construction below.
+    local lastSyncedCaret = -1
 
     local m_annotationsPanel = CreateAnnotationsPanel{
         GetDocument = function()
@@ -9965,6 +9057,12 @@ function MarkdownDocument:SeamlessEditPanel(args)
             if not ok then
                 print("SeamlessEditPanel:: raw mode compile error:", tostring(err))
             end
+            --every path that recompiles in raw mode (edit, refreshDocument,
+            --raw toggle, stylesheet change) also wants the live preview
+            --re-rendered, so this is the one refresh point.
+            if previewPanel ~= nil and previewPanel.valid then
+                previewPanel:FireEvent("editDocument", editInput.text or "")
+            end
             return
         end
         local ok, err = pcall(function()
@@ -9984,10 +9082,16 @@ function MarkdownDocument:SeamlessEditPanel(args)
             --sync table grids HERE, not only from islandLayout ticks: a grid
             --commit that does not change the island's rects never fires
             --another layout event, so this is the only reliable post-edit
-            --sync point.
+            --sync point. Power-roll widgets take the same channel so their
+            --byte offsets (click-to-caret) and rendered tiers follow edits.
             for id, m in pairs(meta) do
                 if m.kind == "table" then
                     SyncTableEntry(id, m)
+                elseif m.kind == "powerroll" then
+                    local entry = m_islandPanels[id]
+                    if entry ~= nil and entry.isPowerRoll and entry.wrapper.valid and entry.inner.valid then
+                        entry.inner.data.SetMeta(m)
+                    end
                 end
             end
         end)
@@ -10005,10 +9109,25 @@ function MarkdownDocument:SeamlessEditPanel(args)
             return
         end
         m_rawMode = raw
+        if raw then
+            --the split-view preview is built lazily on first entry into raw
+            --mode, so the seamless surface never pays for it.
+            EnsurePreviewPanel()
+        end
         if islandLayer ~= nil and islandLayer.valid then
             --instant belt-and-suspenders hide; the empty islandLayout tick
             --that follows the recompile hides the wrappers individually.
             islandLayer:SetClass("hidden", raw)
+        end
+        --split view: raw mode shows the rendered preview beside the source
+        --(the classic editor's layout); leaving raw returns the seamless
+        --surface to full width. The preview content itself is populated by
+        --RecompileDecorations' raw branch below.
+        if previewPanel ~= nil and previewPanel.valid then
+            previewPanel:SetClass("collapsed", not raw)
+        end
+        if editorColumn ~= nil and editorColumn.valid then
+            editorColumn.selfStyle.width = raw and "50%" or "100%"
         end
         if editInput ~= nil and editInput.valid then
             editInput:SetClass("rawmode", raw)
@@ -10084,6 +9203,19 @@ function MarkdownDocument:SeamlessEditPanel(args)
         editInput:SetTextAndCaret(math.max(0, (meta.from or 1) - 1), editInput.text or "")
     end
 
+    --power-roll islands' click-to-caret: focus the editor with the caret at
+    --the given 1-based source byte offset (the character the caret should
+    --sit before). The caret lands inside the island's lines, so the island
+    --opens as raw source via the caret-reveal invariant.
+    local function FocusIslandSourceAt(byteOffset)
+        if editInput == nil or not editInput.valid then
+            return
+        end
+        local len = #(editInput.text or "")
+        local caret = math.max(0, math.min(len, (byteOffset or 1) - 1))
+        editInput:SetTextAndCaret(caret, editInput.text or "")
+    end
+
     --island widgets: pooled panels floated over the editor at the rects the
     --engine exports. Annotation resolution matches RenderMarkdownTokens
     --(doc.annotations[candidate]; the annotations panel's scan creates missing
@@ -10104,6 +9236,28 @@ function MarkdownDocument:SeamlessEditPanel(args)
                 local patternMatch = nil
                 local inner = nil
                 local isTable = meta ~= nil and meta.kind == "table"
+                local isPowerRoll = meta ~= nil and meta.kind == "powerroll"
+                if isPowerRoll then
+                    --power-roll island: the display renderer's styled block
+                    --as a click-to-caret surface. No annotation object;
+                    --the widget never edits the source.
+                    inner = CreatePowerRollIslandWidget{
+                        GetDocument = function()
+                            return m_doc
+                        end,
+                        FocusSourceAt = FocusIslandSourceAt,
+                        GetBlockSkin = function()
+                            local cfg = nil
+                            pcall(function()
+                                local sheet = m_doc:GetResolvedStylesheet()
+                                local base = sheet ~= nil and sheet.base or nil
+                                local blocks = base ~= nil and base.blocks or nil
+                                cfg = blocks ~= nil and blocks.powerRoll or nil
+                            end)
+                            return cfg
+                        end,
+                    }
+                end
                 if isTable then
                     --table island: the editable grid widget. No annotation
                     --object; the widget round-trips the island's source.
@@ -10136,13 +9290,13 @@ function MarkdownDocument:SeamlessEditPanel(args)
                         end,
                     }
                 end
-                if not isTable and meta ~= nil and m_doc.annotations ~= nil then
+                if not isTable and not isPowerRoll and meta ~= nil and m_doc.annotations ~= nil then
                     richTag = m_doc.annotations[island.id]
                     if richTag ~= nil and getmetatable(richTag) == nil then
                         richTag = nil
                     end
                 end
-                if not isTable and richTag == nil and meta ~= nil then
+                if not isTable and not isPowerRoll and richTag == nil and meta ~= nil then
                     --pattern-based tags (RichSetting, RichResource, ...) have
                     --no annotation object (hasEdit = false); mirror the display
                     --renderer: instantiate a copy of the registry default and
@@ -10172,6 +9326,7 @@ function MarkdownDocument:SeamlessEditPanel(args)
                             inner = inner,
                             tag = richTag,
                             isTable = isTable,
+                            isPowerRoll = isPowerRoll,
                             lastHeight = nil,
                         }
                         --shown instead of the widget while the island is open
@@ -10273,6 +9428,10 @@ function MarkdownDocument:SeamlessEditPanel(args)
                             entry.sourceText = meta.tableText
                             entry.metaText = meta.tableText
                             inner:FireEvent("refreshTable", meta)
+                        elseif isPowerRoll then
+                            --first meta push renders the block and applies
+                            --the stylesheet's powerRoll skin.
+                            inner.data.SetMeta(meta)
                         else
                         richTag._tmp_document = m_doc
                         local match = patternMatch
@@ -10308,6 +9467,14 @@ function MarkdownDocument:SeamlessEditPanel(args)
                     local meta = m_islandMeta[island.id]
                     if meta ~= nil and meta.kind == "table" then
                         SyncTableEntry(island.id, meta)
+                    end
+                elseif entry.isPowerRoll then
+                    --keep the widget's byte offsets current (edits elsewhere
+                    --shift the island's range; click-to-caret needs the live
+                    --range) and re-render when the source text changed.
+                    local meta = m_islandMeta[island.id]
+                    if meta ~= nil and meta.kind == "powerroll" and entry.inner.valid then
+                        entry.inner.data.SetMeta(meta)
                     end
                 else
                 --re-assert alignment when the line's justification markers
@@ -10367,6 +9534,102 @@ function MarkdownDocument:SeamlessEditPanel(args)
     --find bar state (same recipe as the classic editor's).
     local findInput, findBar, findCountLabel
     local OpenFind, CloseFind, UpdateFindUI
+
+    --Raw mode only: scroll the live preview so the block under the editor
+    --caret stays in view. A flat caretLine/totalLines ratio assumes every
+    --source line renders at the same height, so it drifts whenever an
+    --image/table/heading (tall) or blank lines (short) sit above the caret.
+    --Instead map the caret's source line to the real rendered pixel offset
+    --of the block it produced: each top-level preview block is tagged with
+    --its source line (data.srcLine, stamped during render), so summing
+    --rendered heights gives every block's pixel top, and we interpolate
+    --between the two anchors bracketing the caret line. Interpolating (not
+    --snapping to a block) keeps scrolling smooth inside a long uniform
+    --prose run while still jumping the right amount past a tall block.
+    --Geometry reads are pcall-guarded and read 0 before layout has run; in
+    --that case bail WITHOUT recording lastSyncedCaret so the editor's 0.2s
+    --think retries next tick. (Ported verbatim from the deleted classic
+    --editor's split view.)
+    local SYNC_PREVIEW_TOP_BIAS = 0.3   --keep the active block ~30% down from the top edge.
+    local function SyncPreviewScroll(input)
+        if previewPanel == nil or not previewPanel.valid
+                or previewPanel:HasClass("collapsed") or previewBody == nil then
+            return
+        end
+        local caret = input.caretPosition or 0
+        if caret == lastSyncedCaret then
+            return
+        end
+
+        local text = input.text or ""
+        --1-based source line of the caret, to match token srcLine.
+        local caretLine = 1
+        for i = 1, math.min(caret, #text) do
+            if text:sub(i, i) == "\n" then
+                caretLine = caretLine + 1
+            end
+        end
+        local _, totalNewlines = text:gsub("\n", "\n")
+        local totalLines = totalNewlines + 1
+
+        local windowH = 0
+        pcall(function() windowH = previewPanel.renderedHeight or 0 end)
+
+        --Walk the rendered blocks once: accumulate heights for the content
+        --height and record a {line, top} anchor for every block that carries
+        --a source line.
+        local anchors = {}
+        local accum = 0
+        pcall(function()
+            for _, child in ipairs(previewBody.children) do
+                local ln = child.data ~= nil and child.data.srcLine or nil
+                if ln ~= nil then
+                    anchors[#anchors + 1] = { line = ln, top = accum }
+                end
+                accum = accum + (child.renderedHeight or 0)
+            end
+        end)
+        local contentH = accum
+
+        if windowH <= 0 or contentH <= 0 then
+            --layout not measured yet; do not record lastSyncedCaret so
+            --think() retries.
+            return
+        end
+        lastSyncedCaret = caret
+
+        local range = contentH - windowH
+        if range <= 0 then
+            --everything fits; nothing to scroll.
+            return
+        end
+
+        --Sentinels bracket the document so A/B always exist. A = last anchor
+        --at/above the caret line; B = first anchor below it (topmost when
+        --several share a line).
+        local A = { line = 0, top = 0 }
+        local B = { line = totalLines + 1, top = contentH }
+        for _, a in ipairs(anchors) do
+            if a.line <= caretLine then
+                if a.line > A.line then A = a end
+            else
+                if a.line < B.line then B = a end
+            end
+        end
+
+        local span = B.line - A.line
+        local frac = 0
+        if span > 0 then
+            frac = (caretLine - A.line) / span
+        end
+        frac = math.max(0, math.min(1, frac))
+        local targetTop = A.top + (B.top - A.top) * frac
+
+        local desiredTop = targetTop - windowH * SYNC_PREVIEW_TOP_BIAS
+        desiredTop = math.max(0, math.min(range, desiredTop))
+        --vscrollPosition: 1 = top, 0 = bottom.
+        previewPanel.vscrollPosition = 1 - desiredTop / range
+    end
 
     editInput = gui.TextEditor{
         id = "editorPanel",
@@ -10437,6 +9700,9 @@ function MarkdownDocument:SeamlessEditPanel(args)
 
         caretReady = function(element)
             m_autocomplete.Update(element)
+            if m_rawMode then
+                SyncPreviewScroll(element)
+            end
         end,
 
         find = function(element)
@@ -10452,6 +9718,9 @@ function MarkdownDocument:SeamlessEditPanel(args)
             else
                 m_autocomplete.UpdateLinkInfo(element)
             end
+            if m_rawMode then
+                SyncPreviewScroll(element)
+            end
         end,
     }
 
@@ -10459,6 +9728,86 @@ function MarkdownDocument:SeamlessEditPanel(args)
     --Init() (which historically could reset engine-side state), so re-assert
     --the display transform after construction.
     editInput.richDisplay = true
+
+    --Raw mode's live preview document: starts empty and only renders while
+    --raw mode is active. Built lazily on first entry into raw mode
+    --(SetRawMode calls this), so the seamless surface (the common case)
+    --never pays for the preview's DisplayPanel build at open time. On
+    --creation the panel is appended to editorWrap, after editorColumn.
+    EnsurePreviewPanel = function()
+        if previewPanel ~= nil and previewPanel.valid then
+            return
+        end
+
+        previewDoc = MarkdownDocument.new{
+            content = "",
+            annotations = self.annotations,
+            styleSheetId = self.styleSheetId or false,
+        }
+
+        --hoisted out of the panel child-list so SyncPreviewScroll can read the
+        --rendered blocks (data.srcLine + renderedHeight) to map the caret line
+        --to a scroll position.
+        previewBody = previewDoc:DisplayPanel{
+            width = "100%",
+            height = "auto",
+        }
+
+        previewPanel = gui.Panel{
+            classes = { "collapsed" },
+            width = "50%-16",
+            height = "100%",
+            valign = "top",
+            vscroll = true,
+            flow = "vertical",
+            borderBox = true,
+            lmargin = 8,
+            hpad = 16,
+            vpad = 16,
+
+            --shield the preview subtree from the document system's tree-wide
+            --contract events: the DisplayPanel inside would otherwise rebind to
+            --the REAL document (refreshDocument can carry it) and join savedoc
+            --sweeps. The preview is driven exclusively through editDocument.
+            needsave = function(element) element:HaltEventPropagation() end,
+            savedoc = function(element) element:HaltEventPropagation() end,
+            checkChanges = function(element) element:HaltEventPropagation() end,
+            refreshDocument = function(element) element:HaltEventPropagation() end,
+
+            editDocument = function(element, content)
+                element:HaltEventPropagation()
+                if not m_rawMode then
+                    return
+                end
+                --follow the live annotation table and stylesheet: the annotation
+                --scan creates objects for freshly typed tags mid-edit, and the
+                --toolbar can swap stylesheets while raw mode is up.
+                previewDoc.annotations = m_doc.annotations
+                previewDoc.styleSheetId = m_doc.styleSheetId or false
+                previewDoc:SetTextContent(content or "")
+                previewBody:FireEventTree("refreshDocument", previewDoc)
+                --the preview just re-rendered, so block heights may have changed
+                --even if the caret line did not; force the next think to re-sync.
+                lastSyncedCaret = -1
+            end,
+
+            previewBody,
+
+            --the preview is look-don't-touch: a transparent guard swallows
+            --clicks so links/checkboxes don't activate from the preview side.
+            gui.Panel{
+                width = "100%",
+                height = "100%",
+                floating = true,
+                bgimage = "panels/square.png",
+                bgcolor = "#00000000",
+                click = function() end,
+                rightClick = function() end,
+            },
+        }
+
+        editorWrap:AddChild(previewPanel)
+    end
 
     findCountLabel = gui.Label{
         width = "auto",
@@ -10616,16 +9965,27 @@ function MarkdownDocument:SeamlessEditPanel(args)
     }
 
     --the editor surface; islands parent into islandLayer so they float over
-    --the text but clip to the editor's bounds.
+    --the text but clip to the editor's bounds. SetRawMode narrows this
+    --column to 50% to make room for the live preview (islandLayer stays a
+    --same-size sibling of editInput so island rects keep lining up).
+    editorColumn = gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        editInput,
+        islandLayer,
+        findBar,
+    }
+
     editorWrap = gui.Panel{
         width = "98%",
         height = "100% available",
         halign = "center",
         valign = "top",
-        flow = "none",
-        editInput,
-        islandLayer,
-        findBar,
+        flow = "horizontal",
+        editorColumn,
+        --previewPanel is appended here by EnsurePreviewPanel on first entry
+        --into raw mode.
     }
 
     resultPanel = gui.Panel{
@@ -10659,849 +10019,12 @@ function MarkdownDocument:SeamlessEditPanel(args)
     return resultPanel
 end
 
-local MarkdownReferenceTooltip
-
---The Obsidian-style live block editor (LiveEditPanel) is the journal's editor
---and now the DEFAULT. The flag survives - flipped, not deleted - because the
---classic full-document editor below still holds a few exclusives (formatting
---guide, preview pane) and is the escape hatch if live editing misbehaves on a
---page. Turn this off and MarkdownDocument:EditPanel routes to ClassicEditPanel.
---NB the id is NOT the old "journalLiveEdit". That id still carries a stored
---`false` for anyone who tried the experiment back when it was opt-in, and a
---stored value beats a default - they would have been silently dropped into the
---classic editor. A fresh id has no legacy value to shadow it.
-local liveEditSetting = setting{
-    id = "journal:liveedit",
-    description = "Journal: live block editing",
-    help = "Edit journal pages block by block, in place. Turn this off to use the classic full-document editor.",
-    storage = "preference",
-    section = "general",
-    default = true,
-    editor = "check",
-}
-
---The seamless single-surface editor (SeamlessEditPanel): one editor over the
---whole document with markdown syntax hidden in place via the engine display
---transform. Dev-gated until it reaches parity with the block editor; when on,
---it takes precedence over the live block editor.
-local seamlessEditSetting = setting{
-    id = "journal:seamlessedit",
-    description = "Journal: seamless editing (experimental)",
-    help = "Edit journal pages as one seamless surface with markdown syntax revealed only at the caret (Obsidian-style). Experimental; requires an engine build with display-transform support.",
-    storage = "preference",
-    section = "general",
-    devonly = true,
-    default = false,
-    editor = "check",
-}
-
---One-time capability check: the display transform needs an engine build that
---exposes TextEditor.richDisplay. On an older binary the seamless setting falls
---through to the other editors rather than presenting a broken surface.
-local g_seamlessSupported = nil
-local function SeamlessSupported()
-    if g_seamlessSupported == nil then
-        g_seamlessSupported = false
-        pcall(function()
-            local probe = gui.TextEditor{ width = 1, height = 1, text = "" }
-            g_seamlessSupported = pcall(function()
-                probe.richDisplay = false
-            end)
-            probe:DestroySelf()
-        end)
-    end
-    return g_seamlessSupported
-end
-
+--The journal has exactly one editor: the seamless single-surface one above.
+--This override exists because CustomDocument:EditPanel is the polymorphic
+--entry point the document system calls (DocumentSystem.lua); SeamlessEditPanel
+--stays separately named because the dev test harness drives it directly.
 function MarkdownDocument:EditPanel(args)
-    if seamlessEditSetting:Get() and SeamlessSupported() then
-        return self:SeamlessEditPanel(args)
-    end
-    if liveEditSetting:Get() then
-        return self:LiveEditPanel(args)
-    end
-    return self:ClassicEditPanel(args)
-end
-
-function MarkdownDocument:ClassicEditPanel(args)
-    local resultPanel
-
-    local markdownReferenceLabel = gui.Label {
-        classes = { "link" },
-        width = "auto",
-        height = "auto",
-        text = "Formatting Guide",
-        fontSize = CustomDocument.ScaleFontSize(16),
-        halign = "left",
-        valign = "top",
-        hover = function(element)
-            element.tooltip = MarkdownReferenceTooltip()
-        end,
-    }
-
-    local editInput
-
-    local savePanel = gui.Panel{
-        flow = "horizontal",
-        width = 160,
-        height = 16,
-        halign = "right",
-
-        gui.Label{
-
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"saveError"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Changes Saved",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            classes = { "fgMuted" },
-            styles = {
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"~savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            text = "Saving...",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Label{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            text = "Unsaved Changes",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-        },
-
-        gui.Button{
-            styles = {
-                {
-                    selectors = {"~changes"},
-                    collapsed = 1,
-                }
-            },
-            inputEvents = { "save" },
-            text = "Save",
-            width = 40,
-            height = 16,
-            fontSize = 12,
-            save = function(element)
-                if element:HasClass("changes") then
-                    element:FireEvent("press")
-                end
-            end,
-            press = function(element)
-                local documentPanel = element:FindParentWithClass("documentPanel")
-                if documentPanel ~= nil then
-                    resultPanel:SetClassTree("savePending", true)
-                    documentPanel:FireEvent("saveDocument")
-                end
-            end,
-
-            saveConfirmed = function(element)
-                resultPanel:SetClassTree("savePending", false)
-            end,
-        },
-
-        gui.Label{
-            --shown only when the write-verification watchdog (DocumentSystem.lua) gives up
-            --after a delta save AND a full-write retry both go unconfirmed by the server.
-            --Driven by the 'saveError' class set via resultPanel:SetClassTree. Collapsed
-            --again as soon as the user edits (changes) or a new save is in flight
-            --(savePending), and cleared automatically by a late server confirmation.
-            styles = {
-                {
-                    selectors = {"~saveError"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"changes"},
-                    collapsed = 1,
-                },
-                {
-                    selectors = {"savePending"},
-                    collapsed = 1,
-                },
-            },
-
-            color = "#ff5b5b",
-            text = "Save failed!",
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-            hover = function(element)
-                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- it will retry automatically and clear this message if the connection recovers. You can also keep editing (each save retries) or press Ctrl+Z to recover text that vanished.")(element)
-            end,
-        },
-    }
-
-    local charactersUsedLabel = gui.Label {
-        classes = {"fg"},
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        rmargin = 246,
-        fontSize = CustomDocument.ScaleFontSize(16),
-        refreshLength = function(element, text)
-            local len = #text
-            local remaining = CustomDocument.MaxLength - len
-            if remaining < 1000 then
-                element:SetClass("danger", remaining < 200)
-
-                element.text = string.format("%d characters remaining...", remaining)
-                element:SetClass("hidden", false)
-            else
-                element:SetClass("hidden", true)
-            end
-        end,
-        refreshDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-        editDocument = function(element)
-            element:FireEvent("refreshLen", #self:GetTextContent())
-        end,
-    }
-
-    -- Link autocomplete + link-info service (shared with LiveEditPanel; see
-    -- CreateMarkdownAutocomplete). Aliases keep the historical local names
-    -- used by the handlers below.
-    local m_autocomplete = CreateMarkdownAutocomplete{
-        GetDocument = function()
-            return self
-        end,
-        OnTextChanged = function(newText)
-            NotifyTextChanged(newText)
-        end,
-    }
-    local autocompleteState = m_autocomplete.state
-    local FindLinkContext = m_autocomplete.FindLinkContext
-    local UpdateAutocomplete = m_autocomplete.Update
-    local DismissAutocomplete = m_autocomplete.Dismiss
-    local UpdateLinkInfo = m_autocomplete.UpdateLinkInfo
-
-    local lastSyncedCaret = -1
-    -- Scroll the live preview so the block under the editor caret stays in view. A flat
-    -- caretLine/totalLines ratio assumes every source line renders at the same height, so it
-    -- drifts whenever an image/table/heading (tall) or blank lines (short) sit above the
-    -- caret. Instead we map the caret's source line to the real rendered pixel offset of the
-    -- block it produced: each top-level preview block is tagged with its source line
-    -- (data.srcLine, stamped during render), so summing rendered heights gives every block's
-    -- pixel top, and we interpolate between the two anchors bracketing the caret line.
-    -- Interpolating (not snapping to a block) keeps scrolling smooth inside a long uniform
-    -- prose run while still jumping the right amount past a tall block. Geometry reads are
-    -- pcall-guarded and read 0 before layout has run; in that case we bail WITHOUT recording
-    -- lastSyncedCaret so the editor's 0.2s think retries next tick. Mirrors the geometry
-    -- pattern in Draw Steel V/DrawSteelChararcterSheet.lua (ScrollCapabilityIntoView).
-    local SYNC_PREVIEW_TOP_BIAS = 0.3   -- keep the active block ~30% down from the top edge.
-    local function SyncPreviewScroll(input, previewPanel, previewBody)
-        if previewPanel:HasClass("collapsed") or previewBody == nil then
-            return
-        end
-        local caret = input.caretPosition or 0
-        if caret == lastSyncedCaret then
-            return
-        end
-
-        local text = input.text or ""
-        -- 1-based source line of the caret, to match token srcLine.
-        local caretLine = 1
-        for i = 1, math.min(caret, #text) do
-            if text:sub(i, i) == "\n" then
-                caretLine = caretLine + 1
-            end
-        end
-        local _, totalNewlines = text:gsub("\n", "\n")
-        local totalLines = totalNewlines + 1
-
-        local windowH = 0
-        pcall(function() windowH = previewPanel.renderedHeight or 0 end)
-
-        -- Walk the rendered blocks once: accumulate heights for the content height and record
-        -- a {line, top} anchor for every block that carries a source line.
-        local anchors = {}
-        local accum = 0
-        pcall(function()
-            for _, child in ipairs(previewBody.children) do
-                local ln = child.data ~= nil and child.data.srcLine or nil
-                if ln ~= nil then
-                    anchors[#anchors + 1] = { line = ln, top = accum }
-                end
-                accum = accum + (child.renderedHeight or 0)
-            end
-        end)
-        local contentH = accum
-
-        if windowH <= 0 or contentH <= 0 then
-            -- Layout not measured yet; do not record lastSyncedCaret so think() retries.
-            return
-        end
-        lastSyncedCaret = caret
-
-        local range = contentH - windowH
-        if range <= 0 then
-            -- Everything fits; nothing to scroll.
-            return
-        end
-
-        -- Sentinels bracket the document so A/B always exist. A = last anchor at/above the
-        -- caret line; B = first anchor below it (topmost when several share a line).
-        local A = { line = 0, top = 0 }
-        local B = { line = totalLines + 1, top = contentH }
-        for _, a in ipairs(anchors) do
-            if a.line <= caretLine then
-                if a.line > A.line then A = a end
-            else
-                if a.line < B.line then B = a end
-            end
-        end
-
-        local span = B.line - A.line
-        local frac = 0
-        if span > 0 then
-            frac = (caretLine - A.line) / span
-        end
-        frac = math.max(0, math.min(1, frac))
-        local targetTop = A.top + (B.top - A.top) * frac
-
-        local desiredTop = targetTop - windowH * SYNC_PREVIEW_TOP_BIAS
-        desiredTop = math.max(0, math.min(range, desiredTop))
-        -- vscrollPosition: 1 = top, 0 = bottom.
-        previewPanel.vscrollPosition = 1 - desiredTop / range
-    end
-
-    local previewPanel
-    local previewBody
-
-    -- Find bar (Ctrl+F) state. Defined after editInput; forward-declared here so the
-    -- editInput 'find' event handler can call OpenFind.
-    local findInput, findBar, findCountLabel
-    local OpenFind, CloseFind, UpdateFindUI
-
-    -- Markdown syntax highlighting for the editor. Colors are driven by the journal's own
-    -- tokenizer (BreakdownRichTags, run with trackPositions) so highlighting matches exactly
-    -- how the document is parsed for display. Headings/list markers are not tokenized by
-    -- BreakdownRichTags (they are handled at render time by ApplySkinToText), so they are
-    -- recognized here per line using the same patterns ApplySkinToText uses.
-    local g_journalSyntaxColors = {
-        heading    = "#e5c07b",  -- # headings (whole line)
-        listMarker = "#56b6c2",  -- -, *, 1. list markers
-        tag        = "#61afef",  -- [[ ... ]] rich tags
-        embed      = "#c678dd",  -- [: ... ] embeds
-        blockquote = "#7f848e",  -- > quotes
-        divider    = "#5c6370",  -- --- / ___ dividers
-        collapse   = "#d19a66",  -- + collapsible section headers
-        styleblock = "#98c379",  -- ::: styled blocks
-        table      = "#4ec9b0",  -- | tables / power rolls / rollable tables (teal, not error-red)
-        justify    = "#5c6370",  -- :< :> :<> justification markers
-    }
-
-    local function ComputeMarkdownColorSpans(text)
-        text = text or ""
-        if text == "" then return {} end
-
-        -- Match how BreakdownRichTags normalizes line breaks before splitting, so our line indexing
-        -- stays aligned with the token srcLine values. '\v' (Shift+Enter soft break) becomes '\n';
-        -- this is length-preserving, so byte offsets are unaffected. (We deliberately do NOT strip
-        -- '\r' the way BreakdownRichTags does -- that would change length and shift our offsets
-        -- relative to the editor's text; the editor normalizes typed '\r' to '\n' anyway.)
-        text = text:gsub("\v", "\n")
-
-        -- Split into lines exactly as BreakdownRichTags does, and record each line's 1-based
-        -- absolute start offset so token line ranges map back to character positions.
-        local lines = string.split_allow_duplicates(text, "\n")
-        local lineOffsets = {}
-        local off = 1
-        for i = 1, #lines do
-            lineOffsets[i] = off
-            off = off + #lines[i] + 1  -- +1 for the '\n' separator
-        end
-
-        local spans = {}
-        local function AddSpan(from, to, color)
-            -- from/to are 1-based and 'to' is inclusive (matches gui.TextEditor:SetColorSpans).
-            if from ~= nil and to ~= nil and color ~= nil and to >= from then
-                spans[#spans + 1] = { from = from, to = to, color = color }
-            end
-        end
-
-        -- Lines claimed by a block token; the heading/list pass skips these so it does not
-        -- recolor e.g. a power-roll tier line or quoted text.
-        local blockLines = {}
-        local function ClaimLines(firstLine, lastLine)
-            for li = firstLine, math.min(lastLine or firstLine, #lines) do
-                blockLines[li] = true
-            end
-        end
-
-        local function LineRangeBounds(firstLine, lastLine)
-            lastLine = math.min(lastLine or firstLine, #lines)
-            if lineOffsets[firstLine] == nil or lines[lastLine] == nil then return nil end
-            return lineOffsets[firstLine], lineOffsets[lastLine] + #lines[lastLine] - 1
-        end
-
-        -- Per-line moving cursor so repeated identical inline literals map in document order.
-        local lineFindCursor = {}
-        local function FindInLine(lineIdx, literal)
-            local line = lines[lineIdx]
-            if line == nil or literal == nil or literal == "" then return nil end
-            local s, e = string.find(line, literal, lineFindCursor[lineIdx] or 1, true)
-            if s == nil then return nil end
-            lineFindCursor[lineIdx] = e + 1
-            local base = lineOffsets[lineIdx]
-            return base + s - 1, base + e - 1
-        end
-
-        -- 1) Structural + inline tokens, straight from the journal's own tokenizer.
-        local tokens = BreakdownRichTags(text, nil, { player = false, trackPositions = true })
-        for _, token in ipairs(tokens) do
-            local ty = token.type
-            if ty == "tag" and token.srcLine ~= nil then
-                -- [[inner]] (text is the inner content), or a [ ]/[x] checkbox whose text
-                -- already includes the brackets. Try the bracketed form first.
-                local from, to = FindInLine(token.srcLine, "[[" .. token.text .. "]]")
-                if from == nil then
-                    from, to = FindInLine(token.srcLine, token.text)
-                end
-                AddSpan(from, to, g_journalSyntaxColors.tag)
-            elseif ty == "embed" and token.srcLine ~= nil then
-                local from, to = FindInLine(token.srcLine, token.text)
-                AddSpan(from, to, g_journalSyntaxColors.embed)
-            elseif ty == "justification" and token.srcLine ~= nil then
-                local from, to = FindInLine(token.srcLine, token.text)
-                AddSpan(from, to, g_journalSyntaxColors.justify)
-            elseif token.srcLine ~= nil then
-                local color = nil
-                if ty == "blockquote" then color = g_journalSyntaxColors.blockquote
-                elseif ty == "divider" then color = g_journalSyntaxColors.divider
-                elseif ty == "collapse_node" then color = g_journalSyntaxColors.collapse
-                elseif ty == "styleblock" then color = g_journalSyntaxColors.styleblock
-                elseif ty == "power_roll" or ty == "rollable_table" or ty == "row" then
-                    color = g_journalSyntaxColors.table
-                end
-                if color ~= nil then
-                    local from, to = LineRangeBounds(token.srcLine, token.srcLineEnd)
-                    AddSpan(from, to, color)
-                    ClaimLines(token.srcLine, token.srcLineEnd)
-                end
-            end
-        end
-
-        -- 2) Headings and list markers (emitted as plain text by BreakdownRichTags). Recognize
-        -- them with the same patterns ApplySkinToText uses on the render side.
-        for i = 1, #lines do
-            if not blockLines[i] then
-                local line = lines[i]
-                local base = lineOffsets[i]
-                local hashes = string.match(line, "^(#+) ")
-                local bmarker = string.match(line, "^([%-%*]) ")
-                local onum = string.match(line, "^(%d+%.) ")
-                if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
-                    AddSpan(base, base + #line - 1, g_journalSyntaxColors.heading)
-                elseif bmarker ~= nil then
-                    AddSpan(base, base + #bmarker - 1, g_journalSyntaxColors.listMarker)
-                elseif onum ~= nil then
-                    AddSpan(base, base + #onum - 1, g_journalSyntaxColors.listMarker)
-                end
-            end
-        end
-
-        -- 3) Single-bracket links. [Label] is the journal's shorthand link form -- it is stored as
-        -- [Label] and expanded to [[//link "Label"|Label]] at render time, so BreakdownRichTags
-        -- never tokenizes it. Color the [Label] spans like other links. A match that is really the
-        -- inner [..] of a [[..]] tag starts one character later than the tag's own span, so the
-        -- earlier-starting tag span wins in the C# recolor (and both are the same color anyway).
-        for i = 1, #lines do
-            local line = lines[i]
-            local base = lineOffsets[i]
-            local init = 1
-            while true do
-                local s, e = string.find(line, "%[([^%[%]]+)%]", init)
-                if s == nil then break end
-                AddSpan(base + s - 1, base + e - 1, g_journalSyntaxColors.tag)
-                init = e + 1
-            end
-        end
-
-        -- All offsets above are Lua BYTE positions, but gui.TextEditor:SetColorSpans indexes by
-        -- character (the C# side uses characterInfo[i].index, i.e. UTF-16 char indices). Multi-byte
-        -- UTF-8 -- curly quotes/apostrophes, accents, em dashes -- makes the two diverge, so a token
-        -- after such a character is colored too far to the right. Translate every span endpoint from
-        -- a byte position to a 1-based character index. ASCII text needs no work (byte == char);
-        -- invalid UTF-8 (utf8.len returns nil) falls back to byte offsets.
-        local charLen = utf8.len(text)
-        if charLen ~= nil and charLen ~= #text and #spans > 0 then
-            -- byteToChar[b] = 1-based character index of the character that byte b belongs to.
-            local starts = {}
-            local ci = 0
-            for p in utf8.codes(text) do
-                ci = ci + 1
-                starts[ci] = p
-            end
-            local byteToChar = {}
-            local total = #text
-            for k = 1, ci do
-                local lastByte = (k < ci) and (starts[k + 1] - 1) or total
-                for b = starts[k], lastByte do
-                    byteToChar[b] = k
-                end
-            end
-            for _, sp in ipairs(spans) do
-                sp.from = byteToChar[sp.from] or sp.from
-                sp.to = byteToChar[sp.to] or sp.to
-            end
-        end
-
-        return spans
-    end
-
-    editInput = gui.TextEditor {
-        id = "editorPanel",
-        classes = { "monospace" },
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        fontSize = CustomDocument.ScaleFontSize(16),
-        multiline = true,
-        textAlignment = "topleft",
-        text = self:GetTextContent(),
-        verticalScrollbar = true,
-        selectAllOnFocus = false,
-        characterLimit = CustomDocument.MaxLength,
-
-        thinkTime = 0.2,
-        editlag = 0.3,
-        create = function(element)
-            element:SetColorSpans(ComputeMarkdownColorSpans(element.text))
-        end,
-        edit = function(element)
-            if resultPanel ~= nil then
-                resultPanel:FireEventTree("editDocument", element.text)
-            end
-            charactersUsedLabel:FireEvent("refreshLength", element.text)
-            UpdateAutocomplete(element)
-            element:SetColorSpans(ComputeMarkdownColorSpans(element.text))
-            -- The preview just re-rendered, so block heights may have changed even if the
-            -- caret line did not (e.g. forward-delete). Force the next think to re-sync.
-            lastSyncedCaret = -1
-
-            -- Notify the document controller so its periodic-autosave timers
-            -- (DocumentSystem.lua) restart their debounce from this edit.
-            local documentPanel = element:FindParentWithClass("documentPanel")
-            if documentPanel ~= nil then
-                documentPanel:FireEvent("documentEdited")
-            end
-        end,
-        refreshDocument = function(element)
-            element.text = self:GetTextContent()
-        end,
-        needsave = function(element, result)
-            if self:GetTextContent() ~= element.text or self:try_get("_tmp_styleDirty") == true then
-                result.save = true
-            end
-        end,
-        savedoc = function(element)
-            self:SetTextContent(element.text)
-            element.text = self:GetTextContent()
-            self._tmp_styleDirty = nil
-        end,
-
-        checkChanges = function(element, baseDoc)
-            resultPanel:SetClassTree("changes", element.text ~= baseDoc:GetTextContent() or self:try_get("_tmp_styleDirty") == true)
-        end,
-
-        caretReady = function(element)
-            UpdateAutocomplete(element)
-            SyncPreviewScroll(element, previewPanel, previewBody)
-        end,
-
-        find = function(element)
-            OpenFind()
-        end,
-
-        think = function(element)
-            if #autocompleteState.results > 0 then
-                local searchText, bracketPos, contextType = FindLinkContext(element.text, element.caretPosition)
-                if searchText == nil or ((contextType == "link" or contextType == "linkTarget") and #searchText < 1) then
-                    DismissAutocomplete(element)
-                end
-            else
-                UpdateLinkInfo(element)
-            end
-            SyncPreviewScroll(element, previewPanel, previewBody)
-        end,
-    }
-
-    local previewDoc = MarkdownDocument.new{
-        content = self:GetTextContent(),
-        annotations = self.annotations,
-        styleSheetId = self.styleSheetId or false,
-    }
-
-    -- Hoisted out of the panel child-list so SyncPreviewScroll can read its rendered blocks
-    -- (data.srcLine + renderedHeight) to map the caret line to a scroll position.
-    previewBody = previewDoc:DisplayPanel{
-        width = "100%",
-        height = "auto",
-    }
-
-    previewPanel = gui.Panel{
-        classes = showPreviewSetting:Get() and {} or { "collapsed" },
-        width = "50%-16",
-        height = "100%",
-        valign = "top",
-        vscroll = true,
-        flow = "vertical",
-        borderBox = true,
-        lmargin = 8,
-        hpad = 16,
-        vpad = 16,
-
-        editDocument = function(element, content)
-            previewDoc:SetTextContent(content or "")
-            element:FireEventTree("refreshDocument", previewDoc)
-        end,
-
-        previewBody,
-
-        gui.Panel{
-            classes = { "previewClickGuard" },
-            width = "100%",
-            height = "100%",
-            floating = true,
-            bgimage = "panels/square.png",
-            bgcolor = "#00000000",
-            click = function() end,
-            rightClick = function() end,
-        },
-    }
-
-    --rich-tag annotation editor strip, shared with the live editor.
-    local annotationsPanel = CreateAnnotationsPanel{
-        GetDocument = function()
-            return self
-        end,
-    }
-
-    --formatting toolbar, shared with the live editor.
-    local toolbar = CreateMarkdownToolbar{
-        GetInput = function()
-            return editInput
-        end,
-        GetStylesheetId = function()
-            return self.styleSheetId or ""
-        end,
-        OnStylesheetChanged = function(chosen)
-            self.styleSheetId = (chosen ~= "" and chosen) or false
-            previewDoc.styleSheetId = self.styleSheetId
-            ResolveStylesheet.ClearCache()
-            if previewPanel ~= nil then
-                previewPanel:FireEventTree("refreshDocument", previewDoc)
-            end
-            self._tmp_styleDirty = true
-            if resultPanel ~= nil then
-                resultPanel:SetClassTree("changes", true)
-            end
-        end,
-    }
-
-    -- Find bar: a small overlay at the top of the editor. The search field is a plain
-    -- gui.Input; all matching/highlighting/scrolling is driven through the TextEditor API
-    -- (Find / FindNext / FindPrev / ClearFind), which selects + scrolls the match in the
-    -- editor. resetOnDeActivation is set false while open so the match stays highlighted
-    -- even though the search field holds focus.
-    findCountLabel = gui.Label{
-        width = "auto",
-        height = "auto",
-        valign = "center",
-        hmargin = 8,
-        fontSize = 12,
-        color = "#bbbbbb",
-        text = "",
-    }
-
-    findInput = gui.Input{
-        width = "45%",
-        height = 22,
-        valign = "center",
-        fontSize = 14,
-        placeholderText = "Find",
-        text = "",
-        lineType = "SingleLine",
-        edit = function(element)
-            editInput:Find(element.text, false)
-            UpdateFindUI()
-        end,
-        submit = function(element)
-            editInput:FindNext()
-            UpdateFindUI()
-        end,
-    }
-
-    UpdateFindUI = function()
-        local total = editInput:FindCount()
-        if total <= 0 then
-            findCountLabel.text = (findInput.text ~= "" and "No results") or ""
-        else
-            findCountLabel.text = string.format("%d / %d", editInput:FindCurrent(), total)
-        end
-    end
-
-    OpenFind = function()
-        findBar:SetClass("collapsed", false)
-        findBar.captureEscape = true
-        -- Keep the match highlighted while the search field has focus.
-        editInput.resetOnDeActivation = false
-        findInput.hasInputFocus = true
-        if findInput.text ~= "" then
-            editInput:Find(findInput.text, false)
-        end
-        UpdateFindUI()
-    end
-
-    CloseFind = function()
-        findBar:SetClass("collapsed", true)
-        findBar.captureEscape = false
-        editInput:ClearFind()
-        editInput.resetOnDeActivation = true
-        editInput.hasInputFocus = true
-    end
-
-    findBar = gui.Panel{
-        classes = { "collapsed" },
-        floating = true,
-        width = "100%-8",
-        height = 30,
-        halign = "center",
-        valign = "top",
-        tmargin = 4,
-        flow = "horizontal",
-        bgimage = "panels/square.png",
-        bgcolor = "#1a1a1af0",
-        hpad = 6,
-        vpad = 4,
-        borderBox = true,
-
-        -- Escape closes the find bar (and refocuses the editor) rather than bubbling to the
-        -- journal's EXIT_DIALOG handler. DMHUB_POPUP outranks EXIT_DIALOG, and captureEscape
-        -- is toggled with the bar's open state so it only intercepts Escape while open.
-        captureEscape = false,
-        escapePriority = EscapePriority.DMHUB_POPUP,
-        escape = function(element)
-            CloseFind()
-        end,
-
-        findInput,
-        findCountLabel,
-        gui.Button{
-            text = "Prev", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
-            press = function() editInput:FindPrev() UpdateFindUI() findInput.hasInputFocus = true end,
-        },
-        gui.Button{
-            text = "Next", width = 46, height = 20, fontSize = 11, hmargin = 2, valign = "center",
-            press = function() editInput:FindNext() UpdateFindUI() findInput.hasInputFocus = true end,
-        },
-        gui.Button{
-            text = "Close", width = 50, height = 20, fontSize = 11, hmargin = 2, valign = "center",
-            press = function() CloseFind() end,
-        },
-    }
-
-    local editorColumn
-    editorColumn = gui.Panel{
-        width = showPreviewSetting:Get() and "50%" or "100%",
-        height = "100%",
-        borderBox = true,
-        editInput,
-        findBar,
-    }
-
-    resultPanel = gui.Panel {
-        classes = { "collapsed" },
-        width = "100%",
-        height = "100%-0",
-        valign = "top",
-        tmargin = 2,
-        flow = "vertical",
-        refreshDocument = function(element, doc)
-            self = doc or self
-        end,
-
-        toolbar,
-
-        gui.Panel{
-            width = "98%",
-            height = "100% available",
-            halign = "center",
-            valign = "top",
-            flow = "horizontal",
-            editorColumn,
-            previewPanel,
-        },
-        gui.Panel {
-            width = "100%",
-            height = 16,
-            tmargin = 12,
-            markdownReferenceLabel,
-            gui.Button{
-                text = "Preview",
-                width = 70,
-                height = 16,
-                fontSize = 12,
-                halign = "right",
-                rmargin = 168,
-                classes = showPreviewSetting:Get() and { "selected" } or {},
-                press = function(element)
-                    local newState = not element:HasClass("selected")
-                    element:SetClass("selected", newState)
-                    showPreviewSetting:Set(newState)
-                    previewPanel:SetClass("collapsed", not newState)
-                    editorColumn.selfStyle.width = newState and "50%" or "100%"
-                    if newState then
-                        lastSyncedCaret = -1
-                        previewPanel:FireEvent("editDocument",
-                            editInput.text or self:GetTextContent())
-                    end
-                end,
-            },
-            charactersUsedLabel,
-            savePanel,
-        },
-        annotationsPanel,
-    }
-
-    resultPanel:FireEventTree("editDocument", self:GetTextContent())
-
-    return resultPanel
+    return self:SeamlessEditPanel(args)
 end
 
 function MarkdownDocument:MatchesSearch(search)

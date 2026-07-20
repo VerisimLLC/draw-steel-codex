@@ -1165,6 +1165,7 @@ GoblinScriptProse.eventProse = {
 
     -- Movement band
     leaveadjacent     = "when a creature adjacent to {subject} moves away",
+    leaveadjacentorshift = "when a creature adjacent to {subject} moves or shifts away",
     move              = "when {subject} begin{s} moving",
     wallbreak         = "when {subject} break{s} through a wall",
     collide           = "when {subject} collide{s} with a creature or object",

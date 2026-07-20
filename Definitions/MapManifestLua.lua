@@ -4,6 +4,7 @@
 --- @field mapManifest any 
 --- @field dimensions any 
 --- @field loadingScreenImage string 
+--- @field defaultFloorId any 
 --- @field groundLevel any 
 --- @field description any 
 --- @field floorsWithoutLayers any 

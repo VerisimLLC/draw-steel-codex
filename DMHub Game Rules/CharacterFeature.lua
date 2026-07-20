@@ -987,7 +987,14 @@ function CharacterFeature:CharacterUniqueID()
 	return self.name
 end
 
-function CharacterFeature:PopupEditor()
+function CharacterFeature:PopupEditor(options)
+
+	options = options or {}
+
+	--options.commit: called with the edited feature on every change
+	--notification (including Confirm/Cancel) BEFORE the notify element is
+	--told to refresh.
+	local commit = options.commit
 
 	local backup = DeepCopy(self)
 
@@ -1000,6 +1007,9 @@ function CharacterFeature:PopupEditor()
 
 	local contentPanel = self:EditorPanel{
 		modifierRefreshed = function(element)
+			if commit ~= nil then
+				commit(self)
+			end
 			if resultPanel.data.notifyElement ~= nil then
 				resultPanel.data.notifyElement:FireEvent('refreshModifier')
 			end
@@ -1153,6 +1163,9 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 	local dialog = options.dialog
 	local notify = options.notify
 
+	--optional; forwarded to PopupEditor -- see the commit contract there.
+	local commit = options.commit
+
 	local CalculateChildren
 	local resultPanel
 
@@ -1253,7 +1266,7 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 						text = "Edit",
 						hmargin = 6,
 						click = function(element)
-							local editor = info:PopupEditor()
+							local editor = info:PopupEditor{ commit = commit }
 							editor.data.notifyElement = resultPanel
 							dialog:AddChild(editor)
 						end,

@@ -1559,6 +1559,836 @@ function CharSheet.MountablePanel()
     }
 end
 
+--Builds a plain table with the monster's appearance plus the custom look on
+--top, in the shape gui.CreateTokenImage's "token" event expects.
+local function MakeSummonLookToken(monster, look)
+    local info = monster.info
+    local fake = {
+        portrait = info.portrait,
+        portraitFrame = info.portraitFrame,
+        portraitFrameHueShift = info.portraitFrameHueShift,
+        portraitRect = info.portraitRect,
+        popoutPortrait = false,
+    }
+
+    if look ~= nil then
+        if look.portrait ~= nil and look.portrait ~= "" then
+            fake.portrait = look.portrait
+            fake.portraitRect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+        end
+        if look.portraitFrame ~= nil then
+            fake.portraitFrame = look.portraitFrame
+        end
+        if look.portraitFrameHueShift ~= nil then
+            fake.portraitFrameHueShift = look.portraitFrameHueShift
+        end
+    end
+
+    return fake
+end
+
+local function SummonMonsterName(monster)
+    local name = monster.name
+    if name == nil or name == "" then
+        name = monster.properties:try_get("monster_type", "Summon")
+    end
+    return name
+end
+
+--Per-character cache of the customizable-summons list. Cleared when the
+--Appearance tab is opened so newly summoned creatures show up.
+local g_summonListCacheCharid = nil
+local g_summonListCache = nil
+
+local function GetCustomizableSummonsCached(token)
+    if ActivatedAbilitySummonBehavior == nil then
+        return {}
+    end
+    if g_summonListCache == nil or g_summonListCacheCharid ~= token.charid then
+        g_summonListCacheCharid = token.charid
+        g_summonListCache = ActivatedAbilitySummonBehavior.GetCustomizableSummons(token)
+    end
+    return g_summonListCache
+end
+
+local function InvalidateSummonListCache()
+    g_summonListCache = nil
+end
+
+--Which summon is selected in the Summons sub-tab. File-scope because the
+--editor panel and the right-column preview panel both use it. Changes are
+--broadcast sheet-wide via the "refreshSummonLook" event.
+local g_summonSelectedKey = nil
+local g_summonSelectedMonster = nil
+
+local function GetSummonLook()
+    if g_summonSelectedKey == nil then
+        return nil
+    end
+    return CharacterSheet.instance.data.info.token.properties:GetSummonAppearance(g_summonSelectedKey)
+end
+
+local function SaveSummonLook(mutator)
+    if g_summonSelectedKey == nil then
+        return
+    end
+    local lookKey = g_summonSelectedKey
+    local tok = CharacterSheet.instance.data.info.token
+    tok:ModifyProperties{
+        description = "Change summon appearance",
+        execute = function()
+            local t = tok.properties:get_or_add("summonAppearances", {})
+            local look = t[lookKey] or {}
+            mutator(look)
+            if next(look) == nil then
+                look = nil
+            end
+            t[lookKey] = look
+
+            --so the creature stays listed after its live summons are gone.
+            tok.properties:RecordSummonHistory(lookKey)
+        end,
+    }
+    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey)
+    CharacterSheet.instance:FireEvent("refreshAll")
+    CharacterSheet.instance:FireEventTree("refreshSummonLook")
+end
+
+local function RevertSummonLook(lookKey)
+    local tok = CharacterSheet.instance.data.info.token
+    tok:ModifyProperties{
+        description = "Change summon appearance",
+        execute = function()
+            local t = tok.properties:try_get("summonAppearances")
+            if t ~= nil then
+                t[lookKey] = nil
+            end
+        end,
+    }
+    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey)
+    CharacterSheet.instance:FireEvent("refreshAll")
+    CharacterSheet.instance:FireEventTree("refreshSummonLook")
+end
+
+--The "Summons" sub-tab: swatch list of summoned creatures on the left, editor
+--for the selected one (avatar, frame, hue, revert) on the right.
+function CharSheet.SummonsAppearancePanel()
+    local resultPanel
+
+    local m_swatchPanels = {}
+
+    local function UpdateSelectionClasses()
+        for key,panel in pairs(m_swatchPanels) do
+            panel:SetClassTree("selected", key == g_summonSelectedKey)
+        end
+    end
+
+    local swatchContainer = gui.Panel{
+        flow = "horizontal",
+        wrap = true,
+        width = 220,
+        height = "auto",
+        halign = "center",
+        valign = "top",
+    }
+
+    local listPanel = gui.Panel{
+        width = 240,
+        height = "100%",
+        valign = "top",
+        halign = "left",
+        flow = "vertical",
+
+        gui.Label{
+            classes = { "statsLabel", "titleLabel" },
+            halign = "center",
+            vmargin = 8,
+            text = "Summons",
+            linger = function(element)
+                gui.Tooltip("Customize how the creatures you summon look.")(element)
+            end,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "100%-40",
+            valign = "top",
+            vscroll = true,
+            swatchContainer,
+        },
+    }
+
+    local previewPanel
+    previewPanel = gui.Panel{
+        width = 140,
+        height = 140,
+        halign = "center",
+        vmargin = 8,
+
+        gui.CreateTokenImage(nil, {
+            width = 130,
+            height = 130,
+            halign = "center",
+            valign = "center",
+        }),
+
+        refreshSummonLook = function(element)
+            if g_summonSelectedMonster == nil then
+                return
+            end
+            element:FireEventTree("token", MakeSummonLookToken(g_summonSelectedMonster, GetSummonLook()))
+        end,
+
+        --live preview while the hue slider is dragged, before confirm.
+        previewHue = function(element, value)
+            if g_summonSelectedMonster == nil then
+                return
+            end
+            local fake = MakeSummonLookToken(g_summonSelectedMonster, GetSummonLook())
+            fake.portraitFrameHueShift = value
+            element:FireEventTree("token", fake)
+        end,
+    }
+
+    local editorPanel = gui.Panel{
+        width = "100%-260",
+        height = "100%",
+        halign = "right",
+        valign = "top",
+        flow = "vertical",
+
+        refreshSummonLook = function(element)
+            element:SetClass("hidden", g_summonSelectedKey == nil)
+        end,
+
+        gui.Label{
+            classes = { "statsLabel", "titleLabel" },
+            halign = "center",
+            vmargin = 8,
+            text = "",
+            refreshSummonLook = function(element)
+                if g_summonSelectedMonster ~= nil then
+                    element.text = SummonMonsterName(g_summonSelectedMonster)
+                end
+            end,
+        },
+
+        previewPanel,
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            tmargin = 12,
+
+            gui.Panel{
+                width = "50%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.IconEditor{
+                    library = "Avatar",
+                    restrictImageType = "Avatar",
+                    allowPaste = true,
+                    cornerRadius = 100,
+                    width = 200,
+                    height = 200,
+                    halign = "center",
+                    bgcolor = "white",
+                    refreshSummonLook = function(element)
+                        if g_summonSelectedMonster == nil then
+                            return
+                        end
+                        local look = GetSummonLook()
+                        local value = g_summonSelectedMonster.info.portrait
+                        if look ~= nil and look.portrait ~= nil and look.portrait ~= "" then
+                            value = look.portrait
+                        end
+                        element.SetValue(element, value, false)
+                    end,
+                    change = function(element)
+                        SaveSummonLook(function(look)
+                            if element.value == nil or element.value == "" or (g_summonSelectedMonster ~= nil and element.value == g_summonSelectedMonster.info.portrait) then
+                                look.portrait = nil
+                            else
+                                look.portrait = element.value
+                            end
+                        end)
+                    end,
+                },
+
+                gui.Label{
+                    classes = { "statsLabel", "titleLabel" },
+                    halign = "center",
+                    tmargin = 6,
+                    text = "Avatar",
+                },
+            },
+
+            gui.Panel{
+                width = "50%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.IconEditor{
+                    library = "AvatarFrame",
+                    allowNone = true,
+                    width = 200,
+                    height = 200,
+                    halign = "center",
+                    bgcolor = "white",
+                    refreshSummonLook = function(element)
+                        if g_summonSelectedMonster == nil then
+                            return
+                        end
+                        local look = GetSummonLook()
+                        local value = g_summonSelectedMonster.info.portraitFrame
+                        if look ~= nil and look.portraitFrame ~= nil then
+                            value = look.portraitFrame
+                        end
+                        element.SetValue(element, value, false)
+                    end,
+                    change = function(element)
+                        SaveSummonLook(function(look)
+                            look.portraitFrame = element.value or ""
+                        end)
+                    end,
+                },
+
+                gui.Label{
+                    classes = { "statsLabel", "titleLabel" },
+                    halign = "center",
+                    tmargin = 6,
+                    text = "Frame",
+                },
+            },
+        },
+
+        gui.Panel{
+            classes = { "formPanel", "appearanceSlider" },
+            halign = "center",
+            tmargin = 12,
+
+            gui.Label{
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Hue:",
+            },
+            gui.Slider{
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "percent",
+                sliderWidth = 340,
+                labelWidth = 50,
+                minValue = 0,
+                maxValue = 1,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.portraitFrameHueShift or 0
+                    if look ~= nil and look.portraitFrameHueShift ~= nil then
+                        value = look.portraitFrameHueShift
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        previewPanel:FireEvent("previewHue", element.value)
+                    end,
+                    confirm = function(element)
+                        SaveSummonLook(function(look)
+                            look.portraitFrameHueShift = element.value
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Button{
+            text = "Revert to Default",
+            width = 180,
+            height = 40,
+            halign = "center",
+            tmargin = 16,
+            click = function(element)
+                if g_summonSelectedKey ~= nil then
+                    RevertSummonLook(g_summonSelectedKey)
+                end
+            end,
+        },
+    }
+
+    resultPanel = gui.Panel{
+        id = "summonsAppearancePanel",
+        classes = { "collapsed" },
+        width = "100%",
+        height = "100%-30",
+        valign = "bottom",
+        flow = "horizontal",
+
+        styles = ThemeEngine.MergeTokens{
+            {
+                selectors = { "variation" },
+                width = 80,
+                height = 80,
+                vmargin = 6,
+                hmargin = 6,
+                halign = "center",
+            },
+            {
+                selectors = { "variationBorder" },
+                borderColor = "@border",
+                border = 3,
+                bgimage = true,
+                bgcolor = "clear",
+                cornerRadius = 40,
+                width = "100%",
+                height = "100%",
+                brightness = 0.7,
+            },
+            {
+                selectors = { "variationBorder", "parent:hover" },
+                brightness = 1.5,
+            },
+            {
+                selectors = { "variationBorder", "parent:selected" },
+                borderColor = "@accent",
+                border = 4,
+                brightness = 1.5,
+            },
+            {
+                selectors = { "variationBorder", "parent:customized" },
+                borderColor = "@accent",
+            },
+            {
+                selectors = { "token-image", "parent:hover" },
+                brightness = 1.5,
+            },
+            {
+                selectors = { "token-image", "parent:selected" },
+                brightness = 1.5,
+            },
+        },
+
+        listPanel,
+        editorPanel,
+
+        --clear the cache when the Appearance tab opens so new summons show up.
+        charsheetActivate = function(element, active)
+            if active then
+                InvalidateSummonListCache()
+            end
+        end,
+
+        refreshAppearance = function(element, info)
+            local list = GetCustomizableSummonsCached(info.token)
+
+            --keep the selection valid; default to the first summon.
+            local found = false
+            for _,entry in ipairs(list) do
+                if entry.key == g_summonSelectedKey then
+                    g_summonSelectedMonster = entry.monster
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                g_summonSelectedKey = nil
+                g_summonSelectedMonster = nil
+                if #list > 0 then
+                    g_summonSelectedKey = list[1].key
+                    g_summonSelectedMonster = list[1].monster
+                end
+            end
+
+            local newSwatchPanels = {}
+            local children = {}
+            for _,entry in ipairs(list) do
+                local lookKey = entry.key
+                local monster = entry.monster
+                local panel = m_swatchPanels[lookKey] or gui.Panel{
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+
+                    press = function(element)
+                        g_summonSelectedKey = lookKey
+                        g_summonSelectedMonster = monster
+                        UpdateSelectionClasses()
+                        CharacterSheet.instance:FireEventTree("refreshSummonLook")
+                    end,
+
+                    rightClick = function(element)
+                        local tok = CharacterSheet.instance.data.info.token
+                        if tok.properties:GetSummonAppearance(lookKey) == nil then
+                            return
+                        end
+                        element.popup = gui.ContextMenu {
+                            entries = {
+                                {
+                                    text = "Revert",
+                                    click = function()
+                                        element.popup = nil
+                                        RevertSummonLook(lookKey)
+                                    end,
+                                }
+                            }
+                        }
+                    end,
+
+                    linger = function(element)
+                        gui.Tooltip(string.format("%s - right-click to revert.", SummonMonsterName(monster)))(element)
+                    end,
+
+                    gui.Panel{
+                        classes = { "variation" },
+                        gui.CreateTokenImage(monster.info, {
+                            halign = "center",
+                            valign = "center",
+                            width = 94,
+                            height = 94,
+                        }),
+
+                        gui.Panel { classes = { "variationBorder" } },
+                    },
+
+                    gui.Label{
+                        classes = {"sizeS"},
+                        textAlignment = "center",
+                        halign = "center",
+                        width = 84,
+                        height = "auto",
+                        text = SummonMonsterName(monster),
+                    },
+                }
+                newSwatchPanels[lookKey] = panel
+
+                local look = info.token.properties:GetSummonAppearance(lookKey)
+                panel:FireEventTree("token", MakeSummonLookToken(monster, look))
+                panel:SetClassTree("customized", look ~= nil)
+
+                children[#children+1] = panel
+            end
+
+            m_swatchPanels = newSwatchPanels
+            swatchContainer.children = children
+
+            UpdateSelectionClasses()
+            element:FireEventTree("refreshSummonLook")
+        end,
+    }
+
+    return resultPanel
+end
+
+--Right column for the Summons sub-tab: an in-game preview of the selected
+--summon plus Scale/Zoom sliders that save into its look. The preview floor
+--only exists while this sub-tab is visible.
+function CharSheet.SummonPreviewPanel()
+    local resultPanel
+
+    local m_floor = nil
+    local m_tokenid = nil
+    local m_token = nil
+    local m_tabSelected = false
+    local m_creatureSize = 1
+
+    local function RecalculateCamera()
+        if m_floor == nil then
+            return
+        end
+
+        local x = 0
+        local y = 0
+        if m_creatureSize == 2 then
+            x = 0.5
+            y = 0.5
+            m_floor.cameraSize = 1.5
+        elseif m_creatureSize == 3 then
+            x = 1
+            y = 1
+            m_floor.cameraSize = 2
+        elseif m_creatureSize == 4 then
+            x = 1.5
+            y = 1.5
+            m_floor.cameraSize = 2
+        elseif m_creatureSize >= 5 then
+            x = 2.0
+            y = 2.0
+            m_floor.cameraSize = 2.5
+        else
+            m_floor.cameraSize = 1
+        end
+
+        m_floor.cameraPos = { x = 0 + x, y = -4 + y }
+    end
+
+    local mapImagePanel = gui.Panel{
+        classes = {"appearancePreviewFrame"},
+        bgcolor = "white",
+        width = "100%",
+        height = "100%",
+    }
+
+    local function PopulatePreview()
+        if m_floor == nil or m_token == nil or (not m_token.valid) then
+            return
+        end
+        if g_summonSelectedKey == nil then
+            return
+        end
+        local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(g_summonSelectedKey)
+        if monster == nil then
+            return
+        end
+
+        m_token.properties = DeepCopy(monster.properties)
+
+        --bestiary defaults first, then the custom look, same as a real spawn.
+        m_token.portrait = monster.info.portrait
+        m_token.portraitFrame = monster.info.portraitFrame
+        m_token.portraitFrameHueShift = monster.info.portraitFrameHueShift
+        m_token.tokenScale = monster.info.tokenScale
+        m_token.portraitZoom = monster.info.portraitZoom
+        m_token.portraitOffset = monster.info.portraitOffset
+        ActivatedAbilitySummonBehavior.ApplySummonLook(CharacterSheet.instance.data.info.token, m_token, g_summonSelectedKey)
+
+        game.Refresh {
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+
+        local creatureSizeInfo = dmhub.rules.CreatureSizes[m_token.creatureSizeNumber]
+        m_creatureSize = creatureSizeInfo.tiles
+        RecalculateCamera()
+    end
+
+    local function DestroyPreview()
+        if m_floor == nil then
+            return
+        end
+        local args = {
+            currentMap = true,
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+        game.currentMap:DestroyPreviewFloor(m_floor)
+        game.Refresh(args)
+        m_floor = nil
+        m_tokenid = nil
+        m_token = nil
+        mapImagePanel.bgimage = nil
+    end
+
+    local function CreatePreview()
+        if m_floor ~= nil then
+            return
+        end
+        m_floor = game.currentMap:CreatePreviewFloor("ObjectPreview")
+        m_floor.cameraPos = { x = 0, y = -4 }
+        m_floor.cameraSize = 1
+
+        m_tokenid = m_floor:CreateToken(0, -4)
+
+        game.Refresh {
+            currentMap = true,
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+
+        m_token = dmhub.GetTokenById(m_tokenid)
+        mapImagePanel.bgimage = "#MapPreview" .. m_floor.floorid
+
+        PopulatePreview()
+    end
+
+    resultPanel = gui.Panel {
+        id = "summonPreviewPanel",
+        classes = { "collapsed" },
+        width = "90%",
+        height = "100%",
+        flow = "vertical",
+        hmargin = 8,
+        vmargin = 32,
+        halign = "center",
+
+        gui.Panel {
+            width = math.floor(1920 / 4),
+            height = math.floor(1080 / 4),
+            vmargin = 8,
+            flow = "vertical",
+            halign = "center",
+
+            mapImagePanel,
+
+            gui.Label {
+                text = "This is what your summon looks like in-game",
+                classes = { "statsLabel" },
+                halign = "center",
+                valign = "top",
+            },
+        },
+
+        --separator.
+        gui.Panel {
+            classes = {"appearanceDivider"},
+            bgimage = true,
+            width = "100%",
+            height = 1.5,
+            vmargin = 48,
+            halign = "center",
+        },
+
+        gui.Panel {
+            classes = { "formPanel", "appearanceSlider" },
+            gui.Label {
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Scale:",
+            },
+            gui.Slider {
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "rawpercent",
+                unclamped = true,
+                sliderWidth = 340,
+                labelWidth = 50,
+                --below 0.3 the token becomes too small to see; engine clamps there too.
+                minValue = 0.3,
+                maxValue = 2,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.tokenScale or 1
+                    if look ~= nil and look.tokenScale ~= nil then
+                        value = look.tokenScale
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        if m_token ~= nil and m_token.valid then
+                            m_token.tokenScale = math.max(0.3, element.value)
+                            game.Refresh {
+                                tokens = { m_tokenid },
+                            }
+                        end
+                    end,
+                    confirm = function(element)
+                        local v = math.max(0.3, element.value)
+                        SaveSummonLook(function(look)
+                            look.tokenScale = v
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Panel {
+            classes = { "formPanel", "appearanceSlider" },
+            gui.Label {
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Zoom:",
+            },
+            gui.Slider {
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "rawpercent",
+                unclamped = true,
+                sliderWidth = 340,
+                labelWidth = 50,
+                minValue = 0,
+                maxValue = 2,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.portraitZoom or 1
+                    if look ~= nil and look.portraitZoom ~= nil then
+                        value = look.portraitZoom
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        if m_token ~= nil and m_token.valid then
+                            m_token.portraitZoom = element.value
+                            game.Refresh {
+                                tokens = { m_tokenid },
+                            }
+                        end
+                    end,
+                    confirm = function(element)
+                        local v = element.value
+                        SaveSummonLook(function(look)
+                            look.portraitZoom = v
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Button {
+            classes = {"sizeM"},
+            halign = "center",
+            vmargin = 12,
+            text = "Reset Placement",
+            click = function(element)
+                SaveSummonLook(function(look)
+                    look.tokenScale = nil
+                    look.portraitZoom = nil
+                    look.portraitOffset = nil
+                end)
+            end,
+        },
+
+        --fired by the sub-tab bar when this sub-tab is entered or left.
+        summonsTabSelected = function(element, val)
+            m_tabSelected = val
+            element:SetClass("collapsed", not val)
+            if val then
+                CreatePreview()
+                element:FireEventTree("refreshSummonLook")
+            else
+                DestroyPreview()
+            end
+        end,
+
+        --fired when the Appearance tab as a whole is shown or hidden.
+        charsheetActivate = function(element, val)
+            if not val then
+                DestroyPreview()
+            elseif m_tabSelected then
+                CreatePreview()
+                element:FireEventTree("refreshSummonLook")
+            end
+        end,
+
+        refreshSummonLook = function(element)
+            PopulatePreview()
+        end,
+
+        destroy = function(element)
+            DestroyPreview()
+        end,
+    }
+
+    return resultPanel
+end
+
 function CharSheet.AppearancePanel()
     local divider = gui.Panel {
         classes = {"appearanceDivider"},
@@ -2212,7 +3042,13 @@ function CharSheet.AppearancePanel()
     }
 
 
-    local m_tabs = { avatarPanel, effectsPanel }
+    local summonsPanel = CharSheet.SummonsAppearancePanel()
+
+    --right column: character preview for Avatar/Effects, summon preview for Summons.
+    local framePreviewPanel = CharSheet.FramePreviewPanel()
+    local summonPreviewPanel = CharSheet.SummonPreviewPanel()
+
+    local m_tabs = { avatarPanel, effectsPanel, summonsPanel }
 
     local appearanceTabPanel = gui.Panel {
         classes = {"tabBar"},
@@ -2227,12 +3063,17 @@ function CharSheet.AppearancePanel()
 
         selectTab = function(element, tab)
             for i, child in ipairs(element.children) do
-                if child == tab then
+                if child == tab and m_previewLighting[i] ~= nil then
                     m_currentPreviewLighting = i
                 end
                 child:SetClass("selected", child == tab)
                 m_tabs[i]:SetClass("collapsed", child ~= tab)
             end
+
+            --the Summons sub-tab swaps the right column to the summon preview.
+            local isSummons = (tab == element.children[3])
+            framePreviewPanel:SetClass("collapsed", isSummons)
+            summonPreviewPanel:FireEvent("summonsTabSelected", isSummons)
 
             CharacterSheet.instance:FireEventTree("refreshPreviewLighting")
         end,
@@ -2251,6 +3092,22 @@ function CharSheet.AppearancePanel()
                 element.parent:FireEvent("selectTab", element)
             end,
         },
+        gui.Label {
+            classes = { "tab" },
+            text = "Summons",
+            --hidden for characters with no summons to customize.
+            refreshAppearance = function(element, info)
+                local list = GetCustomizableSummonsCached(info.token)
+                local none = (#list == 0)
+                element:SetClass("collapsed", none)
+                if none and element:HasClass("selected") then
+                    element.parent:FireEvent("selectTab", element.parent.children[1])
+                end
+            end,
+            press = function(element)
+                element.parent:FireEvent("selectTab", element)
+            end,
+        },
     }
 
     local leftPanel = gui.Panel {
@@ -2264,6 +3121,7 @@ function CharSheet.AppearancePanel()
         appearanceTabPanel,
         avatarPanel,
         effectsPanel,
+        summonsPanel,
     }
 
     local rightPanel = gui.Panel {
@@ -2275,7 +3133,8 @@ function CharSheet.AppearancePanel()
         flow = "vertical",
 
 
-        CharSheet.FramePreviewPanel(),
+        framePreviewPanel,
+        summonPreviewPanel,
     }
 
 

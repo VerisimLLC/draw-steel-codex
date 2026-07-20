@@ -745,6 +745,14 @@ CharacterModifier.TypeInfo.kitmodifyability = {
 
 	willModifyAbility = function(modifier, creature, ability)
 		local kitType = Kit.kitTypesById[modifier.kitType]
+		--A modifier can name a kit type that no longer exists (stale/imported kit
+		--data). Indexing nil here aborted the whole ApplyAbilityModifiers /
+		--GetTriggeredAbilities pass for the creature, producing an error storm --
+		--22 of the 30 recentErrors on report NA3SCFH5 were this line.
+		if kitType == nil then
+			return false
+		end
+
 		for _,keyword in ipairs(kitType.keywords) do
 			if ability.keywords[keyword] then
 				return true

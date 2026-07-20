@@ -2,6 +2,39 @@ local mod = dmhub.GetModLoading()
 
 local g_displayedAbility = nil
 
+-- Abilities that were routed INTO the currently displayed card instead of getting a
+-- card of their own -- i.e. Hidden sub-abilities that DisplayAbility deliberately
+-- swallowed (see DisplayAbility below). Teardown calls HideAbility with whatever the
+-- action bar last cast, which for an invoked sub-ability is one of these and never
+-- g_displayedAbility, so an identity-only match left the parent card on screen
+-- forever (report NA3SCFH5: "Aspect of the Wild" card stuck after shapeshifting).
+-- Reset whenever the card is (re)populated or torn down.
+local g_displayedAbilityAliases = {}
+
+local function ClearDisplayedAbilityAliases()
+    g_displayedAbilityAliases = {}
+end
+
+--True if `ability` owns the card currently on screen, either directly or because it
+--was folded into that card as a Hidden sub-ability.
+local function AbilityOwnsDisplayedCard(ability)
+    if ability == nil or g_displayedAbility == nil then
+        return false
+    end
+
+    if ability == g_displayedAbility then
+        return true
+    end
+
+    for _,alias in ipairs(g_displayedAbilityAliases) do
+        if alias == ability then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Shared document for broadcasting the active ability timeline to other players.
 local g_abilityShareDocId = "abilityTimelineShare"
 
@@ -1122,6 +1155,9 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
         showAbility = function(element, token, ability, symbols, displayOptions)
             g_displayedAbility = ability
+            --A fresh card owns itself; any sub-abilities folded into the previous
+            --card are no longer relevant.
+            ClearDisplayedAbilityAliases()
 
             -- Hide the remote display while a local ability is shown.
             remoteDisplayPanel.children = {}
@@ -1245,6 +1281,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             -- The local ability was hidden; re-evaluate whether a remote
             -- display should appear.
             g_displayedAbility = nil
+            ClearDisplayedAbilityAliases()
             local doc = mod:GetDocumentSnapshot(g_abilityShareDocId)
             RefreshRemoteAbilityDisplay(remoteDisplayPanel, doc.data)
 
@@ -1471,6 +1508,11 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     -- such as AcquireAbilityRollDialog proceed to embed the roll into the parent card.
     if ability ~= nil and ability:try_get("categorization") == "Hidden"
         and g_displayedAbility ~= nil then
+        --Remember that this sub-ability is riding on the parent's card, so the
+        --teardown call HideAbility(g_currentAbility) can still find and close it.
+        if not AbilityOwnsDisplayedCard(ability) then
+            g_displayedAbilityAliases[#g_displayedAbilityAliases+1] = ability
+        end
         return true
     end
 
@@ -1727,14 +1769,14 @@ function CharacterPanel.HideAbility(ability)
             while dmhub.modKeys['ctrl'] do
                 coroutine.yield(0.1)
             end
-            if panel ~= nil and panel.valid and ability == g_displayedAbility then
+            if panel ~= nil and panel.valid and AbilityOwnsDisplayedCard(ability) then
                 panel:FireEvent("hideAbility")
             end
         end)
         return true
     end
 
-    if panel ~= nil and panel.valid and ability == g_displayedAbility then
+    if panel ~= nil and panel.valid and AbilityOwnsDisplayedCard(ability) then
         panel:FireEvent("hideAbility")
         return true
     end

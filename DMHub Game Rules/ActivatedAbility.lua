@@ -1311,6 +1311,38 @@ function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
 end
 
 
+--Objects can opt into being targeted by abilities that do not normally target
+--objects: if the object's properties (e.g. a Targetable component's
+--TargetableObject) carry a non-empty additionalTargetFilter GoblinScript and it
+--passes when evaluated with this ability bound to the "ability" symbol, the
+--object is targetable by this ability. e.g. 'Ability.Keywords has "Strike"'
+--makes any strike able to target the object.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean
+function ActivatedAbility:ObjectGrantsTargeting(casterToken, targetToken, symbols)
+	if not targetToken.isAttackableObject then
+		return false
+	end
+
+	local props = targetToken.properties
+	if props == nil then
+		return false
+	end
+
+	local filter = props:try_get("additionalTargetFilter", "")
+	if filter == "" then
+		return false
+	end
+
+	local filterSymbols = table.shallow_copy(symbols or {})
+	filterSymbols.ability = GenerateSymbols(self)
+	filterSymbols.caster = GenerateSymbols(casterToken.properties)
+
+	return GoblinScriptTrue(ExecuteGoblinScript(filter, props:LookupSymbol(filterSymbols), 0, string.format("Additional targeting filter for %s", self.name)))
+end
+
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @param symbols table
@@ -1321,8 +1353,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	local conditionid = self:PrimaryConditionID()
 
 	--if spell cannot target self.
-	if (not self.selfTarget) and casterToken.properties == targetToken.properties then
-		return false
+	--Flag-gated exception: a creature carrying the "Can Target Self" custom attribute (> 0) may
+	--include itself among an ability's targets alongside its other candidates (e.g. a compelled
+	--free strike that may hit an adjacent creature OR itself). The same flag also waives the
+	--ability's allegiance filter for the self target (see isAnyObject below), so a monster whose
+	--free strike is allegiance-restricted to enemies can still choose itself. Inert otherwise.
+	local canTargetSelfOverride = false
+	if casterToken.properties == targetToken.properties then
+		canTargetSelfOverride = casterToken.properties:CalculateNamedCustomAttribute("Can Target Self") > 0
+		if (not self.selfTarget) and (not canTargetSelfOverride) then
+			return false
+		end
 	end
 
 	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
@@ -1368,7 +1409,11 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     else
 
         if (not self.objectTarget) and targetToken.isObject then
-            return false
+            --the object may still grant targeting to this ability via its
+            --additionalTargetFilter (see ObjectGrantsTargeting).
+            if not self:ObjectGrantsTargeting(casterToken, targetToken, symbols) then
+                return false
+            end
         elseif self.objectTarget and targetToken.isObject and (not targetToken.isAttackableObject) then
             return false
         end
@@ -1382,7 +1427,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         end
 
         -- Allegiance checks: objects and creature-objects bypass allegiance filters.
-        local isAnyObject = targetToken.isObject or treatAsObject
+        -- A flagged self target ("Can Target Self") also bypasses them, so an allegiance-
+        -- restricted free strike can still land on the caster itself.
+        local isAnyObject = targetToken.isObject or treatAsObject or canTargetSelfOverride
 
         if self.targetAllegiance == "none" and (not isAnyObject) then
             return false
@@ -4462,9 +4509,29 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	--cast coroutine's atexit -- can remove anything the purge behavior never
 	--got to. When the purge behavior DID run the effect is already gone and the
 	--handler is a no-op.
+	--
+	--ORDER MATTERS: only a purge that runs AFTER this apply is a pairing. A purge
+	--BEFORE the apply is the opposite idiom -- "clear whatever state I'm in, then
+	--set the new one" -- e.g. the Stormwight kits' "Animal Form: X", which purges
+	--its own form effect first so re-shifting is idempotent, then re-applies it.
+	--Treating that leading purge as a pairing made the FinishCast handler delete
+	--the effect the cast had just applied, so the form never stuck (report NA3SCFH5).
+	--
+	--CastCoroutine calls behavior:Cast(ability, ...) with the very object it is
+	--iterating out of ability.behaviors, so myIndex is found on every normal path.
+	--If we somehow cannot locate ourselves, fall back to the old order-blind match
+	--rather than silently dropping the leak protection.
+	local myIndex = nil
+	for i,b in ipairs(ability.behaviors) do
+		if b == self then
+			myIndex = i
+			break
+		end
+	end
+
 	local hasPurgePair = false
-	for _,b in ipairs(ability.behaviors) do
-		if b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
+	for i,b in ipairs(ability.behaviors) do
+		if (myIndex == nil or i > myIndex) and b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
 			hasPurgePair = true
 			break
 		end

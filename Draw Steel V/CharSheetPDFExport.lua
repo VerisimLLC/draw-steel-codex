@@ -219,6 +219,13 @@ function CharSheetPDFExport.Export(token, templateId)
         return
     end
 
+    --PDF form filling is a newer engine feature; on an out-of-date build the C#
+    --PDFDocument:FillForm method is absent. Silently no-op (the export button is
+    --already hidden on such builds) rather than crash on a nil method call.
+    if docAsset.doc.FillForm == nil then
+        return
+    end
+
     local fields = CharSheetPDFExport.BuildFields(template, token)
 
     docAsset.doc:FillForm{
@@ -258,6 +265,11 @@ function CharSheetPDFExport.DumpFields(templateId)
     local docAsset = CharSheetPDFExport.ResolveDocumentAsset(template)
     if docAsset == nil or docAsset.doc == nil then
         print("PDFExport:: could not resolve PDF asset for", templateId)
+        return
+    end
+
+    if docAsset.doc.GetFormFields == nil then
+        print("PDFExport:: GetFormFields is unavailable in this build")
         return
     end
 
@@ -330,43 +342,101 @@ function CharSheetPDFExport.ExportVariant(token, variant)
     CharSheetPDFExport.Export(token, template.id)
 end
 
+--Downloads the hero as a Codex-native JSON file. Wraps the hero's serialized properties
+--with the token name (which lives on the token, not the properties) so the file is
+--self-contained. dmhub.ToJson / dmhub.FromJson are the engine's matched round-trip pair.
+function CharSheetPDFExport.ExportJson(token)
+    --No save API on out-of-date builds; silently no-op (the button is hidden there).
+    if dmhub.SaveFileDialog == nil then
+        return
+    end
+
+    local export = {
+        codexHero = true,
+        formatVersion = 1,
+        name = token.name,
+        properties = token.properties,
+    }
+
+    local jsonString = dmhub.ToJson(export)
+
+    local heroName = token.name
+    if heroName == nil or heroName == "" then
+        heroName = "Hero"
+    end
+
+    dmhub.SaveFileDialog{
+        data = jsonString,
+        filename = string.format("%s.json", heroName),
+        extensions = {"json"},
+        title = "Download Character (JSON)",
+        message = "Choose where to save the character JSON",
+    }
+end
+
 local g_variantLabels = { simple = "Simple Sheet", expanded = "Expanded Sheet" }
 
---The character sheet's corner button. Visible only for heroes and only when at least
---one sheet variant resolves to an installed PDF asset. Clicking offers Simple vs
---Expanded (Expanded picks the Summoner/Beastheart layout for those classes).
+--Builds the ordered list of export options offered by the sheet button: one entry per
+--available PDF sheet variant, then the always-available Codex JSON download.
+function CharSheetPDFExport.GetExportOptions(token)
+    local options = {}
+    for _,variant in ipairs(CharSheetPDFExport.AvailableVariants(token.properties)) do
+        local v = variant
+        options[#options+1] = {
+            text = g_variantLabels[v] or v,
+            run = function() CharSheetPDFExport.ExportVariant(token, v) end,
+        }
+    end
+    options[#options+1] = {
+        text = "Codex JSON",
+        run = function() CharSheetPDFExport.ExportJson(token) end,
+    }
+    --Prototype: only offered once the Forge Steel builder (in the MCDM mapping file)
+    --has loaded.
+    if CharSheetPDFExport.ExportForgeSteel ~= nil then
+        options[#options+1] = {
+            text = "Forge Steel (Beta)",
+            run = function() CharSheetPDFExport.ExportForgeSteel(token) end,
+        }
+    end
+    return options
+end
+
+--The character sheet's corner button. Visible for any hero. Clicking offers the
+--available PDF sheet variants (Expanded picks the Summoner/Beastheart layout for those
+--classes) plus a Codex JSON download; a single option exports directly.
 CharSheet.RegisterSheetAction{
     id = "pdfexport",
     --A pure-white icon mask so the theme tints it identically to the neighboring
     --windowed/close nav buttons; ui-icons/downloadicon.png has a warm baked-in
     --tint that renders a different shade.
     icon = "game-icons/cloud-download.png",
-    tooltip = "Export to PDF",
+    tooltip = "Export",
     visible = function(creature)
-        if creature.typeName ~= "character" then
-            return false
-        end
-        return #CharSheetPDFExport.AvailableVariants(creature) > 0
+        --dmhub.SaveFileDialog is a newer engine method that every export path needs to
+        --write its file. On an out-of-date build it (and PDFDocument:FillForm) are
+        --absent, so hide the whole button rather than let a click crash.
+        return creature.typeName == "character" and dmhub.SaveFileDialog ~= nil
     end,
     click = function(token, element)
-        local variants = CharSheetPDFExport.AvailableVariants(token.properties)
-        if #variants == 0 then
+        local options = CharSheetPDFExport.GetExportOptions(token)
+        if #options == 0 then
             return
         end
 
-        if #variants == 1 then
-            CharSheetPDFExport.ExportVariant(token, variants[1])
+        if #options == 1 then
+            options[1].run()
             return
         end
 
         local entries = {}
-        for _,variant in ipairs(variants) do
-            local v = variant
+        for _,option in ipairs(options) do
+            local o = option
             entries[#entries+1] = {
-                text = g_variantLabels[v] or v,
+                text = o.text,
                 click = function()
                     element.popup = nil
-                    CharSheetPDFExport.ExportVariant(token, v)
+                    o.run()
                 end,
             }
         end
@@ -376,3 +446,107 @@ CharSheet.RegisterSheetAction{
         }
     end,
 }
+
+--------------------------------------------------------------------------------
+-- Codex Character JSON import
+-- Reads a file produced by CharSheetPDFExport.ExportJson and creates a hero from it.
+-- Uses dmhub.FromJson (not ParseJsonFile) so the embedded game-typed "character" is
+-- reconstructed as a live object, not a plain table.
+--------------------------------------------------------------------------------
+
+--Creates a hero token from a parsed Codex-hero wrapper and finalizes it through the
+--import framework. Returns the new token, or nil on failure.
+local function DoImportCodexHero(parsed)
+    if parsed == nil or parsed.codexHero ~= true or parsed.properties == nil then
+        gui.ModalMessage{ title = "Import Failed", message = "This file is not a Codex character JSON export." }
+        return nil
+    end
+
+    local token = import:CreateCharacter()
+    token.properties = parsed.properties
+    token.partyId = GetDefaultPartyID()
+    token.name = parsed.name or "Imported Hero"
+
+    import:ImportCharacter(token)
+    return token
+end
+
+--Opens a file dialog to import a Codex character JSON and opens the new hero's sheet.
+function CharSheetPDFExport.ImportCharacterFromFile()
+    dmhub.OpenFileDialog{
+        id = "ImportCodexCharacter",
+        extensions = {"json"},
+        multiFiles = false,
+        prompt = "Choose Codex Character JSON File",
+        open = function(path)
+            local text = dmhub.ReadTextFile(path, function(err)
+                gui.ModalMessage{ title = "Import Failed", message = "Could not read the file." }
+            end)
+            if text == nil then
+                return
+            end
+
+            local result = dmhub.FromJson(text)
+            local parsed = result and result.result
+            if parsed == nil then
+                gui.ModalMessage{ title = "Import Failed", message = "The file is not valid JSON." }
+                return
+            end
+
+            --Track existing characters so we can find and open the newly created one.
+            local knownCharacters = {}
+            for _,v in ipairs(table.values(game.GetGameGlobalCharacters())) do
+                knownCharacters[v.charid] = true
+            end
+
+            import:ClearState()
+            local ok = DoImportCodexHero(parsed) ~= nil
+            import:CompleteImportStep()
+
+            if ok then
+                dmhub.Coroutine(function()
+                    for i = 1,100 do
+                        coroutine.yield()
+                        for _,token in ipairs(table.values(game.GetGameGlobalCharacters())) do
+                            if not knownCharacters[token.charid] then
+                                if not dmhub.isDM then
+                                    token.ownerId = dmhub.userid
+                                end
+                                token:ChangeLocation(core.Loc{x = 0, y = 0})
+                                token:ShowSheet("Builder")
+                                return
+                            end
+                        end
+                    end
+                end)
+            end
+        end,
+    }
+end
+
+--Registers the importer with the DMHub import framework (Tools -> Import Assets ->
+--Codex Character (JSON)).
+if import ~= nil and import.Register ~= nil then
+    import.Register{
+        id = "codexherojson",
+        description = "Codex Character (JSON)",
+        input = "plaintext",
+        priority = 200,
+        text = function(importer, text)
+            local result = dmhub.FromJson(text)
+            DoImportCodexHero(result and result.result)
+        end,
+    }
+end
+
+--Chat macro alternative that also opens the imported hero's sheet.
+if Commands ~= nil and Commands.RegisterMacro ~= nil then
+    Commands.RegisterMacro{
+        name = "importcodexhero",
+        summary = "import Codex character",
+        doc = "Usage: /importcodexhero\nOpens a file dialog to import a Codex character from a JSON file.",
+        command = function(str)
+            CharSheetPDFExport.ImportCharacterFromFile()
+        end,
+    }
+end

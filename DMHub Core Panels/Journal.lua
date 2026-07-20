@@ -939,6 +939,10 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         dragTarget = dragTarget,
         dragTargetPriority = 1,
         classes = { "contentPanel" },
+        x = 0,
+        --indent per nesting level, so folder membership is readable at a
+        --glance. NOT a flat 16: the root gutter is 8, and the width above
+        --subtracts this same value, so the two must stay in step.
         lmargin = indent,
         monitorGame = charactersMonitor,
 

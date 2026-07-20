@@ -1540,8 +1540,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									canTarget = false
 								end
 
-								if creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') and spell:try_get("selfTarget", false) == false then
-									canTarget = false
+								if creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') then
+									-- "Can Target Self" flag lets the caster target itself alongside its other
+									-- candidates even when the ability is not selfTarget (compelled free strike).
+									if spell:try_get("selfTarget", false) == false and creature:CalculateNamedCustomAttribute("Can Target Self") <= 0 then
+										canTarget = false
+									end
 								end
 
 								if currentSymbols ~= nil and currentSymbols.forbiddentargets ~= nil and currentSymbols.forbiddentargets[targetToken.charid] then
@@ -2443,7 +2447,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					local targetTokens = self.tokenInfo.TokensInShape(pointTargetShape)
                     if not pathfinding then
                         for k,tok in pairs(targetTokens) do
-                            if (selfTarget or tok.charid ~= token.charid) and spell:TargetPassesFilter(token, tok, currentSymbols) then
+                            -- "Can Target Self" flag lets the caster appear among its own candidates
+                            -- alongside others (self OR adjacent in one prompt); see ActivatedAbility:TargetPassesFilter.
+                            if (selfTarget or tok.charid ~= token.charid or token.properties:CalculateNamedCustomAttribute("Can Target Self") > 0) and spell:TargetPassesFilter(token, tok, currentSymbols) then
                                 filteredTargets[k] = tok
                             end
                         end

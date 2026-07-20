@@ -122,8 +122,8 @@
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modKeys @return {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed.
 --- @field mouseWheel @return number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
---- @field harnessMode nil|string (Read-only) The test-harness name passed via --harness on the command line, or nil when not launched in harness mode. Dev builds only.
---- @field harnessArgs nil|string (Read-only) The raw string passed via --harness-args on the command line, or nil. Interpretation (typically JSON) is up to the Lua harness.
+--- @field harnessMode @return nil|string (Read-only) The test-harness name passed via --harness on the command line, or nil when not launched in harness mode. Dev builds only. See TEST_HARNESS_PLAN.md.
+--- @field harnessArgs @return nil|string (Read-only) The raw string passed via --harness-args on the command line, or nil. Interpretation (typically JSON) is up to the Lua harness.
 --- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
 --- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
 --- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
@@ -448,6 +448,12 @@ end
 --- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved.
 --- @field options {texture: string, filename: string|nil, error: (fun(message: string): nil)|nil}
 function dmhub.SaveImageDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SaveFileDialog: Opens a system file dialog inviting the user to save a file, then writes the given data to the chosen path. data is either a LuaByteArray (e.g. from PDFDocument:FillForm) or a string (written as UTF-8, e.g. JSON from dmhub.ToJson). filename is the default filename offered in the dialog; extensions lists the allowed file extensions (defaults to the filename's extension). callback is called with the saved path, or nil if the user canceled.
+--- @param options {data: LuaByteArray|string, filename: string, extensions: nil|string[], title: nil|string, message: nil|string, callback: nil|fun(path: nil|string)}
+function dmhub.SaveFileDialog(options)
 	-- dummy implementation for documentation purposes only
 end
 

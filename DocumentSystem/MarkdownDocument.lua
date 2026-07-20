@@ -2821,7 +2821,15 @@ end
 --termid -> true once its underline has been spent for this label. Every
 --match becomes a <link=glossary:id> region; the first match of each term
 --also gets the underline treatment. Returns the rewritten segment.
-local function GlossaryMarkSegment(seg, index, washed)
+--Core glossary matcher over one plain-text segment (no tags): returns match
+--ranges { from, to, id, underline } (1-based inclusive, relative to seg, in
+--reading order) without rewriting the segment. washed maps termid -> true
+--once its underline has been spent; the first match of each term gets
+--underline = true. GlossaryMarkSegment (the display path's string rewrite)
+--and the seamless compiler's glossary pass (style decorations) both consume
+--this, so the matching rules (longest term first, plural fold, adjacency,
+--proper-noun guard) stay identical across the two surfaces.
+local function GlossaryMatchRanges(seg, index, washed)
     --tokenize words with positions.
     local words = {}
     local searchPos = 1
@@ -2833,12 +2841,11 @@ local function GlossaryMarkSegment(seg, index, washed)
         words[#words + 1] = { s = s, e = e, text = string.sub(seg, s, e) }
         searchPos = e + 1
     end
+    local matches = {}
     if #words == 0 then
-        return seg
+        return matches
     end
 
-    local out = {}
-    local copied = 1 --next seg index not yet copied to out.
     local k = 1
     while k <= #words do
         local w = words[k]
@@ -2893,20 +2900,68 @@ local function GlossaryMarkSegment(seg, index, washed)
 
         if matched ~= nil then
             local lastWord = words[k + #matched.words - 1]
-            out[#out + 1] = string.sub(seg, copied, w.s - 1)
-            local span = string.sub(seg, w.s, lastWord.e)
-            if washed[matched.id] then
-                out[#out + 1] = string.format("<link=glossary:%s>%s</link>", matched.id, span)
-            else
-                washed[matched.id] = true
-                out[#out + 1] = string.format("<link=glossary:%s>%s</link>",
-                    matched.id, GlossaryUnderlineForm(span))
-            end
-            copied = lastWord.e + 1
+            matches[#matches + 1] = {
+                from = w.s,
+                to = lastWord.e,
+                id = matched.id,
+                underline = not washed[matched.id],
+            }
+            washed[matched.id] = true
             k = k + #matched.words
         else
             k = k + 1
         end
+    end
+    return matches
+end
+
+--Broken-underline runs for a span, as inclusive (from, to) offsets relative
+--to the span (1-based): alternating 2-character underlined runs with
+--1-character gaps, spaces never underlined. The same geometry as
+--GlossaryBrokenUnderline; the seamless editor emits these as style
+--decorations while the display path rewrites the string.
+local function GlossaryUnderlineRuns(span)
+    local runs = {}
+    local i = 1
+    local n = #span
+    while i <= n do
+        if string.sub(span, i, i) == " " then
+            i = i + 1
+        else
+            local j = math.min(i + 1, n)
+            if string.sub(span, j, j) == " " then
+                j = i
+            end
+            runs[#runs + 1] = { i, j }
+            --one-character gap between runs (a following space serves as
+            --the gap itself, same net advance).
+            i = j + 2
+        end
+    end
+    return runs
+end
+
+--Mark glossary terms inside one plain-text segment (no tags). washed maps
+--termid -> true once its underline has been spent for this label. Every
+--match becomes a <link=glossary:id> region; the first match of each term
+--also gets the underline treatment. Returns the rewritten segment.
+local function GlossaryMarkSegment(seg, index, washed)
+    local matches = GlossaryMatchRanges(seg, index, washed)
+    if #matches == 0 then
+        return seg
+    end
+    local out = {}
+    local copied = 1 --next seg index not yet copied to out.
+    for _, m in ipairs(matches) do
+        out[#out + 1] = string.sub(seg, copied, m.from - 1)
+        local span = string.sub(seg, m.from, m.to)
+        if m.underline then
+            out[#out + 1] = string.format("<link=glossary:%s>%s</link>",
+                m.id, GlossaryUnderlineForm(span))
+        else
+            out[#out + 1] = string.format("<link=glossary:%s>%s</link>", m.id, span)
+        end
+        copied = m.to + 1
     end
     out[#out + 1] = string.sub(seg, copied)
     return table.concat(out)
@@ -7266,6 +7321,23 @@ function Seamless.CompileDecorations(doc, text)
     resolvedSkin = resolvedSkin or {}
     local headingSkins = resolvedSkin.headings or {}
 
+    --Glossary hints as pure style decorations (no link regions: hover cards
+    --need editor-text hit-testing the engine does not expose yet, so the
+    --editor gets the visual treatment only). Setting off = no scan. washed:
+    --the first occurrence of each term in the DOCUMENT underlines; the
+    --display path washes per label, and per-doc is the editor's coarser
+    --equivalent of that.
+    local glossaryIndex = nil
+    if g_glossaryHintsSetting:Get() ~= "off" then
+        local idx = GetGlossaryIndex()
+        if next(idx) ~= nil then
+            glossaryIndex = idx
+        end
+    end
+    local glossaryWashed = {}
+    local glossaryBold = g_glossaryHintsSetting:Get() == "bold"
+
+
     local group = 0
     local function G()
         group = group + 1
@@ -7561,6 +7633,11 @@ function Seamless.CompileDecorations(doc, text)
             --italic (shared asterisks), then links.
             local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
+            --inner text ranges of each emphasis run, consumed by the glossary
+            --pass below: blanking consumes them from scratch, but the display
+            --path hints inside emphasis, so the editor must too.
+            local emphasisInners = {}
+
             --bold: **...**
             local searchFrom = 1
             while true do
@@ -7570,6 +7647,7 @@ function Seamless.CompileDecorations(doc, text)
                 decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
                 if e - 2 >= s + 2 then
                     decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<b>", close = "</b>", group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 2, e - 2 }
                 end
                 decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
                 scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
@@ -7585,6 +7663,7 @@ function Seamless.CompileDecorations(doc, text)
                 decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
                 if e - 2 >= s + 2 then
                     decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<s>", close = "</s>", group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 2, e - 2 }
                 end
                 decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
                 scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
@@ -7603,6 +7682,7 @@ function Seamless.CompileDecorations(doc, text)
                     decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = g }
                     decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(e - 1), open = "<i>", close = "</i>", group = g }
                     decs[#decs + 1] = { kind = "hide", from = A(e), to = A(e), group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 1, e - 1 }
                     scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
                     searchFrom = e + 1
                 end
@@ -7642,6 +7722,47 @@ function Seamless.CompileDecorations(doc, text)
                     decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(s + #label), open = linkOpen, close = linkClose, group = g }
                 end
                 searchFrom = e + 1
+            end
+
+            --glossary pass: underline the first document occurrence of each
+            --glossary term, as style decorations. Scans the leftover plain
+            --prose (scratch: consumed constructs are \1-blanked, which also
+            --breaks word adjacency across construct boundaries, exactly like
+            --the display path's per-segment scan) plus each emphasis run's
+            --inner text (the display path hints inside emphasis). Shorthand
+            --[Label] links are blanked from the scan copy first - link
+            --labels never hint, matching the display pass. Heading lines are
+            --skipped exactly like the display path.
+            if glossaryIndex ~= nil and rest:match("^#+ ") == nil then
+                local function EmitGlossary(segText, segStart)
+                    local matches = GlossaryMatchRanges(segText, glossaryIndex, glossaryWashed)
+                    for _, m in ipairs(matches) do
+                        if m.underline then
+                            local g = G()
+                            local mFrom = segStart + m.from - 1
+                            if glossaryBold then
+                                decs[#decs + 1] = { kind = "style", from = A(mFrom), to = A(segStart + m.to - 1),
+                                    open = "<u>", close = "</u>", group = g }
+                            else
+                                --broken underline: one short style run per
+                                --underlined pair, same geometry as the
+                                --display treatment.
+                                local span = segText:sub(m.from, m.to)
+                                for _, run in ipairs(GlossaryUnderlineRuns(span)) do
+                                    decs[#decs + 1] = { kind = "style",
+                                        from = A(mFrom + run[1] - 1),
+                                        to = A(mFrom + run[2] - 1),
+                                        open = "<u>", close = "</u>", group = g }
+                                end
+                            end
+                        end
+                    end
+                end
+                local gscratch = scratch:gsub("%[[^%[%]\1]*%]", function(m) return string.rep("\1", #m) end)
+                EmitGlossary(gscratch, 1)
+                for _, inner in ipairs(emphasisInners) do
+                    EmitGlossary(line:sub(inner[1], inner[2]), inner[1])
+                end
             end
         end
     end

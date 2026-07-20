@@ -6094,7 +6094,9 @@ CreateAbilityController = function()
             end
             if not pathfinding then
                 for k, tok in pairs(targetTokens) do
-                    if (selfTarget or tok.charid ~= g_token.charid) and g_currentAbility:TargetPassesFilter(g_token, tok, g_currentSymbols) then
+                    -- "Can Target Self" flag lets the caster appear among its own candidates
+                    -- alongside others (self OR adjacent in one prompt); see ActivatedAbility:TargetPassesFilter.
+                    if (selfTarget or tok.charid ~= g_token.charid or g_token.properties:CalculateNamedCustomAttribute("Can Target Self") > 0) and g_currentAbility:TargetPassesFilter(g_token, tok, g_currentSymbols) then
                         filteredTargets[k] = tok
                     end
                 end
@@ -6790,8 +6792,14 @@ local function CalculateSpellTargetFocusing(symbols)
                     canTarget = false
                 end
 
-                if g_creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') and spell.selfTarget == false then
-                    canTarget = false
+                if g_creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') then
+                    -- "Can Target Self" flag lets the caster target itself alongside its other
+                    -- candidates even when the ability is not selfTarget (e.g. a compelled free
+                    -- strike that may hit an adjacent creature OR itself). TargetPassesFilter
+                    -- (called below) also waives the allegiance filter for the flagged self target.
+                    if spell.selfTarget == false and g_creature:CalculateNamedCustomAttribute("Can Target Self") <= 0 then
+                        canTarget = false
+                    end
                 end
 
                 if symbols ~= nil and symbols.forbiddentargets ~= nil and symbols.forbiddentargets[targetToken.charid] then

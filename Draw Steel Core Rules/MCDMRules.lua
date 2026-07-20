@@ -1204,6 +1204,19 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 		return false
 	end
 
+	-- Targeting Group (general isolation primitive): any creature with a non-zero
+	-- "Targeting Group" custom attribute may only target / be targeted by creatures
+	-- that share the SAME group value. Unflagged creatures (group 0) are unaffected,
+	-- so this whole check is inert unless the mechanic is in use. Set the same group
+	-- value on a set of creatures to isolate them together (they can still affect each
+	-- other, but not anyone outside the group, and no one outside can affect them).
+	-- Used by "Let's Take This Outside" (group key = the beastheart's Id).
+	local casterGroup = casterToken.properties:CalculateNamedCustomAttribute("Targeting Group")
+	local targetGroup = targetToken.properties:CalculateNamedCustomAttribute("Targeting Group")
+	if (casterGroup ~= 0 or targetGroup ~= 0) and casterGroup ~= targetGroup then
+		return false
+	end
+
 	return true
 end
 

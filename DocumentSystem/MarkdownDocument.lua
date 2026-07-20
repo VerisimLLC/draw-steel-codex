@@ -7214,6 +7214,11 @@ end
 
 local Seamless = {}
 
+--Dim ink for structural markers the editor keeps visible rather than hiding
+--(the ::: fences). A mid-gray reads on both the dark default page and the
+--light parchment stylesheets, where a low-alpha white would vanish.
+local SEAMLESS_FENCE_DIM = "#8a8a8a"
+
 --Open/close TMP tag pair for a heading level's skin entry. Mirrors
 --SkinHeadingMarkup, but as a pair around a source RANGE rather than wrapping a
 --copied string. Case transforms (allcaps) are omitted: a display decoration
@@ -7266,6 +7271,54 @@ function Seamless.LinkTags(link)
     return open, close
 end
 
+--Open/close pair for a style class's `text` block (::: blocks). Mirrors
+--SkinClassTextMarkup, but as a pair around a source RANGE rather than
+--wrapping a copied string. allcaps is omitted for the same reason
+--HeadingTags omits it: a display decoration must never rewrite the text.
+function Seamless.ClassTags(t)
+    t = t or {}
+    local open, close = "", ""
+    if t.size and t.size ~= 100 then
+        open = open .. string.format("<size=%d%%>", t.size)
+        close = "</size>" .. close
+    end
+    if t.weight == "bold" or t.weight == "black" then
+        open = open .. "<b>"
+        close = "</b>" .. close
+    end
+    if t.italic == true then
+        open = open .. "<i>"
+        close = "</i>" .. close
+    end
+    if t.underline == true then
+        open = open .. "<u>"
+        close = "</u>" .. close
+    end
+    if t.strike == true then
+        open = open .. "<s>"
+        close = "</s>" .. close
+    end
+    local tracking = t.tracking or 0
+    if tracking ~= 0 then
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    if t.mark == true then
+        open = open .. ThemeEngine.ResolveTokens("<mark=@fg>")
+        close = "</mark>" .. close
+    end
+    local color = SkinColor(t.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    if t.caps == "smallcaps" then
+        open = open .. "<smallcaps>"
+        close = "</smallcaps>" .. close
+    end
+    return open, close
+end
+
 --Parse the run of justification markers (:< :> :<> :><) at the start of a
 --line. Mirrors the tokenizer's alternation order (<>|><|<|>) and its per-line
 --semantics: each marker overwrites the previous, so the LAST one wins.
@@ -7314,11 +7367,14 @@ function Seamless.CompileDecorations(doc, text)
     end
 
     local resolvedSkin = nil
+    local resolvedClasses = nil
     pcall(function()
         local sheet = doc:GetResolvedStylesheet()
         resolvedSkin = sheet ~= nil and sheet.base or nil
+        resolvedClasses = sheet ~= nil and sheet.classes or nil
     end)
     resolvedSkin = resolvedSkin or {}
+    resolvedClasses = resolvedClasses or {}
     local headingSkins = resolvedSkin.headings or {}
 
     --Glossary hints as pure style decorations (no link regions: hover cards
@@ -7364,6 +7420,10 @@ function Seamless.CompileDecorations(doc, text)
     --power_roll tokens in document order; each becomes a power-roll island
     --(the display renderer's styled block, click-to-caret) below.
     local powerRollTokens = {}
+    --::: style blocks (fence line range + class) and collapse-node title
+    --lines; both are decorated after the island passes.
+    local styleblockRanges = {}
+    local collapseTitles = {}
 
     --island + block passes run off the journal's own tokenizer so structure
     --matches the display renderer exactly.
@@ -7465,11 +7525,25 @@ function Seamless.CompileDecorations(doc, text)
             --click on the widget focuses the editor at the nearest source
             --position (see CreatePowerRollIslandWidget). Emitted below.
             powerRollTokens[#powerRollTokens + 1] = token
-        elseif token.srcLine ~= nil and
-               (token.type == "styleblock" or token.type == "collapse_node") then
-            for li = token.srcLine, math.min(token.srcLineEnd or token.srcLine, #lines) do
-                blockLines[li] = true
-            end
+        elseif token.srcLine ~= nil and token.type == "styleblock" then
+            --::: block: the fences dim and the inner content styles (its
+            --class markup, plus the ordinary line/inline passes -- the
+            --tokenizer consumes the whole block, so no island token can
+            --ever come from inside one). The inner lines are deliberately
+            --NOT claimed as raw, which is why this no longer falls into the
+            --blockLines sweep below.
+            styleblockRanges[#styleblockRanges + 1] = {
+                first = token.srcLine,
+                last = math.min(token.srcLineEnd or token.srcLine, #lines),
+                className = token.className,
+            }
+        elseif token.srcLine ~= nil and token.type == "collapse_node" then
+            --only the "+ Title" line is stamped by the tokenizer; the body
+            --lines are ordinary tokens that already style. The marker
+            --becomes a disclosure glyph and the title goes bold, mirroring
+            --the display's arrow + bold label.
+            collapseTitles[#collapseTitles + 1] = token.srcLine
+            blockLines[token.srcLine] = true
         end
     end
 
@@ -7550,6 +7624,81 @@ function Seamless.CompileDecorations(doc, text)
             sourceText = text:sub(from, to),
             token = token,
         }
+    end
+
+    --collapse titles: dim the "+ " marker and bold the title, echoing the
+    --display's expando arrow + bold label.
+    --
+    --This originally REPLACED the marker with a U+25BE disclosure triangle,
+    --but the editor font has no glyph for it and it rendered as a tofu box
+    --(seen 2026-07-20). Rather than gamble on another arrow codepoint, the
+    --marker is dimmed and left in place -- the same treatment the ::: fences
+    --get below, which is verified to render. Keeping the character also
+    --preserves the line's visual left edge; moving the caret onto the line
+    --reveals the raw "+ Title" as usual.
+    for _, li in ipairs(collapseTitles) do
+        local line = lines[li]
+        local base = lineOffsets[li]
+        --a NESTED collapse node is indented in the source (the tokenizer
+        --matches the de-indented line), so locate the marker rather than
+        --assuming column 1.
+        local indent = line:match("^([ \t]*)%+ ")
+        if indent ~= nil then
+            local markerAt = base + #indent
+            local g = G()
+            decs[#decs + 1] = { kind = "style", from = markerAt, to = markerAt + 1,
+                open = string.format("<color=%s>", SEAMLESS_FENCE_DIM),
+                close = "</color>", group = g }
+            if #line > #indent + 2 then
+                decs[#decs + 1] = { kind = "style", from = markerAt + 2,
+                    to = base + #line - 1, open = "<b>", close = "</b>", group = g }
+            end
+        end
+    end
+
+    --::: style blocks: dim both fences (kept visible, not hidden -- the
+    --class name is the only cue for WHICH class a block applies) and wrap
+    --the inner lines in the class's text markup. The inner lines are
+    --deliberately NOT claimed as raw, so headings, emphasis, links and
+    --glossary hints style inside a block exactly as the display renders
+    --them.
+    local function DimLine(li, group)
+        if lines[li] == nil or #lines[li] == 0 then
+            return
+        end
+        decs[#decs + 1] = { kind = "style",
+            from = lineOffsets[li], to = lineOffsets[li] + #lines[li] - 1,
+            open = string.format("<color=%s>", SEAMLESS_FENCE_DIM),
+            close = "</color>", group = group }
+    end
+    for _, range in ipairs(styleblockRanges) do
+        local g = G()
+        DimLine(range.first, g)
+        --fences carry their own dim styling and no markdown; keep them out
+        --of the line/inline passes (this pass runs before them) so a class
+        --name never picks up a glossary underline or stray emphasis.
+        blockLines[range.first] = true
+        --the closing fence exists only when the block is terminated; an
+        --unterminated block runs to the last line, which is content.
+        local lastInner = range.last
+        if lines[range.last] ~= nil and lines[range.last]:match("^[ \t]*::: *$") ~= nil then
+            lastInner = range.last - 1
+            blockLines[range.last] = true
+            DimLine(range.last, g)
+        end
+        local cls = resolvedClasses[range.className]
+        if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil
+           and lastInner >= range.first + 1 then
+            local open, close = Seamless.ClassTags(cls.text)
+            if open ~= "" then
+                local from = lineOffsets[range.first + 1]
+                local to = lineOffsets[lastInner] + #lines[lastInner] - 1
+                if to >= from then
+                    decs[#decs + 1] = { kind = "style", from = from, to = to,
+                        open = open, close = close, group = G() }
+                end
+            end
+        end
     end
 
     for li = 1, #lines do

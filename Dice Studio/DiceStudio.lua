@@ -1466,6 +1466,191 @@ do
 	g_materialFields.PrismaticDiceMaterial = fields
 end
 
+-- FacetedGemDiceMaterial: flat low-poly gem shading (see PBRTexturedFacetedGem.shader). Each
+-- flat facet renders as ONE shade from a Dark/Mid/Light color ramp; sliders control the
+-- spread, per-facet scatter, light direction, and edge darkening. Deliberately a LEAN,
+-- hand-picked list (not the shared PBRTextured rows): this material is about the ramp, and
+-- most of the texture-set rows would be noise here.
+do
+	g_materialFields.FacetedGemDiceMaterial = {
+		-- Master hue: multiplies the whole ramp, so recoloring the gem is one picker.
+		{
+			name = "_BaseColor",
+			type = "Color",
+			description = "Tint",
+		},
+
+		-- The three shades the facets grade between.
+		{
+			name = "_ShadeLight",
+			type = "Color",
+			description = "Light Shade",
+		},
+		{
+			name = "_ShadeMid",
+			type = "Color",
+			description = "Mid Shade",
+		},
+		{
+			name = "_ShadeDark",
+			type = "Color",
+			description = "Dark Shade",
+		},
+
+		-- How the facets pick from the ramp.
+		{
+			name = "_ShadeContrast",
+			type = "Range",
+			min = 0,
+			max = 2,
+			default = 1,
+			description = "Shade Contrast",
+		},
+		{
+			name = "_ShadeBalance",
+			type = "Range",
+			min = -0.5,
+			max = 0.5,
+			default = 0,
+			description = "Shade Balance",
+		},
+		-- Per-facet random shade offset, stable per facet as the die tumbles.
+		{
+			name = "_FacetVariation",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0.35,
+			description = "Facet Variation",
+		},
+		{
+			name = "_EdgeDarken",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0.25,
+			description = "Edge Darkening",
+		},
+		-- Posterize the lightness into discrete bands; below 2 = smooth (off).
+		{
+			name = "_ShadeSteps",
+			type = "Range",
+			min = 0,
+			max = 8,
+			default = 0,
+			description = "Shade Steps",
+		},
+
+		-- Paint the beveled edge strips a flat color (default black, like inked gem edges)
+		-- instead of letting them pick up their own facet shades. Off = edges shade normally.
+		{
+			name = "_EdgeTintEnable",
+			type = "Bool",
+			default = 1,
+			description = "Color Edges",
+		},
+		{
+			name = "_EdgeColor",
+			type = "Color",
+			requires = "_EdgeTintEnable",
+			requiresDefault = 1,
+			description = "Edge Color",
+		},
+		{
+			name = "_EdgeWidth",
+			type = "Range",
+			min = 0,
+			max = 1,
+			default = 0.5,
+			requires = "_EdgeTintEnable",
+			requiresDefault = 1,
+			description = "Edge Coverage",
+		},
+
+		-- Which facets read lit vs dark.
+		{
+			name = "_LightAzimuth",
+			type = "Range",
+			min = 0,
+			max = 360,
+			default = 130,
+			description = "Light Azimuth",
+		},
+		{
+			name = "_LightElevation",
+			type = "Range",
+			min = 0,
+			max = 90,
+			default = 50,
+			description = "Light Elevation",
+		},
+
+		-- Overall level, the glint, and the glass rim.
+		{
+			name = "_Brightness",
+			type = "Range",
+			min = 0,
+			max = 3,
+			default = 1,
+			description = "Brightness",
+		},
+		{
+			name = "_SpecStrength",
+			type = "Range",
+			min = 0,
+			max = 2,
+			default = 0.8,
+			description = "Glint Strength",
+		},
+		{
+			name = "_RoughnessScale",
+			type = "Range",
+			min = 0,
+			max = 2,
+			default = 0.3,
+			description = "Glint Spread",
+		},
+		{
+			name = "_GlassRimStrength",
+			type = "Range",
+			min = 0,
+			max = 4,
+			default = 0.6,
+			description = "Rim Strength",
+		},
+		{
+			name = "_GlassRimPower",
+			type = "Range",
+			min = 0.5,
+			max = 8,
+			default = 3,
+			description = "Rim Falloff",
+		},
+		{
+			name = "_GlassRimColor",
+			type = "Color",
+			description = "Rim Color",
+		},
+
+		-- Optional texturing. (No normal-map rows: the facet shading uses the geometric face
+		-- plane, so a normal map has no effect in this material.)
+		{
+			name = "_BaseMap",
+			type = "Texture",
+			library = "Textures",
+			description = "Albedo / Color",
+		},
+		{
+			name = "_Tiling",
+			type = "Range",
+			min = 0.1,
+			max = 8,
+			default = 1,
+			description = "Tiling",
+		},
+	}
+end
+
 local CreateDicePanel
 
 -- Builds a panel that edits the tuned shader properties of a dice material.

@@ -18,10 +18,12 @@ end
 --logical map: flying creatures at an altitude at or above a wall's height can move
 --over it (full-height walls always block).
 --
---When a wall height is set the mode selector also offers "Solid": walls drawn as normal
---with the floor rendered on TOP of them (the top face of a solid block). The block's
---interior is impassable below the wall height, its top counts as ground, and creatures
---can climb onto it when the wall asset is climbable. Read via dmhub.GetBuildingSolid.
+--The mode selector also offers "Solid": walls drawn as normal with the floor rendered on
+--TOP of them (the top face of a solid block). The block's interior is impassable below
+--the wall height, its top counts as ground, and creatures can climb onto it when the wall
+--asset is climbable. Read via dmhub.GetBuildingSolid. With no wall height set the block
+--runs floor-to-ceiling: nothing can enter it, fly over it or stand on it, and the top
+--face draws at the floor's ceiling height.
 setting{
 	id = "building:specifywallheight",
 	description = "Set Wall Height",
@@ -952,9 +954,9 @@ CreateBuildingEditor = function()
         end
     end
     local GetBuildingSolid = function()
-        --Solid mode requires a wall height; if the setting was turned off out from under
-        --us, fall back to behaving like "Both".
-        return solidOn and dmhub.GetSettingValue('building:specifywallheight') == true
+        --With no wall height set the op carries height 0, which the engine draws as a
+        --solid block running all the way to the ceiling.
+        return solidOn
     end
 
     local floorDim = 64
@@ -1746,22 +1748,13 @@ CreateBuildingEditor = function()
                         end,
                     },
                     gui.Label{
-                        --Solid mode requires "Set Wall Height": the label is only shown
-                        --while the setting is on. If it turns off while Solid is selected,
-                        --fall back to Both.
-                        classes = {cond(dmhub.GetSettingValue('building:specifywallheight') == true, "solidOption", "collapsed")},
+                        --Solid is always available. With "Set Wall Height" off the block
+                        --runs floor-to-ceiling, just like a normal wall does.
+                        classes = {"solidOption"},
                         data = {index = 4},
                         text = "Solid",
-                        monitor = 'building:specifywallheight',
                         events = {
-                            hover = gui.Tooltip('Draw solid blocks: walls with the floor on top of them, at the wall height. Creatures can climb on top if the wall is climbable.'),
-                            monitor = function(element)
-                                local haveHeight = dmhub.GetSettingValue('building:specifywallheight') == true
-                                element:SetClass('collapsed', not haveHeight)
-                                if (not haveHeight) and solidOn then
-                                    element.parent:FireEvent('selectMode', 2)
-                                end
-                            end,
+                            hover = gui.Tooltip('Draw solid blocks: walls with the floor on top of them, at the wall height. Creatures can climb on top if the wall is climbable. Without a wall height the block fills the space up to the ceiling.'),
                             press = function(element)
                                 element.parent:FireEvent('selectMode', 4)
                             end,

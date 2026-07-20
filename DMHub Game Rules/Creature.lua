@@ -6071,7 +6071,16 @@ function creature:OnMove(path)
     -- Pushover Trample (which listens for an enemy being pushed through the
     -- beastheart's space). We DO treat forced movement as OA-immune, so the
     -- leaveadjacent / opportunity-attack dispatch loop below skips itself.
-    local immuneFromOpportunityAttacks = path.forced or path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
+    local moverImmuneToOpportunityAttacks = self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0
+    local immuneFromOpportunityAttacks = path.forced or path.shifting or moverImmuneToOpportunityAttacks
+
+    --Shifting suppresses opportunity attacks, but NOT abilities that trigger on a
+    --creature "moving or shifting away" (the ogre's Swat the Fly) -- those are
+    --triggered actions, not opportunity attacks, so a shift still counts as
+    --departing. They listen on the separate `leaveadjacentorshift` event
+    --dispatched below, gated identically except for the shift allowance. Forced
+    --movement and OA immunity still suppress them.
+    local immuneFromDeparture = path.forced or moverImmuneToOpportunityAttacks
 
     local ourTileSize = ourToken.tileSize
 
@@ -6252,10 +6261,22 @@ function creature:OnMove(path)
                     --Movement" custom attribute ignores that suppression, so it still
                     --provokes when an enemy shifts, is force-moved, or uses a feature
                     --that normally would not provoke. (Beastheart "Reflexes Perfected".)
-                    local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or (tok.properties:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0)
-                    if notImmuneForThisObserver and withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
-                        tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
-                        self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
+                    local anyMovementObserver = tok.properties:CalculateNamedCustomAttribute("Opportunity Attack On Any Movement") > 0
+                    local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or anyMovementObserver
+                    local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
+
+                    if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
+                        if notImmuneForThisObserver then
+                            tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
+                            self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
+                        end
+
+                        --Fires for a plain move away AND a shift away, so an ability
+                        --whose text reads "moves or shifts away" uses this single
+                        --trigger rather than needing one of each.
+                        if departureNotImmuneForThisObserver then
+                            tok.properties:DispatchEvent("leaveadjacentorshift", { movingcreature = self })
+                        end
                     end
                 end
             end

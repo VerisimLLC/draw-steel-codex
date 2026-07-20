@@ -4498,9 +4498,29 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	--cast coroutine's atexit -- can remove anything the purge behavior never
 	--got to. When the purge behavior DID run the effect is already gone and the
 	--handler is a no-op.
+	--
+	--ORDER MATTERS: only a purge that runs AFTER this apply is a pairing. A purge
+	--BEFORE the apply is the opposite idiom -- "clear whatever state I'm in, then
+	--set the new one" -- e.g. the Stormwight kits' "Animal Form: X", which purges
+	--its own form effect first so re-shifting is idempotent, then re-applies it.
+	--Treating that leading purge as a pairing made the FinishCast handler delete
+	--the effect the cast had just applied, so the form never stuck (report NA3SCFH5).
+	--
+	--CastCoroutine calls behavior:Cast(ability, ...) with the very object it is
+	--iterating out of ability.behaviors, so myIndex is found on every normal path.
+	--If we somehow cannot locate ourselves, fall back to the old order-blind match
+	--rather than silently dropping the leak protection.
+	local myIndex = nil
+	for i,b in ipairs(ability.behaviors) do
+		if b == self then
+			myIndex = i
+			break
+		end
+	end
+
 	local hasPurgePair = false
-	for _,b in ipairs(ability.behaviors) do
-		if b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
+	for i,b in ipairs(ability.behaviors) do
+		if (myIndex == nil or i > myIndex) and b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
 			hasPurgePair = true
 			break
 		end

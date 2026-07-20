@@ -112,7 +112,7 @@ local function CreateCrossSectionPanel()
 		height = "auto",
 		halign = "center",
 		valign = "bottom",
-		vmargin = 180,
+		vmargin = 70,
 		flow = "vertical",
 		pad = 8,
 		interactable = false,

@@ -48,6 +48,36 @@ dmhub.CreateTargetableComponent = function()
     }
 end
 
+--True when this "creature" is really a map object (a Targetable component on a
+--LevelObject: a hazard, destructible prop, wall voxel...) rather than an actual
+--creature. Objects bind as creature-typed properties and are indistinguishable
+--from creatures in GoblinScript otherwise, which matters for effects that
+--should treat the battlefield's furniture differently from its combatants.
+--
+--The motivating case: an area hazard that grants its allies cover via an aura.
+--The aura's "friends" filter with no caster means "everything not aligned with
+--the players", which includes the hazard object itself, so the hazard was
+--granting itself cover. Putting `not IsObject` on the granting modifier's
+--filterCondition withholds it from the object while leaving the aura otherwise
+--untouched. Filtering the MODIFIER rather than narrowing the aura matters:
+--scripts that watch their own object's auras to detect that the registration
+--is still live rely on the aura continuing to apply to the object.
+--
+--Fails safe: a creature whose token cannot be resolved reads as NOT an object,
+--so filters written against this keep applying to real creatures.
+GameSystem.RegisterGoblinScriptField{
+    name = "Is Object",
+
+    type = "boolean",
+    desc = "True if this is a map object (such as a hazard, destructible prop, or wall voxel) rather than a real creature.",
+    examples = {"not IsObject"},
+
+    calculate = function(c)
+        local token = dmhub.LookupToken(c)
+        return token ~= nil and token.valid and token.objectInstance ~= nil
+    end,
+}
+
 --Wall voxels spawned by abilities are stamped with the creating creature's
 --charid in the "wallcreator" property (see AbilityBuildWall.lua). Expose it to
 --GoblinScript hashed the same way as creature ids, so targeting filters can

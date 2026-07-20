@@ -5547,7 +5547,13 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                         click = function()
                             element.popup = nil
                             info.initiativeQueue:RemoveInitiative(initiativeid)
+                            --Removing the last unmoved entry ends the round just as
+                            --surely as it taking its turn does.
+                            local newRound = info.initiativeQueue:AdvanceRoundIfComplete()
                             info.UploadInitiative()
+                            if newRound then
+                                self:NewRound()
+                            end
                         end,
                     }
                 end
@@ -5578,7 +5584,13 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
                         click = function()
                             element.popup = nil
                             q:SetTurnTaken(entry)
+                            --Clearing the last unmoved entry ends the round, so run the
+                            --same round-rollover the normal end-of-turn path does.
+                            local newRound = q:AdvanceRoundIfComplete()
                             info.UploadInitiative()
+                            if newRound then
+                                self:NewRound()
+                            end
                         end,
                     }
                 else

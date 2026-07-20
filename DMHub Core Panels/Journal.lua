@@ -520,7 +520,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         dragTargetPriority = 1,
         classes = { "contentPanel" },
         x = 0,
-        lmargin = 8,
+        lmargin = 16, --indent per nesting level, so folder membership is readable at a glance.
 
         expand = function(element)
             if m_invalidated then

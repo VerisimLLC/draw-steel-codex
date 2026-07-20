@@ -324,6 +324,12 @@ local TRIGGER_METADATA = {
         tags = {"adjacent", "leave", "move", "away", "opportunity"},
         group = "movement",
     },
+    leaveadjacentorshift = {
+        label = "Adjacent Creature Moves or Shifts Away",
+        description = "Fires when a creature adjacent to this one moves away, including by shifting. Forced movement does not trigger it.",
+        tags = {"adjacent", "leave", "move", "shift", "away"},
+        group = "movement",
+    },
     move = {
         label = "Begin Movement",
         description = "Fires at the start of the creature's movement.",

@@ -373,13 +373,48 @@ function InitiativeQueue.NextTurn(self, initiativeid)
 
 	self.playersTurn = not self.playersTurn
 
-    local allTokens = dmhub.allTokens
-	--are there any more tokens that are going to move this round?
-	--if not then increment the current round.
+	return self:AdvanceRoundIfComplete()
+end
+
+--Are there any entries still to move this round? If not, increment the round.
+--Returns true if the round was advanced.
+--
+--Any code path that marks an entry as having moved -- or removes it from the
+--queue -- must call this, not just NextTurn: otherwise the last outstanding
+--entry can be cleared with the round counter left behind (and NextRound's
+--malice/villain-action/round-start side effects never fire).
+--
+--An entry only holds the round open if it has at least one LIVE token. Dead
+--tokens are still returned by GetTokensForInitiativeId (they stay on the map),
+--so a wiped monster group would otherwise block the round forever -- which is
+--what forces Directors to reach for "Set Has Moved" in the first place.
+--creature:IsDead defaults to false, so an unrecognised token type is treated as
+--live and blocks the round rather than being silently skipped.
+function InitiativeQueue:AdvanceRoundIfComplete()
+	local allTokens = dmhub.allTokens
+	local haveLiveEntries = false
+
 	for k,v in pairs(self.entries) do
-		if #self.GetTokensForInitiativeId(k, allTokens) > 0 and v.round <= self.round then
-			return false
+		local live = false
+		for _,tok in ipairs(self.GetTokensForInitiativeId(k, allTokens)) do
+			if tok.properties ~= nil and not tok.properties:IsDead() then
+				live = true
+				break
+			end
 		end
+
+		if live then
+			if v.round <= self.round then
+				return false
+			end
+			haveLiveEntries = true
+		end
+	end
+
+	--Everything in the queue is dead or gone: combat is over, so don't award
+	--malice or announce a new round.
+	if not haveLiveEntries then
+		return false
 	end
 
 	self:NextRound()

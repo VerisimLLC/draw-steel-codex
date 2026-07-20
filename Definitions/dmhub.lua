@@ -451,6 +451,12 @@ function dmhub.SaveImageDialog(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- SaveFileDialog: Opens a system file dialog inviting the user to save a file, then writes the given data to the chosen path. data is either a LuaByteArray (e.g. from PDFDocument:FillForm) or a string (written as UTF-8, e.g. JSON from dmhub.ToJson). filename is the default filename offered in the dialog; extensions lists the allowed file extensions (defaults to the filename's extension). callback is called with the saved path, or nil if the user canceled.
+--- @param options {data: LuaByteArray|string, filename: string, extensions: nil|string[], title: nil|string, message: nil|string, callback: nil|fun(path: nil|string)}
+function dmhub.SaveFileDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetLoadedTextures: Developer texture browser: returns a report of all textures currently held by the ImageManager cache, sorted largest-footprint first. Shape: { budgetMegapixels=<GC budget>, summary={count, megapixels, vramMB, sysMB, totalMB, compressed, uncompressed, readable, pinned, video}, textures={ {id, trace, width, height, format, compressed, readable, pinned, liveedit, lowdef, video, status, idleSeconds, mips, vramBytes, sysBytes, totalBytes, megapixels}, ... } }. trace is the dev-mode-captured C#+Lua call stack that first requested the image (empty unless dev mode was on at load time). sysBytes is the system-memory copy and is always 0 -- textures are GPU-only (non-readable); vramBytes is the estimated GPU footprint from format+dimensions+mips; totalBytes = vram + sys (so == vram). Backs the TextureBrowser dev tool.
 --- @return any
 function dmhub.GetLoadedTextures()

@@ -262,14 +262,40 @@ local function StoreBannerRollableDiceItems()
     return result
 end
 
+--Whether the titlescreen itself is on screen at all, as opposed to having been
+--dismissed into a game. Maintained alongside the titlescreen content panel's own
+--'hidden' class (see the endLoading/returnFromGameComplete handlers on it), which
+--is the authority on this -- so the flag cannot drift out of step with what is
+--actually drawn, whatever order the loading events arrive in. Starts true because
+--neither loading event fires during app startup: the titlescreen is simply up.
+local g_storeBannerTitlescreenVisible = true
+
 --Whether the store banner's rollable die should have a live resting die
 --right now. The resting preview die is a real 3D object compositing over
 --the whole UI, so it must be cleared whenever the banner isn't visibly on
---screen: on the other titlescreen states, while the titlescreen is hidden
---behind the character sheet, while the banner is collapsed
+--screen: once we leave for a game, on the games screen, while the titlescreen
+--is hidden behind the character sheet, while the banner is collapsed
 --(dev:storepreview off), and while a full-screen shop dialog covers it.
+--
+--The starting screen ("press any key") is the deliberate exception. Building a
+--real 3D die costs ~350ms of main thread, and paying that on the click into the
+--selection screen was the single biggest stall on the titlescreen (measured
+--~450ms total, dropping to ~90ms when the die is already built). So the die is
+--seeded EARLY, while the starting screen is still up and a stall is invisible,
+--and simply revealed when the banner appears. That is only safe when
+--dicePreviewVirtual took: it renders the resting die inside the panel instead of
+--compositing it over the whole UI, so a die seeded behind the starting screen
+--stays out of sight. On a binary without it we keep the old behaviour and seed
+--on arrival.
 local function StoreBannerDieEligible(element)
-    if not element.valid or not element:HasClass("selection-screen") then
+    if not element.valid then
+        return false
+    end
+    local earlySeed = element:HasClass("starting-screen") and element.data.virtualDie
+    if not (element:HasClass("selection-screen") or earlySeed) then
+        return false
+    end
+    if not g_storeBannerTitlescreenVisible then
         return false
     end
     if not g_devStorePreviewSetting:Get() then
@@ -281,6 +307,34 @@ local function StoreBannerDieEligible(element)
     local shopOpen = false
     pcall(function() shopOpen = ShopDiceBanner.ShopScreenOpen() end)
     return not shopOpen
+end
+
+--Drives the early (behind-the-starting-screen) seed of the store banner's roll
+--die. The banner is hidden until the selection screen (the king-panel styles set
+--hidden = 1 until parent:selection-screen), and a hidden panel does not think --
+--so the cage's own 0.5s reconcile cannot run yet, and the create-time reconcile
+--is usually too early (the shop item list has not downloaded). This retries off
+--the global scheduler, which keeps ticking regardless of visibility, and retires
+--as soon as the die is seeded or the starting screen is over (from then on the
+--banner is visible and its own think takes over).
+--attemptsLeft bounds the loop so it can never tick forever (e.g. dev:storepreview
+--off, so the die is never eligible). It retires early once the die is seeded, or
+--once the banner has become visible on the selection screen and its own think has
+--taken over. Note it must NOT retire on "not starting-screen": the titlescreen's
+--state classes are applied by SetTitlescreenState in the ROOT's create, which can
+--run after this cage's create, so the class is not reliably set on the first call.
+local function StoreBannerEarlySeedRetry(element, attemptsLeft)
+    if mod.unloaded or element == nil or not element.valid then
+        return
+    end
+    element.data.earlySeedAttempts = (element.data.earlySeedAttempts or 0) + 1
+    element:FireEvent("reconcileBannerDie")
+    if element.data.seeded or element:HasClass("selection-screen") or attemptsLeft <= 0 then
+        return
+    end
+    dmhub.Schedule(0.5, function()
+        StoreBannerEarlySeedRetry(element, attemptsLeft - 1)
+    end)
 end
 
 --Builds the rollable d10 for the store banner's right-side black area: an
@@ -343,7 +397,11 @@ local function MakeStoreBannerRollDie()
             --Keep the normal cursor while draggable (no drop target), like
             --the showcase dice on the banner's left.
             hoverCursor = "default",
-            data = { item = nil, seeded = false, reseedPending = false },
+            --virtualDie records whether dicePreviewVirtual actually took on this
+            --binary (it is pcall-guarded below). StoreBannerDieEligible only allows
+            --the early, behind-the-starting-screen seed when it did, since without
+            --it the resting die would composite over the whole UI.
+            data = { item = nil, seeded = false, reseedPending = false, virtualDie = false },
 
             --Invisible-but-interactable cage: the real 3D die renders over it.
             styles = {
@@ -364,8 +422,17 @@ local function MakeStoreBannerRollDie()
                 --On binaries that support it, the resting die renders inside
                 --the panel (so dialogs opened over the banner cover it) and
                 --becomes a real 3D die while hovered, dragged or rolling.
-                pcall(function() element.dicePreviewVirtual = true end)
+                --Remember whether it took: the early seed behind the starting
+                --screen depends on it (see StoreBannerDieEligible).
+                pcall(function()
+                    element.dicePreviewVirtual = true
+                    element.data.virtualDie = true
+                end)
                 element:FireEvent("reconcileBannerDie")
+                --Keep trying while the starting screen is up: the banner is
+                --hidden there, so nothing else will. 60 attempts x 0.5s covers a
+                --slow core-assets download without ticking indefinitely.
+                StoreBannerEarlySeedRetry(element, 60)
             end,
             destroy = function(element)
                 pcall(function() element:CancelDicePreviewRoll() end)
@@ -5022,11 +5089,28 @@ function CreateTitlescreen(dialog, options)
             halign = "center",
             valign = "center",
             flow = "vertical",
+            --This panel's 'hidden' class IS whether the titlescreen content is on
+            --screen, so g_storeBannerTitlescreenVisible is maintained right here
+            --rather than inferred elsewhere -- the two can never disagree. The
+            --store banner's resting die is a real 3D object, so it must not
+            --outlive the titlescreen when we leave for a game; the reconcile
+            --clears it immediately instead of leaving it to the cage's 0.5s think.
+            --beginLoading covers the window where the loading screen is up but
+            --this panel has not hidden yet (entering a game, and the first half of
+            --returning from one -- returnFromGameComplete puts it back).
+            beginLoading = function(element)
+                g_storeBannerTitlescreenVisible = false
+                element:FireEventTree("reconcileBannerDie")
+            end,
             endLoading = function(element)
                 element:SetClass("hidden", true)
+                g_storeBannerTitlescreenVisible = false
+                element:FireEventTree("reconcileBannerDie")
             end,
             returnFromGameComplete = function(element)
                 element:SetClass("hidden", false)
+                g_storeBannerTitlescreenVisible = true
+                element:FireEventTree("reconcileBannerDie")
             end,
             gui.Panel {
                 classes = { "background" },

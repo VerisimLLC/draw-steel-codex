@@ -1084,6 +1084,22 @@ TriggeredAbility.RegisterTrigger{
     },
 }
 
+--As leaveadjacent, but a shift away counts as moving away. Use this for
+--abilities whose trigger reads "moves or shifts away" (e.g. the ogre's Swat the
+--Fly), which are triggered actions rather than opportunity attacks. Forced
+--movement still does not trigger it.
+TriggeredAbility.RegisterTrigger{
+    id = "leaveadjacentorshift",
+    text = "Creature Moved or Shifted Away From",
+    symbols = {
+        movingcreature = {
+            name = "Moving Creature",
+            type = "creature",
+            desc = "The creature moving or shifting away.",
+        },
+    },
+}
+
 TriggeredAbility.RegisterTrigger{
     id = "gaintempstamina",
     text = "Gain Temporary Stamina",

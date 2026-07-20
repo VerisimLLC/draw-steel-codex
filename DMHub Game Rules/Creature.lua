@@ -1973,6 +1973,22 @@ end
 -- symbols: { criticalhit = true/false }
 --
 -- returns: { damageDealt = number }
+--Relentless Taunt (Beastheart Guardian companion ability): resolve the companion that applied
+--the Relentless Taunt ongoing effect to this creature (the bearer), so the damage hook in
+--InflictDamageInstance can exempt it from the -10 penalty. Returns the caster token, or nil if
+--the effect isn't present / its caster can't be resolved. Cheap: only walks the bearer's own
+--active ongoing effects.
+function creature:RelentlessDamageCaster()
+    for _, effectInfo in ipairs(self:ActiveOngoingEffects()) do
+        if effectInfo.ongoingEffectid == "df1ad32d-91e6-4fb4-9e54-3c132ef2c96f" then
+            if effectInfo:try_get("casterInfo") ~= nil and effectInfo.casterInfo.tokenid ~= nil then
+                return dmhub.GetTokenById(effectInfo.casterInfo.tokenid)
+            end
+        end
+    end
+    return nil
+end
+
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
 	local originalAmount = amount
@@ -2045,6 +2061,28 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
                 note = string.format('%s; Damage Immunity reduced by %d to %d', note, resistanceEntry.dr, amount)
             else
                 note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+            end
+        end
+    end
+
+    -- Relentless Taunt (Beastheart Guardian companion): a creature taunted "this way" deals 10
+    -- less damage to any creature EXCEPT the taunting companion (the effect's caster). Gated on
+    -- the ATTACKER carrying the "Relentless Damage Penalty" custom attribute, so this whole block
+    -- is a no-op for every creature that isn't under the Relentless Taunt effect. Applies to the
+    -- already-resistance-reduced amount (like a victim immunity), floored at 0.
+    if symbols ~= nil and symbols.attacker ~= nil and amount > 0 then
+        local relentlessPenalty = symbols.attacker:CalculateNamedCustomAttribute("Relentless Damage Penalty") or 0
+        if relentlessPenalty > 0 then
+            local exemptToken = symbols.attacker:RelentlessDamageCaster()
+            local selfToken = dmhub.LookupToken(self)
+            local exemptId = exemptToken ~= nil and exemptToken.charid or nil
+            if selfToken == nil or exemptId == nil or selfToken.charid ~= exemptId then
+                local reduced = amount - relentlessPenalty
+                if reduced < 0 then reduced = 0 end
+                if reduced ~= amount then
+                    note = string.format('%s; Relentless reduced by %d to %d', note, amount - reduced, reduced)
+                    amount = reduced
+                end
             end
         end
     end
@@ -6831,6 +6869,73 @@ function creature:RemoveOngoingEffectBySeq(seq, numStacks)
 		-- seq matches with no partial removal: drop entry (full removal)
 	end
 	self.ongoingEffects = newOngoingEffects
+end
+
+-- Targeting Group coordination (used by "Let's Take This Outside"). A set of creatures
+-- isolated together share a non-zero "Targeting Group" key, each carrying one of the
+-- listed isolation effects. When ANY member's isolation effect is removed (the target's
+-- save-ends, a purge/free-maneuver end, or death cleanup that routes through these
+-- functions), the whole group must end together, so these wraps purge the isolation
+-- effects from every creature still sharing that key. Guarded against re-entrancy so the
+-- propagation's own removals don't recurse. Fully inert unless a listed effect is removed.
+-- Isolation-effect ids that participate in Targeting Group coordination. Add an entry
+-- here for any future effect that grants a "Targeting Group" key and should end its whole
+-- group together on removal. (The AllowTargeting primitive itself needs no registry.)
+local g_targetingGroupEffectIds = {
+    ["48f1fc52-ca2d-46a8-9749-9ad39dbfa572"] = true,   -- Let's Take This Outside (target)
+    ["eab14011-bed7-4919-9391-2eb3294b38d0"] = true,   -- Let's Take This Outside (Bond)
+}
+local g_propagatingTargetingGroupEnd = false
+
+local function CreatureHasTargetingGroupEffect(props)
+    for _, e in ipairs(props:ActiveOngoingEffects()) do
+        if g_targetingGroupEffectIds[e.ongoingEffectid] then
+            return true
+        end
+    end
+    return false
+end
+
+local function PropagateTargetingGroupEnd(key)
+    if key == nil or key == 0 or g_propagatingTargetingGroupEnd then
+        return
+    end
+    g_propagatingTargetingGroupEnd = true
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties:CalculateNamedCustomAttribute("Targeting Group") == key then
+            for id, _ in pairs(g_targetingGroupEffectIds) do
+                tok.properties:RemoveOngoingEffect(id)
+            end
+        end
+    end
+    g_propagatingTargetingGroupEnd = false
+end
+
+local g_baseRemoveOngoingEffect = creature.RemoveOngoingEffect
+function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
+    if g_propagatingTargetingGroupEnd or not g_targetingGroupEffectIds[ongoingEffectid] then
+        return g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    end
+    local key = self:CalculateNamedCustomAttribute("Targeting Group")
+    local r = g_baseRemoveOngoingEffect(self, ongoingEffectid, numStacks)
+    if not CreatureHasTargetingGroupEffect(self) then
+        PropagateTargetingGroupEnd(key)
+    end
+    return r
+end
+
+local g_baseRemoveOngoingEffectBySeq = creature.RemoveOngoingEffectBySeq
+function creature:RemoveOngoingEffectBySeq(seq, numStacks)
+    if g_propagatingTargetingGroupEnd then
+        return g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    end
+    local hadGroup = CreatureHasTargetingGroupEffect(self)
+    local key = hadGroup and self:CalculateNamedCustomAttribute("Targeting Group") or 0
+    local r = g_baseRemoveOngoingEffectBySeq(self, seq, numStacks)
+    if hadGroup and not CreatureHasTargetingGroupEffect(self) then
+        PropagateTargetingGroupEnd(key)
+    end
+    return r
 end
 
 --- @param excluteTemporary nil|boolean

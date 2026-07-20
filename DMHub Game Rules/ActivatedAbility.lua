@@ -1353,8 +1353,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	local conditionid = self:PrimaryConditionID()
 
 	--if spell cannot target self.
-	if (not self.selfTarget) and casterToken.properties == targetToken.properties then
-		return false
+	--Flag-gated exception: a creature carrying the "Can Target Self" custom attribute (> 0) may
+	--include itself among an ability's targets alongside its other candidates (e.g. a compelled
+	--free strike that may hit an adjacent creature OR itself). The same flag also waives the
+	--ability's allegiance filter for the self target (see isAnyObject below), so a monster whose
+	--free strike is allegiance-restricted to enemies can still choose itself. Inert otherwise.
+	local canTargetSelfOverride = false
+	if casterToken.properties == targetToken.properties then
+		canTargetSelfOverride = casterToken.properties:CalculateNamedCustomAttribute("Can Target Self") > 0
+		if (not self.selfTarget) and (not canTargetSelfOverride) then
+			return false
+		end
 	end
 
 	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
@@ -1418,7 +1427,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         end
 
         -- Allegiance checks: objects and creature-objects bypass allegiance filters.
-        local isAnyObject = targetToken.isObject or treatAsObject
+        -- A flagged self target ("Can Target Self") also bypasses them, so an allegiance-
+        -- restricted free strike can still land on the caster itself.
+        local isAnyObject = targetToken.isObject or treatAsObject or canTargetSelfOverride
 
         if self.targetAllegiance == "none" and (not isAnyObject) then
             return false

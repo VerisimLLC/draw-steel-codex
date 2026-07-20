@@ -763,6 +763,709 @@ do
 	g_materialFields.PBRTexturedStarfieldDiceMaterial = fields
 end
 
+-- MagicGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
+-- and emissive "liquid magic" interior layers with sparkle motes ("magic inside glass" dice --
+-- see PBRTexturedMagicGlass.shader). Built from the PBRTextured list above so the shared rows
+-- never drift apart. The magic and motes groups each have an Enabled checkbox that turns the
+-- group off in the shader and collapses its detail rows (requiresDefault = 1 keeps them
+-- visible for dice saved before the Enable prop existed, whose property bags lack the key).
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Glass rim: fresnel edge glow, the main "made of glass" cue. Higher falloff confines
+	-- the glow to a thinner silhouette edge.
+	fields[#fields + 1] = {
+		name = "_GlassRimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1.2,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Falloff",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+
+	-- Magic interior: two depth layers of animated swirling noise that parallax below the
+	-- surface, blending between the two magic colors.
+	fields[#fields + 1] = {
+		name = "_MagicEnable",
+		type = "Bool",
+		default = 1,
+		description = "Magic Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_MagicBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_MagicColor1",
+		type = "Color",
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Color A",
+	}
+	fields[#fields + 1] = {
+		name = "_MagicColor2",
+		type = "Color",
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Color B",
+	}
+	-- Noise feature scale across the UV square. Dice faces are UV islands occupying a
+	-- fraction of the atlas, so useful values are higher than you might expect.
+	fields[#fields + 1] = {
+		name = "_MagicScale",
+		type = "Range",
+		min = 1,
+		max = 40,
+		default = 7,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Scale",
+	}
+	-- How fast the liquid churns and drifts. 0 = frozen.
+	fields[#fields + 1] = {
+		name = "_MagicSpeed",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.5,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Flow Speed",
+	}
+	-- Domain-warp amount: how much the field folds over itself. Higher = stormier swirls.
+	fields[#fields + 1] = {
+		name = "_MagicSwirl",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1.6,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Swirl",
+	}
+	-- Vein sharpness: higher = thin bright filaments, lower = soft diffuse glow.
+	fields[#fields + 1] = {
+		name = "_MagicContrast",
+		type = "Range",
+		min = 0.25,
+		max = 6,
+		default = 1.8,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Contrast",
+	}
+	-- Coverage: how much of the interior glows.
+	fields[#fields + 1] = {
+		name = "_MagicFill",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.55,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Amount",
+	}
+	-- Apparent depth of the liquid below the surface; the layer's UVs shift with the view.
+	fields[#fields + 1] = {
+		name = "_MagicDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.25,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Magic Depth",
+	}
+	-- A second, deeper, coarser copy of the magic field for a sense of volume.
+	fields[#fields + 1] = {
+		name = "_MagicDeepEnable",
+		type = "Bool",
+		default = 1,
+		requires = "_MagicEnable",
+		requiresDefault = 1,
+		description = "Deep Layer Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_MagicDeepBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 0.9,
+		requires = "_MagicDeepEnable",
+		requiresDefault = 1,
+		description = "Deep Layer Brightness",
+	}
+
+	-- Sparkle motes: tiny twinkling glints drifting inside the liquid.
+	fields[#fields + 1] = {
+		name = "_MotesEnable",
+		type = "Bool",
+		default = 1,
+		description = "Motes Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.5,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesColor",
+		type = "Color",
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Color",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesDensity",
+		type = "Range",
+		min = 8,
+		max = 256,
+		default = 64,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Density",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesSize",
+		type = "Range",
+		min = 0.02,
+		max = 0.5,
+		default = 0.09,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Size",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesTwinkleSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Twinkle Speed",
+	}
+	-- Slow drift of the motes through the interior. 0 = motionless.
+	fields[#fields + 1] = {
+		name = "_MotesDrift",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.2,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Drift",
+	}
+	fields[#fields + 1] = {
+		name = "_MotesDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.3,
+		requires = "_MotesEnable",
+		requiresDefault = 1,
+		description = "Motes Depth",
+	}
+
+	g_materialFields.MagicGlassDiceMaterial = fields
+end
+
+-- LiquidDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim and a
+-- world-space sloshing liquid fill with foam, ripples, and bubbles ("potion dice" -- see
+-- PBRTexturedLiquid.shader). The liquid plane is driven per-frame by the engine
+-- (DiceSkin.UpdateLiquidMotion): it stays level in world space as the die tumbles, sloshes on
+-- impacts, and settles with a wobble. Built from the PBRTextured list above so the shared rows
+-- never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Glass rim: fresnel edge glow, the main "made of glass" cue.
+	fields[#fields + 1] = {
+		name = "_GlassRimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1.2,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Falloff",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+
+	-- The liquid itself.
+	fields[#fields + 1] = {
+		name = "_LiquidFill",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.55,
+		description = "Fill Level",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.6,
+		description = "Liquid Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidColorSurface",
+		type = "Color",
+		description = "Liquid Color (Shallow)",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidColorDeep",
+		type = "Color",
+		description = "Liquid Color (Deep)",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidFoamColor",
+		type = "Color",
+		description = "Foam Color",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidFoamWidth",
+		type = "Range",
+		min = 0,
+		max = 0.2,
+		default = 0.045,
+		description = "Foam Width",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidFoamBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		description = "Foam Brightness",
+	}
+	-- Ripple wave on the waterline; its amplitude follows the die's recent agitation.
+	fields[#fields + 1] = {
+		name = "_LiquidWaveAmp",
+		type = "Range",
+		min = 0,
+		max = 0.3,
+		default = 0.06,
+		description = "Wave Amplitude",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidWaveFreq",
+		type = "Range",
+		min = 1,
+		max = 30,
+		default = 10,
+		description = "Wave Frequency",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidWaveSpeed",
+		type = "Range",
+		min = 0,
+		max = 10,
+		default = 3,
+		description = "Wave Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidEmptyDim",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.45,
+		description = "Empty Glass Brightness",
+	}
+	-- Slosh feel, read by the engine's motion driver each frame: Sloshiness scales how hard
+	-- motion tilts the liquid; Wobble Rate is how fast it springs back (low = syrupy).
+	fields[#fields + 1] = {
+		name = "_LiquidSloshiness",
+		type = "Range",
+		min = 0,
+		max = 3,
+		default = 1,
+		description = "Sloshiness",
+	}
+	fields[#fields + 1] = {
+		name = "_LiquidWobbleRate",
+		type = "Range",
+		min = 0.25,
+		max = 3,
+		default = 1,
+		description = "Wobble Rate",
+	}
+
+	-- Bubbles suspended in the liquid (masked to below the waterline).
+	fields[#fields + 1] = {
+		name = "_BubblesEnable",
+		type = "Bool",
+		default = 1,
+		description = "Bubbles Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.2,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesColor",
+		type = "Color",
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Color",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesDensity",
+		type = "Range",
+		min = 8,
+		max = 256,
+		default = 48,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Density",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesSize",
+		type = "Range",
+		min = 0.02,
+		max = 0.5,
+		default = 0.08,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Size",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesTwinkleSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Twinkle Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesDrift",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.3,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Drift",
+	}
+	fields[#fields + 1] = {
+		name = "_BubblesDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.2,
+		requires = "_BubblesEnable",
+		requiresDefault = 1,
+		description = "Bubbles Depth",
+	}
+
+	g_materialFields.LiquidDiceMaterial = fields
+end
+
+-- PrismaticDiceMaterial: everything PBRTexturedDiceMaterial has, plus a pastel prismatic
+-- radiance: an iridescent near-white shell, shimmering light rays radiating from the die's
+-- camera-facing center, and a white-hot core with a rainbow halo ring ("holy opal" dice --
+-- see PBRTexturedPrismatic.shader). Built from the PBRTextured list above so the shared rows
+-- never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Soft-caps how far past white the emission goes, hue-preserving: keeps near-white areas
+	-- pastel instead of clipping to flat white.
+	fields[#fields + 1] = {
+		name = "_HighlightCompression",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		description = "Highlight Compression",
+	}
+
+	-- Silhouette shine.
+	fields[#fields + 1] = {
+		name = "_GlassRimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.8,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 2.5,
+		description = "Rim Falloff",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+
+	-- Pastel iridescent wash over the shell.
+	fields[#fields + 1] = {
+		name = "_IriSaturation",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.45,
+		description = "Pastel Saturation",
+	}
+	fields[#fields + 1] = {
+		name = "_IriScale",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1,
+		description = "Iridescence Scale",
+	}
+	fields[#fields + 1] = {
+		name = "_IriSpeed",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.15,
+		description = "Hue Drift Speed",
+	}
+
+	-- Light rays radiating from the die's camera-facing center.
+	fields[#fields + 1] = {
+		name = "_RayBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1,
+		description = "Ray Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_RayContrast",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 2.5,
+		description = "Ray Contrast",
+	}
+	fields[#fields + 1] = {
+		name = "_RayCount",
+		type = "Range",
+		min = 2,
+		max = 24,
+		default = 9,
+		description = "Ray Count",
+	}
+	fields[#fields + 1] = {
+		name = "_RaySpeed",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.4,
+		description = "Ray Movement Speed",
+	}
+
+	-- Inner shimmer: pastel aurora clouds floating below the surface (parallax depth).
+	fields[#fields + 1] = {
+		name = "_InnerEnable",
+		type = "Bool",
+		default = 1,
+		description = "Inner Shimmer Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_InnerBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 0.8,
+		requires = "_InnerEnable",
+		requiresDefault = 1,
+		description = "Inner Shimmer Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_InnerScale",
+		type = "Range",
+		min = 1,
+		max = 20,
+		default = 5,
+		requires = "_InnerEnable",
+		requiresDefault = 1,
+		description = "Inner Shimmer Scale",
+	}
+	fields[#fields + 1] = {
+		name = "_InnerDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.25,
+		requires = "_InnerEnable",
+		requiresDefault = 1,
+		description = "Inner Shimmer Depth",
+	}
+	fields[#fields + 1] = {
+		name = "_InnerSpeed",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.2,
+		requires = "_InnerEnable",
+		requiresDefault = 1,
+		description = "Inner Shimmer Drift",
+	}
+
+	-- Prismatic sparkles: rainbow glitter motes suspended deeper inside (parallax depth).
+	fields[#fields + 1] = {
+		name = "_SparkleEnable",
+		type = "Bool",
+		default = 1,
+		description = "Sparkles Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_SparkleBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.2,
+		requires = "_SparkleEnable",
+		requiresDefault = 1,
+		description = "Sparkle Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_SparkleDensity",
+		type = "Range",
+		min = 8,
+		max = 256,
+		default = 80,
+		requires = "_SparkleEnable",
+		requiresDefault = 1,
+		description = "Sparkle Density",
+	}
+	fields[#fields + 1] = {
+		name = "_SparkleSize",
+		type = "Range",
+		min = 0.02,
+		max = 0.5,
+		default = 0.07,
+		requires = "_SparkleEnable",
+		requiresDefault = 1,
+		description = "Sparkle Size",
+	}
+	fields[#fields + 1] = {
+		name = "_SparkleTwinkleSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		requires = "_SparkleEnable",
+		requiresDefault = 1,
+		description = "Sparkle Twinkle Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_SparkleDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.3,
+		requires = "_SparkleEnable",
+		requiresDefault = 1,
+		description = "Sparkle Depth",
+	}
+
+	-- White-hot core + rainbow halo ring.
+	fields[#fields + 1] = {
+		name = "_CoreBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.2,
+		description = "Core Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_CoreSize",
+		type = "Range",
+		min = 0.05,
+		max = 1,
+		default = 0.35,
+		description = "Core Size",
+	}
+	fields[#fields + 1] = {
+		name = "_RingBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 0.8,
+		description = "Halo Ring Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_RingRadius",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.55,
+		description = "Halo Ring Radius",
+	}
+	fields[#fields + 1] = {
+		name = "_RingWidth",
+		type = "Range",
+		min = 0.02,
+		max = 0.5,
+		default = 0.12,
+		description = "Halo Ring Width",
+	}
+
+	g_materialFields.PrismaticDiceMaterial = fields
+end
+
 local CreateDicePanel
 
 -- Builds a panel that edits the tuned shader properties of a dice material.

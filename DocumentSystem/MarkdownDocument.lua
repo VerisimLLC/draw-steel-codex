@@ -2821,7 +2821,15 @@ end
 --termid -> true once its underline has been spent for this label. Every
 --match becomes a <link=glossary:id> region; the first match of each term
 --also gets the underline treatment. Returns the rewritten segment.
-local function GlossaryMarkSegment(seg, index, washed)
+--Core glossary matcher over one plain-text segment (no tags): returns match
+--ranges { from, to, id, underline } (1-based inclusive, relative to seg, in
+--reading order) without rewriting the segment. washed maps termid -> true
+--once its underline has been spent; the first match of each term gets
+--underline = true. GlossaryMarkSegment (the display path's string rewrite)
+--and the seamless compiler's glossary pass (style decorations) both consume
+--this, so the matching rules (longest term first, plural fold, adjacency,
+--proper-noun guard) stay identical across the two surfaces.
+local function GlossaryMatchRanges(seg, index, washed)
     --tokenize words with positions.
     local words = {}
     local searchPos = 1
@@ -2833,12 +2841,11 @@ local function GlossaryMarkSegment(seg, index, washed)
         words[#words + 1] = { s = s, e = e, text = string.sub(seg, s, e) }
         searchPos = e + 1
     end
+    local matches = {}
     if #words == 0 then
-        return seg
+        return matches
     end
 
-    local out = {}
-    local copied = 1 --next seg index not yet copied to out.
     local k = 1
     while k <= #words do
         local w = words[k]
@@ -2893,20 +2900,68 @@ local function GlossaryMarkSegment(seg, index, washed)
 
         if matched ~= nil then
             local lastWord = words[k + #matched.words - 1]
-            out[#out + 1] = string.sub(seg, copied, w.s - 1)
-            local span = string.sub(seg, w.s, lastWord.e)
-            if washed[matched.id] then
-                out[#out + 1] = string.format("<link=glossary:%s>%s</link>", matched.id, span)
-            else
-                washed[matched.id] = true
-                out[#out + 1] = string.format("<link=glossary:%s>%s</link>",
-                    matched.id, GlossaryUnderlineForm(span))
-            end
-            copied = lastWord.e + 1
+            matches[#matches + 1] = {
+                from = w.s,
+                to = lastWord.e,
+                id = matched.id,
+                underline = not washed[matched.id],
+            }
+            washed[matched.id] = true
             k = k + #matched.words
         else
             k = k + 1
         end
+    end
+    return matches
+end
+
+--Broken-underline runs for a span, as inclusive (from, to) offsets relative
+--to the span (1-based): alternating 2-character underlined runs with
+--1-character gaps, spaces never underlined. The same geometry as
+--GlossaryBrokenUnderline; the seamless editor emits these as style
+--decorations while the display path rewrites the string.
+local function GlossaryUnderlineRuns(span)
+    local runs = {}
+    local i = 1
+    local n = #span
+    while i <= n do
+        if string.sub(span, i, i) == " " then
+            i = i + 1
+        else
+            local j = math.min(i + 1, n)
+            if string.sub(span, j, j) == " " then
+                j = i
+            end
+            runs[#runs + 1] = { i, j }
+            --one-character gap between runs (a following space serves as
+            --the gap itself, same net advance).
+            i = j + 2
+        end
+    end
+    return runs
+end
+
+--Mark glossary terms inside one plain-text segment (no tags). washed maps
+--termid -> true once its underline has been spent for this label. Every
+--match becomes a <link=glossary:id> region; the first match of each term
+--also gets the underline treatment. Returns the rewritten segment.
+local function GlossaryMarkSegment(seg, index, washed)
+    local matches = GlossaryMatchRanges(seg, index, washed)
+    if #matches == 0 then
+        return seg
+    end
+    local out = {}
+    local copied = 1 --next seg index not yet copied to out.
+    for _, m in ipairs(matches) do
+        out[#out + 1] = string.sub(seg, copied, m.from - 1)
+        local span = string.sub(seg, m.from, m.to)
+        if m.underline then
+            out[#out + 1] = string.format("<link=glossary:%s>%s</link>",
+                m.id, GlossaryUnderlineForm(span))
+        else
+            out[#out + 1] = string.format("<link=glossary:%s>%s</link>", m.id, span)
+        end
+        copied = m.to + 1
     end
     out[#out + 1] = string.sub(seg, copied)
     return table.concat(out)
@@ -7159,6 +7214,11 @@ end
 
 local Seamless = {}
 
+--Dim ink for structural markers the editor keeps visible rather than hiding
+--(the ::: fences). A mid-gray reads on both the dark default page and the
+--light parchment stylesheets, where a low-alpha white would vanish.
+local SEAMLESS_FENCE_DIM = "#8a8a8a"
+
 --Open/close TMP tag pair for a heading level's skin entry. Mirrors
 --SkinHeadingMarkup, but as a pair around a source RANGE rather than wrapping a
 --copied string. Case transforms (allcaps) are omitted: a display decoration
@@ -7211,6 +7271,54 @@ function Seamless.LinkTags(link)
     return open, close
 end
 
+--Open/close pair for a style class's `text` block (::: blocks). Mirrors
+--SkinClassTextMarkup, but as a pair around a source RANGE rather than
+--wrapping a copied string. allcaps is omitted for the same reason
+--HeadingTags omits it: a display decoration must never rewrite the text.
+function Seamless.ClassTags(t)
+    t = t or {}
+    local open, close = "", ""
+    if t.size and t.size ~= 100 then
+        open = open .. string.format("<size=%d%%>", t.size)
+        close = "</size>" .. close
+    end
+    if t.weight == "bold" or t.weight == "black" then
+        open = open .. "<b>"
+        close = "</b>" .. close
+    end
+    if t.italic == true then
+        open = open .. "<i>"
+        close = "</i>" .. close
+    end
+    if t.underline == true then
+        open = open .. "<u>"
+        close = "</u>" .. close
+    end
+    if t.strike == true then
+        open = open .. "<s>"
+        close = "</s>" .. close
+    end
+    local tracking = t.tracking or 0
+    if tracking ~= 0 then
+        open = open .. string.format("<cspace=%.3fem>", tracking / 1000)
+        close = "</cspace>" .. close
+    end
+    if t.mark == true then
+        open = open .. ThemeEngine.ResolveTokens("<mark=@fg>")
+        close = "</mark>" .. close
+    end
+    local color = SkinColor(t.color)
+    if color then
+        open = open .. string.format("<color=%s>", color)
+        close = "</color>" .. close
+    end
+    if t.caps == "smallcaps" then
+        open = open .. "<smallcaps>"
+        close = "</smallcaps>" .. close
+    end
+    return open, close
+end
+
 --Parse the run of justification markers (:< :> :<> :><) at the start of a
 --line. Mirrors the tokenizer's alternation order (<>|><|<|>) and its per-line
 --semantics: each marker overwrites the previous, so the LAST one wins.
@@ -7259,12 +7367,32 @@ function Seamless.CompileDecorations(doc, text)
     end
 
     local resolvedSkin = nil
+    local resolvedClasses = nil
     pcall(function()
         local sheet = doc:GetResolvedStylesheet()
         resolvedSkin = sheet ~= nil and sheet.base or nil
+        resolvedClasses = sheet ~= nil and sheet.classes or nil
     end)
     resolvedSkin = resolvedSkin or {}
+    resolvedClasses = resolvedClasses or {}
     local headingSkins = resolvedSkin.headings or {}
+
+    --Glossary hints as pure style decorations (no link regions: hover cards
+    --need editor-text hit-testing the engine does not expose yet, so the
+    --editor gets the visual treatment only). Setting off = no scan. washed:
+    --the first occurrence of each term in the DOCUMENT underlines; the
+    --display path washes per label, and per-doc is the editor's coarser
+    --equivalent of that.
+    local glossaryIndex = nil
+    if g_glossaryHintsSetting:Get() ~= "off" then
+        local idx = GetGlossaryIndex()
+        if next(idx) ~= nil then
+            glossaryIndex = idx
+        end
+    end
+    local glossaryWashed = {}
+    local glossaryBold = g_glossaryHintsSetting:Get() == "bold"
+
 
     local group = 0
     local function G()
@@ -7292,6 +7420,10 @@ function Seamless.CompileDecorations(doc, text)
     --power_roll tokens in document order; each becomes a power-roll island
     --(the display renderer's styled block, click-to-caret) below.
     local powerRollTokens = {}
+    --::: style blocks (fence line range + class) and collapse-node title
+    --lines; both are decorated after the island passes.
+    local styleblockRanges = {}
+    local collapseTitles = {}
 
     --island + block passes run off the journal's own tokenizer so structure
     --matches the display renderer exactly.
@@ -7393,11 +7525,25 @@ function Seamless.CompileDecorations(doc, text)
             --click on the widget focuses the editor at the nearest source
             --position (see CreatePowerRollIslandWidget). Emitted below.
             powerRollTokens[#powerRollTokens + 1] = token
-        elseif token.srcLine ~= nil and
-               (token.type == "styleblock" or token.type == "collapse_node") then
-            for li = token.srcLine, math.min(token.srcLineEnd or token.srcLine, #lines) do
-                blockLines[li] = true
-            end
+        elseif token.srcLine ~= nil and token.type == "styleblock" then
+            --::: block: the fences dim and the inner content styles (its
+            --class markup, plus the ordinary line/inline passes -- the
+            --tokenizer consumes the whole block, so no island token can
+            --ever come from inside one). The inner lines are deliberately
+            --NOT claimed as raw, which is why this no longer falls into the
+            --blockLines sweep below.
+            styleblockRanges[#styleblockRanges + 1] = {
+                first = token.srcLine,
+                last = math.min(token.srcLineEnd or token.srcLine, #lines),
+                className = token.className,
+            }
+        elseif token.srcLine ~= nil and token.type == "collapse_node" then
+            --only the "+ Title" line is stamped by the tokenizer; the body
+            --lines are ordinary tokens that already style. The marker
+            --becomes a disclosure glyph and the title goes bold, mirroring
+            --the display's arrow + bold label.
+            collapseTitles[#collapseTitles + 1] = token.srcLine
+            blockLines[token.srcLine] = true
         end
     end
 
@@ -7478,6 +7624,81 @@ function Seamless.CompileDecorations(doc, text)
             sourceText = text:sub(from, to),
             token = token,
         }
+    end
+
+    --collapse titles: dim the "+ " marker and bold the title, echoing the
+    --display's expando arrow + bold label.
+    --
+    --This originally REPLACED the marker with a U+25BE disclosure triangle,
+    --but the editor font has no glyph for it and it rendered as a tofu box
+    --(seen 2026-07-20). Rather than gamble on another arrow codepoint, the
+    --marker is dimmed and left in place -- the same treatment the ::: fences
+    --get below, which is verified to render. Keeping the character also
+    --preserves the line's visual left edge; moving the caret onto the line
+    --reveals the raw "+ Title" as usual.
+    for _, li in ipairs(collapseTitles) do
+        local line = lines[li]
+        local base = lineOffsets[li]
+        --a NESTED collapse node is indented in the source (the tokenizer
+        --matches the de-indented line), so locate the marker rather than
+        --assuming column 1.
+        local indent = line:match("^([ \t]*)%+ ")
+        if indent ~= nil then
+            local markerAt = base + #indent
+            local g = G()
+            decs[#decs + 1] = { kind = "style", from = markerAt, to = markerAt + 1,
+                open = string.format("<color=%s>", SEAMLESS_FENCE_DIM),
+                close = "</color>", group = g }
+            if #line > #indent + 2 then
+                decs[#decs + 1] = { kind = "style", from = markerAt + 2,
+                    to = base + #line - 1, open = "<b>", close = "</b>", group = g }
+            end
+        end
+    end
+
+    --::: style blocks: dim both fences (kept visible, not hidden -- the
+    --class name is the only cue for WHICH class a block applies) and wrap
+    --the inner lines in the class's text markup. The inner lines are
+    --deliberately NOT claimed as raw, so headings, emphasis, links and
+    --glossary hints style inside a block exactly as the display renders
+    --them.
+    local function DimLine(li, group)
+        if lines[li] == nil or #lines[li] == 0 then
+            return
+        end
+        decs[#decs + 1] = { kind = "style",
+            from = lineOffsets[li], to = lineOffsets[li] + #lines[li] - 1,
+            open = string.format("<color=%s>", SEAMLESS_FENCE_DIM),
+            close = "</color>", group = group }
+    end
+    for _, range in ipairs(styleblockRanges) do
+        local g = G()
+        DimLine(range.first, g)
+        --fences carry their own dim styling and no markdown; keep them out
+        --of the line/inline passes (this pass runs before them) so a class
+        --name never picks up a glossary underline or stray emphasis.
+        blockLines[range.first] = true
+        --the closing fence exists only when the block is terminated; an
+        --unterminated block runs to the last line, which is content.
+        local lastInner = range.last
+        if lines[range.last] ~= nil and lines[range.last]:match("^[ \t]*::: *$") ~= nil then
+            lastInner = range.last - 1
+            blockLines[range.last] = true
+            DimLine(range.last, g)
+        end
+        local cls = resolvedClasses[range.className]
+        if type(cls) == "table" and cls.kind == "block" and cls.text ~= nil
+           and lastInner >= range.first + 1 then
+            local open, close = Seamless.ClassTags(cls.text)
+            if open ~= "" then
+                local from = lineOffsets[range.first + 1]
+                local to = lineOffsets[lastInner] + #lines[lastInner] - 1
+                if to >= from then
+                    decs[#decs + 1] = { kind = "style", from = from, to = to,
+                        open = open, close = close, group = G() }
+                end
+            end
+        end
     end
 
     for li = 1, #lines do
@@ -7561,6 +7782,11 @@ function Seamless.CompileDecorations(doc, text)
             --italic (shared asterisks), then links.
             local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
 
+            --inner text ranges of each emphasis run, consumed by the glossary
+            --pass below: blanking consumes them from scratch, but the display
+            --path hints inside emphasis, so the editor must too.
+            local emphasisInners = {}
+
             --bold: **...**
             local searchFrom = 1
             while true do
@@ -7570,6 +7796,7 @@ function Seamless.CompileDecorations(doc, text)
                 decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
                 if e - 2 >= s + 2 then
                     decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<b>", close = "</b>", group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 2, e - 2 }
                 end
                 decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
                 scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
@@ -7585,6 +7812,7 @@ function Seamless.CompileDecorations(doc, text)
                 decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s + 1), group = g }
                 if e - 2 >= s + 2 then
                     decs[#decs + 1] = { kind = "style", from = A(s + 2), to = A(e - 2), open = "<s>", close = "</s>", group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 2, e - 2 }
                 end
                 decs[#decs + 1] = { kind = "hide", from = A(e - 1), to = A(e), group = g }
                 scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
@@ -7603,6 +7831,7 @@ function Seamless.CompileDecorations(doc, text)
                     decs[#decs + 1] = { kind = "hide", from = A(s), to = A(s), group = g }
                     decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(e - 1), open = "<i>", close = "</i>", group = g }
                     decs[#decs + 1] = { kind = "hide", from = A(e), to = A(e), group = g }
+                    emphasisInners[#emphasisInners + 1] = { s + 1, e - 1 }
                     scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
                     searchFrom = e + 1
                 end
@@ -7642,6 +7871,47 @@ function Seamless.CompileDecorations(doc, text)
                     decs[#decs + 1] = { kind = "style", from = A(s + 1), to = A(s + #label), open = linkOpen, close = linkClose, group = g }
                 end
                 searchFrom = e + 1
+            end
+
+            --glossary pass: underline the first document occurrence of each
+            --glossary term, as style decorations. Scans the leftover plain
+            --prose (scratch: consumed constructs are \1-blanked, which also
+            --breaks word adjacency across construct boundaries, exactly like
+            --the display path's per-segment scan) plus each emphasis run's
+            --inner text (the display path hints inside emphasis). Shorthand
+            --[Label] links are blanked from the scan copy first - link
+            --labels never hint, matching the display pass. Heading lines are
+            --skipped exactly like the display path.
+            if glossaryIndex ~= nil and rest:match("^#+ ") == nil then
+                local function EmitGlossary(segText, segStart)
+                    local matches = GlossaryMatchRanges(segText, glossaryIndex, glossaryWashed)
+                    for _, m in ipairs(matches) do
+                        if m.underline then
+                            local g = G()
+                            local mFrom = segStart + m.from - 1
+                            if glossaryBold then
+                                decs[#decs + 1] = { kind = "style", from = A(mFrom), to = A(segStart + m.to - 1),
+                                    open = "<u>", close = "</u>", group = g }
+                            else
+                                --broken underline: one short style run per
+                                --underlined pair, same geometry as the
+                                --display treatment.
+                                local span = segText:sub(m.from, m.to)
+                                for _, run in ipairs(GlossaryUnderlineRuns(span)) do
+                                    decs[#decs + 1] = { kind = "style",
+                                        from = A(mFrom + run[1] - 1),
+                                        to = A(mFrom + run[2] - 1),
+                                        open = "<u>", close = "</u>", group = g }
+                                end
+                            end
+                        end
+                    end
+                end
+                local gscratch = scratch:gsub("%[[^%[%]\1]*%]", function(m) return string.rep("\1", #m) end)
+                EmitGlossary(gscratch, 1)
+                for _, inner in ipairs(emphasisInners) do
+                    EmitGlossary(line:sub(inner[1], inner[2]), inner[1])
+                end
             end
         end
     end
@@ -10035,16 +10305,27 @@ function MarkdownDocument:MatchesSearch(search)
     return false
 end
 
-CustomDocument.Register {
-    id = "markdown",
-    text = "New Text Document",
-    create = function()
-        return MarkdownDocument.new {
-            content = "",
-            annotations = {},
-        }
-    end,
-}
+--Register each plain document type as a "New Document" creation option, so
+--the creation menu doubles as the type palette (each option shows its type
+--icon and pre-sets docType). Functional subtypes (montage/negotiation) keep
+--their own creation paths. The "narration" option retains the legacy
+--"markdown" id for back-compat.
+for _, docTypeId in ipairs({ "note", "narration", "exploration", "combat", "location", "npc" }) do
+    local info = CustomDocument.docTypeInfo[docTypeId]
+    CustomDocument.Register {
+        id = docTypeId == "narration" and "markdown" or docTypeId,
+        text = "New " .. info.text,
+        docType = docTypeId,
+        icon = info.icon,
+        create = function()
+            return MarkdownDocument.new {
+                content = "",
+                annotations = {},
+                docType = docTypeId,
+            }
+        end,
+    }
+end
 
 local g_markdownSamples = {
     "# Title", "*italics*", "**bold**", "__underline__", "~~strike~~",

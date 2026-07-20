@@ -723,6 +723,7 @@ end
 --------------------------------------------------------------------------------
 NegotiationDocument = RegisterGameType("NegotiationDocument", "CustomDocument")
 NegotiationDocument.nodeType = "negotiation"
+NegotiationDocument.docType = "negotiation"   --pins the semantic type (see DocumentSystem.lua)
 NegotiationDocument.npcName = ""
 NegotiationDocument.npcDesc = ""
 NegotiationDocument.portrait = ""

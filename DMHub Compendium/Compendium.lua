@@ -7343,14 +7343,10 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         end,
     }
 
-    Compendium.Register{
-        section = "Prepped",
-        text = "Montage Tests",
-        contentType = "montageTests",
-        click = function(contentPanel)
-            ShowMontageTestsPanel(contentPanel)
-        end,
-    }
+    --Montage Tests retired from the compendium: montages are now journal
+    --documents (docType="montage"), created + edited in the journal like any
+    --page, so they no longer need a compendium browser tab. (ShowMontageTests
+    --Panel / CreateMontageTestEditor above are now unused.)
 
     Compendium.Register{
         section = "Prepped",

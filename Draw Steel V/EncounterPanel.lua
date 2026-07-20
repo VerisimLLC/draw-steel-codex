@@ -168,7 +168,9 @@ local function MonsterBuildInfo(monsterid, monsterAsset)
     if info.role ~= nil then
         meta = Capitalize(info.role)
     end
-    meta = string.format("%s%sLvl %d", meta, cond(meta == "", "", " - "), info.level)
+    --Level() can come back as a non-integer float for some assets, and Lua's
+    --%d rejects a float with no integer representation. Round for the label.
+    meta = string.format("%s%sLvl %d", meta, cond(meta == "", "", " - "), math.floor((info.level or 0) + 0.5))
     if info.minion then
         meta = meta .. " - Minion"
     elseif info.org == "leader" then

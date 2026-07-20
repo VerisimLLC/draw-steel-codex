@@ -30,7 +30,10 @@ DockablePanel.Register{
 local CreateCustomMessagePanel = function(message)
     --gets refreshMessage on message update.
 
-    local panel = message.properties:Render(message)
+    --pcall: a message may come from a client running a newer mod version whose
+    --message type is not registered here; reading .Render on an unknown type raises.
+    local panel = nil
+    pcall(function() panel = message.properties:Render(message) end)
     if panel == nil then
         if devmode() then
             return gui.Label{

@@ -1628,6 +1628,25 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                     end,
                 }
 
+                --Share this character into the journal's Characters
+                --section (the same act as the token's right-click entry;
+                --this path also reaches characters with no token on the
+                --map). Journal.lua loads after this file, hence rawget.
+                if dmhub.isDM and rawget(_G, "JournalShareCharacter") ~= nil then
+                    local shared = JournalHasCharacter(charid)
+                    menuItems[#menuItems + 1] = {
+                        text = cond(shared, "Remove from Journal", "Share to Journal"),
+                        click = function(element)
+                            parentElement.popup = nil
+                            if shared then
+                                JournalUnshareCharacter(charid)
+                            else
+                                JournalShareCharacter(charid)
+                            end
+                        end,
+                    }
+                end
+
                 --Teleport to token, same as double click.
                 local tok = dmhub.GetCharacterById(charid)
                 if tok ~= nil and tok.valid and tok.hasTokenOnAnyMap then
@@ -2741,6 +2760,94 @@ CreateCharacterPanel = function()
             resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
         end
     end)
+
+    return resultPanel
+end
+
+--The same summary + details stack as the sidebar Character panel, but
+--bound to ONE character instead of following map selection. Used by
+--document-system hosts (journal party entries) so the character pane is
+--framed rather than recreated: any change to the sidebar panel flows
+--here automatically. Live updates ride the details panel's own
+--monitorGame wiring (dirtyToken sets it to the token's monitorPath).
+CharacterPanel.CreatePinnedCharacterPanel = function(charid)
+    local summaryPanel = nil
+    local detailsPanel = nil
+    local missingLabel = nil
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
+
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+
+        refresh = function(element)
+            local token = dmhub.GetCharacterById(charid)
+            if token == nil or not token.valid or token.properties == nil then
+                --the character is gone (deleted or unloaded); leave a
+                --note rather than an empty window.
+                if missingLabel == nil then
+                    missingLabel = gui.Label {
+                        classes = {"modalMessage"},
+                        text = "This character is no longer available.",
+                        width = "100%",
+                        height = "auto",
+                        vmargin = 24,
+                    }
+                    element:AddChild(missingLabel)
+                end
+                if summaryPanel ~= nil then
+                    summaryPanel:SetClass("collapsed", true)
+                end
+                if detailsPanel ~= nil then
+                    detailsPanel:SetClass("collapsed", true)
+                end
+                return
+            end
+
+            if missingLabel ~= nil then
+                missingLabel:DestroySelf()
+                missingLabel = nil
+            end
+
+            if summaryPanel == nil then
+                summaryPanel = CharacterPanel.SingleCharacterDisplaySidePanel(token)
+                detailsPanel = CharacterDetailsPanel(token)
+                element.children = { summaryPanel, detailsPanel }
+            end
+
+            summaryPanel:SetClass("collapsed", false)
+            detailsPanel:SetClass("collapsed", false)
+
+            --the summary half (portrait, stamina) populates on its OWN
+            --"refresh", which the dock host fires as part of its refresh
+            --cycle; setToken alone only rebinds the token and leaves the
+            --portrait blank and the stamina boxes at 0. The details half
+            --keeps its own monitorGame wiring via dirtyToken.
+            summaryPanel:FireEvent("setToken", token)
+            summaryPanel:FireEvent("refresh")
+            detailsPanel:FireEvent("dirtyToken", token)
+
+            --outside the dock nothing refreshes us on its own: follow the
+            --character's own data so stamina, conditions and resources
+            --stay live in the window.
+            element.monitorGame = token.monitorPath
+        end,
+
+        refreshGame = function(element)
+            element:FireEvent("refresh")
+        end,
+    }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+        end
+    end)
+
+    resultPanel:FireEvent("refresh")
 
     return resultPanel
 end

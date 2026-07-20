@@ -778,6 +778,32 @@ local function ShowFloorSettings(floor, onHeightChanged)
 		heightSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
 	end
 
+	--Default floor: the floor selected automatically when the map is entered. This is stored as a
+	--single floor id on the map manifest, so checking it here implicitly clears whichever floor was
+	--the default before -- a map can only ever have one. Sub-layers are never selectable as the
+	--current floor, so they get a collapsed placeholder instead.
+	local defaultFloorSection
+	local currentMap = game.currentMap
+	if isLayer or currentMap == nil then
+		defaultFloorSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	else
+		defaultFloorSection = gui.Check{
+			text = "Default floor",
+			value = currentMap.defaultFloorId == floor.floorid,
+			vmargin = 4,
+			events = {
+				change = function(element)
+					if element.value then
+						currentMap.defaultFloorId = floor.floorid
+					else
+						currentMap.defaultFloorId = nil
+					end
+				end,
+				linger = gui.Tooltip("This floor is selected when entering the map. A map can only have one default floor, so making this the default clears it from any other floor."),
+			},
+		}
+	end
+
 	local dialogPanel = gui.Panel{
 		classes = {"framedPanel"},
 		width = 480,
@@ -816,6 +842,8 @@ local function ShowFloorSettings(floor, onHeightChanged)
 					end,
 				},
 			},
+
+			defaultFloorSection,
 
 			heightSection,
 

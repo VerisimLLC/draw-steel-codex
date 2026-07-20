@@ -3,8 +3,9 @@
 --- @field valid boolean 
 --- @field mapManifest any 
 --- @field dimensions any 
---- @field loadingScreenImage string 
---- @field groundLevel any 
+--- @field loadingScreenImage string
+--- @field defaultFloorId string|nil The floor selected when this map is entered. nil means no default, in which case the topmost non-roof floor is selected. Setting it replaces any previous default, so a map only ever has one.
+--- @field groundLevel any
 --- @field description any 
 --- @field floorsWithoutLayers any 
 --- @field floors any 

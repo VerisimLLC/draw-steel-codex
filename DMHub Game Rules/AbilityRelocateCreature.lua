@@ -516,11 +516,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					for _,tok in ipairs(tokensAtLoc or {}) do
 						if tok.id ~= casterToken.id and hitCreatures[tok.id] == nil then
 							hitCreatures[tok.id] = true
+							--see the note on suppressCollisionDamage below.
+							local suppressPassthroughDamage = TargetableObject.TokenSuppressesCollisionDamage(tok)
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
 								speed = 1,
 								withobject = false,
 								withcreature = true,
+								nocollisiondamage = suppressPassthroughDamage,
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
@@ -530,6 +533,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 								speed = 1,
 								withobject = false,
 								withcreature = true,
+								nocollisiondamage = suppressPassthroughDamage,
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
@@ -567,6 +571,19 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         end
                     end
                 end
+                --Objects flagged "No Collision Damage" run their own collision behavior
+                --instead of the standard damage exchange, so neither side takes the
+                --Collision global rule's damage. Only suppress when everything we hit is
+                --such an object -- a mixed pile, or a plain wall (empty collideWith),
+                --still deals normal damage.
+                local suppressCollisionDamage = #(collisionInfo.collideWith or {}) > 0
+                for _,tok in ipairs(collisionInfo.collideWith or {}) do
+                    if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+                        suppressCollisionDamage = false
+                        break
+                    end
+                end
+
                 print("TRIGGERCOLLIDE:: objects =", #objectsCollidedWith, collisionInfo.speed, withobject, collisionInfo.collideWith)
                 if casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                     casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
@@ -574,13 +591,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         speed = collisionInfo.speed,
                         withobject = withobject,
                         withcreature = not withobject,
+                        nocollisiondamage = suppressCollisionDamage,
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
                     })
                 end
 
-                if casterToken.isObject then
+                if casterToken.isObject and not TargetableObject.TokenSuppressesCollisionDamage(casterToken) then
                     --hard code damage equal to speed.
                     casterToken:ModifyProperties{
                         description = "Collision",
@@ -597,6 +615,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						speed = collisionInfo.speed,
                         withobject = withobject,
                         withcreature = not withobject,
+                        nocollisiondamage = suppressCollisionDamage,
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
@@ -631,11 +650,21 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						end
 					end
 
+					--see the note on suppressCollisionDamage above.
+					local suppressBounceDamage = #collideWith > 0
+					for _,tok in ipairs(collideWith) do
+						if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+							suppressBounceDamage = false
+							break
+						end
+					end
+
 					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 					casterToken.properties:TriggerEvent("collide", {
 						speed = collision.speed,
 						withobject = withobject,
 						withcreature = not withobject,
+						nocollisiondamage = suppressBounceDamage,
 						pusher = options.symbols.invoker,
 						haspusher = options.symbols.invoker ~= nil,
 						movementtype = forcedMovementType,
@@ -647,6 +676,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							speed = collision.speed,
 							withobject = withobject,
 							withcreature = not withobject,
+							nocollisiondamage = suppressBounceDamage,
 							pusher = options.symbols.invoker,
 							haspusher = options.symbols.invoker ~= nil,
 							movementtype = forcedMovementType,

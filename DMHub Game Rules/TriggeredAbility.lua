@@ -487,6 +487,11 @@ TriggeredAbility.triggers = {
                 type = "boolean",
                 desc = "True if the collision is with a creature.",
             },
+            nocollisiondamage = {
+                name = "No Collision Damage",
+                type = "boolean",
+                desc = "True if everything collided with is an object that suppresses standard collision damage and runs its own collision behavior instead.",
+            },
         },
 	},
 	{

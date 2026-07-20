@@ -5635,11 +5635,25 @@ CreateAbilityController = function()
                                 collideDamage = collideDamage + 2
                             end
 
+                            --objects flagged "No Collision Damage" run their own collision
+                            --behavior, so no standard collision damage is dealt in either
+                            --direction and the preview must not promise any. Mirrors the
+                            --suppressCollisionDamage rule in AbilityRelocateCreature.
+                            local suppressDamage = #collideWith > 0
+                            for _, collideToken in ipairs(collideWith) do
+                                if not TargetableObject.TokenSuppressesCollisionDamage(collideToken) then
+                                    suppressDamage = false
+                                    break
+                                end
+                            end
+
                             local textLabels = {}
-                            textLabels[#textLabels + 1] = {
-                                point = destPoint,
-                                text = string.format("-%d<color=#00000000>-</color>", collideDamage),
-                            }
+                            if not suppressDamage then
+                                textLabels[#textLabels + 1] = {
+                                    point = destPoint,
+                                    text = string.format("-%d<color=#00000000>-</color>", collideDamage),
+                                }
+                            end
 
                             for _, collideToken in ipairs(collideWith) do
                                 local targetPoint = collideToken:PosAtLoc()
@@ -5651,10 +5665,12 @@ CreateAbilityController = function()
                                     radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                 }
 
-                                textLabels[#textLabels + 1] = {
-                                    point = collideToken:PosAtLoc(),
-                                    text = string.format("-%d<color=#00000000>-</color>", collideDamage),
-                                }
+                                if not suppressDamage then
+                                    textLabels[#textLabels + 1] = {
+                                        point = collideToken:PosAtLoc(),
+                                        text = string.format("-%d<color=#00000000>-</color>", collideDamage),
+                                    }
+                                end
                             end
 
                             local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #g_pointTargeting.shapePathEnd or
@@ -5719,6 +5735,15 @@ CreateAbilityController = function()
                                     bounceDamage = bounceDamage + 2
                                 end
 
+                                --see the note on suppressDamage above.
+                                local suppressBounceDamage = #bounceCollideWith > 0
+                                for _, collideToken in ipairs(bounceCollideWith) do
+                                    if not TargetableObject.TokenSuppressesCollisionDamage(collideToken) then
+                                        suppressBounceDamage = false
+                                        break
+                                    end
+                                end
+
                                 local bounceDestPoint = collision.destination.point3
                                 if g_token.creatureDimensions.x % 2 == 0 then
                                     local offset = (g_token.creatureDimensions.x - 1) * 0.5
@@ -5733,10 +5758,12 @@ CreateAbilityController = function()
                                     radius = g_token.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                 }
 
-                                bounceTextLabels[#bounceTextLabels + 1] = {
-                                    point = bounceDestPoint,
-                                    text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
-                                }
+                                if not suppressBounceDamage then
+                                    bounceTextLabels[#bounceTextLabels + 1] = {
+                                        point = bounceDestPoint,
+                                        text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                    }
+                                end
 
                                 for _, collideToken in ipairs(bounceCollideWith) do
                                     g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
@@ -5746,10 +5773,12 @@ CreateAbilityController = function()
                                         range = 0,
                                         radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                     }
-                                    bounceTextLabels[#bounceTextLabels + 1] = {
-                                        point = collideToken:PosAtLoc(),
-                                        text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
-                                    }
+                                    if not suppressBounceDamage then
+                                        bounceTextLabels[#bounceTextLabels + 1] = {
+                                            point = collideToken:PosAtLoc(),
+                                            text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                        }
+                                    end
                                 end
                             end
 

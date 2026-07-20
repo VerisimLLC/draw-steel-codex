@@ -1122,6 +1122,10 @@ end
 --   sticky  : optional; by default a button removes itself when clicked so a
 --             slow interactive command cannot be double-fired. Set true to
 --             keep the button until code removes it.
+--   malice  : optional malice cost (number). The strip renders the cost in a
+--             malice diamond on the button, hides the button entirely while
+--             the Director has less malice than the cost, and spends the
+--             malice on click (before running the command).
 -- Buttons ride inside the networked initiative queue like all other live
 -- encounter state, so mutations must be followed by an upload
 -- (info.UploadInitiative() / dmhub:UploadInitiativeQueue()). The static

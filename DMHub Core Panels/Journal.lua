@@ -241,6 +241,17 @@ Commands.RegisterMacro{
 
 
 
+--Exported so other surfaces FRAME this panel rather than reimplement the
+--tree. The journal viewer's tree rail is the first caller: it used to build
+--its own tree, which meant every tree feature (the Characters section,
+--per-type icons, the row context menu, drag-to-rail) had to be written
+--twice and drifted apart.
+--  options.embedded  drop dock-only furniture (the recent-documents strip)
+--  options.onPick    called with a docId instead of opening a dialog
+function JournalCreatePanel(options)
+    return CreateJournalPanel(options)
+end
+
 DockablePanel.Register {
     name = "Journal",
     icon = "icons/standard/Icon_App_Journal.png",
@@ -601,6 +612,35 @@ local function CreateCharacterRow(charid)
             element.popup = gui.ContextMenu {
                 entries = entries,
             }
+        end,
+
+        --Drag a character onto a rail to make a shortcut button, the same
+        --gesture document rows offer. Unlike documents these accept ONLY a
+        --rail as a target: a character has no place in the folder tree, so
+        --there is nothing to reparent it into.
+        draggable = true,
+        canDragOnto = function(element, target)
+            if target == nil then
+                return false
+            end
+            return target:HasClass("iconRail") or target:HasClass("iconRailButton")
+        end,
+        dragging = function(element, target)
+            --slot preview; the doc-named helper is key-agnostic, it only
+            --resolves the target to a side+slot and shows the ghost.
+            if rawget(_G, "IconRailDocDragging") ~= nil then
+                IconRailDocDragging(target)
+            end
+        end,
+        drag = function(element, target)
+            if target == nil then
+                return
+            end
+            if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
+                if rawget(_G, "IconRailCharacterDrop") ~= nil then
+                    IconRailCharacterDrop(charid, target)
+                end
+            end
         end,
 
         refreshCharacter = function(element)
@@ -1253,6 +1293,19 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                         },
                         classes = { "itemContainer" },
                         click = function(element)
+                            --When this panel is framed by another surface
+                            --(the journal viewer's tree rail), picking a
+                            --document navigates that host instead of
+                            --opening a second window.
+                            local root = element:FindParentWithClass("journalPanelRoot")
+                            local onPick = nil
+                            if root ~= nil and root.data ~= nil then
+                                onPick = root.data.onPick
+                            end
+                            if onPick ~= nil then
+                                onPick(member.id)
+                                return
+                            end
                             CustomDocument.OpenContent(member)
                         end,
 
@@ -1818,10 +1871,40 @@ local function MakeRecentDocumentPanel(documentnumber)
     }
 end
 
-CreateJournalPanel = function()
+CreateJournalPanel = function(options)
+    options = options or {}
+
+    --The recent-documents strip is dock furniture: three 130px cards do not
+    --fit an embedded host such as the 250px tree rail. Built with a real
+    --if, NOT cond() -- cond evaluates both branches, which would construct
+    --the cards and leave them parentless. An empty placeholder rather than
+    --nil, because a nil hole in the positional child list truncates it and
+    --would drop the tree panel that follows.
+    local recentDocumentsPanel
+    if options.embedded then
+        recentDocumentsPanel = gui.Panel {
+            width = "100%",
+            height = 0,
+        }
+    else
+        recentDocumentsPanel = gui.Panel {
+            flow = "horizontal",
+            bgcolor = "clear",
+            width = "100%",
+            height = 130,
+
+            MakeRecentDocumentPanel(1),
+            MakeRecentDocumentPanel(2),
+            MakeRecentDocumentPanel(3),
+        }
+    end
+
     local journalPanel
     journalPanel = gui.Panel {
         id = "journalPanel",
+        --classed so descendants can find the root regardless of how deeply
+        --the lazily-built tree nests them (see the document row's click).
+        classes = { "journalPanelRoot" },
         width = "100%",
         height = "100%",
         flow = "vertical",
@@ -1831,21 +1914,16 @@ CreateJournalPanel = function()
 
             --A copy of assets.documentFoldersTable with added built-in tables.
             documentFoldersTable = {},
+
+            --Set when this panel is FRAMED somewhere other than its dock
+            --(the journal viewer's tree rail). onPick replaces "open the
+            --document in a dialog" with the host's own navigation.
+            onPick = options.onPick,
         },
 
 
-        gui.Panel {
-            flow = "horizontal",
-            bgcolor = "clear",
-            width = "100%",
-            height = 130,
-
-
-
-            MakeRecentDocumentPanel(1),
-            MakeRecentDocumentPanel(2),
-            MakeRecentDocumentPanel(3),
-        },
+        --built above; nil (and so absent) when embedded.
+        recentDocumentsPanel,
 
         gui.Panel {
             vscroll = true,

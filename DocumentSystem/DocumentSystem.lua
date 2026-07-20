@@ -2746,11 +2746,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
     --+ button pop up transiently, pinned as a persistent sidebar. Rebuilt on
     --navigation (piggybacks the viewer's refreshNavButtons broadcast) and on
     --document/folder changes; visibility is a per-user preference.
+    --NOT vscroll: the framed journal panel brings its own scroll region, and
+    --nesting one inside another makes the engine mis-measure and cull the
+    --content to a blank background.
     local treeRailScroll = gui.Panel {
         width = "100%",
         height = "100%",
         flow = "vertical",
-        vscroll = true,
     }
 
     treeRail = gui.Panel {
@@ -2794,14 +2796,24 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     end
                 end
             end
-            if not element.data.treeDirty and element.data.builtForDocId == currentDocId then
+            --FRAME the real journal panel rather than building a second
+            --tree: the rail used to call buildJournalTree, so anything
+            --added to the journal panel (the Characters section, per-type
+            --icons, the row menu, drag-to-rail) was missing here. Built
+            --ONCE -- the panel keeps itself current off its own asset
+            --monitors, so there is nothing to rebuild on navigation.
+            if not element.data.treeDirty then
                 return
             end
             element.data.treeDirty = false
             element.data.builtForDocId = currentDocId
 
-            local tree = buildJournalTree(currentDocId, nil, {
-                bare = true,
+            if rawget(_G, "JournalCreatePanel") == nil then
+                return
+            end
+
+            local tree = JournalCreatePanel{
+                embedded = true,
                 onPick = function(docId)
                     local viewerPanel = element:FindParentWithClass("journalTabbedViewer")
                     if viewerPanel == nil then
@@ -2819,7 +2831,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     end
                     viewerPanel:FireEvent("navigateToDocument", docId)
                 end,
-            })
+            }
             treeRailScroll.children = { tree }
         end,
 
@@ -5281,6 +5293,37 @@ local function RailAddPanel(name, side)
     RebuildIconRails()
 end
 
+--Rail mode gate, exported so other surfaces (the Panels menu, the
+--journal) can ask without repeating the setting+devmode pair.
+function RailModeActive()
+    return dmhub.GetSettingValue("iconrail") == true and devmode()
+end
+
+--Whether a registered panel currently has a rail button.
+function RailHasPanel(name)
+    local key = string.lower(name)
+    local sides = RailLayout()
+    for _, l in pairs(sides) do
+        for _, e in ipairs(l) do
+            if e.key == key then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--Add or remove a panel's rail button. In rail mode the Panels menu picks
+--SHORTCUTS rather than opening panels (Lisa, 2026-07-20), so this is the
+--verb behind every panel entry in that menu.
+function RailTogglePanel(name, side)
+    if RailHasPanel(name) then
+        RailMovePanel(string.lower(name), "remove")
+    else
+        RailAddPanel(name, side or "left")
+    end
+end
+
 --Which rail slot a drag target corresponds to: a rail button maps to
 --its own slot (the drop inserts there), the rail background or the tray
 --appends to the end of that side. nil when the target is not a rail.
@@ -5329,18 +5372,15 @@ function IconRailDocDragging(target)
     end
 end
 
-function IconRailDocDrop(docid, target)
-    HideRailGhost()
+--Drop an arbitrary layout key onto the rail slot under `target`. Shared by
+--the document and character drop paths -- both are just a key landing in a
+--slot, so the placement logic lives here once.
+local function RailKeyDrop(key, target)
     local side, slot = RailDocDropSlot(target)
-    if side == nil or docid == nil then
-        return false
-    end
-    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
-    if docs[docid] == nil then
+    if side == nil or key == nil then
         return false
     end
 
-    local key = "doc:" .. docid
     local sides, inert = RailLayout()
     --already on a rail (or parked inert): move rather than duplicate.
     for _, l in pairs(sides) do
@@ -5381,6 +5421,29 @@ function IconRailDocDrop(docid, target)
     SaveRailLayout(sides, inert)
     RebuildIconRails()
     return true
+end
+
+function IconRailDocDrop(docid, target)
+    HideRailGhost()
+    if docid == nil then
+        return false
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    if docs[docid] == nil then
+        return false
+    end
+    return RailKeyDrop("doc:" .. docid, target)
+end
+
+--The character equivalent: dragging a character out of the journal's
+--Characters section onto a rail drops a "character:<charid>" shortcut,
+--exactly as a document row drops a "doc:<id>" one.
+function IconRailCharacterDrop(charid, target)
+    HideRailGhost()
+    if charid == nil or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    return RailKeyDrop("character:" .. charid, target)
 end
 
 --Append a shortcut for an arbitrary layout key to the end of one rail,

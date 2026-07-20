@@ -4293,6 +4293,25 @@ local function CreateTopBar()
                     end
                 end
 
+                --In rail mode this menu manages rail SHORTCUTS: picking a
+                --panel adds or removes its rail button instead of opening
+                --the panel (Lisa, 2026-07-20). The check mark tracks rail
+                --membership, and the togglepanel keybinding is dropped from
+                --the row because it still opens the panel -- a different
+                --action from the one the row now performs.
+                if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+                    for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
+                        local panelName = p.text
+                        if panelName ~= nil and p.submenu == nil then
+                            p.bind = nil
+                            p.check = RailHasPanel(panelName)
+                            p.click = function()
+                                RailTogglePanel(panelName)
+                            end
+                        end
+                    end
+                end
+
                 table.insert(dockablePanels, 1, {
                     text = "Left Dock",
                     check = not dmhub.GetSettingValue("leftdockoffscreen"),

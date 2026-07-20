@@ -5727,11 +5727,11 @@ local function DSCharSheet()
                                 valign = "top",
                                 textAlignment = "center",
 
-                                --epic if level 10 or more otherwise xp
+                                --epic resource name if level 10 or more otherwise xp
                                 refreshToken = function(element, info)
-                                    local level = info.token.properties:CharacterLevel()
-                                    if level >= 10 then
-                                        element.text = "EPIC"
+                                    local props = info.token.properties
+                                    if props:CharacterLevel() >= 10 then
+                                        element.text = string.upper(props:GetEpicResourceName() or "Epic")
                                     else
                                         element.text = "XP"
                                     end
@@ -5761,19 +5761,30 @@ local function DSCharSheet()
 
                                 change = function(element)
                                     local info = CharacterSheet.instance.data.info
-                                    local newXP = tonumber(element.text)
+                                    local props = info.token.properties
+                                    local newValue = tonumber(element.text)
 
-                                    if newXP == nil then
+                                    if newValue == nil then
                                         CharacterSheet.instance:FireEvent("refreshAll")
+                                    elseif props:CharacterLevel() >= 10 then
+                                        --at level 10+ this field edits the epic resource pool, not XP
+                                        newValue = math.max(0, round(newValue))
+                                        local diff = newValue - props:GetEpicResources()
+                                        if diff ~= 0 then
+                                            props:AddUnboundedResource(CharacterResource.epicResourceId, diff, "Manually Set")
+                                        end
                                     else
-                                        info.token.properties.xp = math.max(0, round(newXP))
+                                        props.xp = math.max(0, round(newValue))
                                     end
                                 end,
 
                                 refreshToken = function(element, info)
-                                    local xp = info.token.properties:try_get("xp", 0)
-
-                                    element.text = xp
+                                    local props = info.token.properties
+                                    if props:CharacterLevel() >= 10 then
+                                        element.text = props:GetEpicResources()
+                                    else
+                                        element.text = props:try_get("xp", 0)
+                                    end
                                 end,
 
 

@@ -6203,6 +6203,21 @@ function creature:OnMove(path)
     
     local movedThroughTokens = rawget(self, "_tmp_movedThroughTokens")
 
+    -- Reaping Scythe (Beastheart deinonychus L10): totally inert unless the mover carries the
+    -- "Reaping Scythe Damage" custom attribute (> 0 only while rampaging under an L10 beastheart,
+    -- set entirely in data via a filterCondition'd attribute modifier whose value is the mover's
+    -- Might). When active, the FIRST enemy the mover becomes newly adjacent to (or enters the
+    -- space of) each turn takes that much damage. Not on forced movement ("the deinonychus moves").
+    local reapDamage = self:CalculateNamedCustomAttribute("Reaping Scythe Damage")
+    local reapingActive = reapDamage > 0 and (not path.forced)
+    if reapingActive then
+        local reapTurnId = dmhub.initiativeQueue and dmhub.initiativeQueue:GetTurnId() or ""
+        if self:try_get("_tmp_reapingScytheTurnId") ~= reapTurnId then
+            self._tmp_reapingScytheTurnId = reapTurnId
+            self._tmp_reapingScytheDealt = false
+        end
+    end
+
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
         local locs = ourToken:LocsOccupyingWhenAt(step)
@@ -6316,6 +6331,20 @@ function creature:OnMove(path)
                             tok.properties:DispatchEvent("leaveadjacentorshift", { movingcreature = self })
                         end
                     end
+                end
+            end
+        end
+
+        -- Reaping Scythe: an enemy in adjacentTokens but NOT in previousAdjacent is one the
+        -- mover just became newly adjacent to this step (the inverse of the leaveadjacent check
+        -- above); adjacentLocationMap includes each token's own squares, so entering an enemy's
+        -- space counts too. Deal Might damage to the first such enemy, once per turn.
+        if reapingActive and not rawget(self, "_tmp_reapingScytheDealt") then
+            for k,tok in pairs(adjacentTokens) do
+                if (not previousAdjacent[k]) and tok.loc ~= nil and (not IsFriendForTargeting(ourToken, tok)) then
+                    tok.properties:InflictDamageInstance(reapDamage, "", {}, "Reaping Scythe", { attacker = self })
+                    self._tmp_reapingScytheDealt = true
+                    break
                 end
             end
         end
@@ -9036,7 +9065,16 @@ function creature:EndTurn(token)
 		local newOngoingEffects = {}
 		for _,effectInstance in ipairs(self.ongoingEffects) do
 			local remove = effectInstance.removeAtNextTurnEnd
-			if not remove then
+			--A numeric removeAtNextTurnEnd (e.g. 2 from "end_of_next_turn_from_turnstart")
+			--survives this turn-end and counts down, so an effect applied at the START of
+			--this creature's own turn expires at the end of their NEXT turn, not this one.
+			if (not remove) or type(remove) == "number" then
+				if type(remove) == "number" then
+					effectInstance.removeAtNextTurnEnd = effectInstance.removeAtNextTurnEnd - 1
+					if effectInstance.removeAtNextTurnEnd == 1 then
+						effectInstance.removeAtNextTurnEnd = true
+					end
+				end
 				newOngoingEffects[#newOngoingEffects+1] = effectInstance
 			end
 		end

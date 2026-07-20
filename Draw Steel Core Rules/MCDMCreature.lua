@@ -5248,6 +5248,37 @@ function creature.TakeDamage(self, amount, note, info)
     local isBelowZeroNow = self:CurrentHitpoints() <= 0
     local isDeadNow = self:IsDead()
 
+    --Runaway Expansion (Gummy Ball L10): a creature reduced to 0 Stamina while grabbed
+    --by a rampaging gummy ball that has Runaway Expansion swells the ball by 1 size
+    --(max Draw Steel size 5 == creatureSize 8), at most once per round. The actual size
+    --comes from the "Runaway Growth" ongoing effect's creatureSize modifier (gated on
+    --Self.Rampaging, so size reverts the instant the rampage ends); this hook only
+    --maintains the stack count on the grabbing ball.
+    if isBelowZeroNow and (not isBelowZeroAtStart) then
+        local grabberCharid = self:try_get("_tmp_grabbedby")
+        if grabberCharid ~= nil then
+            local grabberTok = dmhub.GetTokenById(grabberCharid)
+            if grabberTok ~= nil and grabberTok.valid then
+                local ball = grabberTok.properties
+                if ball:CalculateNamedCustomAttribute("Runaway Expansion Active") > 0 then
+                    local roundNum = (dmhub.initiativeQueue ~= nil) and dmhub.initiativeQueue.round or 0
+                    if ball:try_get("_tmp_runawayGrewRound") ~= roundNum then
+                        local current = ball:try_get("_tmp_runawayStacks", 0)
+                        if current < 4 then
+                            local newCount = current + 1
+                            local GROWTH = "b2a7c1d4-0000-4c10-9d01-000000000002"
+                            ball._tmp_runawayStacks = newCount
+                            ball._tmp_runawayGrewRound = roundNum
+                            ball:RemoveOngoingEffect(GROWTH)
+                            ball:ApplyOngoingEffect(GROWTH, 999, {tokenid = grabberCharid}, {stacks = newCount})
+                            ball:Invalidate()
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     if isDeadNow then
         if not isDeadAtStart then
             if self:IsHero() then

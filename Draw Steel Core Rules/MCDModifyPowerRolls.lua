@@ -290,6 +290,21 @@ CharacterModifier.TypeInfo.power = {
             end)
 		end
 
+		--Arm-on-toggle (Elemental Avatar / Dragonseal): when a power modifier
+		--carrying an armEffect is applied (its roll-dialog checkbox is checked),
+		--apply that marker ongoing effect to the caster synchronously HERE, at
+		--roll-confirm -- before the strike's damage lands. A dealdamage trigger
+		--can then read the flag the marker grants and deliver on this same
+		--strike. (The customTrigger above is deferred until after the cast, so
+		--it is too late to gate same-strike delivery.)
+		local armEffect = modifier:try_get("armEffect")
+		if armEffect ~= nil then
+			local armToken = dmhub.LookupToken(creature)
+			if armToken ~= nil and armToken.valid then
+				armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+			end
+		end
+
         if modifier:has_key("baseModifier") and (modifier:try_get("gobefore", false)) and (not modifier:try_get("overridebase", false)) then
             print("TRIGGER:: BASE GOES LAST")
             CharacterModifier.TypeInfo.power.triggerOnUse(modifier.baseModifier, creature, modContext)

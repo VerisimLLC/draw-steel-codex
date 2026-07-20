@@ -356,6 +356,14 @@ function CharacterOngoingEffectInstance.Create(options)
 	elseif options.duration == "end_of_next_turn" then
 		options.duration = nil
 		options.removeAtNextTurnEnd = true
+	elseif options.duration == "end_of_next_turn_from_turnstart" then
+		--Like end_of_next_turn, but survives the turn it is applied in. Use when the
+		--effect is applied at the START of the affected creature's own turn (e.g. a
+		--begin-turn aura): plain end_of_next_turn would count THIS turn's end as the
+		--"next turn end" and expire immediately. removeAtNextTurnEnd=2 skips one
+		--turn-end (see creature:EndTurn), so it expires at the end of their next turn.
+		options.duration = nil
+		options.removeAtNextTurnEnd = 2
     elseif options.duration == "endround" then
 		options.duration = nil
 		options.removeAtRoundEnd = true
@@ -414,6 +422,9 @@ function CharacterOngoingEffectInstance:Refresh(duration)
         elseif duration == "end_of_next_turn" then
             self.duration = nil
             self.removeAtNextTurnEnd = true
+        elseif duration == "end_of_next_turn_from_turnstart" then
+            self.duration = nil
+            self.removeAtNextTurnEnd = 2
         elseif duration == "endround" then
             self.duration = nil
             self.removeAtRoundEnd = true

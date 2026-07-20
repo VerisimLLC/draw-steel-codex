@@ -383,9 +383,13 @@ end
 --the document row's normal context menu -- never a menu of its own,
 --which would shadow the standard verbs (Share to Chat, Rename, ...).
 --Empty when the rail trial mode is off (it is dev-gated).
+local function RailAvailable()
+    return dmhub.GetSettingValue("iconrail") and devmode()
+end
+
 local function RailAddMenuEntries(element, doc)
     local result = {}
-    if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not dmhub.GetSettingValue("iconrail") or not devmode() then
+    if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
         return result
     end
     result[#result + 1] = {
@@ -405,7 +409,318 @@ local function RailAddMenuEntries(element, doc)
     return result
 end
 
+--The rail entries for a CHARACTER row, appended to its context menu the
+--same way document rows get theirs.
+local function RailAddCharacterEntries(element, charid)
+    local result = {}
+    if charid == nil or rawget(_G, "IconRailCharacterAdd") == nil or not RailAvailable() then
+        return result
+    end
+    result[#result + 1] = {
+        text = "Add to left rail",
+        click = function()
+            element.popup = nil
+            IconRailCharacterAdd(charid, "left")
+        end,
+    }
+    result[#result + 1] = {
+        text = "Add to right rail",
+        click = function()
+            element.popup = nil
+            IconRailCharacterAdd(charid, "right")
+        end,
+    }
+    return result
+end
+
+--Whether a character has been claimed by a player. Sharing a character
+--to chat is gated on this: unclaimed characters (pregens nobody has
+--taken, Director-side NPCs) stay out of chat.
+local function CharacterAssignedToPlayer(token)
+    if token == nil then
+        return false
+    end
+    if token.playerNameOrNil ~= nil then
+        return true
+    end
+    local controlled = false
+    pcall(function() controlled = token.playerControlled end)
+    return controlled == true
+end
+
 local CreateFolderContentsPanel
+
+----------------------------------------------------------------------
+-- Characters shared into the journal
+-- --------------------------------
+-- Explicitly curated, not derived from party membership: a Director
+-- shares a character (token right-click > Share to Journal, or the
+-- party roster's right-click menu) and it appears in the journal's
+-- Characters section for everyone. Lives in a shared cloud document so
+-- the list syncs to every client.
+----------------------------------------------------------------------
+
+local JOURNAL_CHARACTERS_DOC = "journalcharacters"
+
+--Panel monitor path for the shared list.
+function JournalCharactersPath()
+    return mod:GetDocumentPath(JOURNAL_CHARACTERS_DOC)
+end
+
+--The charids currently shared into the journal. Characters that have
+--since been deleted from the game are skipped (the entry stays in the
+--document, so it comes back if the character does).
+function JournalSharedCharacterIds()
+    local doc = mod:GetDocumentSnapshot(JOURNAL_CHARACTERS_DOC)
+    local shared = doc.data.characters or {}
+    local result = {}
+    for charid, on in pairs(shared) do
+        if on and dmhub.GetCharacterById(charid) ~= nil then
+            result[#result + 1] = charid
+        end
+    end
+    return result
+end
+
+function JournalHasCharacter(charid)
+    if charid == nil then
+        return false
+    end
+    local doc = mod:GetDocumentSnapshot(JOURNAL_CHARACTERS_DOC)
+    local shared = doc.data.characters or {}
+    return shared[charid] == true
+end
+
+function JournalShareCharacter(charid)
+    if charid == nil or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    local doc = mod:GetDocumentSnapshot(JOURNAL_CHARACTERS_DOC)
+    doc:BeginChange()
+    local shared = doc.data.characters or {}
+    shared[charid] = true
+    doc.data.characters = shared
+    doc:CompleteChange("Share character to journal")
+    return true
+end
+
+function JournalUnshareCharacter(charid)
+    if charid == nil then
+        return false
+    end
+    local doc = mod:GetDocumentSnapshot(JOURNAL_CHARACTERS_DOC)
+    doc:BeginChange()
+    local shared = doc.data.characters or {}
+    shared[charid] = nil
+    doc.data.characters = shared
+    doc:CompleteChange("Remove character from journal")
+    return true
+end
+
+--A row for one character in the journal's Characters section. Clicking
+--frames that character's panel -- the same summary/details stack the
+--sidebar Character panel builds -- in a document window.
+local function CreateCharacterRow(charid)
+    local iconPanel
+    local nameLabel
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        classes = { "itemContainer" },
+        data = {
+            charid = charid,
+            sortName = "",
+        },
+
+        click = function(element)
+            if rawget(_G, "ShowCharacterPanelDocument") ~= nil then
+                ShowCharacterPanelDocument(charid)
+            end
+        end,
+
+        rightClick = function(element)
+            local token = dmhub.GetCharacterById(charid)
+            local entries = {
+                {
+                    text = "Open Character Panel",
+                    click = function()
+                        element.popup = nil
+                        if rawget(_G, "ShowCharacterPanelDocument") ~= nil then
+                            ShowCharacterPanelDocument(charid)
+                        end
+                    end,
+                },
+                {
+                    text = "Character Sheet...",
+                    click = function()
+                        element.popup = nil
+                        if token ~= nil then
+                            token:ShowSheet()
+                        end
+                    end,
+                },
+                {
+                    --the engine has no character card for chat (sharing a
+                    --bare character posts an empty message), so this
+                    --shares the portrait -- the "here is who this is"
+                    --gesture. Only for characters a player has claimed.
+                    text = "Share to Chat...",
+                    hidden = not CharacterAssignedToPlayer(token),
+                    click = function()
+                        element.popup = nil
+                        if token == nil then
+                            return
+                        end
+                        local portrait = nil
+                        pcall(function() portrait = token.offTokenPortrait end)
+                        if portrait == nil or portrait == "" then
+                            return
+                        end
+                        chat.ShareData(ImageDocument.new {
+                            imageid = portrait,
+                            width = 512,
+                            height = 512,
+                        })
+                    end,
+                },
+            }
+
+            for _, e in ipairs(RailAddCharacterEntries(element, charid)) do
+                entries[#entries + 1] = e
+            end
+
+            entries[#entries + 1] = {
+                text = "Remove from Journal",
+                hidden = not dmhub.isDM,
+                click = function()
+                    element.popup = nil
+                    JournalUnshareCharacter(charid)
+                end,
+            }
+
+            element.popup = gui.ContextMenu {
+                entries = entries,
+            }
+        end,
+
+        refreshCharacter = function(element)
+            local token = dmhub.GetCharacterById(charid)
+            if token == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+            nameLabel.text = token.name or "(Unnamed)"
+            element.data.sortName = nameLabel.text
+
+            --portrait when the token has one; the generic character icon
+            --otherwise. Portraits are full-colour, so the tinting the
+            --"icon" class applies has to be turned off for them.
+            local portrait = nil
+            pcall(function() portrait = token.offTokenPortrait end)
+            if portrait ~= nil and portrait ~= "" then
+                iconPanel.bgimage = portrait
+                iconPanel.selfStyle.bgcolor = "white"
+                pcall(function()
+                    iconPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(1, portrait)
+                end)
+            else
+                iconPanel.bgimage = "icons/standard/Icon_App_Character.png"
+                iconPanel.selfStyle.bgcolor = "white"
+            end
+        end,
+
+        gui.Panel {
+            classes = { "item" },
+
+            --the ghost expander keeps this row on the same
+            --[expander][icon][name] grammar as document rows, so the two
+            --kinds of row line up in the tree.
+            gui.Panel {
+                bgimage = "panels/triangle.png",
+                classes = { "triangle", "ghost" },
+                styles = gui.TriangleStyles,
+            },
+            (function()
+                iconPanel = gui.Panel {
+                    classes = { "icon" },
+                }
+                return iconPanel
+            end)(),
+            (function()
+                nameLabel = gui.Label {
+                    text = "",
+                }
+                return nameLabel
+            end)(),
+        },
+    }
+
+    resultPanel:FireEvent("refreshCharacter")
+
+    return resultPanel
+end
+
+--The journal's Characters section: party members, each opening their
+--character panel in a window. Built directly rather than as a folder in
+--the documents data model, so it can never be renamed, deleted, or
+--become a drop target for documents.
+local function CreateCharactersSection(journalPanel)
+    local m_rows = {}
+    local m_contentPanel
+
+    m_contentPanel = gui.Panel {
+        halign = "left",
+        width = "100%-16",
+        height = "auto",
+        flow = "vertical",
+        classes = { "contentPanel" },
+        lmargin = 16,
+
+        refreshCharacters = function(element)
+            local children = {}
+            local newRows = {}
+            for _, charid in ipairs(JournalSharedCharacterIds()) do
+                local row = m_rows[charid] or CreateCharacterRow(charid)
+                newRows[charid] = row
+                row:FireEvent("refreshCharacter")
+                children[#children + 1] = row
+            end
+
+            table.sort(children, function(a, b)
+                return string.lower(a.data.sortName or "") < string.lower(b.data.sortName or "")
+            end)
+
+            m_rows = newRows
+            element.children = children
+            element:SetClass("empty", #children == 0)
+        end,
+    }
+
+    local resultPanel
+    resultPanel = gui.TreeNode {
+        classes = { "documentFolder" },
+        text = "Characters",
+        width = "100%",
+        editable = false,
+        draggable = false,
+        expanded = false,
+        contentPanel = m_contentPanel,
+
+        --rebuilt whenever the journal refreshes its assets, and whenever
+        --the shared list changes on any client. The whole section hides
+        --when nothing has been shared -- an empty "Characters" header
+        --would just be a dead end.
+        refreshDocuments = function(element)
+            m_contentPanel:FireEvent("refreshCharacters")
+            local count = #m_contentPanel.children
+            element:SetClass("collapsed", count == 0)
+            element:FireEvent("setempty", count == 0)
+        end,
+    }
+
+    return resultPanel
+end
 
 local function CreateFolderPanel(journalPanel, folderid)
     local builtinFolder = folderid == "private" or folderid == "public" or folderid == "templates" or
@@ -560,6 +875,16 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         indent = 8
     end
 
+    --the root of the tree also carries the Characters section, below the
+    --document folders. Built on first refresh rather than here: a panel
+    --constructed before it has a parent is reported as a leak.
+    local m_charactersSection = nil
+
+    local charactersMonitor = nil
+    if folderid == "" then
+        charactersMonitor = JournalCharactersPath()
+    end
+
     contentPanel = gui.Panel {
         --explicit halign: a flow child with no alignment centers itself
         --in the icon-rail window host (the dock resolves it left). With
@@ -575,10 +900,21 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         dragTargetPriority = 1,
         classes = { "contentPanel" },
         lmargin = indent,
+        monitorGame = charactersMonitor,
 
         expand = function(element)
             if m_invalidated then
                 element:FireEventTree("refreshDocuments")
+            end
+        end,
+
+        --the shared characters list can change on any client; the root
+        --contents panel carries the monitor because it is never
+        --collapsed (a collapsed panel processes no events, so the
+        --section itself cannot watch for its own arrival).
+        refreshGame = function(element)
+            if m_charactersSection ~= nil then
+                m_charactersSection:FireEvent("refreshDocuments")
             end
         end,
         refreshDocuments = function(element)
@@ -1278,8 +1614,21 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                 return (a.data.ordDesc or "") < (b.data.ordDesc or "")
             end)
 
+            --characters sort after the document folders, as the last
+            --section of the tree root.
+            if folderid == "" then
+                if m_charactersSection == nil then
+                    m_charactersSection = CreateCharactersSection(journalPanel)
+                end
+                children[#children + 1] = m_charactersSection
+            end
+
             m_documentPanels = newDocumentPanels
             element.children = children
+
+            if m_charactersSection ~= nil then
+                m_charactersSection:FireEvent("refreshDocuments")
+            end
 
             contentPanel:SetClass("empty", #children == 0)
         end,

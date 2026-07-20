@@ -806,6 +806,38 @@ function GameHud:CreateDocks()
 	return resultPanel
 end
 
+--Deliberately closing a panel from a dock (its right-click > Close) is a
+--statement about the workspace, not just this dock: other surfaces that
+--present the same panels -- the icon rail -- need to drop it too, or
+--they will put it straight back the next time the dock is filled.
+--Handlers are keyed by id so a Lua reload replaces rather than
+--duplicates them, and receive the panel's registered name.
+g_dockablePanelClosedHandlers = rawget(_G, "g_dockablePanelClosedHandlers") or {}
+
+--- @param id string unique id for this handler
+--- @param fn fun(panelName: string)
+function RegisterDockablePanelClosedHandler(id, fn)
+	g_dockablePanelClosedHandlers[id] = fn
+end
+
+local function NotifyDockablePanelClosed(name)
+	if name == nil then
+		return
+	end
+	local ids = {}
+	for id, _ in pairs(g_dockablePanelClosedHandlers) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken handler must not stop the panel from closing.
+		local ok, err = pcall(g_dockablePanelClosedHandlers[id], name)
+		if not ok then
+			print(string.format("DOCKPANEL:: closed handler '%s' failed: %s", id, tostring(err)))
+		end
+	end
+end
+
 local CreateDockablePanelTabbedContainer
 CreateDockablePanelTabbedContainer = function(options)
 
@@ -966,6 +998,11 @@ CreateDockablePanelTabbedContainer = function(options)
 							text = "Close",
 							click = function()
 								element.popup = nil
+								--this closes the whole container, so every
+								--panel it hosts is being removed.
+								for _,p in ipairs(panelInstances) do
+									NotifyDockablePanelClosed(p.data.name)
+								end
 								resultPanel:DestroySelf()
 								dock:FireEvent("fitChildren")
 								dock:FireEvent("layoutChanged")
@@ -1404,6 +1441,11 @@ CreateDockablePanelTabbedContainer = function(options)
 						text = "Close",
 						click = function()
 							element.popup = nil
+							--only the explicit Close notifies: the same
+							--"close" event is fired programmatically by
+							--closeByIdentifier (/togglepanel), which is a
+							--visibility toggle, not a removal.
+							NotifyDockablePanelClosed(p.data.name)
 							element:FireEvent("close")
 						end,
 					}

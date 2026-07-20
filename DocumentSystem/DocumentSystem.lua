@@ -3620,6 +3620,139 @@ function PanelDocument:ShowDocument(args)
     self:PresentPanel(args)
 end
 
+----------------------------------------------------------------------
+-- CharacterPanelDocument
+-- ----------------------
+-- A panel document showing ONE character's panel: the same summary and
+-- details stack the sidebar Character panel builds, but bound to a
+-- chosen character instead of following map selection. Journal surfaces
+-- (the tree's Characters section, party islands) open these, so a
+-- character's panel is FRAMED rather than reimplemented -- improvements
+-- to the sidebar panel appear here with no extra maintenance.
+--
+-- The panel content is not a registered dockable panel, so this subtype
+-- supplies a synthetic registration instead of looking one up.
+----------------------------------------------------------------------
+
+RegisterGameType("CharacterPanelDocument", "PanelDocument")
+CharacterPanelDocument.charid = ""
+CharacterPanelDocument.DefaultWidth = 400
+CharacterPanelDocument.DefaultHeight = 640
+
+--Get (or create) the session-cached document for a character. Returns
+--nil when there is no such character. Shares g_panelDocuments so the
+--"already shown somewhere" checks cover character windows too.
+function CharacterPanelDocument.Get(charid)
+    if charid == nil or charid == "" then
+        return nil
+    end
+    local token = dmhub.GetCharacterById(charid)
+    if token == nil then
+        return nil
+    end
+
+    local key = "character:" .. charid
+    local doc = g_panelDocuments[key]
+    if doc == nil then
+        doc = CharacterPanelDocument.new{
+            id = "panel:" .. key,
+            description = token.name or "Character",
+            panelName = key,
+            charid = charid,
+        }
+        g_panelDocuments[key] = doc
+    else
+        --names are editable; keep the window title current.
+        doc.description = token.name or doc.description
+    end
+    return doc
+end
+
+function CharacterPanelDocument:GetHostRegistration()
+    local charid = self.charid
+    local token = dmhub.GetCharacterById(charid)
+    local name = "Character"
+    if token ~= nil and token.name ~= nil and token.name ~= "" then
+        name = token.name
+    end
+
+    return {
+        name = name,
+        --the sidebar Character panel's own icon, so the window reads as
+        --that panel rather than as a new kind of thing.
+        icon = "icons/standard/Icon_App_Character.png",
+        vscroll = true,
+        hideObjectsOutOfScroll = false,
+        content = function()
+            return CharacterPanel.CreatePinnedCharacterPanel(charid)
+        end,
+    }
+end
+
+--Open (or raise) a character's panel window. The global entry point for
+--journal surfaces; guarded callers use rawget since this file loads
+--after the panels that call it.
+function ShowCharacterPanelDocument(charid)
+    local doc = CharacterPanelDocument.Get(charid)
+    if doc == nil then
+        return nil
+    end
+    return doc:PresentPanel()
+end
+
+--"Share to Journal" on a map token's right-click menu: puts that
+--character in the journal's Characters section, where clicking it opens
+--this panel. The client builds that menu, so we contribute an entry via
+--the GameHud hook; the token comes from the cursor, because
+--right-clicking a token does not select it.
+if rawget(_G, "RegisterGameContextMenuContributor") ~= nil then
+    RegisterGameContextMenuContributor("journalcharacter", function(entries)
+        if not dmhub.isDM or rawget(_G, "JournalShareCharacter") == nil then
+            return
+        end
+        local token = GameContextMenuTokenUnderCursor()
+        if token == nil then
+            return
+        end
+        local charid = token.charid
+        if charid == nil then
+            return
+        end
+
+        if JournalHasCharacter(charid) then
+            entries[#entries + 1] = {
+                text = "Remove from Journal",
+                click = function()
+                    JournalUnshareCharacter(charid)
+                end,
+            }
+        else
+            entries[#entries + 1] = {
+                text = "Share to Journal",
+                click = function()
+                    JournalShareCharacter(charid)
+                end,
+            }
+        end
+    end)
+end
+
+--Resolve a rail/layout key to the panel document behind it. Registered
+--panels are keyed by their (lowercased) name; characters by the
+--"character:<charid>" panelName CharacterPanelDocument uses -- so
+--character shortcuts get the rail's open/close, pinning, tab-raising
+--and Views machinery without any of it special-casing them.
+local function RailPanelDocument(key)
+    if key == nil then
+        return nil
+    end
+    local charid = string.match(key, "^character:(.+)$")
+    if charid ~= nil then
+        return CharacterPanelDocument.Get(charid)
+    end
+    return PanelDocument.Get(key)
+end
+
 --The rail's curated panel list, in display order (from the Player Icon
 --Rail design). Used by the rail buttons AND by the panel window's
 --add-tab menu. Panels missing a registration, or not available to this
@@ -3628,6 +3761,7 @@ local g_iconRailPanels = {
     "Character",
     "Heroes",
     "Dice",
+    "Chat",
     "Action Log",
     "Journal",
     "Campaign Tracker",
@@ -3666,10 +3800,18 @@ end
 
 local g_panelDocumentHeaderHeight = 32
 
+--The registration describing this document's own panel content. The
+--base type resolves its panelName against the dockable panel registry;
+--subtypes (CharacterPanelDocument) return a synthetic registration
+--instead, and the interface machinery below treats both the same.
+function PanelDocument:GetHostRegistration()
+    return DockablePanel.GetRegistration(self.panelName)
+end
+
 function PanelDocument:CreateInterface(args)
     args = args or {}
 
-    local hostReg = DockablePanel.GetRegistration(self.panelName)
+    local hostReg = self:GetHostRegistration()
     if hostReg == nil then
         return gui.Label{
             classes = {"modalMessage"},
@@ -4040,12 +4182,19 @@ function PanelDocument:CreateInterface(args)
             SwitchTab(key)
             return
         end
-        local reg = DockablePanel.GetRegistration(key)
+        --the window's own panel may be a synthetic registration (e.g. a
+        --pinned character); everything else comes from the dock registry.
+        local reg
+        if key == string.lower(self.panelName) then
+            reg = hostReg
+        else
+            reg = DockablePanel.GetRegistration(key)
+        end
         if reg == nil then
             return
         end
         local tab = {
-            key = string.lower(reg.name),
+            key = key,
             reg = reg,
         }
         m_tabs[#m_tabs + 1] = tab
@@ -4255,7 +4404,7 @@ function PanelDocument:CreateInterface(args)
     }
 
     --the window opens with its own panel as the first tab.
-    AddTab(string.lower(hostReg.name))
+    AddTab(string.lower(self.panelName))
     m_constructing = false
 
     return resultPanel
@@ -4405,16 +4554,24 @@ local function RailLayout()
             return
         end
 
-        --"doc:<id>" entries are journal document shortcuts; anything else
-        --is a registered panel.
+        --"doc:<id>" entries are journal document shortcuts,
+        --"character:<charid>" entries are character panels; anything
+        --else is a registered panel.
         local available
         local docid = string.match(key, "^doc:(.+)$")
+        local charid = string.match(key, "^character:(.+)$")
         if docid ~= nil then
             local docs = dmhub.GetTable(CustomDocument.tableName) or {}
             local doc = docs[docid]
             available = doc ~= nil and (not doc.hidden)
             if available then
                 displayName = doc.description or "Document"
+            end
+        elseif charid ~= nil then
+            local token = dmhub.GetCharacterById(charid)
+            available = token ~= nil
+            if available then
+                displayName = token.name or "Character"
             end
         else
             available = PanelDocument.Get(displayName) ~= nil
@@ -4429,7 +4586,7 @@ local function RailLayout()
             return
         end
         local list = sides[side]
-        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid }
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid }
     end
 
     --curated panels first: they carry the first-run default ordering.
@@ -4533,6 +4690,24 @@ local function RailDropTarget(side, slot, element)
     return targetSide, targetSlot
 end
 
+--The layer the rails and panel windows live on, or nil when the hud is
+--not up. GameHud.instance is FALSE (not nil) while the hud is down --
+--notably during a Lua reload -- so the obvious `~= nil` test passes and
+--the following index throws "attempt to index a boolean value". Every
+--reach for the documents layer goes through here.
+local function DocumentsLayer()
+    local hud = GameHud.instance
+    if not hud then
+        return nil
+    end
+    local panel = nil
+    pcall(function() panel = hud.documentsPanel end)
+    if panel == nil or not panel.valid then
+        return nil
+    end
+    return panel
+end
+
 --the drag ghost panel and its helpers live below IconRailStyles, which
 --they depend on.
 local g_railDragGhost = nil
@@ -4576,7 +4751,9 @@ end
 --it (and restores added tabs); nil lets PresentDocument use the
 --session-remembered location.
 local function OpenIconRailWindow(panelName, placement)
-    local doc = PanelDocument.Get(panelName)
+    --accepts a registered panel name OR a layout key (character
+    --shortcuts pass "character:<charid>", which is not a panel name).
+    local doc = RailPanelDocument(panelName)
     if doc == nil then
         return
     end
@@ -4731,18 +4908,25 @@ local function IconRailStyles()
             selectors = {"iconRailHairline"},
             bgcolor = "#ffffff26",
         },
-        --the drop placeholder: a lightly filled rounded box marking the
-        --slot a dragged button/document will land in (the buttons below
-        --shift down live to open the gap it sits in).
+        --the drop placeholder: a dotted-outline box marking the slot a
+        --dragged button/document will land in (the buttons below shift
+        --down live to open the gap it sits in). The outline is built from
+        --dash panels -- the engine has no dotted border style, and no
+        --dotted 9-slice image ships with the app -- over a very faint
+        --fill so the box still reads against a busy map.
         {
             selectors = {"iconRailGhost"},
-            bgcolor = "#ffffff26",
+            bgcolor = "#ffffff14",
             border = 0,
             cornerRadius = 8,
         },
         {
             selectors = {"iconRailGhost", "hidden"},
             hidden = 1,
+        },
+        {
+            selectors = {"iconRailGhostDash"},
+            bgcolor = "#ffffff8c",
         },
         --the Views toast box and its text (the chip itself is gone --
         --Lisa+David review 2026-07-19 -- but the toast reuses its look).
@@ -4818,8 +5002,52 @@ end
 --button; vertical flow carries everything below it along). excludeKey
 --is the dragged button's own key: its slot never reads as occupied and
 --it never shifts (the engine is already moving it with the cursor).
+--Build the four dashed edges of the drop placeholder. The engine exposes
+--no dotted border style and ships no dotted 9-slice image, so each edge is
+--a flow of small dash panels; DASH and the gap between dashes are equal, so
+--`count` dashes tile the edge evenly. Corners are left open, which is what
+--a dotted outline looks like anyway.
+local function DottedOutlineChildren(size)
+    local DASH = 4
+    local THICK = 2
+    local count = math.max(2, math.floor(size / (DASH * 2)))
+
+    local function edge(horizontal, align)
+        local dashes = {}
+        for i = 1, count do
+            dashes[#dashes+1] = gui.Panel{
+                classes = {"iconRailGhostDash"},
+                bgimage = true,
+                width = cond(horizontal, DASH, THICK),
+                height = cond(horizontal, THICK, DASH),
+                halign = "center",
+                valign = "center",
+                hmargin = cond(horizontal, DASH / 2, 0),
+                vmargin = cond(horizontal, 0, DASH / 2),
+            }
+        end
+        return gui.Panel{
+            width = cond(horizontal, "100%", THICK),
+            height = cond(horizontal, THICK, "100%"),
+            flow = cond(horizontal, "horizontal", "vertical"),
+            halign = cond(horizontal, "center", align),
+            valign = cond(horizontal, align, "center"),
+            interactable = false,
+            children = dashes,
+        }
+    end
+
+    return {
+        edge(true, "top"),
+        edge(true, "bottom"),
+        edge(false, "left"),
+        edge(false, "right"),
+    }
+end
+
 ShowRailGhost = function(side, slot, excludeKey)
-    if GameHud.instance == nil or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) then
+    local layer = DocumentsLayer()
+    if layer == nil then
         return
     end
     if g_railDragGhost == nil or not g_railDragGhost.valid then
@@ -4832,8 +5060,9 @@ ShowRailGhost = function(side, slot, excludeKey)
             halign = "left",
             valign = "top",
             interactable = false,
+            children = DottedOutlineChildren(ICON_RAIL_BUTTON),
         }
-        GameHud.instance.documentsPanel:AddChild(g_railDragGhost)
+        layer:AddChild(g_railDragGhost)
     end
 
     local sig = tostring(side) .. ":" .. tostring(slot) .. ":" .. tostring(excludeKey)
@@ -5154,17 +5383,12 @@ function IconRailDocDrop(docid, target)
     return true
 end
 
---Menu path (no drag): append a document shortcut to the given rail.
---The non-drag parity for the journal-to-rail gesture (A9a).
-function IconRailDocAdd(docid, side)
+--Append a shortcut for an arbitrary layout key to the end of one rail,
+--moving it there if it is already on a rail.
+local function RailAddKey(key, side)
     if side ~= "left" and side ~= "right" then
         side = "left"
     end
-    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
-    if docid == nil or docs[docid] == nil then
-        return false
-    end
-    local key = "doc:" .. docid
     local sides, inert = RailLayout()
     for _, l in pairs(sides) do
         for i, e in ipairs(l) do
@@ -5191,6 +5415,40 @@ function IconRailDocAdd(docid, side)
     SaveRailLayout(sides, inert)
     RebuildIconRails()
     return true
+end
+
+--Menu path (no drag): append a document shortcut to the given rail.
+--The non-drag parity for the journal-to-rail gesture (A9a).
+function IconRailDocAdd(docid, side)
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    if docid == nil or docs[docid] == nil then
+        return false
+    end
+    return RailAddKey("doc:" .. docid, side)
+end
+
+--Menu path: put a character's panel on the given rail. The key is the
+--CharacterPanelDocument's panelName, so the rail's open/close, pinning
+--and Views machinery treat it exactly like a panel button.
+function IconRailCharacterAdd(charid, side)
+    if charid == nil or dmhub.GetCharacterById(charid) == nil then
+        return false
+    end
+    return RailAddKey("character:" .. charid, side)
+end
+
+--Closing a panel from a dock (its right-click > Close) also takes its
+--button off the rail and saves the layout. The dock and the rail are two
+--views of one workspace: without this the button stays, and the panel
+--comes straight back the next time the dock is filled from the rail.
+if rawget(_G, "RegisterDockablePanelClosedHandler") ~= nil then
+    RegisterDockablePanelClosedHandler("iconrail", function(panelName)
+        if not (dmhub.GetSettingValue("iconrail") and devmode()) then
+            return
+        end
+        --no-ops when the panel is not on a rail.
+        RailMovePanel(string.lower(panelName), "remove")
+    end)
 end
 
 local function CreateIconRail(side, entries)
@@ -5263,11 +5521,15 @@ local function CreateIconRail(side, entries)
                 local entries = RailLayout()[side]
                 local names = {}
                 for _, e in ipairs(entries) do
-                    names[#names + 1] = e.name
+                    --only registered panels can live in a dock; document
+                    --and character shortcuts stay rail-only.
+                    if e.docid == nil and e.charid == nil then
+                        names[#names + 1] = e.name
+                    end
                 end
                 DockablePanel.SetDockPanels(side, names)
                 for _, e in ipairs(entries) do
-                    local doc = PanelDocument.Get(e.name)
+                    local doc = RailPanelDocument(e.key)
                     if doc ~= nil and doc:PresentDocumentOpen() then
                         if g_railTransientKey == e.key then
                             g_railTransientKey = nil
@@ -5347,12 +5609,30 @@ local function CreateIconRail(side, entries)
         local panelName = entry.name
         local key = entry.key
         local docid = entry.docid
+        local charid = entry.charid
 
         --panel buttons draw their registration icon; document shortcuts
-        --draw the doc's semantic-type icon.
+        --draw the doc's semantic-type icon; character shortcuts draw the
+        --character's portrait (untinted, cropped square).
         local reg = nil
         local buttonIcon = "icons/icon_app/icon_app_107.png"
-        if docid == nil then
+        local buttonIconTint = nil
+        local buttonIconRect = nil
+        if charid ~= nil then
+            buttonIcon = "icons/standard/Icon_App_Character.png"
+            local token = dmhub.GetCharacterById(charid)
+            if token ~= nil then
+                local portrait = nil
+                pcall(function() portrait = token.offTokenPortrait end)
+                if portrait ~= nil and portrait ~= "" then
+                    buttonIcon = portrait
+                    buttonIconTint = "white"
+                    pcall(function()
+                        buttonIconRect = token:GetPortraitRectForAspect(1, portrait)
+                    end)
+                end
+            end
+        elseif docid == nil then
             reg = DockablePanel.GetRegistration(panelName)
             if reg ~= nil and reg.icon ~= nil then
                 buttonIcon = reg.icon
@@ -5430,6 +5710,17 @@ local function CreateIconRail(side, entries)
                 height = 20,
                 halign = "center",
                 valign = "center",
+                cornerRadius = cond(charid ~= nil, 10, 0),
+                create = function(element)
+                    --portraits are full-colour art: opt them out of the
+                    --icon tinting, and crop them square.
+                    if buttonIconTint ~= nil then
+                        element.selfStyle.bgcolor = buttonIconTint
+                    end
+                    if buttonIconRect ~= nil then
+                        element.selfStyle.imageRect = buttonIconRect
+                    end
+                end,
             },
 
             --the active underline (chromeless buttons: the open state is
@@ -5479,7 +5770,14 @@ local function CreateIconRail(side, entries)
 
                 local targetSide, targetSlot = RailDropTarget(side, index, element)
                 if targetSide == side and targetSlot == index then
-                    --dropped back where it started.
+                    --Landed on the slot it started from, so nothing was
+                    --rearranged -- the user meant to CLICK this button.
+                    --That is the common case, not an edge case: the
+                    --engine turns a press with even one or two pixels of
+                    --motion into a drag and never delivers the click, so
+                    --without this an ordinary slightly-imprecise click on
+                    --a rail icon did nothing at all.
+                    element:FireEvent("activateRailButton")
                     RebuildIconRails()
                     return
                 end
@@ -5526,13 +5824,10 @@ local function CreateIconRail(side, entries)
                 RebuildIconRails()
             end,
 
-            click = function(element)
-                --the release at the end of a rearrange drag can also
-                --deliver a click; ignore it.
-                if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
-                    return
-                end
-
+            --Open/close this button's window. Fired by the click handler
+            --AND by a drag that ended where it began -- see the drag
+            --handler for why that is the same gesture.
+            activateRailButton = function(element)
                 --document shortcut: open the doc in the journal viewer.
                 if docid ~= nil then
                     local docs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -5544,7 +5839,7 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                local doc = PanelDocument.Get(panelName)
+                local doc = RailPanelDocument(key)
                 if doc == nil then
                     return
                 end
@@ -5571,7 +5866,7 @@ local function CreateIconRail(side, entries)
                     --one transient window at a time: opening a panel
                     --closes the previous un-pinned one.
                     if g_railTransientKey ~= nil and g_railTransientKey ~= key then
-                        local prev = PanelDocument.Get(g_railTransientKey)
+                        local prev = RailPanelDocument(g_railTransientKey)
                         if prev ~= nil then
                             prev:ClosePanel()
                         end
@@ -5579,13 +5874,23 @@ local function CreateIconRail(side, entries)
                     g_railTransientKey = key
 
                     local anchorX, anchorY = RailAnchor(side, index)
-                    OpenIconRailWindow(panelName, {
+                    OpenIconRailWindow(key, {
                         x = anchorX,
                         y = anchorY,
                     })
                 end
 
                 RefreshRails()
+            end,
+
+            click = function(element)
+                --the release at the end of a rearrange drag can also
+                --deliver a click; ignore it.
+                if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+                    return
+                end
+
+                element:FireEvent("activateRailButton")
             end,
 
             --right-click: context menu with the non-drag equivalents of
@@ -5596,8 +5901,10 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                --document shortcuts get the reduced menu: open + moves.
-                if docid ~= nil then
+                --shortcuts (documents, characters) get the reduced menu:
+                --open + moves. They are not part of the curated panel
+                --set, so "open pinned" has nothing to pin against.
+                if docid ~= nil or charid ~= nil then
                     element.popup = gui.ContextMenu{
                         entries = {
                             {
@@ -5641,7 +5948,7 @@ local function CreateIconRail(side, entries)
                 end
 
                 local function openPinned()
-                    local doc = PanelDocument.Get(panelName)
+                    local doc = RailPanelDocument(key)
                     if doc == nil then
                         return
                     end
@@ -5666,7 +5973,7 @@ local function CreateIconRail(side, entries)
                         local pins = IconRailPins()
                         pins[key] = { x = anchorX, y = anchorY }
                         SetIconRailPins(pins)
-                        OpenIconRailWindow(panelName, {
+                        OpenIconRailWindow(key, {
                             x = anchorX,
                             y = anchorY,
                         })
@@ -5805,7 +6112,7 @@ local function CreateIconRail(side, entries)
                 return
             end
             if g_railTransientKey ~= nil then
-                local doc = PanelDocument.Get(g_railTransientKey)
+                local doc = RailPanelDocument(g_railTransientKey)
                 if doc == nil or not doc:PresentDocumentOpen() then
                     g_railTransientKey = nil
                 end
@@ -5838,11 +6145,15 @@ local function CreateIconRail(side, entries)
 end
 
 local function BuildIconRails()
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return
+    end
     local sides = RailLayout()
     for _, side in ipairs({"left", "right"}) do
         local rail = CreateIconRail(side, sides[side])
         g_iconRails[side] = rail
-        GameHud.instance.documentsPanel:AddChild(rail)
+        layer:AddChild(rail)
     end
 end
 
@@ -5866,7 +6177,7 @@ end
 --drag rearranges them). Open windows are untouched.
 RebuildIconRails = function()
     DestroyIconRails()
-    if dmhub.GetSettingValue("iconrail") and devmode() and GameHud.instance ~= nil and GameHud.instance.documentsPanel and GameHud.instance.documentsPanel.valid then
+    if dmhub.GetSettingValue("iconrail") and devmode() and DocumentsLayer() ~= nil then
         BuildIconRails()
     end
 end
@@ -5894,7 +6205,8 @@ function EnsureIconRail()
         return
     end
 
-    if GameHud.instance == nil or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) then
+    local layer = DocumentsLayer()
+    if layer == nil then
         return
     end
 
@@ -5903,7 +6215,7 @@ function EnsureIconRail()
     --closures reference dead module state (it renders identically,
     --stacked under the new one, and its clicks open windows the new
     --generation cannot see).
-    for _, child in ipairs(GameHud.instance.documentsPanel.children) do
+    for _, child in ipairs(layer.children) do
         if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
             child:DestroySelf()
         end
@@ -5920,6 +6232,27 @@ function EnsureIconRail()
         end
     end
 
+    --Panel windows from a previous generation are orphans for the same
+    --reason: no PanelDocument in THIS generation points at them, so
+    --restoring pins below would open a second copy of each beside them.
+    --Windows this generation knows about are left alone.
+    local knownDialogs = {}
+    for _, doc in pairs(g_panelDocuments) do
+        local d = doc:try_get("_tmp_dialog")
+        if d ~= nil and d.valid then
+            knownDialogs[d] = true
+        end
+    end
+    for _, child in ipairs(layer.children) do
+        if child.valid and not knownDialogs[child] then
+            local tabs = nil
+            pcall(function() tabs = child.data.panelTabs end)
+            if tabs ~= nil then
+                child:DestroySelf()
+            end
+        end
+    end
+
     BuildIconRails()
     SyncDockHandles()
     EnsureDockTrayButtons()
@@ -5932,13 +6265,48 @@ function EnsureIconRail()
     end
 end
 
+--A Lua reload starts a fresh module generation: the previous one's rails
+--destroy themselves (their think sees mod.unloaded) and nothing rebuilds
+--them, because EnterGame -- the only other builder -- does not fire
+--again on reload. The rails would simply vanish for the rest of the
+--session. Rebuild shortly after load; EnsureIconRail no-ops when the
+--rails already exist or the hud is not up yet (title screen, first
+--launch), so this is only ever the reload path.
+--Rebuild the rails after a Lua reload. EnterGame does not fire again, and
+--a reload takes the existing rail panels with it, so without this the
+--rails stay gone for the rest of the session. Event REGISTRATIONS made at
+--file scope are reliable (unlike deferred callbacks -- dmhub.Schedule and
+--dmhub.Coroutine at file scope run only sometimes, which made earlier
+--attempts here work intermittently), and refreshTables fires as the
+--tables come back up after a reload. EnsureIconRail no-ops when the rails
+--already exist or the hud is not up, so this is cheap on every other fire.
+--Rebuild the rails after a Lua reload: a reload takes the existing rail
+--panels with it and EnterGame -- the only other builder -- does not fire
+--again, so without this the rails stay gone for the rest of the session.
+--Polls rather than firing once, because the hud is down for a while
+--after a reload (that is exactly when GameHud.instance is `false`).
+--Gives up after a few seconds so loading with no game running costs
+--nothing; EnterGame builds the rails for a real game entry.
+dmhub.Coroutine(function()
+    for i = 1, 60 do
+        if mod.unloaded then
+            return
+        end
+        if DocumentsLayer() ~= nil then
+            EnsureIconRail()
+            return
+        end
+        coroutine.yield(0.1)
+    end
+end)
+
 dmhub.RegisterEventHandler("EnterGame", function()
     if mod.unloaded then
         return
     end
 
     dmhub.Coroutine(function()
-        while (not GameHud.instance) or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) do
+        while DocumentsLayer() == nil do
             coroutine.yield()
         end
 
@@ -6230,6 +6598,14 @@ function ViewsEntryUnavailable(key)
         end
         return { name = "a journal document", reason = "not in this game" }
     end
+    local charid = string.match(key, "^character:(.+)$")
+    if charid ~= nil then
+        local token = dmhub.GetCharacterById(charid)
+        if token ~= nil then
+            return nil
+        end
+        return { name = "a character", reason = "not in this game" }
+    end
     if PanelDocument.Get(key) ~= nil then
         return nil
     end
@@ -6326,7 +6702,7 @@ function ViewsApplyLayout(layout)
     end
     for key, pin in pairs(pins) do
         if type(pin) == "table" then
-            local doc = PanelDocument.Get(key)
+            local doc = RailPanelDocument(key)
             if doc ~= nil and not doc:PresentDocumentOpen() then
                 OpenIconRailWindow(key, { x = pin.x, y = pin.y, tabs = pin.tabs })
             end

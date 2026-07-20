@@ -171,6 +171,26 @@ function RichParty.CreateDisplay(self)
                         self:UploadDocument()
                         resultPanel:FireEventTree("refreshTag")
                     end,
+                    --right-click opens this character's panel in a window:
+                    --the same summary/details stack the sidebar Character
+                    --panel shows, framed rather than rebuilt. Left-click is
+                    --already spoken for by the present/absent state cycle.
+                    rightClick = function(element)
+                        if rawget(_G, "ShowCharacterPanelDocument") == nil then
+                            return
+                        end
+                        element.popup = gui.ContextMenu {
+                            entries = {
+                                {
+                                    text = "Open Character Panel",
+                                    click = function()
+                                        element.popup = nil
+                                        ShowCharacterPanelDocument(charid)
+                                    end,
+                                },
+                            },
+                        }
+                    end,
                     draggable = dmhub.isDM,
                     refreshTag = function(element, richTag, patternMatch, token)
                         token = token or m_token

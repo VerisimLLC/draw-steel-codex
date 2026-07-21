@@ -3008,37 +3008,56 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
         end
 
         -- Range adjustments (spinner values are in squares; convert to world units).
+        -- ability.range/radius/lineDistance may hold a plain number OR a GoblinScript
+        -- formula string (e.g. "3 + level"). Adding a number straight to a formula
+        -- string errors ("attempt to add a 'string' with a 'number'"), so formula
+        -- values are extended as a GoblinScript addition instead, mirroring the
+        -- string-vs-number handling in the "range" ability modifier above.
+        --
+        -- The result is floored at 0: a negative dimension (e.g. a cube edge
+        -- driven below zero by a negative bonus) crashes the engine's shape fill
+        -- with an out-of-memory error, since the fill loop treats the negative
+        -- extent as effectively unbounded. For formula strings the floor is
+        -- applied as GoblinScript max(0, ...) so it also holds after the formula
+        -- resolves at runtime.
+        local function AddBonus(current, bonus, default)
+            if type(current) == "string" and tonumber(current) == nil then
+                return string.format("max(0, (%s) + %s)", current, tostring(bonus))
+            end
+            return math.max(0, tonum(current, default) + bonus)
+        end
+
         local ups = dmhub.unitsPerSquare
         local tt  = ability:try_get("targetType", "")
         if tt == "all" then
             -- Burst: radius is stored in ability.range.
             if burstBonus ~= 0 then
-                ability.range = (ability.range or ups) + burstBonus * ups
+                ability.range = AddBonus(ability.range, burstBonus * ups, ups)
             end
         elseif tt == "cube" then
             -- Cube: edge size in ability.radius, within distance in ability.range.
             if cubeBonus ~= 0 then
-                ability.radius = (ability.radius or ups) + cubeBonus * ups
+                ability.radius = AddBonus(ability.radius, cubeBonus * ups, ups)
             end
             if cubeWithinBonus ~= 0 then
-                ability.range = (ability.range or ups) + cubeWithinBonus * ups
+                ability.range = AddBonus(ability.range, cubeWithinBonus * ups, ups)
             end
         elseif tt == "line" then
             -- Line: length in ability.range, width in ability.radius,
             --       within in ability.lineDistance (squares, not world units).
             if lineLengthBonus ~= 0 then
-                ability.range = (ability.range or ups) + lineLengthBonus * ups
+                ability.range = AddBonus(ability.range, lineLengthBonus * ups, ups)
             end
             if lineWidthBonus ~= 0 then
-                ability.radius = (ability.radius or ups) + lineWidthBonus * ups
+                ability.radius = AddBonus(ability.radius, lineWidthBonus * ups, ups)
             end
             if lineWithinBonus ~= 0 then
-                ability.lineDistance = (ability.lineDistance or 1) + lineWithinBonus
+                ability.lineDistance = AddBonus(ability.lineDistance, lineWithinBonus, 1)
             end
         else
             -- Melee, ranged, self, etc.: standard range field.
             if rangeBonus ~= 0 then
-                ability.range = (ability.range or ups) + rangeBonus * ups
+                ability.range = AddBonus(ability.range, rangeBonus * ups, ups)
             end
         end
 

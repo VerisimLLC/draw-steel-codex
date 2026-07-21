@@ -3013,11 +3013,18 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
         -- string errors ("attempt to add a 'string' with a 'number'"), so formula
         -- values are extended as a GoblinScript addition instead, mirroring the
         -- string-vs-number handling in the "range" ability modifier above.
+        --
+        -- The result is floored at 0: a negative dimension (e.g. a cube edge
+        -- driven below zero by a negative bonus) crashes the engine's shape fill
+        -- with an out-of-memory error, since the fill loop treats the negative
+        -- extent as effectively unbounded. For formula strings the floor is
+        -- applied as GoblinScript max(0, ...) so it also holds after the formula
+        -- resolves at runtime.
         local function AddBonus(current, bonus, default)
             if type(current) == "string" and tonumber(current) == nil then
-                return string.format("(%s) + %s", current, tostring(bonus))
+                return string.format("max(0, (%s) + %s)", current, tostring(bonus))
             end
-            return tonum(current, default) + bonus
+            return math.max(0, tonum(current, default) + bonus)
         end
 
         local ups = dmhub.unitsPerSquare

@@ -98,8 +98,21 @@ CharacterModifier.RegisterAbilityModifier
 		else
 			local keywords = attr.keywords or {}
 			local abilityKeywords = ability:get_or_add("keywords", {})
+
+			--Once an ability has been split into its Melee/Ranged action bar
+			--variations, each variation must stay single-keyword: a Ranged
+			--variation gaining Melee back (or vice versa) would make the
+			--action bar's own melee/ranged split logic treat it as a fresh
+			--dual-keyword ability again.
+			local isMeleeVariation = ability:try_get("isMeleeVariation", false)
+			local isRangedVariation = ability:try_get("isRangedVariation", false)
+
 			for keyword, _ in pairs(keywords) do
-				abilityKeywords[keyword] = true
+				local blocked = (keyword == "Ranged" and isMeleeVariation)
+					or (keyword == "Melee" and isRangedVariation)
+				if not blocked then
+					abilityKeywords[keyword] = true
+				end
 			end
 			return true
 		end

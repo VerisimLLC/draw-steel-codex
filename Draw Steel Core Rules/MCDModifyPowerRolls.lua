@@ -2931,22 +2931,25 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
         local data = customisations[key]
         if data == nil then return ability end
 
-        local displayName     = data.displayName      or ""
-        local flavorText      = data.flavorText        or ""
-        local variations      = data.variations        or {}
-        local damageBonus     = data.damageBonus       or 0
-        local potencyBonus    = data.potencyBonus      or 0
-        local rangeBonus      = data.rangeBonus        or 0
-        local burstBonus      = data.burstBonus        or 0
-        local cubeBonus       = data.cubeBonus         or 0
-        local cubeWithinBonus = data.cubeWithinBonus   or 0
-        local lineLengthBonus = data.lineLengthBonus   or 0
-        local lineWidthBonus  = data.lineWidthBonus    or 0
-        local lineWithinBonus = data.lineWithinBonus   or 0
+        local displayName        = data.displayName      or ""
+        local flavorText         = data.flavorText        or ""
+        local variations         = data.variations        or {}
+        local damageBonus        = data.damageBonus       or 0
+        local potencyBonus       = data.potencyBonus      or 0
+        local damageTypeMappings = data.damageTypeMappings or {}
+        local rangeBonus         = data.rangeBonus        or 0
+        local burstBonus         = data.burstBonus        or 0
+        local cubeBonus          = data.cubeBonus         or 0
+        local cubeWithinBonus    = data.cubeWithinBonus   or 0
+        local lineLengthBonus    = data.lineLengthBonus   or 0
+        local lineWidthBonus     = data.lineWidthBonus    or 0
+        local lineWithinBonus    = data.lineWithinBonus   or 0
+
+        local hasDamageTypeMappings = next(damageTypeMappings) ~= nil
 
         local hasChange =
             displayName ~= "" or flavorText ~= "" or #variations > 0
-            or damageBonus ~= 0 or potencyBonus ~= 0
+            or damageBonus ~= 0 or potencyBonus ~= 0 or hasDamageTypeMappings
             or rangeBonus ~= 0 or burstBonus ~= 0
             or cubeBonus ~= 0 or cubeWithinBonus ~= 0
             or lineLengthBonus ~= 0 or lineWidthBonus ~= 0 or lineWithinBonus ~= 0
@@ -2974,8 +2977,9 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
             ability.behaviors[#ability.behaviors+1] = speechBehavior
         end
 
-        -- Damage / potency via ActivatedAbilityModifyPowerRollBehavior.
-        if damageBonus ~= 0 or potencyBonus ~= 0 then
+        -- Damage / potency / damage-type conversion via
+        -- ActivatedAbilityModifyPowerRollBehavior.
+        if damageBonus ~= 0 or potencyBonus ~= 0 or hasDamageTypeMappings then
             local behaviorGuid = dmhub.GenerateGuid()
             local powerMod = CharacterModifier.new{
                 guid        = dmhub.GenerateGuid(),
@@ -2993,6 +2997,9 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
             end
             if potencyBonus ~= 0 then
                 powerMod.potencymod = tostring(potencyBonus)
+            end
+            if hasDamageTypeMappings then
+                powerMod.damageTypeMappings = DeepCopy(damageTypeMappings)
             end
             ability.behaviors[#ability.behaviors+1] = ActivatedAbilityModifyPowerRollBehavior.new{
                 guid     = behaviorGuid,
@@ -3211,6 +3218,7 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         variations       = DeepCopy(srcData.variations       or {}),
         damageBonus      = srcData.damageBonus       or 0,
         potencyBonus     = srcData.potencyBonus      or 0,
+        damageTypeMappings = DeepCopy(srcData.damageTypeMappings or {}),
         rangeBonus       = srcData.rangeBonus        or 0,
         burstBonus       = srcData.burstBonus        or 0,
         cubeBonus        = srcData.cubeBonus         or 0,
@@ -3227,6 +3235,9 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
     local variationsContainer
     local variationsInner
     local RebuildVariations
+    local damageTypeContainer
+    local damageTypeInner
+    local RebuildDamageTypes
 
     local function CloseDialog()
         if dialog ~= nil and dialog.valid then
@@ -3240,6 +3251,7 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
             wd.displayName == "" and wd.flavorText == ""
             and #wd.variations == 0
             and wd.damageBonus == 0 and wd.potencyBonus == 0
+            and next(wd.damageTypeMappings) == nil
             and wd.rangeBonus == 0 and wd.burstBonus == 0
             and wd.cubeBonus == 0 and wd.cubeWithinBonus == 0
             and wd.lineLengthBonus == 0 and wd.lineWidthBonus == 0
@@ -3412,6 +3424,7 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         wd.variations       = {}
         wd.damageBonus      = 0
         wd.potencyBonus     = 0
+        wd.damageTypeMappings = {}
         wd.rangeBonus       = 0
         wd.burstBonus       = 0
         wd.cubeBonus        = 0
@@ -3428,8 +3441,9 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         if flavorTextInput ~= nil and flavorTextInput.valid then
             flavorTextInput.text = ""
         end
-        -- Rebuild the speech variations section.
+        -- Rebuild the speech variations and damage-type sections.
         RebuildVariations()
+        RebuildDamageTypes()
     end
 
     -- Damage & potency spinners.
@@ -3439,6 +3453,150 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         function() return wd.potencyBonus end, function(v) wd.potencyBonus = v end)
     spinnerSyncs[#spinnerSyncs+1] = dmgSpinner.sync
     spinnerSyncs[#spinnerSyncs+1] = potSpinner.sync
+
+    -- Damage-type conversion. Mirrors the presentation used by the
+    -- "Modify Power Rolls" modifier editor (see the damageTypeMappings editor
+    -- above): a running list of "<source> -> <dest>" rows with delete buttons,
+    -- plus a [source] -> [dest] add row. "All" as the source converts every
+    -- damage type. Mappings are stored on wd.damageTypeMappings as
+    -- { [sourceType] = destType }, the same shape the power modifier consumes.
+    local destTypeOptions = { { id = "none", text = "Choose..." } }
+    local sourceTypeOptions = { { id = "none", text = "Choose..." } }
+    for _, damageType in ipairs(rules.damageTypesAvailable) do
+        destTypeOptions[#destTypeOptions+1]   = { id = damageType, text = damageType }
+        sourceTypeOptions[#sourceTypeOptions+1] = { id = damageType, text = damageType }
+    end
+    -- "All" is only meaningful as a source (convert every type to one type).
+    sourceTypeOptions[#sourceTypeOptions+1] = { id = "all", text = "All" }
+
+    local function BuildDamageTypeChildren()
+        local children = {}
+
+        -- Existing mappings, one row per source->dest pair.
+        for source, dest in sorted_pairs(wd.damageTypeMappings) do
+            for _, destType in ipairs(CharacterModifier.DamageMappingDestinations(dest)) do
+                local capturedSource = source
+                local capturedDest   = destType
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    width   = "100%",
+                    gui.Label{
+                        classes = {"sizeM"},
+                        width   = "auto",
+                        height  = "auto",
+                        valign  = "center",
+                        text    = string.format("%s -> %s",
+                            capturedSource == "all" and "All" or capturedSource, capturedDest),
+                    },
+                    gui.Button{
+                        classes = {"deleteButton"},
+                        width   = 16,
+                        height  = 16,
+                        valign  = "center",
+                        press   = function()
+                            -- Drop just this destination; collapse the stored
+                            -- value back to a plain string or remove the source.
+                            local dests = {}
+                            for _, d in ipairs(CharacterModifier.DamageMappingDestinations(wd.damageTypeMappings[capturedSource])) do
+                                if d ~= capturedDest then dests[#dests+1] = d end
+                            end
+                            if #dests == 0 then
+                                wd.damageTypeMappings[capturedSource] = nil
+                            elseif #dests == 1 then
+                                wd.damageTypeMappings[capturedSource] = dests[1]
+                            else
+                                wd.damageTypeMappings[capturedSource] = dests
+                            end
+                            RebuildDamageTypes()
+                        end,
+                    },
+                }
+            end
+        end
+
+        -- Add row: [source] -> [dest]. Adding commits as soon as both are set.
+        local sourceDropdown
+        local destDropdown
+        local function TryAdd()
+            if sourceDropdown.idChosen == "none" or destDropdown.idChosen == "none" then
+                return
+            end
+            wd.damageTypeMappings[sourceDropdown.idChosen] = destDropdown.idChosen
+            RebuildDamageTypes()
+        end
+        sourceDropdown = gui.Dropdown{
+            styles   = ThemeEngine.GetStyles(),
+            -- Default the source to "All" so the common case (convert every
+            -- damage type) only needs a destination picked; TryAdd commits as
+            -- soon as the destination is chosen.
+            idChosen = "all",
+            fontSize = 12,
+            width    = 130,
+            height   = 22,
+            valign   = "center",
+            options  = sourceTypeOptions,
+            change   = function() TryAdd() end,
+        }
+        destDropdown = gui.Dropdown{
+            styles   = ThemeEngine.GetStyles(),
+            idChosen = "none",
+            fontSize = 12,
+            width    = 130,
+            height   = 22,
+            valign   = "center",
+            options  = destTypeOptions,
+            change   = function() TryAdd() end,
+        }
+        children[#children+1] = gui.Panel{
+            flow    = "horizontal",
+            width   = "100%",
+            height  = "auto",
+            vmargin = 2,
+            sourceDropdown,
+            gui.Label{
+                classes = {"bold"},
+                width   = "auto",
+                height  = "auto",
+                hmargin = 6,
+                valign  = "center",
+                text    = "->",
+            },
+            destDropdown,
+        }
+
+        return children
+    end
+
+    -- Build initial children BEFORE creating damageTypeInner so they are passed
+    -- via the constructor (integer keys) rather than the .children setter, for
+    -- the same child-ordering reason documented on the variations section above.
+    local initDmgTypeChildren = BuildDamageTypeChildren()
+    local damageTypeInnerProps = {
+        flow   = "vertical",
+        width  = "100%",
+        height = "auto",
+    }
+    for i, child in ipairs(initDmgTypeChildren) do
+        damageTypeInnerProps[i] = child
+    end
+    damageTypeInner = gui.Panel(damageTypeInnerProps)
+
+    RebuildDamageTypes = function()
+        damageTypeInner.children = BuildDamageTypeChildren()
+    end
+
+    damageTypeContainer = gui.Panel{
+        width  = "100%",
+        height = "auto",
+        flow   = "vertical",
+        gui.Label{
+            classes = {"bold"},
+            text    = "Damage Type",
+            width   = "100%",
+            vmargin = 4,
+        },
+        damageTypeInner,
+    }
 
     -- Assemble the dialog child list.
     local dChildren = {}
@@ -3517,6 +3675,11 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
     }
     dChildren[#dChildren+1] = dmgSpinner.panel
     dChildren[#dChildren+1] = potSpinner.panel
+
+    -- Damage-type conversions (only when the ability actually deals damage
+    -- would be ideal, but abilities can gain damage from other sources, so it
+    -- is always offered -- an unused mapping is harmless).
+    dChildren[#dChildren+1] = damageTypeContainer
 
     -- Range rows.
     for _, row in ipairs(rangeRows) do

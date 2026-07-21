@@ -66,8 +66,18 @@ function GameHud:CreateDocumentsPanel()
 
         styles = {
             {
-                width = self.dialog.width,
-                height = self.dialog.height,
+                --track the parent LIVE. Reading self.dialog.width here froze a
+                --NUMBER at creation time; the layer's coordinate space has a
+                --fixed height (1048) while its width follows the window
+                --aspect, so any resize/fullscreen/monitor change left the
+                --frozen width stale. With halign 'center' the leftover space
+                --split evenly and indented everything mounted in this layer
+                --(icon rails, panel windows, banners) away from the screen
+                --edges -- measured 1728 vs a live 1829.78, ~71px per side. A
+                --Lua reload recreated the panel at the current width and
+                --"fixed" it, which is what made the bug look intermittent.
+                width = "100%",
+                height = "100%",
                 valign = 'center',
                 halign = 'center',
                 bgcolor = 'clear',

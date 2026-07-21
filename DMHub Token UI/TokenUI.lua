@@ -916,7 +916,7 @@ TokenHud.RegisterPanel{
 							},
 						}
 
-						if not dmhub.DeepEqual(panel.data.val, bar) then
+						if panel.data and not dmhub.DeepEqual(panel.data.val, bar) then
 							panel:FireEventTree("update", bar)
 							panel.data.val = bar
 						end

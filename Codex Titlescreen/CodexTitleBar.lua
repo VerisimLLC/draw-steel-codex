@@ -4294,6 +4294,25 @@ local function CreateTopBar()
                     end
                 end
 
+                --In rail mode this menu manages rail SHORTCUTS: picking a
+                --panel adds or removes its rail button instead of opening
+                --the panel (Lisa, 2026-07-20). The check mark tracks rail
+                --membership, and the togglepanel keybinding is dropped from
+                --the row because it still opens the panel -- a different
+                --action from the one the row now performs.
+                if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+                    for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
+                        local panelName = p.text
+                        if panelName ~= nil and p.submenu == nil then
+                            p.bind = nil
+                            p.check = RailHasPanel(panelName)
+                            p.click = function()
+                                RailTogglePanel(panelName)
+                            end
+                        end
+                    end
+                end
+
                 table.insert(dockablePanels, 1, {
                     text = "Left Dock",
                     check = not dmhub.GetSettingValue("leftdockoffscreen"),
@@ -4334,6 +4353,85 @@ local function CreateTopBar()
                         dmhub.SetSettingValue("uilocked", not locked)
                     end,
                 })
+
+                --Workspace Views: the Panels menu is the ONLY switcher
+                --UI (Lisa+David review 2026-07-19 removed the rail chip),
+                --so it carries the full verb set: switch, save, save-as,
+                --reset, manage. Only in rail mode (A6).
+                if rawget(_G, "ViewsListForUser") ~= nil and dmhub.GetSettingValue("iconrail") == true and devmode() then
+                    local active = ViewsActiveId()
+                    local drift = ViewsIsDrifted()
+                    local viewItems = {}
+                    viewItems[#viewItems + 1] = {
+                        text = "View: Custom",
+                        check = active == nil,
+                        group = "views",
+                        click = function()
+                            ViewsSwitchTo(nil)
+                        end,
+                    }
+                    for _, v in ipairs(ViewsListForUser()) do
+                        local vid = v.id
+                        local text = "View: " .. v.name
+                        if vid == active and drift then
+                            text = text .. "  (unsaved changes)"
+                        end
+                        viewItems[#viewItems + 1] = {
+                            text = text,
+                            check = vid == active,
+                            group = "views",
+                            click = function()
+                                local skipped = ViewsSwitchTo(vid)
+                                if rawget(_G, "ViewsPostApplyNotices") ~= nil then
+                                    ViewsPostApplyNotices(vid, skipped)
+                                end
+                            end,
+                        }
+                    end
+                    if active ~= nil and drift then
+                        viewItems[#viewItems + 1] = {
+                            text = "Save view",
+                            group = "views",
+                            click = function()
+                                if ViewsSave() and rawget(_G, "ViewsToast") ~= nil then
+                                    ViewsToast("View updated", function()
+                                        ViewsUndoSave()
+                                    end)
+                                end
+                            end,
+                        }
+                    end
+                    viewItems[#viewItems + 1] = {
+                        text = "Save as new view...",
+                        group = "views",
+                        click = function()
+                            if rawget(_G, "ViewsSaveAsDialog") ~= nil then
+                                ViewsSaveAsDialog()
+                            end
+                        end,
+                    }
+                    if active ~= nil then
+                        viewItems[#viewItems + 1] = {
+                            text = "Reset view to saved",
+                            group = "views",
+                            click = function()
+                                ViewsResetToSaved()
+                            end,
+                        }
+                    end
+                    viewItems[#viewItems + 1] = {
+                        text = "Manage views...",
+                        group = "views",
+                        click = function()
+                            if rawget(_G, "ViewsManageDialog") ~= nil then
+                                ViewsManageDialog()
+                            end
+                        end,
+                    }
+                    for i = #viewItems, 1, -1 do
+                        table.insert(dockablePanels, 1, viewItems[i])
+                    end
+                end
 
                 return dockablePanels
             end,

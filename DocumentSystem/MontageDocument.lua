@@ -11,6 +11,7 @@ local g_numbers = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigh
 ---@field consequences MontageConsequence[]
 ---@field rewards MontageConsequence[]
 MontageDocument = RegisterGameType("MontageDocument", "CustomDocument")
+MontageDocument.docType = "montage"   --pins the semantic type (see DocumentSystem.lua)
 MontageDocument.scene = ""
 MontageDocument.summary = ""  -- shown as the "Description" box; the montage title
                               -- lives in self.description (the CustomDocument name)
@@ -1133,12 +1134,15 @@ GameHud.RegisterPresentableDialog {
     create = CreateMontageTestUI,
 }
 
---Prepped montage test used as reusable compendium content. It reuses all of
---MontageDocument's editor and display logic but is stored in its own
---"montageTests" data table so prepped montages live only in the compendium and
---do not appear in the journal's document picker.
+--Prepped montage test. It reuses all of MontageDocument's editor and display
+--logic and, like NegotiationDocument, now lives in the shared "documents"
+--table so a prepped montage IS a journal document: it sits in journal folders,
+--edits in the viewer, carries docType="montage" (its icon), and the live
+--runner resolves it (CreateMontageTestUI reads the documents table). Sites
+--that iterate the montage set must now filter on docType=="montage" because
+--the documents table holds every journal document.
 MontageTest = RegisterGameType("MontageTest", "MontageDocument")
-MontageTest.tableName = "montageTests"
+MontageTest.tableName = CustomDocument.tableName   --"documents" (was "montageTests")
 
 function MontageTest.CreateNew(args)
     local result = MontageTest.new{
@@ -1167,3 +1171,16 @@ function MontageTest.CreateNew(args)
     end
     return result
 end
+
+--Montage creation now lives in the journal's "New Document" palette (the
+--compendium montage tab was retired). Creates a MontageTest in the documents
+--table with docType="montage"; onNewDocument opens it for editing like any doc.
+CustomDocument.Register {
+    id = "montage",
+    text = "New Montage",
+    docType = "montage",
+    icon = CustomDocument.docTypeInfo["montage"].icon,
+    create = function()
+        return MontageTest.CreateNew{}
+    end,
+}

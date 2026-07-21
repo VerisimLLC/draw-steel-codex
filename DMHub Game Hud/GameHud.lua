@@ -2414,7 +2414,83 @@ function GameHud:InspectDice()
 	self:ShowModal(self.inspectdice)
 end
 
+--The map's right-click context menu is built by the client and handed to
+--Lua fully formed, so modules that need an entry on it register a
+--contributor here: each is called with the entry list and may append to
+--it. Keyed by id so re-registering (every Lua reload re-runs the
+--registering file) replaces rather than duplicates.
+g_gameContextMenuContributors = rawget(_G, "g_gameContextMenuContributors") or {}
+
+--- Add an entry-contributor to the map right-click menu.
+--- @param id string unique id for this contributor
+--- @param fn fun(entries: table) called with the entry list; append to it
+function RegisterGameContextMenuContributor(id, fn)
+	g_gameContextMenuContributors[id] = fn
+end
+
+--The token under the mouse cursor, or nil when the cursor is not over
+--one. Right-clicking a token does NOT select it, so this -- not the
+--selection -- is how a context-menu contributor identifies its subject.
+--
+--GetTokens{position} matches a token's ANCHOR loc against the radius, not
+--its rendered footprint. A tight radius therefore only matched clicks
+--landing within a tenth of a square of dead centre, which read as "the
+--menu entry only shows up on some tokens" -- and a large creature's anchor
+--can be several squares from the square actually clicked. So: cast wide,
+--then keep only tokens whose OCCUPIED squares contain the clicked square,
+--and take the nearest of those. Empty ground still yields nil, and stacked
+--tokens resolve to one rather than bailing out.
+function GameContextMenuTokenUnderCursor()
+	local pt = dmhub.GetMouseWorldPoint()
+	if pt == nil then
+		return nil
+	end
+	local tokens = dmhub.GetTokens{ position = { x = pt.x, y = pt.y, radius = 8 } }
+	if tokens == nil or #tokens == 0 then
+		return nil
+	end
+
+	local squarex = math.floor(pt.x + 0.5)
+	local squarey = math.floor(pt.y + 0.5)
+	local best = nil
+	local bestDist = nil
+
+	for _, token in ipairs(tokens) do
+		local occupying = nil
+		pcall(function() occupying = token.locsOccupying end)
+		if occupying ~= nil then
+			for _, loc in ipairs(occupying) do
+				if loc.x == squarex and loc.y == squarey then
+					local dx = token.loc.x - pt.x
+					local dy = token.loc.y - pt.y
+					local dist = dx * dx + dy * dy
+					if bestDist == nil or dist < bestDist then
+						best = token
+						bestDist = dist
+					end
+					break
+				end
+			end
+		end
+	end
+
+	return best
+end
+
 dmhub.ShowGameContextMenu = function(entries)
+	local ids = {}
+	for id, _ in pairs(g_gameContextMenuContributors) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken contributor must never cost the user their whole menu.
+		local ok, err = pcall(g_gameContextMenuContributors[id], entries)
+		if not ok then
+			print(string.format("CONTEXTMENU:: contributor '%s' failed: %s", id, tostring(err)))
+		end
+	end
+
 	gamehud.dialog.sheet.popupPositioning = "mouse"
 
 	gamehud.dialog.sheet.popup = gui.ContextMenu{

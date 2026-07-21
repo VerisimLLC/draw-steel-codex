@@ -1166,7 +1166,11 @@ local function CreateRunItemRow(item, isCurrent)
                 width = 16,
                 height = 16,
                 valign = "center",
-                bgimage = RUN_ITEM_ICONS[item.itemType] or RUN_ITEM_ICONS.document,
+                --prefer the referenced document's semantic-type icon (narration
+                --/montage/combat/...); fall back to the itemType map for items
+                --that reference a token, not a doc (negotiations).
+                bgimage = (doc ~= nil and CustomDocument.DocTypeIcon(doc))
+                    or RUN_ITEM_ICONS[item.itemType] or RUN_ITEM_ICONS.document,
                 bgcolor = "white", --image-tint-neutral
             },
 
@@ -1309,16 +1313,19 @@ local function CreateAddPopup(element)
 
     local foldersTable = assets.documentFoldersTable or {}
 
-    --docs bucketed by their folder ("" = journal root).
+    --docs bucketed by their folder ("" = journal root). References (npc,
+    --location) are not scene beats, so they are not offered as run steps.
     local docsByFolder = {}
     for id, docItem in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
-        local parent = docItem:try_get("parentFolder", "")
-        if parent == nil or parent == false or foldersTable[parent] == nil then
-            parent = ""
+        if CustomDocument.DocTypeIsBeat(docItem) then
+            local parent = docItem:try_get("parentFolder", "")
+            if parent == nil or parent == false or foldersTable[parent] == nil then
+                parent = ""
+            end
+            docsByFolder[parent] = docsByFolder[parent] or {}
+            local list = docsByFolder[parent]
+            list[#list + 1] = { id = id, name = docItem.description or "Untitled" }
         end
-        docsByFolder[parent] = docsByFolder[parent] or {}
-        local list = docsByFolder[parent]
-        list[#list + 1] = { id = id, name = docItem.description or "Untitled" }
     end
     for _, list in pairs(docsByFolder) do
         table.sort(list, function(a, b) return a.name < b.name end)
@@ -1431,38 +1438,9 @@ local function CreateAddPopup(element)
     end
     AddDocRows(rows, "", 0)
 
-    ------------------------------------------------------------------
-    -- montage tests. (The prepped MontageTest type does not exist in
-    -- every build; rawget because reading an unset global errors.)
-    ------------------------------------------------------------------
-    local montageTestType = rawget(_G, "MontageTest")
-    if montageTestType ~= nil then
-        rows[#rows + 1] = SectionLabel("MONTAGE TESTS")
-        local montages = {}
-        for id, test in unhidden_pairs(dmhub.GetTable(montageTestType.tableName) or {}) do
-            montages[#montages + 1] = { id = id, name = test.description or "Untitled" }
-        end
-        table.sort(montages, function(a, b) return a.name < b.name end)
-        for _, test in ipairs(montages) do
-            rows[#rows + 1] = PickRow(test.name, 0, function()
-                AddRunItem {
-                    id = dmhub.GenerateGuid(),
-                    itemType = "montagetest",
-                    tableName = montageTestType.tableName,
-                    docid = test.id,
-                    name = test.name,
-                    done = false,
-                }
-            end)
-        end
-        if #montages == 0 then
-            rows[#rows + 1] = gui.Label {
-                classes = { "fgMuted" },
-                width = "100%", height = "auto", fontSize = 12, borderBox = true, hpad = 8,
-                text = "(no montage tests)",
-            }
-        end
-    end
+    --Montages are journal documents now (docType="montage"), so they appear in
+    --the DOCUMENTS section above grouped by folder like any other beat -- no
+    --separate montage-tests section (that would double-list them).
 
     ------------------------------------------------------------------
     -- negotiation with the currently selected token.
@@ -3179,20 +3157,34 @@ local FLOW_LEVEL_H = 68
 local FLOW_COL_W = 162
 local FLOW_MARGIN = 8
 
---the scene type letter, parsed from the page's italic subtitle line
---("*combat - Chapter 1: ...*" and friends).
+--Legacy italic-subtitle words -> semantic type id. Only used to specialise
+--plain docs that still default to narration (pre-migration); the folded
+--positional words (interlude/intro/outcome) all resolve to narration.
+local FLOW_SUBTITLE_TYPE = {
+    combat = "combat", montage = "montage", negotiation = "negotiation",
+    exploration = "exploration", location = "location", npc = "npc",
+    interlude = "narration", intro = "narration", outcome = "narration",
+    roleplay = "narration", narration = "narration",
+}
+
+--The scene's type ICON + a tooltip line. Prefers the doc's semantic type
+--(functional pins + explicit docType). For a plain doc still defaulting to
+--narration it falls back to the legacy italic-subtitle word, so pre-migration
+--flows keep their combat/montage typing. The italic subtitle, when present,
+--is the richer tooltip text.
 local function FlowSceneType(doc)
     local content = doc:GetTextContent()
     local italic = string.match(content, "\n%*([^%*\n]+)%*")
-    if italic == nil then
-        return "?", ""
+
+    local id = CustomDocument.DocTypeId(doc)
+    if id == "narration" then
+        local word = string.lower(string.match(italic or "", "^(%a+)") or "")
+        id = FLOW_SUBTITLE_TYPE[word] or "narration"
     end
-    local word = string.lower(string.match(italic, "^(%a+)") or "")
-    local letters = {
-        combat = "C", montage = "M", negotiation = "N", interlude = "I",
-        choice = "?", transition = ">", skill = "S",
-    }
-    return letters[word] or "-", italic
+
+    local info = CustomDocument.docTypeInfo[id]
+    local tooltip = (italic ~= nil and italic ~= "") and italic or info.text
+    return info.icon, tooltip
 end
 
 --Collect the chapter's nodes and edges and assign each node a level
@@ -3201,7 +3193,9 @@ local function BuildFlowGraph(folderid)
     local nodes = {}
     local byId = {}
     for id, doc in unhidden_pairs(dmhub.GetTable(CustomDocument.tableName) or {}) do
-        if doc:try_get("parentFolder") == folderid then
+        --references (npc, location) get an icon in the tree but are not scene
+        --beats, so they never become Flow nodes -- only beat types graph.
+        if doc:try_get("parentFolder") == folderid and CustomDocument.DocTypeIsBeat(doc) then
             local node = { id = id, doc = doc, name = doc.description or "Untitled", edges = {}, incoming = 0 }
             nodes[#nodes + 1] = node
             byId[id] = node
@@ -3389,7 +3383,7 @@ local function CreateFlowPanel()
 
         for _, node in ipairs(nodes) do
             local x, y = NodePos(node)
-            local letter, sceneType = FlowSceneType(node.doc)
+            local typeIcon, sceneType = FlowSceneType(node.doc)
 
             local happened = doneDocids[node.id] == true
                 or (node.exitId ~= nil and exitsTaken[node.exitId] == true)
@@ -3429,14 +3423,12 @@ local function CreateFlowPanel()
                     gui.Tooltip(string.format("%s\n%s", node.name, sceneType))(element)
                 end,
 
-                gui.Label {
-                    classes = { "fgMuted", "bold" },
+                gui.Panel {
                     width = 16,
-                    height = "auto",
-                    fontSize = 13,
+                    height = 16,
                     valign = "center",
-                    textAlignment = "center",
-                    text = letter,
+                    bgimage = typeIcon,
+                    bgcolor = "white", --full-colour app icon; theme tint hides it
                 },
                 gui.Label {
                     classes = labelClasses,

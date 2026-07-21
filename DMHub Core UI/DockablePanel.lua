@@ -806,6 +806,38 @@ function GameHud:CreateDocks()
 	return resultPanel
 end
 
+--Deliberately closing a panel from a dock (its right-click > Close) is a
+--statement about the workspace, not just this dock: other surfaces that
+--present the same panels -- the icon rail -- need to drop it too, or
+--they will put it straight back the next time the dock is filled.
+--Handlers are keyed by id so a Lua reload replaces rather than
+--duplicates them, and receive the panel's registered name.
+g_dockablePanelClosedHandlers = rawget(_G, "g_dockablePanelClosedHandlers") or {}
+
+--- @param id string unique id for this handler
+--- @param fn fun(panelName: string)
+function RegisterDockablePanelClosedHandler(id, fn)
+	g_dockablePanelClosedHandlers[id] = fn
+end
+
+local function NotifyDockablePanelClosed(name)
+	if name == nil then
+		return
+	end
+	local ids = {}
+	for id, _ in pairs(g_dockablePanelClosedHandlers) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken handler must not stop the panel from closing.
+		local ok, err = pcall(g_dockablePanelClosedHandlers[id], name)
+		if not ok then
+			print(string.format("DOCKPANEL:: closed handler '%s' failed: %s", id, tostring(err)))
+		end
+	end
+end
+
 local CreateDockablePanelTabbedContainer
 CreateDockablePanelTabbedContainer = function(options)
 
@@ -966,6 +998,11 @@ CreateDockablePanelTabbedContainer = function(options)
 							text = "Close",
 							click = function()
 								element.popup = nil
+								--this closes the whole container, so every
+								--panel it hosts is being removed.
+								for _,p in ipairs(panelInstances) do
+									NotifyDockablePanelClosed(p.data.name)
+								end
 								resultPanel:DestroySelf()
 								dock:FireEvent("fitChildren")
 								dock:FireEvent("layoutChanged")
@@ -1404,6 +1441,11 @@ CreateDockablePanelTabbedContainer = function(options)
 						text = "Close",
 						click = function()
 							element.popup = nil
+							--only the explicit Close notifies: the same
+							--"close" event is fired programmatically by
+							--closeByIdentifier (/togglepanel), which is a
+							--visibility toggle, not a removal.
+							NotifyDockablePanelClosed(p.data.name)
 							element:FireEvent("close")
 						end,
 					}
@@ -1984,6 +2026,108 @@ DockablePanel = {
 				return
 			end
 		end
+	end,
+
+	--Look up a panel registration by its registered name (case-insensitive).
+	--Returns the registration args table (name, icon, content, vscroll,
+	--minHeight, maxHeight, dmonly, devonly, ...) or nil. Used by the document
+	--system's PanelDocument bridge to host dockable panel content inside
+	--document windows.
+	GetRegistration = function(name)
+		name = string.lower(name)
+		for _,v in pairs(dockablePanels) do
+			if string.lower(v.name) == name then
+				return v
+			end
+		end
+		return nil
+	end,
+
+	--The ordered list of panel names currently docked in one side's dock
+	--("left"/"right"). The read-side mirror of SetDockPanels; used by the
+	--Views feature to capture the working layout.
+	GetDockPanels = function(side)
+		local result = {}
+		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+			return result
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return result
+		end
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				result[#result+1] = instance.data.name
+			end
+		end
+		return result
+	end,
+
+	--Replace the panels docked in one side's dock ("left"/"right") with the
+	--named panels, in that order (one container per panel). No-op when the
+	--dock already shows exactly these panels, so it is cheap to call from a
+	--sync loop. Existing instances of kept panels are reused (preserving
+	--their state), instances of dropped panels are destroyed -- the same
+	--mechanics as Deserialize. Used by the icon rail so a dock opened from
+	--the rail carries that rail side's panels.
+	SetDockPanels = function(side, names)
+		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+			return
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return
+		end
+
+		local existing = {}
+		local currentOrder = {}
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				existing[instance.data.identifier] = instance
+				currentOrder[#currentOrder+1] = string.lower(instance.data.name)
+			end
+		end
+
+		local matches = #currentOrder == #names
+		if matches then
+			for i,name in ipairs(names) do
+				if currentOrder[i] ~= string.lower(name) then
+					matches = false
+					break
+				end
+			end
+		end
+		if matches then
+			return
+		end
+
+		dock:FireEvent("clearPanels")
+
+		for _,name in ipairs(names) do
+			for k,p in pairs(dockablePanels) do
+				if string.lower(p.name) == string.lower(name) then
+					local instance = existing[p.identifier]
+					existing[p.identifier] = nil
+					if instance == nil or not instance.valid then
+						instance = CreateDockablePanelInstance(p)
+					end
+					local newPanel = CreateDockablePanelTabbedContainer{
+						panelInstances = {instance},
+					}
+					dock:FireEvent("addPanel", newPanel)
+				end
+			end
+		end
+
+		for _,instance in pairs(existing) do
+			if instance.valid then
+				instance:DestroySelf()
+			end
+		end
+
+		dock:FireEvent("fitChildren")
+		dock:FireEventTree("layoutChanged")
+		DockablePanel.Serialize()
 	end,
 
 	GetMenuItems = function(flat)

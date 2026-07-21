@@ -1356,6 +1356,531 @@ local function CreateCreatorOrganizationsSection()
 		children[#children+1] = joinStatusLabel
 	end
 
+	--Premium Modules: creators generate one-use keys for premium modules they
+	--have published. Keys are backed by the store gift-code system: the first
+	--generation creates a hidden ("Not on store") store entry for the module,
+	--and each key redeems once to grant the module. The heavy lifting happens
+	--in the moduleKeysGenerate/moduleKeysList cloud functions, which verify we
+	--control the module before writing the admin-only coupon paths.
+	local PREMIUM_MODULE_MAX_KEYS = 500
+	local PREMIUM_MODULE_KEY_BATCH = 50
+
+	local function SaveKeysFile(fullid, ordinal, codes)
+		local text = table.concat(codes, "\r\n") .. "\r\n"
+		dmhub.SaveFileDialog{
+			data = text,
+			filename = string.format("%s-keys-%d.txt", fullid, ordinal),
+			extensions = {"txt"},
+		}
+	end
+
+	local function ModuleKeysCard(entry)
+		local fullid = entry.fullid
+
+		--the latest moduleKeysList-shaped state for this module.
+		local m_keys = nil
+
+		local card = nil
+		local generateButton = nil
+
+		local statusLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 14,
+			vmargin = 2,
+			text = "Loading key information...",
+		}
+
+		local allocationsPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+		}
+
+		local limitLabel = gui.Label{
+			classes = {"collapsed"},
+			width = "100%",
+			height = "auto",
+			fontSize = 14,
+			vmargin = 2,
+			text = string.format("This module has the maximum of %d keys. Contact admin@dmhub.info if you need more keys.", PREMIUM_MODULE_MAX_KEYS),
+		}
+
+		--Store Listing editor: the image and description shown for this module
+		--in the store. Only revealed once keys have been generated (the first
+		--batch is what creates the store entry). The image uploads through the
+		--same global content-addressed image system module cover art uses;
+		--the moduleKeysUpdateItem cloud function stamps the resulting id (and
+		--the description) onto the admin-only store entry for us.
+		local listingStatusLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			vmargin = 2,
+			text = "",
+		}
+
+		local listingThumb = nil
+		local ChooseListingImage = nil
+
+		local function SetListingImage(imageid)
+			if imageid ~= nil and imageid ~= "" then
+				listingThumb.bgimage = imageid
+				listingThumb.selfStyle.bgcolor = "white"
+				listingThumb:FireEventTree("hasimage", true)
+			else
+				listingThumb.bgimage = "panels/square.png"
+				listingThumb.selfStyle.bgcolor = "#111111ff"
+				listingThumb:FireEventTree("hasimage", false)
+			end
+		end
+
+		local function SaveListing(fields)
+			listingStatusLabel.text = "Saving..."
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/moduleKeysUpdateItem",
+				data = {
+					moduleid = fullid,
+					details = fields.details,
+					image = fields.image,
+				},
+				success = function(data)
+					if card == nil or (not card.valid) then
+						return
+					end
+					if type(data) == "table" and data.ok then
+						listingStatusLabel.text = "Saved."
+					else
+						local err = "Could not save. Please try again."
+						if type(data) == "table" and data.error ~= nil then
+							err = data.error
+						end
+						listingStatusLabel.text = err
+					end
+				end,
+				error = function(msg)
+					if card == nil or (not card.valid) then
+						return
+					end
+					listingStatusLabel.text = "Could not contact the server. Please try again."
+				end,
+			}
+		end
+
+		ChooseListingImage = function()
+			dmhub.OpenFileDialog{
+				id = "PremiumModuleShopImage",
+				extensions = {"jpeg", "jpg", "png", "webm", "webp", "mp4"},
+				prompt = "Choose the image shown for this module in the store",
+				multiFiles = false,
+				open = function(path)
+					local art = assets:LoadImageOrVideoFileLocally(path)
+					if art == nil then
+						listingStatusLabel.text = "The file you chose could not be loaded."
+						return
+					end
+					if art.error ~= nil then
+						--over the user's bandwidth allowance; art.error says so.
+						listingStatusLabel.text = art.error
+						return
+					end
+
+					--preview instantly from the local cache, upload the bytes
+					--to the global image store, and stamp the id on the entry.
+					SetListingImage(art.image)
+					art:Upload()
+					SaveListing{ image = art.image }
+				end,
+			}
+		end
+
+		listingThumb = gui.Panel{
+			width = 200,
+			height = 120,
+			halign = "left",
+			valign = "top",
+			borderWidth = 1,
+			borderColor = "#666666ff",
+			bgimage = "panels/square.png",
+			bgcolor = "#111111ff",
+			click = function(element)
+				ChooseListingImage()
+			end,
+
+			gui.Label{
+				interactable = false,
+				width = "100%",
+				height = "auto",
+				halign = "center",
+				valign = "center",
+				fontSize = 12,
+				textAlignment = "center",
+				color = "#999999ff",
+				text = "No image.\nClick to upload.",
+				hasimage = function(element, val)
+					element:SetClass("hidden", val)
+				end,
+			},
+		}
+
+		local descriptionInput = gui.Input{
+			width = "100%",
+			height = "auto",
+			minHeight = 60,
+			multiline = true,
+			fontSize = 14,
+			vmargin = 4,
+			characterLimit = 1024,
+			placeholderText = "Describe this module in the store...",
+			change = function(element)
+				SaveListing{ details = element.text }
+			end,
+		}
+
+		local listingPanel = gui.Panel{
+			classes = {"collapsed"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 2,
+				text = "Store Listing:",
+			},
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 13,
+				color = "#aaaaaaff",
+				text = "The image and description shown for this module in the store.",
+			},
+
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 4,
+
+				listingThumb,
+
+				gui.Panel{
+					flow = "vertical",
+					width = "100%-212",
+					height = "auto",
+					lmargin = 12,
+					valign = "top",
+
+					gui.Button{
+						width = 150,
+						height = 26,
+						fontSize = 14,
+						halign = "left",
+						text = "Upload Image...",
+						click = function(element)
+							ChooseListingImage()
+						end,
+					},
+
+					descriptionInput,
+				},
+			},
+
+			listingStatusLabel,
+		}
+
+		local function RebuildAllocations()
+			local rows = {}
+			local allocs = (m_keys ~= nil and m_keys.allocations) or {}
+			for i,alloc in ipairs(allocs) do
+				local codes = alloc.codes or {}
+				local ordinal = i
+				rows[#rows+1] = gui.Panel{
+					flow = "horizontal",
+					width = "100%",
+					height = "auto",
+					vmargin = 1,
+					gui.Label{
+						width = "60%",
+						height = "auto",
+						fontSize = 14,
+						valign = "center",
+						text = string.format("Batch %d: %d keys, created %s", ordinal, #codes, dmhub.FormatTimestamp(alloc.ctime or 0, "yyyy-MM-dd HH:mm")),
+					},
+					gui.Button{
+						width = 110,
+						height = 26,
+						fontSize = 14,
+						valign = "center",
+						text = "Download",
+						click = function(element)
+							SaveKeysFile(fullid, ordinal, codes)
+						end,
+					},
+				}
+			end
+
+			if #rows == 0 then
+				rows[1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 14,
+					italics = true,
+					text = "No keys generated yet.",
+				}
+			end
+
+			allocationsPanel.children = rows
+		end
+
+		local function ApplyKeys(data)
+			m_keys = data
+			local total = data.totalKeys or 0
+			statusLabel.text = string.format("Keys generated: %d / %d", total, PREMIUM_MODULE_MAX_KEYS)
+
+			local capped = total + PREMIUM_MODULE_KEY_BATCH > PREMIUM_MODULE_MAX_KEYS
+			generateButton:SetClass("collapsed", capped)
+			limitLabel:SetClass("collapsed", not capped)
+
+			--the store listing becomes editable once keys exist (generating
+			--the first batch is what creates the store entry).
+			local hasKeys = total > 0 and data.itemid ~= nil and data.itemid ~= ""
+			listingPanel:SetClass("collapsed", not hasKeys)
+			if hasKeys and data.item ~= nil then
+				SetListingImage(data.item.image)
+				local details = data.item.details or ""
+				if descriptionInput.text ~= details then
+					descriptionInput.text = details
+				end
+			end
+
+			RebuildAllocations()
+		end
+
+		local function RefreshKeys()
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/moduleKeysList",
+				data = {
+					moduleid = fullid,
+				},
+				success = function(data)
+					if card == nil or (not card.valid) then
+						return
+					end
+					if type(data) == "table" and data.ok then
+						ApplyKeys(data)
+					else
+						local err = "Could not load key information."
+						if type(data) == "table" and data.error ~= nil then
+							err = data.error
+						end
+						statusLabel.text = err
+					end
+				end,
+				error = function(msg)
+					if card == nil or (not card.valid) then
+						return
+					end
+					statusLabel.text = "Could not contact the server to load key information."
+				end,
+			}
+		end
+
+		generateButton = gui.Button{
+			width = 190,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			valign = "center",
+			vmargin = 4,
+			text = string.format("Generate %d Keys", PREMIUM_MODULE_KEY_BATCH),
+			data = {
+				pending = false,
+			},
+			click = function(element)
+				if element.data.pending then
+					return
+				end
+				element.data.pending = true
+				element.text = "Generating..."
+
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/moduleKeysGenerate",
+					data = {
+						moduleid = fullid,
+					},
+					success = function(data)
+						if not element.valid then
+							return
+						end
+						element.data.pending = false
+						element.text = string.format("Generate %d Keys", PREMIUM_MODULE_KEY_BATCH)
+
+						if type(data) == "table" and data.ok then
+							--offer the fresh batch as a text file right away,
+							--then re-sync the counts and batch list.
+							local ordinal = 1
+							if m_keys ~= nil and m_keys.allocations ~= nil then
+								ordinal = #m_keys.allocations + 1
+							end
+							SaveKeysFile(fullid, ordinal, data.codes or {})
+							RefreshKeys()
+						else
+							local err = "Could not generate keys. Please try again."
+							if type(data) == "table" and data.error ~= nil then
+								err = data.error
+							end
+							ShowMessage{
+								title = "Generate Keys",
+								message = err,
+							}
+							RefreshKeys()
+						end
+					end,
+					error = function(msg)
+						if not element.valid then
+							return
+						end
+						element.data.pending = false
+						element.text = string.format("Generate %d Keys", PREMIUM_MODULE_KEY_BATCH)
+						ErrorModal("Generate Keys", "Could not contact the server. Please try again.")
+					end,
+				}
+			end,
+		}
+
+		card = gui.Panel{
+			flow = "vertical",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 6,
+			pad = 12,
+			borderBox = true,
+			bgimage = "panels/square.png",
+			bgcolor = "#00000066",
+
+			create = function(element)
+				RebuildAllocations()
+				RefreshKeys()
+			end,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 20,
+				bold = true,
+				vmargin = 2,
+				text = entry.name or fullid,
+			},
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				color = "#aaaaaaff",
+				text = fullid,
+			},
+
+			statusLabel,
+
+			listingPanel,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 2,
+				text = "Key Batches:",
+			},
+
+			allocationsPanel,
+
+			generateButton,
+			limitLabel,
+		}
+
+		return card
+	end
+
+	local function CreatePremiumModulesSection()
+		local cardsPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+		}
+
+		local sectionPanel = nil
+		sectionPanel = gui.Panel{
+			classes = {"collapsed"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+
+			create = function(element)
+				--older engine builds may lack the published-modules API.
+				local ok, published = pcall(function()
+					return module.GetOurPublishedModules()
+				end)
+				if (not ok) or published == nil or #published == 0 then
+					return
+				end
+
+				--download each published module's info and keep the premium
+				--ones; reveal the section only once all downloads settle so
+				--the card list is built (and sorted) exactly once.
+				local outstanding = #published
+				local premium = {}
+				local function complete()
+					outstanding = outstanding - 1
+					if outstanding ~= 0 or sectionPanel == nil or (not sectionPanel.valid) then
+						return
+					end
+					if #premium == 0 then
+						return
+					end
+
+					table.sort(premium, function(a,b) return (a.name or "") < (b.name or "") end)
+					local cards = {}
+					for _,entry in ipairs(premium) do
+						cards[#cards+1] = ModuleKeysCard(entry)
+					end
+					cardsPanel.children = cards
+					sectionPanel:SetClass("collapsed", false)
+				end
+
+				for _,fullid in ipairs(published) do
+					module.DownloadModuleInfo{
+						moduleid = fullid,
+						success = function(info)
+							if info ~= nil and info.premium and (not info.deleted) then
+								premium[#premium+1] = {
+									fullid = info.fullid,
+									name = info.name,
+								}
+							end
+							complete()
+						end,
+						failure = function(msg)
+							complete()
+						end,
+					}
+				end
+			end,
+
+			SubHeading("Premium Modules"),
+			BodyText(string.format("Generate keys for premium modules you have published. Each key can be redeemed once to unlock the module. Keys are generated %d at a time and saved to a text file; you can re-download past batches here.", PREMIUM_MODULE_KEY_BATCH)),
+			cardsPanel,
+		}
+
+		return sectionPanel
+	end
+
 	BuildContent = function()
 		local orgs = module.GetOurOrganizations()
 
@@ -1400,6 +1925,8 @@ local function CreateCreatorOrganizationsSection()
 		BodyText("Organizations let a group of creators publish modules under a shared id. Modules published as an organization can be updated by any of its members, and show the organization as their author."),
 
 		contentPanel,
+
+		CreatePremiumModulesSection(),
 	}
 end
 

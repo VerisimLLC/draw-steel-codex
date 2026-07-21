@@ -1466,6 +1466,218 @@ do
 	g_materialFields.PrismaticDiceMaterial = fields
 end
 
+-- ParticleGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
+-- and swirling emissive particles suspended inside the die ("petals in glass" -- see
+-- PBRTexturedParticleGlass.shader). The particle art is the built-in procedural petal, or any
+-- sprite assigned to the Particle Image slot (alpha = coverage, RGB tinted by the color).
+-- Built from the PBRTextured list above so the shared rows never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Glass rim: fresnel edge glow, the main "made of glass" cue.
+	fields[#fields + 1] = {
+		name = "_GlassRimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1.2,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Falloff",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+	-- Additive colored-glass body light: unlike Tint (multiplicative, can only darken), this
+	-- lights the whole shell in its color -- saturated rose quartz / amber / aqua glass.
+	fields[#fields + 1] = {
+		name = "_GlassGlowColor",
+		type = "Color",
+		description = "Glass Glow Color",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassGlowStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0,
+		description = "Glass Glow Strength",
+	}
+
+	-- The particles inside the glass.
+	fields[#fields + 1] = {
+		name = "_ParticleEnable",
+		type = "Bool",
+		default = 1,
+		description = "Particles Enabled",
+	}
+	-- Optional sprite; empty = the built-in petal. Setting/clearing it writes the
+	-- _UseParticleTexture flag.
+	fields[#fields + 1] = {
+		name = "_ParticleTexture",
+		type = "Texture",
+		library = "Textures",
+		flag = "_UseParticleTexture",
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Image",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.5,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleColor",
+		type = "Color",
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Color",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleHueVariation",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.15,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Hue Variation",
+	}
+	-- Lower = fewer, larger particles.
+	fields[#fields + 1] = {
+		name = "_ParticleDensity",
+		type = "Range",
+		min = 8,
+		max = 128,
+		default = 28,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Density",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleFill",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.6,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Fill",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleSize",
+		type = "Range",
+		min = 0.05,
+		max = 0.9,
+		default = 0.32,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Size",
+	}
+	-- Width/length of the procedural petal (ignored when a sprite is assigned).
+	fields[#fields + 1] = {
+		name = "_ParticleAspect",
+		type = "Range",
+		min = 0.2,
+		max = 1,
+		default = 0.55,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Petal Aspect",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleSpin",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.8,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Spin",
+	}
+	-- Fake 3D tumble: periodically squashes each particle toward an edge-on sliver.
+	fields[#fields + 1] = {
+		name = "_ParticleFlutter",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Flutter",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.25,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Depth",
+	}
+	fields[#fields + 1] = {
+		name = "_DepthLayers",
+		type = "Bool",
+		default = 1,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Second Depth Layer",
+	}
+
+	-- Motion of the whole cloud.
+	fields[#fields + 1] = {
+		name = "_SwirlSpeed",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.3,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Swirl Speed",
+	}
+	-- Inner particles lead the outer, shearing the cloud like liquid.
+	fields[#fields + 1] = {
+		name = "_SwirlTwist",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.8,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Swirl Twist",
+	}
+	fields[#fields + 1] = {
+		name = "_DriftSpeed",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.15,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Drift Speed",
+	}
+
+	g_materialFields.ParticleGlassDiceMaterial = fields
+end
+
 -- FacetedGemDiceMaterial: flat low-poly gem shading (see PBRTexturedFacetedGem.shader). Each
 -- flat facet renders as ONE shade from a Dark/Mid/Light color ramp; sliders control the
 -- spread, per-facet scatter, light direction, and edge darkening. Deliberately a LEAN,

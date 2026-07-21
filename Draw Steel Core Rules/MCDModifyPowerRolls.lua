@@ -3736,13 +3736,17 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         },
     }
 
-    -- Construct the dialog panel from the assembled children list.
-    local dialogProps = {
+    -- Construct the framed panel from the assembled children list.
+    --
+    -- Centering (halign/valign) and floating live on an OUTER wrapper, NOT on
+    -- this framed panel. Setting halign on a panel scrambles the order of that
+    -- panel's own children in the engine's layout (an ordering side-effect that
+    -- pushed sections like the range spinners or Character Speech below the
+    -- action buttons). Keeping halign off the framed panel preserves the child
+    -- order; the wrapper positions the dialog on screen instead.
+    local framedProps = {
         styles    = ThemeEngine.GetStyles(),
         classes   = {"framedPanel"},
-        floating  = true,
-        halign    = "center",
-        valign    = "center",
         width     = 540,
         height    = "auto",
         flow      = "vertical",
@@ -3750,9 +3754,18 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         borderBox = true,
     }
     for i, child in ipairs(dChildren) do
-        dialogProps[i] = child
+        framedProps[i] = child
     end
-    dialog = gui.Panel(dialogProps)
+    local framedPanel = gui.Panel(framedProps)
+
+    dialog = gui.Panel{
+        floating = true,
+        halign   = "center",
+        valign   = "center",
+        width    = "auto",
+        height   = "auto",
+        framedPanel,
+    }
 
     return dialog
 end

@@ -1463,6 +1463,47 @@ do
 		description = "Halo Ring Width",
 	}
 
+	-- Albedo clarity: let the base texture read through the prismatic overlays. Raise Albedo
+	-- Strength to push the textured surface up; lower Prismatic Effect Strength to fade the
+	-- additive rays/halo/rim/interior so the albedo dominates. Both default to 1 (no change).
+	fields[#fields + 1] = {
+		name = "_AlbedoStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1,
+		description = "Albedo Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_EffectStrength",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 1,
+		description = "Prismatic Effect Strength",
+	}
+	-- One knob for overall shell brightness (folds Brightness + Ambient). Lower it to bring an
+	-- over-bright die back down so the albedo detail reads instead of clipping to white.
+	fields[#fields + 1] = {
+		name = "_SurfaceExposure",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 1,
+		description = "Surface Exposure",
+	}
+	-- Lifts only the faces angled away from the light (which otherwise read near-black) without
+	-- brightening the already-lit faces. The fix for dark faces when you do NOT want to raise
+	-- overall brightness.
+	fields[#fields + 1] = {
+		name = "_ShadowLift",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0,
+		description = "Shadow Lift",
+	}
+
 	g_materialFields.PrismaticDiceMaterial = fields
 end
 

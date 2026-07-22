@@ -5007,6 +5007,34 @@ local function IconRailStyles()
             selectors = {"iconRailTrayIcon", "parent:active"},
             bgcolor = "@fgStrong",
         },
+        --The RAIL's tray glyph: a phosphor sidebar icon reading as a panel
+        --sliding out from the screen edge. Kept separate from
+        --iconRailTrayIcon above, which the dock-mounted tray button still
+        --uses with the coloured dock-handle art. Phosphor art is already a
+        --monochrome white mask, so it takes the @fg tint but NOT the
+        --saturation/brightness treatment that exists to tame the handle art
+        --(brightness 2 on a white mask just clips it). Facing is the
+        --OPPOSITE of the handle's: native on the left, where the glyph's bar
+        --already sits on its left edge and matches the left dock, and
+        --mirrored on the right so the bar sits on that side instead.
+        {
+            selectors = {"iconRailTrayGlyph"},
+            bgcolor = "@fg",
+            scale = {x = 1},
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailTrayGlyph", "rightSide"},
+            scale = {x = -1},
+        },
+        {
+            selectors = {"iconRailTrayGlyph", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"iconRailTrayGlyph", "parent:active"},
+            bgcolor = "@fgStrong",
+        },
         {
             selectors = {"iconRailHairline"},
             bgcolor = "#ffffff26",
@@ -5223,37 +5251,47 @@ ShowRailGhost = function(side, slot, excludeKey)
     g_railDragGhost:SetClass("hidden", false)
 end
 
---A tray-style button mounted ON a visible dock (bottom, poking out past
---the dock's inner edge where the old slide handle lived): clicking it
---slides that dock away, which brings the rail's buttons back. Built by
---EnsureDockTrayButtons while the rail mode is on.
+--A tray-style button mounted in the TITLE BAR of the dock's topmost panel:
+--clicking it slides that dock away, which brings the rail's buttons back.
+--Built by EnsureDockTrayButtons while the rail mode is on. (It used to hang
+--off the dock's bottom inner edge where the old slide handle lived.)
 local function CreateDockTrayButton(side)
     local dockSettingId = side .. "dockoffscreen"
 
-    local iconClasses = {"iconRailTrayIcon"}
+    local iconClasses = {"iconRailTrayGlyph"}
     if side == "right" then
         iconClasses[#iconClasses + 1] = "rightSide"
     end
 
     return gui.Panel{
-        classes = {"iconRailDockButton", "iconRailButton"},
+        classes = {"iconRailDockButton"},
         styles = IconRailStyles(),
         bgimage = true,
-        blurBackground = true,
         floating = true,
-        width = ICON_RAIL_BUTTON,
-        height = ICON_RAIL_BUTTON,
+        width = 20,
+        height = 20,
         flow = "none",
-        valign = "bottom",
+        --Positioned with the same idiom as the title bar's own
+        --minimize/collapse arrows (floating, halign/valign + margins), so it
+        --sits on their row. It goes hard against the edge NEAREST SCREEN
+        --CENTRE -- the left dock's inner edge is its RIGHT, the right dock's
+        --is its LEFT -- and OUTBOARD of the arrows on both. hmargin 6 mirrors
+        --the collapse arrow's own inset from the edge. On the LEFT that is
+        --the collapse arrow's usual spot, so SyncTitleBarArrows nudges that
+        --panel's arrows inward to make room; the right dock's inner edge is
+        --already free (both docks keep their arrows at the right).
+        --vmargin 8 on a 20px button centres it on the arrows' centreline
+        --(they are 12 tall at vmargin 12) within the 32px bar.
+        valign = "top",
+        vmargin = 8,
         halign = cond(side == "left", "right", "left"),
-        x = cond(side == "left", ICON_RAIL_BUTTON + 12, -(ICON_RAIL_BUTTON + 12)),
-        y = -8,
+        hmargin = 6,
 
         gui.Panel{
             classes = iconClasses,
-            bgimage = "panels/dock-handle.png",
-            width = 14,
-            height = 28,
+            bgimage = "phosphor/sidebar-simple-light.png",
+            width = 18,
+            height = 18,
             halign = "center",
             valign = "center",
         },
@@ -5269,6 +5307,32 @@ local function CreateDockTrayButton(side)
     }
 end
 
+--The LEFT dock's tray button sits outboard of the title bar's arrows, which
+--is the collapse arrow's usual spot -- so slide that panel's arrows inward by
+--one button width to open the gap. Their stock insets are 6 (collapse) and 28
+--(minimize); see DockablePanel.lua. Deliberately stateless: re-applied from
+--the rail think and reset to stock on every panel that is NOT the host, so a
+--reorder or a mode-off leaves no panel with shifted arrows.
+local ICON_RAIL_ARROW_SHIFT = 26
+local function SyncTitleBarArrows(wrapper, shifted)
+    if wrapper == nil or not wrapper.valid then
+        return
+    end
+    for _, child in ipairs(wrapper.children or {}) do
+        if child.valid and child:HasClass("collapseArrow") then
+            local base = 6
+            if child:HasClass("minimizeArrow") then
+                base = 28
+            end
+            local offset = 0
+            if shifted then
+                offset = ICON_RAIL_ARROW_SHIFT
+            end
+            child.selfStyle.hmargin = base + offset
+        end
+    end
+end
+
 --Keep a dock tray button mounted on each dock while the rail mode is
 --on, and remove them when it is off. Docks rebuild their child lists on
 --layout changes, so this is re-applied from the rail's think.
@@ -5280,16 +5344,59 @@ local function EnsureDockTrayButtons()
     for _, info in ipairs({ { dock = gamehud.leftDock, side = "left" }, { dock = gamehud.rightDock, side = "right" } }) do
         local dock = info.dock
         if dock ~= nil and dock.valid then
-            local existing = nil
+            --The button rides the TOP panel's title bar, so unlike the old
+            --dock-bottom mount it has to be re-homed whenever the dock
+            --reorders (the topmost panel changes) -- hence sweeping every
+            --container rather than just checking the dock's own children.
+            --Host is the panel container's wrapper child, the same parent the
+            --minimize/collapse arrows float in.
+            local host = nil
             for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("iconRailDockButton") then
-                    existing = child
+                if child.valid and child:HasClass("dockablePanelContainer") then
+                    local wrapper = child.children[1]
+                    if wrapper ~= nil and wrapper.valid then
+                        host = wrapper
+                    end
+                    break
                 end
             end
-            if railOn and existing == nil then
-                dock:AddChild(CreateDockTrayButton(info.side))
-            elseif (not railOn) and existing ~= nil then
-                existing:DestroySelf()
+
+            --Keep a button only if it is already on the current host; any
+            --other (a stale one left on a panel that is no longer topmost)
+            --goes, so the dock never shows two.
+            local existing = nil
+            local function sweep(panel)
+                if panel == nil or not panel.valid then
+                    return
+                end
+                for _, child in ipairs(panel.children or {}) do
+                    if child.valid and child:HasClass("iconRailDockButton") then
+                        if railOn and panel == host then
+                            existing = child
+                        else
+                            child:DestroySelf()
+                        end
+                    end
+                end
+            end
+
+            sweep(dock)
+            for _, child in ipairs(dock.children) do
+                if child.valid and child:HasClass("dockablePanelContainer") then
+                    sweep(child.children[1])
+                end
+            end
+
+            if railOn and existing == nil and host ~= nil then
+                host:AddChild(CreateDockTrayButton(info.side))
+            end
+
+            --only the left dock's button lands on the arrows' side.
+            for _, child in ipairs(dock.children) do
+                if child.valid and child:HasClass("dockablePanelContainer") then
+                    local wrapper = child.children[1]
+                    SyncTitleBarArrows(wrapper, railOn and info.side == "left" and wrapper == host)
+                end
             end
         end
     end
@@ -5614,9 +5721,10 @@ local function CreateIconRail(side, entries)
 
     --The dock/tray button: sits above the panel icons and toggles this
     --side's classic dock back on screen. Lit while that dock is visible.
-    --Uses the same handle art as the docks' own slide handles, mirrored
-    --per side to match.
-    local trayIconClasses = {"iconRailTrayIcon"}
+    --Carries the phosphor sidebar glyph (a panel sliding out from the edge)
+    --rather than the docks' own slide-handle art; the dock-MOUNTED tray
+    --button still uses the handle, hence the separate glyph class.
+    local trayIconClasses = {"iconRailTrayGlyph"}
     if side == "right" then
         trayIconClasses[#trayIconClasses + 1] = "rightSide"
     end
@@ -5642,9 +5750,10 @@ local function CreateIconRail(side, entries)
 
         gui.Panel{
             classes = trayIconClasses,
-            bgimage = "panels/dock-handle.png",
-            width = 14,
-            height = 28,
+            --square: phosphor glyphs are square art, unlike the 14x28 handle.
+            bgimage = "phosphor/sidebar-simple-light.png",
+            width = 20,
+            height = 20,
             halign = "center",
             valign = "center",
         },

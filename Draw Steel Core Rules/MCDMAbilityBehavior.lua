@@ -3045,11 +3045,11 @@ Commands.RegisterMacro{
 --and monster victims are dropped, and a hero's summon credits the hero.
 local g_baseRelocateCreatureCast = ActivatedAbilityRelocateCreatureBehavior.Cast
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
-    g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
-
-    local forcedMovementType = ability:try_get("forcedMovement")
-    if forcedMovementType == nil or forcedMovementType == "" then
-        return
+    --Captured before the move so the portal hook below can tell whether this move actually
+    --relocated the creature.
+    local originLoc = nil
+    if casterToken ~= nil and casterToken.valid then
+        originLoc = casterToken.loc
     end
 
     --Forced movement clones use movementType "move"; teleports and jumps are not
@@ -3058,7 +3058,68 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     if options.symbols ~= nil and options.symbols.shiftingOverride == false then
         movementType = "move"
     end
+
+    --The engine's own definition of forced movement: straightline/line targeting plus a "move".
+    --Deliberately NOT `ability.forcedMovement`, which "Forced Movement: Slide" never declares.
+    local isForcedMove = movementType == "move" and (ability.targeting == "straightline" or ability.targetType == "line")
+
+    g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
+
+    --Record WHERE a forced move dropped the creature. The Void Portal's onenter aura trigger
+    --cannot tell a shove from a walk-in on its own, and an ally who was shoved onto a portal must
+    --not be teleported -- the movement was not theirs to choose.
+    --
+    --A square is recorded rather than a boolean held for the duration of the move because that
+    --trigger's cast is DEFERRED: it runs after this relocate returns (confirmed by log ordering),
+    --so any flag cleared here would already be gone when the trigger looked. Comparing against the
+    --creature's square is timing-independent -- it suppresses the trigger exactly while the
+    --creature is still standing where the push left it, and stops suppressing once it moves on.
+    if isForcedMove and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+        casterToken.properties._tmp_portalForcedMoveDest = casterToken.loc.xyfloorOnly.str
+    end
+
     if movementType ~= "move" then
+        return
+    end
+
+    local invoker = ability:try_get("invoker")
+    if invoker == nil and options.symbols ~= nil and options.symbols.invoker ~= nil then
+        invoker = options.symbols.invoker
+        if type(invoker) == "function" then
+            invoker = invoker("self")
+        end
+    end
+
+    local pusherToken = nil
+    if invoker ~= nil then
+        pusherToken = dmhub.LookupToken(invoker)
+    end
+
+    --Void Portal: an enemy force moved onto a portal emerges from another portal, with the
+    --creature who pushed them choosing where. Hooked here rather than from the portal aura's
+    --onenter trigger for two reasons: the move has finished, so "came to rest on a portal" is
+    --observable (at entry time forced and voluntary movement are indistinguishable), and this
+    --wrapper runs inside the pushing ability's own cast -- already on the pusher's client, so
+    --the destination picker opens for the right player.
+    --
+    --Gated on the engine's OWN definition of forced movement (see the movementInfo branch in
+    --AbilityRelocateCreature.lua): straightline/line targeting plus movementType "move". Do NOT
+    --gate on `forcedMovement` like the stats block below does -- "Forced Movement: Slide", the
+    --most common forced movement in the game, does not declare that field at all, so a
+    --forcedMovement gate silently drops every slide.
+    --
+    --Looked up via rawget so this file does not depend on the load order of
+    --Draw Steel Ability Behaviors/AbilityRelocateAura.lua, which loads later.
+    if ability.targeting == "straightline" or ability.targetType == "line" then
+        local portalTransit = rawget(_G, "DrawSteelPortalTransit")
+        if portalTransit ~= nil and portalTransit.TryForcedTransit ~= nil then
+            portalTransit.TryForcedTransit(casterToken, pusherToken, originLoc)
+        end
+    end
+
+    --Stats tracking below keeps its original, narrower gate.
+    local forcedMovementType = ability:try_get("forcedMovement")
+    if forcedMovementType == nil or forcedMovementType == "" then
         return
     end
 
@@ -3069,18 +3130,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
     LiveEncounter.TrackHeroStats(casterToken.charid, "forcedMovementTaken", spaces)
 
-    local invoker = ability:try_get("invoker")
-    if invoker == nil and options.symbols ~= nil and options.symbols.invoker ~= nil then
-        invoker = options.symbols.invoker
-        if type(invoker) == "function" then
-            invoker = invoker("self")
-        end
-    end
-
-    if invoker ~= nil then
-        local pusherToken = dmhub.LookupToken(invoker)
-        if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
-            LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
-        end
+    if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
+        LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
     end
 end

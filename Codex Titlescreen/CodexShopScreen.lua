@@ -3344,7 +3344,18 @@ local ShowItemDetailsInternal = function(args)
 				--seed/clear the resting dice as it is shown/hidden -- otherwise a hidden
 				--panel leaves a die floating on screen, and a scheduled re-seed that lands
 				--after the panel hides would spawn one onto nothing.
+				--Non-Dice items get refreshItem too: the showcase panel above only
+				--sets "collapsed" on itself, and refreshItem is fired down the whole
+				--tree (collapsed or not) before that even runs. Collapsing hides the
+				--cage's UI but NOT the resting preview dice -- those are real 3D
+				--objects anchored to the cage, so seeding here would leave dice
+				--sitting on a non-dice item's page. Treat a non-Dice item exactly
+				--like the panel being hidden.
 				refreshItem = function(element, item)
+					if item == nil or item.itemType ~= "Dice" then
+						element:FireEvent("hideProductDetails")
+						return
+					end
 					element.data.item = item
 					element.data.visible = true
 					element:FireEvent("seedTryDie")

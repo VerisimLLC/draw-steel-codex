@@ -2504,7 +2504,6 @@ local showShareModuleDialog = function(options)
 					{
 						id = "premium",
 						text = "Premium",
-						hidden = not dmhub.isAdminAccount,
 					},
 					{
 						--Deleting is only an option for an existing module, not a new one.
@@ -2537,7 +2536,7 @@ local showShareModuleDialog = function(options)
 				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
 				elseif moduleInstance.premium then
-					element.text = "Your module will be available in the store. It must have a corresponding store entry to unlock it."
+					element.text = "Your module will be available to those who have a key that unlocks it. Once you have created your module you can create keys under Settings -> Account. Each key may be used once."
 				else
 					element.text = "Your module can only be installed by those who you share its ID with. Choose an ID that cannot be guessed to ensure this module remains private."
 				end

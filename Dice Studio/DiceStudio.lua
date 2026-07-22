@@ -4511,6 +4511,149 @@ end
 		},
 	}
 
+	-- Landing Rays: a one-shot fan of prismatic light rays that bursts OUTWARD past each die's
+	-- silhouette the moment it lands. A surface material (e.g. Prismatic) can only draw rays inside
+	-- the die's own mesh; this carries the same ray math into the surrounding area. Authored per set
+	-- (dicestudio.rayBurst*), applied by DiceController.UpdateRayBurst via DMHub-Dice-RayBurst.
+	-- All rows collapse while the effect is disabled.
+	local rayBurstSection
+	do
+		-- Local slider helper: the nine ray controls are all "label + 0..max slider" rows, so build
+		-- them from one shape rather than nine near-identical blocks. The "or default" fallbacks
+		-- only matter before a build ships the C# dicestudio.rayBurst* bridge (nil until then).
+		local function RaySlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		rayBurstSection = gui.TreeNode{
+			text = "Landing Rays",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Bursts a fan of light rays outward past each die when it lands, then fades. The rays use the same math as the Prismatic surface material, so they read as the die's own light escaping it.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.rayBurstEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.rayBurstEnabled
+						end,
+						change = function(element)
+							dicestudio.rayBurstEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Everything else collapses while disabled.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.rayBurstEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.rayBurstEnabled == false)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.rayBurstColor or "#fffaff",
+							newmaterial = function(element)
+								element.value = dicestudio.rayBurstColor or "#fffaff"
+							end,
+							change = function(element)
+								dicestudio.rayBurstColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					RaySlider("Reach:", 1, 8, 3,
+						function() return dicestudio.rayBurstSize end,
+						function(v) dicestudio.rayBurstSize = v end),
+					RaySlider("Duration:", 0.1, 3, 0.9,
+						function() return dicestudio.rayBurstDuration end,
+						function(v) dicestudio.rayBurstDuration = v end),
+					RaySlider("Intensity:", 0, 8, 1.5,
+						function() return dicestudio.rayBurstIntensity end,
+						function(v) dicestudio.rayBurstIntensity = v end),
+					RaySlider("Rainbow:", 0, 1, 0.45,
+						function() return dicestudio.rayBurstSaturation end,
+						function(v) dicestudio.rayBurstSaturation = v end),
+					RaySlider("Ray Count:", 2, 24, 9,
+						function() return dicestudio.rayBurstCount end,
+						function(v) dicestudio.rayBurstCount = v end),
+					RaySlider("Sharpness:", 0.5, 8, 2.5,
+						function() return dicestudio.rayBurstContrast end,
+						function(v) dicestudio.rayBurstContrast = v end),
+					RaySlider("Shimmer:", 0, 4, 0.4,
+						function() return dicestudio.rayBurstSpeed end,
+						function(v) dicestudio.rayBurstSpeed = v end),
+					RaySlider("Inner Radius:", 0, 0.9, 0.22,
+						function() return dicestudio.rayBurstInnerRadius end,
+						function(v) dicestudio.rayBurstInnerRadius = v end),
+				},
+			},
+		}
+	end
+
 	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
 	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
 	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
@@ -6008,6 +6151,7 @@ end
 		physicsSection,
 
 		haloSection,
+		rayBurstSection,
 
 		billboardSection,
 

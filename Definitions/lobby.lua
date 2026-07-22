@@ -102,3 +102,82 @@ end
 function lobby:JoinGame(gameid)
 	-- dummy implementation for documentation purposes only
 end
+
+--- FetchGameContent: Fetches the content (compendium tables and, on demand, characters) of another game the user belongs to, for browsing and importing into the current game. Returns a LuaRemoteGameContent immediately; options may contain 'ready' (called with the content object once fetched) and 'error' (called with an error message string). Works on Firebase, Durable Objects, and Local backends; a Local game created on another computer cannot be fetched.
+--- @param gameid string The id of the source game.
+--- @param options {ready: nil|fun(content: LuaRemoteGameContent), error: nil|fun(message: string)}
+--- @return LuaRemoteGameContent
+function lobby:FetchGameContent(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- @class LuaRemoteGameContent The content of another game the user belongs to, fetched for browsing and importing into the current game. Create with lobby:FetchGameContent.
+--- @field ready boolean True once the source game's asset tables have been fetched.
+--- @field gameid string The id of the source game this content was fetched from.
+LuaRemoteGameContent = {}
+
+--- FetchCharacter: Fetches a single character from the source game by id (e.g. from the game's characterIndex). The callback receives a table with id, name, ownerId, partyid, and portrait fields, or nil if the character could not be fetched. Once fetched, the character participates in dependency searches and can be installed.
+--- @param charid string
+--- @param callback fun(info: nil|{id: string, name: string, ownerId: nil|string, partyid: nil|string, portrait: nil|string})
+function LuaRemoteGameContent:FetchCharacter(charid, callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RegisterImage: Makes an image asset from the source game renderable in the current context (without installing it). Returns true if the image record was found in the source game.
+--- @param imageid string
+--- @return boolean
+function LuaRemoteGameContent:RegisterImage(imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetObjectTables: Returns the source game's compendium tables as a table keyed by table id. Each entry is a list of {id, name, hidden} item summaries.
+--- @return table<string,{id: string, name: string, hidden: boolean}[]>
+function LuaRemoteGameContent:GetObjectTables()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetTableItems: Returns the item summaries for a single compendium table in the source game, as a list of {id, name, hidden}. Cheaper than GetObjectTables when only one table is needed.
+--- @param tableName string
+--- @return {id: string, name: string, hidden: boolean}[]
+function LuaRemoteGameContent:GetTableItems(tableName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetCharacterSummaries: Returns summaries of the characters available from the source game, keyed by character id: {id, name, portrait}. Portraits are registered so they can be used as bgimages. For snapshot-backed games (Durable Objects, Local) this covers every important character; for Firebase games it covers characters fetched so far.
+--- @return table<string,{id: string, name: string, portrait: nil|string}>
+function LuaRemoteGameContent:GetCharacterSummaries()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetBestiary: Returns the source game's bestiary.
+--- @return {monsters: {id: string, name: string, folder: nil|string, hidden: boolean}[], folders: {id: string, name: string, parentFolder: nil|string, hidden: boolean}[]}
+function LuaRemoteGameContent:GetBestiary()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DescribeAsset: Describes an asset guid from the source game for display purposes. kind is one of character, monster, monsterFolder, tableitem, image, audio, audioFolder, object, objectFolder, imageLibrary, tilesheet, wall, or unsupported; table is set for tableitem entries. Returns nil if the guid is unknown.
+--- @param guid string
+--- @return nil|{name: string, kind: string, table: nil|string}
+function LuaRemoteGameContent:DescribeAsset(guid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ComputeClosure: Computes the dependency closure of the given selection within the source game. Takes a table whose keys are selected guids; returns a table mapping each required dependency guid to a list of the guids that need it. Characters must have been fetched with FetchCharacter to contribute their dependencies.
+--- @param selectedGuids table<string,any>
+--- @return table<string,string[]>
+function LuaRemoteGameContent:ComputeClosure(selectedGuids)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetInstallCostKB: Estimated upload cost in kilobytes of installing the given guids, using the same cost model as the import framework.
+--- @param guids string[]|table<string,any>
+--- @return number
+function LuaRemoteGameContent:GetInstallCostKB(guids)
+	-- dummy implementation for documentation purposes only
+end
+
+--- Install: Installs the given guids from the source game into the current game as permanent copies, preserving their ids so re-imports update rather than duplicate. Characters are installed unplaced; their ownership is preserved when the owning player is also in the current game, otherwise they become party-owned. The skipped list passed to complete contains guids of unsupported asset kinds (e.g. map floors) that were not installed.
+--- @param options {guids: string[]|table<string,any>, progress: nil|fun(status: string, done: number, total: number), complete: nil|fun(success: boolean, error: nil|string, skipped: string[])}
+function LuaRemoteGameContent:Install(options)
+	-- dummy implementation for documentation purposes only
+end

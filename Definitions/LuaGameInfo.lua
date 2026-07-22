@@ -11,9 +11,12 @@
 --- @field dm any 
 --- @field players any 
 --- @field deleted any 
---- @field timePlayed number 
---- @field playerSummary any 
---- @field characterAppearance any 
+--- @field timePlayed number
+--- @field playerSummary any
+--- @field characterAppearance any
+--- @field characterIndex table<string,{id: string, name: string, owner: nil|string, party: nil|string, summary: nil|string, portrait: nil|string}> Index of the game's important characters (assigned to a player or a party), from cached metadata; available without connecting to the game. The portrait field is an image id registered for use as a bgimage. Games last saved by older client versions may lack party/portrait.
+--- @field playerInfo table<string,{displayName: nil|string, summary: any, appearance: any}> Per-player info for this game keyed by userid, from cached metadata. appearance is a CharacterAppearance whose portrait images are usable in the current context.
+--- @field contentSummary nil|{monsters: number, classes: number, races: number, kits: number, other: number} Summary counts of the game's own content from cached metadata. Nil for games not yet opened by a client version that records summaries.
 LuaGameInfo = {}
 
 --- MatchesSearch

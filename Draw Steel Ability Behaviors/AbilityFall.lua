@@ -64,6 +64,51 @@ local function DigVerticalDescribe(d)
 end
 
 function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets, options)
+	--Using Dig can trigger reactions -- the "Dig" custom trigger on this ability
+	--fires before this behavior (e.g. the Slaughter Demon's Drag Below free
+	--strike). Those reactions, AND whatever they cast, must fully resolve BEFORE
+	--we prompt for movement: otherwise this modal dialog blocks the trigger panel
+	--and the reaction's own targeting/roll. We wait while either (a) a reaction is
+	--still pending in the trigger panel, or (b) an ability is being cast / a roll
+	--dialog is up (the free strike the reaction launched). Because a reaction
+	--clears from the panel the instant it is activated -- a frame before its cast
+	--registers -- we only stop once things have been clear for a short grace
+	--period. A safety cap prevents a stuck reaction from ever hanging the maneuver.
+	local function digReactionBusy()
+		local trigs = casterToken.properties:GetAvailableTriggers()
+		if trigs ~= nil then
+			for _ in pairs(trigs) do return true end
+		end
+		if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() then
+			return true
+		end
+		if gamehud.rollDialog ~= nil and gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown() then
+			return true
+		end
+		return false
+	end
+
+	if casterToken.valid then
+		coroutine.yield(0.2)
+		--Only wait when a reaction actually fired, so a normal dig isn't delayed.
+		if digReactionBusy() then
+			local waited = 0
+			local clearFor = 0
+			while casterToken.valid and waited < 90 do
+				if digReactionBusy() then
+					clearFor = 0
+				else
+					clearFor = clearFor + 0.2
+					if clearFor >= 0.8 then
+						break
+					end
+				end
+				coroutine.yield(0.2)
+				waited = waited + 0.2
+			end
+		end
+	end
+
 	--Maximum vertical distance (in squares), from the GoblinScript distance
 	--formula (defaults to the creature's size).
 	local distanceFormula = self:try_get("distance", "Tile Size")

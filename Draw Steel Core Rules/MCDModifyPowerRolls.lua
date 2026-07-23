@@ -1108,6 +1108,37 @@ CharacterModifier.TypeInfo.power = {
 
             local children = {}
 
+            --Spoiler eyelid: wraps/unwraps the modifier name in {#...} spoiler
+            --markup (see PowerRollSpoilers in Timeline/EmbeddedRollDialog) so
+            --authors don't need to remember the markup. A spoilered name hides
+            --the modifier's name and description from players in the roll
+            --dialogs until the director reveals it.
+            local spoilerEye = nil
+            local spoilers = rawget(_G, "PowerRollSpoilers")
+            if spoilers ~= nil then
+                local spoilered = spoilers.HasSpoiler(modifier.name or "")
+                spoilerEye = gui.VisibilityPanel{
+                    visible = not spoilered,
+                    hmargin = 6,
+                    valign = "center",
+                    hoverCursor = "hand",
+                    click = function(element)
+                        local name = modifier.name or ""
+                        if spoilers.HasSpoiler(name) then
+                            modifier.name = spoilers.Strip(name)
+                        elseif name ~= "" then
+                            modifier.name = "{#" .. name .. "}"
+                        end
+                        Refresh()
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(cond(spoilers.HasSpoiler(modifier.name or ""),
+                            "This modifier is a spoiler: players see its name and description redacted in the roll dialog until the director reveals it. Click to make it visible to players.",
+                            "This modifier is visible to players. Click to hide its name and description from players as a spoiler."))(element)
+                    end,
+                }
+            end
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
@@ -1122,6 +1153,7 @@ CharacterModifier.TypeInfo.power = {
                         Refresh()
                     end,
                 },
+                spoilerEye,
             }
 
             children[#children+1] = gui.Panel{

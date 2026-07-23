@@ -5212,7 +5212,12 @@ function creature.TakeDamage(self, amount, note, info)
             end
         end
 
-        amount = self:RemoveTemporaryHitpoints(amount, note or string.format("%d Damage", original_amount))
+        --bypassTempStamina: damage originating "inside" a temporary-Stamina shield
+        --(e.g. the Shambling Mound's sack poisoning the creature it engulfed) goes
+        --straight to real Stamina instead of being absorbed by the shield.
+        if not info.bypassTempStamina then
+            amount = self:RemoveTemporaryHitpoints(amount, note or string.format("%d Damage", original_amount))
+        end
 
         if amount >= self:MaxHitpoints() + self:CurrentHitpoints() then
             instadeath = true

@@ -15,7 +15,7 @@ local CreateInspectorPanel
 
 DockablePanel.Register{
 	name = "Character Inspector",
-	icon = mod.images.chatIcon,
+	icon = "phosphor/user-focus.png",
 	minHeight = 200,
 	vscroll = true,
     devonly = true,

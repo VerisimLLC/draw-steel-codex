@@ -863,7 +863,7 @@ end
 
 DockablePanel.Register {
     name = "Campaign Tracker",
-    icon = "icons/standard/Icon_App_Journal.png",
+    icon = "phosphor/check-square.png",
     vscroll = true,
     dmonly = false,
     minHeight = 200,
@@ -892,10 +892,13 @@ local RUN_AGENDA_DOC = "runagenda"
 
 mod:RegisterDocumentForCheckpointBackups(RUN_AGENDA_DOC)
 
+--Phosphor masks, matching the doc-type glyphs so a Run row reads the same
+--whether it points at a doc (which supplies its own DocTypeIcon) or, for a
+--token-backed item, falls back to one of these. Tinted @fg at the callsite.
 local RUN_ITEM_ICONS = {
-    document = "icons/standard/Icon_App_Journal.png",
-    montagetest = "icons/standard/Icon_App_Respite.png",
-    negotiation = "icons/standard/Icon_App_Negotiation.png",
+    document = "phosphor/file-text.png",
+    montagetest = "phosphor/film-slate.png",
+    negotiation = "phosphor/handshake.png",
 }
 
 local function GetRunItems()
@@ -1171,7 +1174,7 @@ local function CreateRunItemRow(item, isCurrent)
                 --that reference a token, not a doc (negotiations).
                 bgimage = (doc ~= nil and CustomDocument.DocTypeIcon(doc))
                     or RUN_ITEM_ICONS[item.itemType] or RUN_ITEM_ICONS.document,
-                bgcolor = "white", --image-tint-neutral
+                bgcolor = "@fg", --monochrome Phosphor masks, tinted as chrome
             },
 
             gui.Label {
@@ -1700,7 +1703,7 @@ end
 
 DockablePanel.Register {
     name = "Run",
-    icon = "icons/standard/Icon_App_GameControls.png",
+    icon = "phosphor/play.png",
     vscroll = true,
     dmonly = true,
     minHeight = 200,
@@ -3482,7 +3485,7 @@ end
 
 DockablePanel.Register {
     name = "Flow",
-    icon = "icons/standard/Icon_App_Journal.png",
+    icon = "phosphor/path.png",
     vscroll = true,
     dmonly = true,
     minHeight = 260,

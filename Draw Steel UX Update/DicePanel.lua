@@ -1704,7 +1704,7 @@ local function registerDockablePanel()
     -- twice (Codex loads mod files twice per startup) is harmless.
     dockablePanelLib.Register{
         name = "Physical Dice",
-        icon = "icons/standard/Icon_App_GameControls.png",
+        icon = "phosphor/dice-six.png",
         vscroll = true,
         minHeight = 140,
         content = function()

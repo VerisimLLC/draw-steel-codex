@@ -15,6 +15,7 @@ local AudioDevPanel
 
 DockablePanel.Register{
 	name = "Audio Dev",
+    icon = "phosphor/waveform.png",
     folder = "Development Tools",
     vscroll = false,
 	content = function()

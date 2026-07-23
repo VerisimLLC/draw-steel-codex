@@ -16,7 +16,7 @@ local CreateGameControls
 DockablePanel.Register{
 	name = "Game Controls",
 
-	icon = "icons/standard/Icon_App_GameControls.png",
+	icon = "phosphor/pause.png",
 	vscroll = false,
     dmonly = true,
 	minHeight = 40,

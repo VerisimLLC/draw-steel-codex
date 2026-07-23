@@ -4793,19 +4793,14 @@ local function RailLayout()
             end
             return a.ord < b.ord
         end)
-        local used = {}
-        for _, e in ipairs(sideList) do
-            local s = e.slot or 0
-            if s < 0 then
-                s = 0
-            end
-            while used[s] do
-                s = s + 1
-            end
-            used[s] = true
-            e.slot = s
+        --Dense list: the rail always packs from the top with no gaps. The
+        --stored slot only drives the sort above; blank spacer slots are not
+        --preserved. (Prototype of the dense-list reorder model -- reordering
+        --shifts neighbours by one and never opens a hole, matching how a
+        --tab strip / bookmark bar / dock behaves.)
+        for i, e in ipairs(sideList) do
+            e.slot = i - 1
         end
-        table.sort(sideList, function(a, b) return a.slot < b.slot end)
     end
     return sides, inert
 end
@@ -4865,8 +4860,14 @@ local function RailDropTarget(side, slot, element)
     if targetSlot < 0 then
         targetSlot = 0
     end
-    if targetSlot > ICON_RAIL_MAX_SLOT then
-        targetSlot = ICON_RAIL_MAX_SLOT
+    --Dense list: you can only drop between existing icons or at the end, so
+    --clamp to the target rail's length. This keeps the ghost preview in step
+    --with where the drop actually lands -- no aiming into empty space and
+    --getting snapped back to the tail.
+    local sides = RailLayout()
+    local count = #(sides[targetSide] or {})
+    if targetSlot > count then
+        targetSlot = count
     end
     return targetSide, targetSlot
 end
@@ -5262,73 +5263,32 @@ ShowRailGhost = function(side, slot, excludeKey)
     if layer == nil then
         return
     end
+    --Insertion LINE (dense-list model): a thin bright bar in the gap where the
+    --dragged icon will land, rather than a box occupying a slot with the
+    --buttons below shoved down. The line reads as "it goes HERE" and the rail
+    --stays still -- no shuffling, which was jittery and reinforced the old
+    --absolute-cell feel. excludeKey is unused now (nothing shifts).
     if g_railDragGhost == nil or not g_railDragGhost.valid then
         g_railDragGhost = gui.Panel{
-            classes = {"iconRailGhost"},
-            styles = IconRailStyles(),
-            bgimage = true,
+            classes = {"iconRailGhostLine"},
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffffe0",
+            cornerRadius = 2,
             width = ICON_RAIL_BUTTON,
-            height = ICON_RAIL_BUTTON,
+            height = 3,
             halign = "left",
             valign = "top",
             interactable = false,
-            children = DottedOutlineChildren(ICON_RAIL_BUTTON),
         }
         layer:AddChild(g_railDragGhost)
-    end
-
-    local sig = tostring(side) .. ":" .. tostring(slot) .. ":" .. tostring(excludeKey)
-    if sig ~= g_railShiftSig then
-        RailRestoreShift()
-        g_railShiftSig = sig
-
-        if RailSlotOccupied(side, slot, excludeKey) then
-            local rail = g_iconRails[side]
-            if rail ~= nil and rail.valid then
-                local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
-                local shiftedSlot = nil
-                for _, child in ipairs(rail.children) do
-                    if child.valid then
-                        local d = nil
-                        pcall(function() d = child.data end)
-                        if d ~= nil and d.slot ~= nil and d.baseMargin ~= nil and d.slot >= slot and d.key ~= excludeKey then
-                            g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
-                            child.selfStyle.tmargin = d.baseMargin + pitch
-                            shiftedSlot = d.slot
-                            break
-                        end
-                    end
-                end
-                --When the shifted button sits ABOVE the dragged button in
-                --the flow, the shift would carry the dragged button's
-                --LAYOUT anchor down with it -- and the engine measures
-                --ydrag from that anchor, so the computed drop slot would
-                --jump up a pitch, close the gap, and re-open it forever
-                --(the flicker Lisa saw). Pin the anchor: give the dragged
-                --button a compensating negative margin so its layout spot
-                --never moves; the buttons between shuffle into its hole,
-                --which is the right visual anyway.
-                if shiftedSlot ~= nil and excludeKey ~= nil then
-                    for _, child in ipairs(rail.children) do
-                        if child.valid then
-                            local d = nil
-                            pcall(function() d = child.data end)
-                            if d ~= nil and d.key == excludeKey and d.slot ~= nil and d.baseMargin ~= nil and d.slot > shiftedSlot then
-                                g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
-                                child.selfStyle.tmargin = d.baseMargin - pitch
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end
     end
 
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
     local slotTop = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
     g_railDragGhost.x = railX
-    g_railDragGhost.y = slotTop
+    --centre the line in the gap ABOVE the target slot (between the previous
+    --icon and this one); slotTop is that slot's top edge.
+    g_railDragGhost.y = slotTop - ICON_RAIL_GAP / 2 - 1
     g_railDragGhost:SetClass("hidden", false)
 end
 
@@ -6142,22 +6102,32 @@ local function CreateIconRail(side, entries)
                 local targetList = sides[targetSide]
                 table.insert(targetList, dragged)
 
-                --resolve collisions: the dragged button wins the contested
-                --slot; anything in the way bumps to the next free slot down.
+                --Dense insert: the dragged button takes the contested slot and
+                --everything renumbers contiguously, so it lands just before
+                --whatever held that slot and the list stays packed -- no hole
+                --where it came from, nothing bumped into a blank spot. The
+                --dragged button wins the tie so it sorts into its target slot.
                 table.sort(targetList, function(a, b)
                     if a.slot == b.slot then
                         return a == dragged
                     end
                     return a.slot < b.slot
                 end)
-                local used = {}
-                for _, e in ipairs(targetList) do
-                    local s = e.slot
-                    while used[s] do
-                        s = s + 1
+                for i, e in ipairs(targetList) do
+                    e.slot = i - 1
+                end
+
+                --A cross-rail move leaves a gap in the SOURCE rail's numbering
+                --(the dragged entry was pulled out mid-list); repack it too so
+                --both rails stay dense immediately, not just after the next
+                --RailLayout read.
+                for sn, sideList in pairs(sides) do
+                    if sn ~= targetSide then
+                        table.sort(sideList, function(a, b) return a.slot < b.slot end)
+                        for i, e in ipairs(sideList) do
+                            e.slot = i - 1
+                        end
                     end
-                    used[s] = true
-                    e.slot = s
                 end
 
                 g_railJustDropped = key

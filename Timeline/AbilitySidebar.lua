@@ -183,6 +183,37 @@ local function CreateReadOnlyModifierPill(modInfo)
     local isBuff = modInfo.buffOrDebuff == "buff"
     local isDebuff = modInfo.buffOrDebuff == "debuff"
 
+    --The latest broadcast info for this pill, so spoiler reveals can reformat
+    --the label without waiting for the next broadcast.
+    local m_info = modInfo
+
+    --Spoilered modifier names ({#...} markup, see PowerRollSpoilers in
+    --EmbeddedRollDialog) render as a redaction bar for players until the
+    --director reveals them.
+    local function FormatPillName(info)
+        local text = info.name
+        if PowerRollSpoilers.HasSpoiler(text) then
+            local raw = info.spoilerName or text
+            local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(raw),
+                PowerRollSpoilers.DefaultRevealed(raw))
+            text = PowerRollSpoilers.Format(text, revealed)
+        end
+        return text
+    end
+
+    --The director gets the eyelid toggle on the mirror pill too, since a
+    --player's roll shows for the director only as this read-only view.
+    local spoilerEye = nil
+    if dmhub.isDM and PowerRollSpoilers.HasSpoiler(modInfo.spoilerName or modInfo.name or "") then
+        local raw = modInfo.spoilerName or modInfo.name
+        spoilerEye = PowerRollSpoilers.CreateEyeButton{
+            key = PowerRollSpoilers.Key(raw),
+            name = raw,
+            description = modInfo.spoilerDescription or "",
+            defaultRevealed = PowerRollSpoilers.DefaultRevealed(raw),
+        }
+    end
+
     return gui.Panel{
         classes = {"modPill", "bgAlt"},
         borderWidth = 2,
@@ -226,19 +257,30 @@ local function CreateReadOnlyModifierPill(modInfo)
 
         gui.Label{
             classes = {"modLabel", "sizeM"},
-            text = modInfo.name,
+            text = FormatPillName(modInfo),
             width = "auto",
             height = "auto",
             lmargin = 0,
             rmargin = 4,
             valign = "center",
 
+            --Re-render the redaction when the director reveals or hides the
+            --spoiler mid-roll.
+            monitorGame = PowerRollSpoilers.DocumentPath(),
+            refreshGame = function(element)
+                element.text = FormatPillName(m_info)
+            end,
+
             -- Label brightens from muted to default when enabled.
             updateModifierPill = function(element, info)
+                m_info = info
+                element.text = FormatPillName(info)
                 element:SetClass("fg", info.enabled)
                 element:SetClass("fgMuted", not info.enabled)
             end,
         },
+
+        spoilerEye,
     }
 end
 

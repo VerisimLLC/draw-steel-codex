@@ -3024,6 +3024,33 @@ function character:BaseHitpoints()
     return ExecuteGoblinScript(c.hitpointsCalculation, self:LookupSymbol {}, 1, "Base hitpoints")
 end
 
+--Writhing Envelopment (and similar effects): a creature carrying the
+--"Cannot Save Against Other Effects" custom attribute can't roll saving throws
+--to end any other condition or ongoing effect. Rather than prompting for a roll
+--that would just be wasted, the creature protests via a speech bubble and the
+--save is skipped. Returns true when the save should be suppressed.
+local function SuppressSaveAgainstOtherEffects(self)
+    if (self:CalculateNamedCustomAttribute("Cannot Save Against Other Effects") or 0) <= 0 then
+        return false
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token ~= nil and token.valid then
+        token:ModifyProperties{
+            description = "Cannot Save",
+            undoable = false,
+            execute = function()
+                self:CharacterSpeech{
+                    text = "I can't make Saving Throws while grabbed this way!",
+                    langid = self:CurrentlySpokenLanguage(),
+                }
+            end,
+        }
+    end
+
+    return true
+end
+
 function creature:RollOngoingEffectSave(id, abilityOptions)
     abilityOptions = abilityOptions or {}
     abilityOptions.symbols = abilityOptions.symbols or {}
@@ -3041,6 +3068,10 @@ function creature:RollOngoingEffectSave(id, abilityOptions)
     end
 
     if index == nil then
+        return
+    end
+
+    if SuppressSaveAgainstOtherEffects(self) then
         return
     end
 
@@ -3130,6 +3161,10 @@ function creature:RollConditionSave(condid, abilityOptions)
                 self:InflictCondition(condid, { purge = true })
             end,
         }
+        return
+    end
+
+    if SuppressSaveAgainstOtherEffects(self) then
         return
     end
 
@@ -5177,7 +5212,12 @@ function creature.TakeDamage(self, amount, note, info)
             end
         end
 
-        amount = self:RemoveTemporaryHitpoints(amount, note or string.format("%d Damage", original_amount))
+        --bypassTempStamina: damage originating "inside" a temporary-Stamina shield
+        --(e.g. the Shambling Mound's sack poisoning the creature it engulfed) goes
+        --straight to real Stamina instead of being absorbed by the shield.
+        if not info.bypassTempStamina then
+            amount = self:RemoveTemporaryHitpoints(amount, note or string.format("%d Damage", original_amount))
+        end
 
         if amount >= self:MaxHitpoints() + self:CurrentHitpoints() then
             instadeath = true

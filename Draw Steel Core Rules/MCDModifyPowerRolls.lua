@@ -383,6 +383,11 @@ CharacterModifier.TypeInfo.power = {
 		local powerRollSymbols = self:AppendSymbols{
 			ability = GenerateSymbols(options.ability),
 			target = GenerateSymbols(options.target),
+			--Expose the creature making the roll so activation conditions can test
+			--the attacker (e.g. "Caster.Keywords has 'Olothec'" on an
+			--enemy_ability_power_roll modifier). options.caster is the roller;
+			--for enemy ability rolls that is the attacker striking the bearer.
+			caster = options.caster ~= nil and GenerateSymbols(options.caster) or nil,
             title = options.title or "",
 		}
 

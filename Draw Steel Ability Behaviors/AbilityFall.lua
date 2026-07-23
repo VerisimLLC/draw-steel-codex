@@ -29,6 +29,118 @@ function ActivatedAbilityFallBehavior:EditorItems(parentPanel)
 	return result
 end
 
+--- @class ActivatedAbilityLiftVerticalBehavior:ActivatedAbilityBehavior
+--- Lifts each target straight up into the air by a number of squares (no
+--- horizontal movement, no prompt). The target must be able to fly when this
+--- runs -- pair it with an Ability Duration Effect granting fly earlier in the
+--- same ability. The target's move type is switched to flying so the engine
+--- allows it to rise into open air. When the ability finishes, if the target
+--- can no longer fly (the duration effect has expired), its move type is
+--- restored to a ground type and it falls if still in mid air.
+RegisterGameType("ActivatedAbilityLiftVerticalBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType
+{
+	id = 'lift_vertical',
+	text = 'Lift Into The Air',
+	createBehavior = function()
+		return ActivatedAbilityLiftVerticalBehavior.new{
+		}
+	end
+}
+
+ActivatedAbilityLiftVerticalBehavior.summary = 'Lift Into The Air'
+
+--Vertical distance (in squares) each target is lifted, as a GoblinScript
+--formula evaluated against the target.
+ActivatedAbilityLiftVerticalBehavior.distance = "1"
+
+--If true, when the cast finishes any lifted target that can no longer fly is
+--put back on a ground move type and falls if it is still in mid air.
+ActivatedAbilityLiftVerticalBehavior.landAtEnd = true
+
+function ActivatedAbilityLiftVerticalBehavior:Cast(ability, casterToken, targets, options)
+	local liftedTokens = {}
+	for _, target in ipairs(targets) do
+		local tok = target.token
+		if tok ~= nil and tok.valid then
+			local dist = math.floor(tonumber(dmhub.EvalGoblinScript(self.distance, tok.properties:LookupSymbol(options.symbols or {}), string.format("Lift distance for %s", ability.name))) or 0)
+			if dist > 0 and tok.properties:CanFly() then
+				tok.properties:SetAndUploadCurrentMoveType("fly")
+				tok:MoveVertical(tok.floorAltitude + dist)
+				liftedTokens[#liftedTokens+1] = tok
+			end
+		end
+	end
+
+	if #liftedTokens == 0 then
+		return
+	end
+
+	ability:CommitToPaying(casterToken, options)
+
+	if self.landAtEnd then
+		--Runs after earlier behaviors' finish handlers, in particular after an
+		--Ability Duration Effect granting fly has been removed, so CanFly() here
+		--reflects the creature's normal movement.
+		options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+		options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
+			for _, tok in ipairs(liftedTokens) do
+				if tok.valid and not tok.properties:CanFly() then
+					tok.properties:SetAndUploadCurrentMoveType("walk")
+					tok:TryFall()
+					--TryFall applies the falling rules (fall damage, prone) but treats
+					--a creature hovering only 1 square up as not falling and leaves it
+					--in place; step such a creature down to the ground instead.
+					if tok.valid and tok.altitude > tok.loc.withGroundAltitude.altitude then
+						tok:MoveVertical(tok.loc.withGroundAltitude.altitude)
+					end
+				end
+			end
+		end
+	end
+end
+
+function ActivatedAbilityLiftVerticalBehavior:EditorItems(parentPanel)
+	local result = {}
+	self:ApplyToEditor(parentPanel, result)
+	self:FilterEditor(parentPanel, result)
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel"},
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Lift Distance:",
+		},
+		gui.GoblinScriptInput{
+			classes = {"formInput"},
+			value = self.distance,
+			change = function(element)
+				self.distance = element.value
+			end,
+			documentation = {
+				help = "The number of squares each target is lifted straight up into the air. The target must be able to fly for the lift to happen.",
+				output = "number",
+				subject = creature.helpSymbols,
+				subjectDescription = "The creature being lifted",
+				examples = {
+					{ script = "1", text = "Lift the target one square into the air." },
+				},
+			},
+		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Land When Ability Ends",
+		value = self.landAtEnd,
+		change = function(element)
+			self.landAtEnd = element.value
+		end,
+	}
+
+	return result
+end
+
 --- @class ActivatedAbilityDigVerticalBehavior:ActivatedAbilityBehavior
 --- The Dig maneuver's movement: the caster chooses a purely vertical distance
 --- (straight up or down through the ground) up to its size, then moves there.

@@ -449,8 +449,20 @@ end
 -- modifiers to this companion's effective modifier list. Captures
 -- monster.FillTemporalActiveModifiers (already wrapped by MCDMMonster.lua to
 -- include captain/minion logic) so the base monster behavior is preserved.
+--
+-- This is also where the beastheart's KIT stat bonuses reach the companion.
+-- Per the class rules both you and your companion gain the kit's benefits
+-- (excluding the signature ability and the melee damage choice, which are
+-- handled by excludeKitAbilities / excludeKitModifications and
+-- GetCompanionMeleeBonus below). Kit:StatsFeature emits those bonuses as plain
+-- behavior=="attribute" modifiers, which have no modifyCompanion callback, so
+-- the dispatch above never sees them and they must be forwarded explicitly.
 local g_animalCompanionFillTemporalActiveModifiersBase = monster.FillTemporalActiveModifiers
 function AnimalCompanion:FillTemporalActiveModifiers(result)
+    -- The base call MUST come first. Companion stat blocks declare stability
+    -- with operation "set", and CalculateAttribute applies modifiers in list
+    -- order, so the kit's "add" has to land after the stat block's "set" or it
+    -- is silently discarded.
     g_animalCompanionFillTemporalActiveModifiersBase(self, result)
 
     if mod.unloaded then return end
@@ -459,8 +471,63 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
     if summonerToken == nil then return end
 
     local summonerCreature = summonerToken.properties
+
+    -- The set of guids a kit stat modifier could be sourced from. Matching the
+    -- guid rather than calling summonerCreature:Kit() keeps this off the
+    -- Kit.CombineKits path, which rebuilds the kit (deep copies plus a clone of
+    -- every signature ability) on every call -- far too expensive for a
+    -- per-frame modifier recalculation. Kit.CombineKits ids are the two kit ids
+    -- concatenated in (kitid, kitid2) order.
+    local kitIds = {}
+    local kitid1 = summonerCreature:try_get("kitid")
+    local kitid2 = summonerCreature:try_get("kitid2")
+    if kitid1 ~= nil then kitIds[kitid1] = true end
+    if kitid2 ~= nil then kitIds[kitid2] = true end
+    if kitid1 ~= nil and kitid2 ~= nil then kitIds[kitid1 .. kitid2] = true end
+
+    -- Collected rather than appended inline: the companion feature that gates
+    -- the forwarding can appear after the kit modifiers in the summoner's list.
+    local kitStatMods = {}
+    local hasCompanionFeature = false
+
     for _,summonerMod in ipairs(summonerCreature:GetActiveModifiers()) do
         summonerMod.mod:FillCompanionModifiers(summonerMod, summonerCreature, self, result)
+
+        local behavior = summonerMod.mod.behavior
+        if behavior == "companion" then
+            local companionType = summonerMod.mod:try_get("companionType")
+            if companionType ~= nil and companionType ~= "" and companionType ~= "none" then
+                hasCompanionFeature = true
+            end
+        elseif behavior == "attribute"
+            and kitIds[summonerMod.mod:try_get("sourceguid", "")]
+            and summonerMod.mod:try_get("attribute", "armorClass") ~= "hitpoints"
+        then
+            -- hitpoints is skipped because AnimalCompanion:MaxHitpoints ignores
+            -- the modifier list entirely and delegates to the summoner, so
+            -- forwarding it would be inert and would only add a phantom entry
+            -- to the companion's Stamina tooltip. The behavior test also
+            -- excludes the kit's kitmodifyability modifier, preserving the
+            -- excludeKitModifications intent in GetActivatedAbilities.
+            kitStatMods[#kitStatMods+1] = summonerMod.mod
+        end
+    end
+
+    -- Only a creature that has actually chosen a companion shares its kit with
+    -- that companion. The behavior=="companion" modifier comes from the
+    -- companion picker (see CharacterCompanionChoice:FillChoice in
+    -- DSCompanionChoice.lua), so this covers the beastheart and any homebrew
+    -- class built on the same companion feature, while excluding a creature
+    -- that merely happens to have summoned an AnimalCompanion stat block
+    -- through an unrelated summon behavior -- a Summoner whose portfolio
+    -- matches a companion stat block, for instance, must not leak their kit.
+    if hasCompanionFeature then
+        for _,kitMod in ipairs(kitStatMods) do
+            -- Deliberately NOT marked temporal: DescribeModifications
+            -- propagates that flag and the action bar then renders the kit's
+            -- speed as a temporary overflow segment. A kit bonus is permanent.
+            result[#result+1] = { mod = kitMod }
+        end
     end
 end
 

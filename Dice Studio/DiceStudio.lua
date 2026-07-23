@@ -1463,7 +1463,260 @@ do
 		description = "Halo Ring Width",
 	}
 
+	-- Albedo clarity: let the base texture read through the prismatic overlays. Raise Albedo
+	-- Strength to push the textured surface up; lower Prismatic Effect Strength to fade the
+	-- additive rays/halo/rim/interior so the albedo dominates. Both default to 1 (no change).
+	fields[#fields + 1] = {
+		name = "_AlbedoStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1,
+		description = "Albedo Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_EffectStrength",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 1,
+		description = "Prismatic Effect Strength",
+	}
+	-- One knob for overall shell brightness (folds Brightness + Ambient). Lower it to bring an
+	-- over-bright die back down so the albedo detail reads instead of clipping to white.
+	fields[#fields + 1] = {
+		name = "_SurfaceExposure",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 1,
+		description = "Surface Exposure",
+	}
+	-- Lifts only the faces angled away from the light (which otherwise read near-black) without
+	-- brightening the already-lit faces. The fix for dark faces when you do NOT want to raise
+	-- overall brightness.
+	fields[#fields + 1] = {
+		name = "_ShadowLift",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0,
+		description = "Shadow Lift",
+	}
+
 	g_materialFields.PrismaticDiceMaterial = fields
+end
+
+-- ParticleGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
+-- and swirling emissive particles suspended inside the die ("petals in glass" -- see
+-- PBRTexturedParticleGlass.shader). The particle art is the built-in procedural petal, or any
+-- sprite assigned to the Particle Image slot (alpha = coverage, RGB tinted by the color).
+-- Built from the PBRTextured list above so the shared rows never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Glass rim: fresnel edge glow, the main "made of glass" cue.
+	fields[#fields + 1] = {
+		name = "_GlassRimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1.2,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Falloff",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassRimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+	-- Additive colored-glass body light: unlike Tint (multiplicative, can only darken), this
+	-- lights the whole shell in its color -- saturated rose quartz / amber / aqua glass.
+	fields[#fields + 1] = {
+		name = "_GlassGlowColor",
+		type = "Color",
+		description = "Glass Glow Color",
+	}
+	fields[#fields + 1] = {
+		name = "_GlassGlowStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0,
+		description = "Glass Glow Strength",
+	}
+
+	-- The particles inside the glass.
+	fields[#fields + 1] = {
+		name = "_ParticleEnable",
+		type = "Bool",
+		default = 1,
+		description = "Particles Enabled",
+	}
+	-- Optional sprite; empty = the built-in petal. Setting/clearing it writes the
+	-- _UseParticleTexture flag.
+	fields[#fields + 1] = {
+		name = "_ParticleTexture",
+		type = "Texture",
+		library = "Textures",
+		flag = "_UseParticleTexture",
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Image",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.5,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleColor",
+		type = "Color",
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Color",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleHueVariation",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.15,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Hue Variation",
+	}
+	-- Lower = fewer, larger particles.
+	fields[#fields + 1] = {
+		name = "_ParticleDensity",
+		type = "Range",
+		min = 8,
+		max = 128,
+		default = 28,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Density",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleFill",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.6,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Fill",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleSize",
+		type = "Range",
+		min = 0.05,
+		max = 0.9,
+		default = 0.32,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Size",
+	}
+	-- Width/length of the procedural petal (ignored when a sprite is assigned).
+	fields[#fields + 1] = {
+		name = "_ParticleAspect",
+		type = "Range",
+		min = 0.2,
+		max = 1,
+		default = 0.55,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Petal Aspect",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleSpin",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.8,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Spin",
+	}
+	-- Fake 3D tumble: periodically squashes each particle toward an edge-on sliver.
+	fields[#fields + 1] = {
+		name = "_ParticleFlutter",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Flutter",
+	}
+	fields[#fields + 1] = {
+		name = "_ParticleDepth",
+		type = "Range",
+		min = 0,
+		max = 0.6,
+		default = 0.25,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Particle Depth",
+	}
+	fields[#fields + 1] = {
+		name = "_DepthLayers",
+		type = "Bool",
+		default = 1,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Second Depth Layer",
+	}
+
+	-- Motion of the whole cloud.
+	fields[#fields + 1] = {
+		name = "_SwirlSpeed",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.3,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Swirl Speed",
+	}
+	-- Inner particles lead the outer, shearing the cloud like liquid.
+	fields[#fields + 1] = {
+		name = "_SwirlTwist",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.8,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Swirl Twist",
+	}
+	fields[#fields + 1] = {
+		name = "_DriftSpeed",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.15,
+		requires = "_ParticleEnable",
+		requiresDefault = 1,
+		description = "Drift Speed",
+	}
+
+	g_materialFields.ParticleGlassDiceMaterial = fields
 end
 
 -- FacetedGemDiceMaterial: flat low-poly gem shading (see PBRTexturedFacetedGem.shader). Each
@@ -4258,6 +4511,149 @@ end
 		},
 	}
 
+	-- Landing Rays: a one-shot fan of prismatic light rays that bursts OUTWARD past each die's
+	-- silhouette the moment it lands. A surface material (e.g. Prismatic) can only draw rays inside
+	-- the die's own mesh; this carries the same ray math into the surrounding area. Authored per set
+	-- (dicestudio.rayBurst*), applied by DiceController.UpdateRayBurst via DMHub-Dice-RayBurst.
+	-- All rows collapse while the effect is disabled.
+	local rayBurstSection
+	do
+		-- Local slider helper: the nine ray controls are all "label + 0..max slider" rows, so build
+		-- them from one shape rather than nine near-identical blocks. The "or default" fallbacks
+		-- only matter before a build ships the C# dicestudio.rayBurst* bridge (nil until then).
+		local function RaySlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		rayBurstSection = gui.TreeNode{
+			text = "Landing Rays",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Bursts a fan of light rays outward past each die when it lands, then fades. The rays use the same math as the Prismatic surface material, so they read as the die's own light escaping it.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.rayBurstEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.rayBurstEnabled
+						end,
+						change = function(element)
+							dicestudio.rayBurstEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Everything else collapses while disabled.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.rayBurstEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.rayBurstEnabled == false)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.rayBurstColor or "#fffaff",
+							newmaterial = function(element)
+								element.value = dicestudio.rayBurstColor or "#fffaff"
+							end,
+							change = function(element)
+								dicestudio.rayBurstColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+
+					RaySlider("Reach:", 1, 8, 3,
+						function() return dicestudio.rayBurstSize end,
+						function(v) dicestudio.rayBurstSize = v end),
+					RaySlider("Duration:", 0.1, 3, 0.9,
+						function() return dicestudio.rayBurstDuration end,
+						function(v) dicestudio.rayBurstDuration = v end),
+					RaySlider("Intensity:", 0, 8, 1.5,
+						function() return dicestudio.rayBurstIntensity end,
+						function(v) dicestudio.rayBurstIntensity = v end),
+					RaySlider("Rainbow:", 0, 1, 0.45,
+						function() return dicestudio.rayBurstSaturation end,
+						function(v) dicestudio.rayBurstSaturation = v end),
+					RaySlider("Ray Count:", 2, 24, 9,
+						function() return dicestudio.rayBurstCount end,
+						function(v) dicestudio.rayBurstCount = v end),
+					RaySlider("Sharpness:", 0.5, 8, 2.5,
+						function() return dicestudio.rayBurstContrast end,
+						function(v) dicestudio.rayBurstContrast = v end),
+					RaySlider("Shimmer:", 0, 4, 0.4,
+						function() return dicestudio.rayBurstSpeed end,
+						function(v) dicestudio.rayBurstSpeed = v end),
+					RaySlider("Inner Radius:", 0, 0.9, 0.22,
+						function() return dicestudio.rayBurstInnerRadius end,
+						function(v) dicestudio.rayBurstInnerRadius = v end),
+				},
+			},
+		}
+	end
+
 	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
 	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
 	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
@@ -5755,6 +6151,7 @@ end
 		physicsSection,
 
 		haloSection,
+		rayBurstSection,
 
 		billboardSection,
 

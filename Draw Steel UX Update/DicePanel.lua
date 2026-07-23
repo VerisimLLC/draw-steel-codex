@@ -76,7 +76,13 @@ CreateDicePanel = function()
 	local equipped = dmhub.GetSettingValue("diceequipped")
 	local use3D = equipped ~= nil and equipped ~= "" and equipped ~= "Default"
 
-	local CreateDice = function(faces, params)
+	-- params applies to whichever tile we build; params2D is merged over it for the flat-icon
+	-- (Default set) path only. The two need different sizes: a 3D cage rests its die well inside
+	-- the tile (see dicePreviewRestScale below), whereas the flat PNG fills the tile edge to edge,
+	-- so the scales the cages want blow the icon up past its bounds -- the Power Roll icon at the
+	-- cage's 2.65 spills over the divider. params2D restores the sizes the flat icons had before
+	-- the 3D dice landed.
+	local CreateDice = function(faces, params, params2D)
 
 		local imageFaces = faces
 		local selectedDie = nil
@@ -449,6 +455,12 @@ CreateDicePanel = function()
 			end
 		end
 
+		if params2D ~= nil then
+			for k,v in pairs(params2D) do
+				args[k] = v
+			end
+		end
+
 		local result = gui.Panel(args)
 		return result
 	end
@@ -515,9 +527,17 @@ CreateDicePanel = function()
 					element.children = {
                         gui.Panel{
                             width = "100%",
-                            height = "auto",
+                            -- Pinned rather than auto so the divider and the row under it stay
+                            -- where the 3D cage puts them: the flat Power Roll icon is drawn at
+                            -- the smaller 2D scale below, and an auto height would drag
+                            -- everything beneath it up by the difference.
+                            height = 40*2.65,
+                            flow = "none",
                             y = -16,
-						    CreateDice(20, {uiscale = 2.65, y = 2, width = 60}),						
+                            -- Only the scale differs in 2D: the shared y and the "dice" class's
+                            -- valign = "center" then land the (shorter) flat icon centred on the
+                            -- same line the 3D pair rests on.
+						    CreateDice(20, {uiscale = 2.65, y = 2, width = 60}, {uiscale = 1.65}),
                         },
                         gui.Divider{ y = -26, brightness = 0.1},
                         gui.Panel{
@@ -526,8 +546,8 @@ CreateDicePanel = function()
                             halign = "center",
                             flow = "horizontal",
                             y = -27,
-                            CreateDice(3, {uiscale = 1.3}),
-                            CreateDice(6, {uiscale = 1.3}),
+                            CreateDice(3, {uiscale = 1.3}, {uiscale = 1.1}),
+                            CreateDice(6, {uiscale = 1.3}, {uiscale = 1.2}),
                             --CreateDice(8),
                             --CreateDice(20, {uiscale = 1.65, y = 2}),
                             CreateDice(10, {uiscale = 1.5, y = 2}),

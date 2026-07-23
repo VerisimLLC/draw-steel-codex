@@ -679,6 +679,32 @@ audio.SoundEvent{
 }
 
 
+--Gnoll Abilities
+
+audio.SoundEvent{
+    name = "Ability.CackleTongue_Generic",
+    mixgroup = "gameplay",
+    sounds = {"abl/gnoll/Abl_Cackletongue_Generic_01.wav","abl/gnoll/Abl_Cackletongue_Generic_02.wav","abl/gnoll/Abl_Cackletongue_Generic_03.wav","abl/gnoll/Abl_Cackletongue_Generic_04.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Ability.EchoesOfLaughter",
+    mixgroup = "gameplay",
+    sounds = {"abl/gnoll/Abl_EchoesOfLaughter_01.wav","abl/gnoll/Abl_EchoesOfLaughter_02.wav","abl/gnoll/Abl_EchoesOfLaughter_03.wav","abl/gnoll/Abl_EchoesOfLaughter_04.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+
+
+
+
+
 
 
 

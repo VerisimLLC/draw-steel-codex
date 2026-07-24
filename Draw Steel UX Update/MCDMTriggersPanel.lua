@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 DockablePanel.Register{
 	name = "Triggers",
-	icon = "icons/standard/Icon_App_Character.png",
+	icon = "phosphor/lightning.png",
 	minHeight = 140,
 	vscroll = true,
 	content = function()

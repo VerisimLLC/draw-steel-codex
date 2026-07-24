@@ -100,6 +100,245 @@ local g_rollOptionsPlayer = {
 
 local g_boonsLabels = { "BANE", "BANE", "X", "EDGE", "EDGE" }
 
+--------------------------------------------------------------------------------
+-- Spoiler support for power roll modifiers.
+--
+-- A modifier whose name contains {#...} spoiler markup (the document system's
+-- spoiler syntax, see DocumentSystem/MarkdownDocument.lua) is treated as a
+-- secret: players see the badge name and hover text as a redaction bar, while
+-- the director sees the plain text plus an eyelid icon on the badge. Clicking
+-- the eyelid reveals the spoiler to players (recorded in a shared document so
+-- the reveal persists for future rolls) and posts the modifier's name and
+-- description to the action log, where the director can click the same eyelid
+-- to hide it again.
+--------------------------------------------------------------------------------
+
+PowerRollSpoilers = {
+    documentId = "powerRollSpoilerReveals",
+}
+
+--- True if the text contains spoiler markup ({#hidden} or {!revealed}).
+function PowerRollSpoilers.HasSpoiler(text)
+    if text == nil then
+        return false
+    end
+    return string.find(text, "{#", 1, true) ~= nil or string.find(text, "{!", 1, true) ~= nil
+end
+
+--- The key used to record a reveal: the concatenated content of the spoiler
+--- spans, so "{#Soft Underbelly}" and "Target is {#Soft Underbelly}" share a key.
+function PowerRollSpoilers.Key(text)
+    local parts = {}
+    for span in string.gmatch(text, "{[#!](.-)}") do
+        parts[#parts + 1] = span
+    end
+    if #parts == 0 then
+        return text
+    end
+    return table.concat(parts, "|")
+end
+
+--- Whether the text's spoilers default to revealed absent any recorded state
+--- (authored with {!...} rather than {#...}).
+function PowerRollSpoilers.DefaultRevealed(text)
+    return text ~= nil and string.find(text, "{#", 1, true) == nil
+end
+
+--- Remove spoiler markers from text, keeping the content (the editing
+--- counterpart of wrapping text in {#...}).
+function PowerRollSpoilers.Strip(text)
+    if text == nil then
+        return text
+    end
+    local result = string.gsub(text, "{[#!](.-)}", "%1")
+    return result
+end
+
+function PowerRollSpoilers.DocumentPath()
+    return mod:GetDocumentPath(PowerRollSpoilers.documentId)
+end
+
+function PowerRollSpoilers.IsRevealed(key, defaultRevealed)
+    local doc = mod:GetDocumentSnapshot(PowerRollSpoilers.documentId)
+    local revealed = doc.data.revealed
+    if revealed == nil or revealed[key] == nil then
+        return defaultRevealed == true
+    end
+    return revealed[key] == true
+end
+
+function PowerRollSpoilers.SetRevealed(key, value)
+    local doc = mod:GetDocumentSnapshot(PowerRollSpoilers.documentId)
+    doc:BeginChange()
+    local revealed = doc.data.revealed or {}
+    revealed[key] = value
+    doc.data.revealed = revealed
+    doc:CompleteChange("Reveal spoiler to players", {undoable = false})
+end
+
+--- Format text containing spoiler markup for display. Unrevealed spoilers
+--- render as a redaction bar for players; the director and revealed spoilers
+--- get the plain text with the markers stripped.
+function PowerRollSpoilers.Format(text, revealed)
+    if text == nil or string.find(text, "{", 1, true) == nil then
+        return text
+    end
+    if dmhub.isDM or revealed then
+        text = string.gsub(text, "{#", "{!")
+    end
+    return MarkdownDocument.FormatRichText(text, {player = true})
+end
+
+--- Reveal a spoiler to players and post it to the action log.
+--- info: { key, name, description, tokenid }
+function PowerRollSpoilers.Reveal(info)
+    PowerRollSpoilers.SetRevealed(info.key, true)
+    chat.SendCustom(SpoilerRevealChatMessage.new{
+        spoilerKey = info.key,
+        spoilerName = info.name or "",
+        spoilerDescription = info.description or "",
+        tokenid = info.tokenid or "",
+    })
+end
+
+--- The eyelid toggle shown to the director next to a spoilered modifier.
+--- info: { key, name, description, tokenid, defaultRevealed }
+function PowerRollSpoilers.CreateEyeButton(info, options)
+    local args = {
+        visible = PowerRollSpoilers.IsRevealed(info.key, info.defaultRevealed),
+        width = 14,
+        height = 14,
+        valign = "center",
+        rmargin = 2,
+        swallowPress = true,
+        hoverCursor = "hand",
+        click = function(element)
+            local revealed = PowerRollSpoilers.IsRevealed(info.key, info.defaultRevealed)
+            if revealed then
+                PowerRollSpoilers.SetRevealed(info.key, false)
+            else
+                PowerRollSpoilers.Reveal(info)
+            end
+            element:FireEvent("visible", not revealed)
+        end,
+        linger = function(element)
+            local revealed = PowerRollSpoilers.IsRevealed(info.key, info.defaultRevealed)
+            gui.Tooltip(cond(revealed,
+                "This is visible to players. Click to hide it from them.",
+                "This is hidden from players. Click to reveal it to them and post it to the action log."))(element)
+        end,
+        --Keep the eyelid in sync when the reveal is toggled from elsewhere
+        --(another dialog, the action log message, or another client).
+        monitorGame = PowerRollSpoilers.DocumentPath(),
+        refreshGame = function(element)
+            element:FireEvent("visible", PowerRollSpoilers.IsRevealed(info.key, info.defaultRevealed))
+        end,
+    }
+    for k, v in pairs(options or {}) do
+        args[k] = v
+    end
+    return gui.VisibilityPanel(args)
+end
+
+--- Action log message posted when the director reveals a spoilered modifier.
+--- Renders live from the shared reveal document, so the director can hide the
+--- spoiler again from the message itself and players' views update in place.
+SpoilerRevealChatMessage = RegisterGameType("SpoilerRevealChatMessage")
+SpoilerRevealChatMessage.spoilerKey = ""
+SpoilerRevealChatMessage.spoilerName = ""
+SpoilerRevealChatMessage.spoilerDescription = ""
+SpoilerRevealChatMessage.tokenid = ""
+
+function SpoilerRevealChatMessage.Render(self, message)
+    local key = self.spoilerKey
+
+    local nameLabel = gui.Label{
+        classes = {"action-log-name", "sizeS", "bold"},
+    }
+
+    local descriptionLabel = nil
+    if self.spoilerDescription ~= "" then
+        descriptionLabel = gui.Label{
+            classes = {"action-log-subtext", "sizeXs"},
+        }
+    end
+
+    local eye = nil
+    if dmhub.isDM then
+        eye = PowerRollSpoilers.CreateEyeButton({
+            key = key,
+            name = self.spoilerName,
+            description = self.spoilerDescription,
+            tokenid = self.tokenid,
+        }, {
+            lmargin = 4,
+            --The reveal already happened; from here the eyelid only toggles
+            --visibility without posting another message.
+            click = function(element)
+                local revealed = PowerRollSpoilers.IsRevealed(key, false)
+                PowerRollSpoilers.SetRevealed(key, not revealed)
+                element:FireEvent("visible", not revealed)
+            end,
+        })
+    end
+
+    local function RefreshContent()
+        local revealed = PowerRollSpoilers.IsRevealed(key, false)
+        nameLabel.text = PowerRollSpoilers.Format(self.spoilerName, revealed)
+        if descriptionLabel ~= nil then
+            if dmhub.isDM or revealed then
+                descriptionLabel.text = PowerRollSpoilers.Format(self.spoilerDescription, revealed)
+            else
+                descriptionLabel.text = PowerRollSpoilers.Format("{#" .. self.spoilerDescription .. "}", false)
+            end
+        end
+        if eye ~= nil then
+            eye:FireEvent("visible", revealed)
+        end
+    end
+
+    local headerRow = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        nameLabel,
+        eye,
+    }
+
+    local token = nil
+    if self.tokenid ~= "" then
+        token = dmhub.GetCharacterById(self.tokenid)
+        if token ~= nil and not token.valid then
+            token = nil
+        end
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        hideName = true,
+        content = {headerRow, descriptionLabel},
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        monitorGame = PowerRollSpoilers.DocumentPath(),
+        refreshGame = function(element)
+            RefreshContent()
+        end,
+        create = function(element)
+            RefreshContent()
+        end,
+        card,
+    }
+
+    return resultPanel
+end
+
 local function ModifierPanel(args)
 
     local resultPanel
@@ -121,6 +360,10 @@ local function ModifierPanel(args)
     --the badge after the label.
     local m_content = args.content
     args.content = nil
+
+    --Optional director-only spoiler eyelid toggle shown after the label.
+    local m_eye = args.eye
+    args.eye = nil
 
     local classes = args.classes or {}
     classes[#classes+1] = "modifierPanel"
@@ -191,6 +434,10 @@ local function ModifierPanel(args)
             ApplySelectionColors(value)
         end,
     }
+
+    if m_eye ~= nil then
+        params[#params+1] = m_eye
+    end
 
     if m_content ~= nil then
         params[#params+1] = m_content
@@ -747,7 +994,13 @@ function GameHud.CreateEmbeddedRollDialog()
                 elseif modInfo.value < 0 then
                     labelType = "debuff"
                 end
-                markers:AddLabel(mod.modifier.name, labelType)
+                local labelText = mod.modifier.name
+                if PowerRollSpoilers.HasSpoiler(labelText) then
+                    local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(labelText),
+                        PowerRollSpoilers.DefaultRevealed(labelText))
+                    labelText = PowerRollSpoilers.Format(labelText, revealed)
+                end
+                markers:AddLabel(labelText, labelType)
             end
         end
     end
@@ -1114,13 +1367,23 @@ function GameHud.CreateEmbeddedRollDialog()
                     text = string.format("Target is %s", text)
                 end
 
-                modifiers[#modifiers+1] = {
+                local entry = {
                     name = text,
                     guid = m.modifier.guid or "",
                     enabled = ischecked,
                     forced = force,
                     buffOrDebuff = buffOrDebuff,
                 }
+
+                --Spoilered modifiers carry their raw name and description so
+                --the director's read-only mirror can reveal them to players
+                --and post them to the action log.
+                if PowerRollSpoilers.HasSpoiler(m.modifier.name or "") then
+                    entry.spoilerName = m.modifier.name
+                    entry.spoilerDescription = m.modifier:try_get("description", "")
+                end
+
+                modifiers[#modifiers+1] = entry
                 ::continueBroadcast::
             end
         end
@@ -2787,7 +3050,16 @@ function GameHud.CreateEmbeddedRollDialog()
         height = "auto",
         flow = "horizontal",
         wrap = true,
+        --Rebuild the badges when the director reveals or hides a spoilered
+        --modifier so the redaction updates live on player clients.
+        monitorGame = PowerRollSpoilers.DocumentPath(),
         events = {
+
+            refreshGame = function(element)
+                if m_options ~= nil and m_options.modifiers ~= nil then
+                    element:FireEvent("prepare", m_options)
+                end
+            end,
 
             -- Here we get a pass at deciding any modifications to which modifiers are available
             -- that will modify rollProperties (e.g. damage) after edges and banes have been calculated.
@@ -2849,6 +3121,30 @@ function GameHud.CreateEmbeddedRollDialog()
 
                         local check --gui.Check that will come out of this.
 
+                        local rawName = mod.modifier.name or ""
+                        local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
+                        local spoilerRevealed = false
+                        local spoilerEye = nil
+                        if spoiler then
+                            local spoilerKey = PowerRollSpoilers.Key(rawName)
+                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
+                            if dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
+                                end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = spoilerKey,
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = defaultRevealed,
+                                }
+                            end
+                        end
+
                         local tooltip = mod.modifier:GetSummaryText()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
@@ -2857,8 +3153,21 @@ function GameHud.CreateEmbeddedRollDialog()
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
                                 justification)
                         end
+                        if spoiler then
+                            if dmhub.isDM or spoilerRevealed then
+                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+                            else
+                                --Show players only the redacted name: passing the full
+                                --summary through would let its embedded color tags
+                                --defeat the redaction bar.
+                                tooltip = PowerRollSpoilers.Format(rawName, false)
+                            end
+                        end
 
-                        local text = mod.modifier.name
+                        local text = rawName
+                        if spoiler then
+                            text = PowerRollSpoilers.Format(rawName, spoilerRevealed)
+                        end
                         if mod.modFromTarget then
                             text = string.format("Target is %s", text)
                         end
@@ -2981,6 +3290,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             value = ischecked,
                             hmargin = 2,
                             mod = mod,
+                            eye = spoilerEye,
                             content = mappingContent,
                             data = {
                                 mod = mod,
@@ -3118,7 +3428,16 @@ function GameHud.CreateEmbeddedRollDialog()
         flow = "horizontal",
         wrap = true,
         bmargin = 6,
+        --Rebuild the badges when the director reveals or hides a spoilered
+        --modifier so the redaction updates live on player clients.
+        monitorGame = PowerRollSpoilers.DocumentPath(),
         events = {
+            refreshGame = function(element)
+                if m_options ~= nil and m_options.modifiers ~= nil then
+                    element:FireEvent("prepare", m_options)
+                end
+            end,
+
             prepare = function(element, options)
                 if creature == nil or options.modifiers == nil then
                     element.children = {}
@@ -3148,6 +3467,30 @@ function GameHud.CreateEmbeddedRollDialog()
                             ischecked = mod.hint.result
                         end
 
+                        local rawName = mod.modifier.name or ""
+                        local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
+                        local spoilerRevealed = false
+                        local spoilerEye = nil
+                        if spoiler then
+                            local spoilerKey = PowerRollSpoilers.Key(rawName)
+                            local defaultRevealed = PowerRollSpoilers.DefaultRevealed(rawName)
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(spoilerKey, defaultRevealed)
+                            if dmhub.isDM then
+                                local ownerCreature = cond(mod.modFromTarget, targetCreature, creature)
+                                local tokenid = nil
+                                if ownerCreature ~= nil then
+                                    tokenid = dmhub.LookupTokenId(ownerCreature)
+                                end
+                                spoilerEye = PowerRollSpoilers.CreateEyeButton{
+                                    key = spoilerKey,
+                                    name = rawName,
+                                    description = mod.modifier:try_get("description", ""),
+                                    tokenid = tokenid,
+                                    defaultRevealed = defaultRevealed,
+                                }
+                            end
+                        end
+
                         local tooltip = mod.modifier:GetSummaryText()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
@@ -3156,8 +3499,21 @@ function GameHud.CreateEmbeddedRollDialog()
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
                                 justification)
                         end
+                        if spoiler then
+                            if dmhub.isDM or spoilerRevealed then
+                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+                            else
+                                --Show players only the redacted name: passing the full
+                                --summary through would let its embedded color tags
+                                --defeat the redaction bar.
+                                tooltip = PowerRollSpoilers.Format(rawName, false)
+                            end
+                        end
 
-                        local text = mod.modifier.name
+                        local text = rawName
+                        if spoiler then
+                            text = PowerRollSpoilers.Format(rawName, spoilerRevealed)
+                        end
                         if mod.modFromTarget then
                             text = string.format("Target is %s", text)
                         end
@@ -3189,6 +3545,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             value = ischecked,
                             hmargin = 2,
                             mod = mod,
+                            eye = spoilerEye,
                             data = {
                                 mod = mod,
                                 modifierIndex = modifierIndex,
@@ -3768,6 +4125,36 @@ function GameHud.CreateEmbeddedRollDialog()
                         modifier = powerRollModifier,
                     }
                     m_options.modifiers[#m_options.modifiers + 1] = trigger.triggerInfo
+                end
+            end
+
+            --A trigger whose powerRollModifier sets applyToAllTargets extends to
+            --every target of the roll, not just the row it was activated on
+            --(e.g. Cannonfall's Buss Buffer: "the damage is halved for the
+            --cannonfall and each target also affected by the triggering
+            --ability"). Mirror only the modifier application onto this row;
+            --cost payment, reroll handling, and triggerInfo bookkeeping stay
+            --with the row that owns the trigger.
+            for otherIndex, other in ipairs(m_multitargets) do
+                if otherIndex ~= index then
+                    for _, trigger in ipairs(other.triggers or {}) do
+                        if trigger.triggered then
+                            local powerRollModifier = trigger.modifier:try_get("powerRollModifier")
+                            if powerRollModifier ~= nil and powerRollModifier:try_get("applyToAllTargets", false) then
+                                powerRollModifier._tmp_trigger = true
+                                powerRollModifier._tmp_triggerCharid = trigger.charid
+                                powerRollModifier:InstallSymbolsFromContext{
+                                    caster = creature,
+                                    target = targetCreature,
+                                }
+                                m_options.modifiers[#m_options.modifiers + 1] = {
+                                    hint = { result = true, justification = {} },
+                                    context = { mod = powerRollModifier },
+                                    modifier = powerRollModifier,
+                                }
+                            end
+                        end
+                    end
                 end
             end
 

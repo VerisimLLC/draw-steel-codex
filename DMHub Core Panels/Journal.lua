@@ -254,7 +254,7 @@ end
 
 DockablePanel.Register {
     name = "Journal",
-    icon = "icons/standard/Icon_App_Journal.png",
+    icon = "phosphor/book-open.png",
     vscroll = false,
     dmonly = false,
     minHeight = 160,
@@ -1603,21 +1603,23 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                         element:SetClass("collapsed", true)
                                     else
                                         element:SetClass("collapsed", false)
+                                        --all node glyphs are Phosphor masks now:
+                                        --leave bgcolor to the {icon} cascade (@fg,
+                                        --inverts on hover) rather than forcing the
+                                        --untinted white the full-colour art needed.
+                                        element.selfStyle.bgcolor = nil
                                         if member.nodeType == "pdf" then
-                                            element.bgimage = "icons/icon_app/icon_app_137.png"
+                                            element.bgimage = "phosphor/file-pdf.png"
                                         elseif member.nodeType == "custom" or member.nodeType == "negotiation" then
-                                            --journal documents show their full-colour semantic-type
-                                            --icon (narration/combat/montage/negotiation/note/...).
+                                            --journal documents show their semantic-type
+                                            --glyph (narration/combat/montage/negotiation/note/...).
                                             local typeIcon = nil
                                             pcall(function() typeIcon = CustomDocument.DocTypeIcon(member) end)
-                                            if typeIcon ~= nil then
-                                                element.bgimage = typeIcon
-                                                element.selfStyle.bgcolor = "white"
-                                            else
-                                                element.bgimage = "icons/icon_app/icon_app_34.png"
-                                            end
+                                            element.bgimage = typeIcon or "phosphor/file-text.png"
+                                        elseif member.nodeType == "image" then
+                                            element.bgimage = "phosphor/image.png"
                                         else
-                                            element.bgimage = "icons/icon_app/icon_app_34.png" --image / fragment
+                                            element.bgimage = "phosphor/bookmark-simple.png" --pdf fragment
                                         end
                                     end
                                 end,

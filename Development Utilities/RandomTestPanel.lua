@@ -159,7 +159,7 @@ end
 
 DockablePanel.Register{
     name = "Steam Handoff Test",
-    icon = mod.images.chatIcon,
+    icon = "phosphor/swap.png",
     minHeight = 400,
     vscroll = true,
     devonly = true,

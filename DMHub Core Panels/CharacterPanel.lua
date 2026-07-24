@@ -140,7 +140,7 @@ local g_sidebarExtras = {
 
 DockablePanel.Register {
     name = "Character",
-	icon = "icons/standard/Icon_App_Character.png",
+	icon = "phosphor/user.png",
     minHeight = 140,
     vscroll = true,
     hideObjectsOutOfScroll = false,

@@ -383,6 +383,11 @@ CharacterModifier.TypeInfo.power = {
 		local powerRollSymbols = self:AppendSymbols{
 			ability = GenerateSymbols(options.ability),
 			target = GenerateSymbols(options.target),
+			--Expose the creature making the roll so activation conditions can test
+			--the attacker (e.g. "Caster.Keywords has 'Olothec'" on an
+			--enemy_ability_power_roll modifier). options.caster is the roller;
+			--for enemy ability rolls that is the attacker striking the bearer.
+			caster = options.caster ~= nil and GenerateSymbols(options.caster) or nil,
             title = options.title or "",
 		}
 
@@ -1103,6 +1108,37 @@ CharacterModifier.TypeInfo.power = {
 
             local children = {}
 
+            --Spoiler eyelid: wraps/unwraps the modifier name in {#...} spoiler
+            --markup (see PowerRollSpoilers in Timeline/EmbeddedRollDialog) so
+            --authors don't need to remember the markup. A spoilered name hides
+            --the modifier's name and description from players in the roll
+            --dialogs until the director reveals it.
+            local spoilerEye = nil
+            local spoilers = rawget(_G, "PowerRollSpoilers")
+            if spoilers ~= nil then
+                local spoilered = spoilers.HasSpoiler(modifier.name or "")
+                spoilerEye = gui.VisibilityPanel{
+                    visible = not spoilered,
+                    hmargin = 6,
+                    valign = "center",
+                    hoverCursor = "hand",
+                    click = function(element)
+                        local name = modifier.name or ""
+                        if spoilers.HasSpoiler(name) then
+                            modifier.name = spoilers.Strip(name)
+                        elseif name ~= "" then
+                            modifier.name = "{#" .. name .. "}"
+                        end
+                        Refresh()
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(cond(spoilers.HasSpoiler(modifier.name or ""),
+                            "This modifier is a spoiler: players see its name and description redacted in the roll dialog until the director reveals it. Click to make it visible to players.",
+                            "This modifier is visible to players. Click to hide its name and description from players as a spoiler."))(element)
+                    end,
+                }
+            end
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
@@ -1117,6 +1153,7 @@ CharacterModifier.TypeInfo.power = {
                         Refresh()
                     end,
                 },
+                spoilerEye,
             }
 
             children[#children+1] = gui.Panel{
@@ -2938,6 +2975,8 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
         local potencyBonus       = data.potencyBonus      or 0
         local damageTypeMappings = data.damageTypeMappings or {}
         local rangeBonus         = data.rangeBonus        or 0
+        local meleeRangeBonus    = data.meleeRangeBonus   or 0
+        local rangedRangeBonus   = data.rangedRangeBonus  or 0
         local burstBonus         = data.burstBonus        or 0
         local cubeBonus          = data.cubeBonus         or 0
         local cubeWithinBonus    = data.cubeWithinBonus   or 0
@@ -2950,7 +2989,8 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
         local hasChange =
             displayName ~= "" or flavorText ~= "" or #variations > 0
             or damageBonus ~= 0 or potencyBonus ~= 0 or hasDamageTypeMappings
-            or rangeBonus ~= 0 or burstBonus ~= 0
+            or rangeBonus ~= 0 or meleeRangeBonus ~= 0 or rangedRangeBonus ~= 0
+            or burstBonus ~= 0
             or cubeBonus ~= 0 or cubeWithinBonus ~= 0
             or lineLengthBonus ~= 0 or lineWidthBonus ~= 0 or lineWithinBonus ~= 0
         if not hasChange then return ability end
@@ -3056,7 +3096,27 @@ CharacterModifier.TypeInfo.abilitycustomisation = {
             end
         else
             -- Melee, ranged, self, etc.: standard range field.
-            if rangeBonus ~= 0 then
+            --
+            -- An ability with both the Melee and Ranged keywords gets bifurcated
+            -- (ActivatedAbility:BifurcateIntoMeleeAndRanged) into separate melee
+            -- and ranged variations for the action bar, each carrying its own
+            -- range. Modifiers run once on the merged ability and once on each
+            -- variation (variation objects are already temporary clones, so
+            -- MakeTemporaryClone -- and the mutations below -- apply in place
+            -- even though the per-variation call's return value is discarded by
+            -- the caller). Prefer the variation-specific bonus so melee and
+            -- ranged can be tuned independently; the merged (non-split) ability
+            -- and any ability without both keywords keeps using the plain
+            -- rangeBonus.
+            if ability:try_get("isMeleeVariation", false) then
+                if meleeRangeBonus ~= 0 then
+                    ability.range = AddBonus(ability.range, meleeRangeBonus * ups, ups)
+                end
+            elseif ability:try_get("isRangedVariation", false) then
+                if rangedRangeBonus ~= 0 then
+                    ability.range = AddBonus(ability.range, rangedRangeBonus * ups, ups)
+                end
+            elseif rangeBonus ~= 0 then
                 ability.range = AddBonus(ability.range, rangeBonus * ups, ups)
             end
         end
@@ -3239,6 +3299,8 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         potencyBonus     = srcData.potencyBonus      or 0,
         damageTypeMappings = DeepCopy(srcData.damageTypeMappings or {}),
         rangeBonus       = srcData.rangeBonus        or 0,
+        meleeRangeBonus  = srcData.meleeRangeBonus   or 0,
+        rangedRangeBonus = srcData.rangedRangeBonus  or 0,
         burstBonus       = srcData.burstBonus        or 0,
         cubeBonus        = srcData.cubeBonus         or 0,
         cubeWithinBonus  = srcData.cubeWithinBonus   or 0,
@@ -3248,6 +3310,12 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
     }
 
     local targetType = self:try_get("targetType", "")
+
+    -- An ability with both keywords gets bifurcated into separate melee/ranged
+    -- variations for the action bar (ActivatedAbility:BifurcateIntoMeleeAndRanged),
+    -- each with its own range. When that applies, offer melee- and ranged-specific
+    -- range bonuses instead of one bonus shared by both variations.
+    local isMeleeAndRanged = self:HasKeyword("Melee") and self:HasKeyword("Ranged")
 
     -- Forward declarations (closures below capture these upvalues).
     local dialog
@@ -3271,7 +3339,9 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
             and #wd.variations == 0
             and wd.damageBonus == 0 and wd.potencyBonus == 0
             and next(wd.damageTypeMappings) == nil
-            and wd.rangeBonus == 0 and wd.burstBonus == 0
+            and wd.rangeBonus == 0
+            and wd.meleeRangeBonus == 0 and wd.rangedRangeBonus == 0
+            and wd.burstBonus == 0
             and wd.cubeBonus == 0 and wd.cubeWithinBonus == 0
             and wd.lineLengthBonus == 0 and wd.lineWidthBonus == 0
             and wd.lineWithinBonus == 0
@@ -3426,6 +3496,17 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         rangeRows[#rangeRows+1] = s1.panel
         rangeRows[#rangeRows+1] = s2.panel
         rangeRows[#rangeRows+1] = s3.panel
+    elseif isMeleeAndRanged then
+        -- Split into melee- and ranged-specific bonuses so each action-bar
+        -- variation (see BifurcateIntoMeleeAndRanged) can be tuned separately.
+        local s1 = MakeSpinner("Melee Range Bonus:",
+            function() return wd.meleeRangeBonus end, function(v) wd.meleeRangeBonus = v end)
+        local s2 = MakeSpinner("Ranged Range Bonus:",
+            function() return wd.rangedRangeBonus end, function(v) wd.rangedRangeBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
     else
         local s = MakeSpinner("Range Bonus:",
             function() return wd.rangeBonus end, function(v) wd.rangeBonus = v end)
@@ -3445,6 +3526,8 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         wd.potencyBonus     = 0
         wd.damageTypeMappings = {}
         wd.rangeBonus       = 0
+        wd.meleeRangeBonus  = 0
+        wd.rangedRangeBonus = 0
         wd.burstBonus       = 0
         wd.cubeBonus        = 0
         wd.cubeWithinBonus  = 0
@@ -3736,13 +3819,17 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         },
     }
 
-    -- Construct the dialog panel from the assembled children list.
-    local dialogProps = {
+    -- Construct the framed panel from the assembled children list.
+    --
+    -- Centering (halign/valign) and floating live on an OUTER wrapper, NOT on
+    -- this framed panel. Setting halign on a panel scrambles the order of that
+    -- panel's own children in the engine's layout (an ordering side-effect that
+    -- pushed sections like the range spinners or Character Speech below the
+    -- action buttons). Keeping halign off the framed panel preserves the child
+    -- order; the wrapper positions the dialog on screen instead.
+    local framedProps = {
         styles    = ThemeEngine.GetStyles(),
         classes   = {"framedPanel"},
-        floating  = true,
-        halign    = "center",
-        valign    = "center",
         width     = 540,
         height    = "auto",
         flow      = "vertical",
@@ -3750,9 +3837,18 @@ function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
         borderBox = true,
     }
     for i, child in ipairs(dChildren) do
-        dialogProps[i] = child
+        framedProps[i] = child
     end
-    dialog = gui.Panel(dialogProps)
+    local framedPanel = gui.Panel(framedProps)
+
+    dialog = gui.Panel{
+        floating = true,
+        halign   = "center",
+        valign   = "center",
+        width    = "auto",
+        height   = "auto",
+        framedPanel,
+    }
 
     return dialog
 end

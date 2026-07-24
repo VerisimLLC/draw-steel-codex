@@ -55,17 +55,19 @@ CustomDocument.documentTypes = {}
 CustomDocument.docType = "narration"
 
 --Fixed registry, keyed by type id. glyph = single-letter Flow badge.
---NOTE: exploration + location share a placeholder map icon until Phase 5
---commissions distinct art (combat already reuses the encounter glyph).
+--Icons are Phosphor line glyphs (monochrome masks): they render tinted @fg
+--through the tree/Run cascade and invert on hover, unlike the old full-colour
+--Icon_App art which was painted untinted. exploration and location now carry
+--distinct art (compass vs pin), resolving the placeholder they used to share.
 CustomDocument.docTypeInfo = {
-    note        = { text = "Note",        icon = "icons/standard/Icon_App_Clipboard.png",        beat = false, glyph = "~", ord = 5 },
-    narration   = { text = "Narration",   icon = "icons/standard/Icon_App_Journal.png",          beat = true,  glyph = "N", ord = 10 },
-    exploration = { text = "Exploration", icon = "icons/standard/Icon_App_MapSettings.png",      beat = true,  glyph = "E", ord = 20 },
-    combat      = { text = "Combat",      icon = "icons/standard/Icon_App_EncounterCreator.png", beat = true,  glyph = "C", ord = 30 },
-    montage     = { text = "Montage",     icon = "icons/standard/Icon_App_Respite.png",          beat = true,  glyph = "M", ord = 40 },
-    negotiation = { text = "Negotiation", icon = "icons/standard/Icon_App_Negotiation.png",      beat = true,  glyph = "G", ord = 50 },
-    location    = { text = "Location",    icon = "icons/standard/Icon_App_MapSettings.png",      beat = false, glyph = "L", ord = 60 },
-    npc         = { text = "NPC",         icon = "icons/standard/Icon_App_Character.png",         beat = false, glyph = "P", ord = 70 },
+    note        = { text = "Note",        icon = "phosphor/note-pencil.png",          beat = false, glyph = "~", ord = 5 },
+    narration   = { text = "Narration",   icon = "phosphor/quotes.png",               beat = true,  glyph = "N", ord = 10 },
+    exploration = { text = "Exploration", icon = "phosphor/compass.png",              beat = true,  glyph = "E", ord = 20 },
+    combat      = { text = "Combat",      icon = "phosphor/sword.png",                beat = true,  glyph = "C", ord = 30 },
+    montage     = { text = "Montage",     icon = "phosphor/film-slate.png",           beat = true,  glyph = "M", ord = 40 },
+    negotiation = { text = "Negotiation", icon = "phosphor/handshake.png",            beat = true,  glyph = "G", ord = 50 },
+    location    = { text = "Location",    icon = "phosphor/map-pin-simple.png",       beat = false, glyph = "L", ord = 60 },
+    npc         = { text = "NPC",         icon = "phosphor/person-simple-circle.png", beat = false, glyph = "P", ord = 70 },
 }
 
 --The document's semantic type id, always a valid key (falls back to
@@ -730,14 +732,16 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 children[#children + 1] = buildFolderEntry(member.id, member.description, expandThis, subChildren)
             else
                 local isCurrentDoc = (member.id == currentDocId)
-                --docs show their full-colour semantic-type icon (member.icon);
-                --pdf/image keep the monochrome glyphs the journal panel uses.
-                local memberIcon = member.icon or "icons/icon_app/icon_app_107.png"
-                local isTypeIcon = member.type == "doc" and member.icon ~= nil
+                --every tree glyph is now a monochrome Phosphor mask, so they
+                --all tint @fg through the cascade and invert on hover; no
+                --member needs the untinted-white path the full-colour art used.
+                local memberIcon = member.icon or "phosphor/file-text.png"
                 if member.type == "pdf" then
-                    memberIcon = "icons/icon_app/icon_app_137.png"
-                elseif member.type == "image" or member.type == "pdffragment" then
-                    memberIcon = "icons/icon_app/icon_app_34.png"
+                    memberIcon = "phosphor/file-pdf.png"
+                elseif member.type == "image" then
+                    memberIcon = "phosphor/image.png"
+                elseif member.type == "pdffragment" then
+                    memberIcon = "phosphor/bookmark-simple.png"
                 end
                 children[#children + 1] = gui.Panel {
                     classes = { "treeRow", cond(isCurrentDoc, "currentDoc") },
@@ -775,11 +779,8 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                     gui.Panel {
                         classes = { "treeIcon" },
                         bgimage = memberIcon,
-                        --full-colour type icons render untinted (white,
-                        --selfStyle so hover inversion leaves them alone);
-                        --monochrome pdf/image glyphs tint @fg via the
-                        --cascade, inverting on hover like the panel.
-                        bgcolor = cond(isTypeIcon, "white", nil),
+                        --all glyphs are Phosphor masks now: inherit the
+                        --treeIcon cascade (@fg, inverts to @bg on row hover).
                     },
                     gui.Label {
                         classes = { "treeLabel" },
@@ -839,10 +840,9 @@ local function buildJournalTree(currentDocId, dialogPanel, opts)
                 makeExpanderGhost(),
                 gui.Panel {
                     classes = { "treeIcon" },
-                    --a registered type carries its own (full-colour) icon;
-                    --fall back to the generic page glyph for any that do not.
-                    bgimage = v.icon or "icons/icon_app/icon_app_107.png",
-                    bgcolor = cond(v.icon ~= nil, "white", nil),
+                    --Phosphor type glyph (or the generic page glyph); tints
+                    --@fg through the treeIcon cascade like every other row.
+                    bgimage = v.icon or "phosphor/file-text.png",
                 },
                 gui.Label {
                     classes = { "treeLabel" },
@@ -1473,7 +1473,7 @@ function CustomDocument:CreateInterface(args)
             typeIconPanel = gui.Panel {
                 width = 14, height = 14, valign = "center",
                 bgimage = CustomDocument.DocTypeIcon(self),
-                bgcolor = "white", --full-colour app icon
+                bgcolor = "@fg", --monochrome Phosphor mask, tinted as chrome
             }
             typeLabel = gui.Label {
                 classes = { "fgMuted" },
@@ -2331,6 +2331,28 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
         },
     }
 
+    --the doc's semantic-type glyph, same as its tree row -- so an open tab
+    --carries the same icon you clicked to open it. Guarded: non-custom docs
+    --(pdf/image) have no DocTypeIcon and fall back to the generic page glyph.
+    local tabTypeIcon = nil
+    pcall(function() tabTypeIcon = CustomDocument.DocTypeIcon(doc) end)
+    children[#children + 1] = gui.Panel {
+        classes = {"tabTypeIcon"},
+        bgimage = tabTypeIcon or "phosphor/file-text.png",
+        width = 14,
+        height = 14,
+        valign = "center",
+        rmargin = 6,
+        --keep in step if the doc's type changes while the tab is open.
+        refreshTabTitle = function(element, docId, newTitle)
+            if docId == tabButton.data.docId then
+                local icon = nil
+                pcall(function() icon = CustomDocument.DocTypeIcon(doc) end)
+                element.bgimage = icon or "phosphor/file-text.png"
+            end
+        end,
+    }
+
     if bubbleIcon then
         children[#children + 1] = gui.Label {
             styles = tabLabelStyles,
@@ -2545,6 +2567,16 @@ function CustomDocument.GetOrCreateTabbedViewer()
             selectors = { "label", "parent:selected" },
             color = "#e4ddd0",
         },
+        --the tab's type glyph tracks its label's colour: dim on an inactive
+        --tab, parchment on the active one.
+        {
+            selectors = { "tabTypeIcon", "parent:journalTab" },
+            bgcolor = "#7a7468",
+        },
+        {
+            selectors = { "tabTypeIcon", "parent:selected" },
+            bgcolor = "#e4ddd0",
+        },
         --the tab close x: quiet dim glyph with no chip box; the fail-red
         --treatment appears only on hover, per the design.
         {
@@ -2636,8 +2668,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
     local treeRail
     local contentArea
 
+    --sidebar glyph, the same the dock/rail toggles use, so "show the side
+    --tree" reads consistently everywhere. bgcolor carries the lit/dim state.
     local treeToggleIcon = gui.Panel {
-        bgimage = "icons/standard/Icon_App_Journal.png",
+        bgimage = "phosphor/sidebar-simple.png",
         bgcolor = cond(g_journalTreeRailSetting:Get(), "#e4ddd0", "#7a7468"),
         width = 16,
         height = 16,
@@ -3672,6 +3706,40 @@ PanelDocument.panelName = ""
 PanelDocument.DefaultWidth = 380
 PanelDocument.DefaultHeight = 520
 
+--Declared here rather than beside its other uses further down: PresentPanel
+--needs it, and a local is not in lexical scope for code written above it.
+local g_panelDocumentHeaderHeight = 32
+
+--Clamp a window height to the panel's DECLARED bounds. Dockable panels
+--register minHeight/maxHeight (DockablePanel.lua, defaulting 40/1080) and
+--several are FIXED -- Dice declares min == max == 160, Audio 470 -- so
+--rendering every rail window at the generic DefaultHeight left Dice in a box
+--three times taller than its content. The registration's bounds describe the
+--CONTENT, so the window adds its own header on top, the same way the dock
+--adds its 40px tab strip when it computes container metrics.
+--Applied to explicit heights too, not just the default: a restored pin must
+--not violate the panel's bounds either.
+function PanelDocument.ClampHeight(panelName, height)
+    if panelName == nil or type(height) ~= "number" then
+        return height
+    end
+    local reg = DockablePanel.GetRegistration(panelName)
+    if reg == nil then
+        return height
+    end
+    local content = height - g_panelDocumentHeaderHeight
+    local minH, maxH = nil, nil
+    pcall(function() minH = reg.minHeight end)
+    pcall(function() maxH = reg.maxHeight end)
+    if type(minH) == "number" and content < minH then
+        content = minH
+    end
+    if type(maxH) == "number" and content > maxH then
+        content = maxH
+    end
+    return content + g_panelDocumentHeaderHeight
+end
+
 local g_panelDocuments = {}
 
 --Get (or create) the session-cached PanelDocument for a registered
@@ -3715,7 +3783,9 @@ function PanelDocument:PresentPanel(args)
     end
 
     args.width = args.width or PanelDocument.DefaultWidth
-    args.height = args.height or PanelDocument.DefaultHeight
+    args.height = PanelDocument.ClampHeight(
+        self:try_get("panelName"),
+        args.height or PanelDocument.DefaultHeight)
 
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
@@ -3920,8 +3990,6 @@ end
 function PanelDocument.IsPanelShown(key)
     return PanelDocument.FindHostDialog(key) ~= nil
 end
-
-local g_panelDocumentHeaderHeight = 32
 
 --The registration describing this document's own panel content. The
 --base type resolves its panelName against the dockable panel registry;
@@ -4483,9 +4551,15 @@ function PanelDocument:CreateInterface(args)
                 selectors = {"panelDocumentHeaderIcon"},
                 bgcolor = "white",
             },
+            --Chips carry no outline; the active tab is read from fill +
+            --weight, following the design system's canonical {tab}: rest @bg,
+            --selected the LIGHTER @bgAlt. Note the direction -- @bg (#0A0A0B)
+            --is the darkest token in the ladder, so there is nothing below it
+            --to "deepen" into; separation has to come from lifting the
+            --selected chip, not sinking it.
             {
                 selectors = {"panelDocumentTab"},
-                bgcolor = "clear",
+                bgcolor = "@bg",
                 border = 1,
                 borderColor = "clear",
                 cornerRadius = 4,
@@ -4497,18 +4571,22 @@ function PanelDocument:CreateInterface(args)
             },
             {
                 selectors = {"panelDocumentTab", "selected"},
-                bgcolor = "@bg",
-                borderColor = "@border",
+                bgcolor = "@bgAlt",
+                borderColor = "clear",
             },
+            --weight is the second half of the signal: rest is regular, the
+            --selected chip goes bold. bold was previously on the base rule,
+            --so every chip was bold and the weight said nothing.
             {
                 selectors = {"label", "panelDocumentTitle"},
                 color = "@fg",
                 fontSize = 12,
-                bold = true,
+                bold = false,
             },
             {
                 selectors = {"label", "panelDocumentTitle", "parent:selected"},
                 color = "@fgStrong",
+                bold = true,
             },
         }),
 
@@ -4735,19 +4813,14 @@ local function RailLayout()
             end
             return a.ord < b.ord
         end)
-        local used = {}
-        for _, e in ipairs(sideList) do
-            local s = e.slot or 0
-            if s < 0 then
-                s = 0
-            end
-            while used[s] do
-                s = s + 1
-            end
-            used[s] = true
-            e.slot = s
+        --Dense list: the rail always packs from the top with no gaps. The
+        --stored slot only drives the sort above; blank spacer slots are not
+        --preserved. (Prototype of the dense-list reorder model -- reordering
+        --shifts neighbours by one and never opens a hole, matching how a
+        --tab strip / bookmark bar / dock behaves.)
+        for i, e in ipairs(sideList) do
+            e.slot = i - 1
         end
-        table.sort(sideList, function(a, b) return a.slot < b.slot end)
     end
     return sides, inert
 end
@@ -4807,8 +4880,14 @@ local function RailDropTarget(side, slot, element)
     if targetSlot < 0 then
         targetSlot = 0
     end
-    if targetSlot > ICON_RAIL_MAX_SLOT then
-        targetSlot = ICON_RAIL_MAX_SLOT
+    --Dense list: you can only drop between existing icons or at the end, so
+    --clamp to the target rail's length. This keeps the ghost preview in step
+    --with where the drop actually lands -- no aiming into empty space and
+    --getting snapped back to the tail.
+    local sides = RailLayout()
+    local count = #(sides[targetSide] or {})
+    if targetSlot > count then
+        targetSlot = count
     end
     return targetSide, targetSlot
 end
@@ -5106,7 +5185,10 @@ local function IconRailStyles()
             opacity = 0,
             bgcolor = "#0a0a0beb",
             border = 1,
-            borderColor = "#ffffff47",
+            --@border (white @ 0.16) rather than the old hard-coded #ffffff47
+            --(0.28): the design system's quiet-edge standard, and it follows
+            --the colour scheme instead of pinning white in every theme.
+            borderColor = "@border",
             cornerRadius = 6,
             color = "@fg",
             fontSize = 11,
@@ -5201,81 +5283,50 @@ ShowRailGhost = function(side, slot, excludeKey)
     if layer == nil then
         return
     end
+    --Insertion LINE (dense-list model): a thin bright bar in the gap where the
+    --dragged icon will land, rather than a box occupying a slot with the
+    --buttons below shoved down. The line reads as "it goes HERE" and the rail
+    --stays still -- no shuffling, which was jittery and reinforced the old
+    --absolute-cell feel. excludeKey is unused now (nothing shifts).
     if g_railDragGhost == nil or not g_railDragGhost.valid then
         g_railDragGhost = gui.Panel{
-            classes = {"iconRailGhost"},
-            styles = IconRailStyles(),
-            bgimage = true,
+            classes = {"iconRailGhostLine"},
+            bgimage = "panels/square.png",
+            bgcolor = "#ffffffe0",
+            cornerRadius = 2,
             width = ICON_RAIL_BUTTON,
-            height = ICON_RAIL_BUTTON,
+            height = 3,
             halign = "left",
             valign = "top",
             interactable = false,
-            children = DottedOutlineChildren(ICON_RAIL_BUTTON),
         }
         layer:AddChild(g_railDragGhost)
-    end
-
-    local sig = tostring(side) .. ":" .. tostring(slot) .. ":" .. tostring(excludeKey)
-    if sig ~= g_railShiftSig then
-        RailRestoreShift()
-        g_railShiftSig = sig
-
-        if RailSlotOccupied(side, slot, excludeKey) then
-            local rail = g_iconRails[side]
-            if rail ~= nil and rail.valid then
-                local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
-                local shiftedSlot = nil
-                for _, child in ipairs(rail.children) do
-                    if child.valid then
-                        local d = nil
-                        pcall(function() d = child.data end)
-                        if d ~= nil and d.slot ~= nil and d.baseMargin ~= nil and d.slot >= slot and d.key ~= excludeKey then
-                            g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
-                            child.selfStyle.tmargin = d.baseMargin + pitch
-                            shiftedSlot = d.slot
-                            break
-                        end
-                    end
-                end
-                --When the shifted button sits ABOVE the dragged button in
-                --the flow, the shift would carry the dragged button's
-                --LAYOUT anchor down with it -- and the engine measures
-                --ydrag from that anchor, so the computed drop slot would
-                --jump up a pitch, close the gap, and re-open it forever
-                --(the flicker Lisa saw). Pin the anchor: give the dragged
-                --button a compensating negative margin so its layout spot
-                --never moves; the buttons between shuffle into its hole,
-                --which is the right visual anyway.
-                if shiftedSlot ~= nil and excludeKey ~= nil then
-                    for _, child in ipairs(rail.children) do
-                        if child.valid then
-                            local d = nil
-                            pcall(function() d = child.data end)
-                            if d ~= nil and d.key == excludeKey and d.slot ~= nil and d.baseMargin ~= nil and d.slot > shiftedSlot then
-                                g_railShifted[#g_railShifted + 1] = { panel = child, base = d.baseMargin }
-                                child.selfStyle.tmargin = d.baseMargin - pitch
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end
     end
 
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
     local slotTop = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
     g_railDragGhost.x = railX
-    g_railDragGhost.y = slotTop
+    --centre the line in the gap ABOVE the target slot (between the previous
+    --icon and this one); slotTop is that slot's top edge.
+    g_railDragGhost.y = slotTop - ICON_RAIL_GAP / 2 - 1
     g_railDragGhost:SetClass("hidden", false)
 end
 
---A tray-style button mounted in the TITLE BAR of the dock's topmost panel:
---clicking it slides that dock away, which brings the rail's buttons back.
---Built by EnsureDockTrayButtons while the rail mode is on. (It used to hang
---off the dock's bottom inner edge where the old slide handle lived.)
-local function CreateDockTrayButton(side)
+local ICON_RAIL_DOCK_HEADER_HEIGHT = 30
+
+--The dock's own header bar: a dock-LEVEL strip across the top of each dock,
+--which is where dock-level controls belong. The sidebar toggle used to be a
+--tenant of the topmost panel's title bar, which meant it rode whichever panel
+--happened to be on top and had to shove that panel's minimize/collapse arrows
+--sideways to fit. A header of its own removes both problems and leaves room
+--for further dock-level controls later.
+--
+--Safe to add as a dock child: the dock's own layout and save paths
+--(fitChildren, layoutChanged, Serialize) all go through class-filtered
+--lookups for "dockablePanelContainer", so an extra child is ignored by them.
+--It is NOT floating -- it sits in the dock's flow so the panels below start
+--underneath it rather than behind it.
+local function CreateDockHeader(side)
     local dockSettingId = side .. "dockoffscreen"
 
     local iconClasses = {"iconRailTrayGlyph"}
@@ -5283,29 +5334,17 @@ local function CreateDockTrayButton(side)
         iconClasses[#iconClasses + 1] = "rightSide"
     end
 
-    return gui.Panel{
+    local button = gui.Panel{
         classes = {"iconRailDockButton"},
-        styles = IconRailStyles(),
         bgimage = true,
-        floating = true,
         width = 20,
         height = 20,
         flow = "none",
-        --Positioned with the same idiom as the title bar's own
-        --minimize/collapse arrows (floating, halign/valign + margins), so it
-        --sits on their row. It goes hard against the edge NEAREST SCREEN
-        --CENTRE -- the left dock's inner edge is its RIGHT, the right dock's
-        --is its LEFT -- and OUTBOARD of the arrows on both. hmargin 6 mirrors
-        --the collapse arrow's own inset from the edge. On the LEFT that is
-        --the collapse arrow's usual spot, so SyncTitleBarArrows nudges that
-        --panel's arrows inward to make room; the right dock's inner edge is
-        --already free (both docks keep their arrows at the right).
-        --vmargin 8 on a 20px button centres it on the arrows' centreline
-        --(they are 12 tall at vmargin 12) within the 32px bar.
-        valign = "top",
-        vmargin = 8,
+        --hard against the edge nearest screen centre: the left dock's inner
+        --edge is its RIGHT, the right dock's is its LEFT.
+        valign = "center",
         halign = cond(side == "left", "right", "left"),
-        hmargin = 6,
+        hmargin = 8,
 
         gui.Panel{
             classes = iconClasses,
@@ -5325,37 +5364,34 @@ local function CreateDockTrayButton(side)
             end
         end,
     }
+
+    return gui.Panel{
+        classes = {"iconRailDockHeader"},
+        styles = IconRailStyles(),
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        width = "100%",
+        height = ICON_RAIL_DOCK_HEADER_HEIGHT,
+        flow = "none",
+        valign = "top",
+
+        button,
+
+        --hairline along the bottom edge, matching the dock's other seams.
+        gui.Panel{
+            bgimage = "panels/square.png",
+            bgcolor = "@border",
+            width = "100%",
+            height = 1,
+            halign = "center",
+            valign = "bottom",
+        },
+    }
 end
 
---The LEFT dock's tray button sits outboard of the title bar's arrows, which
---is the collapse arrow's usual spot -- so slide that panel's arrows inward by
---one button width to open the gap. Their stock insets are 6 (collapse) and 28
---(minimize); see DockablePanel.lua. Deliberately stateless: re-applied from
---the rail think and reset to stock on every panel that is NOT the host, so a
---reorder or a mode-off leaves no panel with shifted arrows.
-local ICON_RAIL_ARROW_SHIFT = 26
-local function SyncTitleBarArrows(wrapper, shifted)
-    if wrapper == nil or not wrapper.valid then
-        return
-    end
-    for _, child in ipairs(wrapper.children or {}) do
-        if child.valid and child:HasClass("collapseArrow") then
-            local base = 6
-            if child:HasClass("minimizeArrow") then
-                base = 28
-            end
-            local offset = 0
-            if shifted then
-                offset = ICON_RAIL_ARROW_SHIFT
-            end
-            child.selfStyle.hmargin = base + offset
-        end
-    end
-end
-
---Keep a dock tray button mounted on each dock while the rail mode is
---on, and remove them when it is off. Docks rebuild their child lists on
---layout changes, so this is re-applied from the rail's think.
+--Keep a header bar mounted on each dock while the rail mode is on, and remove
+--it when the mode is off. Docks rebuild their child lists on layout changes,
+--so this is re-applied from the rail's think.
 local function EnsureDockTrayButtons()
     if gamehud == nil or rawget(gamehud, "leftDock") == nil then
         return
@@ -5364,59 +5400,45 @@ local function EnsureDockTrayButtons()
     for _, info in ipairs({ { dock = gamehud.leftDock, side = "left" }, { dock = gamehud.rightDock, side = "right" } }) do
         local dock = info.dock
         if dock ~= nil and dock.valid then
-            --The button rides the TOP panel's title bar, so unlike the old
-            --dock-bottom mount it has to be re-homed whenever the dock
-            --reorders (the topmost panel changes) -- hence sweeping every
-            --container rather than just checking the dock's own children.
-            --Host is the panel container's wrapper child, the same parent the
-            --minimize/collapse arrows float in.
-            local host = nil
+            local header = nil
+            for _, child in ipairs(dock.children) do
+                if child.valid and child:HasClass("iconRailDockHeader") then
+                    if railOn and header == nil then
+                        header = child
+                    else
+                        --mode off, or a duplicate from a rebuild.
+                        child:DestroySelf()
+                    end
+                end
+            end
+
+            --Sweep any button left inside a panel's title bar by the previous
+            --arrangement, so upgrading mid-session does not strand one there.
             for _, child in ipairs(dock.children) do
                 if child.valid and child:HasClass("dockablePanelContainer") then
                     local wrapper = child.children[1]
                     if wrapper ~= nil and wrapper.valid then
-                        host = wrapper
-                    end
-                    break
-                end
-            end
-
-            --Keep a button only if it is already on the current host; any
-            --other (a stale one left on a panel that is no longer topmost)
-            --goes, so the dock never shows two.
-            local existing = nil
-            local function sweep(panel)
-                if panel == nil or not panel.valid then
-                    return
-                end
-                for _, child in ipairs(panel.children or {}) do
-                    if child.valid and child:HasClass("iconRailDockButton") then
-                        if railOn and panel == host then
-                            existing = child
-                        else
-                            child:DestroySelf()
+                        for _, g in ipairs(wrapper.children or {}) do
+                            if g.valid and g:HasClass("iconRailDockButton") then
+                                g:DestroySelf()
+                            end
                         end
                     end
                 end
             end
 
-            sweep(dock)
-            for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("dockablePanelContainer") then
-                    sweep(child.children[1])
+            if railOn and header == nil then
+                dock:AddChild(CreateDockHeader(info.side))
+                --AddChild appends, which would put the header BELOW the panels
+                --in the dock's flow. Push every container after it instead --
+                --SetAsLastSibling preserves their relative order, so walking
+                --them in order leaves the header first and the panels intact.
+                for _, child in ipairs(dock.children) do
+                    if child.valid and child:HasClass("dockablePanelContainer") then
+                        child:SetAsLastSibling()
+                    end
                 end
-            end
-
-            if railOn and existing == nil and host ~= nil then
-                host:AddChild(CreateDockTrayButton(info.side))
-            end
-
-            --only the left dock's button lands on the arrows' side.
-            for _, child in ipairs(dock.children) do
-                if child.valid and child:HasClass("dockablePanelContainer") then
-                    local wrapper = child.children[1]
-                    SyncTitleBarArrows(wrapper, railOn and info.side == "left" and wrapper == host)
-                end
+                dock:FireEvent("fitChildren")
             end
         end
     end
@@ -5749,9 +5771,13 @@ local function CreateIconRail(side, entries)
         trayIconClasses[#trayIconClasses + 1] = "rightSide"
     end
 
+    --halign is EXPLICIT on both sides. Without it the label defaults to
+    --centred on its x anchor and grows in BOTH directions, so a long title
+    --spills back across the button it belongs to; anchoring the near edge
+    --makes it grow away from the rail whatever its length.
     local trayLabelArgs
     if side == "left" then
-        trayLabelArgs = { x = ICON_RAIL_BUTTON + 10 }
+        trayLabelArgs = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
     else
         trayLabelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
     end
@@ -5781,6 +5807,11 @@ local function CreateIconRail(side, entries)
         gui.Label{
             classes = {"iconRailLabel"},
             floating = true,
+            --the label opens over whatever the rail sits next to, and rail
+            --windows left open sit between it and the viewer -- so it drew
+            --BEHIND them and was unreadable. renderOnTop puts it on the
+            --top-most sorting canvas.
+            renderOnTop = true,
             x = trayLabelArgs.x,
             halign = trayLabelArgs.halign,
             valign = "center",
@@ -5943,10 +5974,14 @@ local function CreateIconRail(side, entries)
         prevSlot = index
 
         --hover labels open toward the screen centre: right of the button
-        --on the left rail, left of the button on the right rail.
+        --on the left rail, left of the button on the right rail. halign is
+        --EXPLICIT on both sides -- without it the label defaults to centred on
+        --its x anchor and grows in BOTH directions, so a long panel name
+        --spilled back across its own button. Anchoring the near edge makes the
+        --label grow away from the rail at any length.
         local labelArgs
         if side == "left" then
-            labelArgs = { x = ICON_RAIL_BUTTON + 10 }
+            labelArgs = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
         else
             labelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
         end
@@ -6022,6 +6057,9 @@ local function CreateIconRail(side, entries)
             gui.Label{
                 classes = {"iconRailLabel"},
                 floating = true,
+                --see the tray label: rail windows left open sit over the rail,
+                --so without this the hover label drew behind them.
+                renderOnTop = true,
                 x = labelArgs.x,
                 halign = labelArgs.halign,
                 valign = "center",
@@ -6084,22 +6122,32 @@ local function CreateIconRail(side, entries)
                 local targetList = sides[targetSide]
                 table.insert(targetList, dragged)
 
-                --resolve collisions: the dragged button wins the contested
-                --slot; anything in the way bumps to the next free slot down.
+                --Dense insert: the dragged button takes the contested slot and
+                --everything renumbers contiguously, so it lands just before
+                --whatever held that slot and the list stays packed -- no hole
+                --where it came from, nothing bumped into a blank spot. The
+                --dragged button wins the tie so it sorts into its target slot.
                 table.sort(targetList, function(a, b)
                     if a.slot == b.slot then
                         return a == dragged
                     end
                     return a.slot < b.slot
                 end)
-                local used = {}
-                for _, e in ipairs(targetList) do
-                    local s = e.slot
-                    while used[s] do
-                        s = s + 1
+                for i, e in ipairs(targetList) do
+                    e.slot = i - 1
+                end
+
+                --A cross-rail move leaves a gap in the SOURCE rail's numbering
+                --(the dragged entry was pulled out mid-list); repack it too so
+                --both rails stay dense immediately, not just after the next
+                --RailLayout read.
+                for sn, sideList in pairs(sides) do
+                    if sn ~= targetSide then
+                        table.sort(sideList, function(a, b) return a.slot < b.slot end)
+                        for i, e in ipairs(sideList) do
+                            e.slot = i - 1
+                        end
                     end
-                    used[s] = true
-                    e.slot = s
                 end
 
                 g_railJustDropped = key

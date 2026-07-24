@@ -803,7 +803,13 @@ function GameHud.CreateRollDialog(self)
 
                 element:SetClass("triggered", info.triggered)
 
-                label.text = info.modifier.name
+                local triggerName = info.modifier.name
+                if PowerRollSpoilers.HasSpoiler(triggerName) then
+                    local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(triggerName),
+                        PowerRollSpoilers.DefaultRevealed(triggerName))
+                    triggerName = PowerRollSpoilers.Format(triggerName, revealed)
+                end
+                label.text = triggerName
             end,
             --- @param element Panel
             ping = function(element, count)
@@ -1873,7 +1879,27 @@ function GameHud.CreateRollDialog(self)
                                 justification)
                         end
 
-                        local text = mod.modifier.name
+                        --Spoilered modifier names ({#...} markup, see
+                        --PowerRollSpoilers in Timeline/EmbeddedRollDialog):
+                        --players see a redaction bar until the director
+                        --reveals them; the director sees the plain text.
+                        local rawName = mod.modifier.name or ""
+                        local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
+                        local spoilerRevealed = false
+                        if spoiler then
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName),
+                                PowerRollSpoilers.DefaultRevealed(rawName))
+                            if dmhub.isDM or spoilerRevealed then
+                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+                            else
+                                tooltip = PowerRollSpoilers.Format(rawName, false)
+                            end
+                        end
+
+                        local text = rawName
+                        if spoiler then
+                            text = PowerRollSpoilers.Format(rawName, spoilerRevealed)
+                        end
                         if mod.modFromTarget then
                             text = string.format("Target is %s", text)
                         end
@@ -2353,6 +2379,36 @@ function GameHud.CreateRollDialog(self)
                         modifier = powerRollModifier,
                     }
                     m_options.modifiers[#m_options.modifiers + 1] = trigger.triggerInfo
+                end
+            end
+
+            --A trigger whose powerRollModifier sets applyToAllTargets extends to
+            --every target of the roll, not just the row it was activated on
+            --(e.g. Cannonfall's Buss Buffer: "the damage is halved for the
+            --cannonfall and each target also affected by the triggering
+            --ability"). Mirror only the modifier application onto this row;
+            --cost payment, reroll handling, and triggerInfo bookkeeping stay
+            --with the row that owns the trigger.
+            for otherIndex, other in ipairs(m_multitargets) do
+                if otherIndex ~= index then
+                    for _, trigger in ipairs(other.triggers or {}) do
+                        if trigger.triggered then
+                            local powerRollModifier = trigger.modifier:try_get("powerRollModifier")
+                            if powerRollModifier ~= nil and powerRollModifier:try_get("applyToAllTargets", false) then
+                                powerRollModifier._tmp_trigger = true
+                                powerRollModifier._tmp_triggerCharid = trigger.charid
+                                powerRollModifier:InstallSymbolsFromContext{
+                                    caster = creature,
+                                    target = targetCreature,
+                                }
+                                m_options.modifiers[#m_options.modifiers + 1] = {
+                                    hint = { result = true, justification = {} },
+                                    context = { mod = powerRollModifier },
+                                    modifier = powerRollModifier,
+                                }
+                            end
+                        end
+                    end
                 end
             end
 

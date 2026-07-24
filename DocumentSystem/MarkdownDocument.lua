@@ -7059,6 +7059,14 @@ local function CreateMarkdownToolbar(opts)
         --markdown portable (GitHub/Obsidian) and carries column alignment.
         ToolbarButton("Table",   14, 56, InsertHandler("\n|Header|Header|\n|---|---|\n|Cell|Cell|\n|Cell|Cell|\n", 2)),
 
+        GroupDivider(),
+
+        --Draw Steel! power-roll link as a first-class button (restored by
+        --request -- heavy journal users reach for it constantly). Inserts the
+        --same roll-link markup the Insert Widget menu's "Draw Steel!" entry
+        --does; that entry stays as a fallback.
+        ToolbarButton("Draw Steel!", 14, 96, InsertHandler('[[//link "Draw Steel!"|Draw Steel!]]')),
+
         --group: insert. Not pushed to the right edge: a "100% available"
         --spacer renders zero wide here, and it fills the wrap line exactly,
         --which makes the wrap pass reserve a phantom second line (the row

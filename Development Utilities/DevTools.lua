@@ -108,6 +108,7 @@ end
 
 DockablePanel.Register{
     name = "Development Info",
+    icon = "phosphor/info.png",
 
     devonly = true,
 	folder = "Development Tools",
@@ -236,7 +237,7 @@ DockablePanel.Register{
 DockablePanel.Register{
     name = "Brightness Test",
 
-	icon = mod.images.effectsIcon,
+	icon = "phosphor/sun.png",
     devonly = true,
 	minHeight = 200,
 	folder = "Development Tools",
@@ -277,7 +278,7 @@ DockablePanel.Register{
 DockablePanel.Register{
     name = "Network Debugger",
 
-	icon = mod.images.effectsIcon,
+	icon = "phosphor/network.png",
     devonly = true,
     vscroll = false,
 	folder = "Development Tools",
@@ -516,7 +517,7 @@ DockablePanel.Register{
 DockablePanel.Register{
     name = "Sheet Perf",
 
-	icon = mod.images.effectsIcon,
+	icon = "phosphor/gauge.png",
     devonly = true,
 	minHeight = 200,
 	folder = "Development Tools",
@@ -588,7 +589,7 @@ DockablePanel.Register{
 DockablePanel.Register{
     name = "Texture Load",
 
-	icon = mod.images.effectsIcon,
+	icon = "phosphor/blueprint.png",
     devonly = true,
 	minHeight = 200,
 	folder = "Development Tools",
@@ -674,6 +675,7 @@ DockablePanel.Register{
 -- ~19ms per check editor and we want to know why.
 DockablePanel.Register{
     name = "Pool Stress Test",
+    icon = "phosphor/stack-plus.png",
     devonly = true,
     folder = "Development Tools",
     minHeight = 320,
@@ -947,7 +949,7 @@ local CreateGameRecorderPanel
 
 DockablePanel.Register{
     name = "Game Recorder",
-    icon = mod.images.chatIcon,
+    icon = "phosphor/video-camera.png",
     minHeight = 200,
     vscroll = true,
     devonly = true,

@@ -763,6 +763,428 @@ do
 	g_materialFields.PBRTexturedStarfieldDiceMaterial = fields
 end
 
+-- EventHorizonDiceMaterial: everything PBRTexturedDiceMaterial has, plus a procedural
+-- "black hole" look ("singularity" dice -- see EventHorizon.shader): the body is crushed toward
+-- black and a view-space Fresnel accretion ring ignites the die's silhouette, with an inner haze
+-- and optional emissive star motes. Built from the PBRTextured list above so the shared rows
+-- never drift apart. The motes group has an Enabled checkbox that turns it off in the shader and
+-- collapses its detail rows (requiresDefault = 1 keeps them visible for dice saved before the
+-- Enable prop existed, whose property bags lack the key).
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	-- Event horizon: the accretion ring and dark core, the core of the look.
+	fields[#fields + 1] = {
+		name = "_CoreDarkness",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.85,
+		description = "Core Darkness",
+	}
+	fields[#fields + 1] = {
+		name = "_RimColor",
+		type = "Color",
+		description = "Accretion Rim Color",
+	}
+	fields[#fields + 1] = {
+		name = "_RimBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 3,
+		description = "Rim Brightness",
+	}
+	-- Higher = a thinner ring pushed to the silhouette; lower = a broad glow.
+	fields[#fields + 1] = {
+		name = "_RimPower",
+		type = "Range",
+		min = 0.5,
+		max = 12,
+		default = 3,
+		description = "Rim Width",
+	}
+	-- A razor-thin ultra-bright lip right at the very edge.
+	fields[#fields + 1] = {
+		name = "_PhotonRing",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.4,
+		description = "Photon Ring",
+	}
+	fields[#fields + 1] = {
+		name = "_HazeColor",
+		type = "Color",
+		description = "Inner Haze Color",
+	}
+	fields[#fields + 1] = {
+		name = "_HazeBrightness",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.6,
+		description = "Inner Haze",
+	}
+	fields[#fields + 1] = {
+		name = "_HazePower",
+		type = "Range",
+		min = 0.25,
+		max = 6,
+		default = 1.5,
+		description = "Haze Width",
+	}
+	-- The ring shimmers around its angle over time, like a spinning disc.
+	fields[#fields + 1] = {
+		name = "_SwirlSpeed",
+		type = "Range",
+		min = 0,
+		max = 6,
+		default = 1.5,
+		description = "Rim Shimmer Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_SwirlAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.25,
+		description = "Rim Shimmer",
+	}
+
+	-- Interior black hole: a round core + accretion ring rendered as if suspended at the
+	-- die's centre (camera-facing from any angle). The main feature of the look.
+	fields[#fields + 1] = {
+		name = "_HoleEnable",
+		type = "Bool",
+		default = 1,
+		description = "Hole Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_HoleRadius",
+		type = "Range",
+		min = 0.02,
+		max = 1.5,
+		default = 0.35,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Hole Size",
+	}
+	fields[#fields + 1] = {
+		name = "_HoleEdgeSoftness",
+		type = "Range",
+		min = 0.002,
+		max = 0.3,
+		default = 0.04,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Hole Edge Softness",
+	}
+	fields[#fields + 1] = {
+		name = "_RingColor2",
+		type = "Color",
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Color",
+	}
+	fields[#fields + 1] = {
+		name = "_RingBrightness2",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 4,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_RingWidth",
+		type = "Range",
+		min = 0.005,
+		max = 0.5,
+		default = 0.06,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Width",
+	}
+	-- Cap on the ring's HDR peak: lower = tames the blown-out bloom without dimming
+	-- the ring band away.
+	fields[#fields + 1] = {
+		name = "_RingCap",
+		type = "Range",
+		min = 0.2,
+		max = 8,
+		default = 8,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Intensity Cap",
+	}
+	-- Layered ring colors: white-hot inner edge -> main color -> cooler outer edge.
+	fields[#fields + 1] = {
+		name = "_RingColorHot",
+		type = "Color",
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Hot Color (inner)",
+	}
+	fields[#fields + 1] = {
+		name = "_RingColorOuter",
+		type = "Color",
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Outer Color",
+	}
+	fields[#fields + 1] = {
+		name = "_RingBrush",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Ring Brushing",
+	}
+	-- The horizontal light-bending streak across the middle (view-space horizontal).
+	fields[#fields + 1] = {
+		name = "_StreakBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2.5,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Lensing Streak",
+	}
+	-- Max is wider than the shader's declared range: the slider drives SetFloat directly,
+	-- and lengths past 2 let the on-face streak span the whole face at any hole size.
+	fields[#fields + 1] = {
+		name = "_StreakLength",
+		type = "Range",
+		min = 0.05,
+		max = 4,
+		default = 0.7,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Streak Length",
+	}
+	fields[#fields + 1] = {
+		name = "_StreakThickness",
+		type = "Range",
+		min = 0.005,
+		max = 0.3,
+		default = 0.05,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Streak Thickness",
+	}
+	fields[#fields + 1] = {
+		name = "_HoleHazeColor",
+		type = "Color",
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Hole Haze Color",
+	}
+	fields[#fields + 1] = {
+		name = "_HoleHaze",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Hole Haze",
+	}
+	-- Infalling light: broken filaments spiralling into the hole.
+	fields[#fields + 1] = {
+		name = "_SuckStreaks",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.5,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Streaks",
+	}
+	fields[#fields + 1] = {
+		name = "_SuckColor",
+		type = "Color",
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Color",
+	}
+	-- 0 = crisp vector-like filaments; 1 = soft wisps blended into the haze.
+	fields[#fields + 1] = {
+		name = "_SuckSoftness",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Softness",
+	}
+	fields[#fields + 1] = {
+		name = "_SuckSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_SuckTwist",
+		type = "Range",
+		min = 0,
+		max = 20,
+		default = 8,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Twist",
+	}
+	fields[#fields + 1] = {
+		name = "_SuckReach",
+		type = "Range",
+		min = 0.05,
+		max = 2,
+		default = 0.5,
+		requires = "_HoleEnable",
+		requiresDefault = 1,
+		description = "Infall Reach",
+	}
+	-- Animated auroral wisps across the whole body.
+	fields[#fields + 1] = {
+		name = "_BodyMagic",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.8,
+		description = "Body Magic",
+	}
+	fields[#fields + 1] = {
+		name = "_BodyMagicColor",
+		type = "Color",
+		description = "Body Magic Color",
+	}
+	fields[#fields + 1] = {
+		name = "_BodyMagicScale",
+		type = "Range",
+		min = 0.5,
+		max = 16,
+		default = 4,
+		description = "Body Magic Scale",
+	}
+	fields[#fields + 1] = {
+		name = "_BodyMagicSpeed",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 1,
+		description = "Body Magic Speed",
+	}
+
+	-- Star motes: a faint emissive field over the dark body so it does not read as flat.
+	fields[#fields + 1] = {
+		name = "_StarEnable",
+		type = "Bool",
+		default = 1,
+		description = "Motes Enabled",
+	}
+	fields[#fields + 1] = {
+		name = "_StarBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Brightness",
+	}
+	fields[#fields + 1] = {
+		name = "_StarColor",
+		type = "Color",
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Color",
+	}
+	fields[#fields + 1] = {
+		name = "_StarDensity",
+		type = "Range",
+		min = 8,
+		max = 256,
+		default = 40,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Density",
+	}
+	fields[#fields + 1] = {
+		name = "_StarFill",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Fill",
+	}
+	fields[#fields + 1] = {
+		name = "_StarSize",
+		type = "Range",
+		min = 0.02,
+		max = 0.5,
+		default = 0.14,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Size",
+	}
+	fields[#fields + 1] = {
+		name = "_StarSizeVariation",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.7,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Size Variation",
+	}
+	fields[#fields + 1] = {
+		name = "_StarTwinkleSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 1.5,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Twinkle Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_StarTwinkleAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Twinkle",
+	}
+	fields[#fields + 1] = {
+		name = "_StarGlow",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		requires = "_StarEnable",
+		requiresDefault = 1,
+		description = "Motes Glow",
+	}
+
+	g_materialFields.EventHorizonDiceMaterial = fields
+end
+
 -- MagicGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
 -- and emissive "liquid magic" interior layers with sparkle motes ("magic inside glass" dice --
 -- see PBRTexturedMagicGlass.shader). Built from the PBRTextured list above so the shared rows
@@ -4654,6 +5076,237 @@ end
 		}
 	end
 
+	-- Landing Warp: a screen-space "suction" distortion of the map + tokens under each die the
+	-- moment it lands, so the ground appears gravitationally pulled into the die (black-hole
+	-- dice). Authored per set (dicestudio.mapWarp*), applied to the world composite blit by
+	-- MapWarpEffect via DMHub-Map-SuckWarp; the die itself stays crisp above the warp.
+	-- All rows collapse while the effect is disabled.
+	local mapWarpSection
+	do
+		local function WarpSlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		mapWarpSection = gui.TreeNode{
+			text = "Landing Warp",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Warps the map and tokens under each die the moment it lands, pulling the picture toward the die like a black hole, then relaxing. The die itself stays undistorted on top.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.mapWarpEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.mapWarpEnabled
+						end,
+						change = function(element)
+							dicestudio.mapWarpEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Everything else collapses while disabled.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.mapWarpEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.mapWarpEnabled == false)
+					end,
+
+					WarpSlider("Strength:", 0, 1, 0.35,
+						function() return dicestudio.mapWarpStrength end,
+						function(v) dicestudio.mapWarpStrength = v end),
+					WarpSlider("Reach:", 0.5, 8, 2.5,
+						function() return dicestudio.mapWarpRadius end,
+						function(v) dicestudio.mapWarpRadius = v end),
+					WarpSlider("Swirl:", 0, 4, 1,
+						function() return dicestudio.mapWarpSwirl end,
+						function(v) dicestudio.mapWarpSwirl = v end),
+					WarpSlider("Duration:", 0.2, 10, 1.2,
+						function() return dicestudio.mapWarpDuration end,
+						function(v) dicestudio.mapWarpDuration = v end),
+
+					-- Reverse: shove the map outward instead of sucking it in.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Reverse:",
+						},
+						gui.Check{
+							text = "",
+							halign = "left",
+							width = "auto",
+							minWidth = 0,
+							value = dicestudio.mapWarpFlip,
+							newmaterial = function(element)
+								element.value = dicestudio.mapWarpFlip
+							end,
+							change = function(element)
+								dicestudio.mapWarpFlip = element.value
+								RefreshDice()
+							end,
+						},
+					},
+				},
+			},
+		}
+	end
+
+	-- Infall Halo: the Event Horizon surface material's infalling-light filaments carried past
+	-- each die's silhouette on a persistent quad behind the die, so light streams into the die
+	-- from the space around it. The filament look mirrors the surface material's Infall settings
+	-- automatically; these rows only gate and scale it. Applied by DiceController.UpdateInfallHalo
+	-- via DMHub-Dice-InfallHalo.
+	local infallHaloSection
+	do
+		local function HaloSlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		infallHaloSection = gui.TreeNode{
+			text = "Infall Halo",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Continues the surface material's infalling-light filaments past each die's silhouette, so broken light streams into the die from the space around it. Uses the Infall settings of the surface material (Event Horizon); these controls only enable and scale the halo.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.infallHaloEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.infallHaloEnabled
+						end,
+						change = function(element)
+							dicestudio.infallHaloEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Reach + Brightness collapse while disabled.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.infallHaloEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.infallHaloEnabled == false)
+					end,
+
+					HaloSlider("Reach:", 1, 8, 2,
+						function() return dicestudio.infallHaloReach end,
+						function(v) dicestudio.infallHaloReach = v end),
+					HaloSlider("Brightness:", 0, 8, 1,
+						function() return dicestudio.infallHaloBrightness end,
+						function(v) dicestudio.infallHaloBrightness = v end),
+					HaloSlider("Opacity:", 0.25, 4, 1,
+						function() return dicestudio.infallHaloOpacity end,
+						function(v) dicestudio.infallHaloOpacity = v end),
+				},
+			},
+		}
+	end
+
 	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
 	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
 	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
@@ -4804,13 +5457,41 @@ end
 						sliderWidth = 180,
 						labelWidth = 50,
 						minValue = 0,
-						maxValue = 2,
+						-- Wide max: an image billboard (e.g. the Event Horizon lensing streak)
+						-- reads as a beam reaching well past the die, so sizes beyond 2x are useful.
+						maxValue = 5,
 						value = dicestudio.billboardSize or 1,
 						newmaterial = function(element)
 							element.value = dicestudio.billboardSize or 1
 						end,
 						change = function(element)
 							dicestudio.billboardSize = element.value
+							RefreshDice()
+						end,
+					},
+				},
+
+				-- Horizontal-only stretch: lengthens a beam-style image billboard without
+				-- also growing it taller (uniform Size scales both axes).
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Stretch:",
+					},
+					gui.Slider{
+						style = { height = 26, width = 240, fontSize = 14 },
+						sliderWidth = 180,
+						labelWidth = 50,
+						minValue = 0.25,
+						maxValue = 5,
+						value = dicestudio.billboardStretch or 1,
+						newmaterial = function(element)
+							element.value = dicestudio.billboardStretch or 1
+						end,
+						change = function(element)
+							dicestudio.billboardStretch = element.value
 							RefreshDice()
 						end,
 					},
@@ -6152,6 +6833,8 @@ end
 
 		haloSection,
 		rayBurstSection,
+		mapWarpSection,
+		infallHaloSection,
 
 		billboardSection,
 

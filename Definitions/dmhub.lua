@@ -67,6 +67,7 @@
 --- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change was detected, uploaded, reverted, or closed).
 --- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
 --- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
+--- @field GetWallPointsInvisibleOnly fun(): boolean Editor callback function: whether the wall Edit Points tool (buildingtool = "points") should restrict itself to walls with invisible assets. Set by the Map Markup panel while it drives the tool, so vertex editing from markup cannot disturb visible art walls.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
@@ -1926,8 +1927,8 @@ function dmhub.GetMouseWorldPoint()
 	-- dummy implementation for documentation purposes only
 end
 
---- HighlightLine: Highlights the line between a and b. Call Destroy() on the returned reference to remove the highlighted line.
---- @param options {color: nil|Color, a: Vector2, b: Vector2, floorIndex: number?}
+--- HighlightLine: Highlights the line between a and b. Call Destroy() on the returned reference to remove the highlighted line. Pass terrainParallax=true (with floorIndex) to project the line onto the floor/terrain with the same parallax as the wall skeleton, so it stays glued to a wall segment when the map has parallax.
+--- @param options {color: nil|Color, a: Vector2, b: Vector2, floorIndex: number?, terrainParallax: boolean?}
 --- @return LuaTargetingMarkers
 function dmhub.HighlightLine(options)
 	-- dummy implementation for documentation purposes only

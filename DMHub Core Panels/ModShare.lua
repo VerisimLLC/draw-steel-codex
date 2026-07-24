@@ -117,6 +117,19 @@ local countCheck = function(element, counts)
 	end
 end
 
+-- Counts map entries that are checked AND sit at the top level of the Maps
+-- tree (not inside a folder). Drives the "group your maps in a folder"
+-- recommendation shown in the publish dialog.
+local countTopLevelMapCheck = function(element, counts)
+	if element:HasClass("silent") then
+		return
+	end
+
+	if element.data.toplevel and element.value then
+		counts.n = counts.n + 1
+	end
+end
+
 local selectionCheck = function(element, t)
 	if element:HasClass("silent") then
 		return
@@ -194,7 +207,9 @@ local checkTooltip = function(element)
 	end
 end
 
-CreateMapNodePanel = function(map)
+--isTopLevel is true for maps that sit directly in the root Maps folder rather
+--than inside a folder of their own.
+CreateMapNodePanel = function(map, isTopLevel)
 	local resultPanel
 	local check = gui.Check{styles = g_CheckboxStyles,
 		idprefix = "map-label",
@@ -206,6 +221,7 @@ CreateMapNodePanel = function(map)
 		create = createCheck,
 		change = changeCheck,
 		count = countCheck,
+		counttoplevelmaps = countTopLevelMapCheck,
 		linger = checkTooltip,
 		rightClick = rightClickHide,
 		includedAssets = includedAssets,
@@ -228,6 +244,7 @@ CreateMapNodePanel = function(map)
 			displayName = map.description or "(unknown map)",
 			data = map,
 			type = "map",
+			toplevel = (isTopLevel == true),
 		}
 	}
 
@@ -269,7 +286,7 @@ CreateMapFolderPanel = function(folder, isroot, optionsPanel)
 
 	end
 
-	local childPanel = CreateMapFolderChildPanel(folder)
+	local childPanel = CreateMapFolderChildPanel(folder, isroot)
 
 	if optionsPanel ~= nil then
 		local children = childPanel.children
@@ -493,7 +510,7 @@ local CreateCharacterSelectionPanel = function()
 
 end
 
-CreateMapFolderChildPanel = function(folder)
+CreateMapFolderChildPanel = function(folder, isTopLevel)
 	local childNodes = {}
 	local resultPanel = gui.Panel{
 		idprefix = "map-folder-child",
@@ -506,7 +523,7 @@ CreateMapFolderChildPanel = function(folder)
 			local newChildNodes = {}
 			local children = {}
 			for _,map in ipairs(folder.childMaps) do
-				local newChild = childNodes[map.mapid] or CreateMapNodePanel(map)
+				local newChild = childNodes[map.mapid] or CreateMapNodePanel(map, isTopLevel)
 				children[#children+1] = newChild
 				newChildNodes[map.mapid] = newChild
 			end
@@ -566,6 +583,8 @@ local g_tableDisplayNames = {
 	currency = "Currency",
 	customAttributes = "Character Attributes",
 	damageTypes = "Damage Types",
+	encounterScripts = "Encounter Scripts",
+	environmentalKeywords = "Environmental Keywords",
 	equipmentCategories = "Equipment Categories",
 	featurePrefabs = "Character Feature Prefabs",
 	globalRuleMods = "Global Rules",
@@ -591,6 +610,8 @@ local g_tableDisplayNamesSingular = {
 	currency = "Currency",
 	customAttributes = "Character Attribute",
 	damageTypes = "Damage Type",
+	encounterScripts = "Encounter Script",
+	environmentalKeywords = "Environmental Keyword",
 	equipmentCategories = "Equipment Category",
 	featurePrefabs = "Character Feature Prefab",
 	globalRuleMods = "Global Rule",
@@ -2595,36 +2616,70 @@ local showShareModuleDialog = function(options)
 
 	local mapFolderHierarchy
 
-	local folderOptions = gui.Panel{
-		classes = {"linkContainer"},
+	--Maps left at the top level of the Maps tree end up ungrouped when the
+	--module is installed, so nudge the author as soon as one is included.
+	--updatecounts is fired tree-wide off the dialog's think handler whenever
+	--the selection changes, so this rides the same refresh as the (n/m) counts.
+	local topLevelMapWarning = gui.Label{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		maxWidth = 340,
+		halign = "left",
+		vmargin = 4,
+		fontSize = 14,
+		color = "red",
+		text = "When creating a module it is recommended to place maps within a folder for easy grouping when installed.",
+		updatecounts = function(element)
+			if mapFolderHierarchy == nil then
+				return
+			end
 
-		gui.Label{
-			classes = {"link"},
-			text = "All Maps",
-			click = function(element)
-				mapFolderHierarchy:FireEventTree("selection", "all")
-			end,
-		},
+			local counts = { n = 0 }
+			mapFolderHierarchy:FireEventTree("counttoplevelmaps", counts)
+			element:SetClass("collapsed", counts.n == 0)
+		end,
+	}
+
+	local folderOptions = gui.Panel{
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		flow = "vertical",
+
 		gui.Panel{
-			classes = {"linkDivider"},
+			classes = {"linkContainer"},
+
+			gui.Label{
+				classes = {"link"},
+				text = "All Maps",
+				click = function(element)
+					mapFolderHierarchy:FireEventTree("selection", "all")
+				end,
+			},
+			gui.Panel{
+				classes = {"linkDivider"},
+			},
+			gui.Label{
+				classes = {"link"},
+				text = "Current Map",
+				click = function(element)
+					mapFolderHierarchy:FireEventTree("selection", "this")
+				end,
+			},
+			gui.Panel{
+				classes = {"linkDivider"},
+			},
+			gui.Label{
+				classes = {"link"},
+				text = "No Maps",
+				click = function(element)
+					mapFolderHierarchy:FireEventTree("selection", "none")
+				end,
+			},
 		},
-		gui.Label{
-			classes = {"link"},
-			text = "Current Map",
-			click = function(element)
-				mapFolderHierarchy:FireEventTree("selection", "this")
-			end,
-		},
-		gui.Panel{
-			classes = {"linkDivider"},
-		},
-		gui.Label{
-			classes = {"link"},
-			text = "No Maps",
-			click = function(element)
-				mapFolderHierarchy:FireEventTree("selection", "none")
-			end,
-		},
+
+		topLevelMapWarning,
 	}
 
 	mapFolderHierarchy = CreateMapFolderPanel(game.rootMapFolder, true, folderOptions)

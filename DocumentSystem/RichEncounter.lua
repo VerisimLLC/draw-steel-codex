@@ -104,6 +104,16 @@ function RichEncounter.CreateDisplay(self)
     end
 
     local function VictoryConditionText()
+        --An attached encounter script that declares a victory condition
+        --replaces the stored dropdown value. This reads the CACHED text
+        --(resolved at edit time), so journal displays on player clients never
+        --execute encounter-script code.
+        local scriptText = nil
+        pcall(function() scriptText = self.encounter:ScriptVictoryText() end)
+        if scriptText ~= nil then
+            return string.format("%s (set by script)", scriptText)
+        end
+
         local chosen = self.encounter:try_get("victoryCondition", "all_defeated")
         for _, option in ipairs(Encounter.GetVictoryConditions(self.encounter)) do
             if option.id == chosen then

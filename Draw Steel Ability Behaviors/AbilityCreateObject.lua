@@ -79,6 +79,12 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
             end
         end
     end
+
+    --commit to paying so the ability's cost (including consumable item usage) is
+    --applied. Without this, an ability whose only behavior is Create Object never
+    --sets options.pay, so ConsumeResources is skipped and a consumable item is not
+    --removed from inventory on use. Mirrors AbilityChangeTerrain / AbilityBuildWall.
+    ability:CommitToPaying(casterToken, options)
 end
 
 function ActivatedAbilityCreateObjectBehavior:EditorItems(parentPanel)

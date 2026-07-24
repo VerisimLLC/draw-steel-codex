@@ -157,10 +157,17 @@ function MapFloorLua:SetHeightmapZoneSkipDisabled(disabledVal)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExecutePolygonOperation
+--- ExecutePolygonOperation: Executes a building operation on this floor. Options: points (list of interleaved x,y point lists), tileid, wallid, wallheight, erase, eraseInvisibleOnly (erase only walls with invisible assets), walls, floor, terrain, closed, layer, fade.
 --- @param options any
 --- @return nil
 function MapFloorLua:ExecutePolygonOperation(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetNearestWallSegment: Finds the drawn wall geometry nearest to a point on this floor's building layer. Options: x, y (world coords), maxDistance (tiles, default 1), invisibleOnly (default false: when true only walls with invisible assets are considered), atMouse (default false: when true x/y are ignored, the current mouse position is used, and walls are matched in projected screen space -- each vertex projected by its surface-altitude parallax like wall rendering -- so the result is what is visually under the cursor even on steep slopes or raised/lowered ground). Returns nil, or a table with wallid, wallheight, distance, points (interleaved x,y list of the wall's full path, suitable for passing to ExecutePolygonOperation), segmentIndex (1-based index of the nearest edge within the path) and segment (interleaved x,y of that nearest edge's two endpoints, in floor space).
+--- @param options {x: nil|number, y: nil|number, maxDistance: nil|number, invisibleOnly: nil|boolean, atMouse: nil|boolean}
+--- @return nil|{wallid: string, wallheight: number, distance: number, points: number[], segmentIndex: number, segment: number[]}
+function MapFloorLua:GetNearestWallSegment(options)
 	-- dummy implementation for documentation purposes only
 end
 

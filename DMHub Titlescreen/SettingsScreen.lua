@@ -924,6 +924,384 @@ local function CreateCreatorOrganizationsSection()
 		}
 	end
 
+	--Patreon creator-account linking for an organization. The owner links one
+	--Patreon campaign to the org; other members see a read-only connected line.
+	--All link state lives in server-side default-deny paths and is read through
+	--the patreonOrgStatus cloud function. The connect flow mirrors the MCDM
+	--Shop link: open the browser into the OAuth consent screen, then poll
+	--status until the callback records the link.
+	local function PatreonOrgSection(org)
+		local isOwner = org.role == "owner"
+
+		local panel
+
+		--bumped to retire any in-flight link-poll timers; every scheduled tick
+		--compares its captured generation against this before acting.
+		local m_pollGeneration = 0
+
+		local ShowUnlinked
+		local ShowLinked
+		local RefreshStatus
+		local StartLinkPoll
+
+		local linkErrorMessages = {
+			nocampaign = "That Patreon account does not have a campaign. Log in as the account that owns your campaign and try again.",
+			multiple = "Linking accounts with multiple campaigns is not supported yet.",
+			campaigntaken = "That Patreon campaign is already linked to a different organization. Disconnect it from that organization first.",
+			error = "Something went wrong linking Patreon. Please try again.",
+		}
+
+		local function Heading()
+			return gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 2,
+				text = "Patreon",
+			}
+		end
+
+		local function StatusChildren(text)
+			return {
+				Heading(),
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 14,
+					italics = true,
+					text = text,
+				},
+			}
+		end
+
+		--linked state: campaign name + connected date; the owner also gets the
+		--persistence checkbox and the Disconnect button.
+		ShowLinked = function(data)
+			local campaignName = data.campaignName
+			if campaignName == nil or campaignName == "" then
+				campaignName = "your campaign"
+			end
+
+			if not isOwner then
+				panel.children = {
+					gui.Label{
+						width = "100%",
+						height = "auto",
+						fontSize = 14,
+						vmargin = 2,
+						text = string.format('Patreon: connected to "%s"', campaignName),
+					},
+				}
+				return
+			end
+
+			local connectedText = string.format('Connected to "%s"', campaignName)
+			if (data.connectedAt or 0) > 0 then
+				connectedText = string.format("%s   (connected %s)", connectedText, os.date("%d %b %Y", math.floor(data.connectedAt / 1000)))
+			end
+
+			local children = { Heading() }
+
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				vmargin = 2,
+				text = connectedText,
+			}
+
+			--setting element.value programmatically fires change, so guard the
+			--revert-on-failure write with a flag.
+			local suppressChange = false
+			children[#children+1] = gui.Check{
+				text = "Patrons keep unlocked modules after their patronage ends",
+				value = data.entitlementsPersistOnLapse ~= false,
+				halign = "left",
+				vmargin = 4,
+				change = function(element)
+					if suppressChange then
+						return
+					end
+					local newValue = element.value
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgSetPolicy",
+						data = {
+							orgid = org.id,
+							entitlementsPersistOnLapse = newValue,
+						},
+						success = function(response)
+							if not element.valid then
+								return
+							end
+							if type(response) ~= "table" or not response.ok then
+								suppressChange = true
+								element.value = not newValue
+								suppressChange = false
+								ErrorModal("Patreon", "Could not save the setting. Please try again.")
+							end
+						end,
+						error = function(msg)
+							if not element.valid then
+								return
+							end
+							suppressChange = true
+							element.value = not newValue
+							suppressChange = false
+							ErrorModal("Patreon", "Could not save the setting. Please try again.")
+						end,
+					}
+				end,
+			}
+
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				italics = true,
+				vmargin = 2,
+				text = "When unchecked, access is removed if a patron cancels. This takes effect once module rewards are configured.",
+			}
+
+			children[#children+1] = gui.Button{
+				width = 190,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Disconnect Patreon",
+				click = function(element)
+					ShowMessage{
+						title = "Disconnect Patreon",
+						message = string.format("Disconnect Patreon from %s? Your patrons will no longer be granted access to your modules.", org.displayName),
+						options = {
+							{ text = "Cancel" },
+							{
+								text = "Disconnect",
+								execute = function()
+									net.Post{
+										url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgUnlink",
+										data = { orgid = org.id },
+										success = function(response)
+											if type(response) == "table" and response.ok then
+												Refresh()
+											else
+												local err = nil
+												if type(response) == "table" and type(response.error) == "string" then
+													err = response.error
+												end
+												ErrorModal("Disconnect Patreon", err)
+											end
+										end,
+										error = function(msg)
+											ErrorModal("Disconnect Patreon", "Could not contact the server. Please try again.")
+										end,
+									}
+								end,
+							},
+						},
+					}
+				end,
+			}
+
+			panel.children = children
+		end
+
+		--unlinked state: the owner gets the pitch + Link button (message is an
+		--optional failure note from the previous attempt); members see nothing.
+		ShowUnlinked = function(message)
+			if not isOwner then
+				panel.children = {}
+				return
+			end
+
+			local children = { Heading() }
+
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 13,
+				vmargin = 2,
+				text = "Link your Patreon creator account so your patrons can be granted access to your premium modules. We only read your campaign's membership list - never payment details.",
+			}
+
+			if message ~= nil then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					color = "#ff6666",
+					vmargin = 2,
+					text = message,
+				}
+			end
+
+			children[#children+1] = gui.Button{
+				width = 240,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Link Patreon Creator Account",
+				click = function(element)
+					panel.children = StatusChildren("Opening Patreon in your browser...")
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgAuthStart",
+						data = { orgid = org.id },
+						success = function(data)
+							if not panel.valid then
+								return
+							end
+							if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
+								dmhub.OpenURL(data.authorizeUrl)
+								StartLinkPoll()
+							else
+								local err = "Could not start the link. Please try again."
+								if type(data) == "table" and data.error == "already-linked" then
+									err = "This organization already has a linked Patreon campaign."
+								elseif type(data) == "table" and type(data.error) == "string" then
+									err = data.error
+								end
+								ShowUnlinked(err)
+							end
+						end,
+						error = function(msg)
+							if not panel.valid then
+								return
+							end
+							ShowUnlinked("Could not contact the server. Please try again.")
+						end,
+					}
+				end,
+			}
+
+			panel.children = children
+		end
+
+		--ported from the MCDM Shop link poll: 4s tick, 180s deadline, Cancel,
+		--transient errors do not end the wait. Additionally stops early when
+		--the callback records a link error for this attempt.
+		StartLinkPoll = function()
+			m_pollGeneration = m_pollGeneration + 1
+			local generation = m_pollGeneration
+			local deadline = dmhub.Time() + 180
+
+			local children = StatusChildren("Waiting for you to finish linking Patreon in your browser...")
+			children[#children+1] = gui.Button{
+				width = 120,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Cancel",
+				click = function(element)
+					RefreshStatus()
+				end,
+			}
+			panel.children = children
+
+			local function PollExpired()
+				--the settings sheet may have been destroyed while a tick was
+				--scheduled; a dead panel is not safe to touch at all.
+				return mod.unloaded or generation ~= m_pollGeneration or (not panel.valid)
+			end
+
+			local function FinishTimedOut()
+				m_pollGeneration = m_pollGeneration + 1
+				ShowUnlinked("Linking timed out. Try again after finishing in your browser.")
+			end
+
+			local Tick
+			Tick = function()
+				if PollExpired() then
+					return
+				end
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgStatus",
+					data = { orgid = org.id },
+					success = function(data)
+						if PollExpired() then
+							return
+						end
+						if type(data) == "table" and data.ok then
+							if data.linked then
+								m_pollGeneration = m_pollGeneration + 1
+								ShowLinked(data)
+								return
+							end
+							if data.lastError ~= nil then
+								m_pollGeneration = m_pollGeneration + 1
+								ShowUnlinked(linkErrorMessages[data.lastError] or linkErrorMessages.error)
+								return
+							end
+						end
+						if dmhub.Time() > deadline then
+							FinishTimedOut()
+							return
+						end
+						dmhub.Schedule(4, Tick)
+					end,
+					error = function(msg)
+						if PollExpired() then
+							return
+						end
+						if dmhub.Time() > deadline then
+							FinishTimedOut()
+							return
+						end
+						dmhub.Schedule(4, Tick)
+					end,
+				}
+			end
+
+			Tick()
+		end
+
+		--fetch link status and rebuild the panel. Also retires any active poll.
+		RefreshStatus = function()
+			m_pollGeneration = m_pollGeneration + 1
+			if isOwner then
+				panel.children = StatusChildren("Checking Patreon...")
+			end
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgStatus",
+				data = { orgid = org.id },
+				success = function(data)
+					if not panel.valid then
+						return
+					end
+					if type(data) == "table" and data.ok and data.linked then
+						ShowLinked(data)
+					else
+						ShowUnlinked(nil)
+					end
+				end,
+				error = function(msg)
+					if not panel.valid then
+						return
+					end
+					if isOwner then
+						ShowUnlinked("Could not check Patreon status.")
+					else
+						panel.children = {}
+					end
+				end,
+			}
+		end
+
+		panel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 4,
+			create = function(element)
+				RefreshStatus()
+			end,
+		}
+
+		return panel
+	end
+
 	local function OrgCard(org)
 		local children = {}
 
@@ -1139,9 +1517,11 @@ local function CreateCreatorOrganizationsSection()
 
 			buttonsRow.children = buttons
 
+			children[#children+1] = PatreonOrgSection(org)
 			children[#children+1] = buttonsRow
 			children[#children+1] = transferPanel
 		else
+			children[#children+1] = PatreonOrgSection(org)
 			children[#children+1] = gui.Button{
 				width = 170,
 				height = 30,

@@ -215,16 +215,36 @@ function CustomDocument:Upload(originalDocument)
     return self.updateid
 end
 
+--Document text is LF-only; a carriage return is never legal in it. This is not
+--cosmetic: TMP renders a bare \r as a real teletype carriage return -- the pen
+--goes back to the left margin with NO vertical advance (TMP_Text.cs, "Handle
+--Carriage Return") -- so in the editor the rest of the line is drawn ON TOP of
+--the text before it. Removing every \r collapses CRLF to LF for free and joins
+--the (vanishingly rare) bare-CR case, which is what a stray CR pasted out of a
+--PDF or a Windows source actually wants. Applied on read as well as write so a
+--document that already carries one displays correctly right now and is healed
+--permanently the next time it is saved.
+local function NormalizeDocumentText(str)
+    if type(str) ~= "string" or string.find(str, "\r", 1, true) == nil then
+        return str
+    end
+    return (string.gsub(str, "\r", ""))
+end
+
+CustomDocument.NormalizeText = NormalizeDocumentText
+
 function CustomDocument:GetTextContent()
     if (not self.textStorage) or not getmetatable(self.textStorage) then
-        return self.content or ""
+        return NormalizeDocumentText(self.content or "")
     end
 
-    return self.textStorage:GetContent() or ""
+    return NormalizeDocumentText(self.textStorage:GetContent() or "")
 end
 
 function CustomDocument:SetTextContent(str)
     --self.content = nil
+
+    str = NormalizeDocumentText(str)
 
     if (not self.textStorage) or not getmetatable(self.textStorage) then
         self.textStorage = TextStorage.Create(str)

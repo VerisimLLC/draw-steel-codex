@@ -43,10 +43,7 @@ function assets:AddAndUploadArtist(id)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetPhosphorIcons: Searches the built-in phosphor icon set by filename substring (case-insensitive),
---- returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the
---- name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the
---- start of the set.
+--- GetPhosphorIcons: Searches the built-in phosphor icon set by filename substring (case-insensitive), returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the start of the set.
 --- @param filter string Substring to match against icon filenames; empty matches all.
 --- @param maxResults number Maximum number of ids to return.
 --- @return string[]

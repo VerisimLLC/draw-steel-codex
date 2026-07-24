@@ -268,6 +268,14 @@ function Encounter.CueRoundText(cue)
     return Encounter.WaveRoundText(cue)
 end
 
+--Encounter scripts attached to this encounter: a list of EncounterScriptInstance
+--(see the Encounter Scripts section at the bottom of this file). Each instance
+--references a script from the encounterScripts library (or carries inline custom
+--Lua) plus the director's chosen parameter values. When the encounter goes live
+--the instances deep-copy into the LiveEncounter and are driven by the
+--encounter-script runtime on the elected host director's client.
+Encounter.scripts = {}
+
 function Encounter.MainMonster(encounter)
     local mainmonster = nil
     for i, group in ipairs(encounter.groups) do
@@ -1578,6 +1586,12 @@ end
 --     present at the onset of combat (the bar then tracks that object's Stamina).
 -- The bar tracks the chosen creature/object's Stamina. Minions are ignored.
 function LiveEncounter:GetBossToken()
+    --Script-set victory conditions have no boss-bar objective; the stored
+    --victoryCondition underneath is stale while a script owns victory.
+    if self:ScriptVictoryText() ~= nil then
+        return nil
+    end
+
     local condition = self:try_get("victoryCondition", "all_defeated")
 
     if condition == "destroy_thing" then
@@ -1637,6 +1651,15 @@ end
 -- field PLUS reinforcements that have not yet arrived, so victory is not declared
 -- while a wave is still pending. See Encounter.GetVictoryConditions for the ids.
 function LiveEncounter:CheckVictory()
+    --An attached encounter script with a custom victory condition replaces the
+    --built-in conditions entirely (see the Encounter Scripts section below).
+    --Evaluated under pcall; a broken script can never accidentally declare
+    --victory.
+    local scriptInstance, scriptDef = self:GetScriptVictory()
+    if scriptDef ~= nil then
+        return EncounterScript.EvaluateVictoryCheck(self, scriptInstance, scriptDef)
+    end
+
     local condition = self:try_get("victoryCondition", "all_defeated")
 
     --"Destroy the Thing!" is about objects, not monsters, so it is checked before the
@@ -1734,6 +1757,14 @@ end
 -- Every condition is expressed this way for brevity (the full reasoning is in
 -- GetObjectiveTooltip); "Solo Exhausted" is the one exception, as it is not a count.
 function LiveEncounter:GetObjectiveText()
+    --A script-set victory condition displays its cached text. The string is
+    --resolved at edit time on the authoring director's client, so surfaces that
+    --render on player clients never execute encounter-script code.
+    local scriptText = self:ScriptVictoryText()
+    if scriptText ~= nil then
+        return "Objective: " .. scriptText
+    end
+
     local condition = self:try_get("victoryCondition", "all_defeated")
     if condition == "solo_exhausted" then
         return "Objective: Exhaust the solo monster to win"
@@ -1759,6 +1790,16 @@ end
 -- The full explanatory text for the objective, shown as a tooltip: states the actual
 -- victory condition and the live numbers behind the short "Defeat X/Y" label.
 function LiveEncounter:GetObjectiveTooltip()
+    --Script-set victory conditions: cached text plus attribution.
+    local scriptText, scriptInstance = self:ScriptVictoryText()
+    if scriptText ~= nil then
+        local scriptName = "Encounter Script"
+        if scriptInstance ~= nil then
+            scriptName = scriptInstance:try_get("name", scriptName)
+        end
+        return string.format("%s\n\nVictory condition set by the encounter script \"%s\".", scriptText, scriptName)
+    end
+
     local condition = self:try_get("victoryCondition", "all_defeated")
     local onset = self:try_get("onsetMonsterCount", 0)
     local numHeroes = dmhub.GetSettingValue("numheroes")
@@ -1817,6 +1858,42 @@ function LiveEncounter:GetObjectiveTooltip()
     lines[#lines + 1] = string.format("Defeated %d of the %d needed to win.", defeated, needed)
 
     return table.concat(lines, "\n")
+end
+
+-- Returns true when an attached encounter script's defeat condition has been
+-- met. Defeat conditions only exist via scripts (there are no built-in ones),
+-- so this is false for encounters without a defeat-declaring script. Evaluated
+-- under pcall; a broken script can never accidentally end a fight in defeat.
+function LiveEncounter:CheckDefeat()
+    local instance, def = self:GetScriptDefeat()
+    if def == nil then
+        return false
+    end
+    return EncounterScript.EvaluateDefeatCheck(self, instance, def)
+end
+
+-- A short progress description of the script-set defeat condition for the
+-- initiative bar's objective strip, e.g. "Defeat: 2/4 Monsters Have Entered
+-- the Temple", or nil when no attached script declares a defeat condition.
+function LiveEncounter:GetDefeatText()
+    local text = self:ScriptDefeatText()
+    if text == nil then
+        return nil
+    end
+    return "Defeat: " .. text
+end
+
+-- The full explanatory tooltip for the defeat condition, or nil.
+function LiveEncounter:GetDefeatTooltip()
+    local text, instance = self:ScriptDefeatText()
+    if text == nil then
+        return nil
+    end
+    local scriptName = "Encounter Script"
+    if instance ~= nil then
+        scriptName = instance:try_get("name", scriptName)
+    end
+    return string.format("%s\n\nDefeat condition set by the encounter script \"%s\". If it is met, the director can declare defeat, which ends the encounter.", text, scriptName)
 end
 
 -- Scour the journals available on the current map for authored encounters.
@@ -1917,3 +1994,1735 @@ function Encounter.GetEncountersOnCurrentMap()
 
     return result
 end
+
+-- ===========================================================================
+-- Encounter Scripts
+-- ===========================================================================
+--
+-- Encounter Scripts are user-authored Lua attached to an encounter. A script's
+-- source code EVALUATES TO A DEFINITION TABLE (pure at load time, so the editor
+-- can discover its parameters and victory condition without side effects):
+--
+--   return {
+--       name = "Survive the Onslaught",
+--       description = "The heroes win by surviving.",
+--       params = {
+--           { id = "rounds", name = "Rounds to Survive", type = "number",
+--             default = 3, min = 1, max = 20 },
+--       },
+--       victory = {
+--           text = function(ctx) return string.format("Survive %d Rounds", ctx.params.rounds) end,
+--           check = function(ctx) return ctx.round > ctx.params.rounds end,
+--       },
+--       defeat = {
+--           text = function(ctx) return "The Caravan is Destroyed" end,
+--           check = function(ctx) return ctx.state.caravanDestroyed == true end,
+--       },
+--       onStart = function(ctx) end,  -- once, when combat begins
+--       onRound = function(ctx) end,  -- once per round (including round 1)
+--       think   = function(ctx) end,  -- every ~0.7s while combat is live
+--       onEnd   = function(ctx) end,  -- once, when combat ends
+--   }
+--
+-- victory replaces the encounter's built-in victory-condition dropdown; defeat
+-- is script-only (the base game has no built-in defeat conditions). When a
+-- defeat check passes, the director's initiative bar offers "Declare Defeat",
+-- which announces the outcome and ends combat.
+--
+-- Condition text may be a string or function(ctx). It is resolved twice: at
+-- edit time with a bare ctx (round 0, no queue) to produce the cached string
+-- shown in the encounter builder, and - while combat is live - by the host
+-- every heartbeat with the real ctx. The live result rides in the networked
+-- script state, so progress text like "Survive 1/3 Rounds" updates on every
+-- client without player clients ever executing script code.
+--
+-- Parameter types: "number" (min/max/default), "string", "boolean",
+-- "choice" (options = {{id=..., text=...}, ...}), and "wave" (one of the
+-- encounter's reinforcement waves; the value is the wave id).
+--
+-- Where things live:
+--   * EncounterScript          - a library script stored in the
+--                                "encounterScripts" object table, authored in
+--                                the Compendium under Rules. Built-in starter
+--                                scripts are registered in code (see the
+--                                bottom of this section).
+--   * EncounterScriptInstance  - an attachment on Encounter.scripts: a
+--                                reference to a library/built-in script (or
+--                                inline custom Lua) plus the director's chosen
+--                                parameter values and a cached victory-text
+--                                string.
+--   * LiveEncounter.scriptStates - persisted per-instance runtime state
+--                                (watermarks + the script's own ctx.state),
+--                                riding in the networked initiative queue like
+--                                deployedWaves/firedCues. This is what makes
+--                                host handover and hot reload resume instead
+--                                of refire.
+--
+-- Execution model: a 0.7s heartbeat (the same cadence as the initiative-bar
+-- strips) runs on every client but only the ELECTED HOST fires handlers - the
+-- lowest-sorting present director per dmhub.GetSessionInfo (NOT
+-- dmhub.IsUserDM, which reflects the stale roster). Victory check functions
+-- are pure reads and may run on any director client via CheckVictory; the
+-- cached victory text is what player-facing surfaces display, so player
+-- clients never execute encounter-script code.
+
+--- @class EncounterScript
+--- @field name string Display name of the library script.
+--- @field description string What the script does, shown in pickers and the compendium.
+--- @field code string The Lua source; must return a definition table.
+EncounterScript = RegisterGameType("EncounterScript")
+
+EncounterScript.name = "New Encounter Script"
+EncounterScript.description = ""
+EncounterScript.code = ""
+EncounterScript.tableName = "encounterScripts"
+
+function EncounterScript.OnDeserialize(self)
+    if not self:has_key("guid") then
+        self.guid = dmhub.GenerateGuid()
+    end
+end
+
+--The seed code for a brand new custom or library script. Doubles as the
+--reference documentation for the definition shape.
+EncounterScript.starterTemplate = [==[
+-- An Encounter Script. The code runs once to produce a definition table:
+-- declare the parameters the director can edit in the encounter builder,
+-- an optional custom victory condition, and the functions that run while
+-- the encounter is live. Handlers run only on the host director's client.
+--
+-- ctx fields available in handlers:
+--   ctx.params     resolved parameter values
+--   ctx.state      persisted scratch table (survives reconnects; keep it small)
+--   ctx.round      current round number
+--   ctx.queue      the initiative queue
+--   ctx.encounter  the LiveEncounter
+-- ctx methods (call with ':'):
+--   ctx:Announce(text)      send a chat message
+--   ctx:DeployWave(waveid)  deploy one of the encounter's reinforcement waves
+--   ctx:EnsureButton{...}   add a custom button to the Encounter Actions strip
+--   ctx:DismissButton(id)   remove a custom button
+--   ctx:Log(text)           print to the console
+--   ctx:IsLive()            still in combat and still the host (for coroutines)
+
+return {
+    name = "My Encounter Script",
+    description = "Describe what this script does.",
+
+    params = {
+        -- { id = "rounds", name = "Rounds", type = "number", default = 3, min = 1, max = 20 },
+        -- { id = "announce", name = "Announce in Chat", type = "boolean", default = true },
+        -- { id = "wave", name = "Wave to Deploy", type = "wave" },
+    },
+
+    -- Uncomment to replace the encounter's victory condition dropdown.
+    -- text runs at edit time (ctx.queue == nil, ctx.round == 0) for the
+    -- builder's cached label, and again on the host each heartbeat while
+    -- combat is live, so it can show live progress like "Survive 1/3 Rounds":
+    -- victory = {
+    --     text = function(ctx) return string.format("Survive %d Rounds", ctx.params.rounds) end,
+    --     check = function(ctx) return ctx.round > ctx.params.rounds end,
+    -- },
+
+    -- Uncomment to add a defeat condition (script-only; there are no built-in
+    -- ones). When check passes the director can Declare Defeat, which
+    -- announces the outcome and ends combat:
+    -- defeat = {
+    --     text = function(ctx) return "The Caravan is Destroyed" end,
+    --     check = function(ctx) return ctx.state.caravanDestroyed == true end,
+    -- },
+
+    onStart = function(ctx)
+    end,
+
+    onRound = function(ctx)
+    end,
+
+    think = function(ctx)
+    end,
+
+    onEnd = function(ctx)
+    end,
+}
+]==]
+
+--- @return EncounterScript
+function EncounterScript.CreateNew()
+    return EncounterScript.new{
+        guid = dmhub.GenerateGuid(),
+        name = "New Encounter Script",
+        description = "",
+        code = EncounterScript.starterTemplate,
+    }
+end
+
+--- Appends {id, text} entries for all library encounter scripts into options
+--- (sorted by name).
+function EncounterScript.FillDropdownOptions(options)
+    local result = {}
+    local dataTable = dmhub.GetTable(EncounterScript.tableName) or {}
+    for k, item in unhidden_pairs(dataTable) do
+        result[#result + 1] = {
+            id = k,
+            text = item.name,
+        }
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    for _, item in ipairs(result) do
+        options[#options + 1] = item
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Built-in scripts
+-- ---------------------------------------------------------------------------
+-- Starter scripts shipped in code (repo-versioned, available in every game
+-- without seeding the object table). They appear in the encounter builder's
+-- Add Script picker; the compendium library holds game-authored scripts.
+
+EncounterScript.builtins = {}
+local g_builtinsById = {}
+
+--info: { id, name, description, code }. id convention: "builtin:<slug>".
+function EncounterScript.RegisterBuiltin(info)
+    for i, existing in ipairs(EncounterScript.builtins) do
+        if existing.id == info.id then
+            EncounterScript.builtins[i] = info
+            g_builtinsById[info.id] = info
+            return
+        end
+    end
+    EncounterScript.builtins[#EncounterScript.builtins + 1] = info
+    g_builtinsById[info.id] = info
+end
+
+function EncounterScript.GetBuiltin(id)
+    return g_builtinsById[id]
+end
+
+--- Appends built-in scripts, then library scripts, as {id, text} options.
+--- Used by the encounter builder's Add Script picker.
+function EncounterScript.FillPickerOptions(options)
+    for _, builtin in ipairs(EncounterScript.builtins) do
+        options[#options + 1] = { id = builtin.id, text = builtin.name .. " (built-in)" }
+    end
+    EncounterScript.FillDropdownOptions(options)
+end
+
+-- ---------------------------------------------------------------------------
+-- Definition compilation + validation
+-- ---------------------------------------------------------------------------
+
+local g_paramTypes = {
+    number = true,
+    string = true,
+    boolean = true,
+    choice = true,
+    wave = true,
+}
+
+--Validate and normalize a raw definition table returned by a script chunk.
+--Returns the normalized definition, or nil + an error string.
+local function NormalizeDefinition(def)
+    local norm = {}
+
+    if def.name ~= nil and type(def.name) ~= "string" then
+        return nil, "name must be a string"
+    end
+    norm.name = def.name
+
+    if def.description ~= nil and type(def.description) ~= "string" then
+        return nil, "description must be a string"
+    end
+    norm.description = def.description
+
+    norm.params = {}
+    local seenIds = {}
+    if def.params ~= nil then
+        if type(def.params) ~= "table" then
+            return nil, "params must be a list of parameter tables"
+        end
+        for i, p in ipairs(def.params) do
+            if type(p) ~= "table" then
+                return nil, string.format("params[%d] must be a table", i)
+            end
+            if type(p.id) ~= "string" or p.id == "" then
+                return nil, string.format("params[%d] needs a string id", i)
+            end
+            if seenIds[p.id] then
+                return nil, string.format("duplicate parameter id \"%s\"", p.id)
+            end
+            seenIds[p.id] = true
+            local ptype = p.type or "string"
+            if not g_paramTypes[ptype] then
+                return nil, string.format("parameter \"%s\" has unknown type \"%s\"", p.id, tostring(ptype))
+            end
+            local param = {
+                id = p.id,
+                name = p.name or p.id,
+                type = ptype,
+                default = p.default,
+                min = p.min,
+                max = p.max,
+            }
+            if ptype == "choice" then
+                if type(p.options) ~= "table" or #p.options == 0 then
+                    return nil, string.format("choice parameter \"%s\" needs an options list", p.id)
+                end
+                param.options = {}
+                for _, opt in ipairs(p.options) do
+                    if type(opt) ~= "table" or opt.id == nil then
+                        return nil, string.format("choice parameter \"%s\" has a malformed option", p.id)
+                    end
+                    param.options[#param.options + 1] = { id = opt.id, text = opt.text or tostring(opt.id) }
+                end
+            end
+            norm.params[#norm.params + 1] = param
+        end
+    end
+
+    if def.victory ~= nil then
+        if type(def.victory) ~= "table" or type(def.victory.check) ~= "function" then
+            return nil, "victory must be a table with a check function"
+        end
+        local text = def.victory.text
+        if text ~= nil and type(text) ~= "string" and type(text) ~= "function" then
+            return nil, "victory.text must be a string or a function"
+        end
+        norm.victory = { check = def.victory.check, text = text }
+    end
+
+    if def.defeat ~= nil then
+        if type(def.defeat) ~= "table" or type(def.defeat.check) ~= "function" then
+            return nil, "defeat must be a table with a check function"
+        end
+        local text = def.defeat.text
+        if text ~= nil and type(text) ~= "string" and type(text) ~= "function" then
+            return nil, "defeat.text must be a string or a function"
+        end
+        norm.defeat = { check = def.defeat.check, text = text }
+    end
+
+    for _, handler in ipairs({ "onStart", "onRound", "think", "onEnd" }) do
+        local fn = def[handler]
+        if fn ~= nil and type(fn) ~= "function" then
+            return nil, handler .. " must be a function"
+        end
+        norm[handler] = fn
+    end
+
+    return norm
+end
+
+--Compiled-definition cache, keyed by the exact source string. Definitions are
+--pure (no side effects at load), so identical source always yields the same
+--definition; callers must treat the returned table as read-only.
+local g_definitionCache = {}
+
+--- Compile encounter-script source into a normalized definition table.
+--- Follows the AbilityScript.lua precedent: load(code, name, "t", env) with an
+--- environment that reads globals but keeps writes local to the chunk.
+--- @param code string
+--- @return table|nil, string|nil definition, error
+function EncounterScript.CompileDefinition(code)
+    if code == nil or code == "" then
+        return nil, "The script is empty"
+    end
+
+    local cached = g_definitionCache[code]
+    if cached ~= nil then
+        return cached.def, cached.error
+    end
+
+    local result = { def = nil, error = nil }
+    g_definitionCache[code] = result
+
+    local env = setmetatable({}, { __index = _G })
+    local chunk, err = load(code, "EncounterScript", "t", env)
+    if chunk == nil then
+        result.error = "Compile error: " .. tostring(err)
+        return nil, result.error
+    end
+
+    local ok, def = pcall(chunk)
+    if not ok then
+        result.error = "Error running script: " .. tostring(def)
+        return nil, result.error
+    end
+    if type(def) ~= "table" then
+        result.error = "The script must return a definition table"
+        return nil, result.error
+    end
+
+    local norm, normErr = NormalizeDefinition(def)
+    if norm == nil then
+        result.error = "Invalid definition: " .. tostring(normErr)
+        return nil, result.error
+    end
+
+    result.def = norm
+    return norm, nil
+end
+
+--- Human-readable summary of what a definition declares, for editor status rows.
+function EncounterScript.DescribeDefinition(def)
+    local parts = {}
+    if #def.params == 1 then
+        parts[#parts + 1] = "1 parameter"
+    elseif #def.params > 1 then
+        parts[#parts + 1] = string.format("%d parameters", #def.params)
+    end
+    if def.victory ~= nil then
+        parts[#parts + 1] = "custom victory condition"
+    end
+    if def.defeat ~= nil then
+        parts[#parts + 1] = "custom defeat condition"
+    end
+    local handlers = {}
+    for _, handler in ipairs({ "onStart", "onRound", "think", "onEnd" }) do
+        if def[handler] ~= nil then
+            handlers[#handlers + 1] = handler
+        end
+    end
+    if #handlers > 0 then
+        parts[#parts + 1] = "runs " .. table.concat(handlers, ", ")
+    end
+    if #parts == 0 then
+        return "Definition OK (declares nothing yet)"
+    end
+    return "Definition OK: " .. table.concat(parts, "; ")
+end
+
+-- ---------------------------------------------------------------------------
+-- EncounterScriptInstance: a script attached to an encounter
+-- ---------------------------------------------------------------------------
+
+--- @class EncounterScriptInstance
+--- @field scriptid string Id into the encounterScripts table or a "builtin:" id; "" = inline custom code.
+--- @field code string Inline Lua source (custom scripts only).
+--- @field name string Cached display name, refreshed from the definition at edit time.
+--- @field params table {paramid = value} chosen by the director.
+--- @field victoryText string|nil Cached resolved victory text (edit-time snapshot; what players see).
+--- @field defeatText string|nil Cached resolved defeat text (edit-time snapshot; what players see).
+EncounterScriptInstance = RegisterGameType("EncounterScriptInstance")
+
+EncounterScriptInstance.scriptid = ""
+EncounterScriptInstance.code = ""
+EncounterScriptInstance.name = "Encounter Script"
+EncounterScriptInstance.params = {}
+
+function EncounterScriptInstance.OnDeserialize(self)
+    if not self:has_key("guid") then
+        self.guid = dmhub.GenerateGuid()
+    end
+end
+
+--- Attach a library or built-in script by id.
+function EncounterScriptInstance.CreateFromLibrary(scriptid)
+    local result = EncounterScriptInstance.new{
+        guid = dmhub.GenerateGuid(),
+        scriptid = scriptid,
+        params = {},
+    }
+    result:RefreshCache()
+    return result
+end
+
+--- Attach a new inline custom script seeded with the starter template.
+function EncounterScriptInstance.CreateCustom()
+    local result = EncounterScriptInstance.new{
+        guid = dmhub.GenerateGuid(),
+        scriptid = "",
+        code = EncounterScript.starterTemplate,
+        name = "Custom Script",
+        params = {},
+    }
+    result:RefreshCache()
+    return result
+end
+
+--True when this instance carries inline code rather than a library reference.
+function EncounterScriptInstance:IsCustom()
+    return self:try_get("scriptid", "") == ""
+end
+
+--- Resolve this instance's source code. Returns code, or nil + error when the
+--- referenced library script is missing/deleted.
+function EncounterScriptInstance:GetCode()
+    local sid = self:try_get("scriptid", "")
+    if sid == "" then
+        return self:try_get("code", ""), nil
+    end
+
+    local builtin = EncounterScript.GetBuiltin(sid)
+    if builtin ~= nil then
+        return builtin.code, nil
+    end
+
+    local dataTable = dmhub.GetTable(EncounterScript.tableName) or {}
+    local item = dataTable[sid]
+    if item == nil or item:try_get("hidden", false) then
+        return nil, "Script not found in library"
+    end
+    return item:try_get("code", ""), nil
+end
+
+--- Resolve + compile this instance's definition.
+--- @return table|nil, string|nil definition, error
+function EncounterScriptInstance:GetDefinition()
+    local code, err = self:GetCode()
+    if code == nil then
+        return nil, err
+    end
+    return EncounterScript.CompileDefinition(code)
+end
+
+--- The director's parameter values with defaults applied and values coerced to
+--- their declared types. def is optional (resolved when absent).
+function EncounterScriptInstance:ResolveParams(def)
+    local result = {}
+    if def == nil then
+        def = select(1, self:GetDefinition())
+    end
+    if def == nil then
+        return result
+    end
+
+    local values = self:try_get("params", {})
+    for _, param in ipairs(def.params) do
+        local v = values[param.id]
+        if v == nil then
+            v = param.default
+        end
+        if param.type == "number" then
+            v = tonumber(v) or 0
+            if param.min ~= nil and v < param.min then v = param.min end
+            if param.max ~= nil and v > param.max then v = param.max end
+        elseif param.type == "boolean" then
+            v = (v == true)
+        elseif param.type == "string" then
+            if v == nil then v = "" end
+            v = tostring(v)
+        elseif param.type == "choice" then
+            local valid = false
+            for _, opt in ipairs(param.options or {}) do
+                if opt.id == v then
+                    valid = true
+                    break
+                end
+            end
+            if not valid and param.options ~= nil and #param.options > 0 then
+                v = param.options[1].id
+            end
+        end
+        --"wave" values stay as the stored wave id (or nil when unset).
+        result[param.id] = v
+    end
+    return result
+end
+
+--Evaluate a victory/defeat condition's text with an edit-time context (cond is
+--def.victory or def.defeat). Returns a string or nil. Falls back to the
+--definition/instance name when no text is declared, so a condition-declaring
+--script always yields a displayable label.
+local function EvaluateConditionText(instance, def, cond)
+    if def == nil or cond == nil then
+        return nil
+    end
+    local text = cond.text
+    if type(text) == "string" then
+        return text
+    end
+    if type(text) == "function" then
+        local ctx = {
+            params = instance:ResolveParams(def),
+            state = {},
+            round = 0,
+            queue = nil,
+            encounter = nil,
+        }
+        local ok, result = pcall(text, ctx)
+        if ok and type(result) == "string" and result ~= "" then
+            return result
+        end
+    end
+    return def.name or instance:try_get("name", "Encounter Script")
+end
+
+--- Refresh the cached display name and victory text from the definition.
+--- Called at edit time (attach, param change, editor open) on the authoring
+--- director's client. Read-only surfaces consume the cached strings so they
+--- never execute script code.
+function EncounterScriptInstance:RefreshCache()
+    local def = select(1, self:GetDefinition())
+    if def == nil then
+        --broken or missing script: keep the last known name, but never let a
+        --stale victory/defeat text keep driving the condition UI.
+        if self:has_key("victoryText") then
+            self.victoryText = nil
+        end
+        if self:has_key("defeatText") then
+            self.defeatText = nil
+        end
+        return
+    end
+    if def.name ~= nil and def.name ~= "" then
+        self.name = def.name
+    end
+    if def.victory ~= nil then
+        self.victoryText = EvaluateConditionText(self, def, def.victory)
+    elseif self:has_key("victoryText") then
+        self.victoryText = nil
+    end
+    if def.defeat ~= nil then
+        self.defeatText = EvaluateConditionText(self, def, def.defeat)
+    elseif self:has_key("defeatText") then
+        self.defeatText = nil
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Encounter accessors
+-- ---------------------------------------------------------------------------
+
+function Encounter:GetScripts()
+    return self:try_get("scripts", {})
+end
+
+--Attach a script instance. Copy-on-write like AddWave so the shared class
+--default is never mutated.
+function Encounter:AddScript(instance)
+    local scripts = DeepCopy(self:try_get("scripts", {}))
+    scripts[#scripts + 1] = instance
+    self.scripts = scripts
+end
+
+--Detach a script instance by guid.
+function Encounter:RemoveScript(guid)
+    local scripts = self:try_get("scripts")
+    if scripts == nil then
+        return
+    end
+    local result = {}
+    for _, instance in ipairs(scripts) do
+        if instance:try_get("guid") ~= guid then
+            result[#result + 1] = instance
+        end
+    end
+    self.scripts = result
+end
+
+--- The cached victory text of the first attached script that declares a
+--- victory condition, or nil. This is the CACHED string (safe on player
+--- clients); the live check is GetScriptVictory/EvaluateVictoryCheck.
+--- @return string|nil, table|nil text, instance
+function Encounter:ScriptVictoryText()
+    for _, instance in ipairs(self:try_get("scripts", {})) do
+        local text = instance:try_get("victoryText")
+        if text ~= nil and text ~= "" then
+            return text, instance
+        end
+    end
+    return nil
+end
+
+--- The first attached script instance whose (live, compiled) definition
+--- declares a victory condition. Director-side only: this compiles and runs
+--- script code. Returns instance, definition or nil.
+function Encounter:GetScriptVictory()
+    for _, instance in ipairs(self:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.victory ~= nil then
+            return instance, def
+        end
+    end
+    return nil
+end
+
+--- The cached defeat text of the first attached script that declares a defeat
+--- condition, or nil. Like ScriptVictoryText this is the CACHED string (safe
+--- on player clients); the live check is GetScriptDefeat/EvaluateDefeatCheck.
+--- @return string|nil, table|nil text, instance
+function Encounter:ScriptDefeatText()
+    for _, instance in ipairs(self:try_get("scripts", {})) do
+        local text = instance:try_get("defeatText")
+        if text ~= nil and text ~= "" then
+            return text, instance
+        end
+    end
+    return nil
+end
+
+--- The first attached script instance whose (live, compiled) definition
+--- declares a defeat condition. Director-side only: this compiles and runs
+--- script code. Returns instance, definition or nil.
+function Encounter:GetScriptDefeat()
+    for _, instance in ipairs(self:try_get("scripts", {})) do
+        local def = select(1, instance:GetDefinition())
+        if def ~= nil and def.defeat ~= nil then
+            return instance, def
+        end
+    end
+    return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- LiveEncounter script state
+-- ---------------------------------------------------------------------------
+
+--Persisted per-instance runtime state, keyed by instance guid:
+--  { started = bool, ended = bool, lastRound = number, state = {} }
+--started/ended/lastRound are the runtime's fire-once watermarks; state is the
+--script's own ctx.state scratch table. Rides in the networked queue like
+--deployedWaves/firedCues (copy-on-write + upload), which is what lets an
+--elected-host handover or a hot reload resume instead of refiring handlers.
+LiveEncounter.scriptStates = {}
+
+function LiveEncounter:GetScriptState(guid)
+    local states = self:try_get("scriptStates")
+    if states == nil then
+        return nil
+    end
+    return states[guid]
+end
+
+--Callers must network the change afterwards (the runtime batches one upload
+--per heartbeat).
+function LiveEncounter:SetScriptState(guid, state)
+    local states = DeepCopy(self:try_get("scriptStates", {}))
+    states[guid] = state
+    self.scriptStates = states
+end
+
+--Live-combat overrides of the cached-text accessors: prefer the text the host
+--resolved this combat (updated each heartbeat with the real round/state and
+--persisted in scriptStates), falling back to the edit-time cache until the
+--host's first tick lands. Player clients read these networked strings, so
+--they still never execute script code.
+function LiveEncounter:ScriptVictoryText()
+    local text, instance = Encounter.ScriptVictoryText(self)
+    if instance ~= nil then
+        local st = self:GetScriptState(instance:try_get("guid", ""))
+        if st ~= nil and type(st.victoryText) == "string" and st.victoryText ~= "" then
+            return st.victoryText, instance
+        end
+    end
+    return text, instance
+end
+
+function LiveEncounter:ScriptDefeatText()
+    local text, instance = Encounter.ScriptDefeatText(self)
+    if instance ~= nil then
+        local st = self:GetScriptState(instance:try_get("guid", ""))
+        if st ~= nil and type(st.defeatText) == "string" and st.defeatText ~= "" then
+            return st.defeatText, instance
+        end
+    end
+    return text, instance
+end
+
+-- ---------------------------------------------------------------------------
+-- Victory check evaluation (any director client)
+-- ---------------------------------------------------------------------------
+
+--Once-per-distinct-message error reporting so a broken script does not flood
+--the console at heartbeat cadence. Cleared when the queue changes.
+local g_scriptErrorsPrinted = {}
+
+local function PrintScriptError(instance, message)
+    local name = "Encounter Script"
+    if instance ~= nil then
+        name = instance:try_get("name", name)
+    end
+    local text = string.format("Encounter Script '%s': %s", name, tostring(message))
+    if g_scriptErrorsPrinted[text] then
+        return
+    end
+    g_scriptErrorsPrinted[text] = true
+    dmhub.CloudError(text)
+    print("ERROR:", text)
+end
+
+--A read-only context for victory check functions: same shape as the handler
+--ctx but with side-effecting methods stubbed out, since check runs at poll
+--cadence on every director client and must stay pure.
+local function MakeReadContext(liveEncounter, instance, def)
+    local ctx = {
+        params = instance:ResolveParams(def),
+        state = {},
+        round = 0,
+        queue = nil,
+        encounter = liveEncounter,
+        isHost = false,
+    }
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil then
+        ctx.queue = q
+        ctx.round = q.round or 0
+    end
+
+    local guid = instance:try_get("guid", "")
+    local persisted = liveEncounter:GetScriptState(guid)
+    if persisted ~= nil and persisted.state ~= nil then
+        ctx.state = DeepCopy(persisted.state)
+    end
+
+    ctx.Log = function(_, text)
+        print(string.format("EncounterScript '%s': %s", instance:try_get("name", "script"), tostring(text)))
+    end
+    local NotAllowed = function()
+        PrintScriptError(instance, "victory/defeat check functions must be pure; use onRound/think for side effects")
+        return false
+    end
+    ctx.Announce = NotAllowed
+    ctx.DeployWave = NotAllowed
+    ctx.EnsureButton = NotAllowed
+    ctx.DismissButton = NotAllowed
+    ctx.IsLive = function() return false end
+
+    return ctx
+end
+
+--Shared victory/defeat check evaluation. pcall-guarded: errors report once and
+--count as "condition not met" so a broken script can never accidentally end a
+--fight (in either direction).
+local function EvaluateConditionCheck(liveEncounter, instance, def, checkFn, label)
+    local ctx = MakeReadContext(liveEncounter, instance, def)
+    local ok, result = pcall(checkFn, ctx)
+    if not ok then
+        PrintScriptError(instance, label .. " check error: " .. tostring(result))
+        return false
+    end
+    return result == true
+end
+
+--- Evaluate a script's victory check.
+function EncounterScript.EvaluateVictoryCheck(liveEncounter, instance, def)
+    return EvaluateConditionCheck(liveEncounter, instance, def, def.victory.check, "victory")
+end
+
+--- Evaluate a script's defeat check.
+function EncounterScript.EvaluateDefeatCheck(liveEncounter, instance, def)
+    return EvaluateConditionCheck(liveEncounter, instance, def, def.defeat.check, "defeat")
+end
+
+-- ---------------------------------------------------------------------------
+-- Host election
+-- ---------------------------------------------------------------------------
+
+--Presence per the director-election reference: dmhub.GetSessionInfo(uid).dm is
+--the authoritative live director flag (dmhub.IsUserDM reflects the persisted
+--roster and lies); ghost sessions report loggedOut == false with a huge
+--timeSinceLastContact, so both checks are required. 140s matches Audio.lua.
+local function IsDirectorPresent(userid)
+    local info = nil
+    pcall(function() info = dmhub.GetSessionInfo(userid) end)
+    if info == nil or info.loggedOut then
+        return false
+    end
+    local isdm = false
+    pcall(function() isdm = (info.dm == true) end)
+    return isdm and (info.timeSinceLastContact or 0) < 140
+end
+
+--Lowest-sorting present director wins; every client computes the same answer
+--from the same shared presence data. Falls back to acting when presence is
+--unreadable or nobody looks present - a stalled encounter script is worse
+--than a rare duplicate.
+local function IsElectedHost()
+    if not dmhub.isDM then
+        return false
+    end
+    local best = nil
+    for _, uid in ipairs(dmhub.users or {}) do
+        if IsDirectorPresent(uid) and (best == nil or uid < best) then
+            best = uid
+        end
+    end
+    if best == nil then
+        return true
+    end
+    return best == dmhub.userid
+end
+
+-- ---------------------------------------------------------------------------
+-- Host runtime: the handler ctx and the heartbeat driver
+-- ---------------------------------------------------------------------------
+
+local g_runtime = {
+    queueGuid = nil,
+    contexts = {},
+}
+
+--The full handler context for the elected host. queue/encounter/round/state
+--are re-pointed by the driver each heartbeat; methods are stable closures.
+local function MakeHostContext(instance)
+    local ctx = {
+        params = {},
+        state = {},
+        round = 0,
+        queue = nil,
+        encounter = nil,
+        isHost = true,
+    }
+
+    local createdForQueue = g_runtime.queueGuid
+
+    ctx.IsLive = function()
+        if mod.unloaded then
+            return false
+        end
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            return false
+        end
+        if tostring(q:try_get("guid")) ~= tostring(createdForQueue) then
+            return false
+        end
+        return IsElectedHost()
+    end
+
+    ctx.Announce = function(_, text)
+        pcall(function() chat.Send(tostring(text)) end)
+    end
+
+    ctx.Log = function(_, text)
+        print(string.format("EncounterScript '%s': %s", instance:try_get("name", "script"), tostring(text)))
+    end
+
+    --Deploy one of the encounter's authored reinforcement waves right now.
+    --DeployWave itself marks the wave deployed, so a lost ctx.state can never
+    --double-deploy. Returns true if the wave deployed.
+    ctx.DeployWave = function(_, waveid)
+        if waveid == nil or waveid == "" then
+            return false
+        end
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            return false
+        end
+        local liveEncounter = q:try_get("liveEncounter")
+        if type(liveEncounter) ~= "table" then
+            return false
+        end
+        if liveEncounter:IsWaveDeployed(waveid) then
+            return false
+        end
+        liveEncounter:DeployWave(waveid, q)
+        dmhub:UploadInitiativeQueue()
+        return true
+    end
+
+    --Custom buttons on the Encounter Actions strip, namespaced by instance so
+    --two copies of the same script cannot collide.
+    ctx.EnsureButton = function(_, button)
+        if type(button) ~= "table" then
+            return false
+        end
+        button = DeepCopy(button)
+        button.id = string.format("%s:%s", instance:try_get("guid", "script"), tostring(button.id or "button"))
+        return LiveEncounter.EnsureCustomButton(button)
+    end
+
+    ctx.DismissButton = function(_, buttonid)
+        return LiveEncounter.DismissCustomButton(string.format("%s:%s", instance:try_get("guid", "script"), tostring(buttonid or "button")))
+    end
+
+    return ctx
+end
+
+--Resolve a victory/defeat condition's display text against the live host ctx.
+--Returns nil (rather than a name fallback) when nothing resolves, so callers
+--keep the previous/edit-time text instead of degrading it.
+local function ResolveLiveConditionText(cond, ctx)
+    if cond == nil then
+        return nil
+    end
+    local text = cond.text
+    if type(text) == "string" then
+        return text
+    end
+    if type(text) == "function" then
+        local ok, result = pcall(text, ctx)
+        if ok and type(result) == "string" and result ~= "" then
+            return result
+        end
+    end
+    return nil
+end
+
+--Run one script instance for one heartbeat. Returns true when its persisted
+--state changed (the caller batches the upload). isLive is false once combat
+--has ended (queue hidden) - that is when onEnd fires.
+local function RunInstanceTick(liveEncounter, instance, q, isLive)
+    local guid = instance:try_get("guid", "")
+    if guid == "" then
+        return false
+    end
+
+    local def, err = instance:GetDefinition()
+    if def == nil then
+        PrintScriptError(instance, err)
+        return false
+    end
+
+    local persisted = liveEncounter:GetScriptState(guid)
+    local st = DeepCopy(persisted or { started = false, ended = false, lastRound = 0, state = {} })
+    if st.state == nil then
+        st.state = {}
+    end
+    local ok, before = pcall(dmhub.ToJson, st)
+    if not ok then
+        before = nil
+    end
+
+    local ctx = g_runtime.contexts[guid]
+    if ctx == nil then
+        ctx = MakeHostContext(instance)
+        g_runtime.contexts[guid] = ctx
+    end
+    ctx.params = instance:ResolveParams(def)
+    ctx.queue = q
+    ctx.encounter = liveEncounter
+    ctx.round = q.round or 0
+    ctx.state = st.state
+
+    local function Fire(fn)
+        if fn == nil then
+            return
+        end
+        local fnOk, fnErr = pcall(fn, ctx)
+        if not fnOk then
+            PrintScriptError(instance, tostring(fnErr))
+        end
+    end
+
+    if isLive then
+        --watermarks flip BEFORE the handler fires so an erroring handler does
+        --not refire every heartbeat.
+        if not st.started then
+            st.started = true
+            Fire(def.onStart)
+        end
+        local round = q.round or 0
+        if round > (st.lastRound or 0) then
+            --only the current round fires; rounds that elapsed while no host
+            --was present are not replayed as a backlog.
+            st.lastRound = round
+            Fire(def.onRound)
+        end
+        Fire(def.think)
+    else
+        if st.started and not st.ended then
+            st.ended = true
+            Fire(def.onEnd)
+        end
+    end
+
+    st.state = ctx.state
+
+    --Re-resolve the victory/defeat display text with the real combat context
+    --(post-handlers, so this tick's state changes are reflected). The strings
+    --ride in the networked script state; ScriptVictoryText/ScriptDefeatText
+    --on LiveEncounter prefer them, which is how "Survive 1/3 Rounds"-style
+    --progress updates on every client.
+    if isLive then
+        st.victoryText = ResolveLiveConditionText(def.victory, ctx) or st.victoryText
+        st.defeatText = ResolveLiveConditionText(def.defeat, ctx) or st.defeatText
+    end
+
+    local afterOk, after = pcall(dmhub.ToJson, st)
+    if not afterOk then
+        PrintScriptError(instance, "ctx.state must contain only serializable values")
+        return false
+    end
+    if after ~= before then
+        liveEncounter:SetScriptState(guid, st)
+        return true
+    end
+    return false
+end
+
+local function DriverTick()
+    local q = dmhub.initiativeQueue
+    if q == nil then
+        return
+    end
+
+    local queueGuid = tostring(q:try_get("guid"))
+    if queueGuid ~= g_runtime.queueGuid then
+        g_runtime.queueGuid = queueGuid
+        g_runtime.contexts = {}
+        g_scriptErrorsPrinted = {}
+    end
+
+    local liveEncounter = q:try_get("liveEncounter")
+    if type(liveEncounter) ~= "table" then
+        return
+    end
+
+    local scripts = liveEncounter:GetScripts()
+    if #scripts == 0 then
+        return
+    end
+
+    if not IsElectedHost() then
+        return
+    end
+
+    local isLive = not q.hidden
+    local dirty = false
+    for _, instance in ipairs(scripts) do
+        local ok, changed = pcall(RunInstanceTick, liveEncounter, instance, q, isLive)
+        if ok then
+            dirty = dirty or (changed == true)
+        else
+            PrintScriptError(instance, tostring(changed))
+        end
+    end
+
+    if dirty then
+        dmhub:UploadInitiativeQueue()
+    end
+end
+
+--The heartbeat: 0.7s, matching the initiative-bar strips. Runs on every
+--client; DriverTick gates on the election. The Schedule chain (rather than a
+--single long coroutine) guarantees ticks never overlap and dies cleanly on
+--hot reload via mod.unloaded.
+local function ScheduleDriver()
+    dmhub.Schedule(0.7, function()
+        if mod.unloaded then
+            return
+        end
+        pcall(DriverTick)
+        ScheduleDriver()
+    end)
+end
+
+ScheduleDriver()
+
+-- ---------------------------------------------------------------------------
+-- Code editing UI (shared by the attachment dialog and the compendium page)
+-- ---------------------------------------------------------------------------
+
+--A code-editing block: monospace multiline input, a live compile-status row,
+--and an "Open in External Editor" button (DiceStudio's round-trip pattern).
+--options:
+--  width        : block width (default 700)
+--  height       : code area height (default 340)
+--  filenameHint : used for the external editor's temp filename
+--  getText      : function() -> current code
+--  setText      : function(newCode) called whenever the code changes
+function EncounterScript.CreateCodePanel(options)
+    options = options or {}
+
+    local watcher = nil
+    local function DestroyWatcher()
+        if watcher ~= nil then
+            pcall(function() watcher:Destroy() end)
+            watcher = nil
+        end
+    end
+
+    local statusLabel = gui.Label{
+        classes = { "fgMuted" },
+        fontSize = 12,
+        width = "100%",
+        height = "auto",
+        textWrap = true,
+        vmargin = 4,
+        text = "",
+        refreshCode = function(element)
+            local code = options.getText()
+            local def, err = EncounterScript.CompileDefinition(code)
+            if def == nil then
+                element.text = tostring(err)
+            else
+                element.text = EncounterScript.DescribeDefinition(def)
+            end
+        end,
+    }
+
+    local codeInput = gui.Input{
+        fontFace = "Courier",
+        fontSize = 12,
+        width = "100%",
+        height = "auto",
+        minHeight = (options.height or 340) - 10,
+        halign = "left",
+        multiline = true,
+        textAlignment = "topleft",
+        characterLimit = 20000,
+        text = options.getText() or "",
+        change = function(element)
+            options.setText(element.text)
+            statusLabel:FireEvent("refreshCode")
+        end,
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        width = options.width or 700,
+        height = "auto",
+        flow = "vertical",
+
+        destroy = function(element)
+            DestroyWatcher()
+        end,
+
+        create = function(element)
+            statusLabel:FireEvent("refreshCode")
+        end,
+
+        --the external editor (or any other writer) changed the code out from
+        --under the input; reflect it.
+        refreshExternal = function(element)
+            codeInput.text = options.getText() or ""
+            statusLabel:FireEvent("refreshCode")
+        end,
+
+        gui.Panel{
+            classes = { "bordered" },
+            width = "100%",
+            height = options.height or 340,
+            vscroll = true,
+            borderBox = true,
+            codeInput,
+        },
+
+        statusLabel,
+
+        gui.Button{
+            text = "Open in External Editor",
+            width = 220,
+            height = 26,
+            fontSize = 14,
+            halign = "left",
+            vmargin = 4,
+            click = function(element)
+                DestroyWatcher()
+                --OpenTextFileInConnectedEditor caps filenames at 48 chars and
+                --returns nil past it. filenameHint is a 36-char data-table GUID,
+                --so the full "encounterscript-<guid>.lua" (56 chars) always
+                --overflowed. Keep the prefix short and truncate the hint so the
+                --result stays well under the limit.
+                local hint = tostring(options.filenameHint or "script")
+                if #hint > 24 then
+                    hint = hint:sub(1, 24)
+                end
+                local filename = string.format("encounter-%s.lua", hint)
+                watcher = dmhub.OpenTextFileInConnectedEditor(filename, options.getText() or "", function(contents)
+                    if mod.unloaded or not resultPanel.valid then
+                        return
+                    end
+                    options.setText(contents)
+                    resultPanel:FireEvent("refreshExternal")
+                end)
+                if watcher == nil then
+                    gui.ModalMessage{
+                        title = "Could not open editor",
+                        message = "Could not spawn an external text editor for the encounter script.",
+                    }
+                end
+            end,
+        },
+    }
+
+    return resultPanel
+end
+
+--The modal editor for an attachment's custom Lua. options:
+--  title            : dialog title (default "Encounter Script")
+--  code             : initial code
+--  filenameHint     : external-editor temp filename hint
+--  onSave           : function(newCode) - called when Save is pressed
+--  canSaveToLibrary : offer the "Save to Library..." button
+--  onSavedToLibrary : function(scriptid) - called after the library item is
+--                     created (the dialog closes afterwards)
+function EncounterScript.ShowCodeEditorDialog(options)
+    options = options or {}
+    local currentCode = options.code or ""
+
+    local codePanel = EncounterScript.CreateCodePanel{
+        width = "100%",
+        height = 380,
+        filenameHint = options.filenameHint,
+        getText = function() return currentCode end,
+        setText = function(text) currentCode = text end,
+    }
+
+    local buttons = {}
+
+    buttons[#buttons + 1] = gui.Button{
+        text = "Cancel",
+        width = 120,
+        height = 30,
+        fontSize = 16,
+        hmargin = 6,
+        click = function(element)
+            gui.CloseModal()
+        end,
+    }
+
+    if options.canSaveToLibrary then
+        buttons[#buttons + 1] = gui.Button{
+            text = "Save to Library...",
+            width = 180,
+            height = 30,
+            fontSize = 16,
+            hmargin = 6,
+            click = function(element)
+                local def, err = EncounterScript.CompileDefinition(currentCode)
+                if def == nil then
+                    gui.ModalMessage{
+                        title = "Cannot save to library",
+                        message = tostring(err),
+                    }
+                    return
+                end
+                local item = EncounterScript.new{
+                    guid = dmhub.GenerateGuid(),
+                    name = def.name or "New Encounter Script",
+                    description = def.description or "",
+                    code = currentCode,
+                }
+                local scriptid = dmhub.SetAndUploadTableItem(EncounterScript.tableName, item)
+                if options.onSavedToLibrary ~= nil then
+                    options.onSavedToLibrary(scriptid)
+                end
+                gui.CloseModal()
+            end,
+        }
+    end
+
+    buttons[#buttons + 1] = gui.Button{
+        text = "Save",
+        width = 120,
+        height = 30,
+        fontSize = 16,
+        hmargin = 6,
+        click = function(element)
+            if options.onSave ~= nil then
+                options.onSave(currentCode)
+            end
+            gui.CloseModal()
+        end,
+    }
+
+    local dialog = gui.Panel{
+        classes = { "framedPanel" },
+        styles = ThemeEngine.GetStyles(),
+        bgimage = true,
+        width = 820,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+
+        gui.Label{
+            classes = { "bold" },
+            fontSize = 22,
+            width = "100%",
+            height = "auto",
+            bmargin = 8,
+            text = options.title or "Encounter Script",
+        },
+
+        codePanel,
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "right",
+            tmargin = 10,
+            children = buttons,
+        },
+    }
+
+    gui.ShowModal(dialog)
+end
+
+-- ---------------------------------------------------------------------------
+-- Compendium page (Rules > Encounter Scripts)
+-- ---------------------------------------------------------------------------
+
+local UploadScriptWithId = function(id)
+    local dataTable = dmhub.GetTable(EncounterScript.tableName) or {}
+    if dataTable[id] ~= nil then
+        dmhub.SetAndUploadTableItem(EncounterScript.tableName, dataTable[id])
+    end
+end
+
+local ScriptCompendiumSetData = function(tableName, scriptPanel, keyid)
+    local dataTable = dmhub.GetTable(tableName) or {}
+    local script = dataTable[keyid]
+    if script == nil then
+        return
+    end
+    local UploadScript = function()
+        dmhub.SetAndUploadTableItem(tableName, script)
+    end
+
+    --if we were displaying a different script and it has unsaved changes, flush it.
+    if scriptPanel.data.keyid ~= "" and scriptPanel.data.keyid ~= keyid and dmhub.ToJson(dataTable[scriptPanel.data.keyid]) ~= scriptPanel.data.scriptjson then
+        UploadScriptWithId(scriptPanel.data.keyid)
+    end
+
+    scriptPanel.data.keyid = keyid
+    scriptPanel.data.scriptjson = dmhub.ToJson(script)
+
+    local children = {}
+
+    if devmode() then
+        children[#children + 1] = gui.Panel{
+            classes = { "formStackedRow" },
+            gui.Label{
+                classes = { "formStacked" },
+                text = "ID:",
+            },
+            gui.Input{
+                classes = { "formStacked" },
+                text = script.id,
+                editable = false,
+            },
+        }
+    end
+
+    children[#children + 1] = gui.Panel{
+        classes = { "formStackedRow" },
+        gui.Label{
+            classes = { "formStacked" },
+            text = "Name:",
+        },
+        gui.Input{
+            classes = { "formStacked" },
+            text = script.name,
+            change = function(element)
+                script.name = element.text
+                UploadScript()
+            end,
+        },
+    }
+
+    children[#children + 1] = gui.Panel{
+        classes = { "formStackedRow" },
+        gui.Label{
+            classes = { "formStacked" },
+            text = "Details:",
+        },
+        gui.Input{
+            classes = { "formStacked" },
+            text = script.description,
+            multiline = true,
+            textAlignment = "topLeft",
+            height = 60,
+            characterLimit = 600,
+            change = function(element)
+                script.description = element.text
+                UploadScript()
+            end,
+        },
+    }
+
+    children[#children + 1] = EncounterScript.CreateCodePanel{
+        width = 800,
+        height = 420,
+        filenameHint = keyid,
+        getText = function()
+            return script:try_get("code", "")
+        end,
+        setText = function(text)
+            script.code = text
+            UploadScript()
+        end,
+    }
+
+    scriptPanel.children = children
+end
+
+function EncounterScript.CreateEditor()
+    local scriptPanel
+    scriptPanel = gui.Panel{
+        data = {
+            SetData = function(tableName, keyid)
+                ScriptCompendiumSetData(tableName, scriptPanel, keyid)
+            end,
+            keyid = "",
+            scriptjson = "",
+        },
+        destroy = function(element)
+            local dataTable = dmhub.GetTable(EncounterScript.tableName) or {}
+            if element.data.keyid ~= "" and dataTable[element.data.keyid] ~= nil and dmhub.ToJson(dataTable[element.data.keyid]) ~= element.data.scriptjson then
+                UploadScriptWithId(element.data.keyid)
+            end
+        end,
+        vscroll = true,
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
+    }
+
+    return scriptPanel
+end
+
+local ShowEncounterScriptsPanel = function(contentPanel)
+    local scriptPanel = EncounterScript.CreateEditor()
+    local SetData = scriptPanel.data.SetData
+
+    local listItems = {}
+
+    local itemsListPanel
+    itemsListPanel = gui.Panel{
+        classes = { "list-panel" },
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local children = {}
+            local dataTable = dmhub.GetTable(EncounterScript.tableName) or {}
+            local newListItems = {}
+
+            for k, item in pairs(dataTable) do
+                newListItems[k] = listItems[k] or Compendium.CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = EncounterScript.tableName,
+                    key = k,
+                    click = function()
+                        SetData(EncounterScript.tableName, k)
+                    end,
+                }
+
+                newListItems[k].text = item.name
+
+                children[#children + 1] = newListItems[k]
+            end
+
+            table.sort(children, function(a, b) return a.text < b.text end)
+
+            listItems = newListItems
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    local leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+
+        itemsListPanel,
+        Compendium.AddButton{
+            click = function(element)
+                dmhub.SetAndUploadTableItem(EncounterScript.tableName, EncounterScript.CreateNew())
+            end,
+        },
+    }
+
+    contentPanel.children = { leftPanel, scriptPanel }
+end
+
+Compendium.Register{
+    section = "Rules",
+    text = "Encounter Scripts",
+    contentType = EncounterScript.tableName,
+    click = function(contentPanel)
+        ShowEncounterScriptsPanel(contentPanel)
+    end,
+}
+
+-- ---------------------------------------------------------------------------
+-- Built-in starter scripts
+-- ---------------------------------------------------------------------------
+-- These double as the tutorial: pick one in the encounter builder, read its
+-- code from the compendium-adjacent "(built-in)" picker entries, or use
+-- Custom Lua Script and crib from them.
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:survive-rounds",
+    name = "Survive the Onslaught",
+    description = "The heroes win by surviving: victory at the end of a chosen round.",
+    code = [==[
+return {
+    name = "Survive the Onslaught",
+    description = "The heroes win by surviving: victory at the end of a chosen round.",
+
+    params = {
+        { id = "rounds", name = "Rounds to Survive", type = "number", default = 3, min = 1, max = 20 },
+        { id = "announce", name = "Announce Rounds in Chat", type = "boolean", default = true },
+    },
+
+    victory = {
+        text = function(ctx)
+            return string.format("Survive %d Rounds", ctx.params.rounds)
+        end,
+        --the round counter advances past the target once the final round
+        --completes, which is the moment the heroes have survived it.
+        check = function(ctx)
+            return ctx.round > ctx.params.rounds
+        end,
+    },
+
+    onRound = function(ctx)
+        if not ctx.params.announce then
+            return
+        end
+        local remaining = ctx.params.rounds - ctx.round + 1
+        if remaining > 1 then
+            ctx:Announce(string.format("Round %d: survive %d more rounds!", ctx.round, remaining))
+        elseif remaining == 1 then
+            ctx:Announce(string.format("Round %d: survive this round to win!", ctx.round))
+        end
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:advancing-hazard",
+    name = "Advancing Hazard",
+    description = "Each round from round 2 on, Targetable map objects with the chosen keyword advance a number of squares in a direction.",
+    code = [==[
+return {
+    name = "Advancing Hazard",
+    description = "Each round from round 2 on, Targetable map objects with the chosen keyword advance a number of squares in a direction. Give the hazard object the Targetable property and a keyword.",
+
+    params = {
+        { id = "keyword", name = "Object Keyword", type = "string", default = "hazard" },
+        { id = "squares", name = "Squares per Round", type = "number", default = 2, min = 1, max = 20 },
+        { id = "direction", name = "Direction", type = "choice", default = "east",
+            options = {
+                { id = "east", text = "East" },
+                { id = "west", text = "West" },
+                { id = "north", text = "North" },
+                { id = "south", text = "South" },
+            },
+        },
+    },
+
+    onRound = function(ctx)
+        --the hazard holds position on round 1 and starts advancing on round 2.
+        if ctx.round < 2 then
+            return
+        end
+        local keyword = ctx.params.keyword
+        if keyword == nil or keyword == "" then
+            return
+        end
+        local tokens = Encounter.GetTargetableObjectsWithKeyword(keyword)
+        if #tokens == 0 then
+            ctx:Log(string.format("no Targetable objects with keyword \"%s\" on the current map", keyword))
+            return
+        end
+
+        local dist = ctx.params.squares
+        local dx, dy = 0, 0
+        if ctx.params.direction == "east" then
+            dx = dist
+        elseif ctx.params.direction == "west" then
+            dx = -dist
+        elseif ctx.params.direction == "north" then
+            dy = dist
+        else
+            dy = -dist
+        end
+
+        local moved = 0
+        for _, token in ipairs(tokens) do
+            local inst = token.objectInstance
+            if inst ~= nil then
+                --stamp the move origin on the Targetable first so remote
+                --clients animate the slide, then move the object itself.
+                local targetable = inst:GetComponent("Targetable")
+                if targetable ~= nil then
+                    targetable:SetAndUploadProperties{
+                        moveid = dmhub.GenerateGuid(),
+                        xorigin = inst.x,
+                        yorigin = inst.y,
+                        speed = 3,
+                    }
+                end
+                inst:SetAndUploadPos(inst.x + dx, inst.y + dy)
+                moved = moved + 1
+            end
+        end
+
+        if moved > 0 then
+            ctx:Announce(string.format("The hazard advances %d squares!", dist))
+        end
+    end,
+}
+]==],
+}
+
+EncounterScript.RegisterBuiltin{
+    id = "builtin:ambush-zone",
+    name = "Ambush Zone",
+    description = "When a hero moves within the trigger radius of a Targetable map object with the chosen keyword, a reinforcement wave deploys.",
+    code = [==[
+return {
+    name = "Ambush Zone",
+    description = "When a hero moves within the trigger radius of a Targetable map object with the chosen keyword, a reinforcement wave deploys. Place a Targetable object (it can be invisible to players) as the zone marker.",
+
+    params = {
+        { id = "keyword", name = "Zone Marker Keyword", type = "string", default = "ambush" },
+        { id = "radius", name = "Trigger Radius (squares)", type = "number", default = 3, min = 0, max = 30 },
+        { id = "wave", name = "Wave to Deploy", type = "wave" },
+    },
+
+    think = function(ctx)
+        if ctx.state.triggered then
+            return
+        end
+
+        if ctx.params.wave == nil or ctx.params.wave == "" then
+            if not ctx.state.warnedNoWave then
+                ctx.state.warnedNoWave = true
+                ctx:Log("no wave chosen in the encounter builder; nothing to deploy")
+            end
+            return
+        end
+
+        local markers = Encounter.GetTargetableObjectsWithKeyword(ctx.params.keyword)
+        if #markers == 0 then
+            return
+        end
+
+        for _, token in ipairs(dmhub.allTokens) do
+            local isHero = false
+            pcall(function()
+                isHero = token.properties ~= nil and token.properties:IsHero()
+            end)
+            if isHero then
+                for _, marker in ipairs(markers) do
+                    local sameFloor = true
+                    pcall(function()
+                        sameFloor = (token.floorid == marker.floorid)
+                    end)
+                    local a = token.loc
+                    local b = marker.loc
+                    if sameFloor and a ~= nil and b ~= nil then
+                        local dist = math.max(math.abs(a.x - b.x), math.abs(a.y - b.y))
+                        if dist <= ctx.params.radius then
+                            ctx.state.triggered = true
+                            ctx:Announce("Ambush! Reinforcements pour in!")
+                            ctx:DeployWave(ctx.params.wave)
+                            return
+                        end
+                    end
+                end
+            end
+        end
+    end,
+}
+]==],
+}

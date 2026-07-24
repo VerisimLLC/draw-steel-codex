@@ -2773,6 +2773,12 @@ local g_bossBarStyles = {
 -- configured victory condition is met (LiveEncounter:CheckVictory) the director's view
 -- swaps to a "VICTORY" header + "Award Victory" button. Polls the queue like the
 -- other strips. The objective is director-only until revealed via the eye icon.
+--
+-- When an attached encounter script declares a defeat condition, a second
+-- "Defeat: ..." line shows beneath the objective (revealed to players by the same
+-- eye icon). Once the defeat check passes (LiveEncounter:CheckDefeat) the
+-- director's view swaps to a "DEFEAT" header + "Declare Defeat" button, which
+-- (after a confirm) announces the outcome in chat and ends combat.
 local function CreateAwardVictoryStrip(self, info)
     local function strFor()
         return { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_vaStripStyles), ThemeEngine.MergeTokens(g_victoryIconStyles) }
@@ -2819,6 +2825,26 @@ local function CreateAwardVictoryStrip(self, info)
             if type(liveEncounter) ~= "table" then return end
             gui.Tooltip{ text = liveEncounter:GetObjectiveTooltip() }(element)
         end,
+    }
+
+    -- Shown beneath the objective when an attached encounter script declares a
+    -- defeat condition: "Defeat: <live progress text>".
+    local defeatLabel = gui.Label{
+        classes = {"vaStripSubHeader"},
+        text = "Defeat:",
+        hover = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            local tip = liveEncounter:GetDefeatTooltip()
+            if tip == nil then return end
+            gui.Tooltip{ text = tip }(element)
+        end,
+    }
+
+    local defeatRow = gui.Panel{
+        classes = {"vaStripLabelRow"},
+        defeatLabel,
     }
 
     -- Eye icon: director-only; toggles objectiveVisible on the live encounter so the
@@ -2869,6 +2895,74 @@ local function CreateAwardVictoryStrip(self, info)
         },
     }
 
+    -- Shown to the director once a script-set defeat condition is met. There is
+    -- no defeat analog of the victory screen; declaring defeat announces the
+    -- outcome in chat and ends combat (the same teardown as End Combat).
+    local declareDefeatButton = gui.Panel{
+        classes = {"vaDrawer", "available", "awardVictoryButton"},
+
+        gui.Label{
+            classes = {"vaDrawerTitle"},
+            fontSize = 12,
+            minFontSize = 8,
+            valign = "center",
+            text = "Declare Defeat",
+        },
+
+        hover = function(element)
+            gui.Tooltip{ text = "The defeat condition has been met. Click to end combat in defeat." }(element)
+        end,
+
+        click = function(element)
+            local q = info.initiativeQueue
+            local liveEncounter = q and q:try_get("liveEncounter")
+            if type(liveEncounter) ~= "table" then return end
+            local defeatText = liveEncounter:ScriptDefeatText()
+            GameHud.instance:ModalMessage{
+                title = "Declare Defeat",
+                message = "End combat in defeat? This announces the outcome and ends the encounter.",
+                options = {
+                    {
+                        text = "Declare Defeat",
+                        execute = function()
+                            if defeatText ~= nil then
+                                pcall(function() chat.Send(string.format("The encounter ends in defeat: %s", defeatText)) end)
+                            else
+                                pcall(function() chat.Send("The encounter ends in defeat.") end)
+                            end
+                            PerformEndCombat()
+                        end,
+                    },
+                    {
+                        text = "Cancel",
+                        execute = function()
+                        end,
+                    },
+                },
+            }
+        end,
+    }
+
+    local defeatPanel = gui.Panel{
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+
+        gui.Panel{
+            classes = {"vaStripLabelRow"},
+            gui.Label{
+                classes = {"vaStripHeader"},
+                text = "DEFEAT",
+            },
+        },
+
+        gui.Panel{
+            classes = {"vaDrawerRow"},
+            declareDefeatButton,
+        },
+    }
+
     return gui.Panel{
         classes = {"awardVictoryStrip"},
         styles = strFor(),
@@ -2879,7 +2973,9 @@ local function CreateAwardVictoryStrip(self, info)
         height = "auto",
 
         objectivePanel,
+        defeatRow,
         victoryPanel,
+        defeatPanel,
 
         data = { themeListener = nil },
 
@@ -2891,13 +2987,16 @@ local function CreateAwardVictoryStrip(self, info)
             end
 
             local liveEncounter = q:try_get("liveEncounter")
-            --the objective strip is relevant when there are monsters to track, or for the
+            --the objective strip is relevant when there are monsters to track, for the
             --"Destroy the Thing!" objective (which tracks objects, not monsters, so it can
-            --have no onset monsters at all).
+            --have no onset monsters at all), or when an encounter script sets a
+            --victory/defeat condition (which need not involve monsters at all).
             local hasObjective = type(liveEncounter) == "table" and (
                 liveEncounter:try_get("onsetMonsterCount", 0) > 0 or
                 (liveEncounter:try_get("victoryCondition") == "destroy_thing" and
-                 liveEncounter:try_get("onsetDestroyObjectCount", 0) > 0))
+                 liveEncounter:try_get("onsetDestroyObjectCount", 0) > 0) or
+                liveEncounter:ScriptVictoryText() ~= nil or
+                liveEncounter:ScriptDefeatText() ~= nil)
             if not hasObjective then
                 element:SetClass("collapsed", true)
                 return
@@ -2906,30 +3005,43 @@ local function CreateAwardVictoryStrip(self, info)
             local isDM = dmhub.isDM
             local visible = liveEncounter:try_get("objectiveVisible", false)
             local won = liveEncounter:CheckVictory()
+            local lost = (not won) and liveEncounter:CheckDefeat()
+            local defeatText = liveEncounter:GetDefeatText()
 
             if not isDM then
-                --players only ever see the objective label, and only when revealed and
-                --not yet won.
+                --players only ever see the objective/defeat labels, and only when
+                --revealed and not yet won.
                 if not visible or won then
                     element:SetClass("collapsed", true)
                     return
                 end
                 element:SetClass("collapsed", false)
                 objectivePanel:SetClass("collapsed", false)
+                defeatRow:SetClass("collapsed", defeatText == nil)
                 victoryPanel:SetClass("collapsed", true)
+                defeatPanel:SetClass("collapsed", true)
                 visibilityIcon:SetClass("collapsed", true)
                 objectiveLabel.text = liveEncounter:GetObjectiveText()
+                if defeatText ~= nil then
+                    defeatLabel.text = defeatText
+                end
                 return
             end
 
-            --director view.
+            --director view. Victory wins a tie; the defeat header replaces the
+            --defeat progress line while the objective stays visible above it.
             element:SetClass("collapsed", false)
             objectivePanel:SetClass("collapsed", won)
+            defeatRow:SetClass("collapsed", won or lost or defeatText == nil)
             victoryPanel:SetClass("collapsed", not won)
+            defeatPanel:SetClass("collapsed", not lost or won)
             visibilityIcon:SetClass("collapsed", won)
             visibilityIcon:SetClass("shown", visible)
             if not won then
                 objectiveLabel.text = liveEncounter:GetObjectiveText()
+                if defeatText ~= nil then
+                    defeatLabel.text = defeatText
+                end
             end
         end,
 

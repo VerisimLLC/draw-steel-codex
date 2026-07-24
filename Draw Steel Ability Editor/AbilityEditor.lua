@@ -1826,6 +1826,88 @@ end
 -- call time; without the forward local it would be treated as a global.
 local _buildModesBlock
 
+--[[
+    Implementation Status + Implementation Notes rows.
+
+    Shared by the New Ability Editor's Overview section and the New Triggered
+    Ability Editor's Trigger section (via AbilityEditor.BuildImplementationBlock)
+    so both surfaces write the same `implementation` / `implementationDetails`
+    fields with identical layout and collapse behaviour. TriggeredAbility
+    derives from ActivatedAbility, so the fields exist on both.
+
+    Returns an array of child elements to splice into a section's `children`.
+]]
+local function _buildImplementationBlock(ability, fireChange)
+    local children = {}
+
+    -- Implementation status (0/1/2 traffic-light widget). Inline layout:
+    -- the 148x32 widget is compact enough to sit to the right of its
+    -- label on a single row, keeping the vertical space tight.
+    children[#children + 1] = gui.Panel{
+        classes = {"nae-field-row-inline"},
+        children = {
+            gui.Label{
+                classes = {"nae-field-label-inline"},
+                text = "Implementation Status",
+            },
+            gui.ImplementationStatusPanel{
+                halign = "left",
+                valign = "center",
+                value = ability:try_get("implementation", 1),
+                change = function(element)
+                    ability.implementation = element.value
+                    fireChange()
+                end,
+                -- The base ImplementationStatusPanel has mismatched arrow
+                -- heights (left=24, right=32). Fix the right arrow to 24
+                -- after construction by walking children.
+                create = function(element)
+                    for _, child in ipairs(element.children) do
+                        if child.height == 32 then
+                            child.height = 24
+                        end
+                    end
+                end,
+            },
+        },
+    }
+
+    -- Implementation details: only relevant when status != 1 (fully
+    -- implemented). Collapse animation so toggling status hides it smoothly.
+    children[#children + 1] = gui.Panel{
+        classes = {"nae-field-row",
+                   cond(ability:try_get("implementation", 1) == 1, "collapsed-anim")},
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", ability:try_get("implementation", 1) == 1)
+        end,
+        refreshImplementation = function(element)
+            element:SetClass("collapsed-anim", ability:try_get("implementation", 1) == 1)
+        end,
+        children = {
+            gui.Label{
+                classes = {"nae-field-label"},
+                text = "Implementation Notes",
+            },
+            gui.Input{
+                classes = {"nae-field-textarea"},
+                placeholderText = "Notes on unfinished parts...",
+                multiline = true,
+                textAlignment = "topleft",
+                characterLimit = 2048,
+                text = ability:try_get("implementationDetails", ""),
+                change = function(element)
+                    ability.implementationDetails = element.text
+                    fireChange()
+                end,
+            },
+        },
+    }
+
+    return children
+end
+
+AbilityEditor.BuildImplementationBlock = _buildImplementationBlock
+
 local function _buildOverviewSection(ability, fireChange)
     local children = {}
 
@@ -2043,68 +2125,11 @@ local function _buildOverviewSection(ability, fireChange)
         }
     )
 
-    -- Implementation status (0/1/2 traffic-light widget). Inline layout:
-    -- the 148x32 widget is compact enough to sit to the right of its
-    -- label on a single row, keeping the vertical space tight.
-    children[#children + 1] = gui.Panel{
-        classes = {"nae-field-row-inline"},
-        children = {
-            gui.Label{
-                classes = {"nae-field-label-inline"},
-                text = "Implementation Status",
-            },
-            gui.ImplementationStatusPanel{
-                halign = "left",
-                valign = "center",
-                value = ability:try_get("implementation", 1),
-                change = function(element)
-                    ability.implementation = element.value
-                    fireChange()
-                end,
-                -- The base ImplementationStatusPanel has mismatched arrow
-                -- heights (left=24, right=32). Fix the right arrow to 24
-                -- after construction by walking children.
-                create = function(element)
-                    for _, child in ipairs(element.children) do
-                        if child.height == 32 then
-                            child.height = 24
-                        end
-                    end
-                end,
-            },
-        },
-    }
-
-    -- Implementation details: only relevant when status != 1 (fully
-    -- implemented). Collapse animation so toggling status hides it smoothly.
-    children[#children + 1] = gui.Panel{
-        classes = {"nae-field-row",
-                   cond(ability:try_get("implementation", 1) == 1, "collapsed-anim")},
-        refreshAbility = function(element)
-            element:SetClass("collapsed-anim", ability:try_get("implementation", 1) == 1)
-        end,
-        refreshImplementation = function(element)
-            element:SetClass("collapsed-anim", ability:try_get("implementation", 1) == 1)
-        end,
-        children = {
-            gui.Label{
-                classes = {"nae-field-label"},
-                text = "Implementation Notes",
-            },
-            gui.Input{
-                classes = {"nae-field-textarea"},
-                placeholderText = "Notes on unfinished parts...",
-                multiline = true,
-                textAlignment = "topleft",
-                characterLimit = 2048,
-                text = ability:try_get("implementationDetails", ""),
-                change = function(element)
-                    ability.implementationDetails = element.text
-                    fireChange()
-                end,
-            },
-        },
-    }
+    -- Implementation Status + Implementation Notes (shared with the New
+    -- Triggered Ability Editor).
+    for _, c in ipairs(_buildImplementationBlock(ability, fireChange)) do
+        children[#children + 1] = c
+    end
 
     -- Source Reference. SourceReference:Editor already emits its own
     -- "Source:" label + Page sub-row inside a self-contained panel, so we

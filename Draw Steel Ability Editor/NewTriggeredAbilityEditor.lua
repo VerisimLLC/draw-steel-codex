@@ -1012,6 +1012,23 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
             },
         })
 
+    -- Implementation Status + Implementation Notes. Lifted from the New
+    -- Ability Editor via AbilityEditor.BuildImplementationBlock so both
+    -- surfaces write the same `implementation` / `implementationDetails`
+    -- fields (TriggeredAbility derives from ActivatedAbility) with the same
+    -- layout and the same "notes collapse when status is Unimplemented"
+    -- behaviour. fireChange (not refreshSection) is the right hook: the
+    -- notes row reacts via its own refreshAbility handler, which fireChange
+    -- fires tree-wide -- refreshSection would rebuild the whole section and
+    -- drop focus out of whatever field the author was editing.
+    if AbilityEditor and AbilityEditor.BuildImplementationBlock then
+        local implChildren = AbilityEditor.BuildImplementationBlock(ability,
+            fireChange or refreshSection)
+        for _, c in ipairs(implChildren) do
+            children[#children + 1] = c
+        end
+    end
+
     -- Modes & Variations (No Modes / Multiple Modes / Ability Variations).
     -- Parity with the classic editor, which surfaced these via
     -- BehaviorEditor -> TargetTypeEditor. Real-world usage is sparse (1

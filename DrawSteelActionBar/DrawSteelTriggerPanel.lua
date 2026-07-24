@@ -662,6 +662,64 @@ mod.shared.CreateTriggerPanel = function()
 							local m_ping = trigger.ping
                             local isPassive = trigger.powerRollModifier and trigger.powerRollModifier.type == "passive"
 
+                            --A trigger prompt ages out after a fixed window (which
+                            --resets whenever the user interacts with any trigger --
+                            --see ActiveTrigger.RefreshAllTimers). Once a prompt is
+                            --inside the warning window this drains a thin bar across
+                            --the top of it so it is obvious the prompt is about to
+                            --disappear. The bar itself is never collapsed, since a
+                            --collapsed panel gets no think events -- only the fill is.
+                            local expiryBarFill = gui.Panel{
+                                classes = {"collapsed"},
+                                interactable = false,
+                                bgimage = true,
+                                halign = "left",
+                                valign = "center",
+                                width = "100%",
+                                height = "100%",
+                                bgcolor = g_accentColor,
+                            }
+
+                            local expiryBar = gui.Panel{
+                                floating = true,
+                                interactable = false,
+                                bgimage = true,
+                                halign = "center",
+                                valign = "top",
+                                --the panel has vpad = 6; pull the bar back up so it
+                                --sits just inside the top border rather than adrift
+                                --in the padding.
+                                vmargin = -4,
+                                width = "100%",
+                                height = 3,
+                                bgcolor = "clear",
+                                thinkTime = 0.1,
+                                think = function(element)
+                                    local fraction = nil
+                                    if availableTriggers ~= nil then
+                                        local trigger = availableTriggers[key]
+                                        if trigger ~= nil then
+                                            fraction = trigger:ExpiryWarningFraction()
+                                        end
+                                    end
+
+                                    if fraction == nil then
+                                        if not expiryBarFill:HasClass("collapsed") then
+                                            expiryBarFill:SetClass("collapsed", true)
+                                            element.selfStyle.bgcolor = "clear"
+                                        end
+                                        return
+                                    end
+
+                                    expiryBarFill:SetClass("collapsed", false)
+                                    element.selfStyle.bgcolor = "#00000060"
+                                    expiryBarFill.selfStyle.width = string.format("%.2f%%", fraction*100)
+                                    expiryBarFill.selfStyle.bgcolor = cond(fraction < 0.25, g_forbiddenColor, g_accentColor)
+                                end,
+
+                                expiryBarFill,
+                            }
+
                             local triggerPanel
 							triggerPanel = gui.Panel{
                                 data = {
@@ -876,13 +934,15 @@ mod.shared.CreateTriggerPanel = function()
 									if count > 1 then
 										element:SetClass("ping", true)
 										element:SetClass("pong", not element:HasClass("pong"))
-					
+
 										element:ScheduleEvent("ping", 0.25, count-1)
 									else
 										element:SetClass("ping", false)
 										element:SetClass("pong", false)
-									end					
+									end
 								end,
+
+                                expiryBar,
 
                                 gui.Button{
                                     classes = {"closeButton", "sizeS"},

@@ -9548,6 +9548,7 @@ end
 
 --- @class ActiveTrigger
 --- @field timestamp number
+--- @field expiryTimestamp number
 --- @field id string
 --- @field charid string
 --- @field free boolean
@@ -9586,6 +9587,118 @@ ActiveTrigger.modes = {}
 ActiveTrigger.casterid = false
 ActiveTrigger.originalAbilityRange = 0
 ActiveTrigger.params = {}
+
+--expiryTimestamp is the clock the age-out below runs on. It is separate from
+--timestamp (which orders the prompts in the trigger panel) because it gets
+--reset on every pending trigger whenever the user interacts with any one of
+--them -- see ActiveTrigger.RefreshAllTimers. Entries created before this field
+--existed have 0 here and fall back to timestamp.
+ActiveTrigger.expiryTimestamp = 0
+
+--How long a trigger prompt stays available before it ages out.
+local g_triggerExpirySeconds = 60
+
+--Once a trigger has fewer than this many seconds left, the prompt shows a thin
+--bar across its top that drains away as the trigger dies.
+local g_triggerExpiryWarningSeconds = 20
+
+--Don't bother re-stamping a trigger that was stamped this recently. This keeps
+--a mass dispatch (18 gnolls all getting Death Circle in one frame) from
+--re-stamping every sibling once per dispatched trigger.
+local g_triggerRefreshDebounceSeconds = 2
+
+--Age of a trigger for expiry purposes.
+local function TriggerExpiryAge(value)
+    local timestamp = value.expiryTimestamp
+    if timestamp == nil or timestamp == 0 then
+        timestamp = value.timestamp
+    end
+    return TimestampAgeInSeconds(timestamp)
+end
+
+--Seconds until this trigger ages out. May be negative.
+function ActiveTrigger:SecondsUntilExpiry()
+    return g_triggerExpirySeconds - TriggerExpiryAge(self)
+end
+
+--Fraction (0-1) of the expiry warning window this trigger has left, or nil if
+--it is not close enough to expiry to warn about yet. Drives the draining bar on
+--the trigger prompt.
+function ActiveTrigger:ExpiryWarningFraction()
+    local remaining = self:SecondsUntilExpiry()
+    if remaining >= g_triggerExpiryWarningSeconds then
+        return nil
+    end
+
+    if remaining <= 0 then
+        return 0
+    end
+
+    return remaining/g_triggerExpiryWarningSeconds
+end
+
+--Reset the expiry clock on every pending trigger prompt in the game (on tokens
+--we have permission to modify). Called whenever the user interacts with a
+--trigger: a batch of simultaneous triggers is resolved one at a time, and with
+--a single shared window the tail of the batch silently vanished while the
+--Director was still working through it.
+function ActiveTrigger.RefreshAllTimers()
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.canControl then
+            local availableTriggers = tok.properties:try_get("availableTriggers")
+            if availableTriggers ~= nil then
+                local refreshKeys = nil
+                for key,value in pairs(availableTriggers) do
+                    local age = TriggerExpiryAge(value)
+                    --Only refresh live prompts: an entry that has already aged
+                    --out is on its way to being cleared and must not be revived.
+                    if (not value.dismissed) and age > g_triggerRefreshDebounceSeconds and age <= g_triggerExpirySeconds then
+                        refreshKeys = refreshKeys or {}
+                        refreshKeys[#refreshKeys+1] = key
+                    end
+                end
+
+                if refreshKeys ~= nil then
+                    tok:ModifyProperties{
+                        description = "Refresh Triggers",
+                        undoable = false,
+                        combine = true,
+                        execute = function()
+                            for _,key in ipairs(refreshKeys) do
+                                local value = availableTriggers[key]
+                                if value ~= nil then
+                                    value.expiryTimestamp = ServerTimestamp()
+                                end
+                            end
+                        end,
+                    }
+                end
+            end
+        end
+    end
+end
+
+--Trigger interactions all happen inside a token:ModifyProperties block, and
+--RefreshAllTimers calls ModifyProperties on other tokens, so the refresh is
+--deferred out of the caller's block rather than nested inside it. The pending
+--flag collapses a burst of interactions (e.g. Dismiss Triggers, which
+--re-dispatches every trigger on the token) into one pass.
+local g_triggerRefreshPending = false
+local function ScheduleTriggerTimerRefresh()
+    if g_triggerRefreshPending then
+        return
+    end
+
+    g_triggerRefreshPending = true
+    dmhub.Schedule(0.01, function()
+        g_triggerRefreshPending = false
+        if mod.unloaded then
+            return
+        end
+
+        ActiveTrigger.RefreshAllTimers()
+    end)
+end
 
 function ActiveTrigger:DismissOnTrigger()
     return self.dismissOnTrigger
@@ -9650,8 +9763,8 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	local hasExpired = false
 	local hasValid = false
 	for key,value in pairs(availableTriggers) do
-		local age = TimestampAgeInSeconds(value.timestamp)
-		if age > 60 or value.id ~= key then
+		local age = TriggerExpiryAge(value)
+		if age > g_triggerExpirySeconds or value.id ~= key then
 			hasExpired = true
 		elseif (not value.dismissed) or (not excludeDismissed) then
 			hasValid = true
@@ -9669,8 +9782,8 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	local result = {}
 	for key,value in pairs(availableTriggers) do
 		if value.id == key and ((not value.dismissed) or (not excludeDismissed)) then
-			local age = TimestampAgeInSeconds(value.timestamp)
-			if age <= 60 then
+			local age = TriggerExpiryAge(value)
+			if age <= g_triggerExpirySeconds then
 				result[key] = value
 			end
 		end
@@ -9718,16 +9831,24 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 
 
 	local availableTriggers = self:get_or_add("availableTriggers", {})
+
+    --A dispatch of a trigger that is already on the list is the user interacting
+    --with it (activating, dismissing, picking an enhancement, retargeting). That
+    --is our cue to give every other pending trigger in the game a fresh window,
+    --so a batch being resolved one at a time doesn't age out from under them.
+    local isInteraction = triggerInfo ~= nil and availableTriggers[triggerInfo.id] ~= nil
+
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do
-		local age = TimestampAgeInSeconds(value.timestamp)
-		if age > 60 then
+		local age = TriggerExpiryAge(value)
+		if age > g_triggerExpirySeconds then
 			deletes[#deletes+1] = key
 		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false and (not triggerInfo.noDeduplicate) and (not value.noDeduplicate) then
             --de-duplicate spammy triggers that all do the same thing, e.g. if Tactician Mastermind's Overwatch trigger against the same moving creature.
 			if (not value.dismissed) and (not value.triggered) and (value.text == triggerInfo.text) and (value.rules == triggerInfo.rules) and dmhub.DeepEqual(value.modes, triggerInfo.modes) and dmhub.DeepEqual(value.targets, triggerInfo.targets) then
 				--just refresh this trigger instead of creating a new one.
 				value.timestamp = ServerTimestamp()
+				value.expiryTimestamp = ServerTimestamp()
 				triggerInfo = nil
 			end
 		end
@@ -9740,7 +9861,12 @@ function creature:DispatchAvailableTrigger(triggerInfo)
     if triggerInfo ~= nil then
 	    triggerInfo = DeepCopy(triggerInfo)
 	    triggerInfo.timestamp = ServerTimestamp()
+	    triggerInfo.expiryTimestamp = ServerTimestamp()
 	    availableTriggers[triggerInfo.id] = triggerInfo
+    end
+
+    if isInteraction then
+        ScheduleTriggerTimerRefresh()
     end
 end
 
@@ -9750,10 +9876,19 @@ function creature:ClearAvailableTrigger(triggerInfo)
     clearedTriggers[triggerInfo.id] = true
 
 	local availableTriggers = self:get_or_add("availableTriggers", {})
+
+    --Clearing a trigger the user acted on -- activated or dismissed -- is an
+    --interaction, so the remaining prompts get a fresh window. A trigger that
+    --simply aged out is not: that path must never revive its siblings. Note
+    --that dismissing a clearOnDismiss trigger reaches us straight from
+    --DispatchAvailableTrigger's early-out, so this is the only hook that sees it.
+    local cleared = availableTriggers[triggerInfo.id]
+    local isInteraction = cleared ~= nil and (cleared.triggered ~= false or cleared.dismissed)
+
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do
-		local age = TimestampAgeInSeconds(value.timestamp)
-		if age > 60 or key == triggerInfo.id then
+		local age = TriggerExpiryAge(value)
+		if age > g_triggerExpirySeconds or key == triggerInfo.id then
 			deletes[#deletes+1] = key
 		end
 	end
@@ -9761,6 +9896,10 @@ function creature:ClearAvailableTrigger(triggerInfo)
 	for _,key in ipairs(deletes) do
 		availableTriggers[key] = nil
 	end
+
+    if isInteraction then
+        ScheduleTriggerTimerRefresh()
+    end
 end
 
 function creature:GetTurnId()

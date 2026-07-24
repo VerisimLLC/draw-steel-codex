@@ -291,6 +291,18 @@ local function StoreBannerDieEligible(element)
     if not element.valid then
         return false
     end
+    --The resting die is a real 3D object owned by the engine's dice harness, and that
+    --harness only exists while a game context is live -- on the titlescreen that is the
+    --lobby game, which loads asynchronously after login. The early seed below runs behind
+    --the starting screen, i.e. exactly the window where the lobby game may not be up yet,
+    --and every dice call made then hits a harness that does not exist: the engine logs an
+    --error and no die is ever created, yet seedBannerDie has already recorded seeded =
+    --true, so the reconcile retires and the banner stays dieless for the whole session.
+    --Treat "no game context" like "shop items haven't downloaded": stay ineligible and let
+    --the 0.5s retry/think seed the die the moment the lobby game arrives.
+    if not dmhub.inGame then
+        return false
+    end
     local earlySeed = element:HasClass("starting-screen") and element.data.virtualDie
     if not (element:HasClass("selection-screen") or earlySeed) then
         return false
@@ -451,6 +463,20 @@ local function MakeStoreBannerRollDie()
             --Instant reconciliation on titlescreen screen switches (fired
             --tree-wide by SetTitlescreenState)...
             titlescreenStateChanged = function(element)
+                element:FireEvent("reconcileBannerDie")
+            end,
+            --...and on the lobby game coming up, which is what makes the dice
+            --harness exist at all (see StoreBannerDieEligible). Both the first
+            --load and the re-entry after returning from a game are announced
+            --tree-wide by the titlescreen, so the die is seeded the instant a
+            --dice context exists instead of up to 0.5s later off the think --
+            --and the early seed still lands behind the starting screen even
+            --when the lobby outlasts the retry budget (e.g. terms of service
+            --held EnterLobbyGame back until the user accepted).
+            lobbyGameLoaded = function(element)
+                element:FireEvent("reconcileBannerDie")
+            end,
+            returnFromGameComplete = function(element)
                 element:FireEvent("reconcileBannerDie")
             end,
             --...and on the dev:storepreview gate that collapses the banner.

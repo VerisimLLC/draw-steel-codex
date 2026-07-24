@@ -20,10 +20,16 @@ local g_storeItemPreviewSetting = setting{
     storage = "preference",
 }
 
+--True if this item is in the "Preview in store" state. Read defensively (the
+--C# field may predate this build, like featured/hidden); on older builds
+--nothing is ever a preview item. Mutually exclusive with onsale.
+local function ItemIsStorePreview(item)
+    local ok, val = pcall(function() return item.preview end)
+    return ok and val == true
+end
+
 --True if the local user should see this item in the shop: live (onsale) items
 --for everyone, preview items only for users with dev:storeitempreview on.
---preview is read defensively (the C# field may predate this build, like
---featured/hidden); older builds just never show preview items.
 local function ItemVisibleInShop(item)
     if item.onsale then
         return true
@@ -31,8 +37,7 @@ local function ItemVisibleInShop(item)
     if not g_storeItemPreviewSetting:Get() then
         return false
     end
-    local ok, val = pcall(function() return item.preview end)
-    return ok and val == true
+    return ItemIsStorePreview(item)
 end
 
 --When true, the "Buy with Steam" button skips the actual Steam call and
@@ -577,6 +582,35 @@ local shopStyles = {
 
 		scale = 1.5,
 		transitionTime = 1,
+	},
+
+	--Corner badge on a grid card whose item is only on the store in the
+	--"Preview in store" state -- i.e. one that is on the page purely because
+	--the local user has dev:storeitempreview on, and which the public cannot
+	--see. See MakeShopItem.
+	{
+		selectors = {"shopPreviewBadge"},
+
+		bgimage = "panels/square.png",
+		bgcolor = "#000000cc",
+		cornerRadius = 4,
+		borderWidth = 1,
+		borderFade = false,
+		borderColor = "#ffc44dff",
+
+		color = "#ffc44dff",
+		fontFace = "Inter",
+		fontSize = 12,
+		fontWeight = "bold",
+		uppercase = true,
+		textAlignment = "center",
+
+		width = 76,
+		height = 20,
+		halign = "left",
+		valign = "top",
+		hmargin = 10,
+		vmargin = 6,
 	},
 
 	{
@@ -2471,6 +2505,21 @@ local MakeShopItem = function()
 		--(scaled to 384px, anchored 8px up), so push the text block down to
 		--restore the original ~8px gap between the image and the title.
 		MakeShopItemText{ tmargin = 21 },
+
+		--"Preview" badge for items visible only because dev:storeitempreview
+		--is on. Lives on the card rather than inside the image display -- that
+		--rebuilds its whole child list on every refresh -- and is last in the
+		--list so it draws over the card art (z-order = sibling order).
+		gui.Label{
+			classes = {"shopPreviewBadge", "collapsed"},
+			floating = true,
+			interactable = false,
+			text = "Preview",
+
+			refreshItem = function(element, item)
+				element:SetClass("collapsed", not ItemIsStorePreview(item))
+			end,
+		},
 
 	}
 end

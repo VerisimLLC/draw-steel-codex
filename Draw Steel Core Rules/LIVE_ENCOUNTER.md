@@ -425,6 +425,41 @@ Both are read-only views; mutate only through `IncrementStat`.
     there too. Only queues persisted before the always-present convention can
     lack one; scripts that must support those should offer a slash-command
     fallback.
+- **Encounter Scripts.** An `Encounter` can carry `scripts` — a list of
+  `EncounterScriptInstance` attachments, each referencing an `encounterScripts`
+  library item / built-in (or holding inline custom Lua) plus the director's
+  chosen parameter values. The script source *returns a definition table*
+  (pure at load): declared `params` (number/string/boolean/choice/wave), an
+  optional `victory = { text, check }` that REPLACES the victory-condition
+  dropdown and `CheckVictory`, an optional `defeat = { text, check }` (defeat
+  conditions are script-only — the base game has none; when the check passes
+  the director's initiative bar offers **Declare Defeat**, which announces the
+  outcome in chat and runs the End Combat teardown), and handlers `onStart` /
+  `onRound` / `think` (~0.7s) / `onEnd`. Full contract and runtime documented
+  at the top of the "Encounter Scripts" section in `MCDMEncounter.lua`.
+  - Live progress text: while combat runs, the host re-resolves
+    `victory.text` / `defeat.text` each heartbeat with the real ctx and stores
+    the strings in the instance's `scriptStates` entry;
+    `LiveEncounter:ScriptVictoryText` / `:ScriptDefeatText` prefer those over
+    the edit-time cache. That is how "Survive 1/3 Rounds"-style objective text
+    ticks up on every client (a text function can branch on
+    `ctx.queue == nil` to show a goal at edit time and progress in combat).
+  - Authoring: attach/detach behind the encounter editor's Rule Sets cog;
+    parameters surface as an extra row on the party bar; library scripts are
+    edited in the Compendium under Rules → Encounter Scripts; custom Lua gets
+    a modal editor (with external-editor round-trip and "Save to Library").
+  - Runtime: a 0.7s heartbeat in `MCDMEncounter.lua` fires handlers on the
+    **elected host** only (lowest present director per
+    `dmhub.GetSessionInfo(uid).dm` + liveness — NOT `dmhub.IsUserDM`, which
+    lies). Fire-once watermarks and each script's `ctx.state` persist in
+    `LiveEncounter.scriptStates` (copy-on-write + queue upload, like
+    `deployedWaves`), so host handover and hot reload resume instead of
+    refiring. Handlers are pcall-isolated; errors report once per message via
+    `dmhub.CloudError`.
+  - Player clients never execute script code: display surfaces read the
+    cached `victoryText`/`defeatText` strings (refreshed at edit time) or the
+    host-resolved live strings networked in `scriptStates`, and
+    handlers/checks run only on director clients.
 - **Lua-only changes** reload at runtime; no C# rebuild needed. Files are ASCII-only;
   forward-declare self-referencing locals (see `draw-steel-codex/CLAUDE.md`).
 

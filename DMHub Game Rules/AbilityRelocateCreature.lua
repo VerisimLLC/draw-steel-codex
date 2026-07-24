@@ -260,12 +260,22 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
             --The action bar's altitude controller resolves the target loc to an
-            --ABSOLUTE altitude (bounded by the teleport distance). Never land below
-            --the ground at the destination: locs from flows without the controller
-            --carry altitude 0 or the ground altitude, and both resolve to landing
-            --on the ground exactly as before.
+            --ABSOLUTE altitude (bounded by the teleport distance), and it is only
+            --offered for teleport targeting -- see
+            --ActivatedAbility:TargetLocMaxElevationChangeFunction. A relocate never
+            --gets one, so its target loc is the raw map-click loc, whose altitude is
+            --a meaningless 0 (Token.GetMouseWorldLoc -> TileUtils.PosToLoc). Taking
+            --the max against that 0 stranded the creature in mid-air over any ground
+            --below altitude 0: relocating out of an 8-deep pit landed it at altitude
+            --0, eight squares up, and the TryFall below immediately dropped it again
+            --for full falling damage. Land on the ground unless a deliberately chosen
+            --altitude could actually have been supplied.
             local groundLoc = destLoc.withGroundAltitude
-            local teleportLoc = groundLoc:WithAltitude(math.max(groundLoc.altitude, destLoc.altitude))
+            local landingAltitude = groundLoc.altitude
+            if movementType == "teleport" and (ability.targetType == "emptyspace" or ability.targetType == "anyspace") then
+                landingAltitude = math.max(groundLoc.altitude, destLoc.altitude)
+            end
+            local teleportLoc = groundLoc:WithAltitude(landingAltitude)
 
             --Teleport bypasses OnMove's leaveadjacent dispatch, so capture enemies
             --with "Opportunity Attack On Any Movement" adjacent to the origin now

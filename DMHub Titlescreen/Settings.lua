@@ -1538,16 +1538,6 @@ setting{
 }
 
 setting{
-	id = "preroll",
-	classes = {"dmonly"},
-	description = "DM Pre-rolls",
-	editor = "check",
-	default = false,
-	storage = "preference",
-}
-
-
-setting{
 	id = "monsterSaves:hideFromPlayers",
 	classes = {"dmonly"},
 	description = "Hide saving throws for monsters from players",
@@ -2587,6 +2577,17 @@ setting{
 	id = "walls:indestructible",
 	description = "Indestructible Walls",
 	help = "When enabled, forced movement cannot break through walls, regardless of their solidity.",
+	classes = {"dmonly"},
+	section = "Game",
+	default = false,
+	storage = "game",
+	editor = "check",
+}
+
+setting{
+	id = "climbing:alwaysenabled",
+	description = "Climbing Always Enabled",
+	help = "When enabled, creatures can climb anywhere on the map, as if every tile was marked as climbable. Climbable areas marked on the map are still used as normal.",
 	classes = {"dmonly"},
 	section = "Game",
 	default = false,

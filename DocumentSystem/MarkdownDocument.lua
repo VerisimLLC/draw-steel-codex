@@ -9387,6 +9387,12 @@ function MarkdownDocument:SeamlessEditPanel(args)
         if islandLayer ~= nil and islandLayer.valid then
             --instant belt-and-suspenders hide; the empty islandLayout tick
             --that follows the recompile hides the wrappers individually.
+            --KNOWN COSMETIC ISSUE on raw exit: the first export after the
+            --recompile can run before the style pass settles, so islands
+            --appear briefly at a wrong position before the engine's export
+            --revalidation corrects them (SEAMLESS_EDITOR_REFERENCE.md gotcha
+            --#10). A 0.15s hide-until-settled window was tried and reverted
+            --(needed to be longer; not a satisfying approach).
             islandLayer:SetClass("hidden", raw)
         end
         --split view: raw mode shows the rendered preview beside the source

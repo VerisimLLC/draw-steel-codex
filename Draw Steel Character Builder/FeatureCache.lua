@@ -903,9 +903,33 @@ function CBOptionWrapper:GetImplementation()
     return option:try_get("implementation", 1)
 end
 
+--- The display name of this option.
+---
+--- Options arrive in two shapes. Dropdown-style plain tables carry "name" or
+--- "text". Game-typed objects (the option list of a CharacterFeatureChoice)
+--- carry theirs on the instance -- EXCEPT when the name comes from the game
+--- type's DEFAULT instead of being set on the instance. _safeGet reads through
+--- try_get, which is rawget-based, so it cannot see type defaults and returns
+--- nil for those. That is not a rare case: the class-level editor's "Add
+--- Option..." dropdown (DSClassEditor.lua) builds CharacterFeatureList,
+--- CharacterFeatureChoice, CharacterFeatChoice and CharacterSingleFeat options
+--- with no instance name at all, so their names ("Features", "Choice", "Feat",
+--- "Single Feat") live purely on the type. A nil here propagated into
+--- GetOrder() and blew up the table.sort comparators in CBFeatureWrapper:Update
+--- with "attempt to compare nil with string" (and would equally have crashed
+--- GetOptionDisplayName's name:lower()).
+---
+--- _safeFeatureName resolves the type default (and, failing that, derives a
+--- label from the type name), which is exactly how CBFeatureWrapper:GetName
+--- already handles the identical problem for features. It never returns nil,
+--- so GetOrder() is always a sortable string.
 --- @return string
 function CBOptionWrapper:GetName()
-    return _safeGet(self.option, "name", _safeGet(self.option, "text"))
+    local name = _safeGet(self.option, "name", _safeGet(self.option, "text"))
+    if name ~= nil then
+        return name
+    end
+    return _safeFeatureName(self.option)
 end
 
 --- Get the underlying option object

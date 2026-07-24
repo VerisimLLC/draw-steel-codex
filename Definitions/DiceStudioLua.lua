@@ -20,6 +20,16 @@
 --- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
 --- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
 --- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
+--- @field rayBurstEnabled boolean Whether this dice set fires a burst of light rays outward past each die's silhouette when it lands. The die's surface material can only draw rays inside the die itself; this carries them into the surrounding area. See rayBurstColor/rayBurstSize/rayBurstDuration/rayBurstIntensity/rayBurstSaturation/rayBurstCount/rayBurstContrast/rayBurstSpeed/rayBurstInnerRadius for its look.
+--- @field rayBurstColor Color The color of the landing ray burst. HDR: values above 1 make it glow brighter.
+--- @field rayBurstSize number How far the landing ray burst reaches, as a multiple of the die's diameter (3 == three dice wide).
+--- @field rayBurstDuration number How long the landing ray burst lasts, in seconds, from flare to fully faded.
+--- @field rayBurstIntensity number HDR brightness multiplier of the landing ray burst (higher = glows brighter).
+--- @field rayBurstSaturation number How much rainbow survives in the landing ray burst, 0 (pure white rays) to 1 (full rainbow).
+--- @field rayBurstCount number How many beams the landing ray burst fans out around the circle.
+--- @field rayBurstContrast number Sharpness of the landing ray burst's beams: low = soft washes of light, high = thin crisp spokes.
+--- @field rayBurstSpeed number How fast the landing ray burst's two beam layers counter-rotate and shimmer. 0 == frozen.
+--- @field rayBurstInnerRadius number How far out the landing ray burst's rays start, as a fraction of its radius, so the die's face stays readable.
 --- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. See billboardImage/billboardColorInner/billboardColorOuter/billboardSize/billboardFalloff/billboardIntensity for its look. A dice script can also toggle this per-die via die.billboard.
 --- @field billboardImage string The image asset id of an artist-supplied billboard glow image, or an empty string to render the procedural radial gradient instead. In image mode the image is tinted by billboardColorInner and its own alpha is its coverage.
 --- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.

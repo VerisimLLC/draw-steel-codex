@@ -918,12 +918,6 @@ function GameHud.CreateEmbeddedRollDialog()
             return text
         end
 
-        --Round-trip a roll string through Parse -> ToString while preserving the
-        --top-level flags that ToString drops.
-        local function RestringifyRoll(text)
-            return PreserveRollFlags(dmhub.RollToString(dmhub.ParseRoll(text, creature)))
-        end
-
         local enabledModifiers = GetEnabledModifiers()
 
         if GameSystem.UseBoons then
@@ -1000,16 +994,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
             rollInfo = dmhub.ParseRoll(newText, creature)
             newText = PreserveRollFlags(dmhub.RollToString(rollInfo))
-        end
-
-        if dmhub.isDM and dmhub.GetSettingValue("preroll") then
-            local cats = dmhub.RollInstantCategorized(newText)
-            newText = ""
-            for k, n in pairs(cats) do
-                newText = string.format("%s%s%s [%s]", newText, cond(newText == "", "", " "), n, k)
-            end
-
-            newText = RestringifyRoll(newText)
         end
 
         if GameSystem.CombineNegativesForRolls then
@@ -1267,19 +1251,6 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.Button {
-        classes = {"sizeL"},
-        icon = "panels/hud/clockwise-rotation.png",
-        halign = "right",
-        valign = "center",
-        press = function(element)
-            CalculateRollText()
-        end,
-        textCalculated = function(element)
-            element:SetClass("hidden", (not dmhub.isDM) or (not dmhub.GetSettingValue("preroll")))
-        end,
-    }
-
     local rollInputContainer = gui.Panel {
         width = "100%",
         flow = "horizontal",
@@ -1287,7 +1258,6 @@ function GameHud.CreateEmbeddedRollDialog()
         height = "auto",
         valign = "top",
         rollInput,
-        rerollFudgedButton,
     }
 
     local CreateTriggerPanel = function(info)
@@ -5020,6 +4990,29 @@ function GameHud.CreateEmbeddedRollDialog()
                 local castco = element.data ~= nil and element.data.castCoroutine
                 print(string.format("RollDialog:: DESTROY castCoroutine=%s wasShown=%s\n%s",
                     tostring(castco), tostring(shown), debug.traceback()))
+
+                --Backstop for that exact failure: if the dialog is torn down while its
+                --unsubmitted preview dice are still armed (destroy-while-shown -- e.g. the
+                --cast/invoke coroutine was cancelled and destroyed the panel WITHOUT going
+                --through CancelRollDialog), the preview dice are orphaned. They pin the
+                --transient __previewdice=true, which locks the action bar in preview-dice
+                --mode for the REST OF THE SESSION with no error and no player recovery
+                --(report 53GJ582S: a cancelled "Aspect of the Wild" invoke destroyed this
+                --dialog mid-preview and stranded __previewdice=true for ~17000 log lines).
+                --Mirror CancelRollDialog's clear so NO teardown path can leak preview dice.
+                --Gated on __previewdice so a normal completed-roll teardown (dice already
+                --consumed) is a no-op. SCOPED to this dialog's own cage first so the Dice
+                --dock's tile dice survive; the global fallback only runs on an old binary
+                --that lacks CancelDicePreviewRoll (a dead bar is worse than a dock rebuild).
+                if dmhub.GetSettingValue("__previewdice") then
+                    local cleared = false
+                    if m_diceCagePanel ~= nil and m_diceCagePanel.valid then
+                        cleared = pcall(function() m_diceCagePanel:CancelDicePreviewRoll() end)
+                    end
+                    if not cleared then
+                        dmhub.CancelCurrentRoll()
+                    end
+                end
             end,
             broadcastDialogState = function(element)
                 BroadcastDialogState()

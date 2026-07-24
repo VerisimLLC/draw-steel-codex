@@ -876,12 +876,21 @@ CreateTerrainEditor = function(options)
             end
         end,
         
+        --The dockablePanel ancestor can be nil: panel content can be hosted
+        --outside the dock (the document system's PanelDocument bridge), and
+        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", true)
+            end
         end,
 
         childdefocus = function(element)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", false)
+            end
         end,
 
         data = {
@@ -1627,12 +1636,21 @@ CreateBuildingEditor = function()
             end
         end, 
 
+        --The dockablePanel ancestor can be nil: panel content can be hosted
+        --outside the dock (the document system's PanelDocument bridge), and
+        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", true)
+            end
         end,
 
         childdefocus = function(element)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", false)
+            end
         end,
 
         data = {

@@ -1170,6 +1170,10 @@ local ShowCustomAttributesPanel = function(parentPanel)
 	local attrItems = {}
     local sectionHeadings = {}
 
+	--filter box at the top of the list narrows the visible attributes as you
+	--type; matches on the attribute name and its category heading.
+	local m_filter = ""
+
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
@@ -1182,26 +1186,17 @@ local ShowCustomAttributesPanel = function(parentPanel)
 
 			local newHeadings = {}
 
+			local filter = string.lower(m_filter)
+
 			for k,item in pairs(attrTable) do
 
                 local section = item.category
 
-				if newHeadings[section] == nil then
-					newHeadings[section] = sectionHeadings[section] or gui.Label{
-						data = {
-							ord = section,
-						},
-						text = section,
-						fontSize = 20,
-						bold = true,
-						width = "auto",
-						height = "auto",
-						lmargin = 4,
-					}
-
-					children[#children+1] = newHeadings[section]
-                end
-
+				--keep every current attribute in the cache even while it is
+				--filtered out, so clearing the filter reuses the existing
+				--panels instead of recreating them. A recreated list item
+				--auto-selects (CreateListItem's select option) and would yank
+				--the editor open.
 				newAttrItems[k] = attrItems[k] or CreateListItem{
                     ord = section .. "-" .. item.name,
 					select = element.aliveTime > 0.2,
@@ -1216,7 +1211,31 @@ local ShowCustomAttributesPanel = function(parentPanel)
 
 				newAttrItems[k].text = item.name
 
-				children[#children+1] = newAttrItems[k]
+				local matches = filter == "" or
+					string.find(string.lower(item.name or ""), filter, 1, true) ~= nil or
+					string.find(string.lower(section or ""), filter, 1, true) ~= nil
+
+				if matches then
+					--only emit a section heading once one of its attributes
+					--survives the filter, so empty sections do not linger.
+					if newHeadings[section] == nil then
+						newHeadings[section] = sectionHeadings[section] or gui.Label{
+							data = {
+								ord = section,
+							},
+							text = section,
+							fontSize = 20,
+							bold = true,
+							width = "auto",
+							height = "auto",
+							lmargin = 4,
+						}
+
+						children[#children+1] = newHeadings[section]
+					end
+
+					children[#children+1] = newAttrItems[k]
+				end
 			end
 
 			table.sort(children, function(a,b) return a.data.ord < b.data.ord end)
@@ -1234,6 +1253,24 @@ local ShowCustomAttributesPanel = function(parentPanel)
 			flow = 'vertical',
 			height = '100%',
 			width = 'auto',
+		},
+
+		gui.Input{
+			classes = {'sizeM'},
+			width = 240,
+			height = 22,
+			halign = 'left',
+			vmargin = 4,
+			placeholderText = 'Filter attributes...',
+			editlag = 0.25,
+			edit = function(element)
+				m_filter = element.text
+				itemsListPanel:FireEvent('refreshAssets')
+			end,
+			change = function(element)
+				m_filter = element.text
+				itemsListPanel:FireEvent('refreshAssets')
+			end,
 		},
 
 		itemsListPanel,
@@ -6330,7 +6367,7 @@ local LibraryPanel = function()
 	return resultPanel
 end
 
-local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "VisionType"}
+local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "encounterScripts", "environmentalKeywords", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "VisionType"}
 
 LaunchablePanel.Register{
 	name = "Compendium",

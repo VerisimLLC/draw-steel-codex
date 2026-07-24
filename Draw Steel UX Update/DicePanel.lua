@@ -194,6 +194,15 @@ CreateDicePanel = function()
 						element.dicePreviewRestScale = 0.6
 						element.dicePreviewScaleSpeed = 5
 					end)
+					-- Resting tiles show the bare die: no particle effects until the mouse is
+					-- on them (and while they are dragged/thrown), then they are stripped again
+					-- on mouse-off. Dice FX always composite over the whole UI, so a resting
+					-- tile's effects would show through dialogs that cover the (virtual) die
+					-- itself, and a row of idle tiles quietly emitting embers is just noise.
+					-- Its own pcall so an older binary without the field keeps the tuning above.
+					pcall(function()
+						element.dicePreviewHoverFx = true
+					end)
 					if selectedGeo == "power" then
 						-- The Power Roll PAIR rests a bit bigger and tighter than the
 						-- single-die tiles; on hover both relax back to the standard

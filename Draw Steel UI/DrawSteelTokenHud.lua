@@ -1,5 +1,21 @@
 local mod = dmhub.GetModLoading()
 
+--How long the "removal pending" skull state may persist before we assume the
+--removal is never coming and hand the player back a live, clickable skull.
+--Slightly longer than the 120s backstop in
+--ActivatedAbilityRemoveCreatureBehavior:Cast, so in the normal case the token
+--despawns (destroying this panel outright) long before the timeout matters.
+--Without it, a removal that gets filtered out after the wait would strand the
+--skull purple and unclickable forever.
+local g_minionDeathPendingTimeout = 125
+
+--True once this creature's death has been confirmed by clicking the skull but
+--the Monster Death rule has not finished removing it yet.
+local function MinionDeathPending(creatureProps)
+    local confirmedAt = creatureProps:try_get("_tmp_minionDeathPending")
+    return confirmedAt ~= nil and dmhub.Time() - confirmedAt < g_minionDeathPendingTimeout
+end
+
 local g_deadMinionPulseSpeed = 0.5
 local g_deadMinionIconStyles = {
     gui.Style{
@@ -13,8 +29,22 @@ local g_deadMinionIconStyles = {
         selectors = {"nondirect"},
         bgcolor = "orange",
     },
+    --Death confirmed, removal pending: the click has fired creaturedeath and the
+    --Monster Death rule is now waiting (see ActivatedAbilityRemoveCreatureBehavior
+    --:Cast -- a minion that is itself the caster of a live cast, e.g. the Censor's
+    --"Your Allies Cannot Save You!" push, is held on the map until that cast
+    --finishes). priority 5 (the DefaultStyles convention for state overrides) so
+    --it beats both the base red and the single-selector "nondirect" orange rather
+    --than relying on declaration order. The panel is also made non-interactable
+    --while pending, so hover/press never apply here.
     gui.Style{
-        selectors = {"big", "~nondirect"},
+        selectors = {"pending"},
+        priority = 5,
+        bgcolor = "#7a3a8c",
+        opacity = 0.7,
+    },
+    gui.Style{
+        selectors = {"big", "~nondirect", "~pending"},
         scale = 1.2,
         transitionTime = g_deadMinionPulseSpeed,
     },
@@ -301,6 +331,24 @@ TokenHud.RegisterPanel{
                             m_minionDeathPanel = gui.Panel{
                                 styles = g_deadMinionIconStyles,
                                 click = function(element)
+                                    --Guard against a second confirmation while the first is
+                                    --still resolving: TriggerEvent has no alive->dead guard,
+                                    --so re-firing creaturedeath starts a second Monster Death
+                                    --cast and leaves a second corpse object. The panel is
+                                    --also made non-interactable while pending (below); this
+                                    --is the belt to that pair of braces.
+                                    if MinionDeathPending(token.properties) then
+                                        return
+                                    end
+
+                                    token.properties._tmp_minionDeathPending = dmhub.Time()
+
+                                    --Apply the pending look here rather than waiting on the
+                                    --parent's 0.2s think tick, so the click feels acknowledged
+                                    --immediately. The parent re-asserts both every tick.
+                                    element:SetClass("pending", true)
+                                    element.interactable = false
+
                                     local attacker = token.properties:try_get("_tmp_lastattacker")
                                     if attacker ~= nil then
                                         attacker:TriggerEvent("kill", {
@@ -317,6 +365,15 @@ TokenHud.RegisterPanel{
 
                                 thinkTime = g_deadMinionPulseSpeed,
                                 think = function(element)
+                                    --A pending skull is inert: stop pulsing so it
+                                    --reads as "resolving" rather than as something
+                                    --still asking to be clicked. The "big" style is
+                                    --also gated on ~pending, so any class left set
+                                    --from before the click stops applying at once
+                                    --instead of on the next tick.
+                                    if element:HasClass("pending") then
+                                        return
+                                    end
                                     element:SetClass("big", not element:HasClass("big"))
                                 end,
                             }
@@ -324,7 +381,10 @@ TokenHud.RegisterPanel{
                             element:AddChild(m_minionDeathPanel)
                         end
 
+                        local pending = MinionDeathPending(token.properties)
                         m_minionDeathPanel:SetClass("nondirect", has_direct_targets and not is_direct_target)
+                        m_minionDeathPanel:SetClass("pending", pending)
+                        m_minionDeathPanel.interactable = not pending
                     else
                         if m_minionDeathPanel ~= nil then
                             m_minionDeathPanel:DestroySelf()

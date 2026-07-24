@@ -228,18 +228,40 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
         --before dereferencing them below -- same guard this function already applies
         --after the wait loop (see the .valid / .properties check further down).
         local targetPasses = target.token ~= nil and target.token.valid and target.token.properties ~= nil
-        if targetPasses and self.waitForAbilitiesToFinish and (not target.token.properties.minion) then
+        if targetPasses and self.waitForAbilitiesToFinish then
+            --Minions deliberately do NOT wait on unrelated casts: their death is
+            --confirmed by clicking the skull, usually while the killing cast is
+            --still resolving, and making the corpse wait for that would feel
+            --broken. They must still not vanish while they are themselves the
+            --CASTER of a live cast, though: abilities that invoke off the struck
+            --target run with the target as caster (e.g. the Censor's "Your Allies
+            --Cannot Save You!", where each enemy adjacent to the minion is pushed
+            --away FROM the minion). Despawning mid-prompt strands that cast --
+            --ActivatedAbilityDrawSteelCommandBehavior:Cast breaks out of its
+            --"prompt for the next target" loop as soon as it sees a gone caster,
+            --so the remaining pushes are silently dropped. Same 120s backstop as
+            --the general wait below so a stuck cast can't park the corpse forever.
+            local minion = target.token.properties.minion
             local castInfo = ActivatedAbility.CurrentCastInfo() or {}
             castInfo.activity = "reaping"
 
             local startTime = dmhub.Time()
-            while dmhub.Time() < startTime + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
-                coroutine.yield(0.1)
-            end
 
-            if dmhub.Time() > startTime + 0.5 then
-                --wait a little longer just to clear up any forced moves/etc
-                coroutine.yield(0.5)
+            if minion then
+                while dmhub.Time() < startTime + 120
+                    and target.token.valid and target.token.properties ~= nil
+                    and ActivatedAbility.TokenHasOtherActiveCasts(target.token) do
+                    coroutine.yield(0.1)
+                end
+            else
+                while dmhub.Time() < startTime + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
+                    coroutine.yield(0.1)
+                end
+
+                if dmhub.Time() > startTime + 0.5 then
+                    --wait a little longer just to clear up any forced moves/etc
+                    coroutine.yield(0.5)
+                end
             end
 
             castInfo.activity = nil

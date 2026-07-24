@@ -391,21 +391,6 @@ function GameHud.CreateRollDialog(self)
         autoRollCheck,
     }
 
-    local prerollCheck = gui.Check {
-        text = "Pre-roll dice",
-        classes = { "hiddenWhenRolling", "hideWhenMinimized" },
-        value = dmhub.GetSettingValue("preroll"),
-        valign = "bottom",
-        vmargin = 6,
-        change = function(element)
-            dmhub.SetSettingValue("preroll", element.value)
-            CalculateRollText()
-        end,
-        textCalculated = function(element)
-            element:SetClass("collapsed", (not dmhub.isDM))
-        end,
-    }
-
     local m_forceDiceTower = false
 
     local updateRollVisibility
@@ -609,16 +594,6 @@ function GameHud.CreateRollDialog(self)
             newText = dmhub.RollToString(rollInfo)
         end
 
-        if dmhub.isDM and dmhub.GetSettingValue("preroll") then
-            local cats = dmhub.RollInstantCategorized(newText)
-            newText = ""
-            for k, n in pairs(cats) do
-                newText = string.format("%s%s%s [%s]", newText, cond(newText == "", "", " "), n, k)
-            end
-
-            newText = dmhub.RollToString(dmhub.ParseRoll(newText, creature))
-        end
-
         if GameSystem.CombineNegativesForRolls then
             newText = dmhub.NormalizeRoll(newText, nil, nil, { "NormalizeNegatives" })
         end
@@ -667,20 +642,6 @@ function GameHud.CreateRollDialog(self)
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.Button {
-        icon = "panels/hud/clockwise-rotation.png",
-        halign = "right",
-        valign = "center",
-        width = 32,
-        height = 32,
-        press = function(element)
-            CalculateRollText()
-        end,
-        textCalculated = function(element)
-            element:SetClass("hidden", (not dmhub.isDM) or (not dmhub.GetSettingValue("preroll")))
-        end,
-    }
-
     local rollInputContainer = gui.Panel {
         width = "auto",
         flow = "horizontal",
@@ -689,7 +650,6 @@ function GameHud.CreateRollDialog(self)
         height = 34,
         valign = 'center',
         rollInput,
-        rerollFudgedButton,
     }
 
     local CreateTriggerPanel = function(info)
@@ -2282,7 +2242,6 @@ function GameHud.CreateRollDialog(self)
             rollInputContainer,
             triggersContainer,
             autoRollPanel,
-            prerollCheck,
             hideRollDropdown,
             updateRollVisibility,
             rollAllPromptsCheck,

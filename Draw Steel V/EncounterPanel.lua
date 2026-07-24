@@ -894,6 +894,237 @@ local function ShowBalancingPopup(element, group, refresh)
 end
 
 -- ===========================================================================
+-- Encounter script parameters (party bar row)
+-- ===========================================================================
+
+--One editor row per attached encounter script that declares parameters,
+--appended to the party bar (scripts themselves are attached/detached behind
+--the Rule Sets cog). The rebuild is signature-gated so value edits never
+--clobber input focus: the signature covers the attachment list, each script's
+--declared params, and the wave roster (wave params render a wave dropdown).
+local function CreateScriptParamsRow(encounter, refresh)
+    local function CommitParamValue(instance, paramid, value)
+        local params = instance:get_or_add("params", {})
+        params[paramid] = value
+        --parameter values can feed the script's victory text; refresh the cache
+        --so the victory label updates live.
+        pcall(function() instance:RefreshCache() end)
+        refresh()
+    end
+
+    local function BuildParamEditor(instance, param)
+        local values = instance:try_get("params", {})
+        local current = values[param.id]
+        if current == nil then
+            current = param.default
+        end
+
+        --booleans carry their own caption inside the check control.
+        if param.type == "boolean" then
+            return gui.Panel {
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                rmargin = 18,
+                gui.Check {
+                    value = (current == true),
+                    text = param.name,
+                    fontSize = 12,
+                    valign = "center",
+                    change = function(element)
+                        CommitParamValue(instance, param.id, element.value == true)
+                    end,
+                },
+            }
+        end
+
+        local editor
+
+        if param.type == "number" then
+            editor = gui.Input {
+                classes = { "form" },
+                width = 60,
+                height = 26,
+                fontSize = 12,
+                numeric = true,
+                characterLimit = 6,
+                text = tostring(tonumber(current) or tonumber(param.default) or 0),
+                change = function(element)
+                    local n = tonumber(element.text)
+                    if n == nil then
+                        local prev = (instance:try_get("params", {}))[param.id]
+                        element.text = tostring(tonumber(prev) or tonumber(param.default) or 0)
+                        return
+                    end
+                    if param.min ~= nil and n < param.min then n = param.min end
+                    if param.max ~= nil and n > param.max then n = param.max end
+                    element.text = tostring(n)
+                    CommitParamValue(instance, param.id, n)
+                end,
+            }
+        elseif param.type == "choice" then
+            local options = {}
+            local found = false
+            for _, opt in ipairs(param.options or {}) do
+                options[#options + 1] = { id = opt.id, text = opt.text }
+                if opt.id == current then
+                    found = true
+                end
+            end
+            if not found and #options > 0 then
+                current = options[1].id
+            end
+            editor = gui.Dropdown {
+                classes = { "form" },
+                width = 140,
+                height = 26,
+                fontSize = 12,
+                options = options,
+                idChosen = current,
+                change = function(element)
+                    CommitParamValue(instance, param.id, element.idChosen)
+                end,
+            }
+        elseif param.type == "wave" then
+            local options = {}
+            for _, wave in ipairs(encounter:try_get("waves", {})) do
+                options[#options + 1] = { id = wave.id, text = wave.name or "Reinforcements" }
+            end
+            if #options == 0 then
+                editor = gui.Label {
+                    classes = { "fgMuted" },
+                    fontSize = 11,
+                    width = 150,
+                    height = "auto",
+                    valign = "center",
+                    textWrap = true,
+                    text = "Add a Reinforcements wave to use this script",
+                }
+            else
+                table.insert(options, 1, { id = "none", text = "(choose a wave)" })
+                local chosen = current
+                local waveFound = false
+                for _, opt in ipairs(options) do
+                    if opt.id == chosen then
+                        waveFound = true
+                        break
+                    end
+                end
+                if not waveFound then
+                    chosen = "none"
+                end
+                editor = gui.Dropdown {
+                    classes = { "form" },
+                    width = 170,
+                    height = 26,
+                    fontSize = 12,
+                    options = options,
+                    idChosen = chosen,
+                    change = function(element)
+                        local v = element.idChosen
+                        if v == "none" then
+                            v = nil
+                        end
+                        CommitParamValue(instance, param.id, v)
+                    end,
+                }
+            end
+        else --string
+            editor = gui.Input {
+                classes = { "form" },
+                width = 140,
+                height = 26,
+                fontSize = 12,
+                characterLimit = 100,
+                text = tostring(current or ""),
+                change = function(element)
+                    CommitParamValue(instance, param.id, element.text)
+                end,
+            }
+        end
+
+        return gui.Panel {
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            rmargin = 18,
+            FieldCaption(param.name),
+            editor,
+        }
+    end
+
+    local function BuildScriptRow(instance, def)
+        local children = {}
+        children[#children + 1] = gui.Label {
+            classes = { "fgMuted", "sizeXxs", "bold" },
+            width = 110,
+            height = "auto",
+            valign = "center",
+            rmargin = 8,
+            textWrap = true,
+            text = instance:try_get("name", "Script"),
+        }
+        for _, param in ipairs(def.params) do
+            children[#children + 1] = BuildParamEditor(instance, param)
+        end
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 8,
+            children = children,
+        }
+    end
+
+    return gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        data = { sig = nil },
+
+        create = function(element)
+            element:FireEvent("refreshBuilder")
+        end,
+
+        refreshBuilder = function(element)
+            local entries = {}
+            local sigParts = {}
+            for _, instance in ipairs(encounter:GetScripts()) do
+                local def = nil
+                pcall(function() def = select(1, instance:GetDefinition()) end)
+                if def ~= nil and #def.params > 0 then
+                    entries[#entries + 1] = { instance = instance, def = def }
+                    sigParts[#sigParts + 1] = instance:try_get("guid", "?")
+                    for _, param in ipairs(def.params) do
+                        sigParts[#sigParts + 1] = param.id .. ":" .. param.type
+                        if param.type == "wave" then
+                            for _, wave in ipairs(encounter:try_get("waves", {})) do
+                                sigParts[#sigParts + 1] = wave.id .. "=" .. (wave.name or "")
+                            end
+                        end
+                    end
+                end
+            end
+
+            local sig = table.concat(sigParts, "|")
+            if sig == element.data.sig then
+                return
+            end
+            element.data.sig = sig
+
+            element:SetClass("collapsed", #entries == 0)
+            local children = {}
+            for _, entry in ipairs(entries) do
+                children[#children + 1] = BuildScriptRow(entry.instance, entry.def)
+            end
+            element.children = children
+        end,
+    }
+end
+
+-- ===========================================================================
 -- Party bar
 -- ===========================================================================
 
@@ -942,16 +1173,14 @@ local function CreatePartyBar(encounter, party, refresh, budgetDial)
         }
     end
 
+    --The bar is a vertical stack: the classic horizontal row of columns, plus
+    --an encounter-script parameter row beneath it that only appears when an
+    --attached script declares parameters.
     local partyBar
-    partyBar = gui.Panel {
-        classes = { "bordered", "bg" },
+    local partyColumnsRow = gui.Panel {
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        hpad = 14,
-        vpad = 10,
-        borderBox = true,
-        vmargin = 6,
 
         partyColumn("Heroes", CreateStepper {
             value = party.numHeroes,
@@ -1038,6 +1267,50 @@ local function CreatePartyBar(encounter, party, refresh, budgetDial)
                     encounter.victoryCondition = element.idChosen
                     partyBar:FireEventTree("refreshDestroy")
                 end,
+
+                --Collapsed in favor of the script-victory label when an
+                --attached encounter script declares a victory condition.
+                refreshBuilder = function(element)
+                    element:SetClass("collapsed", encounter:ScriptVictoryText() ~= nil)
+                end,
+                create = function(element)
+                    element:FireEvent("refreshBuilder")
+                end,
+            },
+
+            --Shown INSTEAD of the dropdown when an attached encounter script
+            --declares a victory condition. The stored victoryCondition field is
+            --left untouched underneath, so detaching the script restores the
+            --previously-chosen dropdown value.
+            gui.Label {
+                classes = { "fgStrong" },
+                width = 260,
+                height = "auto",
+                fontSize = 12,
+                textWrap = true,
+                text = "",
+                data = { tip = nil },
+
+                refreshBuilder = function(element)
+                    local text, scriptInstance = encounter:ScriptVictoryText()
+                    element:SetClass("collapsed", text == nil)
+                    if text ~= nil then
+                        element.text = string.format("%s (set by script)", text)
+                        local scriptName = "Encounter Script"
+                        if scriptInstance ~= nil then
+                            scriptName = scriptInstance:try_get("name", scriptName)
+                        end
+                        element.data.tip = string.format("Victory condition set by the encounter script \"%s\".", scriptName)
+                    end
+                end,
+                create = function(element)
+                    element:FireEvent("refreshBuilder")
+                end,
+                hover = function(element)
+                    if element.data.tip ~= nil then
+                        gui.Tooltip(element.data.tip)(element)
+                    end
+                end,
             },
 
             --Shown only when the "Destroy the Thing!" victory condition is selected. Lets the
@@ -1047,13 +1320,27 @@ local function CreatePartyBar(encounter, party, refresh, budgetDial)
                 width = 260,
                 height = "auto",
                 flow = "vertical",
+                data = { scriptVictory = nil },
 
                 create = function(element)
                     element:FireEvent("refreshDestroy")
                 end,
 
+                --rebuild when script-victory presence flips (attach/detach), so
+                --the keyword picker hides along with the dropdown.
+                refreshBuilder = function(element)
+                    local hasScriptVictory = encounter:ScriptVictoryText() ~= nil
+                    if hasScriptVictory ~= element.data.scriptVictory then
+                        element.data.scriptVictory = hasScriptVictory
+                        element:FireEvent("refreshDestroy")
+                    end
+                end,
+
                 refreshDestroy = function(element)
                     local isDestroy = encounter:try_get("victoryCondition", "all_defeated") == "destroy_thing"
+                    if encounter:ScriptVictoryText() ~= nil then
+                        isDestroy = false
+                    end
                     element:SetClass("collapsed", not isDestroy)
                     if not isDestroy then
                         element.children = {}
@@ -1108,6 +1395,55 @@ local function CreatePartyBar(encounter, party, refresh, budgetDial)
                     }
                 end,
             },
+
+            --Shown when an attached encounter script declares a defeat
+            --condition. Defeat conditions only come from scripts, so unlike
+            --victory there is no dropdown underneath to swap out.
+            gui.Panel {
+                flow = "vertical",
+                width = "auto",
+                height = "auto",
+                tmargin = 8,
+
+                create = function(element)
+                    element:FireEvent("refreshBuilder")
+                end,
+                refreshBuilder = function(element)
+                    element:SetClass("collapsed", encounter:ScriptDefeatText() == nil)
+                end,
+
+                FieldCaption("Defeat condition"),
+
+                gui.Label {
+                    classes = { "fgStrong" },
+                    width = 260,
+                    height = "auto",
+                    fontSize = 12,
+                    textWrap = true,
+                    text = "",
+                    data = { tip = nil },
+
+                    refreshBuilder = function(element)
+                        local text, scriptInstance = encounter:ScriptDefeatText()
+                        if text ~= nil then
+                            element.text = string.format("%s (set by script)", text)
+                            local scriptName = "Encounter Script"
+                            if scriptInstance ~= nil then
+                                scriptName = scriptInstance:try_get("name", scriptName)
+                            end
+                            element.data.tip = string.format("Defeat condition set by the encounter script \"%s\".", scriptName)
+                        end
+                    end,
+                    create = function(element)
+                        element:FireEvent("refreshBuilder")
+                    end,
+                    hover = function(element)
+                        if element.data.tip ~= nil then
+                            gui.Tooltip(element.data.tip)(element)
+                        end
+                    end,
+                },
+            },
         },
 
         gui.Panel {
@@ -1143,6 +1479,20 @@ local function CreatePartyBar(encounter, party, refresh, budgetDial)
         },
 
         budgetDial,
+    }
+
+    partyBar = gui.Panel {
+        classes = { "bordered", "bg" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        hpad = 14,
+        vpad = 10,
+        borderBox = true,
+        vmargin = 6,
+
+        partyColumnsRow,
+        CreateScriptParamsRow(encounter, refresh),
     }
 
     return partyBar
@@ -2669,6 +3019,175 @@ local function createRuleSetsPanel(encounter, onChange)
 end
 
 -- ===========================================================================
+-- Encounter scripts list (behind the Rule Sets cog)
+-- ===========================================================================
+
+--Attach/detach list for encounter scripts, shown in the header cog popup
+--alongside rule sets. Parameter editing lives on the party bar
+--(CreateScriptParamsRow); this list is add/remove plus the entry point to the
+--custom-code editor.
+local function createEncounterScriptsPanel(encounter, onChange)
+    local resultPanel
+
+    local function Changed()
+        if onChange ~= nil then
+            onChange()
+        end
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel:FireEvent("rebuildScripts")
+        end
+    end
+
+    local function EditCustomScript(instance)
+        EncounterScript.ShowCodeEditorDialog {
+            title = instance:try_get("name", "Custom Script"),
+            code = instance:try_get("code", ""),
+            filenameHint = instance:try_get("guid", "custom"),
+            canSaveToLibrary = true,
+            onSave = function(newCode)
+                instance.code = newCode
+                pcall(function() instance:RefreshCache() end)
+                Changed()
+            end,
+            onSavedToLibrary = function(scriptid)
+                --convert the attachment from inline code to a library reference.
+                instance.scriptid = scriptid
+                instance.code = ""
+                pcall(function() instance:RefreshCache() end)
+                Changed()
+            end,
+        }
+    end
+
+    resultPanel = gui.Panel {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 4,
+
+        create = function(element)
+            element:FireEvent("rebuildScripts")
+        end,
+
+        rebuildScripts = function(element)
+            local children = {}
+
+            for _, instance in ipairs(encounter:GetScripts()) do
+                local scriptInstance = instance
+                pcall(function() scriptInstance:RefreshCache() end)
+                local def, defError = scriptInstance:GetDefinition()
+
+                local source = "Library"
+                if scriptInstance:IsCustom() then
+                    source = "Custom"
+                elseif EncounterScript.GetBuiltin(scriptInstance:try_get("scriptid", "")) ~= nil then
+                    source = "Built-in"
+                end
+
+                local rowChildren = {}
+
+                rowChildren[#rowChildren + 1] = gui.Label {
+                    fontSize = 14,
+                    width = 170,
+                    height = "auto",
+                    valign = "center",
+                    textWrap = true,
+                    text = scriptInstance:try_get("name", "Encounter Script"),
+                }
+
+                rowChildren[#rowChildren + 1] = gui.Label {
+                    classes = { "fgMuted", "sizeXxs" },
+                    width = 55,
+                    height = "auto",
+                    valign = "center",
+                    text = source,
+                }
+
+                if scriptInstance:IsCustom() then
+                    rowChildren[#rowChildren + 1] = gui.Label {
+                        classes = { "link" },
+                        fontSize = 12,
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        hmargin = 4,
+                        text = "Edit...",
+                        press = function()
+                            EditCustomScript(scriptInstance)
+                        end,
+                    }
+                end
+
+                rowChildren[#rowChildren + 1] = gui.DeleteItemButton {
+                    width = 16,
+                    height = 16,
+                    valign = "center",
+                    halign = "right",
+                    click = function()
+                        encounter:RemoveScript(scriptInstance:try_get("guid"))
+                        Changed()
+                    end,
+                }
+
+                children[#children + 1] = gui.Panel {
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    vmargin = 2,
+                    children = rowChildren,
+                }
+
+                if def == nil then
+                    children[#children + 1] = gui.Label {
+                        fontSize = 11,
+                        color = "#ff9999",
+                        width = "100%",
+                        height = "auto",
+                        textWrap = true,
+                        bmargin = 4,
+                        text = tostring(defError),
+                    }
+                end
+            end
+
+            --the add picker: built-ins + library scripts + custom.
+            local addOptions = { { id = "none", text = "Add Script..." } }
+            EncounterScript.FillPickerOptions(addOptions)
+            addOptions[#addOptions + 1] = { id = "custom", text = "Custom Lua Script..." }
+
+            children[#children + 1] = gui.Dropdown {
+                classes = { "form" },
+                width = "100%",
+                height = 28,
+                fontSize = 12,
+                tmargin = 6,
+                options = addOptions,
+                idChosen = "none",
+                change = function(element)
+                    local chosen = element.idChosen
+                    if chosen == "none" then
+                        return
+                    end
+                    if chosen == "custom" then
+                        local instance = EncounterScriptInstance.CreateCustom()
+                        encounter:AddScript(instance)
+                        Changed()
+                        EditCustomScript(instance)
+                    else
+                        encounter:AddScript(EncounterScriptInstance.CreateFromLibrary(chosen))
+                        Changed()
+                    end
+                end,
+            }
+
+            element.children = children
+        end,
+    }
+
+    return resultPanel
+end
+
+-- ===========================================================================
 -- Footer actions: Place on Map
 -- ===========================================================================
 
@@ -3238,6 +3757,12 @@ function Encounter.Editor(self, options)
             group.minHeroes = nil
         end
     end
+
+    --Refresh each attached encounter script's cached name/victory text so
+    --library edits made since this encounter was last opened are reflected.
+    for _, scriptInstance in ipairs(self:GetScripts()) do
+        pcall(function() scriptInstance:RefreshCache() end)
+    end
     local state = {
         activeGroup = self.groups[1],
     }
@@ -3302,9 +3827,10 @@ function Encounter.Editor(self, options)
         end,
     }
 
-    --rule sets are a rarely-used whole-encounter setting: they live behind a
-    --small settings cog in the header, with a count label when any are
-    --attached, instead of taking a dedicated section in the layout.
+    --rule sets and encounter scripts are rarely-used whole-encounter settings:
+    --they live behind a small settings cog in the header, with a count label
+    --when any are attached, instead of taking a dedicated section in the
+    --layout. (Script PARAMETERS surface on the party bar.)
     local ruleSetsCountLabel = gui.Label {
         classes = { "fgMuted", "sizeXxs" },
         width = "auto",
@@ -3319,8 +3845,16 @@ function Encounter.Editor(self, options)
                     count = count + 1
                 end
             end
-            element:SetClass("hidden", count == 0)
-            element.text = string.format("%d rule set%s", count, cond(count == 1, "", "s"))
+            local scriptCount = #self:GetScripts()
+            element:SetClass("hidden", count == 0 and scriptCount == 0)
+            local parts = {}
+            if count > 0 then
+                parts[#parts + 1] = string.format("%d rule set%s", count, cond(count == 1, "", "s"))
+            end
+            if scriptCount > 0 then
+                parts[#parts + 1] = string.format("%d script%s", scriptCount, cond(scriptCount == 1, "", "s"))
+            end
+            element.text = table.concat(parts, ", ")
         end,
     }
 
@@ -3329,7 +3863,7 @@ function Encounter.Editor(self, options)
         height = 16,
         valign = "center",
         lmargin = 12,
-        hover = gui.Tooltip("Rule sets attached to this encounter."),
+        hover = gui.Tooltip("Rule sets and encounter scripts attached to this encounter."),
         press = function(element)
             element.popupsInheritStyles = true
             element.popup = gui.Panel {
@@ -3344,6 +3878,12 @@ function Encounter.Editor(self, options)
                 FieldCaption("Rule sets", "left"),
 
                 createRuleSetsPanel(self, refresh),
+
+                gui.Panel { width = "100%", height = 12 },
+
+                FieldCaption("Encounter scripts", "left"),
+
+                createEncounterScriptsPanel(self, refresh),
             }
         end,
     }

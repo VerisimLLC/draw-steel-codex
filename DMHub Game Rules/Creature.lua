@@ -2029,25 +2029,28 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 	end
 
     if ignoreImmunity then
-        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip positive DR but
-        -- still apply negative DR (vulnerability).
-        if resistanceEntry.dr and resistanceEntry.dr <= 0 then
-            amount = amount - resistanceEntry.dr
-            note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip only the positive
+        -- (immunity) component. Weakness is negative immunity and always applies, even when
+        -- the creature also has an immunity to this type (the net dr can be positive).
+        local weakness = resistanceEntry.weaknessDr
+        if weakness ~= nil and weakness < 0 then
+            amount = amount - weakness
+            note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -weakness, amount)
         end
     elseif ignoreTypeSpecificOnly then
-        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip the fire-specific portion
-        -- of DR but still apply any "all"-type immunity DR.
-        local allDr = resistanceEntry.allTypeDr
-        if allDr and allDr ~= 0 then
-            amount = amount - allDr
+        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip only the type-specific
+        -- immunity component. "all"-type immunity and ALL weakness (type-specific or all)
+        -- still apply.
+        local applied = (resistanceEntry.allTypeImmunityDr or 0) + (resistanceEntry.weaknessDr or 0)
+        if applied ~= 0 then
+            amount = amount - applied
             if amount < 0 then
                 amount = 0
             end
-            if allDr > 0 then
-                note = string.format('%s; Damage Immunity reduced by %d to %d', note, allDr, amount)
+            if applied > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, applied, amount)
             else
-                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -allDr, amount)
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -applied, amount)
             end
         end
     else
@@ -3274,7 +3277,11 @@ function creature.DamageResistance(self, damageType, keywords)
 			if (entry.damageType == damageType or entry.damageType == "all") and (magical == false or (not entry.nonmagic)) then
 				if entry.apply == 'Damage Reduction' then
                     if entry.stacks then
-                        result.stacking_result = (result.stacking_result or 0) + dr
+                        if dr >= 0 then
+                            result.stacking_result = (result.stacking_result or 0) + dr
+                        else
+                            result.stacking_weakness = (result.stacking_weakness or 0) + dr
+                        end
                     elseif dr > 0 then
 					    result.dr = math.max((result.dr or 0), dr)
                     else
@@ -3284,7 +3291,11 @@ function creature.DamageResistance(self, damageType, keywords)
                     -- does not accidentally skip immunity-to-all-damage entries
                     if entry.damageType == "all" then
                         if entry.stacks then
-                            result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                            if dr >= 0 then
+                                result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                            else
+                                result.all_stacking_weakness = (result.all_stacking_weakness or 0) + dr
+                            end
                         elseif dr > 0 then
                             result.allTypeDr = math.max((result.allTypeDr or 0), dr)
                         else
@@ -3311,20 +3322,35 @@ function creature.DamageResistance(self, damageType, keywords)
 		end
 	end
 
-    result.dr = (result.dr or 0) + (result.weakness or 0)
-    result.dr = result.dr + (result.stacking_result or 0)
+    -- dr/allTypeDr are the NET values (immunity + weakness) for normal damage
+    -- application. weaknessDr (negative component) and allTypeImmunityDr (positive
+    -- "all"-type component) are kept separate so immunity bypass can skip only the
+    -- positive part: weakness is just negative immunity and must never be bypassed.
+    local weakness = (result.weakness or 0) + (result.stacking_weakness or 0)
+    result.dr = (result.dr or 0) + weakness + (result.stacking_result or 0)
+    result.weaknessDr = weakness
     result.weakness = nil
     result.stacking_result = nil
+    result.stacking_weakness = nil
     if result.dr == 0 then
         result.dr = nil
     end
+    if result.weaknessDr == 0 then
+        result.weaknessDr = nil
+    end
 
-    result.allTypeDr = (result.allTypeDr or 0) + (result.all_weakness or 0)
-    result.allTypeDr = result.allTypeDr + (result.all_stacking_result or 0)
+    local allImmunity = (result.allTypeDr or 0) + (result.all_stacking_result or 0)
+    local allWeakness = (result.all_weakness or 0) + (result.all_stacking_weakness or 0)
+    result.allTypeDr = allImmunity + allWeakness
+    result.allTypeImmunityDr = allImmunity
     result.all_weakness = nil
     result.all_stacking_result = nil
+    result.all_stacking_weakness = nil
     if result.allTypeDr == 0 then
         result.allTypeDr = nil
+    end
+    if result.allTypeImmunityDr == 0 then
+        result.allTypeImmunityDr = nil
     end
 
 	return result

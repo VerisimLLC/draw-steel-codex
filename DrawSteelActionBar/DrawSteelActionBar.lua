@@ -5899,6 +5899,12 @@ CreateAbilityController = function()
                     radius = dmhub.unitsPerSquare * 0.5
                     requireEmpty = (shape == 'emptyspace')
 
+                    --Forced movement (straightline targeting): a square occupied by
+                    --another creature is a legal destination click
+                    if requireEmpty and targetingType == "straightline" then
+                        requireEmpty = false
+                    end
+
                     if (shape == "emptyspace" or shape == "anyspace") then
                         radius = g_token.creatureDimensions.x * dmhub.unitsPerSquare * 0.5
                         if g_token.creatureDimensions.x % 2 == 1 then

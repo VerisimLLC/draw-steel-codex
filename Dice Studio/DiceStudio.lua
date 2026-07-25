@@ -1185,6 +1185,199 @@ do
 	g_materialFields.EventHorizonDiceMaterial = fields
 end
 
+-- LabradoriteDiceMaterial: everything PBRTexturedDiceMaterial has, plus procedural
+-- labradorescence ("labradorite gemstone" dice -- see Labradorite.shader): angular voronoi
+-- plates that flash with iridescent color only at their own viewing angle as the die tumbles,
+-- with lamellar striations inside each flash and a subtle stone speckle on the dark base.
+-- Built from the PBRTextured list above so the shared rows never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	fields[#fields + 1] = {
+		name = "_FlashScale",
+		type = "Range",
+		min = 2,
+		max = 40,
+		default = 10,
+		description = "Flash Patch Density",
+	}
+	fields[#fields + 1] = {
+		name = "_FlashBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2.2,
+		description = "Flash Brightness",
+	}
+	-- Wider = more plates lit at once; narrow = rare, dramatic flashes.
+	fields[#fields + 1] = {
+		name = "_FlashWindow",
+		type = "Range",
+		min = 0.05,
+		max = 0.9,
+		default = 0.35,
+		description = "Flash Window",
+	}
+	-- Fraction of plates that ever flash (the rest stay dark stone).
+	fields[#fields + 1] = {
+		name = "_FlashCoverage",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.65,
+		description = "Flash Coverage",
+	}
+	-- Palette centre / range: defaults span labradorite's blue-teal-green-gold.
+	fields[#fields + 1] = {
+		name = "_FlashHue",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.6,
+		description = "Flash Hue",
+	}
+	fields[#fields + 1] = {
+		name = "_FlashHueSpread",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		description = "Flash Hue Spread",
+	}
+	fields[#fields + 1] = {
+		name = "_FlashTint",
+		type = "Color",
+		description = "Flash Tint",
+	}
+	-- Thin lamellar banding inside each flash -- the signature labradorite texture.
+	fields[#fields + 1] = {
+		name = "_StriationAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		description = "Striation Amount",
+	}
+	fields[#fields + 1] = {
+		name = "_StriationScale",
+		type = "Range",
+		min = 1,
+		max = 60,
+		default = 18,
+		description = "Striation Scale",
+	}
+	-- Fine albedo speckle so the dark base reads as stone rather than plastic.
+	fields[#fields + 1] = {
+		name = "_SpeckleAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		description = "Speckle Amount",
+	}
+
+	g_materialFields.LabradoriteDiceMaterial = fields
+end
+
+-- KintsugiObsidianDiceMaterial: everything PBRTexturedDiceMaterial has, plus a procedural
+-- glowing crack network ("kintsugi obsidian" dice -- see KintsugiObsidian.shader): near-black
+-- volcanic glass shot through with slowly breathing molten-gold veins, a finer hairline web,
+-- and a smoky base variation. Built from the PBRTextured list above so the shared rows never
+-- drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	fields[#fields + 1] = {
+		name = "_CrackScale",
+		type = "Range",
+		min = 2,
+		max = 30,
+		default = 7,
+		description = "Crack Density",
+	}
+	fields[#fields + 1] = {
+		name = "_VeinWidth",
+		type = "Range",
+		min = 0.005,
+		max = 0.15,
+		default = 0.035,
+		description = "Vein Width",
+	}
+	fields[#fields + 1] = {
+		name = "_VeinColor",
+		type = "Color",
+		description = "Vein Color",
+	}
+	fields[#fields + 1] = {
+		name = "_VeinBrightness",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2.5,
+		description = "Vein Brightness",
+	}
+	-- Soft halo of warmth bleeding from each vein into the surrounding glass.
+	fields[#fields + 1] = {
+		name = "_VeinGlow",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.4,
+		description = "Vein Glow",
+	}
+	-- Finer, dimmer secondary crack web between the primary veins.
+	fields[#fields + 1] = {
+		name = "_Web2Amount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		description = "Hairline Amount",
+	}
+	fields[#fields + 1] = {
+		name = "_Web2Scale",
+		type = "Range",
+		min = 4,
+		max = 60,
+		default = 18,
+		description = "Hairline Density",
+	}
+	-- The molten pulse drifting along the veins. 0 speed or amount = steady gold.
+	fields[#fields + 1] = {
+		name = "_PulseSpeed",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.6,
+		description = "Pulse Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_PulseAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.35,
+		description = "Pulse Amount",
+	}
+	-- Low-frequency smoky variation so the glass reads volcanic rather than flat black.
+	fields[#fields + 1] = {
+		name = "_SmokeAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.3,
+		description = "Smoke Amount",
+	}
+
+	g_materialFields.KintsugiObsidianDiceMaterial = fields
+end
+
 -- MagicGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
 -- and emissive "liquid magic" interior layers with sparkle motes ("magic inside glass" dice --
 -- see PBRTexturedMagicGlass.shader). Built from the PBRTextured list above so the shared rows

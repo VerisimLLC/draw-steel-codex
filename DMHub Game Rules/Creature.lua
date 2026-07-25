@@ -10271,6 +10271,19 @@ function creature:GetAuras()
 		result = filteredResult
 	end
 
+	--Append transient sub-aura views for token-attached auras so the engine registers them.
+	--Object-backed auras get their children registered by the engine's object component path
+	--instead. When #result == 0 the filter block above didn't run and result may alias the
+	--live self.auras table, but then there are no parents to append children for.
+	local numParents = #result
+	for i = 1, numParents do
+		if rawget(result[i], "tokenAttached") then
+			for _,child in ipairs(result[i]:GetChildInstances()) do
+				result[#result+1] = child
+			end
+		end
+	end
+
     for _,auraInstance in ipairs(result) do
         local settings = self:GetAuraDisplaySetting(auraInstance.name)
         if settings ~= nil then

@@ -362,7 +362,9 @@ function AttributeTypeCreatureSet.ResolveValueToBestiaryIds(value)
 			return result
 		end
 		for k,monster in pairs(assets.monsters) do
-			if not assets:GetMonsterNode(k).hidden and monster.properties ~= nil then
+			--GetMonsterNode can return nil mid-import/reload; skip rather than throw.
+			local node = assets:GetMonsterNode(k)
+			if node ~= nil and not node.hidden and monster.properties ~= nil then
 				local symbols = GenerateSymbols(monster.properties, { beast = GenerateSymbols(monster.properties) })
 				local r = ExecuteGoblinScript(expr, symbols, 0, "CreatureSet:ResolveValueToBestiaryIds")
 				if r ~= nil and r ~= 0 and r ~= false then
@@ -376,7 +378,8 @@ function AttributeTypeCreatureSet.ResolveValueToBestiaryIds(value)
 	--bare-string value: monster category, subtype, or race name (lowercased).
 	local needle = string.lower(value)
 	for k,monster in pairs(assets.monsters) do
-		if not assets:GetMonsterNode(k).hidden and monster.properties ~= nil then
+		local node = assets:GetMonsterNode(k)
+		if node ~= nil and not node.hidden and monster.properties ~= nil then
 			local props = monster.properties
 			local matched = false
 
@@ -409,6 +412,9 @@ function AttributeTypeCreatureSet:ApplyOperation(currentValue, mod, op)
 
 	local resolvedIds = AttributeTypeCreatureSet.ResolveValueToBestiaryIds(mod)
 	if #resolvedIds == 0 then
+		--a modifier value that matches nothing in the bestiary is almost always a bug
+		--(e.g. resolving during an asset reload), not a legitimate result.
+		dmhub.CloudError(string.format("AttributeTypeCreatureSet: modifier value %q resolved to 0 bestiary ids", mod))
 		return currentValue
 	end
 

@@ -4619,6 +4619,7 @@ function creature:Invalidate()
 	self._tmp_attr = nil
 	self._tmp_spellcastingFeaturesCache = nil
 	self._tmp_calculatingActiveModifiers = nil
+	self._tmp_attributesCalculating = nil
     self._tmp_resources = nil
     self._tmp_languagesKnown = nil
     self._tmp_grabbedby = nil
@@ -5584,12 +5585,20 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 
 	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
 
-	for i,mod in ipairs(mods) do
-		result = mod.mod:Modify(mod, self, attributeName, result)
-		attributesCalculating[attributeName] = result
-	end
+	--if a modifier throws we must still clear the recursion guard, or every future
+	--calculation of this attribute returns the partial value latched here.
+	local ok, err = pcall(function()
+		for i,mod in ipairs(mods) do
+			result = mod.mod:Modify(mod, self, attributeName, result)
+			attributesCalculating[attributeName] = result
+		end
+	end)
 
 	attributesCalculating[attributeName] = nil
+
+	if not ok then
+		error(err, 0)
+	end
 	if cache ~= nil then
 		if rawget(self, "_tmp_calculatingActiveModifiers") then
 			--we're in the middle of calculating active modifiers, don't cache this since it will not be completely accurate.
@@ -9176,6 +9185,27 @@ end
 local g_reportedMalformedTriggeredAbility = false
 function creature:ApplyAbilityModifiers(ability, modifiers, context)
 	--Malformed content (e.g. a triggeredAbility authored/imported as a plain
+	--data table) lacks ActivatedAbility methods. Running the Modify Abilities
+	--pass on it would error, aborting the caller's entire ability list and
+	--killing the action bar and triggers panel. Skip such objects instead.
+	--pcall guard: reading a missing method on a game-typed instance raises,
+	--so a plain nil-check is not safe here.
+	local getVariations = nil
+	pcall(function() getVariations = ability.GetVariations end)
+	if getVariations == nil then
+		if not g_reportedMalformedTriggeredAbility then
+			g_reportedMalformedTriggeredAbility = true
+			local name = nil
+			local typeName = nil
+			pcall(function()
+				name = rawget(ability, "name")
+				typeName = rawget(ability, "typeName") or (getmetatable(ability) or {}).typeName
+			end)
+			dmhub.CloudError(string.format("ApplyAbilityModifiers: skipping malformed ability with no GetVariations; name=%s typeName=%s", tostring(name), tostring(typeName)))
+		end
+		return ability
+	end
+
 	modifiers = modifiers or self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
 		local skip = false

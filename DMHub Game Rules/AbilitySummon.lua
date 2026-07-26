@@ -1636,7 +1636,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local choices = {}
         if self.monsterType == "custom" then
             for k,monster in pairs(assets.monsters) do
-                if not assets:GetMonsterNode(k).hidden then
+                --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
+                local node = assets:GetMonsterNode(k)
+                if node ~= nil and not node.hidden and monster.properties ~= nil then
                     args.symbols.beast = GenerateSymbols(monster.properties)
                     if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Bestiary filter for %s summons filter %s", ability.name, monster.properties.monster_type)) ~= 0 then
                         choices[#choices+1] = monster

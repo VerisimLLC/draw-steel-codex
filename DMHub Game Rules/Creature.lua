@@ -9173,7 +9173,9 @@ end
 --
 --context: optional. "triggered" filters out modifyability mods that do not
 --have applyToTriggeredAbilities set (defaults false; must be opted in).
+local g_reportedMalformedTriggeredAbility = false
 function creature:ApplyAbilityModifiers(ability, modifiers, context)
+	--Malformed content (e.g. a triggeredAbility authored/imported as a plain
 	modifiers = modifiers or self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
 		local skip = false

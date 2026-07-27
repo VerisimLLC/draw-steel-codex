@@ -255,7 +255,17 @@ function CustomDocument:SetTextContent(str)
     end
 end
 
+--Default creation behaviour for document types that register in the journal's
+--"+" palette without supplying their own create dialog (montage, negotiation).
+--The caller (Journal.lua) has already assigned id / ownerid / parentFolder, so
+--persist the document and open it for editing -- the same thing the tab bar's
+--"New Document" path does via onNewDocument. This used to be an empty stub, so
+--those types were built in memory and then silently dropped: the menu entry
+--appeared and clicking it did nothing at all, with no error to show for it.
+--MarkdownDocument overrides this with its own template-picker dialog.
 function CustomDocument:ShowCreateDialog()
+    self:Upload()
+    self:ShowDocument{edit = true}
 end
 
 function CustomDocument:EditPanel()

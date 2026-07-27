@@ -201,6 +201,42 @@ function CharSheetPDFExport.BuildFields(template, token)
     return fields
 end
 
+--Reduces a hero's name to a string safe to use as a default filename: strips the
+--characters Windows forbids in filenames (< > : " / \ | ? * and control characters)
+--and trims leading/trailing spaces and dots (a trailing dot is also illegal on
+--Windows). Falls back to "Hero" if nothing survives. Without this, a name like
+--'Vex "the Blade"' makes the C# save bridge's Path.Combine throw before the OS
+--dialog even opens.
+local function SanitizeFilename(name)
+    name = string.gsub(name or "", '[<>:"/\\|?*%c]', "")
+    name = string.gsub(name, "^[%s%.]+", "")
+    name = string.gsub(name, "[%s%.]+$", "")
+    if name == "" then
+        return "Hero"
+    end
+    return name
+end
+
+--Runs dmhub.SaveFileDialog, surfacing any error as a modal instead of letting it
+--vanish into the log. The engine throws before the OS dialog even opens if the
+--default filename is invalid (e.g. the hero's name contains a character Windows
+--forbids in paths), so without this the export appears to silently do nothing.
+local function SaveFileSurfacingErrors(args)
+    local ok, err = pcall(dmhub.SaveFileDialog, args)
+    if not ok then
+        --Only the first line: engine errors append a Lua traceback that is noise
+        --in a user-facing dialog.
+        local message = string.match(tostring(err), "[^\r\n]+") or "Unknown error."
+        if string.find(message, "Illegal characters in path", 1, true) then
+            message = message .. "\n\nThis usually means the hero's name contains a character that cannot appear in a file name. Try renaming the hero and exporting again."
+        end
+        gui.ModalMessage{
+            title = "Export Failed",
+            message = string.format("The file could not be saved.\n\n%s", message),
+        }
+    end
+end
+
 --The complete export flow: resolve the template's PDF asset, extract the hero's
 --fields, fill the form, and offer a save dialog for the result.
 function CharSheetPDFExport.Export(token, templateId)
@@ -236,14 +272,9 @@ function CharSheetPDFExport.Export(token, templateId)
                 return
             end
 
-            local heroName = token.name
-            if heroName == nil or heroName == "" then
-                heroName = "Hero"
-            end
-
-            dmhub.SaveFileDialog{
+            SaveFileSurfacingErrors{
                 data = bytes,
-                filename = string.format("%s - Character Sheet.pdf", heroName),
+                filename = string.format("%s - Character Sheet.pdf", SanitizeFilename(token.name)),
                 extensions = {"pdf"},
                 title = "Export Character Sheet",
                 message = "Choose where to save the character sheet",
@@ -360,14 +391,9 @@ function CharSheetPDFExport.ExportJson(token)
 
     local jsonString = dmhub.ToJson(export)
 
-    local heroName = token.name
-    if heroName == nil or heroName == "" then
-        heroName = "Hero"
-    end
-
-    dmhub.SaveFileDialog{
+    SaveFileSurfacingErrors{
         data = jsonString,
-        filename = string.format("%s.json", heroName),
+        filename = string.format("%s.json", SanitizeFilename(token.name)),
         extensions = {"json"},
         title = "Download Character (JSON)",
         message = "Choose where to save the character JSON",
@@ -424,8 +450,21 @@ CharSheet.RegisterSheetAction{
             return
         end
 
+        --Surface any error an exporter throws synchronously instead of letting it
+        --die in the log as an apparent no-op. (Errors inside async callbacks, like
+        --FillForm's, are surfaced by the exporters themselves.)
+        local function RunOption(option)
+            local ok, err = pcall(option.run)
+            if not ok then
+                gui.ModalMessage{
+                    title = "Export Failed",
+                    message = string.match(tostring(err), "[^\r\n]+") or "Unknown error.",
+                }
+            end
+        end
+
         if #options == 1 then
-            options[1].run()
+            RunOption(options[1])
             return
         end
 
@@ -436,7 +475,7 @@ CharSheet.RegisterSheetAction{
                 text = o.text,
                 click = function()
                     element.popup = nil
-                    o.run()
+                    RunOption(o)
                 end,
             }
         end

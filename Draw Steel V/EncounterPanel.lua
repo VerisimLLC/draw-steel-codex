@@ -101,7 +101,8 @@ end
 --Gather the builder-relevant facts about a bestiary entry. Reads defensively
 --(try_get / IsMonster gates) since some compendium assets carry plain
 --creature-typed properties.
---Returns { monsterid, name, ev, level, minion, org, role, portraitId, meta }
+--Returns { monsterid, name, ev, level, minion, org, role, portraitId, meta,
+--           keywords, searchText }
 local function MonsterBuildInfo(monsterid, monsterAsset)
     local info = {
         monsterid = monsterid,
@@ -131,12 +132,26 @@ local function MonsterBuildInfo(monsterid, monsterAsset)
             info.level = props:Level()
         end
 
+        info.roleText = props:try_get("role", "")
+
         local words = {}
-        for word in string.gmatch(string.lower(props:try_get("role", "")), "%a+") do
+        for word in string.gmatch(string.lower(info.roleText), "%a+") do
             words[#words + 1] = word
         end
         info.org = words[1]
         info.role = words[#words]
+
+        --Keyword tags (Humanoid, Soulless, War Dog, ...) are stored as a SET:
+        --the keyword is the key and the value is just true. Gathered here so
+        --the search below can match them; the visible meta label is unchanged.
+        local keywords = {}
+        for kw, v in pairs(props:try_get("keywords") or {}) do
+            if v == true and type(kw) == "string" and kw ~= "_luaTable" then
+                keywords[#keywords + 1] = kw
+            end
+        end
+        table.sort(keywords)
+        info.keywords = keywords
 
         --weakest-link automation status across the monster's own kit (innate
         --abilities and traits). implementation levels: 0/1 = not implemented,
@@ -179,6 +194,17 @@ local function MonsterBuildInfo(monsterid, monsterAsset)
         meta = meta .. " - Solo"
     end
     info.meta = meta
+
+    --Precomputed lowercase haystack for the bestiary search: the name, the
+    --visible meta label, the full role string ("Minion Harrier" -- meta only
+    --carries the last word plus the org suffix) and the keyword tags. Built
+    --once per asset here, since BuildInfos caches these, rather than per
+    --keystroke in FilteredInfos.
+    local searchParts = { info.name or "", info.meta, info.roleText or "" }
+    for _, kw in ipairs(info.keywords or {}) do
+        searchParts[#searchParts + 1] = kw
+    end
+    info.searchText = string.lower(table.concat(searchParts, " "))
 
     return info
 end
@@ -1883,8 +1909,7 @@ local function CreateBestiaryPane(party, addMonster)
         end
         local result = {}
         for _, info in ipairs(infos) do
-            local haystack = string.lower(info.name .. " " .. info.meta)
-            if string.find(haystack, state.searchText, 1, true) then
+            if string.find(info.searchText, state.searchText, 1, true) then
                 result[#result + 1] = info
             end
         end

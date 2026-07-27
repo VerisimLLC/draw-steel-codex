@@ -2029,25 +2029,28 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
 	end
 
     if ignoreImmunity then
-        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip positive DR but
-        -- still apply negative DR (vulnerability).
-        if resistanceEntry.dr and resistanceEntry.dr <= 0 then
-            amount = amount - resistanceEntry.dr
-            note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -resistanceEntry.dr, amount)
+        -- Full bypass (cannotBeReduced or ability_ignore_immunity): skip only the positive
+        -- (immunity) component. Weakness is negative immunity and always applies, even when
+        -- the creature also has an immunity to this type (the net dr can be positive).
+        local weakness = resistanceEntry.weaknessDr
+        if weakness ~= nil and weakness < 0 then
+            amount = amount - weakness
+            note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -weakness, amount)
         end
     elseif ignoreTypeSpecificOnly then
-        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip the fire-specific portion
-        -- of DR but still apply any "all"-type immunity DR.
-        local allDr = resistanceEntry.allTypeDr
-        if allDr and allDr ~= 0 then
-            amount = amount - allDr
+        -- Type-specific bypass (e.g. "Ignore Fire Immunity"): skip only the type-specific
+        -- immunity component. "all"-type immunity and ALL weakness (type-specific or all)
+        -- still apply.
+        local applied = (resistanceEntry.allTypeImmunityDr or 0) + (resistanceEntry.weaknessDr or 0)
+        if applied ~= 0 then
+            amount = amount - applied
             if amount < 0 then
                 amount = 0
             end
-            if allDr > 0 then
-                note = string.format('%s; Damage Immunity reduced by %d to %d', note, allDr, amount)
+            if applied > 0 then
+                note = string.format('%s; Damage Immunity reduced by %d to %d', note, applied, amount)
             else
-                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -allDr, amount)
+                note = string.format('%s; Damage Vulnerability increased by %d to %d', note, -applied, amount)
             end
         end
     else
@@ -3274,7 +3277,11 @@ function creature.DamageResistance(self, damageType, keywords)
 			if (entry.damageType == damageType or entry.damageType == "all") and (magical == false or (not entry.nonmagic)) then
 				if entry.apply == 'Damage Reduction' then
                     if entry.stacks then
-                        result.stacking_result = (result.stacking_result or 0) + dr
+                        if dr >= 0 then
+                            result.stacking_result = (result.stacking_result or 0) + dr
+                        else
+                            result.stacking_weakness = (result.stacking_weakness or 0) + dr
+                        end
                     elseif dr > 0 then
 					    result.dr = math.max((result.dr or 0), dr)
                     else
@@ -3284,7 +3291,11 @@ function creature.DamageResistance(self, damageType, keywords)
                     -- does not accidentally skip immunity-to-all-damage entries
                     if entry.damageType == "all" then
                         if entry.stacks then
-                            result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                            if dr >= 0 then
+                                result.all_stacking_result = (result.all_stacking_result or 0) + dr
+                            else
+                                result.all_stacking_weakness = (result.all_stacking_weakness or 0) + dr
+                            end
                         elseif dr > 0 then
                             result.allTypeDr = math.max((result.allTypeDr or 0), dr)
                         else
@@ -3311,20 +3322,35 @@ function creature.DamageResistance(self, damageType, keywords)
 		end
 	end
 
-    result.dr = (result.dr or 0) + (result.weakness or 0)
-    result.dr = result.dr + (result.stacking_result or 0)
+    -- dr/allTypeDr are the NET values (immunity + weakness) for normal damage
+    -- application. weaknessDr (negative component) and allTypeImmunityDr (positive
+    -- "all"-type component) are kept separate so immunity bypass can skip only the
+    -- positive part: weakness is just negative immunity and must never be bypassed.
+    local weakness = (result.weakness or 0) + (result.stacking_weakness or 0)
+    result.dr = (result.dr or 0) + weakness + (result.stacking_result or 0)
+    result.weaknessDr = weakness
     result.weakness = nil
     result.stacking_result = nil
+    result.stacking_weakness = nil
     if result.dr == 0 then
         result.dr = nil
     end
+    if result.weaknessDr == 0 then
+        result.weaknessDr = nil
+    end
 
-    result.allTypeDr = (result.allTypeDr or 0) + (result.all_weakness or 0)
-    result.allTypeDr = result.allTypeDr + (result.all_stacking_result or 0)
+    local allImmunity = (result.allTypeDr or 0) + (result.all_stacking_result or 0)
+    local allWeakness = (result.all_weakness or 0) + (result.all_stacking_weakness or 0)
+    result.allTypeDr = allImmunity + allWeakness
+    result.allTypeImmunityDr = allImmunity
     result.all_weakness = nil
     result.all_stacking_result = nil
+    result.all_stacking_weakness = nil
     if result.allTypeDr == 0 then
         result.allTypeDr = nil
+    end
+    if result.allTypeImmunityDr == 0 then
+        result.allTypeImmunityDr = nil
     end
 
 	return result
@@ -4593,6 +4619,7 @@ function creature:Invalidate()
 	self._tmp_attr = nil
 	self._tmp_spellcastingFeaturesCache = nil
 	self._tmp_calculatingActiveModifiers = nil
+	self._tmp_attributesCalculating = nil
     self._tmp_resources = nil
     self._tmp_languagesKnown = nil
     self._tmp_grabbedby = nil
@@ -5558,12 +5585,20 @@ function creature:CalculateAttribute(attributeName, baseValue, mods)
 
 	mods = CharacterModifier.FilterAttributeModifiersByKeyword(self, mods, attributeName)
 
-	for i,mod in ipairs(mods) do
-		result = mod.mod:Modify(mod, self, attributeName, result)
-		attributesCalculating[attributeName] = result
-	end
+	--if a modifier throws we must still clear the recursion guard, or every future
+	--calculation of this attribute returns the partial value latched here.
+	local ok, err = pcall(function()
+		for i,mod in ipairs(mods) do
+			result = mod.mod:Modify(mod, self, attributeName, result)
+			attributesCalculating[attributeName] = result
+		end
+	end)
 
 	attributesCalculating[attributeName] = nil
+
+	if not ok then
+		error(err, 0)
+	end
 	if cache ~= nil then
 		if rawget(self, "_tmp_calculatingActiveModifiers") then
 			--we're in the middle of calculating active modifiers, don't cache this since it will not be completely accurate.
@@ -9147,7 +9182,30 @@ end
 --
 --context: optional. "triggered" filters out modifyability mods that do not
 --have applyToTriggeredAbilities set (defaults false; must be opted in).
+local g_reportedMalformedTriggeredAbility = false
 function creature:ApplyAbilityModifiers(ability, modifiers, context)
+	--Malformed content (e.g. a triggeredAbility authored/imported as a plain
+	--data table) lacks ActivatedAbility methods. Running the Modify Abilities
+	--pass on it would error, aborting the caller's entire ability list and
+	--killing the action bar and triggers panel. Skip such objects instead.
+	--pcall guard: reading a missing method on a game-typed instance raises,
+	--so a plain nil-check is not safe here.
+	local getVariations = nil
+	pcall(function() getVariations = ability.GetVariations end)
+	if getVariations == nil then
+		if not g_reportedMalformedTriggeredAbility then
+			g_reportedMalformedTriggeredAbility = true
+			local name = nil
+			local typeName = nil
+			pcall(function()
+				name = rawget(ability, "name")
+				typeName = rawget(ability, "typeName") or (getmetatable(ability) or {}).typeName
+			end)
+			dmhub.CloudError(string.format("ApplyAbilityModifiers: skipping malformed ability with no GetVariations; name=%s typeName=%s", tostring(name), tostring(typeName)))
+		end
+		return ability
+	end
+
 	modifiers = modifiers or self:GetActiveModifiers()
 	for _,mod in ipairs(modifiers) do
 		local skip = false
@@ -10243,6 +10301,19 @@ function creature:GetAuras()
 		end
 
 		result = filteredResult
+	end
+
+	--Append transient sub-aura views for token-attached auras so the engine registers them.
+	--Object-backed auras get their children registered by the engine's object component path
+	--instead. When #result == 0 the filter block above didn't run and result may alias the
+	--live self.auras table, but then there are no parents to append children for.
+	local numParents = #result
+	for i = 1, numParents do
+		if rawget(result[i], "tokenAttached") then
+			for _,child in ipairs(result[i]:GetChildInstances()) do
+				result[#result+1] = child
+			end
+		end
 	end
 
     for _,auraInstance in ipairs(result) do

@@ -323,7 +323,7 @@ function Kit.DamageBonusSelected(creature, bonusid, kit1, kit2)
 		local bonusChoices = levelChoices["kitBonusChoices"]
 		if bonusChoices ~= nil then
 			local choice = bonusChoices[bonusid]
-			print("SELECTED:: CHOICE FOR ", bonusid, " = ", choice, kit1.id, kit2.id)
+			--print("SELECTED:: CHOICE FOR ", bonusid, " = ", choice, kit1.id, kit2.id)
 			if choice == kit1.id or choice == kit2.id then
 				return choice == kit1.id
 			end

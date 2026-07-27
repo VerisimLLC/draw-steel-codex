@@ -1185,6 +1185,104 @@ do
 	g_materialFields.EventHorizonDiceMaterial = fields
 end
 
+-- CagedFlameDiceMaterial: everything PBRTexturedDiceMaterial has, plus a procedural flame
+-- suspended at the die's centre inside smoked glass ("caged flame" dice -- see
+-- CagedFlame.shader). The flame is camera-facing and always burns upward on screen. Flame
+-- Intensity is a plain material float, so animation curves (die speed) or a dice script
+-- (die.surface:SetFloat) can drive it live -- raging while tumbling, blazing on a max roll.
+-- Built from the PBRTextured list above so the shared rows never drift apart.
+do
+	local fields = {}
+	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
+		fields[#fields + 1] = field
+	end
+
+	fields[#fields + 1] = {
+		name = "_FlameIntensity",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 2,
+		description = "Flame Intensity",
+	}
+	fields[#fields + 1] = {
+		name = "_FlameSize",
+		type = "Range",
+		min = 0.05,
+		max = 1,
+		default = 0.3,
+		description = "Flame Size",
+	}
+	fields[#fields + 1] = {
+		name = "_FlameColorCore",
+		type = "Color",
+		description = "Flame Core Color",
+	}
+	fields[#fields + 1] = {
+		name = "_FlameColorOuter",
+		type = "Color",
+		description = "Flame Outer Color",
+	}
+	fields[#fields + 1] = {
+		name = "_FlickerSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 3,
+		description = "Flicker Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_FlickerAmount",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.5,
+		description = "Flicker Amount",
+	}
+	-- Horizontal sway of the flame tip.
+	fields[#fields + 1] = {
+		name = "_FlameWaver",
+		type = "Range",
+		min = 0,
+		max = 1,
+		default = 0.4,
+		description = "Flame Waver",
+	}
+	-- Warm light bleeding from the flame into the glass around it.
+	fields[#fields + 1] = {
+		name = "_EmberGlow",
+		type = "Range",
+		min = 0,
+		max = 2,
+		default = 0.7,
+		description = "Ember Glow",
+	}
+	-- The warm edge where the smoked glass curves away from the camera.
+	fields[#fields + 1] = {
+		name = "_RimColor",
+		type = "Color",
+		description = "Rim Color",
+	}
+	fields[#fields + 1] = {
+		name = "_RimStrength",
+		type = "Range",
+		min = 0,
+		max = 4,
+		default = 0.7,
+		description = "Rim Strength",
+	}
+	fields[#fields + 1] = {
+		name = "_RimPower",
+		type = "Range",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Width",
+	}
+
+	g_materialFields.CagedFlameDiceMaterial = fields
+end
+
 -- MagicGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim
 -- and emissive "liquid magic" interior layers with sparkle motes ("magic inside glass" dice --
 -- see PBRTexturedMagicGlass.shader). Built from the PBRTextured list above so the shared rows

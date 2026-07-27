@@ -795,6 +795,35 @@ custom object to the Auras folder in DMHub and update the ability to use it.
 Other aura options: `movedamage`/`damage` (damage per square moved), `blocks_line_of_effect`
 (cover), `blocks_movement` (wall). See `data/docs/reference/MONSTERS.md` for full field list.
 
+**Split-audience zones (sub-auras):** When one zone needs different effects for different
+audiences (e.g. difficult terrain for enemies AND a buff for allies), do NOT create two
+`ActivatedAbilityAuraBehavior` entries -- that spawns two map objects and doubles engine
+work. Instead give the single aura a `subauras` list. Each sub-aura is a full `Aura`
+payload (its own `applyto`, `creatureFilter`, `modifiers`, `triggers`, terrain flags,
+`movedamage`) but shares the parent's area, caster, duration, and removal. Sub-auras
+never set `objectid`, icon/display, relocate fields, or nested `subauras`, and have no
+independent duration. A `destroyaura` trigger on a sub-aura destroys the whole aura.
+
+```yaml
+  aura:
+    __typeName: Aura
+    name: "Zone Name"
+    guid: <uuid>
+    objectid: "c994501f-85ec-475e-b9f6-8113a814f8d1"
+    difficult_terrain: true
+    applyto: enemies             # parent payload: difficult terrain for enemies
+    modifiers: []
+    triggers: []
+    subauras:
+      - __typeName: Aura
+        name: "Zone Name (Allies)"
+        guid: <uuid>
+        applyto: selfandfriends  # child payload: buff for allies, same area/lifetime
+        modifiers:
+          - ...
+        triggers: []
+```
+
 ## Power Table Effects (DrawSteelCommandBehavior)
 
 The **preferred way** to apply game effects (shift, forced movement, conditions, damage)

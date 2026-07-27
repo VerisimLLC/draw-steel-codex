@@ -1445,7 +1445,20 @@ Commands.RegisterMacro{
     end,
     command = function(str)
         local trimmedStr = trim(str)
-        local language = "c3c75399-6654-4ef6-a5f7-10653560f84"
+
+        --default to the most common language (highest commonality wins).
+        --Caelian breaks ties since the shipped data leaves every language
+        --at the default commonality of 5.
+        local language = nil
+        local bestScore = nil
+        for k, v in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
+            local score = v.commonality or 0
+            if bestScore == nil or score > bestScore
+                    or (score == bestScore and v.name == "Caelian") then
+                language = k
+                bestScore = score
+            end
+        end
 
         -- If the input starts with a quote, use explicit "token name" "speech" [language] mode
         if string.sub(trimmedStr, 1, 1) == '"' then

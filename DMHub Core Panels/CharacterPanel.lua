@@ -1907,7 +1907,17 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             partyName = "Dead Monsters"
         else
             party = dmhub.GetTable(Party.tableName)[partyid]
-            partyMembers = dmhub.GetCharacterIdsInParty(partyid)
+            --exclude despawned characters (dead, converted to a corpse):
+            --they are listed under "Dead Monsters" instead. The character
+            --record survives despawn, so without this filter dead summoned
+            --minions would linger in the party folder forever.
+            partyMembers = {}
+            for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid)) do
+                local tok = dmhub.GetCharacterById(charid)
+                if tok == nil or not tok.despawned then
+                    partyMembers[#partyMembers + 1] = charid
+                end
+            end
             partyName = party.name
         end
     end

@@ -13,6 +13,9 @@ local mod = dmhub.GetModLoading()
 --- @field applyto string Target filter id: "all", "allother", "selfandfriends", "friends", "enemies", "sametype", "othertype".
 --- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected.
 --- @field modifiers CharacterModifier[] Modifiers applied to creatures inside the aura.
+--- @field subauras nil|Aura[] Optional child aura payloads. Each shares this aura's area, caster,
+--- duration, and removal, but has its own applyto/creatureFilter/modifiers/triggers/terrain flags/
+--- move damage. Child defs never use objectid, icon/display, relocate fields, or nested subauras.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
 Aura.TriggerConditions = {
@@ -282,6 +285,74 @@ function Aura:GenerateEditor(options)
 
     }
 
+    local iconEditorPanel = ActivatedAbility.IconEditorPanel(self)
+    if options.childAura then
+        --sub-auras have no icon or object of their own; the parent provides the visuals.
+        iconEditorPanel:SetClass("collapsed", true)
+    end
+
+    --Sub-aura editing. Only on top-level auras: sub-auras cannot nest.
+    local subAurasPanel = nil
+    if not options.childAura then
+        subAurasPanel = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+
+            refreshAura = function(element)
+                local subChildren = {}
+                for i, subaura in ipairs(self:try_get("subauras", {})) do
+                    subChildren[#subChildren + 1] = gui.Panel {
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+
+                        gui.Panel {
+                            height = 20,
+                            width = "100%",
+                            flow = "horizontal",
+                            halign = "left",
+                            gui.Label {
+                                halign = "left",
+                                text = string.format("Sub-Aura %d", i),
+                                fontSize = 18,
+                                bold = true,
+                                width = "auto",
+                                height = "auto",
+                            },
+                            gui.Button {
+                                classes = {"deleteButton", "sizeXxs"},
+                                hmargin = 20,
+                                halign = "left",
+                                valign = "center",
+                                click = function(element)
+                                    table.remove(self.subauras, i)
+                                    resultPanel:FireEventTree("refreshAura")
+                                end,
+                            },
+                        },
+
+                        subaura:GenerateEditor{ norelocate = true, childAura = true },
+                    }
+                end
+
+                subChildren[#subChildren + 1] = gui.Button {
+                    text = "Add Sub-Aura",
+                    halign = "left",
+                    fontSize = 16,
+                    vmargin = 4,
+                    click = function(element)
+                        local subs = self:get_or_add("subauras", {})
+                        subs[#subs + 1] = Aura.Create{ name = "Sub-Aura" }
+                        resultPanel:FireEventTree("refreshAura")
+                    end,
+                }
+
+                element.children = subChildren
+            end,
+        }
+    end
+
     resultPanel = gui.Panel {
         classes = "abilityEditor",
         styles = {
@@ -317,10 +388,10 @@ function Aura:GenerateEditor(options)
             id = "leftPanel",
             classes = "mainPanel",
 
-            ActivatedAbility.IconEditorPanel(self),
+            iconEditorPanel,
 
             gui.Panel {
-                classes = "formPanel",
+                classes = { "formPanel", cond(options.childAura, 'collapsed') },
                 gui.Label {
                     classes = "formLabel",
                     text = "Object:",
@@ -577,6 +648,8 @@ function Aura:GenerateEditor(options)
             },
 
             abilitiesPanel,
+
+            subAurasPanel,
         },
 
 
@@ -955,6 +1028,81 @@ function AuraInstance:GetModifiers()
     return self.aura.modifiers
 end
 
+--- @class ChildAuraInstance:AuraInstance
+--- A transient view over a parent AuraInstance for one entry in aura.subauras. Child views are
+--- built on demand by AuraInstance:GetChildInstances and are NEVER stored or serialized: they do
+--- not live in creature.auras or in the aura object's component properties. The engine registers
+--- them as separate entries in its aura index so each child payload gets its own audience filter,
+--- while area/caster/duration/removal all derive from the parent.
+ChildAuraInstance = RegisterGameType("ChildAuraInstance", "AuraInstance")
+
+ChildAuraInstance.isChildAura = true
+
+function ChildAuraInstance:GetArea()
+    return self._tmp_parent:GetArea()
+end
+
+--Children have no lifecycle of their own: they exist only while the parent is registered.
+function ChildAuraInstance:HasExpired()
+    return false
+end
+
+function ChildAuraInstance:HasExpiredEndOfRound()
+    return false
+end
+
+--Relocation abilities come from the parent only.
+function ChildAuraInstance:FillActivatedAbilities(creature, resultAbilities)
+end
+
+--- Builds transient ChildAuraInstance views for each entry in this instance's aura.subauras.
+--- Cached per game update so C# sees stable object identity within a frame. The guid formula
+--- (parent guid .. "-sub-" .. child def guid) is deterministic across clients and rebuilds --
+--- creature.aurasEntered trigger dedupe persists these guids, so the formula must never change.
+--- @return ChildAuraInstance[]
+function AuraInstance:GetChildInstances()
+    if self:try_get("_tmp_childRefresh") == dmhub.ngameupdate then
+        return self._tmp_childInstances
+    end
+
+    local result = {}
+    local subs = self.aura:try_get("subauras")
+    if subs ~= nil then
+        for _, childDef in ipairs(subs) do
+            local child = ChildAuraInstance.new {
+                guid = self.guid .. "-sub-" .. childDef.guid,
+                aura = childDef,
+                name = self:try_get("name", childDef.name),
+                --set explicitly (not just via the class field) so C#-side raw Get() sees it.
+                isChildAura = true,
+                _tmp_parent = self,
+            }
+
+            if rawget(self, "tokenAttached") ~= nil then
+                child.tokenAttached = self.tokenAttached
+            end
+            if rawget(self, "casterid") ~= nil then
+                child.casterid = self.casterid
+            end
+            if rawget(self, "casterPartyId") ~= nil then
+                child.casterPartyId = self.casterPartyId
+            end
+            if self:has_key("symbols") then
+                child.symbols = self.symbols
+            end
+            if self:has_key("spellcastingFeature") then
+                child.spellcastingFeature = self.spellcastingFeature
+            end
+
+            result[#result + 1] = child
+        end
+    end
+
+    self._tmp_childInstances = result
+    self._tmp_childRefresh = dmhub.ngameupdate
+    return result
+end
+
 --- @class AuraComponent
 --- @field casterid string Token id of the creature that owns the aura.
 --- @field auraid string Guid of the AuraInstance on the caster.
@@ -1288,6 +1436,17 @@ function creature:CheckAuraExpiration(eventname)
                 if trigger.trigger == "casterendturnaura" then
                     local auraCasterToken = dmhub.LookupToken(self)
                     aura:FireTriggeredAbility(trigger.ability, self, auraCasterToken, { aura = aura })
+                end
+            end
+
+            --sub-auras carry their own triggers; fire them through the child view so the
+            --trigger sees the child's payload while sharing the parent's caster/area.
+            for _, child in ipairs(aura:GetChildInstances()) do
+                for _, trigger in ipairs(child.aura:try_get("triggers", {})) do
+                    if trigger.trigger == "casterendturnaura" then
+                        local auraCasterToken = dmhub.LookupToken(self)
+                        child:FireTriggeredAbility(trigger.ability, self, auraCasterToken, { aura = child })
+                    end
                 end
             end
         end

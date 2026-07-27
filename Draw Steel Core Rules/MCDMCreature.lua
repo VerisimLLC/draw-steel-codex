@@ -230,9 +230,11 @@ end
 
 function creature:CalculateNamedCustomAttribute(id)
     local cacheKey = id
+    --keyed to tablesUpdateId so values derived from compendium tables/assets are
+    --recalculated after a reload rather than memoized for the whole session.
     local cache = self:try_get("_tmp_calculatedAttributes")
-    if cache == nil then
-        cache = {}
+    if cache == nil or cache.__tablesUpdateId ~= dmhub.tablesUpdateId then
+        cache = { __tablesUpdateId = dmhub.tablesUpdateId }
         self._tmp_calculatedAttributes = cache
     end
 
@@ -747,7 +749,12 @@ function creature:RefreshInitiativeInfo(token)
         if initiativeEntry ~= nil and initiativeEntry.initiativeid == initiativeid then
             self._tmp_initiativeStatus = "OurTurn"
         elseif not q:HasInitiative(initiativeid) then
-            self._tmp_initiativeStatus = "NonCombatant"
+            if self:try_get("treatAsObject", false) then
+                --Object-tagged creatures are scenery, not skipped combatants; don't grey them out.
+                self._tmp_initiativeStatus = nil
+            else
+                self._tmp_initiativeStatus = "NonCombatant"
+            end
         elseif q:HasHadTurn(initiativeid) then
             self._tmp_initiativeStatus = "Done"
         elseif q:ChoosingTurn() and q:IsPlayersTurn() == q:IsEntryPlayer(initiativeid) and (q:has_key("priorityids") == false or q:EntriesUnmoved()[initiativeid]) then

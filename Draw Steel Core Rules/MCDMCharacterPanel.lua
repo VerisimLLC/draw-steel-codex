@@ -7486,7 +7486,13 @@ local function FillAurasEmittingPanels(token, chips)
         storedGuids[a.guid] = true
     end
 
-    local auras = creature:GetAuras()
+    --sub-aura views share their parent aura's chip; don't show duplicate chips for them.
+    local auras = {}
+    for _, a in ipairs(creature:GetAuras()) do
+        if not a:try_get("isChildAura", false) then
+            auras[#auras+1] = a
+        end
+    end
     for _, auraInstance in ipairs(auras) do
         local aura = auraInstance.aura
         local display = aura.display or {}

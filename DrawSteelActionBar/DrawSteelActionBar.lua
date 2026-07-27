@@ -5121,8 +5121,25 @@ CreateAbilityController = function()
             --instantCast means the invoke already resolved its targets (AI prompt
             --handler or scripted resolution): cast as soon as targeting is satisfied
             --instead of waiting for a manual press of the cast button.
+            --Exception: an invoke that arrives with token targets already packaged
+            --AND a prompt question attached (promptText -> promptOverride) has no
+            --further input to collect, so instant-casting would fire it with ZERO
+            --player interaction -- the prompt text is never seen and any resource
+            --cost (e.g. "2 Malice: ...") is spent silently. Require the confirm
+            --press for those. Destination-style invokes (no packaged token targets)
+            --keep instant cast: their remaining input is the destination pick, and
+            --the prompt shows as instructions during it.
             if options.instantCast then
-                ability.castImmediately = true
+                local packagedTokenTargets = false
+                for _, target in ipairs(options.targets or {}) do
+                    if target.token ~= nil then
+                        packagedTokenTargets = true
+                        break
+                    end
+                end
+                if not (packagedTokenTargets and ability:try_get("promptOverride") ~= nil) then
+                    ability.castImmediately = true
+                end
             end
             CharacterPanel.DisplayAbility(casterToken, ability)
             CharacterPanel.HighlightAbilitySection{

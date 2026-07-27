@@ -1185,10 +1185,11 @@ do
 	g_materialFields.EventHorizonDiceMaterial = fields
 end
 
--- LabradoriteDiceMaterial: everything PBRTexturedDiceMaterial has, plus procedural
--- labradorescence ("labradorite gemstone" dice -- see Labradorite.shader): angular voronoi
--- plates that flash with iridescent color only at their own viewing angle as the die tumbles,
--- with lamellar striations inside each flash and a subtle stone speckle on the dark base.
+-- CagedFlameDiceMaterial: everything PBRTexturedDiceMaterial has, plus a procedural flame
+-- suspended at the die's centre inside smoked glass ("caged flame" dice -- see
+-- CagedFlame.shader). The flame is camera-facing and always burns upward on screen. Flame
+-- Intensity is a plain material float, so animation curves (die speed) or a dice script
+-- (die.surface:SetFloat) can drive it live -- raging while tumbling, blazing on a max roll.
 -- Built from the PBRTextured list above so the shared rows never drift apart.
 do
 	local fields = {}
@@ -1197,185 +1198,89 @@ do
 	end
 
 	fields[#fields + 1] = {
-		name = "_FlashScale",
-		type = "Range",
-		min = 2,
-		max = 40,
-		default = 10,
-		description = "Flash Patch Density",
-	}
-	fields[#fields + 1] = {
-		name = "_FlashBrightness",
+		name = "_FlameIntensity",
 		type = "Range",
 		min = 0,
 		max = 8,
-		default = 2.2,
-		description = "Flash Brightness",
+		default = 2,
+		description = "Flame Intensity",
 	}
-	-- Wider = more plates lit at once; narrow = rare, dramatic flashes.
 	fields[#fields + 1] = {
-		name = "_FlashWindow",
+		name = "_FlameSize",
 		type = "Range",
 		min = 0.05,
-		max = 0.9,
-		default = 0.35,
-		description = "Flash Window",
-	}
-	-- Fraction of plates that ever flash (the rest stay dark stone).
-	fields[#fields + 1] = {
-		name = "_FlashCoverage",
-		type = "Range",
-		min = 0,
 		max = 1,
-		default = 0.65,
-		description = "Flash Coverage",
-	}
-	-- Palette centre / range: defaults span labradorite's blue-teal-green-gold.
-	fields[#fields + 1] = {
-		name = "_FlashHue",
-		type = "Range",
-		min = 0,
-		max = 1,
-		default = 0.6,
-		description = "Flash Hue",
+		default = 0.3,
+		description = "Flame Size",
 	}
 	fields[#fields + 1] = {
-		name = "_FlashHueSpread",
-		type = "Range",
-		min = 0,
-		max = 1,
-		default = 0.35,
-		description = "Flash Hue Spread",
-	}
-	fields[#fields + 1] = {
-		name = "_FlashTint",
+		name = "_FlameColorCore",
 		type = "Color",
-		description = "Flash Tint",
+		description = "Flame Core Color",
 	}
-	-- Thin lamellar banding inside each flash -- the signature labradorite texture.
 	fields[#fields + 1] = {
-		name = "_StriationAmount",
+		name = "_FlameColorOuter",
+		type = "Color",
+		description = "Flame Outer Color",
+	}
+	fields[#fields + 1] = {
+		name = "_FlickerSpeed",
+		type = "Range",
+		min = 0,
+		max = 8,
+		default = 3,
+		description = "Flicker Speed",
+	}
+	fields[#fields + 1] = {
+		name = "_FlickerAmount",
 		type = "Range",
 		min = 0,
 		max = 1,
 		default = 0.5,
-		description = "Striation Amount",
+		description = "Flicker Amount",
 	}
+	-- Horizontal sway of the flame tip.
 	fields[#fields + 1] = {
-		name = "_StriationScale",
-		type = "Range",
-		min = 1,
-		max = 60,
-		default = 18,
-		description = "Striation Scale",
-	}
-	-- Fine albedo speckle so the dark base reads as stone rather than plastic.
-	fields[#fields + 1] = {
-		name = "_SpeckleAmount",
-		type = "Range",
-		min = 0,
-		max = 1,
-		default = 0.35,
-		description = "Speckle Amount",
-	}
-
-	g_materialFields.LabradoriteDiceMaterial = fields
-end
-
--- KintsugiObsidianDiceMaterial: everything PBRTexturedDiceMaterial has, plus a procedural
--- glowing crack network ("kintsugi obsidian" dice -- see KintsugiObsidian.shader): near-black
--- volcanic glass shot through with slowly breathing molten-gold veins, a finer hairline web,
--- and a smoky base variation. Built from the PBRTextured list above so the shared rows never
--- drift apart.
-do
-	local fields = {}
-	for _, field in ipairs(g_materialFields.PBRTexturedDiceMaterial) do
-		fields[#fields + 1] = field
-	end
-
-	fields[#fields + 1] = {
-		name = "_CrackScale",
-		type = "Range",
-		min = 2,
-		max = 30,
-		default = 7,
-		description = "Crack Density",
-	}
-	fields[#fields + 1] = {
-		name = "_VeinWidth",
-		type = "Range",
-		min = 0.005,
-		max = 0.15,
-		default = 0.035,
-		description = "Vein Width",
-	}
-	fields[#fields + 1] = {
-		name = "_VeinColor",
-		type = "Color",
-		description = "Vein Color",
-	}
-	fields[#fields + 1] = {
-		name = "_VeinBrightness",
-		type = "Range",
-		min = 0,
-		max = 8,
-		default = 2.5,
-		description = "Vein Brightness",
-	}
-	-- Soft halo of warmth bleeding from each vein into the surrounding glass.
-	fields[#fields + 1] = {
-		name = "_VeinGlow",
+		name = "_FlameWaver",
 		type = "Range",
 		min = 0,
 		max = 1,
 		default = 0.4,
-		description = "Vein Glow",
+		description = "Flame Waver",
 	}
-	-- Finer, dimmer secondary crack web between the primary veins.
+	-- Warm light bleeding from the flame into the glass around it.
 	fields[#fields + 1] = {
-		name = "_Web2Amount",
+		name = "_EmberGlow",
 		type = "Range",
 		min = 0,
-		max = 1,
-		default = 0.35,
-		description = "Hairline Amount",
+		max = 2,
+		default = 0.7,
+		description = "Ember Glow",
+	}
+	-- The warm edge where the smoked glass curves away from the camera.
+	fields[#fields + 1] = {
+		name = "_RimColor",
+		type = "Color",
+		description = "Rim Color",
 	}
 	fields[#fields + 1] = {
-		name = "_Web2Scale",
-		type = "Range",
-		min = 4,
-		max = 60,
-		default = 18,
-		description = "Hairline Density",
-	}
-	-- The molten pulse drifting along the veins. 0 speed or amount = steady gold.
-	fields[#fields + 1] = {
-		name = "_PulseSpeed",
+		name = "_RimStrength",
 		type = "Range",
 		min = 0,
 		max = 4,
-		default = 0.6,
-		description = "Pulse Speed",
+		default = 0.7,
+		description = "Rim Strength",
 	}
 	fields[#fields + 1] = {
-		name = "_PulseAmount",
+		name = "_RimPower",
 		type = "Range",
-		min = 0,
-		max = 1,
-		default = 0.35,
-		description = "Pulse Amount",
-	}
-	-- Low-frequency smoky variation so the glass reads volcanic rather than flat black.
-	fields[#fields + 1] = {
-		name = "_SmokeAmount",
-		type = "Range",
-		min = 0,
-		max = 1,
-		default = 0.3,
-		description = "Smoke Amount",
+		min = 0.5,
+		max = 8,
+		default = 3,
+		description = "Rim Width",
 	}
 
-	g_materialFields.KintsugiObsidianDiceMaterial = fields
+	g_materialFields.CagedFlameDiceMaterial = fields
 end
 
 -- MagicGlassDiceMaterial: everything PBRTexturedDiceMaterial has, plus a glass fresnel rim

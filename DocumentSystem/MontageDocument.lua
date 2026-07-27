@@ -13,6 +13,10 @@ local g_numbers = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigh
 MontageDocument = RegisterGameType("MontageDocument", "CustomDocument")
 MontageDocument.docType = "montage"   --pins the semantic type (see DocumentSystem.lua)
 MontageDocument.scene = ""
+--Illustration for the scene, shown above the scene prose wherever the montage
+--document is rendered. Empty string = no image. Set via the IconEditor in
+--EditPanel, which carries its own "Upload Image" button for bringing in a file.
+MontageDocument.sceneImage = ""
 MontageDocument.summary = ""  -- shown as the "Description" box; the montage title
                               -- lives in self.description (the CustomDocument name)
 MontageDocument.twist = ""    -- shown as the "Optional Twist" box
@@ -311,6 +315,27 @@ function MontageDocument:DisplayPanel()
         end,
     }
 
+    --Scene illustration, collapsed entirely when the montage has none so an
+    --imageless montage reads exactly as it did before.
+    local sceneImagePanel = gui.Panel {
+        classes = { "image", cond(self:try_get("sceneImage", "") == "", "collapsed") },
+        width = 320,
+        height = 180,
+        halign = "left",
+        valign = "top",
+        vmargin = 4,
+        bgcolor = "white",
+        create = function(element)
+            local img = self:try_get("sceneImage", "")
+            element.selfStyle.bgimage = img ~= "" and img or nil
+        end,
+        savedoc = function(element)
+            local img = self:try_get("sceneImage", "")
+            element.selfStyle.bgimage = img ~= "" and img or nil
+            element:SetClass("collapsed", img == "")
+        end,
+    }
+
     local scrollablePanel = gui.Panel {
         width = "100%",
         height = "100%-50",
@@ -327,6 +352,7 @@ function MontageDocument:DisplayPanel()
             markdown = true,
             text = "## Setting the Scene",
         },
+        sceneImagePanel,
         sceneLabel,
 
         gui.Label {
@@ -462,6 +488,23 @@ function MontageDocument:EditPanel()
             "Enter description"),
 
         sectionLabel("## Setting the Scene"),
+        --Scene illustration. IconEditor's picker popup carries an "Upload Image"
+        --button, so this is also how a Director brings in their own file.
+        gui.IconEditor {
+            library = "journal",
+            width = 240,
+            height = 135,
+            halign = "left",
+            valign = "top",
+            vmargin = 4,
+            bgcolor = "white",
+            allowNone = true,
+            value = self:try_get("sceneImage", ""),
+            change = function(element)
+                self.sceneImage = element.value or ""
+                self:Upload()
+            end,
+        },
         proseInput(
             function() return self.scene end,
             function(text) self.scene = text end,

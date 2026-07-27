@@ -639,6 +639,7 @@ LiveNegotiation.docid = ""          --the backing NegotiationDocument id.
 LiveNegotiation.npcName = ""
 LiveNegotiation.npcDesc = ""
 LiveNegotiation.portrait = ""
+LiveNegotiation.sceneImage = ""
 LiveNegotiation.nameRevealed = true
 --Director-only provenance, shown in the rail, never on the stage: the sample
 --negotiator this run is playing, and how hard he is to move (impression 1-12).
@@ -651,12 +652,24 @@ LiveNegotiation.floor = ""          --charid currently composing, or "".
 LiveNegotiation.floorAt = 0         --server ms the floor was claimed.
 LiveNegotiation.offerRevealed = false
 LiveNegotiation.ended = false
+--hidden: the Director has drawn the curtain and means to bring this back.
+--Load-bearing, not cosmetic: hiding leaves the livedata in the shared document
+--and so does ending, and so did every negotiation run before this flag existed
+--(a live probe found an abandoned scene still sitting there). Without an
+--explicit "I meant to do that", the rail would offer to resume any of them.
+LiveNegotiation.hidden = false
 --traits: array of { id, kind ("motivation"|"pitfall"), name, line, revealed, used }
 LiveNegotiation.traits = {}
 --offers: map interest(string) -> { terms=string, revealed=bool }
 LiveNegotiation.offers = {}
 --accepted: map charid -> "accepted" | "declined"
 LiveNegotiation.accepted = {}
+--roster: who is AT THE TABLE for this scene, captured once at Begin.
+--array of { charid, name }. The accept row used to walk every owned hero token
+--in the GAME, so a hero whose player was not here tonight sat in it reading
+--"Waiting" forever and the Director could never get a clean answer. The
+--Director can correct this list from the rail.
+LiveNegotiation.roster = {}
 --spoke: map charid -> number of arguments that hero has made. Draw Steel puts
 --NO turn order on a negotiation - any hero may argue at any time - so the way
 --to keep one player from carrying the whole scene is to make participation
@@ -686,6 +699,7 @@ function LiveNegotiation.FromDocument(doc)
         npcName = doc:try_get("npcName", "") ~= "" and doc.npcName or doc.description,
         npcDesc = doc:try_get("npcDesc", ""),
         portrait = doc:try_get("portrait", ""),
+        sceneImage = doc:try_get("sceneImage", ""),
         nameRevealed = not doc:try_get("hideName", false),
         archetype = doc:try_get("archetype", ""),
         impression = doc:try_get("impression", 1),
@@ -727,6 +741,9 @@ NegotiationDocument.docType = "negotiation"   --pins the semantic type (see Docu
 NegotiationDocument.npcName = ""
 NegotiationDocument.npcDesc = ""
 NegotiationDocument.portrait = ""
+--Scene illustration for the negotiation, distinct from the NPC portrait: the
+--room, not the face. Shown on the stage behind the identity row. Empty = none.
+NegotiationDocument.sceneImage = ""
 NegotiationDocument.hideName = false
 NegotiationDocument.attitude = "suspicious"
 NegotiationDocument.startInterest = -1   --<0 means "derive from attitude"
@@ -753,6 +770,13 @@ function NegotiationDocument.CreateNew(args)
         npcDesc = "",
         attitude = "suspicious",
         impression = 1,
+        --A negotiation page IS the secrets: motivations, pitfalls, the voiced
+        --lines and the whole 0-5 offer ladder. CustomDocument defaults to
+        --visible and the journal lists it to players (DocumentSystem.lua), so
+        --without this every player could read the answers in another window
+        --while the scene ran. The prep doc is Director-only unless the
+        --Director deliberately shares it.
+        hiddenFromPlayers = true,
         traits = {},
         offers = {},
         summaries = {},
@@ -768,7 +792,10 @@ end
 function NegotiationDocument:SeedFromArchetype(negotiator)
     self.archetype = negotiator.name or ""
     self.impression = negotiator:try_get("impressionScore", 1)
-    if self.description == "New Negotiation" or self.description == "" then
+    --gate on the field we are about to WRITE, not on the page title: the Quick
+    --negotiation path sets description = name before seeding, so testing
+    --description here meant an improvised NPC never got a descriptor at all.
+    if self:try_get("npcDesc", "") == "" then
         self.npcDesc = negotiator:try_get("flavorText", "")
     end
     local traits = {}
@@ -802,31 +829,68 @@ NegotiationRun = rawget(_G, "NegotiationRun") or {}
 
 local DIALOG_ID = "negotiation"
 
+--The presentdialog doc while OUR stage is the thing on screen.
 function NegotiationRun.Doc()
     return GameHud.GetPresentDialogDoc(DIALOG_ID)
 end
 
---The live negotiation, or nil when nothing is running.
-function NegotiationRun.Live()
+--Is this stashed livedata ours? Every presentable dialog shares the one
+--livedata field, so a montage presented after a hidden negotiation overwrites
+--it. Reads of an undefined field on a game-typed instance RAISE, so this has
+--to be a pcall rather than a nil test.
+local function IsOurLive(live)
+    if live == nil then
+        return false
+    end
+    local name = nil
+    pcall(function() name = live.typeName end)
+    return name == "LiveNegotiation"
+end
+
+--The doc and live state we should be reading and writing: the presented stage
+--when it is up, the STASHED livedata when the Director has drawn the curtain.
+--Hiding nils data.dialog but leaves data.livedata (GameHud.lua clearPresent-
+--Dialog), which is what lets [Hide] be a curtain rather than a demolition -
+--the Director keeps running the scene while it is off the players' screens.
+--Returns doc, live -- or nil, nil when there is genuinely nothing running.
+local function ResolveRun()
     local doc = NegotiationRun.Doc()
-    if doc == nil then
-        return nil
+    if doc ~= nil then
+        return doc, doc.data.livedata
     end
-    local live = doc.data.livedata
-    if live == nil or live:try_get("ended", false) then
-        return live
+    local raw = GameHud.GetPresentDialogDocRaw()
+    if raw == nil or raw.data == nil then
+        return nil, nil
     end
+    local live = raw.data.livedata
+    --Only a DELIBERATELY hidden scene is resumable. Ending a negotiation
+    --leaves its livedata behind, and so did every run made before the hidden
+    --flag existed, so "there is livedata" is not evidence of anything.
+    if not IsOurLive(live)
+        or not live:try_get("hidden", false)
+        or live:try_get("ended", false) then
+        return nil, nil
+    end
+    return raw, live
+end
+
+--The live negotiation, presented or hidden, or nil when nothing is running.
+function NegotiationRun.Live()
+    local _, live = ResolveRun()
     return live
 end
 
+--True when the stage is on every client's screen, false when it is running
+--but curtained. Only meaningful when Live() is non-nil.
+function NegotiationRun.IsPresented()
+    return NegotiationRun.Doc() ~= nil
+end
+
 --Mutate live state inside a shared-doc change. fn(live) does the work.
+--Works while hidden, so the Director can keep adjudicating behind the curtain.
 function NegotiationRun.Mutate(desc, fn)
-    local doc = NegotiationRun.Doc()
-    if doc == nil then
-        return
-    end
-    local live = doc.data.livedata
-    if live == nil then
+    local doc, live = ResolveRun()
+    if doc == nil or live == nil then
         return
     end
     doc:BeginChange()
@@ -860,13 +924,141 @@ function NegotiationRun.TraitById(live, id)
     return nil
 end
 
+--Who is at the table right now: heroes whose owner is a user in this session.
+--Not every owned hero in the game -- that set includes players who are not
+--here tonight, and the accept row cannot be read if it contains people who
+--will never answer.
+function NegotiationRun.BuildRoster()
+    local present = {}
+    for _, userid in ipairs(dmhub.users) do
+        present[userid] = true
+    end
+    local roster = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        if token.properties:IsHero() and token.ownerId ~= nil and present[token.ownerId] then
+            roster[#roster + 1] = { charid = token.charid, name = token.name }
+        end
+    end
+    return roster
+end
+
 --Begin a negotiation from a prep document: build the live state and present
 --the stage to every client.
 function NegotiationRun.Begin(negotiationDoc, hostPanel)
+    --A page prepped before the Director-only default existed is still open to
+    --players. Beginning the scene is the last moment this can be caught, and
+    --running a negotiation whose answers sit one journal click away is not a
+    --negotiation. Close it here.
+    if not negotiationDoc:try_get("hiddenFromPlayers", false) then
+        negotiationDoc.hiddenFromPlayers = true
+        negotiationDoc:Upload()
+    end
+
     local live = LiveNegotiation.FromDocument(negotiationDoc)
+    live.roster = NegotiationRun.BuildRoster()
     NegotiationRun.Log(live, "", "", string.format("The negotiation with %s begins.",
         live.npcName ~= "" and live.npcName or "the NPC"), "system")
     GameHud.PresentDialogToUsers(hostPanel, DIALOG_ID, { docid = negotiationDoc.id }, live)
+end
+
+--Put the stage back on every client's screen with its state intact. The
+--counterpart to [Hide]; see ResolveRun for why the stash survives.
+function NegotiationRun.Present(hostPanel)
+    local live = NegotiationRun.Live()
+    if live == nil then
+        return
+    end
+    --the curtain is up again: this object is about to be written back as the
+    --presented livedata, so clear the flag on it before it goes.
+    live.hidden = false
+    GameHud.PresentDialogToUsers(hostPanel, DIALOG_ID, { docid = live.docid }, live)
+end
+
+--Take the stage off the players' screens WITHOUT tearing the scene down.
+--Mark it BEFORE clearing the dialog: once the dialog is gone the scene is
+--only reachable through the stash, and the flag is what says the stash is
+--something the Director wants back rather than yesterday's leftovers.
+function NegotiationRun.Hide()
+    NegotiationRun.Mutate("Hide the stage", function(live)
+        live.hidden = true
+    end)
+    GameHud.HidePresentedDialog()
+end
+
+--Release a stuck floor. The floor is otherwise only cleared by a COMPLETED
+--roll, so a hero who claims it and then drops, alt-tabs, or closes the roll
+--dialog locks every other player out of the composer for the rest of the
+--scene with no way back.
+function NegotiationRun.ClearFloor()
+    NegotiationRun.Mutate("Clear floor", function(live)
+        local who = live.floor
+        live.floor = ""
+        live.floorAt = 0
+        if who ~= "" then
+            local tok = dmhub.GetCharacterById(who)
+            NegotiationRun.Audit(live, string.format("floor cleared: %s",
+                tok ~= nil and tok.name or "a hero"))
+        end
+    end)
+end
+
+--Drop a hero from the scene roster: their player is not here tonight, so the
+--accept row should stop waiting on an answer that is never coming.
+function NegotiationRun.RemoveFromRoster(charid)
+    NegotiationRun.Mutate("Roster", function(live)
+        local roster = live:try_get("roster", {})
+        if #roster == 0 then
+            roster = NegotiationRun.BuildRoster()
+        end
+        local out = {}
+        local name = nil
+        for _, m in ipairs(roster) do
+            if m.charid ~= charid then
+                out[#out + 1] = m
+            else
+                name = m.name
+            end
+        end
+        live.roster = out
+        live.accepted[charid] = nil
+        if name ~= nil then
+            NegotiationRun.Audit(live, string.format("%s removed from the table", name))
+        end
+    end)
+end
+
+--Re-capture the roster from whoever is in the session now: a player who
+--joined after the scene began is not in it otherwise.
+function NegotiationRun.RefreshRoster()
+    NegotiationRun.Mutate("Roster", function(live)
+        live.roster = NegotiationRun.BuildRoster()
+        NegotiationRun.Audit(live, "roster refreshed")
+    end)
+end
+
+--The Director answering the standing offer on a hero's behalf - they stepped
+--out, or they said it out loud and never touched the button. The old dialog
+--had this override and the new stage lost it.
+function NegotiationRun.SetAccepted(charid, state)
+    NegotiationRun.Mutate("Set answer", function(live)
+        live.accepted[charid] = state
+        local tok = dmhub.GetCharacterById(charid)
+        NegotiationRun.Audit(live, string.format("%s marked %s by the Director",
+            tok ~= nil and tok.name or "a hero", state or "waiting"))
+    end)
+end
+
+--How long the floor has been held, in seconds, or nil when nobody holds it.
+--floorAt was being written and never read; this is what it was for.
+function NegotiationRun.FloorHeldSeconds(live)
+    if live.floor == "" then
+        return nil
+    end
+    local at = live:try_get("floorAt", 0)
+    if at <= 0 then
+        return nil
+    end
+    return math.max(0, math.floor((dmhub.serverTimeMilliseconds - at) / 1000))
 end
 
 --Resolve the pending argument with the Director's classification.
@@ -1174,6 +1366,41 @@ function NegotiationDocument:EditPanel()
         }
     end
 
+    --Who can read this page. A negotiation page IS the secrets - motivations,
+    --pitfalls, the voiced lines and the whole offer ladder - so it is
+    --Director-only by default and sharing is a deliberate act. Pages made
+    --before that default existed are still open, so say so out loud rather
+    --than silently flipping someone's sharing under them.
+    local visibilityWarning
+    visibilityWarning = gui.Label{
+        classes = { "sizeS" },
+        width = "94%", height = "auto", halign = "left", vmargin = 2,
+        textWrap = true, fontSize = 12,
+        color = "#c94040",
+        text = "",
+    }
+    local function RefreshVisibilityWarning()
+        visibilityWarning.text = doc:try_get("hiddenFromPlayers", false) and ""
+            or "Players can open this page and read every motivation, pitfall, voiced line and offer on it."
+    end
+    RefreshVisibilityWarning()
+
+    local visibilityPanel = gui.Panel{
+        flow = "vertical", width = "100%", height = "auto", halign = "left",
+        gui.Check{
+            classes = { "sizeS" },
+            width = "94%", height = 24, minWidth = 0, halign = "left",
+            text = "Share this page with players",
+            value = not doc:try_get("hiddenFromPlayers", false),
+            change = function(element)
+                doc.hiddenFromPlayers = not element.value
+                doc:Upload()
+                RefreshVisibilityWarning()
+            end,
+        },
+        visibilityWarning,
+    }
+
     return gui.Panel{
         width = "100%", height = "100%", flow = "vertical", vscroll = true,
 
@@ -1217,6 +1444,23 @@ function NegotiationDocument:EditPanel()
                     end,
                 },
             },
+        },
+
+        --The room, not the face. Separate from the NPC portrait above so a
+        --Director can set the scene without touching who is in it. IconEditor's
+        --picker carries its own "Upload Image" button for bringing in a file.
+        SectionHeader("The scene"),
+        gui.IconEditor{
+            library = "journal",
+            width = 240, height = 135,
+            halign = "left", valign = "top",
+            bgcolor = "white",
+            allowNone = true,
+            value = doc:try_get("sceneImage", ""),
+            change = function(element)
+                doc.sceneImage = element.value or ""
+                doc:Upload()
+            end,
         },
 
         SectionHeader("Seed from an archetype"),
@@ -1275,6 +1519,9 @@ function NegotiationDocument:EditPanel()
 
         SectionHeader("Stakes"),
         textInput("stakes", "What happens on a deal - and on no deal.", true),
+
+        SectionHeader("Who can read this page"),
+        visibilityPanel,
     }
 end
 
@@ -1451,6 +1698,68 @@ local function CreateNegotiationStage(args)
         return me ~= nil and live.floor == me
     end
 
+    --A local latch held between pressing an action and the dice landing. The
+    --shared doc cannot cover this window - it is a round trip - so without it
+    --a player can press [Make your case] three times before the first roll
+    --resolves and claim the floor three times over.
+    local m_rolling = false
+
+    --Why the composer is closed to you right now, or nil when it is open.
+    --v2 required this to be a STATIC line, never a tooltip: an action that is
+    --dimmed for an unexplained reason reads as a broken button.
+    local function BlockedReason(live)
+        if NegotiationRules.Terminal(live.interest, live.patience) ~= nil then
+            return "The talking is done."
+        end
+        --Gated on still holding the floor, deliberately. If the player closes
+        --the roll dialog the `complete` callback never fires and this latch
+        --would never lift - stranding them behind their own composer, which is
+        --the exact failure this pass exists to remove. Losing the floor (they
+        --step back, or the Director clears it) always lifts it.
+        if m_rolling and IHaveFloor(live) then
+            return "Waiting for your roll..."
+        end
+        if live:try_get("pending", false) then
+            local p = live.pending
+            return string.format("%s is weighing %s's argument.",
+                live.nameRevealed and live.npcName ~= "" and live.npcName or "The NPC",
+                p.whoName or "a hero")
+        end
+        --the discovery pick is a real block and was invisible: the floor is
+        --cleared the moment a tier-3 read lands, so every other client saw an
+        --open floor and armed buttons while the scene waited on one player.
+        if live:try_get("pendingReveal", false) then
+            local pr = live.pendingReveal
+            return string.format("%s is working out what they learned.",
+                pr.whoName or "A hero")
+        end
+        if live.floor ~= "" and not IHaveFloor(live) then
+            local tok = dmhub.GetCharacterById(live.floor)
+            return string.format("%s has the floor.", tok ~= nil and tok.name or "Another hero")
+        end
+        if MyCharId() == nil then
+            return "Select your hero to take part."
+        end
+        return nil
+    end
+
+    local function IsBlocked(live)
+        return BlockedReason(live) ~= nil
+    end
+
+    --Who is at the table for THIS scene, captured at Begin. The stage used to
+    --walk every owned hero token in the game, so a hero whose player was not
+    --here tonight stood in the presence strip and sat in the accept row
+    --reading "Waiting" forever. A scene begun before the roster existed falls
+    --back to the live set rather than losing its accept row mid-negotiation.
+    local function Roster(live)
+        local roster = live:try_get("roster", {})
+        if #roster == 0 then
+            return NegotiationRun.BuildRoster()
+        end
+        return roster
+    end
+
     ----------------------------------------------------------------------
     -- Left column: reading the NPC.
     ----------------------------------------------------------------------
@@ -1490,13 +1799,32 @@ local function CreateNegotiationStage(args)
         end,
     }
 
+    --Scene illustration above the identity row: the room the table is looking
+    --at. Collapsed when the page has no scene image, so a negotiation without
+    --one lays out exactly as it did before.
+    local sceneBanner = gui.Panel{
+        classes = { "image", "collapsed" },
+        width = "100%", height = 160,
+        halign = "center", valign = "top", vmargin = 4,
+        bgcolor = "white",
+        refreshNeg = function(element, live)
+            local img = live:try_get("sceneImage", "")
+            element.selfStyle.bgimage = img ~= "" and img or nil
+            element:SetClass("collapsed", img == "")
+        end,
+    }
+
     local identityPanel = gui.Panel{
-        flow = "horizontal", width = "100%", height = "auto", vmargin = 4,
-        portraitPanel,
+        flow = "vertical", width = "100%", height = "auto", vmargin = 4,
+        sceneBanner,
         gui.Panel{
-            flow = "vertical", width = "100%-110", height = "auto", valign = "top",
-            nameLabel,
-            descLabel,
+            flow = "horizontal", width = "100%", height = "auto",
+            portraitPanel,
+            gui.Panel{
+                flow = "vertical", width = "100%-110", height = "auto", valign = "top",
+                nameLabel,
+                descLabel,
+            },
         },
     }
 
@@ -1637,6 +1965,13 @@ local function CreateNegotiationStage(args)
         classes = { "sizeS" },
         width = "100%", height = "auto", halign = "left", vmargin = 4,
         refreshNeg = function(element, live)
+            --A client with a hero gets the precise reason directly under the
+            --action buttons (see actionsPanel). Saying it up here as well read
+            --as two unrelated statements about the same thing, a page apart.
+            if dmhub.currentToken ~= nil then
+                element.text = ""
+                return
+            end
             local terminal = NegotiationRules.Terminal(live.interest, live.patience)
             if terminal ~= nil then
                 element.text = "The talking is done."
@@ -1758,12 +2093,25 @@ local function CreateNegotiationStage(args)
 
     --Roll an argument or a discovery test through the real dice system.
     local function MakeRoll(kind)
-        local tok = dmhub.currentToken
-        if tok == nil then
+        --Ask the run, do not trust the captured upvalue. refreshGame reassigns
+        --`doc` and it becomes nil the moment the scene stops being the
+        --presented dialog, so this read was crashing on a stage that outlived
+        --its negotiation ("attempt to index a nil value (upvalue 'doc')" in the
+        --live log). Hiding the stage makes Doc() nil routinely, which would
+        --have turned an occasional crash into a common one.
+        local live = NegotiationRun.Live()
+        if live == nil then
             return
         end
-        local live = doc.data.livedata
-        if live == nil then
+        --The `disabled` class is PAINT. Every other surface in this codebase
+        --styles with it and guards in code (see gui.Check); this one did not,
+        --so a click on a dimmed button still claimed the floor from its holder
+        --and overwrote the pending argument the Director was adjudicating.
+        if IsBlocked(live) then
+            return
+        end
+        local tok = dmhub.currentToken
+        if tok == nil then
             return
         end
 
@@ -1776,6 +2124,7 @@ local function CreateNegotiationStage(args)
         --claim the floor (confirm-after-sync: the doc is the truth). Floor
         --churn is bookkeeping - it goes to the Director's audit, not the stage
         --(the composer already shows who holds the floor, live).
+        m_rolling = true
         NegotiationRun.Mutate("Claim floor", function(l)
             l.floor = tok.charid
             l.floorAt = dmhub.serverTimeMilliseconds
@@ -1784,6 +2133,7 @@ local function CreateNegotiationStage(args)
 
         local text = sayInput.text or ""
         local angleId = m_angle
+        local myCharId = tok.charid
 
         dmhub.Roll{
             guid = dmhub.GenerateGuid(),
@@ -1791,14 +2141,29 @@ local function CreateNegotiationStage(args)
             description = kind == "read" and "Read the NPC" or "Negotiation argument",
             tokenid = tok.id,
             complete = function(rollInfo)
+                m_rolling = false
                 local total = rollInfo.total
                 local nat = rollInfo.naturalRoll or 0
-                if kind == "read" then
-                    --discovery test resolves immediately by the rules.
-                    local tier = NegotiationRules.TierForTotal(total)
-                    NegotiationRun.Mutate("Read the NPC", function(l)
+                local late = false
+
+                NegotiationRun.Mutate(kind == "read" and "Read the NPC" or "Make an argument", function(l)
+                    --Confirm AFTER the sync. A roll is a round trip, and in
+                    --that window another hero's roll can land: theirs is the
+                    --argument on the table and ours must not clobber it. This
+                    --used to overwrite l.pending silently, discarding an
+                    --argument somebody had actually rolled dice for.
+                    if l.floor ~= myCharId or l:try_get("pending", false) then
+                        late = true
+                        NegotiationRun.Audit(l, string.format(
+                            "%s's roll landed after the floor moved - not applied", tok.name))
+                        return
+                    end
+
+                    if kind == "read" then
+                        --discovery test resolves immediately by the rules.
+                        local tier = NegotiationRules.TierForTotal(total)
                         if tier >= 3 then
-                            l.pendingReveal = { who = tok.charid, whoName = tok.name, kind = "" }
+                            l.pendingReveal = { who = myCharId, whoName = tok.name, kind = "" }
                             NegotiationRun.Log(l, tok.name, "", "read them - and learned something.", "good")
                         elseif tier == 2 then
                             NegotiationRun.Log(l, tok.name, "", "read them - and learned nothing.", "neutral")
@@ -1807,20 +2172,34 @@ local function CreateNegotiationStage(args)
                             NegotiationRun.Log(l, tok.name, "", "pushed too hard - he's losing patience.", "bad")
                         end
                         l.floor = ""
-                    end)
-                else
-                    NegotiationRun.Mutate("Make an argument", function(l)
+                        l.floorAt = 0
+                    else
                         l.pending = {
-                            who = tok.charid,
+                            who = myCharId,
                             whoName = tok.name,
                             text = text,
                             roll = total,
                             natHigh = (nat >= 19),
                             angleTraitId = angleId or "",
                         }
-                    end)
+                    end
+                end)
+
+                if late then
+                    --nothing was applied, so give the player their words back
+                    --rather than swallowing them.
+                    sayInput.text = text
+                else
+                    sayInput.text = ""
+                    --the angle is SPENT. Leaving it selected silently re-used
+                    --it on the next argument - and if the Director resolved
+                    --someone else's argument onto that motivation meanwhile,
+                    --its chip vanishes from the row while the selection still
+                    --points at it, so a player with visibly nothing chosen
+                    --would roll an appeal to a spent motivation.
+                    m_angle = nil
                 end
-                sayInput.text = ""
+                sayInput:FireEventOnParents("refreshNegLocal")
             end,
         }
     end
@@ -1829,7 +2208,7 @@ local function CreateNegotiationStage(args)
     --on a client with no hero (the Director's) left a dead band inside the card.
     --Build them in the refresh instead: no hero, no buttons, no reserved space.
     local actionsPanel = gui.Panel{
-        flow = "horizontal", width = "100%", height = "auto",
+        flow = "vertical", width = "100%", height = "auto",
         refreshNeg = function(element, live)
             if dmhub.currentToken == nil then
                 element.children = {}
@@ -1838,9 +2217,8 @@ local function CreateNegotiationStage(args)
             end
             element.selfStyle.vmargin = 8
 
-            local blocked = live:try_get("pending", false)
-                or (live.floor ~= "" and not IHaveFloor(live))
-                or NegotiationRules.Terminal(live.interest, live.patience) ~= nil
+            local reason = BlockedReason(live)
+            local blocked = reason ~= nil
 
             local function ActionButton(text, width, lmargin, kind)
                 return gui.Button{
@@ -1853,10 +2231,48 @@ local function CreateNegotiationStage(args)
                 }
             end
 
-            element.children = {
-                ActionButton("Make your case", 296, 0, "argue"),
-                ActionButton("Read them", 190, 12, "read"),
+            local children = {
+                gui.Panel{
+                    flow = "horizontal", width = "100%", height = "auto",
+                    ActionButton("Make your case", 296, 0, "argue"),
+                    ActionButton("Read them", 190, 12, "read"),
+                },
             }
+
+            --The reason is a STATIC line, never a tooltip: a dimmed button with
+            --no stated cause reads as broken software, and a player who cannot
+            --see why they are locked out assumes it is their turn to click
+            --harder.
+            if blocked then
+                children[#children + 1] = gui.Label{
+                    classes = { "sizeS" },
+                    width = "100%", height = "auto", halign = "left", tmargin = 4,
+                    textWrap = true, fontSize = 11, color = "#8a8a8a",
+                    text = reason,
+                }
+            end
+
+            --Stepping back is the only way to give up a floor you claimed
+            --without rolling for it. Without it, a player who changes their
+            --mind holds the whole table until the Director notices and clears
+            --it for them.
+            --Rendered even while m_rolling: a player whose roll dialog went
+            --away needs a way out that does not depend on the Director
+            --noticing.
+            if IHaveFloor(live) and not live:try_get("pending", false) then
+                children[#children + 1] = gui.Label{
+                    classes = { "sizeS", "hoverable" },
+                    width = "auto", height = "auto", halign = "left", tmargin = 4,
+                    fontSize = 11, color = "#8a8a8a",
+                    text = "Step back and let someone else speak",
+                    press = function()
+                        m_rolling = false
+                        NegotiationRun.ClearFloor()
+                    end,
+                }
+            end
+
+            element.children = children
         end,
     }
 
@@ -1869,10 +2285,11 @@ local function CreateNegotiationStage(args)
         refreshNeg = function(element, live)
             local children = {}
             local spoke = live:try_get("spoke", {})
-            for _, token in ipairs(dmhub.allTokens) do
-                if token.properties:IsHero() and token.ownerId ~= nil then
-                    local n = spoke[token.charid] or 0
-                    local speaking = (live.floor == token.charid)
+            for _, member in ipairs(Roster(live)) do
+                local token = dmhub.GetCharacterById(member.charid)
+                if token ~= nil then
+                    local n = spoke[member.charid] or 0
+                    local speaking = (live.floor == member.charid)
 
                     local status = "has not spoken"
                     local statusColor = "#e4ddd0"
@@ -2102,24 +2519,22 @@ local function CreateNegotiationStage(args)
 
                     --accept row: name + word + glyph, three-state.
                     local accepts = {}
-                    for _, token in ipairs(dmhub.allTokens) do
-                        if token.properties:IsHero() and token.ownerId ~= nil then
-                            local state = live.accepted[token.charid]
-                            local word = "- Waiting"
-                            local col = "#7a7468"
-                            if state == "accepted" then
-                                word = "OK Accepted"; col = "#4db88c"
-                            elseif state == "declined" then
-                                word = "X Declined"; col = "#c94040"
-                            end
-                            accepts[#accepts + 1] = gui.Label{
-                                classes = { "sizeS" },
-                                width = "auto", height = "auto", rmargin = 12,
-                                halign = "left",
-                                fontSize = 12, color = col,
-                                text = string.format("%s  %s", token.name, word),
-                            }
+                    for _, member in ipairs(Roster(live)) do
+                        local state = live.accepted[member.charid]
+                        local word = "- Waiting"
+                        local col = "#7a7468"
+                        if state == "accepted" then
+                            word = "OK Accepted"; col = "#4db88c"
+                        elseif state == "declined" then
+                            word = "X Declined"; col = "#c94040"
                         end
+                        accepts[#accepts + 1] = gui.Label{
+                            classes = { "sizeS" },
+                            width = "auto", height = "auto", rmargin = 12,
+                            halign = "left",
+                            fontSize = 12, color = col,
+                            text = string.format("%s  %s", member.name, word),
+                        }
                     end
                     children[#children + 1] = gui.Panel{
                         flow = "horizontal", width = OFFER_W, height = "auto",
@@ -2281,10 +2696,15 @@ local function CreateNegotiationStage(args)
         },
 
         refreshGame = function(element)
-            doc = NegotiationRun.Doc()
-            if doc == nil then
+            --Assign through a temporary: writing NegotiationRun.Doc() straight
+            --into `doc` set the upvalue to nil whenever the stage was no longer
+            --the presented dialog, and every closure that had captured it then
+            --crashed on the next click.
+            local d = NegotiationRun.Doc()
+            if d == nil then
                 return
             end
+            doc = d
             m_live = doc.data.livedata
             if m_live == nil then
                 return
@@ -2334,7 +2754,7 @@ local function CreateNegotiationRunner()
     --one line until you reach for it; the ladder and the audit stay shut until
     --you want them. Nothing is removed, only folded. All local to this client.
     local m_openTraits = {}   --trait id -> true when expanded
-    local m_openSections = { traits = true, offers = false, audit = false }
+    local m_openSections = { traits = true, offers = false, audit = false, roster = false }
 
     local runnerPanel
 
@@ -2380,6 +2800,74 @@ local function CreateNegotiationRunner()
             end,
         }
     end
+
+    ------------------------------------------------------------------------
+    -- The Director's voice.
+    --
+    -- The stage put NPC WORDS on screen in exactly two places: [Say it] on a
+    -- trait that happened to carry a prepped line, and [Reveal terms].
+    -- Everything else logged a mechanical cue. So the app instructed the
+    -- Director to "Respond as Halric" and then gave them nowhere to type it,
+    -- and a hard-of-hearing player watching a Director do a bandit-chief voice
+    -- read "Rook  You found something Halric cares about" and nothing else.
+    --
+    -- This control is built ONCE and lives outside the rebuilt body: the rail
+    -- re-renders on every client's change to the shared document, so an input
+    -- inside the body would lose its focus and its half-typed line every time
+    -- a player rolled dice.
+    ------------------------------------------------------------------------
+    local m_npcSays = ""
+    local npcSaysInput
+    local function SpeakAsNPC()
+        local text = m_npcSays or ""
+        if text == "" then
+            return
+        end
+        local live = NegotiationRun.Live()
+        if live == nil then
+            return
+        end
+        local speaker = live.npcName ~= "" and live.npcName or "the NPC"
+        NegotiationRun.Mutate("NPC speaks", function(l)
+            NegotiationRun.Log(l, speaker, text, "", "npc")
+        end)
+        m_npcSays = ""
+        npcSaysInput.textNoNotify = ""
+        Refresh()
+    end
+
+    npcSaysInput = gui.Input{
+        classes = { "sizeS" },
+        width = "70%", height = 26, halign = "left",
+        lineType = "SingleLine",
+        editlag = 0.25,
+        placeholderText = "Say it as the NPC...",
+        text = "",
+        edit = function(element)
+            m_npcSays = element.text
+        end,
+        change = function(element)
+            m_npcSays = element.text
+        end,
+        submit = function(element)
+            m_npcSays = element.text
+            SpeakAsNPC()
+        end,
+    }
+
+    local npcSaysPanel = gui.Panel{
+        flow = "horizontal", width = "100%", height = "auto",
+        halign = "left", wrap = true, vmargin = 3,
+        npcSaysInput,
+        SmallButton("Say it", function()
+            SpeakAsNPC()
+        end, 70),
+    }
+
+    --The body: everything that gets rebuilt on a refresh.
+    local bodyPanel = gui.Panel{
+        flow = "vertical", width = "100%", height = "auto",
+    }
 
     ------------------------------------------------------------------------
     -- The idle state: no negotiation running. Offers both entry paths.
@@ -2537,8 +3025,58 @@ local function CreateNegotiationRunner()
             text = "Now: " .. NegotiationRun.CoachLine(live),
         }
 
+        --Putting the stage away and ending the scene are DIFFERENT ACTS and the
+        --runner used to offer only the second one. The stage's own close button
+        --nils the shared dialog, which destroys the live state - so a Director
+        --who wanted the table to look at the map for a minute lost every reveal
+        --the party had earned. [Hide] draws a curtain; the scene runs on behind
+        --it and [Show players] puts it back untouched.
+        local presented = NegotiationRun.IsPresented()
+        if not presented then
+            children[#children + 1] = Micro(
+                "The stage is OFF the players' screens. You are running it privately - nothing you do here shows until you put it back.",
+                "#e8a030")
+        end
+
+        --The floor: who is composing, and how long they have been at it.
+        --Nothing else clears a claimed floor except a completed roll, so a
+        --player who claims it and then drops locks the whole table out of the
+        --composer for the rest of the scene.
+        if live.floor ~= "" then
+            local held = NegotiationRun.FloorHeldSeconds(live)
+            local holder = dmhub.GetCharacterById(live.floor)
+            local holderName = holder ~= nil and holder.name or "A hero"
+            local stale = held ~= nil and held >= 45
+            children[#children + 1] = gui.Panel{
+                flow = "horizontal", width = "100%", height = "auto", wrap = true, vmargin = 2,
+                gui.Label{
+                    classes = { "sizeS" },
+                    width = "100%", height = "auto", textWrap = true,
+                    fontSize = 11,
+                    color = stale and "#e8a030" or "#7a7468",
+                    text = held == nil
+                        and string.format("%s has the floor.", holderName)
+                        or string.format("%s has had the floor for %ds.%s", holderName, held,
+                            stale and " They may have stepped away." or ""),
+                },
+                SmallButton("Clear floor", function()
+                    NegotiationRun.ClearFloor()
+                    Refresh()
+                end, 110),
+            }
+        end
+
         children[#children + 1] = gui.Panel{
             flow = "horizontal", width = "100%", height = "auto", wrap = true, vmargin = 2,
+            presented
+                and SmallButton("Hide from players", function()
+                    NegotiationRun.Hide()
+                    Refresh()
+                end, 140)
+                or SmallButton("Show players", function(element)
+                    NegotiationRun.Present(element)
+                    Refresh()
+                end, 140),
             SmallButton(live.showRaw and "Hide the numbers" or "Reveal the numbers", function()
                 NegotiationRun.Mutate("Toggle numbers", function(l)
                     l.showRaw = not l.showRaw
@@ -2585,6 +3123,14 @@ local function CreateNegotiationRunner()
                         prep:Upload()
                     end
                 end
+                --Mark the run FINISHED before the curtain. Hiding leaves the
+                --livedata behind on purpose (that is what makes [Hide]
+                --recoverable), so without this an ended scene would look
+                --exactly like one the Director had merely put away, and the
+                --header would offer to show it again.
+                NegotiationRun.Mutate("End negotiation", function(l)
+                    l.ended = true
+                end)
                 GameHud.HidePresentedDialog()
                 Refresh()
             end, 120),
@@ -2615,6 +3161,56 @@ local function CreateNegotiationRunner()
         end
         children[#children + 1] = MeterRow("Interest", live.interest, "interest")
         children[#children + 1] = MeterRow("Patience", live.patience, "patience")
+
+        -- 2b. Who is at the table --------------------------------------------
+        -- The accept row is only readable if it contains people who will
+        -- actually answer. Captured at Begin from the session, correctable
+        -- here: drop the hero whose player is not here tonight, or answer on
+        -- behalf of someone who said it out loud.
+        local roster = live:try_get("roster", {})
+        if #roster == 0 then
+            roster = NegotiationRun.BuildRoster()
+        end
+        children[#children + 1] = SectionFold("roster", "AT THE TABLE",
+            string.format("%d %s", #roster, #roster == 1 and "hero" or "heroes"))
+        if m_openSections.roster then
+            for _, m in ipairs(roster) do
+                local member = m
+                local state = live.accepted[member.charid]
+                local answer = "no answer yet"
+                if state == "accepted" then
+                    answer = "accepted"
+                elseif state == "declined" then
+                    answer = "declined"
+                end
+                children[#children + 1] = gui.Panel{
+                    flow = "horizontal", width = "96%", height = "auto",
+                    halign = "left", wrap = true, vmargin = 1,
+                    gui.Label{
+                        classes = { "sizeS" },
+                        width = "100%", height = "auto", halign = "left",
+                        textWrap = true, fontSize = 12, color = "#e4ddd0",
+                        text = string.format("%s  -  %s", member.name, answer),
+                    },
+                    SmallButton("Accept", function()
+                        NegotiationRun.SetAccepted(member.charid, "accepted")
+                        Refresh()
+                    end, 76),
+                    SmallButton("Decline", function()
+                        NegotiationRun.SetAccepted(member.charid, "declined")
+                        Refresh()
+                    end, 76),
+                    SmallButton("Not here", function()
+                        NegotiationRun.RemoveFromRoster(member.charid)
+                        Refresh()
+                    end, 76),
+                }
+            end
+            children[#children + 1] = SmallButton("Refresh from session", function()
+                NegotiationRun.RefreshRoster()
+                Refresh()
+            end, "96%")
+        end
 
         -- 3. Pending argument card ------------------------------------------
         local pending = live:try_get("pending", false)
@@ -2901,9 +3497,29 @@ local function CreateNegotiationRunner()
                 }
 
                 if open then
-                    if (trait.line or "") ~= "" then
-                        rowChildren[#rowChildren + 1] = Micro("\"" .. trait.line .. "\"", "#8a8a8a")
-                    end
+                    --The voiced line is EDITABLE, and exists on every trait
+                    --rather than only the prepped ones. An improvised scene
+                    --has no prepped lines at all, so [Say it] - the one path
+                    --that put the NPC's actual words on the stage - never
+                    --appeared in exactly the case that needs it most.
+                    local lineInput
+                    lineInput = gui.Input{
+                        classes = { "sizeS" },
+                        width = "96%", height = 26, halign = "left", vmargin = 2,
+                        lineType = "SingleLine",
+                        placeholderText = "What they say about it, in their voice",
+                        text = trait.line or "",
+                        change = function(element)
+                            local newLine = element.text
+                            NegotiationRun.Mutate("Edit voiced line", function(l)
+                                local tt = NegotiationRun.TraitById(l, trait.id)
+                                if tt ~= nil then
+                                    tt.line = newLine
+                                end
+                            end)
+                        end,
+                    }
+                    rowChildren[#rowChildren + 1] = lineInput
                     local actions = {}
                     if trait.revealed then
                         actions[#actions + 1] = SmallButton("Hide", function()
@@ -2916,14 +3532,19 @@ local function CreateNegotiationRunner()
                             Refresh()
                         end, 70)
                     end
-                    if (trait.line or "") ~= "" then
-                        actions[#actions + 1] = SmallButton("Say it", function()
-                            NegotiationRun.Mutate("NPC speaks", function(l)
-                                NegotiationRun.Log(l, npc, trait.line, "", "npc")
-                            end)
-                            Refresh()
-                        end, 60)
-                    end
+                    actions[#actions + 1] = SmallButton("Say it", function()
+                        --read the INPUT, not the stored trait: the Director
+                        --often reworks the line in the moment and expects the
+                        --words in front of them to be the ones that land.
+                        local said = lineInput.text or ""
+                        if said == "" then
+                            return
+                        end
+                        NegotiationRun.Mutate("NPC speaks", function(l)
+                            NegotiationRun.Log(l, npc, said, "", "npc")
+                        end)
+                        Refresh()
+                    end, 60)
                     rowChildren[#rowChildren + 1] = gui.Panel{
                         flow = "horizontal", width = "100%", height = "auto", wrap = true,
                         children = actions,
@@ -3043,13 +3664,18 @@ local function CreateNegotiationRunner()
         --"presentdialog" would be a different, never-changing document.
         monitorGame = GameHud.PresentDialogPath(),
 
+        npcSaysPanel,
+        bodyPanel,
+
         refreshRunner = function(element)
-            local doc = NegotiationRun.Doc()
-            local live = doc ~= nil and doc.data.livedata or nil
+            --Live(), not Doc(): a hidden scene is still a running scene and the
+            --Director must keep every control while the curtain is down.
+            local live = NegotiationRun.Live()
+            npcSaysPanel:SetClass("collapsed", live == nil)
             if live == nil then
-                element.children = IdleChildren()
+                bodyPanel.children = IdleChildren()
             else
-                element.children = RunningChildren(live)
+                bodyPanel.children = RunningChildren(live)
             end
         end,
 

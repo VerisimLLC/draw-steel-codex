@@ -40,7 +40,17 @@ function ActivatedAbilityDelayBehavior:Cast(ability, casterToken, targets, optio
         --creaturedeath only fires on the alive->dead transition, so there is
         --no retry. After the cap we proceed rather than abandon the cast.
         local proceedDeadline = dmhub.Time() + 120
-        while not GoblinScriptTrue(ExecuteGoblinScript(self.proceedCondition, casterToken.properties:LookupSymbol(options.symbols), "Proceed condition")) do
+        while true do
+            --The caster can be despawned by another client (or another cast)
+            --while we wait; its .properties goes nil and the condition can no
+            --longer be evaluated (report 25KUGPFC crashed here).
+            if not casterToken.valid or casterToken.properties == nil then
+                print("DELAY:: caster gone while waiting on proceed condition, proceeding")
+                break
+            end
+            if GoblinScriptTrue(ExecuteGoblinScript(self.proceedCondition, casterToken.properties:LookupSymbol(options.symbols), "Proceed condition")) then
+                break
+            end
             if dmhub.Time() > proceedDeadline then
                 print("DELAY:: proceed condition still false after 120s, proceeding anyway")
                 break

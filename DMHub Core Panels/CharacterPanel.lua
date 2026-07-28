@@ -94,6 +94,15 @@ local g_sidebarExtras = {
         italics = true,
     },
     {
+        selectors = { "bestiarySearchNote" },
+        color = "@fgMuted",
+        italics = true,
+        fontSize = 12,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    {
         selectors = { "headerPanel", "hover" },
         bgcolor = "@bgInverse",
     },
@@ -248,6 +257,45 @@ end
 
 
 local BestiaryPanelHeight = 24
+
+--Cap on how many monster entries a bestiary search will show at once.
+--Bestiary panels are built lazily, so an over-broad search term (e.g. a
+--single letter) would otherwise materialize a panel for most of the
+--bestiary in one frame.
+local MaxBestiarySearchResults = 40
+
+--Data-level search over a bestiary subtree: true if the node or any
+--non-hidden descendant matches. Lets a search decide whether a
+--collapsed, not-yet-built folder contains anything it needs to show
+--without building panels to find out.
+local NodeSubtreeMatchesSearch
+NodeSubtreeMatchesSearch = function(node, text)
+    if node:MatchesSearch(text) then
+        return true
+    end
+
+    if node.folder ~= nil then
+        for _, child in ipairs(node.children) do
+            if (not child.hidden) and NodeSubtreeMatchesSearch(child, text) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+--Sort key for a bestiary node, matching data.ord() on the corresponding
+--panels: folders sort above monster entries, alphabetically within each
+--group. Used to walk child nodes in display order during a search so
+--the result cap keeps the first entries the user would see.
+local BestiaryNodeOrd = function(node)
+    if node.folder ~= nil then
+        return "a" .. node.description
+    end
+
+    return "b" .. creature.GetTokenDescription(node.monster.info)
+end
 
 local IsMonsterNodeSelfOrChildOf
 IsMonsterNodeSelfOrChildOf = function(nodeid, childid)
@@ -487,6 +535,22 @@ local function CharacterDetailsPanel(token)
             end
         end,
 
+        --Same work as dirtyToken, but run now instead of through the
+        --debounce. Everything under here is built holding placeholder
+        --values (zeroed characteristics, blank movement) and only takes
+        --on real numbers when a refreshToken pass runs -- and dirtyToken
+        --always routes that through ScheduleEvent, 0.3s of it when the
+        --token has not changed. For a panel built for a token that is
+        --ALREADY selected that read as a pop from zeroes to the real
+        --stats. Clearing the dirty flag also retires whatever pass is
+        --already queued, so this is one populate, not two.
+        refreshTokenNow = function(element, tok)
+            m_token = tok
+            element.monitorGame = m_token.monitorPath
+            element.data.dirty = false
+            element:FireEventTree("refreshToken", m_token)
+        end,
+
         refreshGame = function(element)
             if m_token ~= nil and m_token.properties ~= nil then
                 element:FireEvent("dirtyToken", m_token, true)
@@ -501,18 +565,22 @@ local function CharacterDetailsPanel(token)
     return resultPanel
 end
 
-local function CreateMonsterEntry(nodeid)
+--startHidden: the creating folder is collapsed, so build the panel already
+--hidden. Starting in the correct state (rather than fixing it up right
+--after creation) matters because the collapsed-anim style animates class
+--CHANGES: create-then-show played an expand animation on every row.
+local function CreateMonsterEntry(nodeid, startHidden)
     local node = assets:GetMonsterNode(nodeid)
     local monster = node.monster.info
 
     local searchActive = false
     local matchesSearch = true
-    local parentCollapsed = false
+    local parentCollapsed = startHidden or false
 
     local resultPanel = nil
 
     resultPanel = gui.Panel({
-        classes = { "monsterEntry" },
+        classes = { cond(startHidden, "collapsed"), "monsterEntry" },
         id = nodeid,
         bgimage = true,
         valign = "top",
@@ -723,9 +791,21 @@ local function CreateMonsterEntry(nodeid)
             nodeid = nodeid, --storing the nodeid with the panel for drag and drop.
             monsterid = nodeid, --makes it so this reports the monster id to GetSelectedMonster()
 
-            search = function(text, matchedParent)
+            search = function(text, matchedParent, budget)
                 searchActive = text ~= ''
                 matchesSearch = matchedParent or text == '' or node:MatchesSearch(text)
+
+                --Each entry a search shows spends from the shared result
+                --budget; entries past the cap hide and flag the search
+                --as truncated.
+                if searchActive and matchesSearch and budget ~= nil then
+                    if budget.remaining > 0 then
+                        budget.remaining = budget.remaining - 1
+                    else
+                        budget.truncated = true
+                        matchesSearch = false
+                    end
+                end
 
                 resultPanel:SetClass('collapsed', (parentCollapsed and not searchActive) or (not matchesSearch))
 
@@ -872,11 +952,11 @@ local function CreateMonsterEntry(nodeid)
     return resultPanel
 end
 
-local CreateBestiaryFolder = function(nodeid)
+local CreateBestiaryFolder = function(nodeid, startHidden)
     local matchesSearch = true
     local searchActive = false
     local isCollapsed = true
-    local parentCollapsed = false
+    local parentCollapsed = startHidden or false
 
     local node = assets:GetMonsterNode(nodeid)
 
@@ -884,26 +964,26 @@ local CreateBestiaryFolder = function(nodeid)
 
     --the root folder gets additional UI, such as a search and ways to add objects.
     local clearSearchButton = nil
+    local searchLimitLabel = nil
     local rootPanel = nil
     if nodeid == '' then
         isCollapsed = false
 
         local updateSearch = function(element)
             clearSearchButton:SetClass("hidden", element.text == "")
-            folderPane.data.search(element.text)
+
+            local budget = { remaining = MaxBestiarySearchResults, truncated = false }
+            folderPane.data.search(element.text, nil, budget)
+
+            searchLimitLabel:SetClass("collapsed", not budget.truncated)
+
             if element.text ~= '' then
-                local ok, ids = pcall(function() return node:GetNodeIdsMatchingSearch(element.text) end)
-                local hasResults = nil
-                local resultCount = nil
-                if ok and type(ids) == 'table' then
-                    resultCount = 0
-                    for _ in pairs(ids) do resultCount = resultCount + 1 end
-                    hasResults = resultCount > 0
-                end
+                local resultCount = MaxBestiarySearchResults - budget.remaining
                 track('search_monsters', {
                     query = element.text,
-                    hasResults = hasResults,
+                    hasResults = resultCount > 0,
                     resultCount = resultCount,
+                    truncated = budget.truncated,
                     deduplicate = 0.5,
                     dailyLimit = 50,
                 })
@@ -935,6 +1015,12 @@ local CreateBestiaryFolder = function(nodeid)
                     updateSearch(searchInput)
                 end,
             }
+        }
+
+        --shown when a search has more matches than the result cap.
+        searchLimitLabel = gui.Label {
+            classes = { "bestiarySearchNote", "collapsed" },
+            text = string.format("Showing the first %d matches.", MaxBestiarySearchResults),
         }
 
         local createBestiaryFolderButton = gui.Button {
@@ -1052,6 +1138,7 @@ local CreateBestiaryFolder = function(nodeid)
                             addBestiaryEntryButton,
                         },
                     },
+                    searchLimitLabel,
                 },
             }
     end
@@ -1176,6 +1263,57 @@ local CreateBestiaryFolder = function(nodeid)
 
     local elements = {}
 
+    --Non-root folders start "virgin": no child panels are built until
+    --the folder is first expanded, or until a search has to show
+    --something inside it. The root folder is always expanded, so it
+    --materializes immediately.
+    local m_materialized = not isCollapsed
+
+    --Assigns the folder's children: header, root UI (if any), then
+    --whichever child panels currently exist, in display order.
+    local AssembleChildren = function(element)
+        local newChildren = { headerPanel, rootPanel }
+
+        local newNodes = {}
+        for _, v in ipairs(node.children) do
+            if not v.hidden and elements[v.id] ~= nil then
+                newNodes[#newNodes + 1] = elements[v.id]
+            end
+        end
+
+        table.sort(newNodes, function(a, b) return a.data.ord() < b.data.ord() end)
+
+        for _, c in ipairs(newNodes) do
+            newChildren[#newChildren + 1] = c
+        end
+
+        element.children = newChildren
+    end
+
+    --Rebuilds child panels from the current asset data. A materialized
+    --folder builds a panel for every child; a virgin folder only keeps
+    --fresh the panels an earlier search already built, pruning ones
+    --whose nodes are gone.
+    local RebuildChildren = function(element)
+        local newElements = {}
+        for _, v in ipairs(node.children) do
+            if not v.hidden then
+                if elements[v.id] ~= nil then
+                    newElements[v.id] = elements[v.id]
+                elseif m_materialized then
+                    newElements[v.id] = CreateBestiaryNode(v, isCollapsed)
+                end
+
+                if newElements[v.id] ~= nil then
+                    newElements[v.id].data.SetDepth(newElements[v.id], element.data.depth + 1)
+                end
+            end
+        end
+
+        elements = newElements
+        AssembleChildren(element)
+    end
+
     folderPane = gui.Panel({
         selfStyle = {
             pivot = { x = 0, y = 1 },
@@ -1187,7 +1325,11 @@ local CreateBestiaryFolder = function(nodeid)
             flow = 'vertical',
         },
 
-        classes = { cond(isCollapsed, "collapsed-anim"), "bestiaryPanel", "ignoreDrag" },
+        --hidden-at-birth is keyed off the PARENT's collapsed state (are we
+        --visible?), not our own isCollapsed (are our children visible?).
+        --Getting this right at construction avoids the collapsed-anim
+        --expand transition playing when the panel first appears.
+        classes = { cond(parentCollapsed, "collapsed-anim"), "bestiaryPanel", "ignoreDrag" },
 
         data = {
             ord = function()
@@ -1231,16 +1373,72 @@ local CreateBestiaryFolder = function(nodeid)
                 --element.selfStyle.height = (BestiaryPanelHeight+4) * numElements
             end,
 
-            search = function(text, matchedParent)
-                local selfMatches = matchedParent or node:MatchesSearch(text)
-                matchesSearch = selfMatches or (nodeid == '') --root node always matches searches.
-                for k, el in pairs(elements) do
-                    if el.data.search(text, selfMatches) then
-                        matchesSearch = true
+            search = function(text, matchedParent, budget)
+                searchActive = text ~= ''
+                budget = budget or { remaining = MaxBestiarySearchResults, truncated = false }
+
+                if not searchActive then
+                    --search cleared: every existing panel returns to its
+                    --normal collapsed-state-driven visibility. Nothing
+                    --new materializes.
+                    matchesSearch = true
+                    for k, el in pairs(elements) do
+                        el.data.search(text, false, budget)
+                    end
+                else
+                    local selfMatches = matchedParent or node:MatchesSearch(text)
+                    matchesSearch = selfMatches or (nodeid == '') --root node always matches searches.
+
+                    --Walk the child NODES (not panels) in display order
+                    --so the result cap keeps the first matches the user
+                    --would see. A child with no panel yet only gets one
+                    --if the search actually has to show it and the cap
+                    --hasn't been hit.
+                    local orderedNodes = {}
+                    for _, v in ipairs(node.children) do
+                        if not v.hidden then
+                            orderedNodes[#orderedNodes + 1] = v
+                        end
+                    end
+                    table.sort(orderedNodes, function(a, b) return BestiaryNodeOrd(a) < BestiaryNodeOrd(b) end)
+
+                    local createdAny = false
+                    for _, v in ipairs(orderedNodes) do
+                        local el = elements[v.id]
+                        if el == nil then
+                            if budget.remaining > 0 then
+                                if selfMatches or NodeSubtreeMatchesSearch(v, text) then
+                                    --created with startHidden so the panel
+                                    --records parentCollapsed correctly: when
+                                    --the search clears it tucks back under
+                                    --its still-collapsed folder.
+                                    el = CreateBestiaryNode(v, isCollapsed)
+                                    elements[v.id] = el
+                                    el.data.SetDepth(el, folderPane.data.depth + 1)
+                                    el:FireEventTree("refreshAssets")
+                                    createdAny = true
+                                end
+                            elseif not budget.truncated then
+                                --out of budget: just work out whether
+                                --matches are being cut off, and only
+                                --until the first one is found.
+                                if selfMatches or NodeSubtreeMatchesSearch(v, text) then
+                                    budget.truncated = true
+                                end
+                            end
+                        end
+
+                        if el ~= nil then
+                            if el.data.search(text, selfMatches, budget) then
+                                matchesSearch = true
+                            end
+                        end
+                    end
+
+                    if createdAny then
+                        AssembleChildren(folderPane)
                     end
                 end
-
-                searchActive = text ~= ''
 
                 folderPane:SetClass('collapsed-anim', (parentCollapsed and not searchActive) or (not matchesSearch))
 
@@ -1372,42 +1570,24 @@ local CreateBestiaryFolder = function(nodeid)
             refreshAssets = function(element)
                 node = assets:GetMonsterNode(nodeid)
 
-
-                local newElements = {}
-                for i, v in ipairs(node.children) do
-                    if not v.hidden then
-                        if elements[v.id] == nil then
-                            newElements[v.id] = CreateBestiaryNode(v)
-                        else
-                            newElements[v.id] = elements[v.id]
-                        end
-
-                        newElements[v.id].data.SetDepth(newElements[v.id], element.data.depth + 1)
-                    end
-                end
-
-                local newChildren = { headerPanel, rootPanel }
-
-                local newNodes = {}
-                for i, v in ipairs(node.children) do
-                    if not v.hidden then
-                        newNodes[#newNodes + 1] = newElements[v.id]
-                    end
-                end
-
-                table.sort(newNodes, function(a, b) return a.data.ord() < b.data.ord() end)
-
-                for _, c in ipairs(newNodes) do
-                    newChildren[#newChildren + 1] = c
-                end
-
-                elements = newElements
-
-                element.children = newChildren
+                RebuildChildren(element)
 
                 element.x = element.data.depth * 10
 
                 element.data.refreshCollapsed(element)
+            end,
+
+            --Fired on first expansion: build the child panels this
+            --folder skipped at construction time. The refreshAssets
+            --pass reaches the panels RebuildChildren creates, so they
+            --initialize in the same pass.
+            expand = function(element)
+                if m_materialized then
+                    return
+                end
+
+                m_materialized = true
+                element:FireEventTree("refreshAssets")
             end,
         },
 
@@ -1420,11 +1600,11 @@ local CreateBestiaryFolder = function(nodeid)
     return folderPane
 end
 
-CreateBestiaryNode = function(node)
+CreateBestiaryNode = function(node, startHidden)
     if node.folder ~= nil then
-        return CreateBestiaryFolder(node.id)
+        return CreateBestiaryFolder(node.id, startHidden)
     else
-        return CreateMonsterEntry(node.id)
+        return CreateMonsterEntry(node.id, startHidden)
     end
 end
 
@@ -2665,11 +2845,28 @@ CreateCharacterPanel = function()
     local tokenPanels = {}
     local singleTokenDetailsPanel = nil
     local bestiaryPanel = nil
-    if dmhub.isDM then
-        bestiaryPanel = CreateBestiaryAndPartyPanel(true) --no actual bestiary
-        bestiaryPanel:FireEventTree("refreshAssets")
-        bestiaryPanel:FireEventTree("refresh")
+
+    --The party list is the expensive half of this panel (an entry per
+    --character in the game) and it is only ever shown when NOTHING is
+    --selected -- refresh collapses it the moment a token is up. Building
+    --it unconditionally meant opening the panel with a token already
+    --selected paid for the whole list and then threw it away, visible as
+    --a flash of the character list before the selected character
+    --appeared. Build it on demand, and up front only when it is what
+    --will actually be displayed.
+    local EnsureBestiaryPanel = function()
+        if bestiaryPanel == nil and dmhub.isDM then
+            bestiaryPanel = CreateBestiaryAndPartyPanel(true) --no actual bestiary
+            bestiaryPanel:FireEventTree("refreshAssets")
+            bestiaryPanel:FireEventTree("refresh")
+        end
+        return bestiaryPanel
     end
+
+    if #dmhub.tokenInfo.selectedOrPrimaryTokens == 0 then
+        EnsureBestiaryPanel()
+    end
+
     local resultPanel
     resultPanel = gui.Panel {
         styles = ThemeEngine.MergeStyles(g_sidebarExtras),
@@ -2677,7 +2874,11 @@ CreateCharacterPanel = function()
         flow = "vertical",
         width = "100%",
         height = "auto",
-        monitorAssets = cond(bestiaryPanel ~= nil, "Monsters"),
+        --keyed off isDM rather than off bestiaryPanel: the list may not
+        --exist yet (it is built lazily) but will still want asset
+        --refreshes once it does, and monitorAssets is fixed at
+        --construction time.
+        monitorAssets = cond(dmhub.isDM, "Monsters"),
         refreshAssets = function(element)
             if bestiaryPanel ~= nil then
                 bestiaryPanel:FireEventTree("refreshAssets")
@@ -2687,6 +2888,7 @@ CreateCharacterPanel = function()
             local hasVisible = false
             local newChildren = {}
             local createdNew = false
+            local createdDetailsPanel = false
             local tokens = dmhub.tokenInfo.selectedOrPrimaryTokens
             if #tokens > 1 then
                 if multiEditPanel == nil then
@@ -2733,6 +2935,7 @@ CreateCharacterPanel = function()
                 if singleTokenDetailsPanel == nil then
                     singleTokenDetailsPanel = CharacterDetailsPanel(tokens[1])
                     createdNew = true
+                    createdDetailsPanel = true
                 end
 
                 singleTokenDetailsPanel:SetClass("collapsed", false)
@@ -2751,6 +2954,12 @@ CreateCharacterPanel = function()
                 newChildren[#newChildren + 1] = singleTokenDetailsPanel
             end
 
+            --only pay for the party list at the point it is about to be
+            --shown. Once built it is kept and just collapsed/uncollapsed.
+            if not hasVisible then
+                EnsureBestiaryPanel()
+            end
+
             if bestiaryPanel ~= nil then
                 bestiaryPanel:SetClass("collapsed", hasVisible)
                 newChildren[#newChildren + 1] = bestiaryPanel
@@ -2760,8 +2969,20 @@ CreateCharacterPanel = function()
             element.children = newChildren
             --end
 
+            --a details panel built during THIS pass is still showing its
+            --placeholder values; fill it in now that it is parented,
+            --rather than letting dirtyToken's debounce do it a beat later
+            --and show the stats popping in. Only on the pass that built
+            --it -- steady-state updates keep the debounce.
+            if createdDetailsPanel and singleTokenDetailsPanel ~= nil and singleTokenDetailsPanel.valid
+               and tokens[1] ~= nil and tokens[1].valid and tokens[1].properties ~= nil then
+                singleTokenDetailsPanel:FireEvent("refreshTokenNow", tokens[1])
+            end
+
         end,
 
+        --may be nil when the panel opens with a token selected: refresh
+        --adds it to the children if and when it gets built.
         bestiaryPanel,
     }
 

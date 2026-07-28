@@ -3960,6 +3960,18 @@ function GameHud.CreateEmbeddedRollDialog()
                     create = function(element)
                         m_diceCagePanel = element
                         element:SetAsDicePreviewPanel(true)
+
+                        --Dice thrown out of this cage roll across the WHOLE screen, like a
+                        --plain /roll, instead of being clamped to a tight box around this
+                        --little panel. The cage still anchors the RESTING preview dice here
+                        --(that is what makes them sit in the dialog and follow it around);
+                        --the per-panel flag only opts the thrown dice out of the tight
+                        --SimUpdate box (DiceHarness.PreviewScreenBoundsFor). Per-panel
+                        --rather than the global dice.SetPreviewRollScreenBounds so it can
+                        --never leak into the shop/dock cages that coexist with this dialog.
+                        --pcall-guarded so a Lua-only reload against an older binary (without
+                        --the field) degrades to the old constrained behaviour.
+                        pcall(function() element.dicePreviewScreenBounds = true end)
                     end,
 
                     --Clear the global dice-preview panel when this dialog is torn down.

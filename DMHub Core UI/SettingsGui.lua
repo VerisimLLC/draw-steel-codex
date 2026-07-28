@@ -246,6 +246,36 @@ local SettingsEditors = {
 
 						element:FireEventOnParents("childsetting", var.id)
 					end,
+
+					--any boolean setting can be keybound to the engine's "toggle <id>"
+					--command, which works globally, not just while this checkbox exists.
+					--Bound settings are listed in the Shortcuts tab (see Keybinds.GetBindings).
+					rightClick = function(element)
+						local command = string.format("toggle %s", var.id)
+						local binding = dmhub.GetCommandBinding(command)
+						local menuText = "Configure Keybind"
+						if binding ~= nil and binding ~= "" then
+							menuText = string.format("Configure Keybind (%s)", binding)
+						end
+						element.popup = gui.ContextMenu{
+							entries = {
+								{
+									text = menuText,
+									click = function()
+										element.popup = Keybinds.ShowBindPopup{
+											command = command,
+											name = var.description or var.id,
+											destroy = function()
+												if element.valid then
+													element.root:FireEventTree("rebuildKeybinds")
+												end
+											end,
+										}
+									end,
+								},
+							},
+						}
+					end,
 				},
 			}
 		}

@@ -2946,6 +2946,12 @@ function CreateSettingsScreen(dialog, args)
 				printf("CREATE KEYBINDS SETTINGS")
 				return { CreateKeybindsSettingsPanel() }
 			end,
+			--fired when a bind is changed from outside this tab (right-clicking a
+			--settings checkbox); the tab builds lazily once, so it must be rebuilt
+			--for the new binding's row to appear.
+			rebuildKeybinds = function(element)
+				element.children = { CreateKeybindsSettingsPanel() }
+			end,
 		}
 		keybindsTab = CreateTab{
 			text = "Shortcuts",

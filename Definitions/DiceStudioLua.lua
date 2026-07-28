@@ -40,6 +40,45 @@
 --- @field infallHaloReach number The infall halo's reach: quad size in multiples of the die's diameter.
 --- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
 --- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
+--- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven.
+--- @field trailShape "petal"|"star4"|"star5"|"spark"|"ember"|"bubble" The trail sprite shape.
+--- @field trailColorA Color First trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
+--- @field trailColorB Color Second trail sprite color.
+--- @field trailRate number Trail sprites emitted per second while the die moves.
+--- @field trailSize number Trail sprite size, as a fraction of the die's diameter.
+--- @field trailSizeVariation number Random variation in trail sprite size: 0 = uniform, 1 = wildly varied.
+--- @field trailLifetime number Seconds a trail sprite lives before fading out (haze puffs live 1.6x this).
+--- @field trailFlutter number Side-to-side petal-fall sway of the trail sprites.
+--- @field trailSpin number How fast trail sprites rotate.
+--- @field trailTwinkle number Per-sprite brightness flicker of the trail.
+--- @field trailGlow number Soft luminous halo around each trail sprite, plus a white-hot HDR core spike on sparks and stars (the sharp camera-flare sparkle look). 0 = crisp flat shapes.
+--- @field trailIntensity number HDR brightness multiplier of the trail sprites (values above 1 glow/bloom).
+--- @field trailHaze number Opacity of the soft fading haze puffs laid under the trail sprites (0 = no haze).
+--- @field trailHazeColor Color Tint of the trail's soft haze puffs.
+--- @field trailHazeSize number Haze puff size, as a multiple of the trail sprite size.
+--- @field trailHueVariation number Per-sprite random hue shift around the born trail color: 0 = exact colors, 1 = full rainbow.
+--- @field trailFall number Downward drift speed of the trail sprites (0 = they hang in the air where dropped).
+--- @field trailSpread number Trail emission radius around the die, in fractions of its diameter.
+--- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). Own shape/colors/rate/size; shares the motion/glow/lifetime sliders.
+--- @field trail2Shape "petal"|"star4"|"star5"|"spark"|"ember"|"bubble" The second trail layer's sprite shape.
+--- @field trail2ColorA Color The second trail layer's first color.
+--- @field trail2ColorB Color The second trail layer's second color.
+--- @field trail2Rate number The second trail layer's sprites emitted per second while the die moves.
+--- @field trail2Size number The second trail layer's sprite size, as a fraction of the die's diameter.
+--- @field trail2SizeVariation number The second trail layer's random size variation: 0 = uniform, 1 = wildly varied.
+--- @field trailHazeRate number Haze puffs emitted per second while the die moves (independent of the sprite rates).
+--- @field trailHazeGrowth number How much each haze puff expands over its life, like dissipating smoke (0 = holds its size).
+--- @field trailHazeWisp number Haze wispiness: 0 = smooth round puffs, 1 = fully ragged swirling smoke tendrils.
+--- @field trailHazeLifetime number Haze puff lifetime, as a multiple of the trail lifetime.
+--- @field trailHazeDrift number How fast the haze drifts away from where it was laid down.
+--- @field constellationEnabled boolean Whether this set's dice form a CONSTELLATION: once every one of them has settled (2+ dice on the table), glowing lines trace between them link by link (a star-chart spanning tree), shimmer while the dice linger, and fade out with the dice.
+--- @field constellationColor Color The constellation lines' color (alpha scales their opacity).
+--- @field constellationWidth number Constellation line thickness, in fractions of the die's diameter.
+--- @field constellationBrightness number HDR brightness multiplier of the constellation lines (values above 1 glow/bloom).
+--- @field constellationDrawTime number Seconds each constellation link takes to trace; links draw one after another.
+--- @field constellationPulse number Shimmer travelling along the constellation lines (0 = steady glow).
+--- @field constellationLoop number How readily the constellation closes its figures with extra links beyond the spanning tree: 0 = pure tree (no loops), 1 = maximally looped, like real star charts closing their polygons.
+--- @field resultLinger number Extra seconds this set's dice linger on the table after a roll before fading (on top of the stock ~3s). Useful for sets whose payoff plays out after landing, e.g. the constellation.
 --- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. See billboardImage/billboardColorInner/billboardColorOuter/billboardSize/billboardFalloff/billboardIntensity for its look. A dice script can also toggle this per-die via die.billboard.
 --- @field billboardImage string The image asset id of an artist-supplied billboard glow image, or an empty string to render the procedural radial gradient instead. In image mode the image is tinted by billboardColorInner and its own alpha is its coverage.
 --- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.

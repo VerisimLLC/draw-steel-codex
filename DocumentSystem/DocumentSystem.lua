@@ -211,9 +211,23 @@ function CustomDocument:PreviewDescription()
     return string.format("Click to view '%s'", self.description)
 end
 
-function CustomDocument:Upload(originalDocument)
+--Upload this document to the cloud. Returns the freshly-generated updateid
+--synchronously; that is NOT a confirmation the write landed. To be notified when
+--the async cloud write actually succeeds or fails, pass options.success /
+--options.failure -- these are threaded straight through to SetAndUploadTableItem.
+--originalDocument stays the first positional arg so all existing callers (which
+--pass a delta base or nothing) are unaffected; callers wanting only callbacks
+--pass nil as originalDocument: doc:Upload(nil, {success=..., failure=...}).
+--@param originalDocument nil|CustomDocument delta base; nil uploads the full item
+--@param options nil|{ success: (fun():nil), failure: (fun(message: string): nil) }
+function CustomDocument:Upload(originalDocument, options)
     self.updateid = dmhub.GenerateGuid()
-    dmhub.SetAndUploadTableItem(self.tableName, self, {delta = originalDocument ~= nil, deltaFrom = originalDocument})
+    local uploadOptions = {delta = originalDocument ~= nil, deltaFrom = originalDocument}
+    if options ~= nil then
+        uploadOptions.success = options.success
+        uploadOptions.failure = options.failure
+    end
+    dmhub.SetAndUploadTableItem(self.tableName, self, uploadOptions)
     return self.updateid
 end
 
@@ -4161,6 +4175,27 @@ function PanelDocument:CreateInterface(args)
         --old approach) overrides flow positioning row by row and
         --scrambles layouts like the journal tree's folder headers.
         content.selfStyle.halign = "left"
+
+        --panels that follow map selection (Character, Triggers) fill
+        --themselves in from the hud-wide 'refresh' event, which the
+        --engine only fires when something CHANGES (SheetHud marks it
+        --dirty on selection/initiative changes). A panel mounted after
+        --the fact therefore starts empty and stays that way until the
+        --next change -- which is why opening the Character panel with a
+        --token already selected showed nothing until you reselected it.
+        --Prime it once as soon as it is parented: 'create' fires from
+        --Start(), so the content is live and its parents are reachable
+        --(refresh handlers that talk to the host, e.g. FireEventOnParents
+        --for the window title, need that).
+        --
+        --This runs inline, NOT deferred a tick: deferring only moves the
+        --cost one frame and makes the panel visibly build the wrong
+        --thing first (the full character list) and then swap to the
+        --selection. The build itself is what needs to be cheap.
+        local primeRefresh = function(element)
+            element:FireEventTree("refresh")
+        end
+
         if reg.vscroll ~= false then
             local hideObjectsOutOfScroll = reg.hideObjectsOutOfScroll
             if hideObjectsOutOfScroll == nil then
@@ -4173,6 +4208,7 @@ function PanelDocument:CreateInterface(args)
                 pad = 2,
                 vscroll = true,
                 hideObjectsOutOfScroll = hideObjectsOutOfScroll,
+                create = primeRefresh,
                 children = {
                     content,
                 },
@@ -4182,6 +4218,7 @@ function PanelDocument:CreateInterface(args)
             idprefix = "panelDocumentNoScrollParent",
             width = "100%",
             height = "100%",
+            create = primeRefresh,
             children = {
                 content,
             },
@@ -5764,6 +5801,71 @@ if rawget(_G, "RegisterDockablePanelClosedHandler") ~= nil then
     end)
 end
 
+--The "/" hotkey (ChatPanel.cs fires a "slash" chat event when the key is
+--pressed with no UI element focused) exists to focus the chat input and
+--start typing a command. It only ever reached a chat panel that was
+--already built, which in rail mode is usually none at all: the docks are
+--slid off screen and chat is summoned as a window. So "/" did nothing.
+--
+--Here the rail treats "/" as "open chat and start typing": summon the
+--chat window exactly as its rail button would, then hand the keystroke on
+--to the input that was just built by firing the same "slash" event into
+--it. When a chat panel IS on screen already -- its own rail window, a tab
+--in another window, or a dock that is not slid away -- this does nothing
+--and that panel's own slash handler keeps the focus, as before.
+local function RailSlashOpensChat()
+    local doc = PanelDocument.Get("Chat")
+    if doc == nil then
+        return
+    end
+
+    --already visible as a rail window or as a tab in one.
+    if PanelDocument.IsPanelShown("chat") then
+        return
+    end
+
+    --...or sitting in a dock. Only a dock that is on screen counts: the
+    --whole point of this is that the offscreen copy cannot be typed into.
+    local reg = DockablePanel.GetRegistration("Chat")
+    if reg ~= nil and reg.identifier ~= nil then
+        local instance = DockablePanel.FindInstance(reg.identifier)
+        if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil then
+            return
+        end
+    end
+
+    --the same summon the rail button performs: one transient window at a
+    --time, anchored beside the chat icon on whichever rail carries it.
+    if g_railTransientKey ~= nil and g_railTransientKey ~= "chat" then
+        local prev = RailPanelDocument(g_railTransientKey)
+        if prev ~= nil then
+            prev:ClosePanel()
+        end
+    end
+    g_railTransientKey = "chat"
+
+    --nil placement is fine: the chat button may have been taken off the
+    --rail entirely, in which case PresentDocument uses the remembered spot.
+    local placement = nil
+    local sides = RailLayout()
+    for railSide, list in pairs(sides) do
+        for _, e in ipairs(list) do
+            if e.key == "chat" then
+                local anchorX, anchorY = RailAnchor(railSide, e.slot)
+                placement = { x = anchorX, y = anchorY }
+            end
+        end
+    end
+
+    OpenIconRailWindow("Chat", placement)
+    RefreshRails()
+
+    local dialog = doc:try_get("_tmp_dialog")
+    if dialog ~= nil and dialog.valid then
+        dialog:FireEventTree("slash")
+    end
+end
+
 local function CreateIconRail(side, entries)
     local buttons = {}
 
@@ -6442,6 +6544,13 @@ local function CreateIconRail(side, entries)
             element:FireEvent("syncDockMode")
         end,
 
+        --"/" with nothing focused: summon chat and start typing. Only the
+        --left rail is registered as a chat listener (see BuildIconRails) so
+        --this runs once, whichever rail the chat button lives on.
+        slash = function(element)
+            RailSlashOpensChat()
+        end,
+
         --self-heal: track windows closed by any path and keep the active
         --states honest. Panels survive a Lua reload while their module
         --state does not, so a rail from an unloaded generation destroys
@@ -6495,6 +6604,14 @@ local function BuildIconRails()
         local rail = CreateIconRail(side, sides[side])
         g_iconRails[side] = rail
         layer:AddChild(rail)
+    end
+
+    --One chat listener for both rails, so the "/" hotkey opens one window.
+    --The rail ROOT is the listener on purpose: while its own dock is on
+    --screen the rail collapses its children (and collapsed panels process
+    --no events), but the root itself stays live.
+    if g_iconRails.left ~= nil then
+        chat.events:Listen(g_iconRails.left)
     end
 end
 

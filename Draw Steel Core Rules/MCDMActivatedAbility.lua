@@ -584,6 +584,64 @@ function ActivatedAbility.TabBGImage()
     return "drawsteel/power_roll_tab.png"
 end
 
+--How far the scrolling ability card's clip rect is allowed to bleed past the
+--card's LEFT edge. The card and the embedded roll dialog hang decorative
+--bookmark "tabs" off that edge as floating panels at negative x (-26 on the
+--card's own gold tab, -39 on the roll dialog's Roll Dice / Results tabs, -46 on
+--the Effect tab), so they live entirely outside the card's rect. A scrolling
+--panel is a Unity stencil mask that erases everything drawn outside its own
+--rect, so without this bleed every one of those tabs vanishes the moment the
+--card becomes scrollable. Worst case reach is about -46 + the body's left
+--inset; 60 clears it with room to spare.
+local g_abilityScrollBleedLeft = 60
+
+--Wrap the ability card's body in the panel that actually scrolls, when (and
+--only when) a caller supplied a maxHeight. Kept separate from the body so the
+--clip rect can be WIDER than the body: the frame overhangs to the left by
+--g_abilityScrollBleedLeft and is right-aligned to the card, while the body
+--inside keeps the card's true bounds. That way the tabs fall inside the mask
+--but nothing else shifts. Returns the body unchanged when not scrolling, so
+--the non-scrolling tooltip path keeps its original single-panel shape.
+local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
+    if maxHeight == nil then
+        return bodyPanel
+    end
+
+    return gui.Panel {
+        id = "abilityScrollFrame",
+        flow = "vertical",
+        width = string.format("100%%+%d", g_abilityScrollBleedLeft),
+        height = "auto",
+        halign = "right",
+        valign = "top",
+
+        --Present-but-invisible graphic: this panel is the scroller now, and the
+        --wheel only reaches a panel that is a raycast target.
+        bgimage = true,
+        bgcolor = "clear",
+
+        maxHeight = maxHeight,
+        vscroll = true,
+
+        --Hosts make the whole card non-interactive so the map behind it stays
+        --clickable, but a non-interactive scroll body lets the wheel through to
+        --the map as well: scrolling a long ability also zooms the map. Claim the
+        --wheel back, but only once we know the body really did overflow -- an
+        --ability that fits must stay click-through exactly as before.
+        --renderedHeight is not known until a frame has been laid out, hence the
+        --deferred check.
+        create = function(element)
+            element:ScheduleEvent("checkScrollOverflow", 0.05)
+        end,
+
+        checkScrollOverflow = function(element)
+            element.interactable = (element.renderedHeight or 0) >= maxHeight - 1
+        end,
+
+        bodyPanel,
+    }
+end
+
 function ActivatedAbility:Render(options, params)
     params = params or {}
     options = options or {}
@@ -1576,21 +1634,37 @@ function ActivatedAbility:Render(options, params)
         vpad = 0,
 
 
-        --King panel for inside info
-        gui.Panel {
+        --King panel for inside info.
+        --A caller that knows how much room the card actually has (the ability
+        --sidebar, which is bounded by the screen) passes maxHeight; the body
+        --then scrolls instead of growing off the top and bottom of the screen.
+        --The scrolling/clipping is done by the frame wrapped around this panel,
+        --NOT by this panel -- see WrapAbilityBodyInScrollFrame for why the clip
+        --rect has to be wider than the body.
+        WrapAbilityBodyInScrollFrame(paramMaxHeight, gui.Panel {
 
             id = "headerPanel",
             flow = "vertical",
             valign = "top",
-            width = "90%",
+
+            --In scroll mode this body sits inside that wider frame and must
+            --occupy exactly the card's own bounds: full card width (which is
+            --also what stops the fixed-340-wide embedded roll dialog from being
+            --cropped -- the old 90% was narrower than the dialog), right-aligned
+            --so every bit of the frame's extra width bleeds off to the LEFT
+            --where the tabs live. The 20px lmargin becomes hpad, which keeps the
+            --text where it was and also insets it clear of the scrollbar drawn
+            --at the frame's right edge. borderBox because this framework has no
+            --per-side padding and bare hpad is additive to the width.
+            width = cond(paramMaxHeight ~= nil, string.format("100%%-%d", g_abilityScrollBleedLeft), "90%"),
+            halign = cond(paramMaxHeight ~= nil, "right", nil),
             height = "auto",
             bgimage = true,
             bgcolor = "clear",
             tmargin = 15,
-            lmargin = 20,
-
-            maxHeight = paramMaxHeight,
-            vscroll = cond(paramMaxHeight ~= nil, true, false),
+            lmargin = cond(paramMaxHeight ~= nil, 0, 20),
+            hpad = cond(paramMaxHeight ~= nil, 20, 0),
+            borderBox = cond(paramMaxHeight ~= nil, true, false),
 
             --titel and ability and icon type king panel
             gui.Panel {
@@ -1952,7 +2026,7 @@ function ActivatedAbility:Render(options, params)
 
 
                 gui.Panel {
-                    width = "auto",
+                    width = "100%",
                     height = "auto",
                     flow = "horizontal",
                     halign = "left",
@@ -1961,9 +2035,10 @@ function ActivatedAbility:Render(options, params)
                         text = "x",
                         fontFace = "DrawSteelGlyphs",
                         fontSize = 20,
-                        width = "auto",
+                        width = 24,
+                        height = "auto",
                         halign = "right",
-                        valign = "center",
+                        valign = "top",
                         lmargin = 5,
 
                     },
@@ -1974,11 +2049,12 @@ function ActivatedAbility:Render(options, params)
                         fontSize = 18,
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "auto",
-                        halign = "right",
+                        width = "100%-33",
+                        halign = "left",
                         lmargin = 4,
-                        valign = "center",
+                        valign = "top",
                         markdown = true,
+                        textWrap = true,
                         height = "auto",
                     },
 
@@ -2295,7 +2371,7 @@ function ActivatedAbility:Render(options, params)
 
 
             },
-        },
+        }),
 
         --[[gui.Label{
             smallcaps = true,

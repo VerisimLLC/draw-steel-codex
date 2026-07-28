@@ -759,7 +759,10 @@ end
 -- Shape: doc.data = { enabled = bool, modes = { <modeid> = <playlistid> } }.
 -- WRITE-ONLY-ON-EXPLICIT-DM-ACTION: there is NO seed and no normalize-on-load, so
 -- an empty read is always safe (default "nothing bound") and the seed-on-empty PUT
--- trap cannot occur. Writes are still gated on gameLoadingProgress >= 1.
+-- trap cannot occur. Every write below is a DM click in a panel that cannot even be
+-- opened while the game is loading, so they carry NO load gate -- see the note on the
+-- dropdown handler for why gating them on dmhub.gameLoadingProgress broke saving
+-- outright (report 6UMTQEEE).
 local audioPlaylistBindingsDocId = "audioPlaylistBindings"
 mod:RegisterDocumentForCheckpointBackups(audioPlaylistBindingsDocId)
 
@@ -9895,8 +9898,16 @@ local function CreateGameModeMusicBody()
 					valign = "center",
 					options = SortedPlaylistOptions(),
 					idChosen = (bindings.modes or {})[modeid] or "none",
+					--NO load gate here. This used to early-out on
+					--dmhub.gameLoadingProgress < 1, which silently dropped every
+					--binding the DM set (report 6UMTQEEE). gameLoadingProgress is not
+					--a state flag: it is a smoothed value that only advances 10% per
+					--READ (GameController.loadingProgress), and the only thing that
+					--reads it is the loading screen's think. That screen is destroyed
+					--~0.4s after the Complete milestone -- often before the value has
+					--had the ~21 reads it needs to cross the 0.99 clamp -- after which
+					--nothing reads it again and it sits below 1 for the whole session.
 					change = function(element)
-						if (dmhub.gameLoadingProgress or 0) < 1 then return end
 						local doc = GetBindingsDoc()
 						doc:BeginChange()
 						if doc.data.modes == nil then
@@ -9938,8 +9949,8 @@ local function CreateGameModeMusicBody()
 		gui.Check{
 			text = "Change music with the game mode",
 			value = bindings.enabled == true,
+			--No load gate -- same reasoning as the mode dropdowns above.
 			change = function(element)
-				if (dmhub.gameLoadingProgress or 0) < 1 then return end
 				local doc = GetBindingsDoc()
 				doc:BeginChange()
 				doc.data.enabled = element.value

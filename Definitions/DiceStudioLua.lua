@@ -36,7 +36,7 @@
 --- @field mapWarpSwirl number Rotational drag of the landing warp (radians at the centre at peak) -- the map swirls around the die like an accretion disc as it is pulled in. 0 = straight radial pull.
 --- @field mapWarpDuration number How long the landing warp lasts, in seconds, from the initial yank to fully relaxed.
 --- @field mapWarpFlip boolean Reverses the landing warp's direction: the map is shoved outward from the die (mirrored swirl included) instead of sucked into it.
---- @field infallHaloEnabled boolean Whether each die carries an "infall halo": the Event Horizon surface material's infalling-light filaments continued past the die's silhouette on a quad behind it, so light streams into the die from the space around it. The filament look mirrors the set's surface material Infall settings automatically.
+--- @field infallHaloEnabled boolean Whether each die carries an 'infall halo': the Event Horizon surface material's infalling-light filaments continued past the die's silhouette on a quad behind it, so light streams into the die from the space around it. The filament look (color/speed/twist/softness/reach) mirrors the set's surface material Infall settings automatically. See infallHaloReach/infallHaloBrightness.
 --- @field infallHaloReach number The infall halo's reach: quad size in multiples of the die's diameter.
 --- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
 --- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
@@ -45,7 +45,7 @@
 --- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.
 --- @field billboardColorOuter Color The billboard gradient's outer/edge color (HDR). Only used in gradient mode (no image set).
 --- @field billboardSize number The billboard quad's size as a fraction of the die's bounding-box size (1 == die-sized). 0 == effectively off.
---- @field billboardStretch number Horizontal-only stretch of the billboard quad (1 = square). Values above 1 stretch the quad sideways without growing it vertically -- for image billboards that read as a beam, e.g. a lensing streak reaching out past the die's sides.
+--- @field billboardStretch number Horizontal-only stretch of the billboard quad (1 = square, matching billboardSize in both axes). Values above 1 stretch the quad sideways without growing it vertically -- for image billboards that read as a beam, e.g. a lensing streak reaching out past the die's sides.
 --- @field billboardFalloff number The billboard gradient's falloff exponent (higher = tighter, more concentrated core). Only used in gradient mode.
 --- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
 --- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.

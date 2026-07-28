@@ -1022,6 +1022,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 										dmhub.AddObjectFolder()
 									end,
 								},
+                                --[[
 								gui.Button{
 									classes = {"sizeM"},
 									id = "ImportMapObjectButton",
@@ -1031,6 +1032,7 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 										mod.shared.ImportMap{ imagesOnly = true }
 									end,
 								},
+                                ]]--
 								gui.Button{
 									classes = {"addButton", "sizeM"},
 									valign = "center",

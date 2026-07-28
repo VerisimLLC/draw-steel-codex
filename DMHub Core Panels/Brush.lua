@@ -812,6 +812,11 @@ mod.shared.BrushEditorPanel = function(settingid)
 	return resultPanel
 end
 
+--Cross-module export. mod.shared is per-module, so a module other than this
+--one (the Map Markup panel's Elevation mode) cannot reach the strip above.
+--Same pattern as Compendium.InventoryEditor in ItemCompendium.lua.
+BrushEditorPanel = mod.shared.BrushEditorPanel
+
 
 --a full brush editor dialog.
 mod.shared.ShowBrushEditor = function(brushid, startingValues)

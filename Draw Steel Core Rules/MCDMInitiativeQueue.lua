@@ -367,6 +367,15 @@ function InitiativeQueue.NextTurn(self, initiativeid)
         })
 
         InitiativeQueue.SetTurnTaken(self, entry)
+
+        --Per-encounter monster-group stat: this group completed a real turn.
+        --Runs once here (on the client that ends the turn) for non-player
+        --entries only; the "Set Has Moved" skip path calls SetTurnTaken
+        --directly and so deliberately records nothing, which is what lets the
+        --victory screen detect groups that died before ever acting.
+        if self:IsEntryPlayer(initiativeid) == false then
+            LiveEncounter.TrackMonsterGroupTurn(initiativeid)
+        end
 	end
 
 	self.currentTurn = false

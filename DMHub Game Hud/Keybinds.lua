@@ -40,6 +40,12 @@ Keybinds.RegisterSection{
     name = tr("System"),
 }
 
+Keybinds.RegisterSection{
+    key = "settings",
+    name = tr("Settings"),
+    hideUnlessBound = true,
+}
+
 
 
 Keybinds.binds = {}
@@ -80,6 +86,19 @@ function Keybinds.GetBindings()
                 command = string.format("togglepanel %s", lcname),
                 name = name,
                 section = "interface",
+            }
+        end
+    end
+
+    --any boolean setting can be bound to the engine's "toggle <id>" command by
+    --right-clicking its checkbox in the settings dialog. The section is
+    --hideUnlessBound, so only settings the user has actually bound are listed.
+    for id,info in pairs(Settings) do
+        if info.editor == "check" and result[string.format("toggle %s", id)] == nil then
+            result[#result+1] = {
+                command = string.format("toggle %s", id),
+                name = info.description or id,
+                section = "settings",
             }
         end
     end

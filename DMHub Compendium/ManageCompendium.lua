@@ -630,6 +630,8 @@ local function GetDataSources(dependenciesList)
 			version = m.loadedVersion,
 			latest = m.latestVersion or "?",
 			ismodule = true,
+			deprecated = m.deprecated,
+			deprecationMessage = m.deprecationMessage,
 			indent = indent,
 		}
 	end
@@ -690,6 +692,9 @@ local CreateSourcesPanel = function(options)
 			if source.version ~= nil then
 				name = string.format("%s (ver %s/%s)", name, source.version, source.latest)
 			end
+			if source.deprecated then
+				name = string.format("%s [DEPRECATED]", name)
+			end
 			dataSourceRows[#dataSourceRows+1] = gui.Label{
 				classes = {"row"},
 				width = 300,
@@ -738,8 +743,20 @@ local CreateSourcesPanel = function(options)
 					sourcesPanel:FireEvent("change", items)
 				end,
 
+				hover = function(element)
+					if source.deprecated then
+						gui.Tooltip(source.deprecationMessage)(element)
+					end
+				end,
+
 				rightClick = function(element)
 					if not source.ismodule then
+						return
+					end
+
+					--a deprecated module is force-disabled everywhere and cannot
+					--be turned back on.
+					if source.deprecated then
 						return
 					end
 

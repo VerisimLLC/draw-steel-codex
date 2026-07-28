@@ -660,6 +660,11 @@ LiveEncounter.bossBarVisible = false
 -- (Draw Steel UI/DSVictoryScreen.lua) is shown. Cleared when combat ends.
 LiveEncounter.victoryAwarded = false
 
+-- Set true when the director presses "Declare Defeat". The defeat counterpart of
+-- victoryAwarded: the same full-screen outcome screen takes over on every client,
+-- titled DEFEAT and opening on its Monsters tab. Cleared when combat ends.
+LiveEncounter.defeatAwarded = false
+
 -- Set true when the director presses "Award" on the victory screen to grant each hero
 -- this encounter's Victories. Networked (rides in the queue) so every client plays the
 -- victory-icon drop animation and shows each hero's "Victories: old -> new" change.
@@ -670,6 +675,15 @@ LiveEncounter.victoriesAwarded = false
 -- hero had available when combat began. Populated by RecordOnsetHeroes. Stored as a
 -- dense list (not a sparse map) so it survives network serialization unchanged.
 LiveEncounter.onsetHeroes = nil
+
+-- A snapshot of the monster-side initiative groupings, used by the victory screen's
+-- Monsters tab and by monster stat attribution. A dense list of
+-- { groupid, statKey, name, memberids }, where groupid is the group's initiative id
+-- (see InitiativeQueue.GetInitiativeId), statKey is its path-safe form used to key
+-- monsterStats, and memberids are the member tokenids seen when the group entered
+-- combat. Populated by RecordOnsetMonsterGroups at combat start and topped up when
+-- reinforcements join (Commands.rollinitiative additions, DeployWave).
+LiveEncounter.onsetMonsterGroups = nil
 
 -- Construct a LiveEncounter from an authored Encounter. The result is a deep copy
 -- of the encounter's data, re-typed as a LiveEncounter: its typeName, metatable,
@@ -751,6 +765,182 @@ end
 -- The onset hero snapshot (see RecordOnsetHeroes); always a list.
 function LiveEncounter:GetOnsetHeroes()
     return self:try_get("onsetHeroes") or {}
+end
+
+-- Stat ids and the path segments fed to dmhub:IncrementInitiativeData must be
+-- path-safe (^[a-zA-Z0-9_\-.:]+$ -- see STATS_TRACKING.md). Initiative group ids
+-- can contain spaces (e.g. "MONSTER-Goblin Warrior"), so monsterStats is keyed by
+-- this sanitized form of the group id. Deterministic, so attribution and display
+-- always agree on the key.
+local function SanitizeStatKey(id)
+    --capture gsub's first return only, so callers can use this in argument lists
+    --without gsub's count leaking as an extra value.
+    local result = string.gsub(tostring(id), "[^%w_%-%.:]", "_")
+    return result
+end
+
+-- Record (or top up) the monster-side initiative groupings entering combat.
+-- tokenids is a list of monster tokenids being added to initiative; each token's
+-- current initiative id defines its grouping (a minion squad plus its captain, or
+-- several monsters deliberately grouped, share one id and so form one group).
+-- Upserts into onsetMonsterGroups: new groups are appended (preserving the order
+-- they entered combat), new members join their existing group, and nothing is ever
+-- removed -- so reinforcements arriving mid-fight extend the snapshot rather than
+-- rewriting it. Callers must network the change afterwards (the live encounter
+-- rides inside the queue). Never throws.
+function LiveEncounter:RecordOnsetMonsterGroups(tokenids)
+    local ok, err = pcall(function()
+        local groups = {}
+        local index = {}
+        for _, g in ipairs(self:GetOnsetMonsterGroups()) do
+            groups[#groups+1] = g
+            index[g.groupid] = g
+        end
+
+        for _, tokenid in ipairs(tokenids or {}) do
+            local token = dmhub.GetTokenById(tokenid)
+            if token ~= nil and token.properties ~= nil and not token.properties:IsHero() then
+                local groupid = InitiativeQueue.GetInitiativeId(token)
+                if groupid ~= nil then
+                    local g = index[groupid]
+                    if g == nil then
+                        g = {
+                            groupid = groupid,
+                            statKey = SanitizeStatKey(groupid),
+                            name = token.description,
+                            memberids = {},
+                        }
+                        groups[#groups+1] = g
+                        index[groupid] = g
+                    end
+                    local present = false
+                    for _, mid in ipairs(g.memberids) do
+                        if mid == tokenid then
+                            present = true
+                            break
+                        end
+                    end
+                    if not present then
+                        g.memberids[#g.memberids+1] = tokenid
+                    end
+                end
+            end
+        end
+
+        self.onsetMonsterGroups = groups
+    end)
+
+    if not ok then
+        dmhub.Debug(string.format("LiveEncounter.RecordOnsetMonsterGroups: failed: %s", tostring(err)))
+    end
+end
+
+-- The onset monster-group snapshot (see RecordOnsetMonsterGroups); always a list.
+function LiveEncounter:GetOnsetMonsterGroups()
+    return self:try_get("onsetMonsterGroups") or {}
+end
+
+-- The monster groupings to display for this encounter: the onset snapshot (in the
+-- order the groups entered combat) merged with any non-player initiative entries
+-- that were never snapshotted (e.g. monsters added to initiative through a path
+-- that predates the snapshot). Each result entry is:
+--   {
+--     groupid,      -- the initiative id
+--     statKey,      -- key into monsterStats (sanitized groupid)
+--     name,         -- display name for the group
+--     tokens,       -- member tokens (live members union onset members), heroes excluded
+--     memberCount,  -- #tokens
+--     aliveCount, deadCount, allDead,
+--     primaryToken, -- the token to show as the group's portrait (captain preferred)
+--   }
+-- Groups with no resolvable members are skipped. Returns a freshly-built list.
+function LiveEncounter:GetMonsterGroups()
+    local q = dmhub.initiativeQueue
+    local result = {}
+    local seenGroups = {}
+
+    local function AddGroup(groupid, name, memberids)
+        if seenGroups[groupid] then
+            return
+        end
+        seenGroups[groupid] = true
+
+        --live members first, then any onset members that are no longer resolved
+        --to this group (regrouped/removed tokens), deduped by charid.
+        local tokens = {}
+        local seenTokens = {}
+        for _, tok in ipairs(InitiativeQueue.GetTokensForInitiativeId(groupid) or {}) do
+            if tok ~= nil and tok.properties ~= nil and not seenTokens[tok.charid] and not tok.properties:IsHero() then
+                seenTokens[tok.charid] = true
+                tokens[#tokens+1] = tok
+            end
+        end
+        for _, mid in ipairs(memberids or {}) do
+            if not seenTokens[mid] then
+                local tok = dmhub.GetTokenById(mid)
+                if tok ~= nil and tok.valid and tok.properties ~= nil and not tok.properties:IsHero() then
+                    seenTokens[mid] = true
+                    tokens[#tokens+1] = tok
+                end
+            end
+        end
+
+        if #tokens == 0 then
+            return
+        end
+
+        local aliveCount = 0
+        local primaryToken = nil
+        for _, tok in ipairs(tokens) do
+            if not tok.properties:IsDead() then
+                aliveCount = aliveCount + 1
+            end
+            --prefer a non-minion member (a squad's captain) as the face of the group.
+            if primaryToken == nil and not tok.properties:try_get("minion", false) then
+                primaryToken = tok
+            end
+        end
+        if primaryToken == nil then
+            primaryToken = tokens[1]
+        end
+
+        local displayName = name
+        if displayName == nil or displayName == "" then
+            local entry = q ~= nil and q.entries[groupid] or nil
+            if entry ~= nil and entry:has_key("description") then
+                displayName = entry.description
+            end
+        end
+        if displayName == nil or displayName == "" then
+            displayName = primaryToken.description or "Monsters"
+        end
+
+        result[#result+1] = {
+            groupid = groupid,
+            statKey = SanitizeStatKey(groupid),
+            name = displayName,
+            tokens = tokens,
+            memberCount = #tokens,
+            aliveCount = aliveCount,
+            deadCount = #tokens - aliveCount,
+            allDead = aliveCount == 0,
+            primaryToken = primaryToken,
+        }
+    end
+
+    for _, g in ipairs(self:GetOnsetMonsterGroups()) do
+        AddGroup(g.groupid, g.name, g.memberids)
+    end
+
+    if q ~= nil then
+        for initiativeid, _ in pairs(q.entries) do
+            if not seenGroups[initiativeid] and q:IsEntryPlayer(initiativeid) == false then
+                AddGroup(initiativeid, nil, nil)
+            end
+        end
+    end
+
+    return result
 end
 
 -- The hero tokens currently in the battle (every IsHero entry in the initiative queue,
@@ -847,6 +1037,34 @@ function LiveEncounter:GetStatsForTokenInRound(tokenid, round)
     return self:GetStatsForTokenByRound(tokenid)[string.format("round%d", round)] or {}
 end
 
+-- The per-monster-group statistics table for this encounter, keyed by statKey
+-- (the sanitized initiative group id -- see GetMonsterGroups). Same shape as the
+-- hero stats table: each group's sub-table is keyed by round ("round1", ...),
+-- each round bucket maps statid -> running total. Always a table; read-only.
+function LiveEncounter:GetMonsterStats()
+    return self:try_get("monsterStats") or {}
+end
+
+-- The whole-combat statistics for a single monster group (a map of statid ->
+-- total summed across rounds, nested sub-tables deep-merged), or an empty table.
+-- statKey is the group's sanitized id from GetMonsterGroups. Freshly built --
+-- safe for callers to keep.
+function LiveEncounter:GetStatsForMonsterGroup(statKey)
+    local result = {}
+    for _, roundStats in pairs(self:GetMonsterStats()[statKey] or {}) do
+        if type(roundStats) == "table" then
+            SumStatsTables(result, roundStats)
+        end
+    end
+    return result
+end
+
+-- The per-round statistics recorded for a single monster group: a map of
+-- "round<N>" -> { statid = total }, or an empty table. Read-only view.
+function LiveEncounter:GetStatsForMonsterGroupByRound(statKey)
+    return self:GetMonsterStats()[statKey] or {}
+end
+
 -- Resolve the hero a stat should be attributed to. `tokenid` is the token that
 -- triggered the stat (e.g. the token that landed a kill or dealt damage).
 --
@@ -860,16 +1078,18 @@ end
 -- the current encounter -- anything else (a monster, a monster's summon, or a hero
 -- not in this combat) is rejected and the caller drops the stat. Returns the hero
 -- token, or nil.
-function LiveEncounter:ResolveStatHero(tokenid)
+--Walk a token's summon chain (falling back to retainer mentor links) up to its
+--root owner. Guard against cycles with a visited set and against runaway chains
+--with a hard cap. Returns the root token (which may be the token itself), or nil.
+--Shared by ResolveStatHero and ResolveStatMonsterGroup so a summon's stats always
+--land on whoever summoned it, hero or monster.
+local function ResolveStatRootToken(tokenid)
     if tokenid == nil then
         return nil
     end
 
     local token = dmhub.GetTokenById(tokenid)
 
-    --walk up the summon chain (falling back to retainer mentor links) to the
-    --root owner. Guard against cycles with a visited set and against runaway
-    --chains with a hard cap.
     local seen = {}
     local guard = 0
     while token ~= nil and token.valid and not seen[token.charid] and guard < 16 do
@@ -897,7 +1117,16 @@ function LiveEncounter:ResolveStatHero(tokenid)
         token = nextToken
     end
 
-    if token == nil or not token.valid or token.properties == nil or not token.properties:IsHero() then
+    if token == nil or not token.valid then
+        return nil
+    end
+    return token
+end
+
+function LiveEncounter:ResolveStatHero(tokenid)
+    local token = ResolveStatRootToken(tokenid)
+
+    if token == nil or token.properties == nil or not token.properties:IsHero() then
         return nil
     end
 
@@ -907,6 +1136,39 @@ function LiveEncounter:ResolveStatHero(tokenid)
     for _, heroToken in ipairs(self:GetBattleHeroTokens()) do
         if heroToken.charid == token.charid then
             return token
+        end
+    end
+
+    return nil
+end
+
+-- Resolve the monster initiative grouping a stat should be attributed to, for a
+-- token that did NOT resolve to a hero. Follows the same summon-chain walk as
+-- ResolveStatHero (a monster's summon credits the summoning monster's group). The
+-- root must be a non-hero whose initiative id is a group participating in the
+-- current combat -- either it has a live initiative entry, or it appears in the
+-- onset snapshot (a group whose entry the director removed mid-fight still
+-- accumulates). Returns the group's initiative id, or nil to drop the stat.
+function LiveEncounter:ResolveStatMonsterGroup(tokenid)
+    local token = ResolveStatRootToken(tokenid)
+
+    if token == nil or token.properties == nil or token.properties:IsHero() then
+        return nil
+    end
+
+    local groupid = InitiativeQueue.GetInitiativeId(token)
+    if groupid == nil then
+        return nil
+    end
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.entries[groupid] ~= nil then
+        return groupid
+    end
+
+    for _, g in ipairs(self:GetOnsetMonsterGroups()) do
+        if g.groupid == groupid then
+            return groupid
         end
     end
 
@@ -923,12 +1185,14 @@ end
 --   encounter:IncrementStat(token.charid, "kills")                       -- +1 kill
 --   encounter:IncrementStat(token.charid, "monsterDamage/"..monsterid, 8) -- +8 damage
 --
--- The stat is only recorded for a valid hero (type "character") in the current
--- combat; summons of a hero attribute to their summoner, and any other token is
--- ignored (see ResolveStatHero). The actual add is routed through the server's
--- atomic increment (dmhub:IncrementInitiativeData), so concurrent writers from
--- multiple clients can't lose updates, and the resolved value rides back through
--- the normal initiative-queue broadcast.
+-- The stat is recorded for a valid hero (type "character") in the current combat
+-- (under stats/<tokenid>), or -- failing that -- for the acting token's monster
+-- initiative grouping (under monsterStats/<groupKey>); summons attribute to their
+-- summoner on both sides, and anything that resolves to neither is ignored (see
+-- ResolveStatHero / ResolveStatMonsterGroup). The actual add is routed through the
+-- server's atomic increment (dmhub:IncrementInitiativeData), so concurrent writers
+-- from multiple clients can't lose updates, and the resolved value rides back
+-- through the normal initiative-queue broadcast.
 function LiveEncounter:IncrementStat(tokenid, statid, quantity)
     if statid == nil or statid == "" then
         return
@@ -938,43 +1202,56 @@ function LiveEncounter:IncrementStat(tokenid, statid, quantity)
         quantity = 1
     end
 
-    local heroToken = self:ResolveStatHero(tokenid)
-    if heroToken == nil then
-        return
-    end
-
-    --bucket the stat by combat round (stats/<tokenid>/round<N>/<statid>) so all
-    --stats are recorded per round; whole-combat totals are produced by summing
-    --the round buckets on read (see GetStatsForToken). "roundN" string keys
-    --rather than bare numbers so no serialization layer mistakes the sub-table
-    --for an array.
+    --bucket the stat by combat round (round<N> sub-tables) so all stats are
+    --recorded per round; whole-combat totals are produced by summing the round
+    --buckets on read (see GetStatsForToken / GetStatsForMonsterGroup). "roundN"
+    --string keys rather than bare numbers so no serialization layer mistakes the
+    --sub-table for an array.
     local round = 0
     local q = dmhub.initiativeQueue
     if q ~= nil then
         round = q.round or 0
     end
 
-    --path relative to the initiative queue root; the live encounter rides inside
-    --the queue at liveEncounter, with per-hero stats under stats/<tokenid>.
-    local path = string.format("liveEncounter/stats/%s/round%d/%s", heroToken.charid, round, statid)
-    dmhub:IncrementInitiativeData(path, quantity)
+    --paths are relative to the initiative queue root; the live encounter rides
+    --inside the queue at liveEncounter, with per-hero stats under stats/<tokenid>
+    --and per-monster-group stats under monsterStats/<groupKey>.
+    local heroToken = self:ResolveStatHero(tokenid)
+    if heroToken ~= nil then
+        local path = string.format("liveEncounter/stats/%s/round%d/%s", heroToken.charid, round, statid)
+        dmhub:IncrementInitiativeData(path, quantity)
+        return
+    end
+
+    --not a hero: attribute to the acting token's monster initiative grouping, so
+    --the same call sites that record hero stats feed the victory screen's
+    --Monsters tab too.
+    local groupid = self:ResolveStatMonsterGroup(tokenid)
+    if groupid ~= nil then
+        local path = string.format("liveEncounter/monsterStats/%s/round%d/%s", SanitizeStatKey(groupid), round, statid)
+        dmhub:IncrementInitiativeData(path, quantity)
+    end
 end
 
--- Convenience entry point for recording a hero stat from anywhere in the codebase
+-- Convenience entry point for recording a combat stat from anywhere in the codebase
 -- without the caller having to find the live encounter or guard any edge cases.
 --
 --   LiveEncounter.TrackHeroStats(token.charid, "kills")
 --
--- "just works": it locates the current combat's live encounter and records the stat,
--- or quietly does nothing if any precondition is not met --
---   (1) the token resolves to a hero (a summon is followed up to its summoner), and
---   (2) we are in combat with a LiveEncounter in which that hero is participating.
--- Only when both hold is the stat accumulated (atomically, server-side).
+-- "just works": it locates the current combat's live encounter and records the stat
+-- against whoever the token resolves to -- a participating hero (under stats), or,
+-- failing that, the token's monster initiative grouping (under monsterStats, read
+-- by the victory screen's Monsters tab). Summons attribute to their summoner on
+-- both sides. If the token resolves to neither (not in this combat, an object,
+-- etc.) it quietly does nothing.
+--
+-- (The name is historical -- it predates monster-group tracking; it is the single
+-- entry point for BOTH sides now, and every call site feeds both.)
 --
 -- This is the safe, static public surface: it is wrapped so it never throws, making
 -- it safe to drop directly into hot combat / damage code paths. The actual validation
--- (hero check, summon attribution, combat-participation check) and the networked
--- accumulation live in IncrementStat / ResolveStatHero.
+-- (attribution, summon walking, combat-participation check) and the networked
+-- accumulation live in IncrementStat / ResolveStatHero / ResolveStatMonsterGroup.
 --
 -- tokenid: the token that triggered the stat. statid: the stat name, optionally a
 -- "/"-separated nested path (e.g. "monsterDamage/<monsterid>"). quantity: default 1.
@@ -1007,10 +1284,62 @@ function LiveEncounter.TrackHeroStats(tokenid, statid, quantity)
     end
 end
 
+-- Record that a monster initiative group completed a turn (+1 turnsTaken in the
+-- current round's bucket of monsterStats/<groupKey>). Called from
+-- InitiativeQueue.NextTurn on the client that ends the turn, with the group's
+-- initiative id directly -- there is no single token to resolve, so this bypasses
+-- the tokenid-based attribution. The "Set Has Moved" skip path deliberately does
+-- NOT record a turn, which is what lets the victory screen tell "died before
+-- taking a single turn" apart from "had its turns skipped once dead".
+-- Safe/static like TrackHeroStats: never throws, no-ops outside live combat.
+function LiveEncounter.TrackMonsterGroupTurn(initiativeid)
+    local ok, err = pcall(function()
+        if initiativeid == nil or initiativeid == "" then
+            return
+        end
+
+        local q = dmhub.initiativeQueue
+        if q == nil or q:try_get("hidden") then
+            return
+        end
+
+        local live = q:try_get("liveEncounter")
+        if type(live) ~= "table" then
+            return
+        end
+
+        --only monster-side entries are tracked.
+        if q:IsEntryPlayer(initiativeid) ~= false then
+            return
+        end
+
+        local path = string.format("liveEncounter/monsterStats/%s/round%d/turnsTaken", SanitizeStatKey(initiativeid), q.round or 0)
+        dmhub:IncrementInitiativeData(path, 1)
+    end)
+
+    if not ok then
+        dmhub.Debug(string.format("LiveEncounter.TrackMonsterGroupTurn: failed: %s", tostring(err)))
+    end
+end
+
 -- The display name of the live encounter (the live encounter is itself a copy of
 -- the authored encounter, so this is just its name).
 function LiveEncounter:GetName()
     return self:try_get("name")
+end
+
+-- The combat outcome the director has awarded, if any: "victory", "defeat", or
+-- nil while the encounter is still being fought. Victory wins if both flags are
+-- somehow set. Use this (rather than checking victoryAwarded directly) anywhere
+-- that hides combat UI while the full-screen outcome screen is up.
+function LiveEncounter:GetAwardedOutcome()
+    if self:try_get("victoryAwarded", false) then
+        return "victory"
+    end
+    if self:try_get("defeatAwarded", false) then
+        return "defeat"
+    end
+    return nil
 end
 
 -- The "readied" encounter: an Encounter the DM has staged via an encounter's
@@ -1281,6 +1610,8 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
     local numHeroes = dmhub.GetSettingValue("numheroes")
     local spawnedCount = 0
     local fallbackIndex = 0
+    --spawned reinforcement tokenids, for the monster-group onset snapshot below.
+    local spawnedTokenIds = {}
 
     for groupIndex, group in ipairs(self.groups) do
         if group.wave == waveid then
@@ -1379,6 +1710,7 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
 
                         spawnedCount = spawnedCount + 1
                         spawnedInGroup = true
+                        spawnedTokenIds[#spawnedTokenIds+1] = token.charid
                     end
                 end
             end
@@ -1389,6 +1721,14 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                 initiativeQueue:SetInitiative(groupid, 0, 0)
             end
         end
+    end
+
+    --extend the monster-group onset snapshot with the freshly arrived groups, so
+    --reinforcements get their own card (and stat attribution) on the victory
+    --screen's Monsters tab. Rides the same queue upload the caller performs
+    --after MarkWaveDeployed.
+    if #spawnedTokenIds > 0 then
+        self:RecordOnsetMonsterGroups(spawnedTokenIds)
     end
 
     self:MarkWaveDeployed(waveid)
@@ -2027,7 +2367,8 @@ end
 -- victory replaces the encounter's built-in victory-condition dropdown; defeat
 -- is script-only (the base game has no built-in defeat conditions). When a
 -- defeat check passes, the director's initiative bar offers "Declare Defeat",
--- which announces the outcome and ends combat.
+-- which announces the outcome and shows the full-screen DEFEAT screen (the
+-- defeatAwarded flag; combat ends when the director presses Proceed there).
 --
 -- Condition text may be a string or function(ctx). It is resolved twice: at
 -- edit time with a bare ctx (round 0, no queue) to produce the cached string
@@ -2126,7 +2467,7 @@ return {
 
     -- Uncomment to add a defeat condition (script-only; there are no built-in
     -- ones). When check passes the director can Declare Defeat, which
-    -- announces the outcome and ends combat:
+    -- announces the outcome and shows the full-screen defeat screen:
     -- defeat = {
     --     text = function(ctx) return "The Caravan is Destroyed" end,
     --     check = function(ctx) return ctx.state.caravanDestroyed == true end,

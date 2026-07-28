@@ -1615,6 +1615,15 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
         local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
         local m_isSurprised = group.tokens[1].properties:HasCondition(surprisedCondition.id)
 
+        --The row fills with @accent while hovered, which the default text color
+        --vanishes against. parent: selectors can't do the job here: only the panels
+        --the mouse is actually inside get the hover class, so the label's own parent
+        --is not hovered when the mouse is over the token images. Push the state down
+        --the tree instead.
+        local SetGroupHoverClass = function(element, hovering)
+            element:SetClass("groupHovered", hovering)
+        end
+
         local resultPanel
         resultPanel = gui.Panel{
             classes = {"tokenGroup"},
@@ -1625,6 +1634,12 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
             valign = "top",
             bgimage = true,
             draggable = true,
+            hover = function(element)
+                element:FireEventTree("setGroupHover", true)
+            end,
+            dehover = function(element)
+                element:FireEventTree("setGroupHover", false)
+            end,
             drag = function(element, target)
                 if target ~= nil then
                     element:Unparent()
@@ -1657,6 +1672,8 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                 halign = "left",
                 flow = "vertical",
                 gui.Label{
+                    classes = {"tokenGroupLabel"},
+                    setGroupHover = SetGroupHoverClass,
                     fontSize = 16,
                     minFontSize = 12,
                     bold = true,
@@ -1670,7 +1687,8 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     text = name,
                 },
                 gui.Label{
-                    classes = {cond(m_isSurprised, "surprised")},
+                    classes = {"tokenGroupLabel", cond(m_isSurprised, "surprised")},
+                    setGroupHover = SetGroupHoverClass,
                     text = cond(m_isSurprised, "Surprised", "Not Surprised"),
                     refreshSurprise = function(element)
                         m_isSurprised = group.tokens[1].properties:HasCondition(surprisedCondition.id)
@@ -2172,6 +2190,13 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                 selectors = {"tokenGroup", "hover"},
                 bgcolor = "@accent",
             },
+            --Flip the row's text to the inverse foreground while it sits on the
+            --@accent hover fill, the same way drag-target rows do.
+            {
+                selectors = {"tokenGroupLabel", "groupHovered"},
+                priority = 5,
+                color = "@fgInverse",
+            },
         }),
 
         width = 1024,
@@ -2485,6 +2510,15 @@ Commands.RegisterMacro{
     if isNewCombat then
         CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
         CharacterResource.SetVillainActions(1)
+    end
+
+    --Snapshot the monster-side initiative groupings entering combat (upserted, so
+    --monsters added to an already-running combat extend the snapshot). The victory
+    --screen's Monsters tab and monster stat attribution key off these groups.
+    --Rides the UploadInitiative below, like RecordOnsetHeroes.
+    local liveEncounterForStats = info.initiativeQueue:try_get("liveEncounter")
+    if type(liveEncounterForStats) == "table" and #monsterids > 0 then
+        liveEncounterForStats:RecordOnsetMonsterGroups(monsterids)
     end
 
     info.UploadInitiative()

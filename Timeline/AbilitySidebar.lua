@@ -1242,8 +1242,20 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             if panel == nil and ability.typeName ~= "ActiveTrigger" then
                 needParent = false
+                --The card grows with the ability's text, and this sidebar is
+                --height 100% / valign center, so a long enough ability runs off
+                --both the top and the bottom of the screen. Tell the card how
+                --much room there actually is and let its body scroll. Prefer the
+                --laid-out height of the sidebar; fall back to the screen if this
+                --is the first render and nothing has been measured yet.
+                local availableHeight = element.renderedHeight
+                if availableHeight == nil or availableHeight <= 0 then
+                    availableHeight = dmhub.screenDimensionsBelowTitlebar.y
+                end
+
                 panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
-                    { token = token, symbols = symbols, width = 346, })
+                    { token = token, symbols = symbols, width = 346,
+                      maxHeight = math.max(200, availableHeight - 60), })
                 if panel == nil then
                     return
                 end

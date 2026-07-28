@@ -18,6 +18,7 @@ local mod = dmhub.GetModLoading()
 --- @field display table Icon display settings (bgcolor/hueshift/saturation/brightness).
 --- @field difficultTerrain boolean If true, an area marked with this keyword counts as difficult terrain. Uses the same terrain rule flag name as tiles (asset.rules.difficultTerrain).
 --- @field water boolean If true, an area marked with this keyword counts as water. Uses the same terrain rule flag name as tiles (asset.rules.water).
+--- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
 
 EnvironmentalKeyword.name = "New Environmental Keyword"
@@ -27,6 +28,7 @@ EnvironmentalKeyword.source = "Environmental Keyword"
 EnvironmentalKeyword.iconid = "ui-icons/skills/1.png"
 EnvironmentalKeyword.difficultTerrain = false
 EnvironmentalKeyword.water = false
+EnvironmentalKeyword.concealment = false
 
 --Index of keywords by lower-case name, rebuilt whenever tables refresh. Used by
 --runtime code that needs to resolve a keyword from its name.
@@ -226,6 +228,19 @@ local SetData = function(tableName, keywordPanel, keyid)
 			text = "Water",
 			change = function(element)
 				keyword.water = element.value
+				UploadKeyword()
+			end,
+		},
+	}
+
+	--an area marked with this keyword grants concealment.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("concealment", false),
+			text = "Concealment",
+			change = function(element)
+				keyword.concealment = element.value
 				UploadKeyword()
 			end,
 		},

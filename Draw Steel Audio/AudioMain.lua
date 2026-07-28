@@ -1594,7 +1594,7 @@ audio.SoundEvent{
     sounds = {"foot/FS_Walk_Gnrc_Stone_v1_01.wav","foot/FS_Walk_Gnrc_Stone_v1_02.wav","foot/FS_Walk_Gnrc_Stone_v1_03.wav","foot/FS_Walk_Gnrc_Stone_v1_04.wav","foot/FS_Walk_Gnrc_Stone_v1_05.wav","foot/FS_Walk_Gnrc_Stone_v1_06.wav"},
     volume = 0.15,
     pitchRand = 0.3,
-    ignoreDuplicates = 0.05,
+    --ignoreDuplicates = 0.05,
 }
 
 audio.SoundEvent{
@@ -1615,6 +1615,23 @@ audio.SoundEvent{
     ignoreDuplicates = 0.05,
 }
 
+audio.SoundEvent{
+    name = "Foot.Stairwell",
+    mixgroup = "footsteps",
+    play = function()
+        audio.FireSoundEvent("Foot.Generic_Stone")
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.1,
+            pitch = 1.2,
+            volume = 0.8,
+        })
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.2,
+            pitch = 1.4,
+            volume = 0.6,
+        })
+    end,
+}
 
 
 
@@ -1686,14 +1703,50 @@ audio.SoundEvent{
 
 
 dmhub.TokenMovingOnPath = function(args)
-    local surface = args.path:GetStepSurfaceType(args.stepIndex) or 1
+    local surface = args.path:GetStepSurfaceType(args.stepIndex) or 0
+    local surfaceInfo = AudioSurfaceTypes.surfaces[surface]
+
+    --Map Markup footsteps (MapMarkupPanel.lua): a tile inside a PAINTED
+    --footstep region keeps its stamped surface; on any other ground the
+    --map's default footstep surface, when one is set, overrides the
+    --tile-derived surface (map backgrounds often carry a surfaceType of
+    --their own - the default is what the DM says this map's ground sounds
+    --like). The Settings-registry check keeps this quiet (no engine error
+    --log per step) when the MapMarkup module, which registers the setting,
+    --isn't loaded.
+    local painted = nil
+    pcall(function()
+        local markup = rawget(_G, "MapMarkupFootsteps")
+        if markup ~= nil and args.position ~= nil then
+            painted = markup.GetPaintedSurfaceAt(args.token.floorid,
+                math.floor(args.position.x + 0.5), math.floor(args.position.y + 0.5))
+        end
+    end)
+    if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
+        surfaceInfo = AudioSurfaceTypes.surfaces[painted]
+    else
+        local settingsTable = rawget(_G, "Settings")
+        if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then
+            local okDefault, defaultSurface = pcall(function()
+                return tonumber(dmhub.GetSettingValue("markup:footstepdefault"))
+            end)
+            if okDefault and defaultSurface ~= nil and AudioSurfaceTypes.surfaces[defaultSurface] ~= nil then
+                surfaceInfo = AudioSurfaceTypes.surfaces[defaultSurface]
+            end
+        end
+    end
+    surfaceInfo = surfaceInfo or {}
+
     local flags = args.path:GetStepFlags(args.stepIndex)
     local inwater = table.contains(flags or {}, "Water")
     local flying = args.path.movementType == "fly"
     local burrowing = args.path.movementType == "burrow"
-    local sound = (AudioSurfaceTypes.surfaces[surface] or {}).sound or "Foot.Generic_Generic"
+    --NOTE: painted footstep surfaces are deliberately LOWER priority than
+    --real conditions - the dispatch below checks flying / burrowing / water
+    --before ever using the surface sound.
+    local sound = surfaceInfo.sound or "Foot.Generic_Generic"
 
-    local puddle = (AudioSurfaceTypes.surfaces[surface] or {}).puddleSound
+    local puddle = surfaceInfo.puddleSound
 
     if flying then
        sound = "Foot.Fly_Wing"

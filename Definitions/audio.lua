@@ -3,6 +3,8 @@
 --- @field muted boolean Whether all game audio is currently muted.
 --- @field masterVolume number The master volume level for all game audio, from 0 to 1.
 --- @field normalizeLoudness boolean Whether library/anthem track loudness is automatically normalized for this game.
+--- @field deviceSelectionSupported boolean True when this platform supports selecting the audio output device (Windows only).
+--- @field outputDevice string The output device the app's audio plays to, as a device id from GetOutputDevices; the empty string means the system default. Setting it re-routes the app at the OS level (persisted by Windows across launches) and restarts playback on the new device. Windows only; a no-op elsewhere.
 --- @field currentlyPlaying table A table of currently playing game sound events.
 --- @field numPlayingSounds number The number of sound instances currently playing.
 --- @field numActiveSoundEvents number The number of active sound events in the current game.
@@ -18,6 +20,12 @@ end
 --- UploadMasterVolume: Uploads the current master volume to the server.
 --- @return nil
 function audio.UploadMasterVolume()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetOutputDevices: Returns the available audio output devices as a list of {value, text} entries suitable for a dropdown enum, beginning with the system-default entry (value = empty string).
+--- @return table
+function audio.GetOutputDevices()
 	-- dummy implementation for documentation purposes only
 end
 

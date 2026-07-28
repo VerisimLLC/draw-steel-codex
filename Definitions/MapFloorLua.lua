@@ -7,6 +7,9 @@
 --- @field mapFloor any 
 --- @field description any 
 --- @field objects any 
+--- @field supportsMarkupZones boolean Probe property: true on engine builds with the markup zone storage API (markupZones / SetMarkupZone / RemoveMarkupZone). Read inside pcall to detect older builds.
+--- @field floorIndex number The index of this floor in the currently visible floor list, or -1 if this floor is not part of the current map.
+--- @field markupZones table<string,table> The markup zone records stored on this floor, keyed by zone id. Treat the returned records as read-only; to modify a zone build a fresh table and call SetMarkupZone.
 --- @field layerDescription any 
 --- @field invisible any 
 --- @field floorInvisible any 
@@ -35,6 +38,7 @@
 --- @field charactersOnFloor any 
 --- @field playerCharactersOnFloor any 
 --- @field playerCharactersOnLayer any 
+--- @field supportsSolidOperations boolean True when this engine build supports solid=true in ExecutePolygonOperation (solid block drawing) and invisible-only solid erasing. Callers drawing solids must check this: older engines treat a solid op as a plain floor draw.
 MapFloorLua = {}
 
 --- AdjustParallaxPositionOnGround
@@ -56,6 +60,21 @@ end
 --- @param keyid string
 --- @return any
 function MapFloorLua:GetObject(keyid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMarkupZone: Creates or replaces the markup zone record with the given id on this floor. Undoable; syncs to other clients; triggers an aura rebuild.
+--- @param zoneid string
+--- @param data any
+--- @return nil
+function MapFloorLua:SetMarkupZone(zoneid, data)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RemoveMarkupZone: Deletes the markup zone record with the given id from this floor. Undoable; syncs to other clients; triggers an aura rebuild.
+--- @param zoneid string
+--- @return nil
+function MapFloorLua:RemoveMarkupZone(zoneid)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -157,7 +176,7 @@ function MapFloorLua:SetHeightmapZoneSkipDisabled(disabledVal)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExecutePolygonOperation: Executes a building operation on this floor. Options: points (list of interleaved x,y point lists), tileid, wallid, wallheight, erase, eraseInvisibleOnly (erase only walls with invisible assets), walls, floor, terrain, closed, layer, fade.
+--- ExecutePolygonOperation
 --- @param options any
 --- @return nil
 function MapFloorLua:ExecutePolygonOperation(options)
@@ -167,7 +186,7 @@ end
 --- GetNearestWallSegment: Finds the drawn wall geometry nearest to a point on this floor's building layer. Options: x, y (world coords), maxDistance (tiles, default 1), invisibleOnly (default false: when true only walls with invisible assets are considered), atMouse (default false: when true x/y are ignored, the current mouse position is used, and walls are matched in projected screen space -- each vertex projected by its surface-altitude parallax like wall rendering -- so the result is what is visually under the cursor even on steep slopes or raised/lowered ground). Returns nil, or a table with wallid, wallheight, distance, points (interleaved x,y list of the wall's full path, suitable for passing to ExecutePolygonOperation), segmentIndex (1-based index of the nearest edge within the path) and segment (interleaved x,y of that nearest edge's two endpoints, in floor space).
 --- @param options {x: nil|number, y: nil|number, maxDistance: nil|number, invisibleOnly: nil|boolean, atMouse: nil|boolean}
 --- @return nil|{wallid: string, wallheight: number, distance: number, points: number[], segmentIndex: number, segment: number[]}
-function MapFloorLua:GetNearestWallSegment(options)
+function MapFloorLua:GetNearestWallSegment(optionsVal)
 	-- dummy implementation for documentation purposes only
 end
 

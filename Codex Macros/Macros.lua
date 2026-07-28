@@ -3521,6 +3521,180 @@ Commands.RegisterMacro{
     end,
 }
 
+------------------------------------------------------------------------
+-- /find: search every setting and chat command for a substring.
+------------------------------------------------------------------------
+
+-- The engine's core commands.txt defines a no-argument /find that opens the
+-- action bar's ability search. Keep that behaviour for a bare "/find" and only
+-- take over when the user actually typed something to search for. Stashed on
+-- Commands (rather than a file local) so reloading this file does not chain
+-- wrappers on top of each other.
+Commands._actionBarFind = Commands._actionBarFind or rawget(Commands, "find")
+
+local g_findFirstChars = "abcdefghijklmnopqrstuvwxyz0123456789"
+local g_findNextChars = "abcdefghijklmnopqrstuvwxyz0123456789:_-"
+local g_findMaxResults = 40
+
+-- chat.GetCommandCompletions is prefix-based and requires at least one
+-- character, so enumerate every command the engine will accept by sweeping
+-- first characters. When a command's entire name IS the prefix (e.g. /r, /w)
+-- the engine short-circuits and returns only that command, hiding its
+-- siblings, so those prefixes are swept one level deeper.
+local function CollectCommandNames(prefix, out, depth)
+    local list = chat.GetCommandCompletions("/" .. prefix) or {}
+
+    if #list == 1 and string.lower(list[1]) == "/" .. prefix then
+        out[prefix] = true
+        if depth >= 3 then
+            return
+        end
+        for i = 1, #g_findNextChars do
+            CollectCommandNames(prefix .. string.sub(g_findNextChars, i, i), out, depth + 1)
+        end
+        return
+    end
+
+    for _, name in ipairs(list) do
+        out[string.lower(string.sub(name, 2))] = true
+    end
+end
+
+local function AllCommandNames()
+    local result = {}
+    for i = 1, #g_findFirstChars do
+        CollectCommandNames(string.sub(g_findFirstChars, i, i), result, 1)
+    end
+    return result
+end
+
+local function FindContains(haystack, needle)
+    return haystack ~= nil and string.find(string.lower(haystack), needle, 1, true) ~= nil
+end
+
+Commands.RegisterMacro{
+    name = "find",
+    summary = "search settings and commands",
+    doc = "Usage: /find <text>\nLists every setting and chat command whose id, name or summary contains <text>. If nothing matches those, help text is searched instead. With no argument, opens the action bar's ability search.",
+    command = function(str)
+        str = trim(str or "")
+        if str == "" then
+            if Commands._actionBarFind ~= nil then
+                Commands._actionBarFind()
+            end
+            return
+        end
+
+        local needle = string.lower(str)
+
+        local settingMatches = {}
+        local settingHelpMatches = {}
+        for id, info in pairs(Settings) do
+            local desc = info.description or ""
+            if FindContains(id, needle) or FindContains(desc, needle) then
+                settingMatches[#settingMatches+1] = {key = id, desc = desc}
+            elseif FindContains(info.help, needle) then
+                settingHelpMatches[#settingHelpMatches+1] = {key = id, desc = desc}
+            end
+        end
+
+        local macros = Commands.GetAllMacros()
+        local commandMatches = {}
+        local commandHelpMatches = {}
+        for name, _ in pairs(AllCommandNames()) do
+            --settings are chat commands too, but they are reported in their own section.
+            if not dmhub.HasSetting(name) then
+                local info = macros[name]
+                local summary = nil
+                if info ~= nil then
+                    summary = info.summary
+                end
+
+                if FindContains(name, needle) or FindContains(summary, needle) then
+                    commandMatches[#commandMatches+1] = {key = name, desc = summary}
+                elseif info ~= nil and FindContains(info.doc, needle) then
+                    commandHelpMatches[#commandHelpMatches+1] = {key = name, desc = summary}
+                end
+            end
+        end
+
+        local SortMatches = function(list)
+            table.sort(list, function(a, b)
+                --things whose id/name starts with the search text are the most likely target.
+                local sa = string.starts_with(string.lower(a.key), needle)
+                local sb = string.starts_with(string.lower(b.key), needle)
+                if sa ~= sb then
+                    return sa
+                end
+                return a.key < b.key
+            end)
+        end
+
+        SortMatches(settingMatches)
+        SortMatches(settingHelpMatches)
+        SortMatches(commandMatches)
+        SortMatches(commandHelpMatches)
+
+        if #settingMatches == 0 and #commandMatches == 0 and #settingHelpMatches == 0 and #commandHelpMatches == 0 then
+            dmhub.Log(string.format('/find: nothing matches "%s".', str))
+            return
+        end
+
+        local FormatCommand = function(m)
+            if m.desc ~= nil and m.desc ~= "" then
+                return string.format("   /%s  -  %s", m.key, m.desc)
+            end
+            return string.format("   /%s", m.key)
+        end
+
+        local FormatSetting = function(m)
+            local desc = m.desc
+            if desc == "" then
+                desc = "(no description)"
+            end
+
+            local info = dmhub.GetSettingInfo(m.key)
+            local value = nil
+            if info ~= nil then
+                value = info.value
+            end
+
+            if value ~= nil and value ~= "" and string.len(value) <= 24 then
+                return string.format("   /%s  -  %s  [= %s]", m.key, desc, value)
+            end
+            return string.format("   /%s  -  %s", m.key, desc)
+        end
+
+        local lines = {}
+        local AddSection = function(title, entries, formatter)
+            if #entries == 0 then
+                return
+            end
+
+            lines[#lines+1] = string.format("<b>%s (%d)</b>", title, #entries)
+            for i = 1, math.min(#entries, g_findMaxResults) do
+                lines[#lines+1] = formatter(entries[i])
+            end
+
+            if #entries > g_findMaxResults then
+                lines[#lines+1] = string.format("   ... and %d more", #entries - g_findMaxResults)
+            end
+        end
+
+        AddSection(string.format('Commands matching "%s"', str), commandMatches, FormatCommand)
+        AddSection(string.format('Settings matching "%s"', str), settingMatches, FormatSetting)
+
+        if #commandMatches == 0 and #settingMatches == 0 then
+            AddSection(string.format('Commands mentioning "%s" in their help', str), commandHelpMatches, FormatCommand)
+            AddSection(string.format('Settings mentioning "%s" in their help', str), settingHelpMatches, FormatSetting)
+        end
+
+        lines[#lines+1] = "Type /help <command> for usage, or /<setting id> <value> to change a setting."
+
+        dmhub.Log(table.concat(lines, "\n"))
+    end,
+}
+
 Commands.RegisterMacro{
     name = "opensheet",
     summary = "Open Character Sheet",

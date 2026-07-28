@@ -839,133 +839,6 @@ CreateChatPanel = function()
 				gradient = Styles.horizontalGradient,
 			},
 
-            -- Round > Turn spine. Deliberately quiet: the spine is scaffolding
-            -- for the cards, not content of its own. No cornerRadius here -- the
-            -- active theme's squared/rounded choice owns that, not this panel.
-            {
-                selectors = {"actionLogRound"},
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-            },
-            {
-                selectors = {"actionLogRoundHeader"},
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                vmargin = 4,
-                hpad = 4,
-            },
-            {
-                selectors = {"actionLogRoundLabel"},
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                fontSize = 10,
-                uppercase = true,
-                bold = true,
-                color = Styles.textColor,
-                opacity = 0.7,
-            },
-            {
-                selectors = {"actionLogTurn"},
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-            },
-            {
-                selectors = {"actionLogTurnHeader"},
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                hpad = 8,
-                vmargin = 2,
-            },
-            {
-                selectors = {"actionLogTurnActor"},
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                fontSize = 13,
-                bold = true,
-                color = Styles.textColor,
-            },
-            {
-                selectors = {"actionLogRoundCount"},
-                width = "auto",
-                height = "auto",
-                halign = "right",
-                fontSize = 9,
-                uppercase = true,
-                color = Styles.textColor,
-                opacity = 0.45,
-            },
-            -- Ally/foe dot. These two are the Draw Steel status swatches the
-            -- design calls for (--hp-healthy / --hp-dying); they are role
-            -- semantics owned by the system, so they are stated rather than
-            -- pulled from the theme's text ramp.
-            {
-                selectors = {"actionLogTurnDot"},
-                width = 6,
-                height = 6,
-                valign = "center",
-                rmargin = 6,
-            },
-            {
-                selectors = {"actionLogTurnDot", "hero"},
-                bgcolor = "#2D6A4F",
-            },
-            {
-                selectors = {"actionLogTurnDot", "foe"},
-                bgcolor = "#6B2020",
-            },
-            -- The turn's cards indent under its header, so the spine reads as a
-            -- hierarchy rather than three stacked label rows.
-            {
-                selectors = {"actionLogTurnBody"},
-                width = "100%-10",
-                height = "auto",
-                halign = "right",
-                flow = "vertical",
-            },
-
-            -- Collapsible child rolls under an ability cast.
-            {
-                selectors = {"actionLogKids"},
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-            },
-            {
-                selectors = {"actionLogKidsBody"},
-                width = "100%-8",
-                height = "auto",
-                halign = "right",
-                flow = "vertical",
-            },
-            {
-                selectors = {"actionLogKidsBadge"},
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                flow = "horizontal",
-                hpad = 4,
-                vmargin = 2,
-            },
-            {
-                selectors = {"actionLogKidsBadgeLabel"},
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                fontSize = 9,
-                color = Styles.textColor,
-                opacity = 0.55,
-            },
-            {
-                selectors = {"actionLogKidsBadgeLabel", "parent:hover"},
-                opacity = 1,
-            },
-
             -- Action log card styles
             {
                 selectors = {"action-log-card"},
@@ -1286,264 +1159,6 @@ CreateChatPanel = function()
 			},
 		}
 
-	--=====================================================================
-	-- Round > Turn spine
-	--
-	-- Messages carry the combat round and turn they were sent in
-	-- (ChatMessageInfo.round/.turn, stamped engine-side on send). Instead of
-	-- parenting every message panel straight into the scroll panel, they are
-	-- parented into a Round > Turn > body tree, so the log reads as a spine
-	-- rather than one flat stream.
-	--
-	-- This is layered ON TOP of the existing incremental refresh, deliberately:
-	-- message panels are still created, cached, refreshed and cast-adopted
-	-- exactly as before -- only their PARENT changes. The changed/structural/
-	-- removed fast paths and the castPanels adoption logic are untouched, which
-	-- is what keeps a dice roll's refresh storm off the frame budget.
-	--
-	-- round == 0 means the message was sent outside combat; those parent
-	-- straight to the scroll panel, exactly as they do today.
-	--=====================================================================
-
-	--Older engine builds have no round/turn on the message wrapper, and reading
-	--a property that does not exist on the C# userdata raises. Probe ONCE on the
-	--first message we see rather than pcall-ing per message on the hot path; if
-	--the stamp is missing the panel simply stays flat, as it is today.
-	local m_haveStamp = nil
-
-	local function StampAvailable(message)
-		if m_haveStamp == nil then
-			m_haveStamp = pcall(function() return message.round end)
-		end
-		return m_haveStamp
-	end
-
-	--Returns the panel a message's card should be parented into, creating the
-	--Round and Turn containers on demand. Returns nil when the message has no
-	--turn (outside combat, or a build without the stamp), meaning "parent to
-	--the scroll panel as before".
-	--`sink` is the full pass's children array. The full pass REPLACES
-	--element.children wholesale, so a round panel created during it must land in
-	--that array rather than be added to the live panel (which would be discarded
-	--a moment later). Messages are iterated in order, so appending the round
-	--panel at the point its first message appears keeps rounds in chronological
-	--position alongside any out-of-combat messages. The incremental path passes
-	--no sink and adds directly.
-	local function TurnBodyFor(element, message, sink)
-		if not StampAvailable(message) then
-			return nil
-		end
-
-		local round = message.round or 0
-		local turn = message.turn or 0
-		if round == 0 then
-			return nil
-		end
-
-		element.data.roundPanels = element.data.roundPanels or {}
-		element.data.turnPanels = element.data.turnPanels or {}
-
-		local roundPanel = element.data.roundPanels[round]
-		if roundPanel == nil or (not roundPanel.valid) then
-			--NOTE: the design pins these headers (position:sticky, round at the
-			--top and turn just under it). The gui has no sticky/pin equivalent,
-			--so the rules scroll with their turns instead. If pinning is wanted
-			--it needs engine support, not a Lua change.
-			local countLabel = gui.Label{
-				classes = { "actionLogRoundCount" },
-				width = "auto",
-				height = "auto",
-				halign = "right",
-				text = "",
-			}
-
-			roundPanel = gui.Panel{
-				classes = { "actionLogRound" },
-				width = "100%",
-				height = "auto",
-				flow = "vertical",
-				gui.Panel{
-					classes = { "actionLogRoundHeader" },
-					width = "100%",
-					height = "auto",
-					flow = "horizontal",
-					gui.Label{
-						classes = { "actionLogRoundLabel" },
-						width = "auto",
-						height = "auto",
-						halign = "left",
-						text = string.format("ROUND %d", round),
-					},
-					countLabel,
-				},
-			}
-			roundPanel.data.countLabel = countLabel
-			element.data.roundPanels[round] = roundPanel
-			if sink ~= nil then
-				sink[#sink + 1] = roundPanel
-			else
-				element:AddChild(roundPanel)
-			end
-		end
-
-		local key = string.format("%d:%d", round, turn)
-		local entry = element.data.turnPanels[key]
-		if entry ~= nil and entry.body ~= nil and entry.body.valid then
-			return entry.body
-		end
-
-		--Actor for the turn header comes from the first message we file under
-		--it. A turn's later messages can belong to other tokens (a reaction, a
-		--triggered ability), so the FIRST one is the closest thing to "whose
-		--turn this is" without a separate turn-owner stamp.
-		local actorName = nil
-		local isHero = false
-		if message.tokenid ~= nil then
-			local token = dmhub.GetCharacterById(message.tokenid)
-			if token ~= nil then
-				actorName = token.name
-				--same discriminator the cards already use for player colouring
-				--(see IsOutOfTurn's caller above): player-controlled reads as an
-				--ally, everything else as a foe.
-				isHero = token.valid and token.playerControlled
-			end
-		end
-
-		local body = gui.Panel{
-			classes = { "actionLogTurnBody" },
-			width = "100%",
-			height = "auto",
-			flow = "vertical",
-		}
-
-		local turnPanel = gui.Panel{
-			classes = { "actionLogTurn" },
-			width = "100%",
-			height = "auto",
-			flow = "vertical",
-			gui.Panel{
-				classes = { "actionLogTurnHeader" },
-				width = "100%",
-				height = "auto",
-				flow = "horizontal",
-				--ally/foe dot, the design's one spot of role colour on the spine.
-				gui.Panel{
-					classes = { "actionLogTurnDot", cond(isHero, "hero", "foe") },
-					width = 6,
-					height = 6,
-					valign = "center",
-					halign = "left",
-					bgimage = "panels/square.png",
-				},
-				gui.Label{
-					classes = { "actionLogTurnActor" },
-					width = "auto",
-					height = "auto",
-					halign = "left",
-					text = actorName or "Turn",
-				},
-			},
-			body,
-		}
-
-		element.data.turnPanels[key] = { panel = turnPanel, body = body, round = round }
-		roundPanel:AddChild(turnPanel)
-		return body
-	end
-
-	--A cast's child rolls collapse behind a "v n" badge, per the design.
-	--
-	--They are NOT parented straight onto the ability card: that card is rendered
-	--by whichever mod owns the message type (properties:Render), so its internals
-	--are not ours to reach into. Instead they go in a container we own -- a
-	--clickable badge row plus a body -- appended to the card. Collapsing hides
-	--only that body, so the card itself is never touched.
-	--
-	--Glyphs are ASCII ("v" / ">") rather than the design's chevrons: this file,
-	--like the rest of the codex, is ASCII-only.
-	local function AdoptInto(castPanel, child)
-		if castPanel == nil or (not castPanel.valid) then
-			return
-		end
-
-		local kids = castPanel.data.kidsContainer
-		if kids == nil or kids.body == nil or (not kids.body.valid) then
-			local body = gui.Panel{
-				classes = { "actionLogKidsBody" },
-				width = "100%",
-				height = "auto",
-				flow = "vertical",
-			}
-
-			local badgeLabel = gui.Label{
-				classes = { "actionLogKidsBadgeLabel" },
-				width = "auto",
-				height = "auto",
-				valign = "center",
-				text = "",
-			}
-
-			local badge = gui.Panel{
-				classes = { "actionLogKidsBadge" },
-				width = "auto",
-				height = "auto",
-				halign = "left",
-				flow = "horizontal",
-				badgeLabel,
-				press = function(element)
-					body:SetClass("collapsed", not body:HasClass("collapsed"))
-					element:FireEvent("refreshKids")
-				end,
-				refreshKids = function(element)
-					local n = body.children ~= nil and #body.children or 0
-					badgeLabel.text = string.format("%s %d", cond(body:HasClass("collapsed"), ">", "v"), n)
-					--a cast with no rolls under it shows no badge at all.
-					element:SetClass("collapsed", n == 0)
-				end,
-			}
-
-			local container = gui.Panel{
-				classes = { "actionLogKids" },
-				width = "100%",
-				height = "auto",
-				flow = "vertical",
-				badge,
-				body,
-			}
-
-			kids = { container = container, body = body, badge = badge }
-			castPanel.data.kidsContainer = kids
-			castPanel:AddChild(container)
-		end
-
-		kids.body:AddChild(child)
-		if kids.badge.valid then
-			kids.badge:FireEvent("refreshKids")
-		end
-	end
-
-	--Round entry counts, DERIVED from what is actually parented under each round
-	--rather than accumulated as messages arrive: the full pass re-files every
-	--message, so a running counter would inflate on every structural refresh.
-	--Cheap -- it walks a handful of group panels, not the message list.
-	local function RefreshRoundCounts(element)
-		local counts = {}
-		for _, entry in pairs(element.data.turnPanels or {}) do
-			if entry.body ~= nil and entry.body.valid and entry.round ~= nil then
-				local kids = entry.body.children
-				counts[entry.round] = (counts[entry.round] or 0) + (kids ~= nil and #kids or 0)
-			end
-		end
-
-		for round, panel in pairs(element.data.roundPanels or {}) do
-			local label = panel.valid and panel.data.countLabel or nil
-			if label ~= nil and label.valid then
-				local n = counts[round] or 0
-				label.text = string.format("%d %s", n, cond(n == 1, "entry", "entries"))
-			end
-		end
-	end
-
 	local chatPanel = gui.Panel{
 		id = 'action-log-panel',
 		vscroll = true,
@@ -1615,7 +1230,7 @@ CreateChatPanel = function()
 									--late adoption: mirrors the full pass below.
 									local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
 									if adoptiveParentPanel ~= nil and adoptiveParentPanel.valid then
-										AdoptInto(adoptiveParentPanel, child)
+										adoptiveParentPanel:AddChild(child)
 										adoptedPanels[key] = child
 									end
 								elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
@@ -1654,17 +1269,10 @@ CreateChatPanel = function()
 										child:FireEvent('refreshMessage', message)
 
 										if adoptiveParentPanel ~= nil then
-											AdoptInto(adoptiveParentPanel, child)
+											adoptiveParentPanel:AddChild(child)
 											adoptedPanels[key] = child
 										else
-											--cast adoption still wins; grouping only decides
-											--where an UNadopted card is parented.
-											local turnBody = TurnBodyFor(element, message)
-											if turnBody ~= nil then
-												turnBody:AddChild(child)
-											else
-												element:AddChild(child)
-											end
+											element:AddChild(child)
 											anyNew = true
 
 											if child.data.castid then
@@ -1677,10 +1285,6 @@ CreateChatPanel = function()
 								end
 							end
 						end
-					end
-
-					if anyNew then
-						RefreshRoundCounts(element)
 					end
 
 					--go to the bottom if we appended new messages, same as the full pass.
@@ -1729,15 +1333,10 @@ CreateChatPanel = function()
                             --roll's own panel moves under it as soon as it exists.
                             local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
                             if adoptiveParentPanel ~= nil then
-                                AdoptInto(adoptiveParentPanel, child)
+                                adoptiveParentPanel:AddChild(child)
                                 adoptedPanels[key] = child
                             else
-                                local turnBody = TurnBodyFor(element, message, children)
-                                if turnBody ~= nil then
-                                    turnBody:AddChild(child)
-                                else
-                                    children[#children+1] = child
-                                end
+                                children[#children+1] = child
 
                                 if child.data.castid then
                                     local castPanels = element.data.castPanels or {}
@@ -1794,15 +1393,10 @@ CreateChatPanel = function()
                                 end
 
                                 if adoptiveParentPanel ~= nil then
-                                    AdoptInto(adoptiveParentPanel, child)
+                                    adoptiveParentPanel:AddChild(child)
                                     adoptedPanels[key] = child
                                 else
-                                    local turnBody = TurnBodyFor(element, message, children)
-                                    if turnBody ~= nil then
-                                        turnBody:AddChild(child)
-                                    else
-                                        children[#children+1] = child
-                                    end
+                                    children[#children+1] = child
 
                                     if child.data.castid then
                                         local castPanels = element.data.castPanels or {}
@@ -1819,7 +1413,6 @@ CreateChatPanel = function()
 				m_fullRefreshDone = true
 				local perfT2 = perfLog and os.clock() or 0
 				element.children = children
-				RefreshRoundCounts(element)
 				if perfLog then
 					print(string.format("DICEPERF-LUA:: ActionLog refreshChat total=%.1fms msgs=%d creates=%d createMs=%.1f refreshes=%d refreshMs=%.1f childrenMs=%.1f",
 						(os.clock() - perfStart) * 1000, #chat.messages, perfCreates, perfCreateMs, perfRefreshes, perfRefreshMs, (os.clock() - perfT2) * 1000))

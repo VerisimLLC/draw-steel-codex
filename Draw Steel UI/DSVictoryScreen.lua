@@ -12,8 +12,23 @@ local mod = dmhub.GetModLoading()
 -- portraits, names, Stamina, and how their Recoveries changed over the fight. Dead
 -- heroes are marked DEAD.
 --
+-- The same screen doubles as the DEFEAT screen: "Declare Defeat" (initiative bar
+-- strip when a script defeat condition passes, or the combat settings menu at any
+-- time) flips LiveEncounter.defeatAwarded instead. In defeat mode the title reads
+-- DEFEAT in red, the Monsters tab opens first (the victors take the spotlight),
+-- the Victories award controls are hidden, and the Ajax core-asset painting fades
+-- in behind the cards (DEFEAT_BACKGROUND_IMAGE below -- lazily assigned so it is
+-- only ever downloaded when a defeat screen actually shows).
+--
 -- The director gets a "Proceed" button at the bottom; pressing it ends combat and
 -- clears the victory state, which closes the screen for every client.
+--
+-- A Heroes / Monsters tab strip under the title switches the card row between the
+-- hero cards and one card per monster initiative grouping (a squad with its
+-- captain, grouped monsters, or a lone monster -- see LiveEncounter:GetMonsterGroups),
+-- each showing the group's portrait, survivors, and the fun role it earned from
+-- the per-round monster stats (ComputeMonsterRoles below). Tab state is local to
+-- each client; the Award animation switches back to Heroes automatically.
 --
 -- The screen is created once and mounted at the top of the game HUD (see GameHud.lua).
 -- It reads its state straight from dmhub.initiativeQueue.liveEncounter, so no separate
@@ -27,6 +42,19 @@ local g_heroStagger = 0.28
 
 -- The victory (Victories resource) icon, dropped into each hero's card on Award.
 local VICTORY_ICON = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png"
+
+-- The defeat screen's backdrop: "Ajax by Nino Vecia", a 4096x2635 JPEG uploaded
+-- into the global Core asset store (assets:UploadImageAsset{core=true}), so every
+-- client resolves this id via CloudAssetManager and lazily downloads the image the
+-- first time it is displayed. To keep it lazy the id is only assigned to the
+-- backdrop panel's bgimage the first time a DEFEAT screen actually shows -- never
+-- at HUD load.
+local DEFEAT_BACKGROUND_IMAGE = "aad48ddf-94cb-4532-a77a-c4c46b82a605"
+
+-- The backdrop image's height as a percentage of its width (2635/4096). The
+-- panel spans the full screen width with this aspect-true height, which is
+-- taller than a 16:9/16:10 viewport, so centered it cover-crops the art.
+local DEFEAT_BACKGROUND_HEIGHT_PERCENT = 100 * 2635 / 4096
 
 ----------------------------------------------------------------------
 -- Hero roles
@@ -1015,6 +1043,448 @@ function DSVictoryScreen.ComputeHeroRoleDebugInfo(live)
     return result
 end
 
+----------------------------------------------------------------------
+-- Monster roles
+--
+-- The monster-side counterpart of the hero roles above, shown on the victory
+-- screen's Monsters tab. The unit is the monster INITIATIVE GROUPING captured at
+-- the start of combat (a squad with its captain, several monsters grouped onto
+-- one initiative, or a lone monster -- see LiveEncounter:GetMonsterGroups), and
+-- the stats are the group totals accumulated in liveEncounter.monsterStats by
+-- the same call sites that record hero stats (see STATS_TRACKING.md).
+--
+-- Same mechanics as hero roles: candidates in priority order, most interesting
+-- first, each non-floor role awarded only to its single top-ranked group, one
+-- role per group. Monsters leaning "negative" is intentional -- the floor roles
+-- (Never Stood a Chance, Speed Bump, Beneath Notice, Hapless, Still Standing)
+-- may land on several cards and celebrate failure as much as success.
+--
+-- Stats consumed: heroKills, heroesDowned, damageDealt, damageTaken, criticals,
+-- conditionsInflicted, forcedMovementDealt, enemyTurnDamage, standsFirm,
+-- tierRolls, deaths, turnsTaken.
+----------------------------------------------------------------------
+
+local function ComputeMonsterRolesInternal(live)
+    local roles = {}
+
+    local groups = live:GetMonsterGroups()
+    if groups == nil or #groups == 0 then
+        return roles
+    end
+
+    --Gather each group's whole-encounter totals and numeric-keyed per-round
+    --stats once up front.
+    local data = {}
+    for _, group in ipairs(groups) do
+        local rounds = {}
+        for roundKey, stats in pairs(live:GetStatsForMonsterGroupByRound(group.statKey)) do
+            local n = tonumber(string.match(tostring(roundKey), "^round(%d+)$"))
+            if n ~= nil and type(stats) == "table" then
+                rounds[n] = stats
+            end
+        end
+
+        data[#data+1] = {
+            group = group,
+            name = group.name or "Monsters",
+            totals = live:GetStatsForMonsterGroup(group.statKey),
+            rounds = rounds,
+        }
+    end
+
+    --Stat accessors, mirroring the hero versions.
+    local function Total(d, stat)
+        local v = d.totals[stat]
+        return type(v) == "number" and v or 0
+    end
+
+    local function RoundStat(d, n, stat)
+        local r = d.rounds[n]
+        local v = r ~= nil and r[stat] or nil
+        return type(v) == "number" and v or 0
+    end
+
+    local function NestedTotal(d, stat)
+        local t = d.totals[stat]
+        if type(t) ~= "table" then
+            return 0
+        end
+        local sum = 0
+        for _, v in pairs(t) do
+            if type(v) == "number" then
+                sum = sum + v
+            end
+        end
+        return sum
+    end
+
+    local function NestedStat(d, stat, key)
+        local t = d.totals[stat]
+        if type(t) == "table" and type(t[key]) == "number" then
+            return t[key]
+        end
+        return 0
+    end
+
+    --The qualifying groups for a role, best first; same contract as the hero
+    --RankBy (values must be > 0 and >= minValue; ties keep group order).
+    local function RankBy(fn, minValue)
+        local list = {}
+        for order, d in ipairs(data) do
+            local v = fn(d)
+            if v ~= nil and v > 0 and v >= (minValue or 1) then
+                list[#list+1] = { d = d, value = v, order = order }
+            end
+        end
+        table.sort(list, function(a, b)
+            if a.value ~= b.value then
+                return a.value > b.value
+            end
+            return a.order < b.order
+        end)
+        return list
+    end
+
+    local candidates = {}
+    local function AddRole(role, entries, allowDuplicates)
+        if entries ~= nil and #entries > 0 then
+            candidates[#candidates+1] = {
+                role = role,
+                entries = entries,
+                allowDuplicates = allowDuplicates,
+            }
+        end
+    end
+
+    --Hero Slayer: killed a hero outright. The crown jewel of monster roles.
+    do
+        local ranked = RankBy(function(d) return Total(d, "heroKills") end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Killed %d %s", e.value, cond(e.value == 1, "hero", "heroes")),
+                tooltip = "The stuff of villainous legend",
+            }
+        end
+        AddRole("Hero Slayer", entries)
+    end
+
+    --Heartbreaker: dropped heroes to dying the most.
+    do
+        local ranked = RankBy(function(d) return Total(d, "heroesDowned") end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Dropped a hero to dying %d %s", e.value, cond(e.value == 1, "time", "times")),
+                tooltip = "So close to glory",
+            }
+        end
+        AddRole("Heartbreaker", entries)
+    end
+
+    --Menace: the most damage dealt. Tooltip fun fact: the best OTHER group.
+    do
+        local ranked = RankBy(function(d) return Total(d, "damageDealt") end)
+        local entries = {}
+        for i, e in ipairs(ranked) do
+            local other = ranked[cond(i == 1, 2, 1)]
+            local tooltip = "No other group dealt any damage"
+            if other ~= nil then
+                tooltip = string.format("%s dealt %d damage", other.d.name, other.value)
+            end
+            entries[#entries+1] = { d = e.d, text = string.format("Dealt %d damage", e.value), tooltip = tooltip }
+        end
+        AddRole("Menace", entries)
+    end
+
+    --Deadeye: the most critical hits.
+    do
+        local ranked = RankBy(function(d) return Total(d, "criticals") end)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Landed %d critical %s", e.value, cond(e.value == 1, "hit", "hits")),
+                tooltip = "Right where it hurts",
+            }
+        end
+        AddRole("Deadeye", entries)
+    end
+
+    --Tormentor: inflicted the most conditions, at least 2. Tooltip calls out
+    --their most-used condition.
+    do
+        local ranked = RankBy(function(d) return NestedTotal(d, "conditionsInflicted") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            local bestName = nil
+            local bestCount = 0
+            local t = e.d.totals.conditionsInflicted
+            if type(t) == "table" then
+                for name, v in pairs(t) do
+                    if type(v) == "number" and v > bestCount then
+                        bestName = name
+                        bestCount = v
+                    end
+                end
+            end
+            local tooltip = "The heroes danced to their tune"
+            if bestName ~= nil then
+                tooltip = string.format("Including %d %s", bestCount, bestName)
+            end
+            entries[#entries+1] = { d = e.d, text = string.format("Inflicted %d conditions", e.value), tooltip = tooltip }
+        end
+        AddRole("Tormentor", entries)
+    end
+
+    --Bulldozer: force-moved heroes the most spaces, at least 4.
+    do
+        local ranked = RankBy(function(d) return Total(d, "forcedMovementDealt") end, 4)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Threw heroes around %d spaces", e.value),
+                tooltip = "Position is everything",
+            }
+        end
+        AddRole("Bulldozer", entries)
+    end
+
+    --Opportunist: dealt the most damage outside its own turns, at least 5.
+    do
+        local ranked = RankBy(function(d) return Total(d, "enemyTurnDamage") end, 5)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Dealt %d damage outside its turns", e.value),
+                tooltip = "Free strikes add up",
+            }
+        end
+        AddRole("Opportunist", entries)
+    end
+
+    --Immovable Object: stood firm against the most forced moves, at least 2.
+    do
+        local ranked = RankBy(function(d) return Total(d, "standsFirm") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Stood firm against %d forced moves", e.value),
+                tooltip = "Like shoving a mountain",
+            }
+        end
+        AddRole("Immovable Object", entries)
+    end
+
+    --Damage Sponge: soaked the most damage (at least 15) with survivors left.
+    do
+        local ranked = RankBy(function(d)
+            if d.group.aliveCount > 0 then
+                return Total(d, "damageTaken")
+            end
+            return nil
+        end, 15)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Soaked %d damage and kept coming", e.value),
+                tooltip = string.format("%d of %d still standing", e.d.group.aliveCount, e.d.group.memberCount),
+            }
+        end
+        AddRole("Damage Sponge", entries)
+    end
+
+    --Last Stand: took the most damage (at least 15) before being wiped out.
+    do
+        local ranked = RankBy(function(d)
+            if d.group.allDead then
+                return Total(d, "damageTaken")
+            end
+            return nil
+        end, 15)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Took %d damage before falling", e.value),
+                tooltip = "The heroes earned this one",
+            }
+        end
+        AddRole("Last Stand", entries)
+    end
+
+    --Hot Streak: rolled tier 3 the most, at least 2 times.
+    do
+        local ranked = RankBy(function(d) return NestedStat(d, "tierRolls", "tier3") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Rolled tier 3 %d times", e.value),
+                tooltip = "The dice fought for the wrong side",
+            }
+        end
+        AddRole("Hot Streak", entries)
+    end
+
+    --Cold Dice: rolled tier 1 the most, at least 2 times.
+    do
+        local ranked = RankBy(function(d) return NestedStat(d, "tierRolls", "tier1") end, 2)
+        local entries = {}
+        for _, e in ipairs(ranked) do
+            entries[#entries+1] = {
+                d = e.d,
+                text = string.format("Rolled tier 1 %d times", e.value),
+                tooltip = "The dice were not kind",
+            }
+        end
+        AddRole("Cold Dice", entries)
+    end
+
+    --Floor roles below: negative achievements that may land on several cards at
+    --once (allowDuplicates), awarded only to groups that won nothing above.
+
+    --Never Stood a Chance: wiped out without ever taking a turn. turnsTaken is
+    --recorded only for REAL turns (the "Set Has Moved" skip path records
+    --nothing), so a group skipped after dying still qualifies.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            if d.group.allDead and d.group.memberCount > 0 and Total(d, "turnsTaken") == 0 then
+                entries[#entries+1] = {
+                    d = d,
+                    text = "Wiped out before taking a single turn",
+                    tooltip = "What did they expect?",
+                }
+            end
+        end
+        AddRole("Never Stood a Chance", entries, true)
+    end
+
+    --Speed Bump: the whole group died in round 1.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            if d.group.allDead and d.group.memberCount > 0 and RoundStat(d, 1, "deaths") >= d.group.memberCount then
+                entries[#entries+1] = {
+                    d = d,
+                    text = "The whole group fell in round 1",
+                    tooltip = "They barely slowed the heroes down",
+                }
+            end
+        end
+        AddRole("Speed Bump", entries, true)
+    end
+
+    --Beneath Notice: took no damage at all.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            if Total(d, "damageTaken") == 0 then
+                entries[#entries+1] = {
+                    d = d,
+                    text = "Took no damage at all",
+                    tooltip = "The heroes had bigger problems",
+                }
+            end
+        end
+        AddRole("Beneath Notice", entries, true)
+    end
+
+    --Hapless: contributed nothing whatsoever.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            if Total(d, "damageDealt") == 0
+                and NestedTotal(d, "conditionsInflicted") == 0
+                and Total(d, "heroKills") == 0
+                and Total(d, "heroesDowned") == 0
+                and Total(d, "forcedMovementDealt") == 0 then
+                entries[#entries+1] = {
+                    d = d,
+                    text = "Did nothing of note",
+                    tooltip = "Perhaps next time",
+                }
+            end
+        end
+        AddRole("Hapless", entries, true)
+    end
+
+    --Still Standing: the last-resort floor role for survivors.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            if d.group.aliveCount > 0 then
+                entries[#entries+1] = {
+                    d = d,
+                    text = "Survived the encounter",
+                    tooltip = "Living to fight another day",
+                }
+            end
+        end
+        AddRole("Still Standing", entries, true)
+    end
+
+    --Assignment: plain priority order (no history bias for monster groups --
+    --they are ephemeral). Non-floor roles are awarded only to their WINNER; a
+    --role whose winner already shows something better goes unawarded. Floor
+    --roles then land on every still-roleless qualifying group.
+    for _, candidate in ipairs(candidates) do
+        if candidate.allowDuplicates then
+            for _, entry in ipairs(candidate.entries) do
+                local groupid = entry.d.group.groupid
+                if roles[groupid] == nil then
+                    roles[groupid] = {
+                        role = candidate.role,
+                        text = entry.text,
+                        tooltip = entry.tooltip,
+                    }
+                end
+            end
+        else
+            local entry = candidate.entries[1]
+            if entry ~= nil then
+                local groupid = entry.d.group.groupid
+                if roles[groupid] == nil then
+                    roles[groupid] = {
+                        role = candidate.role,
+                        text = entry.text,
+                        tooltip = entry.tooltip,
+                    }
+                end
+            end
+        end
+    end
+
+    --Raw candidates + per-group data for developer tooling (the /monsterroles
+    --macro), mirroring the hero function's extended returns.
+    return roles, candidates, data
+end
+
+--Compute the fun role each monster initiative grouping played this encounter.
+--Returns { [groupid] = { role = "Menace", text = "Dealt 47 damage", tooltip = ... } };
+--groups that earned no role are absent. Never throws -- any failure (stats
+--missing, old encounter data) returns an empty table so the victory screen
+--renders without monster roles.
+function DSVictoryScreen.ComputeMonsterRoles(live)
+    if live == nil then
+        return {}
+    end
+
+    local ok, result = pcall(ComputeMonsterRolesInternal, live)
+    if not ok or type(result) ~= "table" then
+        return {}
+    end
+
+    return result
+end
+
 --Debugging macro: prints the role each hero would be awarded if the current
 --combat ended right now, using the exact logic the victory screen uses.
 --Unlike the screen itself it does NOT require victory to have been awarded --
@@ -1062,20 +1532,84 @@ Commands.RegisterMacro{
     end,
 }
 
--- Returns the live encounter if and only if it is currently in the victory state
--- (combat active + victory awarded); otherwise nil.
-local function GetActiveVictory()
+--Debugging macro: the monster-side counterpart of /roles. Prints each monster
+--initiative grouping, its accumulated stat totals, and the role the victory
+--screen's Monsters tab would award it if combat ended right now. Works mid-fight.
+Commands.RegisterMacro{
+    name = "monsterroles",
+    summary = "Show the victory-screen role each monster group would get if combat ended now.",
+    doc = "Usage: /monsterroles\nAnalyzes the current combat's live encounter monster stats and prints, for each monster initiative grouping, its stat totals and the role the victory screen's Monsters tab would award it if the encounter ended right now.",
+    command = function()
+        local q = dmhub.initiativeQueue
+        if q == nil or q:try_get("hidden") then
+            print("MonsterRoles: no active combat.")
+            return
+        end
+
+        local live = q:try_get("liveEncounter")
+        if type(live) ~= "table" then
+            print("MonsterRoles: this combat has no live encounter (stats are only recorded in live encounters).")
+            return
+        end
+
+        local groups = live:GetMonsterGroups()
+        if groups == nil or #groups == 0 then
+            print("MonsterRoles: no monster groups are participating in this encounter.")
+            return
+        end
+
+        local roles = DSVictoryScreen.ComputeMonsterRoles(live)
+
+        print(string.format("MonsterRoles: if the encounter ended now (round %d):", q.round or 0))
+        for _, group in ipairs(groups) do
+            local status = string.format("%d/%d alive", group.aliveCount, group.memberCount)
+            local info = roles[group.groupid]
+            if info ~= nil then
+                print(string.format("  %s (%s): %s -- \"%s\" (tooltip: \"%s\")", group.name, status, info.role, info.text, info.tooltip))
+            else
+                print(string.format("  %s (%s): (no role)", group.name, status))
+            end
+            local totals = live:GetStatsForMonsterGroup(group.statKey)
+            local parts = {}
+            for statid, v in pairs(totals) do
+                if type(v) == "number" then
+                    parts[#parts+1] = string.format("%s=%d", statid, v)
+                elseif type(v) == "table" then
+                    local sum = 0
+                    for _, n in pairs(v) do
+                        if type(n) == "number" then
+                            sum = sum + n
+                        end
+                    end
+                    parts[#parts+1] = string.format("%s=%d", statid, sum)
+                end
+            end
+            table.sort(parts)
+            if #parts > 0 then
+                print(string.format("    stats: %s", table.concat(parts, ", ")))
+            else
+                print("    stats: (none recorded)")
+            end
+        end
+    end,
+}
+
+-- Returns the live encounter and the awarded outcome ("victory" or "defeat") if
+-- and only if combat is active with an outcome awarded; otherwise nil.
+local function GetActiveOutcome()
     local q = dmhub.initiativeQueue
     if q == nil or q.hidden then
         return nil
     end
     local live = q:try_get("liveEncounter")
-    if type(live) ~= "table" or not live:try_get("victoryAwarded", false) then
-        print("VICTORY:: GetActiveVictory -> nil")
+    if type(live) ~= "table" then
         return nil
     end
-        print("VICTORY:: GetActiveVictory -> live", live)
-    return live
+    local outcome = live:GetAwardedOutcome()
+    if outcome == nil then
+        return nil
+    end
+    return live, outcome
 end
 
 -- Record the role each hero was awarded this encounter into their persistent
@@ -1134,9 +1668,10 @@ local function ProceedEndCombat()
     local live = q:try_get("liveEncounter")
     if type(live) == "table" then
         -- Record awarded roles while the queue is still live (GetBattleHeroTokens
-        -- reads it) and before victoryAwarded is cleared.
+        -- reads it) and before the outcome flags are cleared.
         RecordHeroRoles(live)
         live.victoryAwarded = false
+        live.defeatAwarded = false
     end
 
     q.hidden = true
@@ -1508,9 +2043,222 @@ local function BuildHeroCard(live, token, roleInfo)
     }
 end
 
+-- Build a single monster grouping's card for the Monsters tab: the group's
+-- portrait (its captain's, for a squad), name with an "xN" member count, a
+-- survivors bar in place of the hero card's Stamina bar, and the fun role the
+-- group earned (may be nil; the role lines render blank). Mirrors BuildHeroCard's
+-- structure and fade classes so the two tabs read as one family; fully-wiped
+-- groups get the red portrait wash with a DEFEATED marker where dead heroes
+-- show DEAD.
+local function BuildMonsterCard(live, group, roleInfo)
+    local token = group.primaryToken
+    local name = group.name or "Monsters"
+    local allDead = group.allDead
+
+    -- For wiped groups the portrait carries the death treatment, exactly like a
+    -- fallen hero's card (bgcolor alpha wash so victoryFade can still animate).
+    local deadChildren = nil
+    if allDead then
+        deadChildren = {
+            gui.Panel{
+                classes = {"victoryFade"},
+                interactable = false,
+                bgimage = "panels/square.png",
+                bgcolor = "#ff000080",
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+            },
+            gui.Label{
+                classes = {"victoryFade", "victoryDead"},
+                interactable = false,
+                text = "DEFEATED",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                textAlignment = "center",
+                color = "white",
+                fontFace = "Book",
+                fontSize = 16,
+                fontWeight = "black",
+                uppercase = true,
+            },
+        }
+    end
+
+    local portraitPanel = gui.Panel{
+        classes = {"victoryFade", "victoryPortrait", "borderInfo"},
+        interactable = false,
+        flow = "none",
+        width = "100%",
+        height = string.format("%f%% width", 10000 / Styles.portraitWidthPercentOfHeight),
+        halign = "center",
+        valign = "top",
+        tmargin = -12,
+        bgcolor = "white",
+        borderWidth = 2,
+        cornerRadius = 4,
+        children = deadChildren,
+    }
+    if token ~= nil then
+        local portrait = token.inspectPortrait
+        portraitPanel.bgimage = portrait
+        if token.hasSpineAnimation then
+            portraitPanel.selfStyle.imageRect = nil
+        else
+            portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01, portrait)
+        end
+    end
+
+    local nameText = name
+    if group.memberCount > 1 then
+        nameText = string.format("%s x%d", name, group.memberCount)
+    end
+
+    local nameLabel = gui.Label{
+        classes = {"victoryFade", "victoryHeroName"},
+        interactable = false,
+        text = nameText,
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 8,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 20,
+        fontWeight = "bold",
+    }
+
+    -- Survivors bar: same chrome as the hero Stamina bar, filled by the fraction
+    -- of the group still standing.
+    local fillPct = 0
+    if group.memberCount > 0 then
+        fillPct = math.min(1, group.aliveCount / group.memberCount) * 100
+    end
+
+    local statusText
+    if group.memberCount == 1 then
+        statusText = cond(allDead, "Defeated", "Survived")
+    elseif allDead then
+        statusText = "All Defeated"
+    elseif group.deadCount == 0 then
+        statusText = string.format("All %d Survived", group.memberCount)
+    else
+        statusText = string.format("%d of %d Survived", group.aliveCount, group.memberCount)
+    end
+
+    local survivorsFill = gui.Panel{
+        classes = {"victoryFade", cond(allDead, "bgDanger", "bgSuccess")},
+        interactable = false,
+        halign = "left",
+        valign = "center",
+        height = "100%",
+        width = string.format("%f%%", fillPct),
+    }
+
+    local survivorsText = gui.Label{
+        classes = {"victoryFade"},
+        interactable = false,
+        text = statusText,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Book",
+        fontSize = 13,
+    }
+
+    local survivorsBar = gui.Panel{
+        classes = {"victoryFade", "bg", "border"},
+        interactable = false,
+        flow = "none",
+        width = 150,
+        height = 18,
+        halign = "center",
+        tmargin = 6,
+        borderWidth = 1,
+        cornerRadius = 3,
+        children = { survivorsFill, survivorsText },
+    }
+
+    -- The role the group earned, with its fun-fact tooltip -- identical to the
+    -- hero card's role treatment, except the title wraps: monster role names
+    -- ("Never Stood a Chance") run longer than hero ones and overflow the card
+    -- at textWrap = false.
+    local roleTitleLabel = gui.Label{
+        classes = {"victoryFade", "info"},
+        interactable = roleInfo ~= nil,
+        text = (roleInfo ~= nil and roleInfo.role) or "",
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 8,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 16,
+        fontWeight = "bold",
+        uppercase = true,
+        hover = (roleInfo ~= nil and roleInfo.tooltip ~= nil) and gui.Tooltip(roleInfo.tooltip) or nil,
+    }
+
+    local roleTextLabel = gui.Label{
+        classes = {"victoryFade", "fg"},
+        interactable = false,
+        text = (roleInfo ~= nil and roleInfo.text) or "",
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 2,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 13,
+    }
+
+    return gui.Panel{
+        classes = {"panel", "surfaceRadial", "border", "victoryHeroCard", "scalein", "victoryFade"},
+        interactable = false,
+        flow = "vertical",
+        width = 200,
+        height = "auto",
+        minHeight = 380,
+        halign = "center",
+        valign = "top",
+        hmargin = 12,
+
+        cornerRadius = 8,
+        borderWidth = 1,
+        vpad = 12,
+        borderBox = true,
+
+        data = { group = group },
+
+        styles = {
+            { selectors = {"victoryFade"}, opacity = 0, transitionTime = 0.6 },
+            { selectors = {"shown", "victoryFade"}, opacity = 1, transitionTime = 0.6 },
+            { selectors = {"scalein", "~shown"}, transitionTime = 0.6, scale = 1.3,},
+        },
+
+        children = { portraitPanel, nameLabel, survivorsBar, roleTitleLabel, roleTextLabel },
+
+        fadeOut = function(card)
+            card:SetClassTree("shown", false)
+        end,
+    }
+end
+
 -- Create the victory screen overlay. Mounted once by the game HUD.
 function DSVictoryScreen.Create()
     local heroRow
+    local monsterRow
+    local tabsPanel
+    local heroesTabLabel
+    local monstersTabLabel
     local titleLabel
     local titleGroup
     local proceedButton
@@ -1537,6 +2285,44 @@ function DSVictoryScreen.Create()
             { classes = {"dim-out"}, opacity = 0, transitionTime = 0.4 },
             { classes = {"dim-in"}, opacity = 0.55, transitionTime = 0.5 },
         },
+    }
+
+    ------------------------------------------------------------------
+    -- Defeat backdrop: the Ajax painting, faded in over the dim (and
+    -- under the title/cards) when the outcome is a defeat. Starts with
+    -- NO bgimage -- the core-asset id is assigned on the first defeat
+    -- showing (see showVictory), so the image is never downloaded unless
+    -- a defeat screen appears. The fade rides imageLoaded: a fresh cloud
+    -- image renders nothing until its texture arrives, at which point we
+    -- add "shown" and the opacity transition performs the fade. opacity
+    -- is per-panel in this engine, so the class lives on the image panel
+    -- itself.
+    ------------------------------------------------------------------
+    local defeatBackdrop
+    defeatBackdrop = gui.Panel{
+        classes = {"defeatBackdrop", "hidden"},
+        interactable = false,
+        bgcolor = "white",
+        width = "100%",
+        height = string.format("%f%% width", DEFEAT_BACKGROUND_HEIGHT_PERCENT),
+        halign = "center",
+        valign = "center",
+        styles = {
+            { selectors = {"defeatBackdrop"}, opacity = 0, transitionTime = 1.4 },
+            { selectors = {"defeatBackdrop", "shown"}, opacity = 0.5, transitionTime = 1.4 },
+        },
+        imageLoaded = function(element)
+            --first download (or cache hit) completed; fade in if a defeat
+            --screen is currently up. rootPanel tracks the loaded state for
+            --subsequent showings (imageLoaded does not re-fire on a panel
+            --whose image is already initialized).
+            if rootPanel ~= nil then
+                rootPanel.data.backdropLoaded = true
+                if rootPanel.data.shown and rootPanel.data.outcome == "defeat" then
+                    element:SetClass("shown", true)
+                end
+            end
+        end,
     }
 
     ------------------------------------------------------------------
@@ -1665,9 +2451,81 @@ function DSVictoryScreen.Create()
         maxWidth = 1760,
         halign = "center",
         valign = "top",
-        y = 210,
+        y = 254,
         wrap = true,
         children = {},
+    }
+
+    -- The Monsters tab's card row: identical geometry to heroRow, only one of the
+    -- two is ever uncollapsed (see selectTab).
+    monsterRow = gui.Panel{
+        classes = {"collapsed"},
+        interactable = false,
+        flow = "horizontal",
+        width = "auto",
+        height = 400,
+        maxWidth = 1760,
+        halign = "center",
+        valign = "top",
+        y = 254,
+        wrap = true,
+        children = {},
+    }
+
+    ------------------------------------------------------------------
+    -- Heroes / Monsters tab strip, between the title and the card rows.
+    -- Local-only state: each client switches freely. Collapsed entirely
+    -- when the encounter has no monster groups to show.
+    ------------------------------------------------------------------
+    local function MakeTabLabel(text, tabid)
+        return gui.Label{
+            classes = {"victoryTab"},
+            interactable = true,
+            text = text,
+            width = "auto",
+            height = "auto",
+            hmargin = 18,
+            --a (near-invisible) bgimage so the label is an event raycast target:
+            --text alone does not receive press events.
+            bgimage = "panels/square.png",
+            bgcolor = "#00000001",
+            pad = 4,
+            borderBox = true,
+            textAlignment = "center",
+            fontFace = "Book",
+            fontSize = 20,
+            fontWeight = "bold",
+            uppercase = true,
+            press = function(element)
+                if rootPanel ~= nil then
+                    rootPanel:FireEvent("selectTab", tabid)
+                end
+            end,
+        }
+    end
+
+    heroesTabLabel = MakeTabLabel("Heroes", "heroes")
+    monstersTabLabel = MakeTabLabel("Monsters", "monsters")
+
+    tabsPanel = gui.Panel{
+        classes = {"victoryTabs", "collapsed"},
+        interactable = true,
+        flow = "horizontal",
+        width = "auto",
+        height = 32,
+        halign = "center",
+        valign = "top",
+        y = 212,
+        children = { heroesTabLabel, monstersTabLabel },
+        styles = {
+            { selectors = {"victoryTabs"}, opacity = 0, transitionTime = 0.5 },
+            { selectors = {"victoryTabs", "shown"}, opacity = 1, transitionTime = 0.5 },
+            --unselected tabs sit dimmed; the selected (or hovered) tab reads at
+            --full strength. Same drop-shadow-free treatment as the card labels.
+            { selectors = {"victoryTab"}, color = "#999999", transitionTime = 0.2 },
+            { selectors = {"victoryTab", "hover"}, color = "#dddddd" },
+            { selectors = {"victoryTab", "selected"}, color = "white" },
+        },
     }
 
     -- Director-only "Proceed" button: ends combat and clears the victory state.
@@ -1756,8 +2614,8 @@ function DSVictoryScreen.Create()
 
         click = function(element)
             if not dmhub.isDM then return end
-            local live = GetActiveVictory()
-            if live == nil then return end
+            local live, outcome = GetActiveOutcome()
+            if live == nil or outcome ~= "victory" then return end
             local n = tonumber(victoryAmountInput.text) or 1
             n = math.floor(n)
             if n < 0 then n = 0 end
@@ -1811,7 +2669,7 @@ function DSVictoryScreen.Create()
         -- with interactable=false would block its whole subtree from raycasts).
         interactable = true,
 
-        children = { dimPanel, titleGroup, heroRow, victoriesSection, proceedButton },
+        children = { dimPanel, defeatBackdrop, titleGroup, tabsPanel, heroRow, monsterRow, victoriesSection, proceedButton },
 
         data = {
             -- Bumped on every show/hide so a stale scheduled callback can tell that a
@@ -1819,17 +2677,41 @@ function DSVictoryScreen.Create()
             generation = 0,
             shown = false,
             awardPlayed = false,
+            -- The outcome being shown: "victory" or "defeat".
+            outcome = "victory",
+            -- Which card row is showing ("heroes" or "monsters"); local per client.
+            tab = "heroes",
+            -- Which rows have played their reveal stagger this showing (a row
+            -- animates in the first time it becomes visible).
+            revealedTabs = {},
+            -- Whether the defeat backdrop image has been assigned/loaded yet
+            -- (its bgimage is only set on the first defeat showing, and
+            -- imageLoaded does not re-fire once initialized).
+            backdropImageSet = false,
+            backdropLoaded = false,
         },
 
-        -- Build + stagger the hero cards, then fade everything in.
-        showVictory = function(element, live)
+        -- Build + stagger the cards, then fade everything in. outcome is
+        -- "victory" (default) or "defeat"; defeat retitles the banner, opens on
+        -- the Monsters tab, and fades in the backdrop painting.
+        showVictory = function(element, live, outcome)
+            if outcome ~= "defeat" then
+                outcome = "victory"
+            end
             element.data.generation = element.data.generation + 1
             local g = element.data.generation
+            element.data.outcome = outcome
 
             element:SetClass("hidden", false)
             dimPanel.blurBackground = true
             dimPanel:SetClass("dim-out", false)
             dimPanel:SetClass("dim-in", true)
+
+            --the banner reads VICTORY or DEFEAT; the defeat face takes a
+            --blood-red tint (nil restores the themed face color).
+            titleLabel.text = cond(outcome == "defeat", "Defeat", "Victory")
+            titleShadow.text = titleLabel.text
+            titleLabel.selfStyle.color = cond(outcome == "defeat", "#e04545", nil)
 
             titleLabel:SetClass("shown", false)
             titleShadow:SetClass("shown", false)
@@ -1863,17 +2745,105 @@ function DSVictoryScreen.Create()
             end
             heroRow.children = cards
 
+            --build a card per monster grouping for the Monsters tab (pcall: an old
+            --live encounter from before monster tracking simply shows no tab).
+            local monsterCards = {}
+            local okGroups, monsterGroups = pcall(function() return live:GetMonsterGroups() end)
+            if okGroups and type(monsterGroups) == "table" and #monsterGroups > 0 then
+                local monsterRoles = DSVictoryScreen.ComputeMonsterRoles(live)
+                for _, group in ipairs(monsterGroups) do
+                    monsterCards[#monsterCards + 1] = BuildMonsterCard(live, group, monsterRoles[group.groupid])
+                end
+            end
+            monsterRow.children = monsterCards
+
+            --the tab strip only exists when there are monster groups to show.
+            tabsPanel:SetClass("collapsed", #monsterCards == 0)
+
+            --defeat opens on the Monsters tab -- the victors take the spotlight
+            --(falling back to Heroes when there are no monster cards to show).
+            local defaultTab = "heroes"
+            if outcome == "defeat" and #monsterCards > 0 then
+                defaultTab = "monsters"
+            end
+            element.data.tab = defaultTab
+            element.data.revealedTabs = { [defaultTab] = true }
+            heroesTabLabel:SetClass("selected", defaultTab == "heroes")
+            monstersTabLabel:SetClass("selected", defaultTab == "monsters")
+            heroRow:SetClass("collapsed", defaultTab ~= "heroes")
+            monsterRow:SetClass("collapsed", defaultTab ~= "monsters")
+            tabsPanel:SetClass("shown", false)
+
+            --defeat backdrop: assign the core-asset painting on first use (kept
+            --lazy -- see DEFEAT_BACKGROUND_IMAGE) and fade it in, immediately if
+            --already downloaded, otherwise from its imageLoaded event.
+            if outcome == "defeat" then
+                defeatBackdrop:SetClass("hidden", false)
+                if not element.data.backdropImageSet then
+                    element.data.backdropImageSet = true
+                    defeatBackdrop.bgimage = DEFEAT_BACKGROUND_IMAGE
+                end
+                if element.data.backdropLoaded then
+                    defeatBackdrop:SetClass("shown", true)
+                else
+                    --fallback reveal: if the image resolved synchronously (local
+                    --cache hit) imageLoaded may never fire on this non-fresh
+                    --panel; a not-yet-loaded image renders nothing while unshown
+                    --anyway, so revealing on a timer is always safe.
+                    element:ScheduleEvent("revealBackdrop", 0.9, g)
+                end
+            else
+                defeatBackdrop:SetClass("shown", false)
+                defeatBackdrop:SetClass("hidden", true)
+            end
+
             --title sweeps in first.
             element:ScheduleEvent("showTitle", 0.15, g)
 
-            --then the heroes, one by one.
-            for i, card in ipairs(cards) do
+            --then the default tab's cards, one by one (the tab strip fades in
+            --alongside the first card).
+            element:ScheduleEvent("showTabs", 0.4, g)
+            local activeCards = cond(defaultTab == "heroes", cards, monsterCards)
+            for i, card in ipairs(activeCards) do
                 element:ScheduleEvent("showHero", 0.4 + (i - 1) * g_heroStagger, g, card)
             end
 
-            --finally the proceed button, after the last hero.
-            local proceedDelay = 0.4 + (#cards) * g_heroStagger + 0.2
+            --finally the proceed button, after the last card.
+            local proceedDelay = 0.4 + (#activeCards) * g_heroStagger + 0.2
             element:ScheduleEvent("showProceed", proceedDelay, g)
+        end,
+
+        showTabs = function(element, g)
+            if g ~= element.data.generation then return end
+            tabsPanel:SetClass("shown", true)
+        end,
+
+        revealBackdrop = function(element, g)
+            if g ~= element.data.generation then return end
+            if element.data.shown and element.data.outcome == "defeat" then
+                defeatBackdrop:SetClass("shown", true)
+            end
+        end,
+
+        --Switch between the Heroes and Monsters card rows. Local-only (each
+        --client browses freely). A row's cards play their reveal stagger the
+        --first time that row is opened; after that switching is instant.
+        selectTab = function(element, tabid)
+            if element.data.tab == tabid then return end
+            element.data.tab = tabid
+            heroesTabLabel:SetClass("selected", tabid == "heroes")
+            monstersTabLabel:SetClass("selected", tabid == "monsters")
+            heroRow:SetClass("collapsed", tabid ~= "heroes")
+            monsterRow:SetClass("collapsed", tabid ~= "monsters")
+
+            if not element.data.revealedTabs[tabid] then
+                element.data.revealedTabs[tabid] = true
+                local g = element.data.generation
+                local row = cond(tabid == "heroes", heroRow, monsterRow)
+                for i, card in ipairs(row.children) do
+                    element:ScheduleEvent("showHero", (i - 1) * 0.12, g, card)
+                end
+            end
         end,
 
         showTitle = function(element, g)
@@ -1904,10 +2874,11 @@ function DSVictoryScreen.Create()
             if g ~= element.data.generation then return end
             proceedButton:SetClass("shown", true)
             --reveal the Director victories controls alongside Proceed (unless already
-            --awarded, or this is a player).
-            local live = GetActiveVictory()
+            --awarded, this is a player, or the outcome is a defeat -- no Victories
+            --are granted for losing).
+            local live, outcome = GetActiveOutcome()
             local awarded = live ~= nil and live:try_get("victoriesAwarded", false)
-            victoriesSection:SetClass("collapsed", (not dmhub.isDM) or awarded)
+            victoriesSection:SetClass("collapsed", (not dmhub.isDM) or awarded or outcome ~= "victory")
         end,
 
         hideVictory = function(element)
@@ -1922,9 +2893,16 @@ function DSVictoryScreen.Create()
             rightSword:SetClass("rsw-closed", true)
             proceedButton:SetClass("shown", false)
             victoriesSection:SetClass("collapsed", true)
+            tabsPanel:SetClass("shown", false)
+            defeatBackdrop:SetClass("shown", false)
             --fade each card (gradient background + contents + any icons) out alongside
             --the dim, rather than letting them snap away at finishHide.
             for _, card in ipairs(heroRow.children) do
+                if card ~= nil and card.valid then
+                    card:FireEvent("fadeOut")
+                end
+            end
+            for _, card in ipairs(monsterRow.children) do
                 if card ~= nil and card.valid then
                     card:FireEvent("fadeOut")
                 end
@@ -1942,25 +2920,28 @@ function DSVictoryScreen.Create()
             --fully faded out; otherwise MainCamera keeps blurring every frame.
             dimPanel.blurBackground = false
             heroRow.children = {}
+            monsterRow.children = {}
+            defeatBackdrop:SetClass("hidden", true)
         end,
 
-        -- Compare the current victory state to what we are showing and flip if needed.
+        -- Compare the current outcome state to what we are showing and flip if needed.
         -- Driven by monitorGame (fires on every initiative-queue change, even while this
         -- panel is hidden -- a plain think would not fire while hidden) and once on create
         -- so a client that loads mid-victory shows the screen immediately.
         checkVictory = function(element)
-            local live = GetActiveVictory()
+            local live, outcome = GetActiveOutcome()
             local active = live ~= nil
             if active and not element.data.shown then
                 element.data.shown = true
-                element:FireEvent("showVictory", live)
+                element:FireEvent("showVictory", live, outcome)
             elseif not active and element.data.shown then
                 element.data.shown = false
                 element:FireEvent("hideVictory")
             end
 
-            --once the Director awards Victories, play the icon-drop animation (once).
-            if active and element.data.shown and not element.data.awardPlayed
+            --once the Director awards Victories, play the icon-drop animation
+            --(once; victory outcomes only).
+            if active and outcome == "victory" and element.data.shown and not element.data.awardPlayed
                 and live:try_get("victoriesAwarded", false) then
                 element.data.awardPlayed = true
                 element:FireEvent("playAward", live)
@@ -1971,6 +2952,9 @@ function DSVictoryScreen.Create()
         playAward = function(element, live)
             local g = element.data.generation
             local n = live:try_get("victories", 1)
+            --the drop animation lands on the hero cards, so make sure this client
+            --is looking at them.
+            element:FireEvent("selectTab", "heroes")
             --the controls have done their job; hide them.
             victoriesSection:SetClass("collapsed", true)
             local cards = heroRow.children

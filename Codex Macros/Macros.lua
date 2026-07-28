@@ -238,11 +238,14 @@ Commands.RegisterMacro{
 
 Commands.RegisterMacro{
     name = "testvictory",
-    summary = "fake a victory screen",
-    doc = "Usage: /testvictory [off]\nSets up a fake active combat whose LiveEncounter has victory awarded, with every hero on the map added to initiative as the victorious heroes -- so the victory screen (DSVictoryScreen) shows for quick iteration. Onset Recoveries are faked +2 above current so the 'X -> Y/Z' change is visible. Pass 'off' (or 'clear') to end the fake combat and dismiss the screen.",
+    summary = "fake a victory (or defeat) screen",
+    doc = "Usage: /testvictory [defeat|off]\nSets up a fake active combat whose LiveEncounter has an outcome awarded, with every hero on the map added to initiative as the heroes and every non-hero token added as the monster side (grouped by initiative grouping, so the Monsters tab has cards) -- so the outcome screen (DSVictoryScreen) shows for quick iteration. Onset Recoveries are faked +2 above current so the 'X -> Y/Z' change is visible. Pass 'defeat' to fake the DEFEAT screen instead of victory. Pass 'off' (or 'clear') to end the fake combat and dismiss the screen.",
     completions = function(args, argIndex)
         if argIndex ~= 1 then return {} end
-        return {{text = "off", summary = "clear the fake victory"}}
+        return {
+            {text = "defeat", summary = "fake the defeat screen"},
+            {text = "off", summary = "clear the fake outcome"},
+        }
     end,
     command = function(str)
         if not dmhub.isDM then
@@ -259,6 +262,7 @@ Commands.RegisterMacro{
                 local live = q:try_get("liveEncounter")
                 if type(live) == "table" then
                     live.victoryAwarded = false
+                    live.defeatAwarded = false
                 end
                 q.hidden = true
                 q.gameMode = "exploration"
@@ -268,24 +272,38 @@ Commands.RegisterMacro{
             return
         end
 
-        --Build a fresh active initiative queue containing every hero on the map.
+        local isDefeat = arg == "defeat"
+
+        --Build a fresh active initiative queue containing every hero on the map
+        --plus every non-hero token as the monster side.
         local q = InitiativeQueue.Create()
         q.hidden = false
         q.playersGoFirst = true
         q.playersTurn = true
 
         local heroTokens = {}
+        local monsterids = {}
         for _, token in ipairs(dmhub.allTokens) do
-            if token.properties ~= nil and token.properties:IsHero() then
-                q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
-                heroTokens[#heroTokens + 1] = token
+            if token.properties ~= nil then
+                if token.properties:IsHero() then
+                    local entry = q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
+                    entry.player = true
+                    heroTokens[#heroTokens + 1] = token
+                else
+                    local entry = q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
+                    entry.player = false
+                    monsterids[#monsterids + 1] = token.charid
+                end
             end
         end
 
-        --Attach a fake LiveEncounter already in the victory state.
+        --Attach a fake LiveEncounter already in the chosen outcome state.
         local live = LiveEncounter.Create(Encounter.new())
         live.onsetMonsterCount = 3
-        live.victoryAwarded = true
+        live.victoryAwarded = not isDefeat
+        live.defeatAwarded = isDefeat
+        --snapshot the monster groupings so the Monsters tab has cards.
+        live:RecordOnsetMonsterGroups(monsterids)
 
         --Fake onset Recoveries 2 above current so the "onset -> current/max" arrow shows.
         local onsetHeroes = {}
@@ -304,7 +322,8 @@ Commands.RegisterMacro{
         info.initiativeQueue = q
         info.UploadInitiative()
 
-        print(string.format("/testvictory: faked victory with %d heroes.", #heroTokens))
+        print(string.format("/testvictory: faked %s with %d heroes and %d monster tokens.",
+            cond(isDefeat, "defeat", "victory"), #heroTokens, #monsterids))
     end,
 }
 

@@ -2895,9 +2895,11 @@ local function CreateAwardVictoryStrip(self, info)
         },
     }
 
-    -- Shown to the director once a script-set defeat condition is met. There is
-    -- no defeat analog of the victory screen; declaring defeat announces the
-    -- outcome in chat and ends combat (the same teardown as End Combat).
+    -- Shown to the director once a script-set defeat condition is met. Declaring
+    -- defeat announces the outcome in chat and flips the networked defeatAwarded
+    -- flag, so the full-screen DEFEAT screen (DSVictoryScreen in defeat mode)
+    -- takes over on every client; combat actually ends when the director presses
+    -- Proceed there.
     local declareDefeatButton = gui.Panel{
         classes = {"vaDrawer", "available", "awardVictoryButton"},
 
@@ -2910,7 +2912,7 @@ local function CreateAwardVictoryStrip(self, info)
         },
 
         hover = function(element)
-            gui.Tooltip{ text = "The defeat condition has been met. Click to end combat in defeat." }(element)
+            gui.Tooltip{ text = "The defeat condition has been met. Click to declare defeat." }(element)
         end,
 
         click = function(element)
@@ -2920,7 +2922,7 @@ local function CreateAwardVictoryStrip(self, info)
             local defeatText = liveEncounter:ScriptDefeatText()
             GameHud.instance:ModalMessage{
                 title = "Declare Defeat",
-                message = "End combat in defeat? This announces the outcome and ends the encounter.",
+                message = "Declare the encounter lost? This announces the outcome and shows the defeat screen to everyone.",
                 options = {
                     {
                         text = "Declare Defeat",
@@ -2930,7 +2932,8 @@ local function CreateAwardVictoryStrip(self, info)
                             else
                                 pcall(function() chat.Send("The encounter ends in defeat.") end)
                             end
-                            PerformEndCombat()
+                            liveEncounter.defeatAwarded = true
+                            info.UploadInitiative()
                         end,
                     },
                     {
@@ -3169,7 +3172,7 @@ local function CreateBossBarStrip(self, info)
             end
 
             local liveEncounter = q:try_get("liveEncounter")
-            if type(liveEncounter) ~= "table" or liveEncounter:try_get("victoryAwarded", false) then
+            if type(liveEncounter) ~= "table" or liveEncounter:GetAwardedOutcome() ~= nil then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -3398,18 +3401,26 @@ function GameHud.CreateInitiativeBar(self, info)
                     end,
                 }
 
-                --Award Victory -- manually flip the networked victory flag so the
-                --full-screen victory screen takes over. The automatic "Award Victory"
-                --strip only appears once the configured victory condition is met; this
-                --lets the director award victory at any point during combat. Hidden
-                --once victory has already been awarded.
+                --Award Victory / Declare Defeat -- manually flip the networked
+                --outcome flags so the full-screen outcome screen takes over. The
+                --automatic strips only appear once a configured condition is met;
+                --these let the director settle the encounter at any point during
+                --combat. Hidden once an outcome has already been awarded.
                 local liveEncounter = q:try_get("liveEncounter")
-                if type(liveEncounter) == "table" and not liveEncounter:try_get("victoryAwarded", false) then
+                if type(liveEncounter) == "table" and liveEncounter:GetAwardedOutcome() == nil then
                     entries[#entries+1] = {
                         text = "Award Victory",
                         click = function()
                             element.popup = nil
                             liveEncounter.victoryAwarded = true
+                            dmhub:UploadInitiativeQueue()
+                        end,
+                    }
+                    entries[#entries+1] = {
+                        text = "Declare Defeat",
+                        click = function()
+                            element.popup = nil
+                            liveEncounter.defeatAwarded = true
                             dmhub:UploadInitiativeQueue()
                         end,
                     }
@@ -4424,10 +4435,11 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				element:SetClass('hidden', false)
 			end
 
-			--Once victory has been awarded the initiative display is removed; the
-			--full-screen victory screen (DSVictoryScreen) takes over for everyone.
+			--Once an outcome (victory or defeat) has been awarded the initiative
+			--display is removed; the full-screen outcome screen (DSVictoryScreen)
+			--takes over for everyone.
 			local liveEncounterForVictory = initiativeQueue:try_get("liveEncounter")
-			if type(liveEncounterForVictory) == "table" and liveEncounterForVictory:try_get("victoryAwarded", false) then
+			if type(liveEncounterForVictory) == "table" and liveEncounterForVictory:GetAwardedOutcome() ~= nil then
 				element:SetClass('hidden', true)
 				return
 			end
@@ -4873,7 +4885,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			local q = info.initiativeQueue
 			if q == nil or q.hidden then return end
 			local live = q:try_get("liveEncounter")
-			if type(live) == "table" and live:try_get("victoryAwarded", false) then
+			if type(live) == "table" and live:GetAwardedOutcome() ~= nil then
 				element:SetClass("hidden", true)
 			end
 		end,

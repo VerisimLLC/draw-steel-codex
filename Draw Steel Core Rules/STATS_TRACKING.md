@@ -1,7 +1,12 @@
 # Stat tracking notes (for agents wiring up many stats)
 
-Hand this to anyone adding per-encounter hero statistics. It is the contract for the
+Hand this to anyone adding per-encounter combat statistics. It is the contract for the
 one function you call, plus the rules that keep stat tracking correct.
+
+Stats are tracked on BOTH sides of the fight through the same entry point: a stat
+that resolves to a hero accumulates under that hero, and a stat that resolves to a
+monster accumulates under the monster's **initiative grouping** (see "Monster-side
+tracking" below). The function name says "Hero" for historical reasons.
 
 ## The one call
 
@@ -33,18 +38,20 @@ Defined in `Draw Steel Core Rules/MCDMEncounter.lua`. It is a static function on
 2. **It no-ops unless the stat is valid.** A stat is recorded only when ALL hold:
    - we are in active combat (initiative present and not hidden), AND
    - a `LiveEncounter` is live in that combat, AND
-   - the token resolves to a hero (type `"character"`) that is participating in that
-     encounter.
-   Otherwise it silently does nothing. So feeding it monsters, objects, or
-   out-of-combat events is fine -- they are dropped.
+   - the token resolves to a hero (type `"character"`) participating in that
+     encounter, OR to a monster whose initiative grouping is participating (a live
+     initiative entry, or a group in the onset snapshot).
+   Otherwise it silently does nothing. So feeding it objects or out-of-combat
+   events is fine -- they are dropped.
 
 3. **Summons attribute to their summoner; retainers and followers to their mentor.**
    If the token is a summoned creature (an animal companion, a minion a character
-   summoned, etc.), the stat is attributed to the hero at the root of the `summonerid`
-   chain. Retainers and followers have no summonerid -- when the summon link runs out,
-   ResolveStatHero follows their mentor relationship (`IsRetainer`/`GetMentor`) to the
-   owning hero instead. You pass the retainer/follower/summon's tokenid; the hero gets
-   credited. A summon of a *monster* resolves to a non-hero and is dropped.
+   summoned, etc.), the stat is attributed to the owner at the root of the `summonerid`
+   chain -- a hero for hero summons, a monster group for monster summons. Retainers
+   and followers have no summonerid -- when the summon link runs out,
+   the resolver follows their mentor relationship (`IsRetainer`/`GetMentor`) to the
+   owning hero instead. You pass the retainer/follower/summon's tokenid; the owner gets
+   credited.
 
 4. **It accumulates atomically on the server.** The add is routed through
    `dmhub:IncrementInitiativeData` -> `DataStore.IncrementData`, which on Durable
@@ -350,11 +357,55 @@ Stats recorded this way by shipped content (do NOT add code-side tracking for th
 - `criticals` -- critical hits, recorded by the Critical Hit global rule content's
   behaviors. Consumed by the victory screen's hero roles (Deadeye, Hat Trick).
 
+## Monster-side tracking (monsterStats)
+
+The same `TrackHeroStats` call sites feed the monster side automatically: when
+`IncrementStat`'s hero resolution fails, `ResolveStatMonsterGroup` walks the same
+summon chain and, for a non-hero root whose initiative grouping is participating in
+the combat, records the stat under
+`liveEncounter/monsterStats/<groupKey>/round<N>/<statid>`.
+
+- The unit is the **initiative grouping** (`InitiativeQueue.GetInitiativeId`): a
+  minion squad plus its captain, several monsters deliberately grouped onto one
+  initiative, or a lone monster. `<groupKey>` is the group id passed through a
+  sanitizer (`[^%w_%-%.:]` -> `_`) because ids like `MONSTER-Goblin Warrior`
+  contain spaces, which are not path-safe. Attribution and display both derive the
+  key from the group id, so they always agree.
+- The groups themselves are snapshotted at the start of combat by
+  `LiveEncounter:RecordOnsetMonsterGroups(tokenids)` -- called from
+  `Commands.rollinitiative` (Draw Steel UI/DSInitiativeRoll.lua) for combat start
+  and for monsters added mid-fight, and from `LiveEncounter:DeployWave` for
+  reinforcement waves. The snapshot (`onsetMonsterGroups`, a dense list of
+  `{ groupid, statKey, name, memberids }`) is upserted, never rewritten, and is
+  what keeps a group displayable even if its initiative entry is later removed.
+- Monster-only stats recorded at their choke points:
+  - `deaths` -- victim-side, at the death transition in `creature.TakeDamage`
+    (`MCDMCreature.lua`), and in the minion branch (the squad records
+    `minionsKilled` deaths). Round-bucketed, so "the whole group fell in round 1"
+    is detectable.
+  - `heroKills` / `heroesDowned` -- attacker-side in the same file: a hero killed
+    outright (death transition) / driven to dying (the not-dying -> dying
+    transition). Routing credits a monster attacker's group; heroes can also
+    accumulate these (friendly fire) but no hero role reads them.
+  - `turnsTaken` -- `LiveEncounter.TrackMonsterGroupTurn(initiativeid)`, called
+    from `InitiativeQueue.NextTurn` (`MCDMInitiativeQueue.lua`) for non-player
+    entries. The "Set Has Moved" skip path deliberately records nothing, so
+    "died before taking a single turn" (turnsTaken == 0) stays detectable.
+- Reading back: `LiveEncounter:GetMonsterGroups()` (merged onset snapshot + live
+  non-player entries, with live member tokens and alive/dead counts),
+  `GetStatsForMonsterGroup(statKey)` (whole-combat totals),
+  `GetStatsForMonsterGroupByRound(statKey)`.
+- Consumed by the victory screen's **Monsters tab**
+  (`Draw Steel UI/DSVictoryScreen.lua`, `ComputeMonsterRoles`); debug with the
+  `/monsterroles` macro mid-fight.
+
 ## Storage layout: per-round buckets
 
 Stats are stored per round, transparently to callers: `IncrementStat` reads
 `dmhub.initiativeQueue.round` and writes to
-`liveEncounter/stats/<tokenid>/round<N>/<statid>`. Call sites do NOT change -- the same
+`liveEncounter/stats/<tokenid>/round<N>/<statid>` (heroes) or
+`liveEncounter/monsterStats/<groupKey>/round<N>/<statid>` (monster groups). Call
+sites do NOT change -- the same
 `TrackHeroStats(tokenid, statid, quantity)` call lands in whatever round is current.
 The round key is the string `"round<N>"` (not a bare number) so no serialization layer
 mistakes the sub-table for an array. Whole-combat totals are produced by summing the

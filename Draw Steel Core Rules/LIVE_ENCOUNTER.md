@@ -336,6 +336,19 @@ lands under its summoner.
 
 Both are read-only views; mutate only through `IncrementStat`.
 
+### Monster-side statistics (`monsterStats` + `onsetMonsterGroups`)
+
+The same call sites also feed a monster-side table: a stat whose token does NOT
+resolve to a hero is attributed to the token's **initiative grouping** (squad +
+captain, grouped monsters, or a lone monster) and accumulates under
+`monsterStats/<groupKey>/round<N>/<statid>`. The groupings are snapshotted into
+`onsetMonsterGroups` at combat start (`RecordOnsetMonsterGroups`, called from
+`Commands.rollinitiative` and `DeployWave`). Read back with
+`GetMonsterGroups()` / `GetStatsForMonsterGroup(statKey)` /
+`GetStatsForMonsterGroupByRound(statKey)`; consumed by the victory screen's
+Monsters tab (`DSVictoryScreen.ComputeMonsterRoles`, debug via `/monsterroles`).
+Full contract in `STATS_TRACKING.md` ("Monster-side tracking").
+
 ### Cross-component wiring
 
 | Layer | File | What |
@@ -434,7 +447,11 @@ Both are read-only views; mutate only through `IncrementStat`.
   dropdown and `CheckVictory`, an optional `defeat = { text, check }` (defeat
   conditions are script-only — the base game has none; when the check passes
   the director's initiative bar offers **Declare Defeat**, which announces the
-  outcome in chat and runs the End Combat teardown), and handlers `onStart` /
+  outcome in chat and flips `LiveEncounter.defeatAwarded`, showing the
+  full-screen DEFEAT screen — `DSVictoryScreen` in defeat mode, titled DEFEAT,
+  opening on its Monsters tab; combat ends when the director presses Proceed
+  there. The director can also Declare Defeat at any time from the combat
+  settings menu, next to Award Victory), and handlers `onStart` /
   `onRound` / `think` (~0.7s) / `onEnd`. Full contract and runtime documented
   at the top of the "Encounter Scripts" section in `MCDMEncounter.lua`.
   - Live progress text: while combat runs, the host re-resolves

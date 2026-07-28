@@ -5185,14 +5185,24 @@ function creature.TakeDamage(self, amount, note, info)
         --never over-counts. TrackHeroStats self-guards to heroes in the live
         --encounter, so non-hero attackers are dropped. Minions return here and
         --never reach the regular-monster "kills" path below.
-        if minionKillHealthSingle ~= nil and minionKillHealthSingle > 0 and amount > 0 and eventArg.attacker ~= nil then
+        if minionKillHealthSingle ~= nil and minionKillHealthSingle > 0 and amount > 0 then
             local minionsBefore = math.max(0, math.ceil(minionKillHpBefore / minionKillHealthSingle))
             local minionsAfter = math.max(0, math.ceil((minionKillHpBefore - amount) / minionKillHealthSingle))
             local minionsKilled = minionsBefore - minionsAfter
             if minionsKilled > 0 then
-                local killerToken = dmhub.LookupToken(eventArg.attacker)
-                if killerToken ~= nil then
-                    LiveEncounter.TrackHeroStats(killerToken.charid, "minionKills", minionsKilled)
+                if eventArg.attacker ~= nil then
+                    local killerToken = dmhub.LookupToken(eventArg.attacker)
+                    if killerToken ~= nil then
+                        LiveEncounter.TrackHeroStats(killerToken.charid, "minionKills", minionsKilled)
+                    end
+                end
+                --Victim-side: the squad records its own losses (round-bucketed, so
+                --the victory screen can tell a squad wiped in round 1). Recorded
+                --with or without an attacker so environmental deaths count; the
+                --stat routes to the squad's initiative group.
+                local victimToken = dmhub.LookupToken(self)
+                if victimToken ~= nil then
+                    LiveEncounter.TrackHeroStats(victimToken.charid, "deaths", minionsKilled)
                 end
             end
         end
@@ -5392,6 +5402,18 @@ function creature.TakeDamage(self, amount, note, info)
                     roundNumber = roundNumber,
                     dailyLimit = 20,
                 })
+
+                --Per-encounter combat stat: the attacker drove a hero to dying.
+                --Read by the victory screen's monster roles (Heartbreaker); the
+                --routing in TrackHeroStats credits a monster attacker's
+                --initiative group. Runs once here on the resolving client, at
+                --the not-dying -> dying transition.
+                if eventArg.attacker ~= nil then
+                    local attackerToken = dmhub.LookupToken(eventArg.attacker)
+                    if attackerToken ~= nil then
+                        LiveEncounter.TrackHeroStats(attackerToken.charid, "heroesDowned")
+                    end
+                end
             end
 
             self:DispatchEvent("dying", eventArg)
@@ -5454,22 +5476,38 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.usedability = eventArg.ability
             eventArg.hasattacker = eventArg.attacker ~= nil
 
+            --Per-encounter combat stat: a dying monster records its own death for
+            --its initiative group (round-bucketed, so the victory screen can tell
+            --a group that fell entirely in round 1). Recorded with or without an
+            --attacker so environmental deaths count; minions never reach this
+            --path (their squad's losses are recorded in the minion branch above).
+            if not self:IsHero() then
+                local victimToken = dmhub.LookupToken(self)
+                if victimToken ~= nil then
+                    LiveEncounter.TrackHeroStats(victimToken.charid, "deaths")
+                end
+            end
+
             if eventArg.attacker ~= nil then
                 --NOTE: We have to TriggerEvent here not DispatchEvent because
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
 
-                --Per-encounter hero stat: credit the killer with a monster kill.
-                --Guarded to non-hero victims (a dying hero is not a "kill"); minions
-                --are counted separately as minionKills and never reach this path.
+                --Per-encounter combat stat: credit the killer. A non-hero victim
+                --is a "kill" (for a hero killer this feeds the hero roles; for a
+                --monster killer -- e.g. downing a hero's companion -- it routes to
+                --the monster's initiative group). A HERO victim is instead a
+                --"heroKill", the victory screen's Hero Slayer role. Minions are
+                --counted separately as minionKills and never reach this path.
                 --This runs once on the resolving client as the victim transitions
-                --to dead. TrackHeroStats self-guards to heroes, so a monster killing
-                --a monster is dropped.
-                if not self:IsHero() then
-                    local killerToken = dmhub.LookupToken(eventArg.attacker)
-                    if killerToken ~= nil then
+                --to dead.
+                local killerToken = dmhub.LookupToken(eventArg.attacker)
+                if killerToken ~= nil then
+                    if not self:IsHero() then
                         LiveEncounter.TrackHeroStats(killerToken.charid, "kills")
+                    else
+                        LiveEncounter.TrackHeroStats(killerToken.charid, "heroKills")
                     end
                 end
             end

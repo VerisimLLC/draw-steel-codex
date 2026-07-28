@@ -1489,6 +1489,35 @@ setting {
 	storage = "preference",
 }
 
+--Which device the app plays audio to. The OS owns the persisted routing (it is
+--keyed to the executable and survives restarts, exactly like assigning the app a
+--device in the Windows volume mixer), so the setting is transient and just
+--mirrors the OS state: initialized from it below, written back through
+--audio.outputDevice on change. Windows only; hidden elsewhere.
+setting {
+	id = "audiooutputdevice",
+	description = "Output Device",
+	help = "The audio device the app plays sound to. This routes the app at the operating system level, the same as assigning it a device in the Windows volume mixer, and is remembered across launches.",
+	section = "Audio",
+	editor = "dropdown",
+	ord = "AAB",
+	default = "",
+	storage = "transient",
+	enumCalc = function()
+		return audio.GetOutputDevices()
+	end,
+	visible = function()
+		return audio.deviceSelectionSupported
+	end,
+	onchange = function()
+		audio.outputDevice = dmhub.GetSettingValue("audiooutputdevice")
+	end,
+}
+
+if audio.deviceSelectionSupported then
+	dmhub.SetSettingValue("audiooutputdevice", audio.outputDevice)
+end
+
 
 setting {
 	id = "dicethreshold",

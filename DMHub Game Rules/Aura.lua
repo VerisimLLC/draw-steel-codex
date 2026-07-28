@@ -958,6 +958,32 @@ function AuraInstance:GetBlockMovement()
     return self.aura:try_get("blocks_movement", false)
 end
 
+--Additive tile-rule contributions read by the engine (AuraManager.AddAuraFromLua).
+--These are optional fields on the Aura definition; abilities normally leave them
+--unset, map markup zones set them from their Environmental Keyword.
+function AuraInstance:GetWater()
+    return self.aura:try_get("water", false)
+end
+
+--The footstep sound family (AudioSurfaceTypes index) tiles in this aura use,
+--or nil for no override.
+function AuraInstance:GetSurfaceType()
+    return self.aura:try_get("surfaceType")
+end
+
+--Optional vertical extent in tiles: the aura only affects creatures whose
+--altitude overlaps [GetAltitude(), GetAltitude() + GetHeight()]. nil means
+--unlimited height (the engine skips the vertical test entirely).
+function AuraInstance:GetHeight()
+    return self.aura:try_get("auraHeight")
+end
+
+--The altitude the aura's vertical range starts at (only meaningful together
+--with auraHeight). nil leaves the engine default of 0.
+function AuraInstance:GetAltitude()
+    return self.aura:try_get("auraAltitude")
+end
+
 function AuraInstance:GetDamageInfo()
     local movedamage = self.aura:try_get("movedamage", "none")
     if movedamage == "none" then

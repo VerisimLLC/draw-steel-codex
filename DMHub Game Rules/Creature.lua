@@ -531,6 +531,36 @@ function creature:PlayLandingFootstep(surfaceType)
     local soundName = "Foot.Generic_Generic"
     if AudioSurfaceTypes ~= nil then
         local entry = AudioSurfaceTypes.surfaces[surfaceType]
+
+        --Map Markup footsteps (MapMarkupPanel.lua): a landing on a PAINTED
+        --footstep region keeps that surface; on any other ground the map's
+        --default footstep surface, when one is set, overrides the
+        --tile-derived surface. Mirrors AudioMain's TokenMovingOnPath. The
+        --Settings-registry check keeps this quiet (no engine error log)
+        --when the MapMarkup module, which registers the setting, isn't
+        --loaded.
+        local painted = nil
+        pcall(function()
+            local markup = rawget(_G, "MapMarkupFootsteps")
+            local token = dmhub.LookupToken(self)
+            if markup ~= nil and token ~= nil and token.loc ~= nil then
+                painted = markup.GetPaintedSurfaceAt(token.floorid, token.loc.x, token.loc.y)
+            end
+        end)
+        if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
+            entry = AudioSurfaceTypes.surfaces[painted]
+        else
+            local settingsTable = rawget(_G, "Settings")
+            if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then
+                local ok, defaultSurface = pcall(function()
+                    return tonumber(dmhub.GetSettingValue("markup:footstepdefault"))
+                end)
+                if ok and defaultSurface ~= nil and AudioSurfaceTypes.surfaces[defaultSurface] ~= nil then
+                    entry = AudioSurfaceTypes.surfaces[defaultSurface]
+                end
+            end
+        end
+
         if entry ~= nil and entry.sound ~= nil then
             soundName = entry.sound
         end

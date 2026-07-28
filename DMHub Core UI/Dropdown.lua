@@ -128,7 +128,14 @@ function gui.Dropdown(args)
 	local tri = gui.Panel{
 		classes = {"dropdownTriangle"},
 		bgimage = "panels/triangle.png",
-		width = "160% height",
+		-- panels/triangle.png is a 64x64 source -- full width at the top,
+		-- tapering to a point at the bottom -- so its natural aspect is 1:1.
+		-- "160% height" stretched it 60% wider than it is drawn; 120% is a
+		-- slight deliberate widening that reads better at this size without
+		-- looking squashed. Note this inline width beats the
+		-- {dropdownTriangle} theme rule, so the sizing has to be corrected
+		-- here, not just in DefaultStyles.
+		width = "120% height",
 		height = "30%",
 		valign = "center",
 	}
@@ -323,17 +330,32 @@ function gui.Dropdown(args)
 			local searchInput
 			if hasSearch then
 				searchInput = gui.Input{
-					classes = {"searchInput"},
+					classes = {"searchInput", "dropdownSearch"},
 					-- color / bgcolor / borderColor / borderWidth come from the
-					-- {searchInput} theme rule. fontSize bumped to 18 here for
+					-- {searchInput} theme rule; {dropdownSearch} then clears the
+					-- border the base {input} rule would otherwise draw here.
+					-- fontSize bumped to 18 here for
 					-- the dropdown variant; theme default is 16.
 					-- fontSize = 14,
 					floating = true,
 					valign = cond(showTop, "bottom", "top"),
 					x = 2,
 					y = cond(showTop, 1, -1) * (parentPanel.renderedHeight-2),
-					width = (parentPanel.renderedWidth - 18) * parentPanel.renderedScale.x,
+					-- Keep the field clear of the dropdown triangle on the right.
+					-- The triangle's footprint from the control's right edge is
+					-- border 2 + hmargin 6 + its own width, and that width is
+					-- "160% height" of a 26-30px control, i.e. 12-15px -- so it
+					-- reaches ~20-23px in, and this field additionally starts at
+					-- x = 2. The old 18 was too small and clipped the triangle's
+					-- left edge; 26 clears it at every control height in use.
+					width = (parentPanel.renderedWidth - 26) * parentPanel.renderedScale.x,
 					height = parentPanel.renderedHeight - 2,
+					-- The {searchInput} theme rule carries hpad = 6, which
+					-- without borderBox is added OUTSIDE these dimensions -- the
+					-- field came out 234x31 against a 240x26 control, so its
+					-- right edge sat under the popup's scrollbar and its bottom
+					-- hung over the scrollbar's top, clipping both.
+					borderBox = true,
 					halign = "left",
 					hasFocus = true,
 					placeholderText = "Search...",

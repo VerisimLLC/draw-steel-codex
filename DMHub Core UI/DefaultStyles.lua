@@ -663,6 +663,18 @@ ThemeEngine.RegisterTheme{
             selectors = {"dropdown", "hover", "~search"},
             bgcolor = "@fg",
         },
+        -- The search field inside an open dropdown popup. It is a
+        -- {searchInput}, so it picks up the base {input} rule's border = 2 --
+        -- and because the dropdown auto-focuses it, {input, focus} recolors
+        -- that border to @fg, drawing a bright box over the dropdown control's
+        -- own frame. Note borderWidth = 0 does NOT clear that border (the
+        -- {searchInput} rule has shipped it for a long time with no effect);
+        -- only border = 0 does. The field's bgcolor is @bg, which already
+        -- matches the popup fill, so the border is the only thing to remove.
+        {
+            selectors = {"dropdownSearch"},
+            border = 0,
+        },
         {
             selectors = {"label", "dropdownLabel"},
             fontFace = "@input",
@@ -682,7 +694,13 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"dropdownTriangle"},
             height = "30%",
-            width = "160% height",
+            -- panels/triangle.png is a 64x64 source: the triangle spans the
+            -- full width at the top and tapers to a point at the bottom, so
+            -- its natural aspect is 1:1. The old "160% height" stretched it
+            -- 60% wider than drawn; 120% is a slight deliberate widening.
+            -- Kept in sync with the inline width in Dropdown.lua, which is
+            -- what actually wins -- this rule is effectively documentation.
+            width = "120% height",
             bgcolor = "@fg",
             halign = "right",
             valign = "center",
@@ -692,13 +710,35 @@ ThemeEngine.RegisterTheme{
             selectors = {"dropdownTriangle", "parent:hover"},
             bgcolor = "@fgInverse",
         },
+        -- While the popup is open the control hosts the search field and
+        -- deliberately keeps its dark background -- {dropdown, hover, ~search}
+        -- above skips the light hover fill. The triangle must therefore stay
+        -- light too, or it vanishes exactly when the pointer is over it.
+        --
+        -- This has to be a positive override rather than a ~parent:search
+        -- guard on the rule above: the ENGINE itself applies
+        -- dropdownTriangle + parent:hover -> black, so merely removing the Lua
+        -- rules uncovers that instead of fixing anything. Priority 5 is what
+        -- it takes to beat the engine default (see DS_EDITOR_STYLING.md).
+        {
+            selectors = {"dropdownTriangle", "parent:hover", "parent:search"},
+            priority = 5,
+            bgcolor = "@fg",
+        },
         {
             selectors = {"dropdownBorder"},
             bgimage = true,
             bgcolor = "@bg",
             border = 2,
             borderColor = "@border",
-            pad = 2,
+            -- Vertical pad only. Horizontal pad is added OUTSIDE the width the
+            -- popup inherits from the dropdown control, so it made the popup
+            -- 4px wider than the control it hangs off and the two frames
+            -- stepped apart at the join -- most visible beside the search
+            -- field. Options inset themselves horizontally anyway via
+            -- dropdownOption's width = "100%-4", so hpad here was redundant.
+            vpad = 2,
+            hpad = 0,
             priority = 55,
         },
         {

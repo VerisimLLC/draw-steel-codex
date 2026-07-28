@@ -1,6 +1,6 @@
 --- @class LuaGameSession Represents an active player session in the game, providing access to connection info, display name, and performance data.
 --- @field version nil|string (Read-only) the version of the engine the user is using.
---- @field perf {min: number, max: number, mean: number, median: number, screenWidth: number, screenHeight: number, meanCPU: number, meanGPU: number} Performance information from the user.
+--- @field perf {min: number, max: number, mean: number, median: number, screenWidth: number, screenHeight: number, meanCPU: number, meanGPU: number, memMono: number, memUnity: number, memWorkingSet: number} Performance information from the user. The mem* values are in MB; memWorkingSet is the whole process's resident memory and is -1 if the platform doesn't report it.
 --- @field loggedOut boolean True if this player has logged out of the session.
 --- @field displayName string The player's display name.
 --- @field displayColor Color The player's display color.

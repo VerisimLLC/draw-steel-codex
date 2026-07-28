@@ -24,7 +24,7 @@
 --- @field SelectFloor fun(floorid: string): nil A function that can be set to select a floor asset by id in the UI.
 --- @field SelectWall fun(wallid: string): nil A function that can be set to select a wall asset by id in the UI.
 --- @field SelectEffect fun(effectid: string): nil A function that can be set to select an effect asset by id in the UI.
---- @field ObjectsSelected fun(objectids: string[]): nil A function that is called when objects are selected on the map, receiving a list of object ids.
+--- @field ObjectsSelected fun(objects: LuaObjectInstance[]): nil A function that is called when objects are selected on the map, receiving a list of object instances (each a LuaObjectInstance with floorid/objid set; read ids via obj.objid). An empty list means the selection was cleared.
 --- @field GetLightingInfo fun(floorid: string): {cacheable: boolean, indoors: Color, outdoors: Color, illumination: number, shadow: {dir: Vector2, color: Color} } A function that can be set to tell the engine what the current lighting looks like. It will be called every frame to set the lighting.
 --- @field ObjectEditingEnabled fun(): boolean A function that returns whether object editing mode is currently enabled in the UI.
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
@@ -67,11 +67,15 @@
 --- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change was detected, uploaded, reverted, or closed).
 --- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
 --- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
---- @field GetWallPointsInvisibleOnly fun(): boolean Editor callback function: whether the wall Edit Points tool (buildingtool = "points") should restrict itself to walls with invisible assets. Set by the Map Markup panel while it drives the tool, so vertex editing from markup cannot disturb visible art walls.
+--- @field GetWallPointsInvisibleOnly fun(): boolean Editor callback function: whether the wall Edit Points tool should restrict itself to walls with invisible assets. Set by the Map Markup panel while it drives the tool, so vertex editing from markup cannot disturb visible art walls.
+--- @field GetMarkupZones fun(): {panelOpen: boolean, terrainZones: boolean, footstepsMode: boolean, revision: number, zones: {locs: Loc[], color: string, angleRadians: number, label: string, labelIcon: string|nil, playerVisible: boolean, difficultTerrain: boolean, water: boolean, concealment: boolean, floorIndex: number}[]}|nil Editor callback function: the Map Markup panel's zone overlay feed. Returns the markup zones to render as diagonal stripes + labels on the tile height overlay, or nil for none. revision must change whenever the zone data changes (or the returned list is swapped) so the overlay mesh rebuilds. panelOpen makes the zone stripes render even when the tileheight:overlay preference is off; terrainZones additionally renders the overlay's built-in terrain-rule stripes (set while the panel's Zones tab is open); footstepsMode instead restricts the built-in terrain-rule stripes to WATER ONLY regardless of the tileheight:overlay preference (set while the Footsteps tab is open, when the feed returns the footstep-surface regions - plus any water rules zones - instead of the full rules zones; water stays visible because water tiles play water sounds over painted footstep surfaces). labelIcon is an optional icon id (e.g. "phosphor/footprints-fill.png") drawn beside the zone's label, tinted like the label text. Player clients only render zones with playerVisible set.
+--- @field GetMapAuras fun(): AuraInstance[]|nil Callback function: map-level aura instances (e.g. markup zones) to register with the aura system, re-polled on every aura rebuild. Each entry must be an AuraInstance whose GetArea() returns a shape (use dmhub.CalculateShape{shape='locations'} for arbitrary tile sets). Call dmhub.RefreshMapAuras() after changing the underlying data to force a rebuild.
+--- @field GetObjectEditingFilter fun(): string|nil Editor callback function: keyword filter for markup-prop editing. When this returns a keyword, objects whose Core keywords include it are shown (even locked, invisible-to-players ones, DM only) and become the only objects the mouse can select or drag - locked filtered objects drag as if unlocked, and everything else on the map is inert to object selection. The Map Markup panel's Props tab sets this while it has focus. Return nil for normal object interaction rules.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
+--- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
 --- @field uploadQuotaTotal number The amount of data this user can upload each month, in bytes.
@@ -296,6 +300,12 @@ end
 --- InvalidateTokenUI: This rebuilds the token ui interfaces that show over tokens. Normally only used during development.
 --- @return nil
 function dmhub.InvalidateTokenUI()
+	-- dummy implementation for documentation purposes only
+end
+
+--- RefreshMapAuras: Requests a rebuild of the aura index (object auras, creature auras, and the map auras polled from dmhub.GetMapAuras), and refreshes creature state that depends on it. Call after changing the data behind dmhub.GetMapAuras (e.g. markup zone edits).
+--- @return nil
+function dmhub.RefreshMapAuras()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1990,5 +2000,110 @@ end
 --- @param panelid string
 --- @return string
 function dmhub.GetPanelTrace(panelid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolMetrics: Diagnostic: one-line summary of the SheetPanel recycling pool (rent hit rate, returns, parked/pending counts). See Assets/POOLING_REFERENCE.md.
+--- @return string
+function dmhub.PoolMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolAudit: Diagnostic: validates that every panel parked in the recycling pool is fully inert (no leftover static-list membership, Lua object, style state, or children). Returns 'OK (...)' or a list of violations.
+--- @return string
+function dmhub.PoolAudit()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolResetMetrics: Diagnostic: zeroes the SheetPanel pooling counters so a measurement can start from a clean slate.
+--- @return nil
+function dmhub.PoolResetMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialLegacyInvalidate: Diagnostic: restores the pre-optimisation behaviour where becoming active, or moving, invalidated a panel's style cache and forced a full material rebuild. For A/B measuring DoUpdateMaterial cost against the current behaviour. See Assets/HANDOFF_DOUPDATEMATERIAL.md.
+--- @param legacy boolean
+--- @return nil
+function dmhub.PanelMaterialLegacyInvalidate(legacy)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelPoolKeepMaterials: Diagnostic: whether a pooled panel keeps its runtime material across a recycle (default true). Turning it off makes every rented panel reallocate its material, which is what pooling used to do.
+--- @param keep boolean
+--- @return nil
+function dmhub.PanelPoolKeepMaterials(keep)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialDebug: Diagnostic: dumps the material state of live panels whose id contains the given string (pass '' for all). 'bgimage.mat=NULL' means the panel is rendering with the shared default UI material instead of its own -- the cause of a white/unstyled panel.
+--- @param idFilter string
+--- @return string
+function dmhub.PanelMaterialDebug(idFilter)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialSettings: Diagnostic: one-line summary of the panel material-cache switches.
+--- @return string
+function dmhub.PanelMaterialSettings()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialInputsGuard: Diagnostic: when true (the default), a bgimage/mask/alpha-texture assignment only rebuilds the panel material if the texture actually differs from the one already in effect (compared against a per-panel snapshot). Pass false to restore the old behaviour where every such assignment forced a full rebuild.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelMaterialInputsGuard(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelSetParentLegacy: Diagnostic: pass true to restore the legacy SheetPanel.SetParent behaviour (worldPositionStays=true plus a manual localScale restore, and an unconditional SetAsLastSibling). Default false uses the cheaper worldPositionStays=false reparent.
+--- @param legacy boolean
+--- @return nil
+function dmhub.PanelSetParentLegacy(legacy)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelNursery: Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default false.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelNursery(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileEnable: Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelInitProfileEnable(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfile: Diagnostic: per-stage breakdown of gui widget construction cost -- Lua wrapper creation, reflective property sets, style fall-through, children assignment and Init(). Requires dmhub.PanelInitProfileEnable(true).
+--- @return string
+function dmhub.PanelInitProfile()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileReset: Diagnostic: zeroes the widget-construction profile counters.
+--- @return nil
+function dmhub.PanelInitProfileReset()
+	-- dummy implementation for documentation purposes only
+end
+
+--- BenchmarkPropertySet: Diagnostic: micro-benchmark comparing PropertyInfo.SetValue (what widget construction uses) against a compiled Expression setter and a direct delegate, on a real bridge property.
+--- @param iterations number
+--- @return string
+function dmhub.BenchmarkPropertySet(iterations)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileCalibrate: Diagnostic: measures the cost of one profiler timestamp, so a PanelInitProfile() report can state how much of itself the instrument accounts for.
+--- @return string
+function dmhub.PanelInitProfileCalibrate()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolSetEnabled: Diagnostic: turns SheetPanel recycling on or off at runtime (same switch as the --pool-panels command line flag). Safe to flip mid-session: already-parked panels stay parked and untagged panels simply never enter the pool.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PoolSetEnabled(enabled)
 	-- dummy implementation for documentation purposes only
 end

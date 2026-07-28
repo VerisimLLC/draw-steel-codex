@@ -12,8 +12,10 @@
 --- @field owned boolean 
 --- @field premium boolean 
 --- @field published boolean 
---- @field deleted boolean 
---- @field dmhubCanUse boolean 
+--- @field deleted boolean
+--- @field deprecated boolean True if an administrator has deprecated this module. A deprecated module is never loaded into any game and cannot be installed or enabled. Read-only: deprecation is set by an offline admin script.
+--- @field deprecationMessage string The message explaining why this module is deprecated. Only meaningful when deprecated is true, in which case it is never nil.
+--- @field dmhubCanUse boolean
 --- @field publishingProperties any 
 --- @field contentSummary any 
 --- @field isdisabled boolean 

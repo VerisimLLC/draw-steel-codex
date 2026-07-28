@@ -21,6 +21,14 @@ function DiceMaterialStudioProperties:TryGetFloat(s, f)
 	-- dummy implementation for documentation purposes only
 end
 
+--- TryGetColor
+--- @param s string
+--- @param col any
+--- @return boolean
+function DiceMaterialStudioProperties:TryGetColor(s, col)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetFloat
 --- @param s string
 --- @param defaultValue any

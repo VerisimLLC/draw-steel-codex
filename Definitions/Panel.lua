@@ -9,6 +9,7 @@
 --- @field monitorAssets AssetCategory|AssetCategory[] (write-only) A list of asset categories to monitor. When the asset categories are updated, the refreshAssets event will be fired on this panel.
 --- @field constrainToScreen boolean (default=false) If true, the panel will be constrained to the screen area.
 --- @field floating boolean (default=false) A floating panel does not respect the **flow** of its parent. @see Panel.flow
+--- @field sticky boolean (default=false) A sticky panel scrolls normally until it would leave the top of the scrolling area containing it, then stays pinned there while its parent scrolls under it, and is carried away once its parent has scrolled past. Sticky panels stack, so nested headings (e.g. Round then Turn) both stay visible. Requires a scrolling ancestor (@see Panel.vscroll); never culled by @see Panel.hideObjectsOutOfScroll.
 --- @field renderOnTop boolean (default=false) When true this panel renders on its own top-most sorting canvas at a very high sorting order, drawing above its sibling panels within the same sorting layer. Set it back to false to return the panel to normal sorting.
 --- @field data table An arbitrary table of user data that is attached to the panel. Store any interesting fields here that you want to have associated with the panel.
 --- @field root Panel The root panel of the hierarchy this Panel is within.

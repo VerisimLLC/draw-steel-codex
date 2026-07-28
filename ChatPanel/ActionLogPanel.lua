@@ -1345,10 +1345,6 @@ CreateChatPanel = function()
 
 		local roundPanel = element.data.roundPanels[round]
 		if roundPanel == nil or (not roundPanel.valid) then
-			--NOTE: the design pins these headers (position:sticky, round at the
-			--top and turn just under it). The gui has no sticky/pin equivalent,
-			--so the rules scroll with their turns instead. If pinning is wanted
-			--it needs engine support, not a Lua change.
 			local countLabel = gui.Label{
 				classes = { "actionLogRoundCount" },
 				width = "auto",
@@ -1367,6 +1363,9 @@ CreateChatPanel = function()
 					width = "100%",
 					height = "auto",
 					flow = "horizontal",
+					--pins to the top of the log while this round's turns scroll
+					--under it, and leaves with the round.
+					sticky = true,
 					gui.Label{
 						classes = { "actionLogRoundLabel" },
 						width = "auto",
@@ -1426,6 +1425,9 @@ CreateChatPanel = function()
 				width = "100%",
 				height = "auto",
 				flow = "horizontal",
+				--stacks directly under the pinned round rule, so both stay
+				--readable while a turn's entries scroll past.
+				sticky = true,
 				--ally/foe dot, the design's one spot of role colour on the spine.
 				gui.Panel{
 					classes = { "actionLogTurnDot", cond(isHero, "hero", "foe") },

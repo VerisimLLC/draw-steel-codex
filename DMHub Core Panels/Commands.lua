@@ -181,7 +181,7 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "floorup",
     summary = "go up a floor",
-    doc = "Switches the active floor to the next floor up. If the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it.",
+    doc = "For the director, switches the active floor to the next floor up; if the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it. For a player, looks up one more floor (Forward -> Up 1 -> Up 2 ...), as far as the map's Look Up rules allow.",
     command = function()
         FloorNavigation.ChangeFloorRelative(1)
     end,
@@ -190,7 +190,7 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "floordown",
     summary = "go down a floor",
-    doc = "Switches the active floor to the next floor down. If the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it.",
+    doc = "For the director, switches the active floor to the next floor down; if the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it. For a player, looks down one floor back toward Forward (Up 2 -> Up 1 -> Forward).",
     command = function()
         FloorNavigation.ChangeFloorRelative(-1)
     end,

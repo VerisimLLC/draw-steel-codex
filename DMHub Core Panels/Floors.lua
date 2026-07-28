@@ -140,12 +140,61 @@ function FloorNavigation.ApplyVisibility(currentMap, selectedFloor)
 	end
 end
 
+--When a player uses the floor up/down keybind they do not move the active floor (that is a
+--director tool). Instead they "look up" through the floors above their selected token -- the
+--same Forward / Up 1 / Up 2 control offered by the eye icon on the character panel, driven by
+--the transient "lookup" setting (0 = Forward, 1 = Up 1, ...). Offset +1 looks one floor
+--higher, offset -1 drops back toward Forward. The view is clamped between Forward (0) and the
+--number of floors the token may look up, which mirrors the character panel: it depends on the
+--map's "Can Look Up" (canlookup) and "Max Look Up" (maxlookup) settings and, under "opening",
+--whether there is a hole above the token.
+function FloorNavigation.LookRelative(offset)
+	local tok = dmhub.currentToken
+	if tok == nil then
+		return
+	end
+
+	local canLookup = dmhub.GetSettingValue("canlookup")
+	if canLookup == "never" then
+		return
+	end
+
+	local maxLookup
+	if canLookup == "always" then
+		maxLookup = tok.countFloorsAbove
+	else
+		maxLookup = tok.countFloorsWithVisionAbove
+	end
+
+	local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+	if maxLookupSetting >= 0 then
+		maxLookup = math.min(maxLookup, maxLookupSetting)
+	end
+
+	if maxLookup <= 0 then
+		return
+	end
+
+	local cur = dmhub.GetSettingValue("lookup")
+	local newValue = cur + offset
+	if newValue < 0 then
+		newValue = 0
+	elseif newValue > maxLookup then
+		newValue = maxLookup
+	end
+
+	if newValue ~= cur then
+		dmhub.SetSettingValue("lookup", newValue)
+	end
+end
+
 --Move the active floor up (offset +1) or down (offset -1) among the top-level floors,
 --clamping at the top and bottom. Applies the auto-hide behaviour when the setting is on.
---Used by the floor up/down keybinds. Floor management is a director tool, so this is a
---no-op for players.
+--Used by the floor up/down keybinds. Moving the active floor is a director tool; for players
+--the same keybind instead adjusts the "look up" view (see LookRelative above).
 function FloorNavigation.ChangeFloorRelative(offset)
 	if not dmhub.isDM then
+		FloorNavigation.LookRelative(offset)
 		return
 	end
 

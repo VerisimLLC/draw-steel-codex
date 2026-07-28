@@ -1307,10 +1307,65 @@ function RichTag:GetDocument()
     return self:try_get("_tmp_document")
 end
 
-function RichTag:UploadDocument()
-    if self:has_key("_tmp_document") then
-        self._tmp_document:Upload()
+--Upload the document that owns this rich tag. options.success/options.failure
+--(both optional) are forwarded to CustomDocument:Upload, which threads them
+--through to SetAndUploadTableItem, so they report the ACTUAL async cloud-write
+--result rather than "the call returned".
+--
+--This was historically a silent no-op when the tag had no _tmp_document (the
+--field is only stamped when the owning journal is rendered in a document
+--panel), which cost us an encounter edit made while the journal was closed.
+--Now the owning document is found by scanning the documents table for this
+--annotation when _tmp_document is missing (stamping it for next time), and
+--every failure - including "no owning document" - reports via dmhub.CloudError
+--even when the caller passes no handlers, so nothing is silently dropped.
+--Returns the new updateid, or nil when no owning document could be found.
+function RichTag:UploadDocument(options)
+    options = options or {}
+
+    local doc = self:try_get("_tmp_document")
+    if doc == nil then
+        local docsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+        for _, candidate in pairs(docsTable) do
+            local annotations = candidate:try_get("annotations")
+            if annotations ~= nil then
+                for _, annotation in pairs(annotations) do
+                    if rawequal(annotation, self) then
+                        doc = candidate
+                        break
+                    end
+                end
+            end
+            if doc ~= nil then
+                break
+            end
+        end
+        if doc ~= nil then
+            self._tmp_document = doc
+        end
     end
+
+    if doc == nil then
+        local message = string.format("RichTag:UploadDocument: no owning document found for %s tag; changes were NOT saved", tostring(self.typeName))
+        dmhub.CloudError(message)
+        print("ERROR:", message)
+        if options.failure ~= nil then
+            options.failure(message)
+        end
+        return nil
+    end
+
+    return doc:Upload(nil, {
+        success = options.success,
+        failure = function(message)
+            local text = string.format("RichTag:UploadDocument: upload of document \"%s\" failed: %s", tostring(doc.description), tostring(message))
+            dmhub.CloudError(text)
+            print("ERROR:", text)
+            if options.failure ~= nil then
+                options.failure(message)
+            end
+        end,
+    })
 end
 
 function RichTag.CreateDisplay(self)
@@ -7927,8 +7982,80 @@ function Seamless.CompileDecorations(doc, text)
     return decs, islandMeta
 end
 
+--Find the markdown link construct under a source byte position and return
+--the link target it navigates to, or nil when the position is not on a
+--link. pos is a 0-based byte caret offset (bytes before the cursor, the
+--space caretPosition and the 'linkclick' event use); a construct spanning
+--line bytes [s..e] (1-based) matches caret offsets s-1 .. e inclusive.
+--Recognized forms, in the display tokenizer's precedence order: page
+--embeds ([:Document Name] -> the trimmed name), full links
+--([label](target) -> the target), and the [Label] shorthand (-> the
+--label). Rich [[..]] tags are widgets, not links, and are blanked first
+--exactly like the decoration compiler; checkbox forms ([x], [ ]) and
+--image syntax (![alt](url)) are not links.
+function Seamless.LinkAtPosition(text, pos)
+    text = text or ""
+    if pos == nil or pos < 0 or pos > #text then
+        return nil
+    end
+
+    --the line containing the position; link constructs never span lines.
+    local lineStart = pos + 1
+    while lineStart > 1 and text:byte(lineStart - 1) ~= 10 do
+        lineStart = lineStart - 1
+    end
+    local lineEnd = string.find(text, "\n", lineStart, true)
+    lineEnd = (lineEnd or #text + 1) - 1
+    local line = text:sub(lineStart, lineEnd)
+
+    --caret offset within the line, 0-based (bytes of the line before it).
+    local rel = pos - (lineStart - 1)
+
+    local scratch = line:gsub("%[%[.-%]%]", function(m) return string.rep("\1", #m) end)
+
+    --page embeds: [:Document Name]
+    local searchFrom = 1
+    while true do
+        local s, e, target = scratch:find("%[:([^%[%]\1]+)%]", searchFrom)
+        if s == nil then break end
+        if rel >= s - 1 and rel <= e then
+            return trim(target)
+        end
+        scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+        searchFrom = e + 1
+    end
+
+    --full links: [label](target). Images are blanked (not skipped) so their
+    --[alt] part cannot read as a shorthand link below.
+    searchFrom = 1
+    while true do
+        local s, e, target = scratch:find("%[[^%[%]\1]-%]%(([^%(%)\1]-)%)", searchFrom)
+        if s == nil then break end
+        local isImage = s > 1 and scratch:sub(s - 1, s - 1) == "!"
+        if not isImage and rel >= s - 1 and rel <= e and #target > 0 then
+            return trim(target)
+        end
+        scratch = scratch:sub(1, s - 1) .. string.rep("\1", e - s + 1) .. scratch:sub(e + 1)
+        searchFrom = e + 1
+    end
+
+    --shorthand links: [Label] navigates to Label.
+    searchFrom = 1
+    while true do
+        local s, e, label = scratch:find("%[([^%[%]\1]-)%]", searchFrom)
+        if s == nil then break end
+        if #label > 0 and not label:match("^[xX ]$") and rel >= s - 1 and rel <= e then
+            return trim(label)
+        end
+        searchFrom = e + 1
+    end
+
+    return nil
+end
+
 --Test hooks.
 MarkdownDocument.__SeamlessCompileDecorations = Seamless.CompileDecorations
+MarkdownDocument.__SeamlessLinkAtPosition = Seamless.LinkAtPosition
 
 --=============================================================================
 -- Table islands: the seamless editor renders each markdown table as an
@@ -9915,6 +10042,49 @@ function MarkdownDocument:SeamlessEditPanel(args)
         previewPanel.vscrollPosition = 1 - desiredTop / range
     end
 
+    --Follow a link out of the editor (ctrl+click / cmd+click on the text):
+    --resolve it exactly like a display-mode link press and navigate. Any
+    --pending edits are flushed through the document panel's save path first
+    --(the journal's autosave contract; navigation replaces the tab content,
+    --so an unsaved buffer would otherwise be lost).
+    local function FollowLink(element, link)
+        if link == nil or #link == 0 then
+            return
+        end
+
+        --ResolveLink returns http(s) URLs as strings; OpenContent opens
+        --those in the browser.
+        local target = CustomDocument.ResolveLink(link)
+        if target == nil then
+            return
+        end
+
+        local documentPanel = element:FindParentWithClass("documentPanel")
+        if documentPanel ~= nil then
+            documentPanel:FireEvent("saveDocument")
+        end
+
+        --in-place navigation for real journal documents, exactly like the
+        --display renderer's link press; everything else (URLs, transient
+        --wrappers, maps, PDFs) opens through OpenContent.
+        local navigableDocId = nil
+        if type(target) == "table" or type(target) == "userdata" then
+            if target.IsDerivedFrom and target.IsDerivedFrom("CustomDocument") and target:try_get("id") then
+                navigableDocId = target.id
+            end
+        end
+
+        if navigableDocId ~= nil then
+            local dialogPanel = element:FindParentWithClass("framedPanel")
+            if dialogPanel ~= nil and dialogPanel.data ~= nil and dialogPanel.data.history ~= nil then
+                dialogPanel:FireEvent("navigateToDocument", navigableDocId)
+                return
+            end
+        end
+
+        CustomDocument.OpenContent(target)
+    end
+
     editInput = gui.TextEditor{
         id = "editorPanel",
         width = "100%",
@@ -9991,6 +10161,15 @@ function MarkdownDocument:SeamlessEditPanel(args)
 
         find = function(element)
             OpenFind()
+        end,
+
+        --engine builds with link-modifier click support fire this on
+        --ctrl+click (cmd+click on Mac): pos is the clicked SOURCE position
+        --as a byte offset (caretPosition space). Follow the markdown link
+        --under the click; clicks not on a link do nothing (the engine
+        --already consumed them without moving the caret).
+        linkclick = function(element, pos)
+            FollowLink(element, Seamless.LinkAtPosition(element.text or "", pos))
         end,
 
         think = function(element)

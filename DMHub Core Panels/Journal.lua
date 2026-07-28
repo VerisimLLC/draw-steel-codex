@@ -2270,8 +2270,17 @@ CreateJournalPanel = function(options)
                 icon = "game-icons/open-folder.png",
                 linger = gui.Tooltip("Create a new folder"),
                 press = function(element)
+                    --players don't have a "private" root, so a folder left with the default
+                    --parent would be invisible to them. Put their folders in the shared
+                    --section, matching how document import handles non-DMs.
+                    local parentFolder = nil
+                    if not dmhub.isDM then
+                        parentFolder = "public"
+                    end
+
                     assets:UploadNewDocumentFolder {
                         description = "Documents",
+                        parentFolder = parentFolder,
                     }
                 end,
             },

@@ -950,9 +950,10 @@ function RichEncounter.CreateDisplay(self)
                 game.DeleteCharacters(waveCharids)
             end
 
-            if self:has_key("_tmp_document") then
-                self._tmp_document:Upload()
-            end
+            --UploadDocument (rather than _tmp_document:Upload directly) so a
+            --missing _tmp_document is resolved via the documents table and any
+            --failure is reported instead of silently losing the banked positions.
+            self:UploadDocument()
         end,
 
         reset = function(element)
@@ -996,9 +997,9 @@ function RichEncounter.CreateDisplay(self)
                             return
                         end
                         self.encounter:TagWaveTokensFromSpawn(charids)
-                        if self:has_key("_tmp_document") then
-                            self._tmp_document:Upload()
-                        end
+                        --UploadDocument for the missing-_tmp_document fallback
+                        --and failure reporting (see RichTag:UploadDocument).
+                        self:UploadDocument()
                     end
                     tagWhenReady()
 

@@ -3002,7 +3002,12 @@ function CharSheet.AppearancePanel()
                     local registry = dmhub.tokenAnimations and dmhub.tokenAnimations.teleportAnimations
                     if registry ~= nil then
                         for id, entry in pairs(registry) do
-                            options[#options+1] = { id = id, text = entry.name or id }
+                            --Entries flagged hidden are styles owned by something else (e.g. the
+                            --"stairwell" style a teleporter object imposes), not personal token
+                            --styles, so they don't belong in this picker.
+                            if not entry.hidden then
+                                options[#options+1] = { id = id, text = entry.name or id }
+                            end
                         end
                     end
                     table.sort(options, function(a, b) return a.text < b.text end)

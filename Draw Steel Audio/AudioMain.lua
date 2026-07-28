@@ -1594,7 +1594,7 @@ audio.SoundEvent{
     sounds = {"foot/FS_Walk_Gnrc_Stone_v1_01.wav","foot/FS_Walk_Gnrc_Stone_v1_02.wav","foot/FS_Walk_Gnrc_Stone_v1_03.wav","foot/FS_Walk_Gnrc_Stone_v1_04.wav","foot/FS_Walk_Gnrc_Stone_v1_05.wav","foot/FS_Walk_Gnrc_Stone_v1_06.wav"},
     volume = 0.15,
     pitchRand = 0.3,
-    ignoreDuplicates = 0.05,
+    --ignoreDuplicates = 0.05,
 }
 
 audio.SoundEvent{
@@ -1615,6 +1615,23 @@ audio.SoundEvent{
     ignoreDuplicates = 0.05,
 }
 
+audio.SoundEvent{
+    name = "Foot.Stairwell",
+    mixgroup = "footsteps",
+    play = function()
+        audio.FireSoundEvent("Foot.Generic_Stone")
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.1,
+            pitch = 1.2,
+            volume = 0.8,
+        })
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.2,
+            pitch = 1.4,
+            volume = 0.6,
+        })
+    end,
+}
 
 
 

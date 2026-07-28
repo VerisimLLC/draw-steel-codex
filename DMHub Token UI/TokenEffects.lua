@@ -488,6 +488,19 @@ dmhub.tokenAnimations:RegisterTeleport{
     end,
 }
 
+--Stairwell: no visual at all -- the token simply vanishes and is at the far end -- with the
+--sound of feet on stairs. Used by teleporter objects whose style is set to "Stairwell" (the
+--engine passes the id through locInfo.teleportStyle); `hidden` keeps it out of the per-token
+--Teleportation picker on the character sheet, since it isn't a personal teleport style.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "stairwell",
+    name = "Stairwell",
+    hidden = true,
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Foot.Stairwell")
+    end,
+}
+
 --Ash teleport: token poofs into ash at the source, an invisible travel phase follows with a
 --trailing wisp, then the token reappears at the destination.
 dmhub.tokenAnimations:RegisterTeleport{

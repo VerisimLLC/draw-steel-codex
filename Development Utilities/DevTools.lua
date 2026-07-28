@@ -1714,6 +1714,9 @@ local m_shell = nil        --the shell panel.
 local m_activeId = nil
 local m_activeCtx = nil    --fresh table per Show; create/probe share state here.
 local m_showGeneration = 0 --invalidates queued retries when a newer Show runs.
+local m_stage = nil        --the sized/styled box the harness content mounts in.
+local m_stageSettings = nil --{ size, cascade, backdrop } for the active harness.
+local m_stageControls = nil --the chrome dropdowns, kept in sync with SetStage.
 
 function TestHarness.Register(info)
     TestHarness.registry[info.id] = info
@@ -1734,6 +1737,9 @@ function TestHarness.Hide()
         m_shell:DestroySelf()
     end
     m_shell = nil
+    m_stage = nil
+    m_stageSettings = nil
+    m_stageControls = nil
     m_activeId = nil
     m_activeCtx = nil
     g_TestHarnessActive = nil
@@ -1768,12 +1774,167 @@ local function HarnessButton(text, onclick)
     }
 end
 
+--------------------------------------------------------------------------------
+-- The stage: the sized, styled, backdropped box the harness content mounts in.
+--
+-- A real panel under test behaves differently at dock width than at dialog
+-- width, and under the ThemeEngine cascade than under Styles.Default, so all
+-- three are switchable -- from the chrome bar or from Lua via SetStage -- and
+-- switching them does NOT rebuild the harness, so the panel keeps its state
+-- while you resize it. Settings ride in g_TestHarnessActive so they survive a
+-- Lua reload along with the active harness id.
+--------------------------------------------------------------------------------
+
+--Sizes chosen to mirror the real hosts a panel gets mounted in.
+local g_stagePresets = {
+    { id = "full",   text = "Full",         width = "100%", height = "100%" },
+    { id = "dock",   text = "Dock width",   width = nil,    height = "100%" },
+    { id = "dialog", text = "Dialog 800",   width = 800,    height = 600 },
+    { id = "wide",   text = "Dialog 1200",  width = 1200,   height = 720 },
+    { id = "narrow", text = "Narrow 420",   width = 420,    height = "100%" },
+    { id = "tiny",   text = "Tiny 320x240", width = 320,    height = 240 },
+}
+
+local function StagePreset(id)
+    for _, preset in ipairs(g_stagePresets) do
+        if preset.id == id then
+            local width = preset.width
+            if width == nil then
+                --the dock preset takes the real dock width; resolved late so
+                --module load order between this file and DockablePanel cannot
+                --matter.
+                width = 400
+                pcall(function()
+                    width = DockablePanel.DockWidth
+                end)
+            end
+            return width, preset.height
+        end
+    end
+    return "100%", "100%"
+end
+
+local g_stageCascades = {
+    { id = "default", text = "Styles.Default" },
+    { id = "theme",   text = "ThemeEngine" },
+    { id = "none",    text = "No styles" },
+}
+
+--Re-resolved on every apply: ThemeEngine.GetStyles() returns a snapshot that
+--goes stale the moment the user switches theme or color scheme.
+local function StageCascade(id)
+    if id == "none" then
+        return {}
+    end
+    if id == "theme" then
+        local styles = nil
+        pcall(function()
+            styles = ThemeEngine.GetStyles()
+        end)
+        if styles ~= nil then
+            return styles
+        end
+    end
+    return { Styles.Default }
+end
+
+--"contrast" is deliberately hideous: it makes a panel's true bounds and any
+--unintended transparency impossible to miss.
+local g_stageBackdrops = {
+    { id = "dark",     text = "Dark",     color = "#0b1018ff" },
+    { id = "mid",      text = "Mid",      color = "#3b4049ff" },
+    { id = "light",    text = "Light",    color = "#e9e6e0ff" },
+    { id = "contrast", text = "Contrast", color = "#ff00ffff" },
+}
+
+local function StageBackdrop(id)
+    for _, backdrop in ipairs(g_stageBackdrops) do
+        if backdrop.id == id then
+            return backdrop.color
+        end
+    end
+    return "#0b1018ff"
+end
+
+--Dropdown wants plain {id, text} rows; the preset tables carry extra fields.
+local function DropdownOptions(rows)
+    local options = {}
+    for _, row in ipairs(rows) do
+        options[#options + 1] = { id = row.id, text = row.text }
+    end
+    return options
+end
+
+local function DefaultStageSettings(reg)
+    --"default" (Styles.Default) is the historical shell cascade, so harnesses
+    --that say nothing keep rendering exactly as they did.
+    local settings = { size = "full", cascade = "default", backdrop = "dark" }
+    if reg ~= nil and type(reg.stage) == "table" then
+        for _, key in ipairs({ "size", "cascade", "backdrop" }) do
+            if reg.stage[key] ~= nil then
+                settings[key] = reg.stage[key]
+            end
+        end
+    end
+    return settings
+end
+
+local function ApplyStageSettings()
+    if m_stage == nil or (not m_stage.valid) or m_stageSettings == nil then
+        return
+    end
+    local width, height = StagePreset(m_stageSettings.size)
+    m_stage.selfStyle.width = width
+    m_stage.selfStyle.height = height
+    m_stage.selfStyle.bgcolor = StageBackdrop(m_stageSettings.backdrop)
+    m_stage.styles = StageCascade(m_stageSettings.cascade)
+
+    --keep the chrome honest when the stage was changed from Lua rather than
+    --from the dropdowns. Safe to assign: Dropdown.idChosen does not fire
+    --change (unlike Check/Slider .value), so this cannot recurse.
+    if m_stageControls ~= nil then
+        for _, key in ipairs({ "size", "cascade", "backdrop" }) do
+            local control = m_stageControls[key]
+            if control ~= nil and control.valid and control.idChosen ~= m_stageSettings[key] then
+                control.idChosen = m_stageSettings[key]
+            end
+        end
+    end
+
+    if g_TestHarnessActive ~= nil then
+        g_TestHarnessActive.stage = m_stageSettings
+    end
+end
+
+--Stage control from execute_lua, e.g.
+--  TestHarness.SetStage{ size = "dock", cascade = "theme" }
+function TestHarness.SetStage(args)
+    if m_stageSettings == nil then
+        return nil
+    end
+    for _, key in ipairs({ "size", "cascade", "backdrop" }) do
+        if args ~= nil and args[key] ~= nil then
+            m_stageSettings[key] = args[key]
+        end
+    end
+    ApplyStageSettings()
+    return m_stageSettings
+end
+
+--The stage panel, for mounting something into it ad hoc from execute_lua.
+function TestHarness.Stage()
+    return m_stage
+end
+
 --Builds the chrome bar + content shell and mounts the harness's create()
 --result inside it. Any error inside create() is caught and shown in place so
 --a broken harness never takes the shell down with it.
 function TestHarness.Show(id, args)
     m_showGeneration = m_showGeneration + 1
     local generation = m_showGeneration
+
+    --read before Hide(), which clears it: stage settings are carried over.
+    local prevActive = rawget(_G, "g_TestHarnessActive")
 
     local root = GetHarnessRoot()
     if root == nil then
@@ -1804,7 +1965,16 @@ function TestHarness.Show(id, args)
     local reg = TestHarness.registry[id]
     m_activeId = id
     m_activeCtx = {}
-    g_TestHarnessActive = { id = id, args = args }
+
+    --carry the stage settings over when re-showing the same harness (the
+    --Reload button, and the re-show a Lua reload performs); a different
+    --harness starts from its own declared defaults.
+    m_stageSettings = DefaultStageSettings(reg)
+    if prevActive ~= nil and prevActive.id == id and type(prevActive.stage) == "table" then
+        m_stageSettings = prevActive.stage
+    end
+
+    g_TestHarnessActive = { id = id, args = args, stage = m_stageSettings }
 
     local contentPanel
     if reg == nil then
@@ -1850,6 +2020,92 @@ function TestHarness.Show(id, args)
     local shellWidth = dialog ~= nil and dialog.width or (1080 * dmhub.screenDimensions.x / dmhub.screenDimensions.y)
     local shellHeight = dialog ~= nil and dialog.height or 1080
 
+    local stageWidth, stageHeight = StagePreset(m_stageSettings.size)
+    m_stage = gui.Panel{
+        id = "testHarnessStage",
+        halign = "center",
+        valign = "center",
+        width = stageWidth,
+        height = stageHeight,
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = StageBackdrop(m_stageSettings.backdrop),
+        styles = StageCascade(m_stageSettings.cascade),
+
+        contentPanel,
+    }
+
+    --a themed stage has to follow theme/scheme switches the same way the dock
+    --chrome does; GetStyles() is a one-shot snapshot. Stale subscriptions from
+    --earlier Show calls no-op on the panel-identity check.
+    local subscribedStage = m_stage
+    pcall(function()
+        ThemeEngine.OnThemeChanged(mod, function()
+            if subscribedStage == m_stage and m_stage ~= nil and m_stage.valid then
+                ApplyStageSettings()
+            end
+        end)
+    end)
+
+    local sizeDropdown = gui.Dropdown{
+        width = 150,
+        height = 28,
+        valign = "center",
+        hmargin = 4,
+        options = DropdownOptions(g_stagePresets),
+        idChosen = m_stageSettings.size,
+        change = function(element)
+            TestHarness.SetStage{ size = element.idChosen }
+        end,
+    }
+    local cascadeDropdown = gui.Dropdown{
+        width = 150,
+        height = 28,
+        valign = "center",
+        hmargin = 4,
+        options = DropdownOptions(g_stageCascades),
+        idChosen = m_stageSettings.cascade,
+        change = function(element)
+            TestHarness.SetStage{ cascade = element.idChosen }
+        end,
+    }
+    local backdropDropdown = gui.Dropdown{
+        width = 120,
+        height = 28,
+        valign = "center",
+        hmargin = 4,
+        options = DropdownOptions(g_stageBackdrops),
+        idChosen = m_stageSettings.backdrop,
+        change = function(element)
+            TestHarness.SetStage{ backdrop = element.idChosen }
+        end,
+    }
+    m_stageControls = { size = sizeDropdown, cascade = cascadeDropdown, backdrop = backdropDropdown }
+
+    --live pixel size of the stage: the measurement you actually want when a
+    --percentage-sized panel misbehaves. Polled rather than event-driven
+    --because renderedWidth/Height only settle after a layout pass.
+    local stageReadout = gui.Label{
+        text = "",
+        fontSize = 12,
+        color = "#8fe3d2ff",
+        width = 90,
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        thinkTime = 0.5,
+        think = function(element)
+            if m_stage == nil or (not m_stage.valid) then
+                element.text = ""
+                return
+            end
+            local width = m_stage.renderedWidth or 0
+            local height = m_stage.renderedHeight or 0
+            element.text = string.format("%dx%d", math.floor(width), math.floor(height))
+        end,
+    }
+
     m_shell = gui.Panel{
         id = "testHarnessShell",
         floating = true,
@@ -1861,11 +2117,10 @@ function TestHarness.Show(id, args)
         bgimage = "panels/square.png",
         bgcolor = "#0b1018ff",
 
-        styles = {
-            Styles.Default,
-        },
-
-        --chrome bar.
+        --chrome bar. Styles.Default lives HERE rather than on the shell root
+        --so that it cascades into the chrome's own dropdowns and labels but
+        --NOT into the stage -- otherwise the stage's "No styles" cascade would
+        --be a lie and its "ThemeEngine" cascade would sit on top of Default.
         gui.Panel{
             width = "100%",
             height = 44,
@@ -1874,6 +2129,10 @@ function TestHarness.Show(id, args)
             bgcolor = "#141c2aff",
             borderWidth = 1,
             borderColor = "#31415cff",
+
+            styles = {
+                Styles.Default,
+            },
 
             gui.Label{
                 text = "TEST HARNESS",
@@ -1885,10 +2144,10 @@ function TestHarness.Show(id, args)
                 halign = "left",
                 valign = "center",
                 lmargin = 14,
-                rmargin = 18,
+                rmargin = 12,
             },
             gui.Dropdown{
-                width = 260,
+                width = 190,
                 height = 28,
                 valign = "center",
                 options = dropdownOptions,
@@ -1899,16 +2158,26 @@ function TestHarness.Show(id, args)
                     end
                 end,
             },
+
+            --stage controls. These mutate the live stage; they deliberately do
+            --NOT re-run create(), so the panel under test survives a resize.
+            sizeDropdown,
+            cascadeDropdown,
+            backdropDropdown,
+
             HarnessButton("Reload", function()
                 TestHarness.Show(m_activeId, args)
             end),
+
+            stageReadout,
+
             gui.Label{
                 text = args ~= nil and ("args: " .. tostring(args)) or "",
                 fontSize = 12,
                 color = "#8295b2ff",
                 width = "auto",
                 height = "auto",
-                maxWidth = 500,
+                maxWidth = 320,
                 halign = "left",
                 valign = "center",
                 lmargin = 8,
@@ -1918,13 +2187,16 @@ function TestHarness.Show(id, args)
             end),
         },
 
-        --content area.
+        --content area: an inert backing plate; the stage floats centered in it.
         gui.Panel{
             id = "testHarnessContent",
             width = "100%",
             height = "100% available",
-            flow = "vertical",
-            contentPanel,
+            flow = "none",
+            bgimage = "panels/square.png",
+            bgcolor = "#05070aff",
+
+            m_stage,
         },
     }
 
@@ -1945,6 +2217,18 @@ function TestHarness.Probe()
         shown = m_shell ~= nil and m_shell.valid or false,
         registered = table.keys(TestHarness.registry),
     }
+
+    if m_stageSettings ~= nil then
+        result.stage = {
+            size = m_stageSettings.size,
+            cascade = m_stageSettings.cascade,
+            backdrop = m_stageSettings.backdrop,
+        }
+        if m_stage ~= nil and m_stage.valid then
+            result.stage.renderedWidth = m_stage.renderedWidth
+            result.stage.renderedHeight = m_stage.renderedHeight
+        end
+    end
     local reg = m_activeId ~= nil and TestHarness.registry[m_activeId] or nil
     if reg ~= nil and reg.probe ~= nil and m_activeCtx ~= nil then
         local ok, probeResult = pcall(function()
@@ -1960,8 +2244,218 @@ function TestHarness.Probe()
 end
 
 --------------------------------------------------------------------------------
+-- Fixtures: the inputs a production panel needs before it will build.
+--
+-- Isolating a real panel is only as easy as getting hold of what it takes as
+-- arguments. These produce those inputs inside the lobby game, so nothing
+-- touches real game data.
+--------------------------------------------------------------------------------
+
+TestHarness.Fixture = rawget(TestHarness, "Fixture") or {}
+
+--A character token in the current (lobby) game, handed to the callback.
+--Reuses an existing character rather than breeding a new one per call; a
+--freshly created one has to round-trip the local server before
+--GetCharacterById can see it, hence the callback rather than a return value.
+--Pass { forceNew = true } to always create.
+function TestHarness.Fixture.Character(callback, options)
+    options = options or {}
+
+    if not options.forceNew then
+        local existing = nil
+        pcall(function()
+            existing = table.values(game.GetGameGlobalCharacters())
+        end)
+        if existing ~= nil and #existing > 0 then
+            callback(existing[1])
+            return
+        end
+    end
+
+    local heroType = nil
+    local characterTypes = dmhub.GetTable(CharacterType.tableName)
+    for _, entry in pairs(characterTypes) do
+        if (not rawget(entry, "hidden")) and entry.name == "Hero" then
+            heroType = entry
+            break
+        end
+    end
+
+    if heroType == nil then
+        print("TestHarness:: Fixture.Character found no Hero character type")
+        callback(nil)
+        return
+    end
+
+    local charid = game.CreateCharacter("character", heroType)
+    dmhub.Coroutine(function()
+        for _ = 1, 100 do
+            local token = dmhub.GetCharacterById(charid)
+            if token ~= nil then
+                callback(token)
+                return
+            end
+            coroutine.yield(0.01)
+        end
+        print("TestHarness:: Fixture.Character timed out waiting for", charid)
+        callback(nil)
+    end)
+end
+
+--A detached markdown document -- never saved, never uploaded -- for panels in
+--the journal / document family.
+function TestHarness.Fixture.Document(content)
+    return MarkdownDocument.new{
+        content = content or "# Fixture\n\nBody text with **bold** and *italic*.\n",
+        annotations = {},
+        styleSheetId = false,
+    }
+end
+
+--------------------------------------------------------------------------------
+-- Live scratch: mount arbitrary panel-building Lua without editing a file.
+--
+--   TestHarness.Scratch([[ return gui.Label{ text = "hi", fontSize = 30 } ]])
+--
+-- compiles the chunk, runs it, and mounts whatever panel(s) it returns in the
+-- stage. This is the fast loop for iterating on a panel over MCP -- no file
+-- edit, no reload, seconds per iteration. When a scratch is worth keeping it
+-- graduates into a TestHarness.Register block in this file.
+--
+-- The source lives in a global, so a Lua reload re-runs it against the freshly
+-- loaded code: edit the production panel, reload, and the scratch that mounts
+-- it rebuilds automatically.
+--------------------------------------------------------------------------------
+
+local function ScratchMessage(text, color)
+    return gui.Label{
+        text = text,
+        fontSize = 15,
+        color = color,
+        width = "90%",
+        height = "auto",
+        textWrap = true,
+        halign = "center",
+        valign = "center",
+    }
+end
+
+--Returns an error string, or nil on success. State for probe() lands on ctx.
+local function MountScratch(ctx)
+    if ctx == nil or ctx.host == nil or (not ctx.host.valid) then
+        return "scratch harness is not mounted"
+    end
+
+    local source = rawget(_G, "g_TestHarnessScratchSource")
+    ctx.error = nil
+    ctx.mounted = 0
+    ctx.sourceLength = source ~= nil and #source or 0
+
+    if source == nil or source == "" then
+        ctx.host.children = {
+            ScratchMessage(
+                "Scratch harness: empty.\n\nMount UI from execute_lua:\n" ..
+                "TestHarness.Scratch([[ return gui.Label{ text = \"hi\", fontSize = 40, width = \"auto\", height = \"auto\", halign = \"center\", valign = \"center\" } ]])",
+                "#8295b2ff"),
+        }
+        return nil
+    end
+
+    local chunk, compileError = load(source, "=TestHarnessScratch", "t")
+    if chunk == nil then
+        ctx.error = "compile error: " .. tostring(compileError)
+        ctx.host.children = { ScratchMessage(ctx.error, "#ff9999ff") }
+        return ctx.error
+    end
+
+    local ok, result = pcall(chunk)
+    if not ok then
+        ctx.error = "runtime error: " .. tostring(result)
+        ctx.host.children = { ScratchMessage(ctx.error, "#ff9999ff") }
+        return ctx.error
+    end
+
+    --accept a single panel or an array of them. Panels are userdata
+    --(LuaSheetPanel/LuaSheetLabel/...), NOT tables, so the type tells the two
+    --cases apart cleanly.
+    local panels = {}
+    if type(result) == "userdata" then
+        panels[1] = result
+    elseif type(result) == "table" then
+        for _, entry in ipairs(result) do
+            panels[#panels + 1] = entry
+        end
+    end
+
+    if #panels == 0 then
+        ctx.error = "the chunk returned no panel; it must 'return gui.Panel{...}' (or an array of panels)"
+        ctx.host.children = { ScratchMessage(ctx.error, "#ff9999ff") }
+        return ctx.error
+    end
+
+    ctx.host.children = panels
+    ctx.mounted = #panels
+    return nil
+end
+
+--Compile + mount `code`, switching to the scratch harness if needed.
+--Returns nil on success or the error string on failure, so the MCP caller
+--sees the failure directly instead of having to go read the console.
+function TestHarness.Scratch(code)
+    g_TestHarnessScratchSource = code
+
+    if m_activeId ~= "scratch" then
+        --create() mounts the stored source as part of coming up.
+        TestHarness.Show("scratch")
+        if m_activeCtx ~= nil then
+            return m_activeCtx.error
+        end
+        return nil
+    end
+
+    return MountScratch(m_activeCtx)
+end
+
+function TestHarness.ScratchSource()
+    return rawget(_G, "g_TestHarnessScratchSource")
+end
+
+function TestHarness.ClearScratch()
+    g_TestHarnessScratchSource = nil
+    if m_activeId == "scratch" then
+        return MountScratch(m_activeCtx)
+    end
+    return nil
+end
+
+--------------------------------------------------------------------------------
 -- Built-in harnesses.
 --------------------------------------------------------------------------------
+
+--scratch: an empty themed stage that mounts whatever TestHarness.Scratch was
+--last handed. The general-purpose workbench.
+TestHarness.Register{
+    id = "scratch",
+    stage = { size = "full", cascade = "theme", backdrop = "dark" },
+    create = function(args, ctx)
+        ctx.host = gui.Panel{
+            id = "scratchHost",
+            width = "100%",
+            height = "100%",
+            flow = "vertical",
+        }
+        MountScratch(ctx)
+        return ctx.host
+    end,
+    probe = function(ctx)
+        return {
+            mounted = ctx.mounted or 0,
+            sourceLength = ctx.sourceLength or 0,
+            hasError = ctx.error ~= nil,
+            error = ctx.error,
+        }
+    end,
+}
 
 --hello: the smallest possible harness; proves the shell, events, and probes.
 TestHarness.Register{

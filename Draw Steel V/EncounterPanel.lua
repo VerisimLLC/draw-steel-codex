@@ -1694,15 +1694,29 @@ end
 -- Bestiary pane
 -- ===========================================================================
 
---Cached bestiary facts, shared across editor opens. Computing a monster's
---EV runs the attribute pipeline, so doing it for the whole compendium is
---slow -- pay that cost once and invalidate whenever the assets change.
+--Cached bestiary facts for one editor session. Computing a monster's EV runs
+--the attribute pipeline, so doing it for the whole compendium is slow -- pay
+--that cost once per open, and invalidate whenever the assets change while the
+--pane is up. Deliberately NOT shared across opens: see CreateBestiaryPane.
 local g_bestiaryInfoCache = nil
 
 --The always-visible bestiary browser: search plus one row per (non-hidden)
 --monster with its portrait, level/EV, and click-to-add.
 --addMonster(info) is called when a row is clicked.
 local function CreateBestiaryPane(party, addMonster)
+    --Start every open from the live compendium.
+    --
+    --The cache exists to avoid re-running the EV pipeline per KEYSTROKE while
+    --the pane is open. Its only other invalidation is the refreshAssets handler
+    --below, which requires this pane to be alive -- so a monster created,
+    --duplicated or renamed in the Bestiary while the builder was CLOSED never
+    --reached the list: new monsters were missing entirely and renamed ones kept
+    --showing their old names until the app was restarted.
+    --
+    --One rebuild per open is exactly the cost already paid on the first open of
+    --a session, and it cannot go stale.
+    g_bestiaryInfoCache = nil
+
     local state = {
         searchText = "",
         page = 1,

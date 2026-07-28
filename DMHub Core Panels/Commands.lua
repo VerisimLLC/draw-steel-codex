@@ -179,6 +179,24 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "floorup",
+    summary = "go up a floor",
+    doc = "Switches the active floor to the next floor up. If the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it.",
+    command = function()
+        FloorNavigation.ChangeFloorRelative(1)
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "floordown",
+    summary = "go down a floor",
+    doc = "Switches the active floor to the next floor down. If the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it.",
+    command = function()
+        FloorNavigation.ChangeFloorRelative(-1)
+    end,
+}
+
+Commands.RegisterMacro{
     name = "next",
     summary = "cycle between tokens",
     doc = "Cycles between controllable tokens. Prioritizes tokens whose turn it is in initiative.",

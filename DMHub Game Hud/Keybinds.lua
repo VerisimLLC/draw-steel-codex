@@ -384,6 +384,61 @@ Keybinds.Register{
     section = "system",
 }
 
+Keybinds.Register{
+    command = "floorup",
+    name = tr("Go Up a Floor"),
+    dmonly = true,
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "floordown",
+    name = tr("Go Down a Floor"),
+    dmonly = true,
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "toggle vision:shared",
+    name = tr("Toggle Players Shared Vision"),
+    dmonly = true,
+    section = "gameplay",
+}
+
+Keybinds.Register{
+    command = "toggle autofloorvisibility",
+    name = tr("Toggle Auto-hide Floors"),
+    dmonly = true,
+    section = "camera",
+}
+
+--Internal flag tracking whether the one-time default floor-navigation keybindings have
+--been applied. Sectionless/editorless so it does not appear in the settings UI.
+setting{
+    id = "floornav:defaultbindingsapplied",
+    description = "Floor navigation default keybindings applied",
+    storage = "preference",
+    default = false,
+}
+
+--Apply the default Page Up / Page Down bindings for floor navigation once. Doing it once
+--(guarded by the flag above) means a user's later customisation -- including deliberately
+--clearing these -- is not overwritten on subsequent launches. Page Up / Page Down are
+--bound to diagonal token movement out of the box; floor navigation intentionally takes
+--them over (both remain rebindable in the keybinds UI). We still skip the assignment if
+--floor navigation is already bound, so an existing user choice is never overwritten.
+if dmhub.GetSettingValue("floornav:defaultbindingsapplied") ~= true then
+    dmhub.SetSettingValue("floornav:defaultbindingsapplied", true)
+
+    if dmhub.GetCommandBinding("floorup") == nil then
+        dmhub.SetCommandBinding("page up", "floorup")
+    end
+
+    if dmhub.GetCommandBinding("floordown") == nil then
+        dmhub.SetCommandBinding("page down", "floordown")
+    end
+end
+
 
 local g_KeybindStyles = {
     {

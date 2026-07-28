@@ -384,9 +384,13 @@ Keybinds.Register{
     section = "system",
 }
 
+--Rows in each keybind section sort by "ord" (falling back to name). "Go Down a Floor"
+--would otherwise sort above "Go Up a Floor" alphabetically, so give them explicit ords to
+--list Up above Down.
 Keybinds.Register{
     command = "floorup",
     name = tr("Go Up a Floor"),
+    ord = "Go 1",
     dmonly = true,
     section = "camera",
 }
@@ -394,6 +398,7 @@ Keybinds.Register{
 Keybinds.Register{
     command = "floordown",
     name = tr("Go Down a Floor"),
+    ord = "Go 2",
     dmonly = true,
     section = "camera",
 }

@@ -5405,6 +5405,444 @@ end
 		}
 	end
 
+	-- Trail Sprites: procedural petals / stars / sparks / embers / bubbles dropped along each
+	-- die's path while it moves, plus soft fading haze puffs underneath -- a slider-driven
+	-- alternative to the prefab TravelTail effects (which offer only scale/tint). Authored per
+	-- set (dicestudio.trail*), rendered by DiceController.UpdateDiceTrail via
+	-- DMHub-Dice-TrailSprite (shapes are SDFs in the shader; no textures or prefabs).
+	local trailSpritesSection
+	do
+		local function TrailSlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		local function TrailColor(label, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.ColorPicker{
+					border = 2,
+					borderColor = "white",
+					width = 16,
+					height = 16,
+					value = getter() or "#ffffff",
+					newmaterial = function(element)
+						element.value = getter() or "#ffffff"
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		local shapeOptions = {
+			{ id = "petal", text = "Petal" },
+			{ id = "star4", text = "Star (4-point)" },
+			{ id = "star5", text = "Star (5-point)" },
+			{ id = "spark", text = "Spark" },
+			{ id = "ember", text = "Ember" },
+			{ id = "bubble", text = "Bubble" },
+		}
+
+		trailSpritesSection = gui.TreeNode{
+			text = "Trail Sprites",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "Drops shaped sprites (petals, stars, sparks, embers, or bubbles) along each die's path while it moves, with a soft fading haze underneath. Fully slider-driven: every shape is drawn procedurally, no effect prefabs involved. Sprites stay where the die dropped them, flutter, spin, and fade.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.trailSpritesEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.trailSpritesEnabled
+						end,
+						change = function(element)
+							dicestudio.trailSpritesEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Everything else collapses while disabled. Synced on newmaterial too, so the
+				-- panel recovers when the set is changed/re-picked (or fields are set from
+				-- script) rather than showing a stale collapse state.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.trailSpritesEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.trailSpritesEnabled == false)
+					end,
+					newmaterial = function(element)
+						element:SetClass("collapsed", dicestudio.trailSpritesEnabled == false)
+					end,
+
+					-- Shape
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Shape:",
+						},
+						gui.Dropdown{
+							width = 200,
+							height = 26,
+							fontSize = 14,
+							options = shapeOptions,
+							idChosen = dicestudio.trailShape or "petal",
+							newmaterial = function(element)
+								element.idChosen = dicestudio.trailShape or "petal"
+							end,
+							change = function(element)
+								dicestudio.trailShape = element.idChosen
+								RefreshDice()
+							end,
+						},
+					},
+
+					TrailColor("Color A:",
+						function() return dicestudio.trailColorA end,
+						function(v) dicestudio.trailColorA = v end),
+					TrailColor("Color B:",
+						function() return dicestudio.trailColorB end,
+						function(v) dicestudio.trailColorB = v end),
+					TrailSlider("Rate:", 1, 60, 14,
+						function() return dicestudio.trailRate end,
+						function(v) dicestudio.trailRate = v end),
+					TrailSlider("Size:", 0.03, 0.6, 0.16,
+						function() return dicestudio.trailSize end,
+						function(v) dicestudio.trailSize = v end),
+					TrailSlider("Size Variation:", 0, 1, 0.5,
+						function() return dicestudio.trailSizeVariation end,
+						function(v) dicestudio.trailSizeVariation = v end),
+					TrailSlider("Lifetime:", 0.2, 4, 1.2,
+						function() return dicestudio.trailLifetime end,
+						function(v) dicestudio.trailLifetime = v end),
+					TrailSlider("Flutter:", 0, 1, 0.5,
+						function() return dicestudio.trailFlutter end,
+						function(v) dicestudio.trailFlutter = v end),
+					TrailSlider("Spin:", 0, 2, 0.5,
+						function() return dicestudio.trailSpin end,
+						function(v) dicestudio.trailSpin = v end),
+					TrailSlider("Twinkle:", 0, 1, 0.3,
+						function() return dicestudio.trailTwinkle end,
+						function(v) dicestudio.trailTwinkle = v end),
+					TrailSlider("Sprite Glow:", 0, 2, 0.5,
+						function() return dicestudio.trailGlow end,
+						function(v) dicestudio.trailGlow = v end),
+					TrailSlider("Glow Intensity:", 0, 6, 1.5,
+						function() return dicestudio.trailIntensity end,
+						function(v) dicestudio.trailIntensity = v end),
+					TrailSlider("Hue Variation:", 0, 1, 0,
+						function() return dicestudio.trailHueVariation end,
+						function(v) dicestudio.trailHueVariation = v end),
+					TrailSlider("Fall Speed:", 0, 2, 0.4,
+						function() return dicestudio.trailFall end,
+						function(v) dicestudio.trailFall = v end),
+					TrailSlider("Spread:", 0, 1, 0.35,
+						function() return dicestudio.trailSpread end,
+						function(v) dicestudio.trailSpread = v end),
+
+					-- Second particle layer: an independent sprite kind alongside layer 1.
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Layer 2:",
+						},
+						gui.Check{
+							text = "",
+							halign = "left",
+							width = "auto",
+							minWidth = 0,
+							value = dicestudio.trail2Enabled,
+							newmaterial = function(element)
+								element.value = dicestudio.trail2Enabled
+							end,
+							change = function(element)
+								dicestudio.trail2Enabled = element.value
+								RefreshDice()
+								element.root:FireEventTree("refreshDice")
+							end,
+						},
+					},
+					gui.Panel{
+						width = "100%",
+						height = "auto",
+						flow = "vertical",
+
+						create = function(element)
+							element:SetClass("collapsed", dicestudio.trail2Enabled == false)
+						end,
+						refreshDice = function(element)
+							element:SetClass("collapsed", dicestudio.trail2Enabled == false)
+						end,
+						newmaterial = function(element)
+							element:SetClass("collapsed", dicestudio.trail2Enabled == false)
+						end,
+
+						gui.Panel{
+							classes = {"formPanel"},
+							gui.Label{
+								classes = {"formLabel"},
+								halign = "left",
+								text = "L2 Shape:",
+							},
+							gui.Dropdown{
+								width = 200,
+								height = 26,
+								fontSize = 14,
+								options = shapeOptions,
+								idChosen = dicestudio.trail2Shape or "spark",
+								newmaterial = function(element)
+									element.idChosen = dicestudio.trail2Shape or "spark"
+								end,
+								change = function(element)
+									dicestudio.trail2Shape = element.idChosen
+									RefreshDice()
+								end,
+							},
+						},
+						TrailColor("L2 Color A:",
+							function() return dicestudio.trail2ColorA end,
+							function(v) dicestudio.trail2ColorA = v end),
+						TrailColor("L2 Color B:",
+							function() return dicestudio.trail2ColorB end,
+							function(v) dicestudio.trail2ColorB = v end),
+						TrailSlider("L2 Rate:", 1, 60, 10,
+							function() return dicestudio.trail2Rate end,
+							function(v) dicestudio.trail2Rate = v end),
+						TrailSlider("L2 Size:", 0.03, 0.6, 0.09,
+							function() return dicestudio.trail2Size end,
+							function(v) dicestudio.trail2Size = v end),
+						TrailSlider("L2 Size Variation:", 0, 1, 0.6,
+							function() return dicestudio.trail2SizeVariation end,
+							function(v) dicestudio.trail2SizeVariation = v end),
+					},
+
+					TrailSlider("Haze:", 0, 1, 0.4,
+						function() return dicestudio.trailHaze end,
+						function(v) dicestudio.trailHaze = v end),
+					TrailColor("Haze Color:",
+						function() return dicestudio.trailHazeColor end,
+						function(v) dicestudio.trailHazeColor = v end),
+					TrailSlider("Haze Size:", 1, 6, 2.5,
+						function() return dicestudio.trailHazeSize end,
+						function(v) dicestudio.trailHazeSize = v end),
+					TrailSlider("Haze Rate:", 1, 40, 10,
+						function() return dicestudio.trailHazeRate end,
+						function(v) dicestudio.trailHazeRate = v end),
+					TrailSlider("Haze Growth:", 0, 3, 0.8,
+						function() return dicestudio.trailHazeGrowth end,
+						function(v) dicestudio.trailHazeGrowth = v end),
+					TrailSlider("Haze Wispiness:", 0, 1, 1,
+						function() return dicestudio.trailHazeWisp end,
+						function(v) dicestudio.trailHazeWisp = v end),
+					TrailSlider("Haze Lifetime:", 0.5, 3, 1.6,
+						function() return dicestudio.trailHazeLifetime end,
+						function(v) dicestudio.trailHazeLifetime = v end),
+					TrailSlider("Haze Drift:", 0, 1, 0.25,
+						function() return dicestudio.trailHazeDrift end,
+						function(v) dicestudio.trailHazeDrift = v end),
+				},
+			},
+		}
+	end
+
+	-- Constellation: once every one of the set's dice has settled (2+ on the table), glowing
+	-- lines trace between them link by link (a star-chart spanning tree), shimmer while the
+	-- dice linger, and fade out with the dice. Authored per set (dicestudio.constellation*),
+	-- drawn by DiceConstellation via DMHub-Dice-ConstellationLine.
+	local constellationSection
+	do
+		local function ConSlider(label, minv, maxv, default, getter, setter)
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					classes = {"formLabel"},
+					halign = "left",
+					text = label,
+				},
+				gui.Slider{
+					style = { height = 26, width = 240, fontSize = 14 },
+					sliderWidth = 180,
+					labelWidth = 50,
+					minValue = minv,
+					maxValue = maxv,
+					value = getter() or default,
+					newmaterial = function(element)
+						element.value = getter() or default
+					end,
+					change = function(element)
+						setter(element.value)
+						RefreshDice()
+					end,
+				},
+			}
+		end
+
+		constellationSection = gui.TreeNode{
+			text = "Constellation",
+			width = "100%",
+			contentPanel = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					fontSize = 12,
+					color = "#bbbbbbff",
+					text = "When every die of this set has landed (2 or more on the table), glowing lines trace between them one link at a time -- like a star chart drawing itself -- then shimmer and fade out with the dice.",
+				},
+
+				-- Enabled
+				gui.Panel{
+					classes = {"formPanel"},
+					gui.Label{
+						classes = {"formLabel"},
+						halign = "left",
+						text = "Enabled:",
+					},
+					gui.Check{
+						text = "",
+						halign = "left",
+						width = "auto",
+						minWidth = 0,
+						value = dicestudio.constellationEnabled,
+						newmaterial = function(element)
+							element.value = dicestudio.constellationEnabled
+						end,
+						change = function(element)
+							dicestudio.constellationEnabled = element.value
+							RefreshDice()
+							element.root:FireEventTree("refreshDice")
+						end,
+					},
+				},
+
+				-- Everything else collapses while disabled.
+				gui.Panel{
+					width = "100%",
+					height = "auto",
+					flow = "vertical",
+
+					create = function(element)
+						element:SetClass("collapsed", dicestudio.constellationEnabled == false)
+					end,
+					refreshDice = function(element)
+						element:SetClass("collapsed", dicestudio.constellationEnabled == false)
+					end,
+					newmaterial = function(element)
+						element:SetClass("collapsed", dicestudio.constellationEnabled == false)
+					end,
+
+					gui.Panel{
+						classes = {"formPanel"},
+						gui.Label{
+							classes = {"formLabel"},
+							halign = "left",
+							text = "Color:",
+						},
+						gui.ColorPicker{
+							border = 2,
+							borderColor = "white",
+							width = 16,
+							height = 16,
+							value = dicestudio.constellationColor or "#ffffff",
+							newmaterial = function(element)
+								element.value = dicestudio.constellationColor or "#ffffff"
+							end,
+							change = function(element)
+								dicestudio.constellationColor = element.value
+								RefreshDice()
+							end,
+						},
+					},
+					ConSlider("Line Width:", 0.01, 0.25, 0.06,
+						function() return dicestudio.constellationWidth end,
+						function(v) dicestudio.constellationWidth = v end),
+					ConSlider("Brightness:", 0, 8, 3,
+						function() return dicestudio.constellationBrightness end,
+						function(v) dicestudio.constellationBrightness = v end),
+					ConSlider("Draw Time:", 0.1, 2, 0.5,
+						function() return dicestudio.constellationDrawTime end,
+						function(v) dicestudio.constellationDrawTime = v end),
+					ConSlider("Pulse:", 0, 1, 0.4,
+						function() return dicestudio.constellationPulse end,
+						function(v) dicestudio.constellationPulse = v end),
+					-- 0 = pure tree; higher closes the chart's polygons like real constellations.
+					ConSlider("Close Loops:", 0, 1, 0.5,
+						function() return dicestudio.constellationLoop end,
+						function(v) dicestudio.constellationLoop = v end),
+					-- Extra on-table time so early-settling dice survive the tracing ceremony.
+					ConSlider("Extra Linger:", 0, 10, 0,
+						function() return dicestudio.resultLinger end,
+						function(v) dicestudio.resultLinger = v end),
+				},
+			},
+		}
+	end
+
 	-- Billboard: a glowing camera-facing quad rendered inside each die (behind the die body, so a
 	-- semi-transparent die reads as having a glow suspended inside it). Either a procedural radial
 	-- gradient (inner color -> outer color, shaped by Falloff) or an artist-supplied image tinted
@@ -6933,6 +7371,8 @@ end
 		rayBurstSection,
 		mapWarpSection,
 		infallHaloSection,
+		trailSpritesSection,
+		constellationSection,
 
 		billboardSection,
 

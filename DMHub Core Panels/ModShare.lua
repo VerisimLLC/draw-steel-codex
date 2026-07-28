@@ -1733,6 +1733,12 @@ local showShareModuleDialog = function(options)
 				if npage == 2 then
 					shareButton.text = cond(moduleInstance.deleted, "Delete Module", cond(isNewModule, "Create Module", "Update Module"))
 				end
+				--A deprecated module is frozen: the database rules reject any
+				--non-admin write to it, so do not offer to publish or delete.
+				if moduleInstance.deprecated then
+					shareButton:SetClass("hidden", npage == 2)
+					return
+				end
 				--Deleting an existing module bypasses the terms-agreement gate.
 				if moduleInstance.deleted then
 					shareButton:SetClass("hidden", false)
@@ -2552,7 +2558,9 @@ local showShareModuleDialog = function(options)
 			height = "auto",
 			valign = "top",
 			refreshModule = function(element)
-				if moduleInstance.deleted then
+				if moduleInstance.deprecated then
+					element.text = string.format("DEPRECATED: %s\n\nThis module cannot be updated or published while it is deprecated.", moduleInstance.deprecationMessage)
+				elseif moduleInstance.deleted then
 					element.text = "This module will be deleted. Users who already installed it into their games will be able to continue to use its contents"
 				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
@@ -3383,6 +3391,33 @@ mod.shared.ShowDownloadShareDialog = function()
 			valign = "top",
 		}
 
+		--modules an administrator has deprecated are still listed in the
+		--Installed/Published/Purchased tabs (they are filtered out of browse),
+		--so mark them clearly.
+		local deprecatedBadge = gui.Label{
+			text = "DEPRECATED",
+			bgimage = "panels/square.png",
+			bgcolor = "#661111",
+			color = "#ffaaaa",
+			bold = true,
+			fontSize = 12,
+			width = "auto",
+			height = "auto",
+			hpad = 6,
+			vpad = 2,
+			borderBox = true,
+			floating = true,
+			halign = "center",
+			valign = "top",
+			y = 4,
+			hover = function(element)
+				gui.Tooltip(element.data.message)(element)
+			end,
+			data = {
+				message = "",
+			},
+		}
+
 		local installCheck = gui.Panel{
 			classes = {"installCheck"},
 		}
@@ -3525,6 +3560,7 @@ mod.shared.ShowDownloadShareDialog = function()
 			statsPanel,
 
 			newBadge,
+			deprecatedBadge,
 
 			data = {
 				moduleInfo = nil,
@@ -3562,6 +3598,9 @@ mod.shared.ShowDownloadShareDialog = function()
 				installCountPanel:SetClass("hidden", true)
 
 				newBadge:SetClass("hidden", true)
+
+				deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
+				deprecatedBadge.data.message = moduleInfo.deprecationMessage
 
 				moduleInfo:QueryStats(function(modid, stats)
 					if element.valid and modid == moduleInfo.fullid then
@@ -3750,6 +3789,14 @@ mod.shared.ShowDownloadShareDialog = function()
 		},
 
 	}
+	--warning shown above the module body when an administrator has deprecated it.
+	local detailedDisplayDeprecated = gui.Label{
+		classes = {"bodyLabel", "collapsed"},
+		bold = true,
+		color = "#ff6666",
+		markdown = false,
+	}
+
 	local detailedDisplayBody = gui.Label{
 		classes = {"bodyLabel"},
         markdown = true,
@@ -3978,6 +4025,17 @@ mod.shared.ShowDownloadShareDialog = function()
 			end,
 			think = function(element)
 				local mod = moduleDetailedDisplay.data.moduleInfo
+
+				--a deprecated module is never loaded, so there is nothing to
+				--install or update. Uninstalling is still offered so a game can
+				--be cleaned up.
+				if mod.deprecated then
+					installButton:SetClass("collapsed", true)
+					element.text = "This module has been deprecated and cannot be installed."
+					uninstallButton:SetClass("collapsed", mod.installedVersion == nil)
+					return
+				end
+
 				if mod.fullid == m_installing then
 					installButton:SetClass("collapsed", true)
 					element.text = "Installing..."
@@ -4132,6 +4190,11 @@ mod.shared.ShowDownloadShareDialog = function()
 			detailedDisplayID.data.id = moduleInfo.fullid
 			detailedDisplayID.text = string.format("Unique ID: %s", moduleInfo.fullid)
 
+			detailedDisplayDeprecated:SetClass("collapsed", not moduleInfo.deprecated)
+			if moduleInfo.deprecated then
+				detailedDisplayDeprecated.text = string.format("DEPRECATED: %s", moduleInfo.deprecationMessage)
+			end
+
 			local details = moduleInfo.details or ""
 
 			local moduleContents = DescribeModuleContents(moduleInfo.contentSummary)
@@ -4185,6 +4248,7 @@ mod.shared.ShowDownloadShareDialog = function()
 			detailedDisplayTitle,
 			detailedDisplayAuthor,
 			detailedDisplayID,
+			detailedDisplayDeprecated,
 			detailedDisplayPanel,
 			statsPanel,
 		},

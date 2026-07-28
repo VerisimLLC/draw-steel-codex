@@ -1349,9 +1349,22 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--gamehud:CreateChatPanel(),
 			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
+
+			--ORDER IS Z-ORDER: panels have no z-index, so a later sibling draws
+			--over an earlier one. The documents layer hosts every floating
+			--journal/panel window, and it used to sit AFTER the two roll layers,
+			--so an open window covered the ability card and its power roll --
+			--worst during montages and negotiations, where the document window is
+			--open exactly when the rolls happen. The windows' own
+			--SetAsLastSibling() only reorders within their own layer, so nothing
+			--could bring the roll card forward.
+			--
+			--Documents now come first, putting the roll UI above floating windows
+			--while still leaving it below mainDialog / modal / popup / rollDialog,
+			--so modals and the dice dialog continue to win.
+			gamehud:CreateDocumentsPanel(),
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
-			gamehud:CreateDocumentsPanel(),
 			mainDialogPanel,
 			gamehud.shopPanel,
 			gamehud:ModalDialogPanel(),
@@ -1472,6 +1485,17 @@ function GameHud.GetPresentDialogDoc(dialogid)
         return nil
     end
     return result
+end
+
+--The presentdialog document itself, whether or not a dialog is currently on
+--screen. Hiding a dialog nils data.dialog but LEAVES data.livedata (see
+--clearPresentDialog), so a presenter can put its surface away and bring it
+--back with its state intact rather than having to tear the scene down.
+--Callers in OTHER modules must use this rather than their own
+--mod:GetDocumentSnapshot("presentdialog"): shared documents are namespaced per
+--module, so that call resolves to a different, never-changing document.
+function GameHud.GetPresentDialogDocRaw()
+	return mod:GetDocumentSnapshot("presentdialog")
 end
 
 function GameHud.PresentDialogToUsers(parentElement, dialogid, args, livedata)

@@ -1,5 +1,7 @@
---- @class ChatMessageInfoLua 
---- @field messageType any 
+--- @class ChatMessageInfoLua
+--- @field round number (Read-only) The combat round this message was sent in, or 0 if it was sent outside combat. Stamped on send, so it stays correct for older messages and across a reload. Use with 'turn' to group action-log entries by turn.
+--- @field turn number (Read-only) The turn within the combat round this message was sent in, or 0 outside combat. Counts up from 1 and resets each round, so (round, turn) identifies a single turn.
+--- @field messageType any
 --- @field infoAndAmendments any 
 --- @field properties any 
 --- @field isComplete boolean 

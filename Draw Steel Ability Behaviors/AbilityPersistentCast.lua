@@ -167,7 +167,7 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
 
     mainChildren[#mainChildren+1] = gui.Label{
         classes = {"persist-instruction"},
-        text = "Select abilities to end.",
+        text = "Highlighted abilities will continue. Click one to deselect it and end it.",
     }
 
     mainChildren[#mainChildren+1] = gui.Label{

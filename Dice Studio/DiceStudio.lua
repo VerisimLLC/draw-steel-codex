@@ -5169,6 +5169,16 @@ end
 					RaySlider("Inner Radius:", 0, 0.9, 0.22,
 						function() return dicestudio.rayBurstInnerRadius end,
 						function(v) dicestudio.rayBurstInnerRadius = v end),
+					-- Streaky filaments streaming outward through the beams (0 = clean wedges).
+					RaySlider("Streaks:", 0, 1, 0,
+						function() return dicestudio.rayBurstStreaks end,
+						function(v) dicestudio.rayBurstStreaks = v end),
+					RaySlider("Core Flash:", 0, 2, 0,
+						function() return dicestudio.rayBurstCoreFlash end,
+						function(v) dicestudio.rayBurstCoreFlash = v end),
+					RaySlider("Expanding Ring:", 0, 2, 0,
+						function() return dicestudio.rayBurstRing end,
+						function(v) dicestudio.rayBurstRing = v end),
 				},
 			},
 		}

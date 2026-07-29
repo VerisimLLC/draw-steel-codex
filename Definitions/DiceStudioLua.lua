@@ -30,6 +30,9 @@
 --- @field rayBurstContrast number Sharpness of the landing ray burst's beams: low = soft washes of light, high = thin crisp spokes.
 --- @field rayBurstSpeed number How fast the landing ray burst's two beam layers counter-rotate and shimmer. 0 == frozen.
 --- @field rayBurstInnerRadius number How far out the landing ray burst's rays start, as a fraction of its radius, so the die's face stays readable.
+--- @field rayBurstStreaks number Streaky filament texture streaming outward through the landing burst's beams: 0 = clean wedges, 1 = fully smeared fine rays.
+--- @field rayBurstCoreFlash number A soft white-hot flash at the burst's centre during its attack, fading by mid-burst.
+--- @field rayBurstRing number A thin pastel ring that expands with the landing burst's wavefront.
 --- @field mapWarpEnabled boolean Whether each landing die warps the map underneath it, pulling the world image toward the die like a black hole (the die itself stays undistorted on top). See mapWarpStrength/mapWarpRadius/mapWarpSwirl/mapWarpDuration for its feel.
 --- @field mapWarpStrength number How hard the landing warp pulls the map toward the die at its peak (0 = no pull; ~0.35 = a strong visible yank).
 --- @field mapWarpRadius number The landing warp's reach, in multiples of the die's on-screen diameter.

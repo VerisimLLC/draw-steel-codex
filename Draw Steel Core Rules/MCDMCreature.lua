@@ -6671,9 +6671,9 @@ local function GroupingHud(groupid)
             end,
         }
 
-        m_sheet:FireEvent("think")
-
         sheetParent.sheet = m_sheet
+
+        m_sheet:FireEvent("think")
     end
 end
 

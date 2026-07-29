@@ -170,6 +170,17 @@ function GameHud.TokenMoving(self, token, path)
     elseif creature ~= nil and path.shifting then
 		text = string.format(tr('%s\n%s moves %s %s per round when using <b>disengage</b> to shift'), text, creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:CarefulMovementSpeed()), string.lower(MeasurementSystem.UnitName()))
 
+        if (creature:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
+            local reason = nil
+            for _,modification in ipairs(creature:DescribeModificationsToNamedCustomAttribute("Shift Disabled")) do
+                reason = modification.key
+            end
+            if reason ~= nil then
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000><b>You cannot shift.</b> (%s)</color>"), reason)
+            else
+                statusText = statusText .. "\n" .. tr("<color=#ff0000><b>You cannot shift.</b></color>")
+            end
+        end
 	end
 
     local hazards = path:CalculateHazards(token)

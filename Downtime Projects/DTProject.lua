@@ -360,6 +360,26 @@ function DTProject:_setStateFromProgressChange(item, direction)
         DTBusinessRules.GiveItemToCharacter(self)
         self:SetStatusReason("Project complete.")
             :SetStatus(DTConstants.STATUS.COMPLETE.key)
+
+        -- Announce completion with a dramatic banner (synced to all clients,
+        -- non-modal). Gate on the transition INTO complete: this branch
+        -- re-enters whenever more progress is added to an already-finished
+        -- project, and the banner, unlike the item grant above, should fire
+        -- once. Title falls back to "a project" for untitled projects.
+        if currentStatus ~= STATUS.COMPLETE.key then
+            local token = dmhub.GetTokenById(self:GetOwnerID())
+            if token ~= nil and token.valid then
+                local title = self:GetTitle()
+                if title == nil or title == "" then
+                    title = "a project"
+                end
+                DramaticBanner.Show{
+                    tokenid = token.charid,
+                    text = "Project Complete",
+                    subtitle = string.format("%s completed %s", token.name, title),
+                }
+            end
+        end
     elseif currentStatus == DTConstants.STATUS.COMPLETE.key then
         if newValue < projectGoal then
             self:SetStatus(STATUS.ACTIVE.key)

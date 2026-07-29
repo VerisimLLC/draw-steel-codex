@@ -56,13 +56,20 @@ local encounterBuilderSetting = setting{
 }
 
 if encounterBuilderSetting:Get() then
+    --This panel LISTS the game's encounters and creates new ones; the builder
+    --that composes a single encounter is Encounter.Editor. Both used to be
+    --called "Encounter creator", which made it impossible to say which one a
+    --bug report meant.
     DockablePanel.Register {
-        name = "Encounter creator",
+        name = "Encounters",
         icon = "icons/standard/Icon_App_EncounterCreator.png",
         minHeight = 200,
         vscroll = true,
         content = function()
             track("panel_open", {
+                --Deliberately still the old label: this is an analytics key, and
+                --changing it would split the panel_open series at the rename
+                --rather than continuing it.
                 panel = "Encounter creator",
                 dailyLimit = 30,
             })
@@ -4601,8 +4608,29 @@ CreateEncounterPanel = function()
 
                                 think = function(panel)
                                     local mainmonster = Encounter.MainMonster(encounter)
-                                    if mainmonster ~= nil then
-                                        panel.bgimage = mainmonster.appearance:GetPortraitId()
+                                    if mainmonster == nil then
+                                        return
+                                    end
+
+                                    local portrait = mainmonster.appearance:GetPortraitId()
+                                    if panel.bgimage ~= portrait then
+                                        panel.bgimage = portrait
+                                    end
+
+                                    --Crop the portrait to this panel's own
+                                    --proportions rather than letting it stretch to
+                                    --fill. The panel is a tall slice of the card, so
+                                    --an uncropped portrait came out visibly squashed.
+                                    --GetPortraitRectForAspect wants width as a
+                                    --fraction of height, and lives on the token view
+                                    --of the asset (MonsterAsset.info), not on the
+                                    --asset itself. Measured from the rendered size so
+                                    --the crop stays right at any dock width.
+                                    local token = mainmonster.info
+                                    local w = panel.renderedWidth
+                                    local h = panel.renderedHeight
+                                    if token ~= nil and w ~= nil and h ~= nil and w > 0 and h > 0 then
+                                        panel.selfStyle.imageRect = token:GetPortraitRectForAspect(w/h, portrait)
                                     end
                                 end
 

@@ -38,8 +38,11 @@ function RichImage.CreateDisplay(self)
             imagePanel.bgimage = img
         end
         imagePanel.selfStyle.uiscale = self.uiscale
+        --The wrapper fills its container's width in BOTH modes now (see below),
+        --so alignment has to live on the image panel rather than on the wrapper
+        --in both -- a full-width wrapper cannot align anything.
+        imagePanel.selfStyle.halign = m_halign or "left"
         if m_editorMode then
-            imagePanel.selfStyle.halign = m_halign or "left"
             placeholderPanel.selfStyle.halign = m_halign or "left"
         end
         placeholderPanel:SetClass("collapsed", not m_editorMode or m_lastImage ~= nil)
@@ -80,26 +83,29 @@ function RichImage.CreateDisplay(self)
         },
     }
 
+    --Fill the container's width so imagePanel's percentage maxWidth resolves
+    --against a real width. Under an auto-width parent the constraint is
+    --circular: the image sizes to its texture, that resizes the auto-width
+    --wrapper, which re-resolves maxWidth and re-marks the image dirty -- so it
+    --re-registers for graphic rebuild every frame, never settles, and lands
+    --mispositioned (a blank gap above it, body text overlapping below).
+    --
+    --The editor path already did this and its comment noted the same symptom
+    --from the other end (a large image rendering at natural size and spilling
+    --out of the page). The read path never got it, which is what made journal
+    --images drift below the text. Both modes now resolve the same way, with
+    --alignment on the image panel since a full-width wrapper cannot align.
     return gui.Panel{
-        width = "auto",
+        width = "100%",
         height = "auto",
         valign = "center",
         flow = "vertical",
-        halign = self.halign,
         refreshTag = function(element, tag, match, token)
-            local halign = (token ~= nil and token.justification) or (tag or self).halign
+            m_halign = (token ~= nil and token.justification) or (tag or self).halign
             if token ~= nil and token.editor then
                 m_editorMode = true
-                --fill the island wrapper so imagePanel's maxWidth="100%"
-                --resolves against the real editor width (under auto-width
-                --parents a large image renders at natural size and spills
-                --out of the page); alignment moves to the image panel.
-                element.selfStyle.width = "100%"
-                m_halign = halign
-                UpdateState()
-            else
-                element.selfStyle.halign = halign
             end
+            UpdateState()
         end,
 
         thinkTime = 0.35,

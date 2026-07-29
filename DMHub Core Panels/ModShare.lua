@@ -3836,10 +3836,10 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 	local installCountIcon = gui.Panel{
+		classes = {"iconButton"},
 		width = 40,
 		height = 40,
 		halign = "right",
-		bgcolor = "white",
 		bgimage = "ui-icons/downloadicon.png",
 		hover = function(element)
 			gui.Tooltip(string.format("This module has been installed by %s users.", installCountLabel.text))(element)
@@ -3864,21 +3864,20 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 	local upvoteCountIcon = gui.Panel{
+		classes = {"iconButton"},
 		width = 40,
 		height = 40,
 		halign = "right",
+		--the two heart images stay in styles (not inline) so the upvoted swap
+		--can win on specificity; an inline bgimage would suppress both rules.
 		styles = {
 			{
-				bgcolor = "white",
+				selectors = {"iconButton"},
 				bgimage = "ui-icons/heartunclicked.png",
 			},
 			{
-				selectors = {"upvoted"},
+				selectors = {"iconButton", "upvoted"},
 				bgimage = "ui-icons/heartclicked.png",
-			},
-			{
-				selectors = {"hover"},
-				brightness = 2,
 			},
 		},
 		linger = function(element)

@@ -92,6 +92,10 @@ local function DiagramPathSignature(token, path, alternates)
 		tostring(path.teleport),
 		tostring(path.fallDistance),
 		tostring(path.jumpHeight),
+		--mounting/dismounting a saddle changes the diagram (the rider is drawn on top of the
+		--mount) without changing any step, so it has to be part of the identity: hovering the
+		--saddle marker on a tile the mover could also just walk onto toggles only this.
+		tostring(path.mount),
 	}
 
 	local steps = path.steps
@@ -271,9 +275,12 @@ local function DiagramProfileFromPath(token, path)
 
 	--A jump is vertically interesting by definition -- it arcs up over its start ground and
 	--clears walls up to its jump distance -- so always show its cross-section, even on flat
-	--ground. So is a stairs traversal: the mover changes floors up/down a staircase.
+	--ground. So is a stairs traversal: the mover changes floors up/down a staircase. So is
+	--mounting or dismounting a saddle (path.mount covers both): the rider climbs onto the
+	--mount's back or steps down off it, which the C# harness draws by lifting that end of the
+	--path onto the mount (see MovementCrossSection.cs).
 	local interesting = #others > 0 or path.fallDistance > 0 or path.movementType == "jump" or
-	                    stairsTraversal or (airborne and crossesAura)
+	                    stairsTraversal or path.mount or (airborne and crossesAura)
 	for i = 1, n do
 		local e = entries[i]
 		if e.ground ~= entries[1].ground or e.alt ~= entries[1].alt or

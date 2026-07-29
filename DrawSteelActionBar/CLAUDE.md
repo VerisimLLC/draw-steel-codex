@@ -26,6 +26,8 @@ The core action bar implementation. Registered at the bottom of the file via `Re
 | `CreateTokenSelectionContainer()` | UI for selecting individual token targets. |
 | `TriggerPreviewPanel()` | Preview of a triggered ability before activation. |
 | `CreateTriggerReactionPanel()` | Progress/reaction panel at bottom-center of the screen. |
+| `UpdateNovelAbilities(charid, abilities)` | Diffs each freshly generated `g_abilities` list against the last snapshot for that creature. See "Novel abilities" below. |
+| `NovelContentMarker(extraClass)` | The accent-coloured diamond pip, driven by a `setNovel` event. Used on drawer corners and on ability rows. |
 
 **Key global state:**
 
@@ -41,6 +43,37 @@ The core action bar implementation. Registered at the bottom of the file via `Re
 | `g_currentCostProposal` | `CostProposal?` | Proposed resource expenditure for current cast |
 | `g_resources` | `table<string,number>` | Current character resource levels |
 | `g_casterTokenStack` | stack | Supports nested casting (push/pop caster overrides) |
+
+**Novel abilities:**
+
+Newly gained abilities (level-up, a kit/item, an ability granted by an effect mid-combat)
+announce themselves so the player does not have to go hunting. Every time the root panel's
+`refresh` regenerates `g_abilities`, the list is diffed against the last snapshot for that
+creature; anything new is "novel".
+
+Three module-local tables drive it, all **in-memory and session-scoped** (cleared on
+restart or Lua reload -- deliberately temporary):
+
+| Table | Meaning |
+|---|---|
+| `g_seenAbilities[charid][key]` | Seen before. Never cleared, so an ability that comes and goes with an effect only announces itself once. |
+| `g_novelAbilities[charid][key]` | Novel, unacknowledged -- puts the pip on the corner of the owning drawer (`DrawerTypeForAbility` decides which). |
+| `g_ackedNovelAbilities[key]` | Novel, drawer pip already dismissed by opening it -- puts the pip on the ability row. |
+
+Flow: a creature's **first** snapshot in a session is a silent baseline (nothing novel),
+otherwise every token you selected at session start would light up every drawer. A
+zero-length ability list is never taken as a baseline (a creature mid-load briefly reports
+none). Opening a drawer's menu calls `AcknowledgeNovelAbilities`, moving that drawer's
+entries from `g_novelAbilities` to `g_ackedNovelAbilities` -- the drawer pip clears and the
+rows light up. Closing the menu calls `ClearAcknowledgedNovelAbilities` and they stop being
+novel for good. Entries whose ability disappears again before the drawer is ever opened are
+pruned, so a badge never points at a menu that no longer lists it.
+
+Ability identity is `guid`, suffixed `:melee` / `:ranged` because melee/ranged bifurcations
+are DeepCopies of one parent and share a guid.
+
+Styling lives in `NOVEL_MARKER_RULES`, merged into the action bar root's style cascade
+alongside `SEARCH_REVEAL_RULE` so it resolves on ability headings inside an open menu.
 
 **Settings:**
 

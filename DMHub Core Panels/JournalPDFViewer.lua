@@ -416,6 +416,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     end
 
     local m_zoom = tonumber(m_settings.zoom) or 1
+    local m_twoPage = m_settings.twopage and true or false
     local m_importer = false
     local m_importerPanel = SmartImporterPanel(doc)
 
@@ -435,6 +436,16 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     --(defined before dialogPanel exists) can capture it as an upvalue. Assigned
     --once dialogPanel is created; nudges the contents grid to re-read bookmarks.
     local RefreshBookmarks
+
+    --forward-declared like RefreshPage: captured by the TOC rows built in
+    --CreateContentsPanel, assigned near the end once the scroll view and
+    --the interactive layer exist. Scrolls to a toc entry's position within
+    --its page and briefly flashes a highlight there.
+    local ScrollToTocEntry
+
+    --page index -> text layout, filled on demand by ScrollToTocEntry for
+    --documents whose bookmarks carry no destination position.
+    local m_tocLayoutCache = {}
 
     CreateDragPanel = function()
         return gui.Panel {
@@ -1003,8 +1014,223 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         local pageHeight = (document.summary.pageHeight / document.summary.pageWidth) * 200
         local pageMargin = 16
 
+        --the left pane offers two views: the page thumbnails grid, and a
+        --table of contents built from the document's bookmarks (the PDF's
+        --outline entries imported at upload time, plus any user-added
+        --bookmarks).
+        local contentsPanel
+
+        local HasTocEntries = function()
+            return next(doc.bookmarks) ~= nil
+        end
+
+        local m_contentsView = m_settings.contentsView
+        if m_contentsView ~= "toc" or not HasTocEntries() then
+            m_contentsView = "pages"
+        end
+
+        local SetContentsView = function(view)
+            if view == m_contentsView then
+                return
+            end
+            m_contentsView = view
+            m_settings.contentsView = view
+            WriteSettings()
+            contentsPanel:FireEventTree("contentsView")
+        end
+
+        --Some older bookmark imports interleaved every character with a
+        --bogus codepoint made of the following character shifted into the
+        --high byte (a UTF-16 stride bug), rendering titles as
+        --"T?a?b?l?e...". The real characters are all present, so strip the
+        --artifacts: codepoints with an empty low byte, and CJK-block
+        --codepoints the shifted merges land in (these documents have no
+        --legitimate CJK titles).
+        local CleanTitle = function(s)
+            if s == nil then
+                return nil
+            end
+            local ok, cleaned = pcall(function()
+                local out = {}
+                for _, cp in utf8.codes(s) do
+                    local artifact = (cp >= 0x100 and cp % 0x100 == 0)
+                        or (cp >= 0x2E80 and cp <= 0x9FFF)
+                    if not artifact then
+                        out[#out + 1] = utf8.char(cp)
+                    end
+                end
+                return table.concat(out)
+            end)
+            if ok then
+                return cleaned
+            end
+            --not valid utf-8; show it as stored.
+            return s
+        end
+
+        --arrange the bookmarks into a tree: entries are keyed by guid and
+        --carry the guid of their parent entry. Siblings are ordered by page;
+        --the within-page outline order is not preserved by the import, so
+        --ties break on key for stability.
+        local BuildTocTree = function()
+            local bookmarks = doc.bookmarks
+
+            local nodes = {}
+            for k, b in pairs(bookmarks) do
+                nodes[k] = {
+                    key = k,
+                    title = CleanTitle(b.title) or "(untitled)",
+                    page = tonumber(b.page) or 0,
+                    --the destination position within the page from the PDF's
+                    --outline, in page points, bottom-origin. 0 = the PDF gave
+                    --no position (page-fit destinations).
+                    y = tonumber(b.y) or 0,
+                    children = {},
+                }
+            end
+
+            local roots = {}
+            for k, node in pairs(nodes) do
+                local parentKey = bookmarks[k].parentGuid
+                local parent = nil
+                if parentKey ~= nil and parentKey ~= "" and parentKey ~= k then
+                    parent = nodes[parentKey]
+                end
+                if parent ~= nil then
+                    parent.children[#parent.children + 1] = node
+                else
+                    roots[#roots + 1] = node
+                end
+            end
+
+            local sortLevel
+            sortLevel = function(list)
+                table.sort(list, function(a, b)
+                    if a.page ~= b.page then
+                        return a.page < b.page
+                    end
+                    return a.key < b.key
+                end)
+                for _, n in ipairs(list) do
+                    sortLevel(n.children)
+                end
+            end
+            sortLevel(roots)
+
+            return roots
+        end
+
+        --one row of the table of contents. Children rows are built lazily
+        --the first time the entry is expanded, so a large outline only pays
+        --for the rows actually revealed.
+        local tocIndent = 12
+        local CreateTocRow
+        CreateTocRow = function(node, depth)
+            local pageLabel = document.summary.pageLabels[node.page + 1] or string.format("%d", node.page + 1)
+
+            local row
+            local childrenPanel = nil
+
+            --the arrow (or its stand-in spacer) carries the depth indent as
+            --a left margin; lpad/rpad are not panel properties.
+            local indent = 4 + depth * tocIndent
+
+            local arrowOrSpacer
+            if #node.children > 0 then
+                arrowOrSpacer = gui.ExpandoArrow {
+                    width = 12,
+                    height = 12,
+                    lmargin = indent,
+                    valign = "center",
+                    swallowPress = true,
+                    press = function(element)
+                        local expanded = not element:HasClass("expanded")
+                        element:SetClass("expanded", expanded)
+                        if childrenPanel == nil then
+                            local childRows = {}
+                            for _, child in ipairs(node.children) do
+                                childRows[#childRows + 1] = CreateTocRow(child, depth + 1)
+                            end
+                            childrenPanel = gui.Panel {
+                                width = "100%",
+                                height = "auto",
+                                flow = "vertical",
+                                children = childRows,
+                            }
+                            row:AddChild(childrenPanel)
+                        end
+                        childrenPanel:SetClass("collapsed", not expanded)
+                    end,
+                }
+            else
+                --keep leaf titles aligned with their expandable siblings.
+                arrowOrSpacer = gui.Panel {
+                    width = 12,
+                    height = 12,
+                    lmargin = indent,
+                    valign = "center",
+                }
+            end
+
+            row = gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.Panel {
+                    classes = { "tocEntry" },
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    vpad = 2,
+                    bgimage = "panels/square.png",
+
+                    press = function(element)
+                        m_npage = node.page
+                        m_searchResults = nil
+                        m_searchText = nil
+                        RefreshPage()
+                        ScrollToTocEntry(node)
+                    end,
+
+                    create = function(element)
+                        element:FireEvent("page")
+                    end,
+
+                    page = function(element)
+                        element:SetClass("selected", node.page == m_npage)
+                    end,
+
+                    arrowOrSpacer,
+
+                    gui.Label {
+                        classes = { "tocTitle" },
+                        text = node.title,
+                        --explicit width: the title fills the row minus the
+                        --indent, arrow, margins and page number.
+                        width = string.format("100%%-%d", indent + 50),
+                        height = "auto",
+                        lmargin = 4,
+                        valign = "center",
+                    },
+
+                    gui.Label {
+                        classes = { "tocPage" },
+                        text = pageLabel,
+                        width = "auto",
+                        height = "auto",
+                        lmargin = 4,
+                        rmargin = 4,
+                        valign = "center",
+                    },
+                },
+            }
+
+            return row
+        end
+
         --contents panel.
-        return gui.Panel {
+        contentsPanel = gui.Panel {
             width = 240,
             height = "100%",
             flow = "vertical",
@@ -1015,11 +1241,87 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
             m_importerPanel,
 
+            --view switcher: page thumbnails vs table of contents. Hidden for
+            --documents with no bookmarks, where only thumbnails make sense.
             gui.Panel {
+                classes = { cond(HasTocEntries(), nil, "collapsed") },
+                width = "auto",
+                height = 24,
+                tmargin = 8,
+                flow = "horizontal",
+                halign = "center",
+
+                styles = {
+                    {
+                        selectors = { "contentsViewTab" },
+                        width = 20,
+                        height = 20,
+                        valign = "center",
+                        hmargin = 10,
+                        bgcolor = "#999999",
+                    },
+                    {
+                        selectors = { "contentsViewTab", "hover" },
+                        transitionTime = 0.1,
+                        brightness = 1.5,
+                    },
+                    {
+                        selectors = { "contentsViewTab", "selected" },
+                        bgcolor = Styles.textColor,
+                    },
+                },
+
+                refreshbookmarks = function(element)
+                    element:SetClass("collapsed", not HasTocEntries())
+                end,
+
+                gui.Panel {
+                    classes = { "contentsViewTab", cond(m_contentsView == "pages", "selected") },
+                    bgimage = "phosphor/squares-four.png",
+                    contentsView = function(element)
+                        element:SetClass("selected", m_contentsView == "pages")
+                    end,
+                    press = function(element)
+                        SetContentsView("pages")
+                    end,
+                    linger = function(element)
+                        gui.Tooltip("Page thumbnails")(element)
+                    end,
+                },
+
+                gui.Panel {
+                    classes = { "contentsViewTab", cond(m_contentsView == "toc", "selected") },
+                    bgimage = "phosphor/list-bullets.png",
+                    contentsView = function(element)
+                        element:SetClass("selected", m_contentsView == "toc")
+                    end,
+                    press = function(element)
+                        SetContentsView("toc")
+                    end,
+                    linger = function(element)
+                        gui.Tooltip("Table of contents")(element)
+                    end,
+                },
+            },
+
+            gui.Panel {
+                classes = { cond(m_contentsView == "pages", nil, "collapsed") },
                 vmargin = 16,
                 width = "100%",
                 height = "100% available",
                 vscroll = true,
+
+                contentsView = function(element)
+                    local hidden = m_contentsView ~= "pages"
+                    element:SetClass("collapsed", hidden)
+                    if not hidden then
+                        --sync the thumbnail scroll to the current page once
+                        --the pane has been laid out again; the sync lives in
+                        --the grid's page handler and was skipped while the
+                        --pane was collapsed.
+                        element.children[1]:ScheduleEvent("page", 0.05)
+                    end
+                end,
 
                 gui.Panel {
                     width = 200,
@@ -1365,9 +1667,85 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         element.children = m_pagePanels
                     end,
                 }
-            }
+            },
+
+            --table of contents view.
+            gui.Panel {
+                classes = { cond(m_contentsView == "toc", nil, "collapsed") },
+                vmargin = 16,
+                width = "100%",
+                height = "100% available",
+                vscroll = true,
+                flow = "vertical",
+
+                styles = {
+                    {
+                        selectors = { "tocEntry" },
+                        bgcolor = "clear",
+                    },
+                    {
+                        selectors = { "tocEntry", "hover" },
+                        transitionTime = 0.1,
+                        bgcolor = "#ffffff22",
+                    },
+                    {
+                        selectors = { "tocEntry", "press" },
+                        bgcolor = "#ffffff44",
+                    },
+                    {
+                        selectors = { "tocTitle" },
+                        color = Styles.textColor,
+                        fontSize = 13,
+                    },
+                    {
+                        selectors = { "tocTitle", "parent:selected" },
+                        color = "white",
+                        fontWeight = "bold",
+                    },
+                    {
+                        selectors = { "tocPage" },
+                        color = "#aaaaaa",
+                        fontSize = 11,
+                    },
+                    {
+                        selectors = { "tocPage", "parent:selected" },
+                        color = "white",
+                    },
+                },
+
+                contentsView = function(element)
+                    element:SetClass("collapsed", m_contentsView ~= "toc")
+                end,
+
+                --rows live in a top-aligned auto-height container (like the
+                --thumbnails grid) so a short table of contents hugs the top
+                --of the pane instead of being distributed over its height.
+                gui.Panel {
+                    width = "100%",
+                    height = "auto",
+                    valign = "top",
+                    flow = "vertical",
+
+                    create = function(element)
+                        element:FireEvent("refreshbookmarks")
+                    end,
+
+                    --rebuilt whenever bookmarks change (add/edit/remove).
+                    --This resets expansion state, which is acceptable for
+                    --how rarely bookmarks are edited.
+                    refreshbookmarks = function(element)
+                        local children = {}
+                        for _, node in ipairs(BuildTocTree()) do
+                            children[#children + 1] = CreateTocRow(node, 0)
+                        end
+                        element.children = children
+                    end,
+                },
+            },
 
         }
+
+        return contentsPanel
     end
 
 
@@ -1401,6 +1779,74 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         return dmhub.GetSettingValue("pdfcontinuous") and true or false
     end
 
+    --side-by-side spread view: pages are laid out two per row, with the
+    --first page alone on the right like a book cover, so facing pages sit
+    --next to each other the way the printed book reads. All the scroll and
+    --pooling math works in ROWS; in single-page view every row holds
+    --exactly one page and these helpers reduce to identity.
+    local IsTwoPage = function()
+        return m_twoPage
+    end
+
+    local PagesPerRow = function()
+        return m_twoPage and 2 or 1
+    end
+
+    local RowOfPage = function(npage)
+        if not m_twoPage then
+            return npage
+        end
+        return math.floor((npage + 1) / 2)
+    end
+
+    --first and last page index of a row (equal for the lone cover row and
+    --a lone final page).
+    local RowPages = function(row)
+        if not m_twoPage then
+            return row, row
+        end
+        if row <= 0 then
+            return 0, 0
+        end
+        local first = row * 2 - 1
+        return first, math.min(first + 1, npages - 1)
+    end
+
+    local NumRows = function()
+        return RowOfPage(npages - 1) + 1
+    end
+
+    --the column a page occupies in its row: 0 = left, 1 = right. The cover
+    --sits alone on the right, like the first page of an open book.
+    local ColOfPage = function(npage)
+        if not m_twoPage then
+            return 0
+        end
+        if npage == 0 then
+            return 1
+        end
+        return (npage % 2 == 1) and 0 or 1
+    end
+
+    --height of the full content stack as a fraction of its width. Page
+    --widths are the content width divided by the pages per row, so all
+    --the aspect fractions scale down by the same factor in spread view.
+    local ContentHeightFraction = function()
+        if IsContinuous() then
+            return NumRows() * slotAspect / PagesPerRow()
+        end
+        return pageAspect / PagesPerRow()
+    end
+
+    --move the current page a number of rows forward or back, landing on
+    --the first page of the target row: paging moves by a whole spread in
+    --two page view.
+    local AdvanceRow = function(delta)
+        local row = clamp(RowOfPage(m_npage) + delta, 0, NumRows() - 1)
+        local first = RowPages(row)
+        m_npage = first
+    end
+
     --the page the user is considered to be reading, derived from the scroll
     --position: the page under the viewport center, or under the viewport top
     --edge when pages are shorter than the viewport (so navigating to a page
@@ -1416,17 +1862,25 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         if contentH <= 0 or viewportH <= 0 then
             return nil
         end
-        local slotPx = contentH / npages
+        local nrows = NumRows()
+        local slotPx = contentH / nrows
         local scrollRange = math.max(0, contentH - viewportH)
         local windowTop = scrollRange * (1 - pdfScrollViewPanel.vscrollPosition)
         local probe = windowTop + 0.5 * math.min(viewportH, slotPx)
-        local result = math.floor(probe / slotPx)
-        if result < 0 then
-            result = 0
-        elseif result >= npages then
-            result = npages - 1
+        local row = math.floor(probe / slotPx)
+        if row < 0 then
+            row = 0
+        elseif row >= nrows then
+            row = nrows - 1
         end
-        return result
+        --when the current page is already in the visible row, keep it: in
+        --two page view either page of the spread is a valid answer and
+        --switching between them would flap the selection.
+        if row == RowOfPage(m_npage) then
+            return m_npage
+        end
+        local first = RowPages(row)
+        return first
     end
 
     --scroll the main view so the top of the given page sits at the top of
@@ -1442,8 +1896,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         if contentH <= 0 or viewportH <= 0 or contentH <= viewportH then
             return
         end
-        local slotPx = contentH / npages
-        local pos = clamp((npage * slotPx) / (contentH - viewportH), 0, 1)
+        local slotPx = contentH / NumRows()
+        local pos = clamp((RowOfPage(npage) * slotPx) / (contentH - viewportH), 0, 1)
         pdfScrollViewPanel.vscrollPosition = 1 - pos
         pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
     end
@@ -1582,7 +2036,9 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         halign = "left",
         valign = "top",
         floating = true,
-        width = "100%",
+        --half the content width in two page view; the height is a fraction
+        --of the panel's own width, so it keeps the page aspect either way.
+        width = cond(m_twoPage, "50%", "100%"),
         height = string.format("%f%% width", pageAspect * 100),
         draggable = true,
         dragMove = false,
@@ -1595,7 +2051,19 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 bgcolor = "#0000ff77",
                 borderWidth = 1,
                 borderColor = "blue",
-            }
+            },
+            {
+                selectors = { "tocFlash" },
+                halign = "left",
+                valign = "top",
+                bgcolor = "#C0957155",
+                opacity = 1,
+            },
+            {
+                selectors = { "tocFlash", "fade" },
+                opacity = 0,
+                transitionTime = 0.9,
+            },
         },
 
         --augmentation overlays: image panels that sit on top of the page
@@ -1806,6 +2274,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             textLayout = nil,
 
             highlightPanels = {},
+            flashPanels = {},
 
             FindMouseoverChar = function(element)
                 local layout = element.data.textLayout
@@ -1994,6 +2463,56 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         end,
 
         --- @param element Panel
+        --flash a brief highlight over regions of the current page (rects in
+        --page points, bottom-origin), used by TOC navigation to show where
+        --a section starts. Panels are pooled; each flash holds briefly then
+        --fades out via the tocFlash styles. The flashid guards a pooled
+        --panel's scheduled fade/hide against a newer flash reusing it.
+        flashRegion = function(element, rects)
+            local panels = element.data.flashPanels
+            for i, r in ipairs(rects) do
+                local p = panels[i]
+                if p == nil then
+                    p = gui.Panel {
+                        classes = { "tocFlash", "hidden" },
+                        bgimage = "panels/square.png",
+                        floating = true,
+                        interactable = false,
+                        data = {
+                            flashid = 0,
+                        },
+                        beginFade = function(element, flashid)
+                            if flashid == element.data.flashid then
+                                element:SetClass("fade", true)
+                            end
+                        end,
+                        endFlash = function(element, flashid)
+                            if flashid == element.data.flashid then
+                                element:SetClass("hidden", true)
+                            end
+                        end,
+                    }
+                    panels[i] = p
+                    element:AddChild(p)
+                end
+
+                p.selfStyle.x = (element.renderedWidth * r.x1) / document.summary.pageWidth
+                p.selfStyle.y = element.renderedHeight - (element.renderedHeight * r.y2) / document.summary.pageHeight
+                p.selfStyle.width = element.renderedWidth * (r.x2 - r.x1) / document.summary.pageWidth
+                p.selfStyle.height = element.renderedHeight * (r.y2 - r.y1) / document.summary.pageHeight
+
+                p.data.flashid = p.data.flashid + 1
+                p:SetClass("hidden", false)
+                p:SetClass("fade", false)
+                p:ScheduleEvent("beginFade", 0.8, p.data.flashid)
+                p:ScheduleEvent("endFlash", 2.5, p.data.flashid)
+            end
+
+            for i = #rects + 1, #panels do
+                panels[i]:SetClass("hidden", true)
+            end
+        end,
+
         --- @param rects {x1: number, x2: number, y1: number, y2: number}[]
         --- @param text string
         highlight = function(element, rects, text, args)
@@ -2042,7 +2561,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         --content, at the top.
                         local pageTop = 0
                         if IsContinuous() then
-                            pageTop = m_npage * (contentHeight / npages)
+                            pageTop = RowOfPage(m_npage) * (contentHeight / NumRows())
                         end
                         --rect coordinates are bottom-origin; convert the rect
                         --center to a distance from the top of the page, then
@@ -2350,7 +2869,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         halign = "center",
         valign = "top",
         width = string.format("%f%%", m_zoom * 100),
-        height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100),
+        height = string.format("%f%% width", ContentHeightFraction() * 100),
 
         styles = {
             {
@@ -2416,7 +2935,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             element.data.lastZoom = m_zoom
 
             element.selfStyle.width = string.format("%f%%", m_zoom * 100)
-            element.selfStyle.height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100)
+            element.selfStyle.height = string.format("%f%% width", ContentHeightFraction() * 100)
+            --the interactive layer covers one page: half the content width
+            --in two page view.
+            pdfViewPanel.selfStyle.width = cond(IsTwoPage(), "50%", "100%")
         end,
 
         --the continuous scrolling checkbox was toggled in the settings
@@ -2446,7 +2968,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             --only operate on settled numbers: right after the mode (or zoom)
             --changes, the new height style hasn't been applied by layout yet
             --and scroll math would use a stale content height.
-            local expectedH = w * (continuous and (npages * slotAspect) or pageAspect)
+            local expectedH = w * ContentHeightFraction()
             if math.abs(contentH - expectedH) > expectedH * 0.01 + 2 then
                 return
             end
@@ -2511,10 +3033,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 end
             end
 
-            --in single-page mode the whole content is one page slot.
+            --outside continuous mode the whole content is one row.
             local slotPx = contentH
             if continuous then
-                slotPx = contentH / npages
+                slotPx = contentH / NumRows()
             end
             local scrollRange = math.max(0, contentH - viewportH)
             local windowTop = scrollRange * (1 - pos)
@@ -2533,11 +3055,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             --skip the layout work when nothing changed and no deferred
             --full-resolution loads are waiting to be flushed.
             local st = element.data.lastState
-            local changed = st == nil or st.contentH ~= contentH or st.viewportH ~= viewportH or st.pos ~= pos or st.page ~= m_npage
+            local changed = st == nil or st.contentH ~= contentH or st.viewportH ~= viewportH or st.pos ~= pos or st.page ~= m_npage or st.two ~= IsTwoPage()
             if (not changed) and not (element.data.havePending and not fastScroll) then
                 return
             end
-            element.data.lastState = { contentH = contentH, viewportH = viewportH, pos = pos, page = m_npage }
+            element.data.lastState = { contentH = contentH, viewportH = viewportH, pos = pos, page = m_npage, two = IsTwoPage() }
 
             --the window of pages that should hold render panels: the visible
             --pages plus half a viewport of lookahead on each side. In
@@ -2551,14 +3073,22 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             local lastPage = m_npage
             if continuous then
                 local lookahead = viewportH * 0.5
-                firstPage = math.floor((windowTop - lookahead) / slotPx)
-                lastPage = math.floor((windowTop + viewportH + lookahead) / slotPx)
-                if firstPage < 0 then
-                    firstPage = 0
+                local firstRow = math.floor((windowTop - lookahead) / slotPx)
+                local lastRow = math.floor((windowTop + viewportH + lookahead) / slotPx)
+                if firstRow < 0 then
+                    firstRow = 0
                 end
-                if lastPage >= npages then
-                    lastPage = npages - 1
+                if lastRow >= NumRows() then
+                    lastRow = NumRows() - 1
                 end
+                firstPage = RowPages(firstRow)
+                local _, lp = RowPages(lastRow)
+                lastPage = lp
+            elseif IsTwoPage() then
+                local row = RowOfPage(m_npage)
+                firstPage = RowPages(math.max(0, row - 1))
+                local _, lp = RowPages(math.min(NumRows() - 1, row + 1))
+                lastPage = lp
             else
                 firstPage = math.max(0, m_npage - 1)
                 lastPage = math.min(npages - 1, m_npage + 2)
@@ -2584,15 +3114,24 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             local wantFull = element.renderedWidth >= 400
 
             --in single-page mode, neighbor pages only start their
-            --full-resolution renders once the current page's own render has
-            --landed, so the page actually on screen always wins the render
+            --full-resolution renders once the current row's own renders have
+            --landed, so the pages actually on screen always win the render
             --worker. (The deferral is flushed through havePending below.)
+            local curFirst, curLast = RowPages(RowOfPage(m_npage))
             local currentPageReady = false
             if not continuous then
-                local cur = assigned[m_npage]
-                currentPageReady = cur ~= nil and cur.data.fullImage ~= nil
-                    and cur.data.fullPanel:HasClass("fullLoaded")
+                currentPageReady = true
+                for i = curFirst, curLast do
+                    local cur = assigned[i]
+                    if cur == nil or cur.data.fullImage == nil or not cur.data.fullPanel:HasClass("fullLoaded") then
+                        currentPageReady = false
+                        break
+                    end
+                end
             end
+
+            local ppr = PagesPerRow()
+            local pageWidthStr = cond(ppr == 2, "50%", "100%")
 
             local havePending = false
             for i = firstPage, lastPage do
@@ -2614,7 +3153,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                 local fullImage = nil
                 local deferForCurrent = false
                 if wantFull then
-                    if continuous or i == m_npage or currentPageReady then
+                    if continuous or (i >= curFirst and i <= curLast) or currentPageReady then
                         fullImage = document:GetPageImageId(i)
                     else
                         deferForCurrent = true
@@ -2636,8 +3175,10 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     end
                 end
 
+                panel.selfStyle.width = pageWidthStr
+                panel.x = ColOfPage(i) * (w / ppr)
                 if continuous then
-                    panel.y = i * slotPx
+                    panel.y = RowOfPage(i) * slotPx
                 else
                     panel.y = 0
                 end
@@ -2645,32 +3186,44 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             element.data.havePending = havePending
 
             --keep the interactive layer over the current page.
+            pdfViewPanel.x = ColOfPage(m_npage) * (w / ppr)
             if continuous then
-                pdfViewPanel.y = m_npage * slotPx
+                pdfViewPanel.y = RowOfPage(m_npage) * slotPx
             else
                 pdfViewPanel.y = 0
             end
 
-            --in single-page mode all the page panels stack at y=0, so
-            --sibling order (later children draw on top) is what puts the
-            --current page in front of its prefetched neighbors; rebuild the
-            --children whenever the panel that should be on top changes.
-            local topPanel = nil
+            --in single-page mode the page panels of a column stack at y=0,
+            --so sibling order (later children draw on top) is what puts the
+            --current row's pages in front of their prefetched neighbors;
+            --rebuild the children whenever the panels that should be on top
+            --change. In two page view both pages of the current spread go
+            --on top -- they occupy different columns so they never occlude
+            --each other.
+            local topPanelA = nil
+            local topPanelB = nil
             if not continuous then
-                topPanel = assigned[m_npage]
+                topPanelA = assigned[curFirst]
+                if curLast ~= curFirst then
+                    topPanelB = assigned[curLast]
+                end
             end
 
-            if element.data.childrenDirty or topPanel ~= element.data.topPanel then
+            if element.data.childrenDirty or topPanelA ~= element.data.topPanelA or topPanelB ~= element.data.topPanelB then
                 element.data.childrenDirty = false
-                element.data.topPanel = topPanel
+                element.data.topPanelA = topPanelA
+                element.data.topPanelB = topPanelB
                 local children = {}
                 for _, p in ipairs(element.data.allPanels) do
-                    if p ~= topPanel then
+                    if p ~= topPanelA and p ~= topPanelB then
                         children[#children + 1] = p
                     end
                 end
-                if topPanel ~= nil then
-                    children[#children + 1] = topPanel
+                if topPanelA ~= nil then
+                    children[#children + 1] = topPanelA
+                end
+                if topPanelB ~= nil then
+                    children[#children + 1] = topPanelB
                 end
                 --the interactive layer must stay last so the drag rectangle,
                 --highlights and augmentations draw above the page images.
@@ -2711,6 +3264,45 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         end,
         pdfContentPanel,
     }
+
+    --toggle the side-by-side spread view. Switching in zooms so the full
+    --page height fits the viewport (the whole spread visible); switching
+    --out returns to filling the viewport width.
+    local SetTwoPageView = function(on)
+        on = on and true or false
+        if on == m_twoPage then
+            return
+        end
+        m_twoPage = on
+        m_settings.twopage = on
+
+        local viewW = pdfScrollViewPanel.renderedWidth
+        local viewH = pdfScrollViewPanel.renderedHeight
+        if on then
+            if viewW > 0 and viewH > 0 then
+                m_zoom = clamp(math.min(2 * viewH / (pageAspect * viewW), 1), 0.05, 8)
+            end
+        else
+            m_zoom = 1
+        end
+
+        --the mode change restructures the whole content stack; the
+        --zoom-restore machinery only understands pure zoom changes, so
+        --bypass its capture and line the view up on the current page once
+        --the new layout settles instead.
+        pdfContentPanel.data.zoomRestore = nil
+        pdfContentPanel.data.lastZoom = m_zoom
+        pdfContentPanel.data.lastState = nil
+        if IsContinuous() then
+            pdfContentPanel.data.scrollToCurrentPage = true
+        else
+            pdfScrollViewPanel.vscrollPosition = 1
+        end
+
+        WriteSettings()
+        RefreshPage { noscroll = true }
+        dialogPanel:FireEventTree("synczoom")
+    end
 
     dialogPanel = gui.Panel {
         width = "100%",
@@ -2768,12 +3360,12 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         -- viewer root is the right place to handle it.
         command = function(element, cmd)
             if cmd == "pdfprevpage" then
-                m_npage = m_npage - 1
+                AdvanceRow(-1)
                 m_searchResults = nil
                 m_searchText = nil
                 RefreshPage()
             elseif cmd == "pdfnextpage" then
-                m_npage = m_npage + 1
+                AdvanceRow(1)
                 m_searchResults = nil
                 m_searchText = nil
                 RefreshPage()
@@ -2989,7 +3581,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     classes = {"pagingArrow", "sizeS"},
                     hmargin = 4,
                     press = function(element)
-                        m_npage = m_npage - 1
+                        AdvanceRow(-1)
                         m_searchResults = nil
                         RefreshPage()
                     end,
@@ -3037,7 +3629,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     classes = {"pagingArrow", "right", "sizeS"},
                     hmargin = 4,
                     press = function(element)
-                        m_npage = m_npage + 1
+                        AdvanceRow(1)
                         m_searchResults = nil
                         m_searchText = nil
                         RefreshPage()
@@ -3062,6 +3654,13 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         hmargin = 4,
                         valign = "center",
                         text = string.format("%d", round(m_zoom * 100)),
+
+                        --the zoom was changed programmatically (the two page
+                        --view toggle picks its own zoom).
+                        synczoom = function(element)
+                            element.text = string.format("%d", round(m_zoom * 100))
+                        end,
+
                         change = function(element)
                             m_zoom = clamp((tonumber(element.text) / 100) or m_zoom, 0.05, 8)
                             element.text = string.format("%d", round(m_zoom * 100)),
@@ -3134,6 +3733,20 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                     multimonitor = { "pdfcontinuous" },
                     monitor = function(element)
                         element:SetValue(dmhub.GetSettingValue("pdfcontinuous") and true or false, false)
+                    end,
+                },
+
+                gui.Check {
+                    text = "Two Pages",
+                    value = m_twoPage,
+                    tooltip = "Show two pages side by side, like an open book.",
+                    fontSize = 14,
+                    width = "auto",
+                    height = 20,
+                    valign = "center",
+                    hmargin = 8,
+                    change = function(element)
+                        SetTwoPageView(element.value)
                     end,
                 },
 
@@ -3269,6 +3882,143 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
 
     RefreshBookmarks = function()
         dialogPanel:FireEventTree("refreshbookmarks")
+    end
+
+    --scroll the main view so the given y (page points, bottom-origin) sits
+    --near the top of the viewport, mirroring the search-jump scroll in the
+    --interactive layer's highlight handler.
+    local ScrollToPageRegion = function(npage, yTop)
+        local pageHeightPx = pdfViewPanel.renderedHeight
+        local contentHeight = pdfContentPanel.renderedHeight
+        local viewportHeight = pdfScrollViewPanel.renderedHeight
+        if pageHeightPx <= 0 or contentHeight <= viewportHeight then
+            return
+        end
+
+        --explicit navigation supersedes a zoom-restore still waiting for
+        --its relayout.
+        pdfContentPanel.data.zoomRestore = nil
+
+        local pageTop = 0
+        if IsContinuous() then
+            pageTop = RowOfPage(npage) * (contentHeight / NumRows())
+        end
+        local yFromTop = (1 - clamp(yTop / document.summary.pageHeight, 0, 1)) * pageHeightPx
+        local desiredTop = pageTop + yFromTop - viewportHeight * 0.08
+        local pos = clamp(desiredTop / (contentHeight - viewportHeight), 0, 1)
+        pdfScrollViewPanel.vscrollPosition = 1 - pos
+        pdfContentPanel.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
+    end
+
+    --Scroll to a toc entry's position within its page and briefly flash a
+    --highlight there. Preference order: the destination position imported
+    --from the PDF's outline (bookmark y; absent in some PDFs, notably the
+    --release Draw Steel books), then the position of the entry's title in
+    --the page's text layout (the same data the heading search uses), then
+    --nothing: the page-top scroll RefreshPage already performed stands.
+    ScrollToTocEntry = function(node)
+        local pageWidth = document.summary.pageWidth
+        local pageHeight = document.summary.pageHeight
+
+        local finish = function(rects, yTop)
+            if not pdfViewPanel.valid then
+                return
+            end
+            if m_npage ~= node.page then
+                --the user navigated elsewhere while the text layout was
+                --being computed.
+                return
+            end
+            ScrollToPageRegion(node.page, yTop)
+            pdfViewPanel:FireEvent("flashRegion", rects)
+        end
+
+        if node.y > 0 then
+            --the destination y is the coordinate that should sit at the
+            --top of the window; flash a band just below it.
+            finish({ {
+                x1 = pageWidth * 0.04,
+                x2 = pageWidth * 0.96,
+                y1 = math.max(0, node.y - 26),
+                y2 = math.min(node.y, pageHeight),
+            } }, node.y)
+            return
+        end
+
+        local Normalize = function(s)
+            return string.gsub(string.lower(trim(s or "")), "%s+", " ")
+        end
+
+        local needle = Normalize(node.title)
+        if needle == "" then
+            return
+        end
+
+        local matchAndFinish = function(layout)
+            --page-average glyph advance: the same font-size proxy the
+            --heading search uses to prefer headings over body text.
+            local totalSum = 0
+            local totalCount = 0
+            for _, r in ipairs(layout.mergedRects) do
+                for i = 1, #r.breaks - 1 do
+                    totalSum = totalSum + math.abs(r.breaks[i + 1] - r.breaks[i])
+                    totalCount = totalCount + 1
+                end
+            end
+            local pageAvg = totalSum / math.max(1, totalCount)
+
+            local best = nil
+            local bestScore = 0
+            for _, r in ipairs(layout.mergedRects) do
+                local rectText = Normalize(layout.text:Substring(r.a, r.b))
+                local base = 0
+                if rectText == needle then
+                    base = 100
+                elseif string.starts_with(rectText, needle) then
+                    base = 50
+                end
+                if base > 0 then
+                    local sum = 0
+                    local count = 0
+                    for i = 1, #r.breaks - 1 do
+                        sum = sum + math.abs(r.breaks[i + 1] - r.breaks[i])
+                        count = count + 1
+                    end
+                    local ratio = (sum / math.max(1, count)) / math.max(1, pageAvg)
+                    local score = base * clamp(ratio, 0.5, 4)
+                    if score > bestScore then
+                        bestScore = score
+                        best = r
+                    end
+                end
+            end
+
+            if best == nil then
+                return
+            end
+
+            local rect = best.rect
+            finish({ {
+                x1 = math.max(0, rect.x1 - 4),
+                x2 = math.min(pageWidth, rect.x2 + 4),
+                y1 = math.max(0, rect.y1 - 4),
+                y2 = math.min(pageHeight, rect.y2 + 4),
+            } }, rect.y2 + 8)
+        end
+
+        local cached = m_tocLayoutCache[node.page]
+        if type(cached) == "table" then
+            matchAndFinish(cached)
+            return
+        end
+
+        document:TextLayout(node.page, function(layout)
+            if layout == nil or not pdfViewPanel.valid then
+                return
+            end
+            m_tocLayoutCache[node.page] = layout
+            matchAndFinish(layout)
+        end)
     end
 
     RefreshPage()

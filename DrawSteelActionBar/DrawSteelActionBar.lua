@@ -479,6 +479,269 @@ local function DrawerTypeForAbility(ability)
     return nil
 end
 
+-- =============================================================================
+-- Novel ability tracking.
+--
+-- Every time the bar regenerates g_abilities for a creature we diff the list
+-- against the last snapshot we took for that creature. Anything that wasn't
+-- there before is "novel" and gets flagged, so a hero who just levelled up (or
+-- picked up a kit/item, or was granted an ability by an effect mid-combat)
+-- gets a nudge toward the new toy instead of having to go hunting for it.
+--
+-- The record is deliberately temporary: a plain in-memory table, cleared on
+-- restart or Lua reload. A creature's FIRST snapshot in a session is a silent
+-- baseline - nothing is novel - otherwise every token you select at session
+-- start would light up every drawer.
+--
+-- Three states per ability key:
+--   g_seenAbilities[charid][key]   - we have seen this ability before (never
+--                                    cleared, so an ability that comes and goes
+--                                    with an effect only announces itself once)
+--   g_novelAbilities[charid][key]  - novel and unacknowledged. Puts the marker
+--                                    on the corner of the owning drawer.
+--   g_ackedNovelAbilities[key]     - novel, drawer marker already dismissed by
+--                                    opening it. Puts the marker on the ability
+--                                    row inside the open menu. Cleared - for
+--                                    good - when the menu closes.
+-- =============================================================================
+local g_seenAbilities = {}
+local g_novelAbilities = {}
+local g_ackedNovelAbilities = {}
+local g_ackedNovelCharid = nil
+
+--Stable per-ability identity. Melee/ranged bifurcations are DeepCopies of one
+--parent so they share a guid; the variation flags separate them.
+local function NovelAbilityKey(ability)
+    local ok, key = pcall(function()
+        local guid = ability:try_get("guid") or ability.name
+        if ability:try_get("isMeleeVariation") then
+            return guid .. ":melee"
+        elseif ability:try_get("isRangedVariation") then
+            return guid .. ":ranged"
+        end
+        return guid
+    end)
+
+    if not ok then
+        return nil
+    end
+
+    return key
+end
+
+--Diff the freshly generated ability list against our snapshot for this
+--creature. Returns true when the set of drawer markers changed.
+local function UpdateNovelAbilities(charid, abilities)
+    if charid == nil then
+        return false
+    end
+
+    local current = {}
+    local count = 0
+    for _, ability in ipairs(abilities or {}) do
+        local key = NovelAbilityKey(ability)
+        if key ~= nil then
+            current[key] = DrawerTypeForAbility(ability) or false
+            count = count + 1
+        end
+    end
+
+    --A creature mid-load can briefly report no abilities at all. Never take
+    --that as a baseline, or everything it really has turns up "novel".
+    if count == 0 then
+        return false
+    end
+
+    local seen = g_seenAbilities[charid]
+    if seen == nil then
+        --First sighting this session: baseline only.
+        g_seenAbilities[charid] = current
+        return false
+    end
+
+    local novel = g_novelAbilities[charid]
+    local changed = false
+    for key, drawerType in pairs(current) do
+        if seen[key] == nil then
+            seen[key] = drawerType
+            --Abilities no drawer surfaces (drawerType false) are recorded as
+            --seen but never flagged - there would be nowhere to show them.
+            if drawerType then
+                novel = novel or {}
+                if novel[key] == nil and g_ackedNovelAbilities[key] == nil then
+                    novel[key] = drawerType
+                    changed = true
+                end
+            end
+        end
+    end
+
+    --Retire flags for abilities that have since gone away again (a granting
+    --effect expired before the player ever opened the drawer). Otherwise the
+    --badge would sit there pointing at a menu that no longer lists it.
+    if novel ~= nil then
+        for key, _ in pairs(novel) do
+            if current[key] == nil then
+                novel[key] = nil
+                changed = true
+            end
+        end
+    end
+
+    g_novelAbilities[charid] = novel
+
+    return changed
+end
+
+--Does this drawer currently own any unacknowledged novel abilities?
+local function DrawerHasNovelAbilities(charid, drawerType)
+    if charid == nil or drawerType == nil then
+        return false
+    end
+
+    local novel = g_novelAbilities[charid]
+    if novel == nil then
+        return false
+    end
+
+    for _, t in pairs(novel) do
+        if t == drawerType then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function AbilityIsNovel(ability)
+    if g_ackedNovelCharid == nil then
+        return false
+    end
+
+    local key = NovelAbilityKey(ability)
+    return key ~= nil and g_ackedNovelAbilities[key] ~= nil
+end
+
+--The menu for this drawer is opening: move its novel abilities from
+--"drawer marker" to "ability row marker". Returns true if anything moved.
+local function AcknowledgeNovelAbilities(charid, drawerType)
+    g_ackedNovelAbilities = {}
+    g_ackedNovelCharid = charid
+
+    if charid == nil or drawerType == nil then
+        return false
+    end
+
+    local novel = g_novelAbilities[charid]
+    if novel == nil then
+        return false
+    end
+
+    local moved = false
+    for key, t in pairs(novel) do
+        if t == drawerType then
+            g_ackedNovelAbilities[key] = true
+            novel[key] = nil
+            moved = true
+        end
+    end
+
+    return moved
+end
+
+--The menu closed: the acknowledged abilities have now been shown to the
+--player, so they stop being novel entirely.
+local function ClearAcknowledgedNovelAbilities()
+    local hadAny = next(g_ackedNovelAbilities) ~= nil
+    g_ackedNovelAbilities = {}
+    g_ackedNovelCharid = nil
+    return hadAny
+end
+
+--Marker pip. Used both on the corner of a drawer and on an ability row; the
+--"onAbility" variant sits inside the row rather than overhanging the corner.
+--Non-interactable so a click lands on the drawer/row underneath it. Drive it
+--with the "setNovel" event.
+local function NovelContentMarker(extraClass)
+    local resultPanel
+
+    resultPanel = gui.Panel {
+        classes = { "novelMarker", "collapsed", extraClass },
+        floating = true,
+        interactable = false,
+        bgimage = "panels/square.png",
+        rotate = 45,
+
+        gui.Panel {
+            classes = { "novelMarkerInner" },
+            bgimage = "panels/square.png",
+            interactable = false,
+        },
+
+        --Slow breathe so it reads as "look here" without strobing. Only ticks
+        --while the marker is actually up.
+        think = function(element)
+            element:SetClass("pulse", not element:HasClass("pulse"))
+        end,
+
+        setNovel = function(element, novel)
+            if novel == element.data.novel then
+                return
+            end
+            element.data.novel = novel
+            element:SetClass("collapsed", not novel)
+            element.thinkTime = cond(novel, 0.8, nil)
+            if novel then
+                element:FireEvent("think")
+            else
+                element:SetClass("pulse", false)
+            end
+        end,
+
+        data = { novel = false },
+    }
+
+    return resultPanel
+end
+
+local NOVEL_MARKER_RULES = {
+    {
+        selectors = { "novelMarker" },
+        width = 14,
+        height = 14,
+        bgcolor = "@accent",
+        borderWidth = 1,
+        borderColor = "@fgStrong",
+        halign = "right",
+        valign = "top",
+        margin = -4,
+    },
+    {
+        --On an ability row the pip badges the top-left corner of the ability
+        --icon. Top-right is taken there by the cost diamond.
+        selectors = { "novelMarker", "onAbility" },
+        width = 12,
+        height = 12,
+        halign = "left",
+        valign = "top",
+        margin = 3,
+    },
+    {
+        selectors = { "novelMarker", "pulse" },
+        brightness = 2,
+        transitionTime = 0.8,
+        easing = "easeInOutSine",
+    },
+    {
+        selectors = { "novelMarkerInner" },
+        width = "45%",
+        height = "45%",
+        halign = "center",
+        valign = "center",
+        bgcolor = "@fgStrong",
+    },
+}
+
 
 local function ActionBarDrawer(args)
     local m_resourceid
@@ -902,6 +1165,10 @@ local function ActionBarDrawer(args)
 
     local resultPanel
 
+    --Corner pip shown when this drawer holds abilities the creature has only
+    --just gained. Cleared when the drawer's menu is opened.
+    local m_novelMarker = NovelContentMarker()
+
     local resultPanelArgs = {
         classes = { "actionBarDrawer" },
 
@@ -912,6 +1179,15 @@ local function ActionBarDrawer(args)
 
             args.drawer = resultPanel
             element:FindParentWithClass("actionBar"):FireEventTree("menu", args)
+        end,
+
+        --Fired across the bar whenever the novel-ability set changes.
+        refreshNovelAbilities = function(element)
+            local charid = nil
+            if g_token ~= nil and g_token.valid then
+                charid = g_token.charid
+            end
+            m_novelMarker:FireEvent("setNovel", DrawerHasNovelAbilities(charid, args.type))
         end,
 
         menuStatus = function(element, menuInfo)
@@ -1250,6 +1526,7 @@ local function ActionBarDrawer(args)
 
         m_costDiamond,
 
+        m_novelMarker,
 
     }
 
@@ -1401,7 +1678,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } },
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) },
         width = "100%",
         height = 50,
         halign = "center",
@@ -1414,7 +1691,7 @@ local function CreateActionBar()
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE } }
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) }
                 end
             end)
         end,
@@ -1473,6 +1750,12 @@ local function CreateActionBar()
             end
 
             g_abilities = abilities
+
+            --Diff the freshly generated list against what this creature had
+            --last time we looked, so newly gained abilities can announce
+            --themselves on the drawer that holds them.
+            UpdateNovelAbilities(g_token.charid, g_abilities)
+            element:FireEventTree("refreshNovelAbilities")
 
             g_initiative = dmhub.initiativeQueue
             if g_initiative ~= nil and g_initiative.hidden then
@@ -1562,6 +1845,10 @@ local function AbilityHeading(args)
     --we only show an ability from here if we aren't parented by an action menu.
     local m_showingAbility = false
 
+    --Pip shown on rows the creature has only just gained, once the drawer's
+    --marker has been dismissed by opening the menu.
+    local m_novelMarker = NovelContentMarker("onAbility")
+
     resultPanel = gui.Panel {
         classes = { "abilityHeading" },
 
@@ -1570,6 +1857,13 @@ local function AbilityHeading(args)
                 ability:AbilityFilterFailureMessage(g_token.properties)
             m_suppressed = suppressMessage ~= nil
             element:SetClassTree("suppressed", m_suppressed)
+
+            m_novelMarker:FireEvent("setNovel", AbilityIsNovel(ability))
+        end,
+
+        --Fired when the menu closes and the acknowledged set is dropped.
+        refreshNovelAbilities = function(element)
+            m_novelMarker:FireEvent("setNovel", m_ability ~= nil and AbilityIsNovel(m_ability))
         end,
 
         rightClick = function(element)
@@ -1927,6 +2221,8 @@ local function AbilityHeading(args)
                 end,
             },
         },
+
+        m_novelMarker,
     }
 
     if args.ability ~= nil then
@@ -2246,16 +2542,25 @@ ActionMenu = function()
 
         destroy = function(element)
             element:FireEvent("dehover")
+            ClearAcknowledgedNovelAbilities()
         end,
 
         closemenu = function(element)
             g_triggerPanel:SetClass("hidden", false)
+            ClearAcknowledgedNovelAbilities()
         end,
 
         menu = function(element, args)
             if element.data.shownMenuTime == dmhub.Time() or g_token == nil then
                 return
             end
+
+            --Any menu interaction retires the previously acknowledged novel
+            --set: those rows have been shown to the player, so they stop being
+            --novel for good. Rows are re-marked below if the menu we are about
+            --to open has novel abilities of its own. (Headings always get a
+            --fresh "ability" event when a menu opens, so nothing goes stale.)
+            ClearAcknowledgedNovelAbilities()
 
             -- Strict-resources hides the manual "Mark Trigger as Used/Unused"
             -- override from players, since it's a way to bypass the action
@@ -2365,6 +2670,11 @@ ActionMenu = function()
 
             element:SetClass("hidden", false)
 
+            --This drawer is opening, so its corner marker has done its job.
+            --Hand its novel abilities over to the rows below, which pick them
+            --up in the "ability" events fired when the submenus populate.
+            AcknowledgeNovelAbilities(g_token.charid, args.type)
+
             local abilitiesByGrouping = {}
 
             for _, ability in ipairs(abilities) do
@@ -2452,7 +2762,10 @@ ActionMenu = function()
 
             m_containerPanel.children = children
 
-            element:FindParentWithClass("actionBar"):FireEventTree("menuStatus", args)
+            local actionBar = element:FindParentWithClass("actionBar")
+            actionBar:FireEventTree("menuStatus", args)
+            --Drop this drawer's corner marker now that its menu is up.
+            actionBar:FireEventTree("refreshNovelAbilities")
 
             if g_token.properties:IsMonster() then
                 element:SetClassTree("malice", true)
@@ -5357,7 +5670,17 @@ CreateAbilityController = function()
                     --draws per-floor arrows, and the cross-section renders the ascend -- so the
                     --full jump preview works across floors.
                     local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
-                    if loc.floor == g_token.floorIndex or movementType == "jump" then
+
+                    --An emptyspace ability that is NOT the creature moving under its own power sets
+                    --suppressMovementArrow -- e.g. choosing the square you fall into after being
+                    --shaken off a creature you were climbing. The teleport-style arrow would draw
+                    --from the caster's logical position, which for a climber is up on top of its
+                    --mount and so renders parallax-shifted away from its sprite, and it would read
+                    --as a teleport. The highlighted legal squares are the whole indicator; leaving
+                    --clearMovementArrow set removes any arrow drawn before this.
+                    if g_currentAbility:try_get("suppressMovementArrow", false) then
+                        --no arrow.
+                    elseif loc.floor == g_token.floorIndex or movementType == "jump" then
 
                         --A jump preview is built as a real jump (straightline + clears walls up to the
                         --jump distance) so the cross-section can arc it over those walls; matches the
@@ -6810,7 +7133,9 @@ local function CalculateSpellTargetFocusing(symbols)
                 local canTarget = true
 
                 -- For objectTarget abilities, respect the Creatures/Objects/Both setting.
-                if g_currentAbility.objectTarget == true then
+                -- Object-only abilities (targetAllegiance == "none") don't show that
+                -- slider at all, so a stale preference must not filter their candidates.
+                if g_currentAbility.objectTarget == true and g_currentAbility.targetAllegiance ~= "none" then
                     local treatAsObject = (not targetToken.isObject) and
                                           targetToken.properties ~= nil and
                                           targetToken.properties:try_get("treatAsObject", false)

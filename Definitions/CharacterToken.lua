@@ -14,6 +14,8 @@
 --- @field saddleUnlocked boolean If mounted on a saddle, returns true if that saddle is in the 'unlocked' state.
 --- @field selfOrMount CharacterToken (Read-only) If mounted on a token, returns the token mounted on. Otherwise is equal to this token itself.
 --- @field mount nil|CharacterToken The token we are mounted on, if there is one.
+--- @field saddleMount nil|CharacterToken (Read-only) The creature whose saddle this token is sitting in, if any. Unlike mount, which walks the whole chain to the creature at the bottom of it, this is the creature directly underneath us.
+--- @field riders CharacterToken[] (Read-only) The creatures currently sitting in this token's saddles -- riders and creatures that have climbed it. Empty if nothing is riding it.
 --- @field valid boolean (Read-only) true if this token is still valid. If saving a reference to a CharacterToken between frames, this should be checked before using it. It will become invalid if the token is deleted.
 --- @field ModifyProperties @param options {execute: (fun():nil), undoable: nil|boolean, combine: nil|boolean, description: nil|string} This allows you to modify the @see properties of this token and upload it to the cloud. Inside the execute function you supply you should modify the properties of the token. This will observe the changes you make and upload only the diffs. If combine is true the upload will try to occur as a transaction with any other uploads happening this frame. Note that this only uploads the @see properties of the token. It doesn't upload the rest of the token details such as appearance. @see UploadToken to upload the full token.
 --- @field uploadable boolean (Read-only) If true, this is a normal CharacterToken that can be uploaded to the cloud service.
@@ -276,6 +278,21 @@ end
 --- @param loc Loc
 --- @return Loc[]
 function CharacterToken:LocsOccupyingWhenAt(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
+--- @param mountToken CharacterToken
+--- @return boolean
+function CharacterToken:ClimbOntoCreature(mountToken)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DismountTo: Get out of the saddle this token is in (on a creature or an object) and stand at loc. Pass a loc at the height of the saddle to have the creature drop from there -- the usual falling rules then apply -- or a loc on the ground for it to climb down safely. When slide is true the token climbs down over the usual movement animation instead of appearing at loc; leave it false for a fall, where the drop is the animation. Returns false if the token was not in a saddle.
+--- @param loc Loc
+--- @param slide nil|boolean
+--- @return boolean
+function CharacterToken:DismountTo(loc, slide)
 	-- dummy implementation for documentation purposes only
 end
 

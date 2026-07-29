@@ -579,37 +579,58 @@ local function CreateWallLinePreview(fields)
     }
 end
 
---Door chips render a wall line with a gap in the middle holding the same
---door glyph the engine floats over a door on the map - "this type is the
---clickable door icon".
+--Door chips mirror what the map draws over an openable segment: the wall
+--line thickening into a thin filled rectangle - the door leaf - with the
+--door glyph the engine floats on top of it. "This type is the clickable
+--door." The leaf is drawn filled because that is a CLOSED door, the state a
+--freshly drawn door starts in; open doors draw the same rectangle hollow,
+--which a static chip has no way to show.
 local function CreateDoorLinePreview()
     return gui.Panel{
         width = "100%",
         height = 14,
-        flow = "horizontal",
         halign = "center",
 
         gui.Panel{
-            classes = {"markupWallLine"},
-            bgimage = true,
-            width = "40%",
-            height = 3,
+            width = "100%",
+            height = "100%",
+            flow = "horizontal",
+            halign = "center",
             valign = "center",
+
+            gui.Panel{
+                classes = {"markupWallLine"},
+                bgimage = true,
+                width = "22%",
+                height = 3,
+                valign = "center",
+            },
+            gui.Panel{
+                classes = {"markupWallLine"},
+                bgimage = true,
+                width = "46%",
+                height = 9,
+                valign = "center",
+            },
+            gui.Panel{
+                classes = {"markupWallLine"},
+                bgimage = true,
+                width = "22%",
+                height = 3,
+                valign = "center",
+            },
         },
+
+        --floating so the glyph can overhang the 9px leaf the way it overhangs
+        --the leaf rectangle on the map.
         gui.Panel{
+            floating = true,
             width = 14,
             height = 14,
             halign = "center",
             valign = "center",
             bgimage = "game-icons/exit-door.png",
             bgcolor = "@fgColor",
-        },
-        gui.Panel{
-            classes = {"markupWallLine"},
-            bgimage = true,
-            width = "40%",
-            height = 3,
-            valign = "center",
         },
     }
 end
@@ -2268,12 +2289,21 @@ local m_props = {
     },
 }
 
---The props engine half (the object-editing filter) needs an engine build.
---Reading an unknown dmhub property raises, so probe with pcall; a stale
---engine build shows a muted message instead of the props UI (placing props
---it cannot show or manipulate would strand them invisibly on the map).
+--The props engine half (the object-editing filter) needs an engine build. A
+--stale build shows a muted message instead of the props UI - placing props it
+--cannot show or manipulate would strand them invisibly on the map.
+--
+--GOTCHA: the callback itself CANNOT be probed. Unknown properties on the dmhub
+--bridge read as nil AND accept writes silently (verified live 2026-07-28), so
+--both "read it" and "assign it, read it back" succeed on a stale engine. Hence
+--the dedicated supportsObjectEditingFilter probe property, the same pattern as
+--floor.supportsSolidOperations. pcall + == true: nil on older builds.
 local function PropsSupported()
-    return (pcall(function() return dmhub.GetObjectEditingFilter end))
+    local supported = false
+    pcall(function()
+        supported = dmhub.supportsObjectEditingFilter == true
+    end)
+    return supported
 end
 
 --Props mode's half of the engine's object-editing filter poll. Non-nil makes
@@ -3110,6 +3140,25 @@ local function MarkupChipStyles()
         {
             selectors = {"markupWallLine"},
             bgcolor = "@fgMuted",
+        },
+
+        --gui.Slider deliberately sets NO default width/height (Gui.lua: doing
+        --so would be selfStyle and would beat any cascade rule the caller
+        --supplied), and it sizes its handle off its own height
+        --(handle width = "100% height", holding a 60% square rotated 45).
+        --An unsized slider therefore renders as a giant diamond. The Edit
+        --Wall dialog solves this with the same two rules; the panel body
+        --needs its own copy because that dialog is a separate modal with
+        --separate styles. Width leaves room for the row's 80px name label.
+        {
+            selectors = {"slider"},
+            width = "100%-84",
+            height = 24,
+            valign = "center",
+        },
+        {
+            selectors = {"sliderLabel"},
+            fontSize = 14,
         },
     }
 end
@@ -6269,6 +6318,12 @@ CreateMarkupEditor = function()
             return
         end
 
+        --Hard gate: without the engine's object-editing filter a placed prop
+        --is invisible AND unselectable, i.e. unremovable through the UI.
+        if not PropsSupported() then
+            return
+        end
+
         local obj = floor:SpawnObjectLocal(PROP_BASE_OBJECT_ID, { posx = point.x, posy = point.y })
         if obj == nil then
             dmhub.Debug("MARKUP:: could not spawn the prop base object; is the Core asset missing?")
@@ -6329,6 +6384,15 @@ CreateMarkupEditor = function()
                 RefreshPropUI()
                 --panel focus is what turns the object-editing filter on.
                 gui.SetFocus(element)
+                --Take map focus NOW rather than waiting up to thinkTime (0.3s)
+                --for the next tick: without this, a click on the map in the
+                --moment right after picking a type lands with no map focus and
+                --silently does nothing. Must run after SetFocus - the think
+                --handler gates on the panel having focus. (Same reason the
+                --footstep/wall tool strips re-fire think on press.)
+                if propsPanel ~= nil and propsPanel.valid then
+                    propsPanel:FireEvent("think")
+                end
             end,
 
             gui.Panel{
@@ -6350,8 +6414,12 @@ CreateMarkupEditor = function()
         }
     end
 
+    --NOTE the palette and the property editors render even when the engine
+    --half is missing (PropsSupported false) - only PLACEMENT is gated. What a
+    --stale engine breaks is showing/selecting/dragging placed props, so
+    --placing would strand them; browsing the types and setting defaults is
+    --harmless, and keeps the tab legible instead of a bare error line.
     propPalettePanel = gui.Panel{
-        classes = {cond(not PropsSupported(), "collapsed")},
         width = "96%",
         height = "auto",
         halign = "center",
@@ -6423,7 +6491,7 @@ CreateMarkupEditor = function()
     end
 
     propPropertiesPanel = gui.Panel{
-        classes = {cond(not PropsSupported() or m_props.selected ~= "light", "collapsed")},
+        classes = {cond(m_props.selected ~= "light", "collapsed")},
         width = "96%",
         height = "auto",
         halign = "center",
@@ -6431,7 +6499,7 @@ CreateMarkupEditor = function()
 
         events = {
             refreshprops = function(element)
-                element:SetClass("collapsed", (not PropsSupported()) or m_props.selected ~= "light")
+                element:SetClass("collapsed", m_props.selected ~= "light")
             end,
         },
 
@@ -6540,6 +6608,10 @@ CreateMarkupEditor = function()
                 if m_mode == "props" then
                     element:FireEventTree("refreshprops")
                 end
+                --grab (or release) map focus on the mode switch itself, so the
+                --first map click after switching tabs is not swallowed by the
+                --think interval. Also releases promptly when switching away.
+                element:FireEvent("think")
             end,
 
             think = function(element)
@@ -6586,9 +6658,11 @@ CreateMarkupEditor = function()
         },
 
         children = {
+            --NOT muted: this explains why clicking the map does nothing, and
+            --muted small text got missed in exactly that situation.
             gui.Label{
-                classes = {"fgMuted", cond(PropsSupported(), "collapsed")},
-                text = "Props needs an engine update to work in this build.",
+                classes = {"bold", "sizeXs", cond(PropsSupported(), "collapsed")},
+                text = "Placing props is DISABLED: this build cannot show or move placed props yet, so they would be stranded invisibly. Rebuild the app to enable it. The settings below still work.",
                 width = "90%",
                 height = "auto",
                 halign = "center",
@@ -6619,6 +6693,9 @@ CreateMarkupEditor = function()
                 end,
 
                 refreshprops = function(element)
+                    --the how-to line promises placing/dragging, which a stale
+                    --engine cannot do; the banner above says so instead.
+                    element:SetClass("collapsed", not PropsSupported())
                     if not PropsSupported() then
                         return
                     end

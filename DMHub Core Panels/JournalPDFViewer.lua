@@ -2376,6 +2376,11 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             --set to line the view up on the current page once layout has
             --settled (initial open, or toggling continuous scrolling on).
             scrollToCurrentPage = false,
+            --the zoom the current width/height styles were computed from.
+            lastZoom = m_zoom,
+            --set on a zoom change in continuous mode: the reading position
+            --to re-scroll to once the relayout lands (see the page event).
+            zoomRestore = nil,
             lastWindowTop = nil,
             lastWindowTime = nil,
             havePending = false,
@@ -2383,6 +2388,33 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         },
 
         page = function(element)
+            --on a zoom change the scroll view keeps the pixel scroll offset
+            --while the content stack rescales, which lands the view on a
+            --completely different page in continuous mode. Capture the
+            --(zoom-invariant) document fraction at the top of the viewport
+            --here, while the layout still reflects the old zoom; think
+            --re-scrolls to it once the relayout has settled.
+            if IsContinuous() and element.data.lastZoom ~= m_zoom then
+                if element.data.zoomRestore ~= nil then
+                    --zoom changed again before the previous restore ran; the
+                    --original capture still marks the reading position.
+                    element.data.zoomRestore.deadline = dmhub.Time() + 0.5
+                else
+                    local contentH = element.renderedHeight
+                    local viewportH = pdfScrollViewPanel.renderedHeight
+                    if viewportH > 0 and contentH > viewportH then
+                        local windowTop = (contentH - viewportH) * (1 - pdfScrollViewPanel.vscrollPosition)
+                        element.data.zoomRestore = {
+                            fraction = windowTop / contentH,
+                            baseContentH = contentH,
+                            baseZoom = element.data.lastZoom,
+                            deadline = dmhub.Time() + 0.5,
+                        }
+                    end
+                end
+            end
+            element.data.lastZoom = m_zoom
+
             element.selfStyle.width = string.format("%f%%", m_zoom * 100)
             element.selfStyle.height = string.format("%f%% width", (IsContinuous() and (npages * slotAspect) or pageAspect) * 100)
         end,
@@ -2417,6 +2449,26 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
             local expectedH = w * (continuous and (npages * slotAspect) or pageAspect)
             if math.abs(contentH - expectedH) > expectedH * 0.01 + 2 then
                 return
+            end
+
+            --a zoom change is in flight: hold off on any scroll math until
+            --the content height reaches the new zoom's height (the old
+            --layout also passes the settled check above, so predict the
+            --target from the captured pre-zoom height), then re-scroll so
+            --the document position that was at the top of the viewport
+            --stays there. The deadline covers layouts that never reach the
+            --prediction (e.g. the window was resized mid-zoom).
+            local restore = element.data.zoomRestore
+            if restore ~= nil then
+                local target = restore.baseContentH * (m_zoom / restore.baseZoom)
+                if math.abs(contentH - target) > target * 0.002 + 2 and dmhub.Time() < restore.deadline then
+                    return
+                end
+                element.data.zoomRestore = nil
+                if contentH > viewportH then
+                    pdfScrollViewPanel.vscrollPosition = clamp(1 - (restore.fraction * contentH) / (contentH - viewportH), 0, 1)
+                end
+                element.data.suppressDerivedPos = pdfScrollViewPanel.vscrollPosition
             end
 
             --pull any horizontal pan back within bounds when the zoom (and

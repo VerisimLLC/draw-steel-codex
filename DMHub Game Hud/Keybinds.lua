@@ -545,6 +545,40 @@ Keybinds.Register{
     section = "system",
 }
 
+--Rows in each keybind section sort by "ord" (falling back to name). "Go Down a Floor"
+--would otherwise sort above "Go Up a Floor" alphabetically, so give them explicit ords to
+--list Up above Down.
+--Not dmonly: the director uses these to move the active floor, and a player uses the same
+--keybind to look up/down through the floors above their token (see FloorNavigation in
+--Floors.lua). The command itself branches on dmhub.isDM.
+Keybinds.Register{
+    command = "floorup",
+    name = tr("Go Up a Floor"),
+    ord = "Go 1",
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "floordown",
+    name = tr("Go Down a Floor"),
+    ord = "Go 2",
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "toggle vision:shared",
+    name = tr("Toggle Players Shared Vision"),
+    dmonly = true,
+    section = "gameplay",
+}
+
+Keybinds.Register{
+    command = "toggle autofloorvisibility",
+    name = tr("Toggle Auto-hide Floors"),
+    dmonly = true,
+    section = "camera",
+}
+
 
 local g_KeybindStyles = {
     {

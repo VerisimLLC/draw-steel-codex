@@ -53,6 +53,213 @@ local function FindMapObjectForFloor(floor)
 	return nil
 end
 
+--Setting: when on (the default), selecting or navigating to a floor auto-reveals it and
+--everything below it and hides everything above it. When off, switching floors leaves
+--floor visibility untouched (the classic behaviour).
+setting{
+	id = "autofloorvisibility",
+	description = "Auto-hide floors above the selected floor",
+	help = "When you select a floor (or use the floor up/down keys), automatically reveal that floor and every floor below it and hide every floor above it. Turn this off to leave floor visibility unchanged when you switch floors.",
+	storage = "preference",
+	section = "Map",
+	editor = "check",
+	default = true,
+}
+
+--Floor navigation and auto-visibility, shared by the Floors & Layers panel (floor row
+--clicks) and the floor up/down keybinds (macros in Commands.lua, key bindings in
+--Keybinds.lua). Registered as a game type so it is a well-formed global namespace in every
+--load context (a bare global assignment trips the strict-global guard on some reload paths).
+RegisterGameType("FloorNavigation")
+
+--The live Floors & Layers list panel, if one is open. The panel registers itself here when
+--built (see CreateLayersPanel) so keybind-driven navigation can refresh its eye icons the
+--same way a floor-row click does. Forward-declared here so both ChangeFloorRelative (below)
+--and CreateLayersPanel (further down) close over the same upvalue.
+local g_floorsListPanel = nil
+
+--Refresh the open Floors & Layers list (eye icons, selection, etc.) if there is one.
+local function RefreshFloorsListPanel()
+	if g_floorsListPanel ~= nil and g_floorsListPanel.valid then
+		g_floorsListPanel:FireEventTree("refreshGame")
+	end
+end
+
+--Whether the auto-hide-on-select behaviour is currently enabled.
+function FloorNavigation.AutoVisibilityEnabled()
+	return dmhub.GetSettingValue("autofloorvisibility") ~= false
+end
+
+--Reveal selectedFloor and every floor BELOW it and hide every floor ABOVE it. Floors are
+--stored in currentMap.floors in ascending altitude order (a higher array index is a
+--higher floor), so "below" is a lower index and "above" is a higher index. Only top-level
+--floors (parentFloor == nil) carry the visibility toggle, so those are the only rows
+--changed; if the selection is a layer we compare against its parent floor's position.
+--Floors whose visibility already matches are left untouched, so no redundant uploads are
+--made. Editing floor visibility is a director capability, so this no-ops for players.
+function FloorNavigation.ApplyVisibility(currentMap, selectedFloor)
+	if not dmhub.isDM then
+		return
+	end
+
+	if currentMap == nil or selectedFloor == nil then
+		return
+	end
+
+	local floors = currentMap.floors
+	if floors == nil then
+		return
+	end
+
+	--The selected floor's top-level identity (a layer maps to its parent floor).
+	local refId = selectedFloor.floorid
+	if selectedFloor.parentFloor ~= nil then
+		refId = selectedFloor.parentFloor
+	end
+
+	local selIndex = nil
+	for i, f in ipairs(floors) do
+		if f.floorid == refId then
+			selIndex = i
+			break
+		end
+	end
+
+	if selIndex == nil then
+		return
+	end
+
+	for i, f in ipairs(floors) do
+		if f.parentFloor == nil then
+			--At or below the selection -> visible; above -> hidden.
+			local shouldHide = i > selIndex
+			if f.floorInvisible ~= shouldHide then
+				f.floorInvisible = shouldHide
+			end
+		end
+	end
+end
+
+--When a player uses the floor up/down keybind they do not move the active floor (that is a
+--director tool). Instead they "look up" through the floors above their selected token -- the
+--same Forward / Up 1 / Up 2 control offered by the eye icon on the character panel, driven by
+--the transient "lookup" setting (0 = Forward, 1 = Up 1, ...). Offset +1 looks one floor
+--higher, offset -1 drops back toward Forward. The view is clamped between Forward (0) and the
+--number of floors the token may look up, which mirrors the character panel: it depends on the
+--map's "Can Look Up" (canlookup) and "Max Look Up" (maxlookup) settings and, under "opening",
+--whether there is a hole above the token.
+function FloorNavigation.LookRelative(offset)
+	local tok = dmhub.currentToken
+	if tok == nil then
+		return
+	end
+
+	local canLookup = dmhub.GetSettingValue("canlookup")
+	if canLookup == "never" then
+		return
+	end
+
+	local maxLookup
+	if canLookup == "always" then
+		maxLookup = tok.countFloorsAbove
+	else
+		maxLookup = tok.countFloorsWithVisionAbove
+	end
+
+	local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+	if maxLookupSetting >= 0 then
+		maxLookup = math.min(maxLookup, maxLookupSetting)
+	end
+
+	if maxLookup <= 0 then
+		return
+	end
+
+	local cur = dmhub.GetSettingValue("lookup")
+	local newValue = cur + offset
+	if newValue < 0 then
+		newValue = 0
+	elseif newValue > maxLookup then
+		newValue = maxLookup
+	end
+
+	if newValue ~= cur then
+		dmhub.SetSettingValue("lookup", newValue)
+	end
+end
+
+--Move the active floor up (offset +1) or down (offset -1) among the top-level floors,
+--clamping at the top and bottom. Applies the auto-hide behaviour when the setting is on.
+--Used by the floor up/down keybinds. Moving the active floor is a director tool; for players
+--the same keybind instead adjusts the "look up" view (see LookRelative above).
+function FloorNavigation.ChangeFloorRelative(offset)
+	if not dmhub.isDM then
+		FloorNavigation.LookRelative(offset)
+		return
+	end
+
+	local currentMap = game.currentMap
+	if currentMap == nil then
+		return
+	end
+
+	local floors = currentMap.floors
+	if floors == nil then
+		return
+	end
+
+	--Top-level floors in ascending altitude order.
+	local topFloors = {}
+	for _, f in ipairs(floors) do
+		if f.parentFloor == nil then
+			topFloors[#topFloors + 1] = f
+		end
+	end
+
+	if #topFloors == 0 then
+		return
+	end
+
+	local cf = game.currentFloor
+	if cf == nil then
+		return
+	end
+
+	--The current floor's top-level identity (a layer maps to its parent floor).
+	local refId = cf.floorid
+	if cf.parentFloor ~= nil then
+		refId = cf.parentFloor
+	end
+
+	local curPos = nil
+	for pos, f in ipairs(topFloors) do
+		if f.floorid == refId then
+			curPos = pos
+			break
+		end
+	end
+
+	if curPos == nil then
+		return
+	end
+
+	local newPos = curPos + offset
+	if newPos < 1 or newPos > #topFloors then
+		--Already at the top or bottom floor.
+		return
+	end
+
+	local targetFloor = topFloors[newPos]
+	game.ChangeMap(currentMap, targetFloor)
+
+	if FloorNavigation.AutoVisibilityEnabled() then
+		FloorNavigation.ApplyVisibility(currentMap, targetFloor)
+		--Redraw the panel's eye icons to match the new visibility (the click path does the
+		--same). Without this the icons go stale when navigating by keybind.
+		RefreshFloorsListPanel()
+	end
+end
+
 --Custom themed styling for the map-appearance gallery tiles. Hover/selected states live in the style
 --cascade (not inline) so they can flip on mouse-over and recolor with the active scheme. Colors use
 --@tokens so the highlight tracks the user's color scheme.
@@ -1760,6 +1967,11 @@ CreateLayersPanel = function()
 
 								if game.currentFloor.actualFloor ~= floor.floorid then
 									game.ChangeMap(game.currentMap, floor)
+									--Reveal this floor and everything below it; hide everything above.
+									if FloorNavigation.AutoVisibilityEnabled() then
+										FloorNavigation.ApplyVisibility(game.currentMap, floor)
+										floorsList:FireEventTree("refreshGame")
+									end
 									element:FindParentWithClass("dockablePanel"):FireEventTree("refreshFloorSelection")
 								end
 							end,
@@ -1831,6 +2043,9 @@ CreateLayersPanel = function()
 			floorItems = newFloorItems
 		end,
 	}
+
+	--Expose this list so keybind-driven floor navigation can refresh its eye icons.
+	g_floorsListPanel = floorsList
 
 	local resultPanel
 

@@ -6080,41 +6080,29 @@ local function DSCharSheet()
                                     textAlignment = "center",
                                     characterLimit = 4,
 
-                                    change = function(element)
-                                        local token = CharacterSheet.instance.data.info.token
-                                        local creature = token.properties
-                                        local t = element.text
-                                        if t:sub(1, 1) == "/" then
-                                            t = t:sub(2)
-                                        end
-
-                                        local n = tonumber(t)
-                                        if n ~= nil then
-                                            n = round(n)
-                                            --the label shows MaxHitpoints() (base + modifiers) but max_hitpoints is
-                                            --the BASE value, so subtract the modifier contribution before storing.
-                                            --otherwise the modifiers (e.g. a retainer's Stamina Bonus) get applied a
-                                            --second time and the stamina inflates (doubles when the base is 0).
-                                            local modifierDelta = creature:MaxHitpoints() - creature:BaseHitpoints()
-                                            creature.max_hitpoints = n - modifierDelta
-                                        end
-
-                                        CharacterSheet.instance:FireEvent("refreshAll")
-                                    end,
-
                                     refreshToken = function(element, info)
-                                        --monsters can direct edit stamina.
-                                        element.editable = info.token.properties:IsMonster() or info.token.properties:IsCompanion()
-
                                         local maxhp = info.token.properties:MaxHitpoints()
                                         element.text = string.format("/%d", math.tointeger(maxhp))
                                     end,
 
                                     press = function(element)
                                         local token = CharacterSheet.instance.data.info.token
+
+                                        --a hero's base stamina comes from their class formula so it is
+                                        --display-only, but monsters/companions store it directly in
+                                        --max_hitpoints, so let them edit it right in the popup.
+                                        local baseValueEdit
                                         if token.properties:IsMonster() or token.properties:IsCompanion() then
-                                            return
+                                            baseValueEdit = function(n)
+                                                n = math.max(0, round(n))
+                                                token.properties.max_hitpoints = n
+                                                CharacterSheet.instance:FireEventTree("refresh")
+                                                CharacterSheet.instance:FireEvent("refreshAll")
+
+                                                return string.format("%d", token.properties:BaseHitpoints())
+                                            end
                                         end
+
                                         local baseValue = token.properties:BaseHitpoints()
                                         gui.PopupOverrideAttribute {
                                             parentElement = element,
@@ -6122,6 +6110,7 @@ local function DSCharSheet()
                                             attributeName = "Stamina",
                                             characterSheet = true,
                                             baseValue = baseValue,
+                                            baseValueEdit = baseValueEdit,
                                             modifications = token.properties:DescribeModifications("hitpoints", baseValue),
                                         }
                                     end,

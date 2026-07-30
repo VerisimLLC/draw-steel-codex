@@ -1760,7 +1760,12 @@ CreateLayersPanel = function()
 
 								if game.currentFloor.actualFloor ~= floor.floorid then
 									game.ChangeMap(game.currentMap, floor)
-									element:FindParentWithClass("dockablePanel"):FireEventTree("refreshFloorSelection")
+									--the dockablePanel ancestor can be nil: panel content can be
+									--hosted outside the dock (e.g. a free-floating panel window).
+									local dockPanel = element:FindParentWithClass("dockablePanel")
+									if dockPanel ~= nil then
+										dockPanel:FireEventTree("refreshFloorSelection")
+									end
 								end
 							end,
 
@@ -2382,7 +2387,12 @@ CreateLayersList = function(parentFloor)
 								end
 
 								game.currentMap.floors = floors
-        						element:FindParentWithClass("dockablePanel"):FireEventTree("refreshGame")
+								--the dockablePanel ancestor can be nil: panel content can be
+								--hosted outside the dock (e.g. a free-floating panel window).
+								local dockPanel = element:FindParentWithClass("dockablePanel")
+								if dockPanel ~= nil then
+									dockPanel:FireEventTree("refreshGame")
+								end
 							end,
 							refreshGame = function(element)
 								if not floor.valid then
@@ -2411,7 +2421,12 @@ CreateLayersList = function(parentFloor)
 							click = function(element)
 								element.popup = nil
 								game.ChangeMap(game.currentMap, floor)
-        						element:FindParentWithClass("dockablePanel"):FireEventTree("refreshFloorSelection")
+								--the dockablePanel ancestor can be nil: panel content can be
+								--hosted outside the dock (e.g. a free-floating panel window).
+								local dockPanel = element:FindParentWithClass("dockablePanel")
+								if dockPanel ~= nil then
+									dockPanel:FireEventTree("refreshFloorSelection")
+								end
 							end,
 
 						}

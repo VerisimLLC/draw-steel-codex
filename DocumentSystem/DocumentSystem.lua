@@ -65,6 +65,10 @@ CustomDocument.docTypeInfo = {
     exploration = { text = "Exploration", icon = "phosphor/compass.png",              beat = true,  glyph = "E", ord = 20 },
     combat      = { text = "Combat",      icon = "phosphor/sword.png",                beat = true,  glyph = "C", ord = 30 },
     montage     = { text = "Montage",     icon = "phosphor/film-slate.png",           beat = true,  glyph = "M", ord = 40 },
+    --Heroic Test: one skill test prepped as a beat (Draw Steel: Encounters ch.4).
+    --dice-six is a PLACEHOLDER icon -- it reads as "a roll" and is confirmed
+    --imported; swap it when a distinct glyph is commissioned.
+    heroictest  = { text = "Heroic Test", icon = "phosphor/dice-six.png",             beat = true,  glyph = "T", ord = 45 },
     negotiation = { text = "Negotiation", icon = "phosphor/handshake.png",            beat = true,  glyph = "G", ord = 50 },
     location    = { text = "Location",    icon = "phosphor/map-pin-simple.png",       beat = false, glyph = "L", ord = 60 },
     npc         = { text = "NPC",         icon = "phosphor/person-simple-circle.png", beat = false, glyph = "P", ord = 70 },

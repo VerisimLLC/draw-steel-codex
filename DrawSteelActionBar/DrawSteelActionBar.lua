@@ -4526,10 +4526,16 @@ CreateAbilityController = function()
                             g_forcedMovementTypePanel:FireEvent("refreshForcedMovement")
                             g_channeledResourcePanel:FireEventTree("focusspell")
 
-                            --If the spell's tooltip varies depending on the mode, then refresh it.
+                            --If the spell's render varies depending on the mode (a
+                            --variation swap or mode-gated power rolls), re-display the
+                            --ability card so it shows the switched mode's content
+                            --rather than the mode it was first displayed with. This
+                            --also covers the auto-switch when the previously selected
+                            --mode's condition fails (see the ScheduleEvent press
+                            --below), which otherwise leaves a stale card up through
+                            --the whole targeting phase.
                             if g_currentAbility ~= nil and g_currentAbility:RenderVariesWithDifferentModes() then
-                                --TODO: refresh tooltip.
-                                --m_currentSpellPanel.data.tooltipSource:FireEvent("showtooltip")
+                                CharacterPanel.DisplayAbility(g_token, g_currentAbility, g_currentSymbols)
                             end
                         end,
                     }

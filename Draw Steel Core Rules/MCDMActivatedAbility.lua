@@ -554,6 +554,14 @@ end
 
 --- @return boolean Whether this ability's tooltip render changes depending on the mode.
 function ActivatedAbility:RenderVariesWithDifferentModes()
+    --a mode that carries a full variation ability replaces the whole render
+    --(name, tiers, description) when switched to, not just a behavior subset.
+    for _, mode in ipairs(self:try_get("modeList", {})) do
+        if mode.variation ~= nil then
+            return true
+        end
+    end
+
     for _, behavior in ipairs(self.behaviors) do
         if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and #behavior:try_get("modesSelected", {}) > 0 then
             return true

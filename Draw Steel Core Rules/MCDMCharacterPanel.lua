@@ -1418,6 +1418,21 @@ TacPanelStyles.Routines = ThemeEngine.MergeTokens{
         borderColor = "@border",
     },
 
+    -- Monster-mode chip: exactly one mode is always selected, so the selected
+    -- state gets a full accent fill (the drag-target pairing: @accent bg,
+    -- @fgInverse text) rather than the routine chip's border-only selection.
+    {
+        selectors = {"panel", "mm-chip", "selected"},
+        priority = 5,
+        bgcolor = "@accent",
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"label", "mm-chip", "parent:selected"},
+        priority = 5,
+        color = "@fgInverse",
+    },
+
     -- Routine chip label
     {
         selectors = {"label", "rt-chip"},
@@ -4841,6 +4856,137 @@ function TacPanel.Routines()
             end
 
             element.data.routinePanels = newPanels
+            element:FireEventTree("setContent", children)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"rt-container"},
+            wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- The monster modes section: shows only for creatures with a Monster Modes
+--- modifier (see the monstermodes system in MCDMCreature.lua) and lets the
+--- Director switch the creature's current mode. Chips mirror the Routines
+--- section's look; exactly one mode is always selected (mode 1 by default).
+--- The header takes the granting modifier's name (e.g. TRUE NAME) so the
+--- section speaks the statblock's language rather than engine language.
+--- @return Panel
+function TacPanel.MonsterMode()
+    return TacPanel.CollapsiblePanel{
+        sectionId = "monstermode",
+        classes = {"collapsed"},
+        altBg = false,
+        title = "MODES",
+        data = { signature = nil },
+        setCollapse = function(element)
+            element:FireEvent("refreshCharacter", element.data.token)
+        end,
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                element.data.signature = nil
+                return
+            end
+
+            element.data.token = token
+
+            local modes, sectionTitle = token.properties:GetMonsterModes()
+            if modes == nil then
+                element:SetClass("collapsed", true)
+                element.data.signature = nil
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            --header takes the granting trait's name (updates even while the
+            --section is collapsed, since the title bar stays visible).
+            local titleText = string.upper(sectionTitle or "Modes")
+            local titleBar = element.children[1]
+            if titleBar ~= nil then
+                for _,child in ipairs(titleBar.children) do
+                    if child:HasClass("panel-title") then
+                        if child.text ~= titleText then
+                            child.text = titleText
+                        end
+                        break
+                    end
+                end
+            end
+
+            if element.data.collapsed then
+                return
+            end
+
+            local selected = token.properties:GetMonsterMode()
+            if selected > #modes then
+                selected = 1
+            end
+
+            --only rebuild the chips when the modes or selection actually change.
+            local sigParts = {}
+            for _,mode in ipairs(modes) do
+                sigParts[#sigParts+1] = string.format("%s/%s", mode.name or "", mode.description or "")
+            end
+            local signature = string.format("%s#%d#%s", table.concat(sigParts, "|"), selected, token.charid)
+            if signature == element.data.signature then
+                return
+            end
+            element.data.signature = signature
+
+            local children = {}
+            for i,mode in ipairs(modes) do
+                local classes = {"rt-chip", "mm-chip"}
+                if i == selected then
+                    classes[#classes+1] = "selected"
+                end
+
+                local hover = nil
+                if mode.description ~= nil and mode.description ~= "" then
+                    hover = gui.Tooltip(mode.description)
+                end
+
+                children[#children+1] = gui.Panel{
+                    classes = classes,
+                    hover = hover,
+                    press = function(el)
+                        if i == selected then
+                            --the creature is always in exactly one mode; no deselect.
+                            return
+                        end
+
+                        local tok = element.data.token
+                        if tok == nil or not tok.valid then
+                            return
+                        end
+
+                        tok:ModifyProperties{
+                            description = tr("Set Monster Mode"),
+                            execute = function()
+                                tok.properties:SetMonsterMode(i)
+                            end,
+                        }
+
+                        element:FireEvent("refreshCharacter", tok)
+                    end,
+                    gui.Label{
+                        classes = {"rt-chip", "mm-chip"},
+                        text = mode.name or string.format("Mode %d", i),
+                    },
+                }
+            end
+
             element:FireEventTree("setContent", children)
         end,
         refreshToken = function(element, token)
@@ -8848,6 +8994,7 @@ end
 
 local TACPANEL_DEFAULT_ORDER = {
     "statistics",
+    "monstermode",
     "summoner",
     "routines",
     "persistentabilities",
@@ -8862,6 +9009,7 @@ local TACPANEL_DEFAULT_ORDER = {
 
 local TACPANEL_FACTORIES = {
     statistics = TacPanel.Statistics,
+    monstermode = TacPanel.MonsterMode,
     routines = TacPanel.Routines,
     persistentabilities = TacPanel.PersistentAbilities,
     heroicresources = TacPanel.HeroicResources,

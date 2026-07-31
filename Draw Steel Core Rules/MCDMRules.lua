@@ -1215,8 +1215,22 @@ local friendlyFire = setting{
     default = false,
 }
 
+local g_hiddenConditionId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
+
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
+		return false
+	end
+
+	-- Hidden: "While you are hidden from another creature, the creature can't
+	-- target you with abilities that don't have the Area keyword." A creature
+	-- with the Hidden condition is treated as hidden from all its enemies:
+	-- enemies lose non-Area targeting (including free strikes), while allies
+	-- can still target them normally. Area abilities are unaffected, so a
+	-- hidden creature standing in a swept area is still hit.
+	if (not targetToken.isObject) and (not ability:HasKeyword("Area"))
+		and (not casterToken:IsFriend(targetToken))
+		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
 		return false
 	end
 
@@ -1592,6 +1606,51 @@ TriggeredAbility.RegisterTrigger{
             desc = "The creature that fell on this creature.",
         },
     }
+}
+
+--Fires on a squad minion when damage kills one or more minions of its squad.
+--Kills from a single cast are batched (see AccumulateSquadMinionDeaths in
+--MCDMCreature.lua): an area ability that empties several stamina bands across
+--separate damage applications fires this ONCE per damage type group with the
+--total number killed, dispatched on one member of the squad (the most
+--recently damaged one), not on every member.
+TriggeredAbility.RegisterTrigger{
+    id = "squadminiondeaths",
+    text = "Squad Minions Killed",
+    symbols = {
+        minionskilled = {
+            name = "Minions Killed",
+            type = "number",
+            desc = "The number of minions of this creature's squad that were killed at the same time.",
+        },
+        damage = {
+            name = "Damage",
+            type = "number",
+            desc = "The total damage of this type the squad's stamina pool took in this batch.",
+        },
+        damagetype = {
+            name = "Damage Type",
+            type = "text",
+            desc = "The type of the damage that killed the minions. Untyped damage reads as 'none'.",
+            valueOptionsSource = "damageTypes",
+        },
+        attacker = {
+            name = "Attacker",
+            type = "creature",
+            desc = "The attacking creature. Only valid if Has Attacker is true.",
+        },
+        hasattacker = {
+            name = "Has Attacker",
+            type = "boolean",
+            desc = "True if the damage has an attacker.",
+        },
+    },
+    examples = {
+        {
+            script = "Minions Killed >= 2 and damage type is not fire",
+            text = "The triggered ability only activates when two or more minions are killed at once by damage that is not fire.",
+        },
+    },
 }
 
 --redefine hitpoints as stamina.

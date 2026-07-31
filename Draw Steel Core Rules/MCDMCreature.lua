@@ -6802,3 +6802,205 @@ end
 dmhub.RegisterEventHandler("ClearTemporaryState", function()
     print("CLEARSTATE:: CLEARING STATE", #dmhub.allTokens)
 end)
+
+
+----------------------------------------------------------------------
+-- Monster Modes
+----------------------------------------------------------------------
+-- A monster can have multiple "monster modes" (e.g. a devil before/after its
+-- True Name is spoken). Modes are declared by a "monstermodes" CharacterModifier
+-- on the monster which lists the mode names. The current mode is stored on the
+-- creature as monsterMode (1-based; 1 is the default). Other modifiers gate
+-- themselves on the mode with a filterCondition like "Monster Mode = 2".
+--
+-- The symbol is deliberately named "Monster Mode", NOT "Mode": "Mode" already
+-- exists in ability contexts (an ability's multi-mode selection) and the two
+-- must not be conflated.
+--
+-- The Director switches modes from the MONSTER MODE section of the character
+-- panel (TacPanel.MonsterMode in MCDMCharacterPanel.lua), which only shows for
+-- creatures that have a monstermodes modifier.
+--
+-- Limitation (by design): one mode dimension per monster. A monster cannot have
+-- e.g. tactical stances AND true-name modes at the same time; the first active
+-- monstermodes modifier wins.
+
+creature.monsterMode = 1
+
+--- The list of modes declared by this creature's monstermodes modifier, each
+--- a {name, description} table, or nil if the creature has no modes (the
+--- normal case). The description is optional and shows as a tooltip on the
+--- mode's chip in the character panel.
+--- Second return: the player-facing section title -- the modifier's name (by
+--- convention the granting trait's name, e.g. "True Name"), so the panel
+--- header echoes the statblock language. Falls back to "Modes" when the
+--- modifier is unnamed or still has the default type name.
+--- @return {name: string, description: nil|string}[]|nil, string|nil
+function creature:GetMonsterModes()
+    local mods = self:GetActiveModifiers()
+    for _,mod in ipairs(mods) do
+        if mod.mod.behavior == "monstermodes" then
+            local modes = mod.mod:try_get("modes")
+            if modes ~= nil and #modes >= 2 then
+                local title = mod.mod:try_get("name")
+                if title == nil or title == "" or title == "Monster Modes" then
+                    title = "Modes"
+                end
+                return modes, title
+            end
+        end
+    end
+
+    return nil
+end
+
+--- The creature's current monster mode (1-based). Always at least 1; clamped to
+--- the declared mode count when the creature has modes.
+--- @return number
+function creature:GetMonsterMode()
+    local mode = self.monsterMode
+    if type(mode) ~= "number" or mode < 1 then
+        return 1
+    end
+
+    return math.floor(mode)
+end
+
+--- Set the current monster mode. Callers outside the character sheet must wrap
+--- this in token:ModifyProperties{}.
+--- @param mode number
+function creature:SetMonsterMode(mode)
+    self.monsterMode = mode
+end
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "Monster Mode",
+    type = "number",
+    desc = "The monster's current mode (1-based) as chosen in the MONSTER MODE panel. 1 is the default mode. Only meaningful for monsters with a Monster Modes modifier; always 1 otherwise. Distinct from an ability's Mode.",
+    seealso = {},
+    examples = {"Monster Mode = 1", "Monster Mode = 2"},
+    calculate = function(c)
+        return c:GetMonsterMode()
+    end,
+}
+
+CharacterModifier.RegisterType("monstermodes", "Monster Modes")
+
+--a "monstermodes" modifier has the following properties:
+--  - modes: a list of {name, description} tables (at least 2 to be meaningful).
+--    The description is optional; it shows as a tooltip on the mode's chip in
+--    the MONSTER MODE panel.
+--The modifier declares that its bearer has multiple monster modes; it has no
+--direct mechanical effect itself. Do not put a filterCondition on this modifier
+--that references Monster Mode (the mode picker must exist in every mode).
+CharacterModifier.TypeInfo.monstermodes = {
+    init = function(modifier)
+        modifier.modes = {
+            { name = "Mode 1" },
+            { name = "Mode 2" },
+        }
+    end,
+
+    autoDescribe = function(modifier)
+        local modes = modifier:try_get("modes", {})
+        if #modes == 0 then
+            return nil
+        end
+
+        local names = {}
+        for _,mode in ipairs(modes) do
+            names[#names+1] = mode.name or "?"
+        end
+
+        return string.format("Monster Modes: %s", pretty_join_list(names))
+    end,
+
+    createEditor = function(modifier, element)
+        local Refresh
+        local firstRefresh = true
+        Refresh = function()
+            if firstRefresh then
+                firstRefresh = false
+            else
+                element:FireEvent("refreshModifier")
+            end
+
+            local children = {}
+
+            local modes = modifier:try_get("modes", {})
+
+            for i,mode in ipairs(modes) do
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = string.format("Mode %d:", i),
+                    },
+                    gui.Input{
+                        classes = {"formInput"},
+                        characterLimit = 40,
+                        text = mode.name or "",
+                        change = function(element)
+                            mode.name = element.text
+                            Refresh()
+                        end,
+                    },
+                    gui.DeleteItemButton{
+                        width = 16,
+                        height = 16,
+                        halign = "right",
+                        valign = "center",
+                        click = function()
+                            table.remove(modifier.modes, i)
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Description:",
+                    },
+                    gui.Input{
+                        classes = {"formInput"},
+                        multiline = true,
+                        characterLimit = 256,
+                        width = 320,
+                        height = "auto",
+                        minHeight = 40,
+                        maxHeight = 100,
+                        textAlignment = "topleft",
+                        text = mode.description or "",
+                        change = function(element)
+                            if element.text == "" then
+                                mode.description = nil
+                            else
+                                mode.description = element.text
+                            end
+                        end,
+                    },
+                }
+            end
+
+            children[#children+1] = gui.PrettyButton{
+                text = "Add Mode",
+                width = 140,
+                height = 30,
+                fontSize = 16,
+                halign = "left",
+                click = function()
+                    modifier.modes = modifier:try_get("modes", {})
+                    modifier.modes[#modifier.modes+1] = { name = string.format("Mode %d", #modifier.modes+1) }
+                    Refresh()
+                end,
+            }
+
+            element.children = children
+        end
+
+        Refresh()
+    end,
+}

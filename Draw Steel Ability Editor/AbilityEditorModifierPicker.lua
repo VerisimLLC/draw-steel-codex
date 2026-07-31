@@ -263,6 +263,11 @@ local MODIFIER_METADATA = {
     },
 
     -- Monster Specific
+    monstermodes = {
+        description = "Give the monster multiple modes (e.g. before/after its True Name is spoken); other modifiers gate on Monster Mode.",
+        tags = {"mode", "modes", "monster", "stance", "true name"},
+        group = "monster",
+    },
     modrider = {
         description = "Modify mount-rider configurations.",
         tags = {"mount", "rider", "monster", "modify"},

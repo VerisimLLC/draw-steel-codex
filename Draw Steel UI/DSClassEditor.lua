@@ -18,7 +18,14 @@ local g_validFeatureTypes = {
 }
 
 local IsCharacterFeatureType = function(item)
-	return item ~= nil and g_validFeatureTypes[item.typeName] == true
+	-- The internal clipboard is a single app-wide value which can legitimately hold a
+	-- scalar (e.g. GoblinScriptEditor's "Copy" copies a numeric result value), so we
+	-- can only index it after checking it is indexable.
+	local t = type(item)
+	if t ~= "table" and t ~= "userdata" then
+		return false
+	end
+	return g_validFeatureTypes[item.typeName] == true
 end
 
 -- Class/ancestry editor search filter. The shared Search.MatchesObject caps its
@@ -157,7 +164,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 
 			rightClick = function(element)
 				local clipboardItem = dmhub.GetInternalClipboard()
-				if clipboardItem ~= nil then
+				if type(clipboardItem) == "table" then
 					clipboardItem.guid = dmhub.GenerateGuid()
 				end
 
@@ -386,7 +393,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		rightClick = function(element)
 
 			local clipboardItem = dmhub.GetInternalClipboard()
-			if clipboardItem ~= nil then
+			if type(clipboardItem) == "table" then
 				clipboardItem.guid = dmhub.GenerateGuid()
 			end
 

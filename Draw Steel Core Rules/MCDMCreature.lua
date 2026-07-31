@@ -7239,6 +7239,12 @@ end)
 -- panel (TacPanel.MonsterMode in MCDMCharacterPanel.lua), which only shows for
 -- creatures that have a monstermodes modifier.
 --
+-- Squad rule (designer-specified): changing the mode on a minion in a minion
+-- squad changes the mode of every minion in that squad -- a squad acts as a
+-- single unit. Only that squad is affected (not other squads of the same
+-- monster type), and never the captain, who changes modes independently. See
+-- creature.GetMonsterModeChangeTokens.
+--
 -- Limitation (by design): one mode dimension per monster. A monster cannot have
 -- e.g. tactical stances AND true-name modes at the same time; the first active
 -- monstermodes modifier wins.
@@ -7289,6 +7295,41 @@ end
 --- @param mode number
 function creature:SetMonsterMode(mode)
     self.monsterMode = mode
+end
+
+--- The tokens whose monster mode changes together when tok's mode is set.
+--- Mode changes on a minion in a squad are squad-wide by design (a squad acts
+--- as a single unit), so for a squad minion this is the minion plus every
+--- other minion in its squad. The captain is a non-minion and is never
+--- included; a captain's own mode changes independently. Squadmates that do
+--- not declare a mode at the target index are skipped. For a non-minion, or a
+--- minion with no squad, this is just tok.
+--- @param tok CharacterToken
+--- @param mode number The target mode (1-based).
+--- @return CharacterToken[]
+function creature.GetMonsterModeChangeTokens(tok, mode)
+    local result = {tok}
+
+    local props = tok.properties
+    if props == nil or (not props.minion) then
+        return result
+    end
+
+    local squad = props:MinionSquad()
+    if squad == nil then
+        return result
+    end
+
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.charid ~= tok.charid and other.properties ~= nil and other.properties.minion and other.properties:MinionSquad() == squad then
+            local modes = other.properties:GetMonsterModes()
+            if modes ~= nil and mode <= #modes then
+                result[#result+1] = other
+            end
+        end
+    end
+
+    return result
 end
 
 GameSystem.RegisterGoblinScriptField{

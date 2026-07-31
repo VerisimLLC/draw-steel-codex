@@ -2167,7 +2167,11 @@ function GameHud.CreateEmbeddedRollDialog()
                 if token ~= nil then
                     local tokenTriggers = token.properties:GetAvailableTriggers() or {}
                     local tokenTrigger = tokenTriggers[trigger.id]
-                    if tokenTrigger ~= nil and tokenTrigger.triggered ~= trigger.triggered then
+                    --retargetid is part of the change detection: a trigger whose
+                    --new target is chosen AFTER activation (e.g. a trigger-before
+                    --flow like Devilish Charm tier 1) updates retargetid without
+                    --flipping triggered, and that change must still sync.
+                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.retargetid ~= trigger.retargetid) then
                         trigger.triggered = tokenTrigger.triggered
                         trigger.retargetid = tokenTrigger.retargetid
                         trigger.dismissed = tokenTrigger.dismissed
@@ -3177,7 +3181,15 @@ function GameHud.CreateEmbeddedRollDialog()
                         if triggeredModifier then
                             local token = dmhub.GetTokenById(mod.modifier._tmp_triggerCharid)
                             if token ~= nil then
-                                text = string.format("%s (%s)", text, token.name)
+                                --token.name can be nil (e.g. locally-spawned tokens);
+                                --fall back to description rather than showing "(nil)".
+                                local tokenName = token.name
+                                if tokenName == nil or tokenName == "" then
+                                    tokenName = token.description
+                                end
+                                if tokenName ~= nil and tokenName ~= "" then
+                                    text = string.format("%s (%s)", text, tokenName)
+                                end
                             end
                         else
                             --resource usage gets an availability description.
@@ -3523,7 +3535,15 @@ function GameHud.CreateEmbeddedRollDialog()
                         if triggeredModifier then
                             local token = dmhub.GetTokenById(mod.modifier._tmp_triggerCharid)
                             if token ~= nil then
-                                text = string.format("%s (%s)", text, token.name)
+                                --token.name can be nil (e.g. locally-spawned tokens);
+                                --fall back to description rather than showing "(nil)".
+                                local tokenName = token.name
+                                if tokenName == nil or tokenName == "" then
+                                    tokenName = token.description
+                                end
+                                if tokenName ~= nil and tokenName ~= "" then
+                                    text = string.format("%s (%s)", text, tokenName)
+                                end
                             end
                         else
                             local availability = mod.modifier:DescribeResourceAvailability(creature,

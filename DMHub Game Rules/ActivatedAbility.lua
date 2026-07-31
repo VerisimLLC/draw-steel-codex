@@ -3970,6 +3970,9 @@ function ActivatedAbilityBehavior:DescribeRoll(casterCreature, ability, options)
 	return dmhub.EvalGoblinScript(self.roll, casterCreature:LookupSymbol((options or {}).symbols), "Ability or spell roll")
 end
 
+--optional message posted to the chat/action log when this behavior heals a nonzero amount.
+ActivatedAbilityHealBehavior.chatMessage = ""
+
 function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, options)
 
     --filter out any targets that cannot heal.
@@ -4029,6 +4032,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 			finished = true
             ability:CommitToPaying(casterToken, options)
 			options.symbols.cast.healroll = rollInfo.total
+			local totalHealed = 0
 			for i,target in ipairs(targets) do
 				local targetCreature = target.token.properties
 				for catName,value in pairs(rollInfo.categories) do
@@ -4049,6 +4053,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 					}
 
 					options.symbols.cast.healing = options.symbols.cast.healing + healAmount
+					totalHealed = totalHealed + healAmount
 
 					local overheal = math.max(0, healAmount - damageBefore)
 					local healParams = {
@@ -4076,6 +4081,25 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 						healParams.overheal = overheal
 					end
 					track("healing_done", healParams)
+				end
+			end
+
+			--optional chat note, only when we actually healed something.
+			--<<total>> in the message is replaced with the total stamina actually regained.
+			if totalHealed > 0 and self:try_get("chatMessage", "") ~= "" then
+				local msg = string.gsub(self.chatMessage, "<<total>>", tostring(totalHealed))
+				--Post an action-log card showing the healed creature and amount.
+				--tokenMessages on the cast card only render as hover tooltips (and
+				--not at all for the caster), so this is the visible record.
+				chat.SendCustom(HealChatMessage.new{
+					tokenid = targets[1].token.charid,
+					amount = totalHealed,
+					text = msg,
+				})
+				--Also surface the note on the cast's action-log card (no-op when the
+				--cast has no card, e.g. Hidden helper abilities).
+				for _,target in ipairs(targets) do
+					ability.RecordTokenMessage(target.token, options, msg)
 				end
 			end
 

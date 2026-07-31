@@ -4971,12 +4971,18 @@ function TacPanel.MonsterMode()
                             return
                         end
 
-                        tok:ModifyProperties{
-                            description = tr("Set Monster Mode"),
-                            execute = function()
-                                tok.properties:SetMonsterMode(i)
-                            end,
-                        }
+                        --a squad minion's mode change applies to its whole
+                        --squad (never the captain); one combined undo step.
+                        local squadToks = creature.GetMonsterModeChangeTokens(tok, i)
+                        for _,squadTok in ipairs(squadToks) do
+                            squadTok:ModifyProperties{
+                                description = tr("Set Monster Mode"),
+                                combine = true,
+                                execute = function()
+                                    squadTok.properties:SetMonsterMode(i)
+                                end,
+                            }
+                        end
 
                         element:FireEvent("refreshCharacter", tok)
                     end,

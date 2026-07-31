@@ -1701,6 +1701,12 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         dmhub.Debug(string.format("SUMMON:: CHOICES: %d", #choices))
         if #choices == 0 then
+            --Abandoning the summon must stop the whole cast: args.targets still
+            --holds the pre-summon target list (for a self-targeted ability that
+            --is the caster), and later behaviors -- e.g. Remove Creature --
+            --must not run against it. Same guard on every abandonment return
+            --below.
+            args.stopProcessing = true
             return
         end
 
@@ -1727,6 +1733,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
             local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame, offerAllSame = true }
             chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
             if chosenOption == nil then
+                --abandoned: stop the whole cast (see the guard note above).
+                args.stopProcessing = true
                 return
             end
             if dialogOptions.allSame then
@@ -1765,6 +1773,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         dmhub.Debug(string.format("SUMMON:: %s", json(numSummons)))
         if numSummons == nil or numSummons <= 0 then
+            --abandoned: stop the whole cast (see the guard note above).
+            args.stopProcessing = true
             return
         end
 
@@ -1851,6 +1861,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 local dialogOptions = { index = j, numSummons = numSummons, allCreaturesTheSame = self.allCreaturesTheSame }
                 chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
                 if chosenOption == nil then
+                    --abandoned: stop the whole cast (see the guard note above).
+                    args.stopProcessing = true
                     return
                 end
 
@@ -1872,6 +1884,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                         local dialogCount = shared and numSummons or 1
                         squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
                         if squadResult == nil then
+                            --abandoned: stop the whole cast (see the guard note above).
+                            args.stopProcessing = true
                             return
                         end
                         if shared then
@@ -1929,6 +1943,11 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                             autoPlaceSummons = true
                         else
                             --user cancelled; stop placing further summons but keep what's already there.
+                            --If nothing has been summoned at all this is a full abandonment:
+                            --stop the whole cast (see the guard note above).
+                            if #summonedTokens == 0 and #allSummonedTokens == 0 then
+                                args.stopProcessing = true
+                            end
                             break
                         end
                     end
@@ -1969,6 +1988,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                         local dialogCount = shared and numSummons or 1
                         squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
                         if squadResult == nil then
+                            --abandoned: stop the whole cast (see the guard note above).
+                            args.stopProcessing = true
                             return
                         end
                         if shared then

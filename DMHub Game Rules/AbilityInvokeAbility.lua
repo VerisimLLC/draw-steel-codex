@@ -463,7 +463,34 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         end
 
                         print("Invoke:: Execute...")
-                        local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
+                        --invokeOnCaster: in a squad coordinated strike the "caster" for THIS
+                        --target's invoke is the main minion for that creature (invokeSource,
+                        --computed above via MainAttackerForTarget), not the cast's lead minion.
+                        --Without squad pairing invokeSource IS casterToken, so this is a no-op.
+                        --
+                        --When the behavior's applyto is "caster" or "caster_including_squad",
+                        --ApplyToTargets has already resolved each entry in `targets` to the
+                        --caster-side token that should act (the per-unique-target main
+                        --attackers, or each squad member). That token IS the intended caster
+                        --of the invoke: re-deriving it via MainAttackerForTarget would look
+                        --the minion up on the target side of targetPairs, find nothing, and
+                        --fall back to the cast lead -- making the lead cast every copy. For
+                        --a non-squad caster both values equal casterToken, so this is a
+                        --no-op there. Deliberately NOT applied to the other caster_* mappings
+                        --(caster_summoner, caster_companion, caster_riders, caster_minions,
+                        --caster_and_targets): for those the mapped token is a DIFFERENT
+                        --creature than the caster, and invokeOnCaster keeps its meaning of
+                        --"the caster casts it, once per mapped creature".
+                        local invokerToken
+                        if self.invokeOnCaster then
+                            if self.applyto == "caster" or self.applyto == "caster_including_squad" then
+                                invokerToken = target.token
+                            else
+                                invokerToken = invokeSource
+                            end
+                        else
+                            invokerToken = target.token
+                        end
                         self.ExecuteInvoke(invokeSource, abilityClone, invokerToken, self.targeting, symbols, options)
                     end
                 end

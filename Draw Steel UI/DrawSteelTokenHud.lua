@@ -319,6 +319,15 @@ TokenHud.RegisterPanel{
                 if token.properties.minion and token.properties:has_key("_tmp_minionSquad") then
                     local squad = token.properties._tmp_minionSquad
                     local death = (not squad.damage_time_pending) and squad.damage_taken >= squad.health_single
+
+                    --Traits like Group Appetite: minions never die to ordinary band
+                    --damage, and their real deaths (acid/fire pool-zeroing, ending
+                    --their turn at 0) are fully automated by triggers - never offer
+                    --the manual death-confirmation skull, it reads to players as a
+                    --death being owed.
+                    if death and (token.properties:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0 then
+                        death = false
+                    end
                     local death_overflows = squad.damage_taken >= (squad.num_recently_damaged+1) * squad.health_single
                     local is_direct_target = token.properties.minionDamageTime == squad.damage_time
                     local has_direct_targets = squad.num_recently_damaged > 0

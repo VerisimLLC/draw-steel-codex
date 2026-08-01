@@ -136,6 +136,59 @@ function ResourceChatMessage:Undo(message)
     message:UploadProperties(self)
 end
 
+--- @class HealChatMessage
+--- @field tokenid string
+--- @field amount number
+--- @field text string
+HealChatMessage = RegisterGameType("HealChatMessage")
+
+HealChatMessage.tokenid = ""
+HealChatMessage.amount = 0
+HealChatMessage.text = ""
+
+--- Gets the token for this message.
+--- @return nil|CharacterToken
+function HealChatMessage:GetToken()
+    return dmhub.GetCharacterById(self.tokenid)
+end
+
+function HealChatMessage.Render(selfInput, message)
+    local token = selfInput:GetToken()
+    if token == nil or (not token.valid) then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = string.format("Regained %d Stamina", selfInput.amount),
+    }
+
+    local reasonLabel = nil
+    if selfInput.text ~= "" then
+        reasonLabel = gui.Label{
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+            text = selfInput.text,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, reasonLabel},
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+end
+
 ActivatedAbilityReplenishBehavior.summary = 'Replenish Resources'
 ActivatedAbilityReplenishBehavior.mode = 'replenish'
 ActivatedAbilityReplenishBehavior.quantity = '1'

@@ -279,6 +279,13 @@ ActivatedAbilityCast.helpSymbols = {
             "Any Target Has(\"Mark\", Triggerer)",
         },
     },
+
+    targetsadjacent = {
+        name = "Targets Adjacent",
+        type = "boolean",
+        desc = "True if this cast currently has two or more targets and every pair of targets is adjacent to each other (within 1 square, accounting for the full space occupied by larger tokens). False if the cast has fewer than two targets.",
+        examples = {"Cast.TargetCount = 2 and Cast.TargetsAdjacent"},
+    },
 }
 
 ActivatedAbilityCast.lookupSymbols = {
@@ -525,6 +532,50 @@ ActivatedAbilityCast.lookupSymbols = {
 
 		return result
 	end,
+
+    -- True if this cast has 2 or more targets and every pair of targets is
+    -- adjacent (within 1 square, using token:Distance which accounts for the
+    -- full space occupied by multi-square tokens). Works for creature and
+    -- object targets alike; a target whose token has despawned falls back to
+    -- its recorded loc, and a target with neither a live token nor a loc is
+    -- skipped. Returns false when fewer than 2 measurable targets remain.
+    targetsadjacent = function(c)
+        local points = {}
+        for _, target in ipairs(c:try_get("targets", {})) do
+            if target.token ~= nil and target.token.valid then
+                points[#points+1] = { token = target.token }
+            elseif target.loc ~= nil then
+                points[#points+1] = { loc = target.loc }
+            end
+        end
+
+        if #points < 2 then
+            return false
+        end
+
+        for i = 1, #points-1 do
+            for j = i+1, #points do
+                local a = points[i]
+                local b = points[j]
+                local dist
+                if a.token ~= nil and b.token ~= nil then
+                    dist = a.token:Distance(b.token)
+                elseif a.token ~= nil then
+                    dist = a.token:Distance(b.loc)
+                elseif b.token ~= nil then
+                    dist = b.token:Distance(a.loc)
+                else
+                    dist = a.loc:DistanceInTiles(b.loc)
+                end
+
+                if dist == nil or dist > 1 then
+                    return false
+                end
+            end
+        end
+
+        return true
+    end,
 
 	spacesmoved = function(c)
 		return c.spacesMoved

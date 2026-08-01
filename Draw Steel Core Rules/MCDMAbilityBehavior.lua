@@ -98,9 +98,18 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 -- Cast.Memory("StartX") set by an earlier RememberBehavior.
                 local ruleSymbols = table.shallow_copy(options.symbols or {})
                 ruleSymbols.target = GenerateSymbols(target.token.properties)
-                local rule = StringInterpolateGoblinScript(self.rule, casterToken.properties:LookupSymbol(ruleSymbols))
+                --For applyto=caster, ApplyToTargets has already mapped each squad
+                --coordinated-strike target to its main attacker (the first minion
+                --to attack that creature); that minion is the actor for caster-pass
+                --rules like "shift 1", not the cast's lead minion. Without squad
+                --pairing the mapped target IS the caster, so this is a no-op.
+                local commandCaster = casterToken
+                if self.applyto == "caster" then
+                    commandCaster = target.token
+                end
+                local rule = StringInterpolateGoblinScript(self.rule, commandCaster.properties:LookupSymbol(ruleSymbols))
                 --print("INTERPOLATE::", self.rule, "->", rule)
-                self:ExecuteCommand(ability, casterToken, target.token, options, rule)
+                self:ExecuteCommand(ability, commandCaster, target.token, options, rule)
             end
         end
     until promptWhenResolving == false or targetChoices == nil or #targetChoices == 0
@@ -162,6 +171,17 @@ local function InvokeAbility(ability, abilityClone, targetToken, casterToken, op
     abilityClone.keywords = ability.keywords
     abilityClone.notooltip = true
     abilityClone.skippable = true
+
+    --The parent's keywords are copied above, so an invoke from a Strike (e.g. a
+    --minion signature's "shift 1" effect) carries the "Strike" keyword. If the
+    --creature casting the invoked ability is a minion in a squad, that makes
+    --UsesSquadCoordination/UsesSquadStrike fire on the clone, and GetNumTargets
+    --multiplies the target count by the squad's minion count -- the action bar
+    --then waits for N destination spaces ("1/4 targets") instead of 1. Invoked
+    --effect abilities (shift, teleport, etc.) are always per-creature, never
+    --squad-coordinated, so opt out explicitly. Same fix as the forced-movement
+    --pattern's abilityAttr.disableSquadCoordination below.
+    abilityClone.disableSquadCoordination = true
 
     local casting = false
 

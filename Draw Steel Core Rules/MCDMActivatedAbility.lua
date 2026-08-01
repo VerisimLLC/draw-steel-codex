@@ -1216,7 +1216,11 @@ function ActivatedAbility:Render(options, params)
     end
 
     local description = self.description
-    if description ~= "" and self:try_get("implementation", 3) ~= 3 and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(description) ~= true then
+    --Display twin of the tier-append gate in MCDMAbilityRollBehavior: below
+    --Silver, a description that does NOT parse as a rule is dimmed to signal it
+    --will not execute. At Silver and above the effect is implemented with
+    --explicit behaviors, so the description is normal prose -- never dimmed.
+    if description ~= "" and self:try_get("implementation", 3) < gui.ImplementationStatus.Silver and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(description) ~= true then
         description = string.format("<alpha=#55>%s<alpha=#ff>", description)
     end
 
@@ -2938,9 +2942,12 @@ local g_prevTargetingRays = nil
 
 -- Explicit player locks: minion->target hard commitments set by the action
 -- bar (click a squad minion, then a target). Entries are {a = minionTokenId,
--- b = targetTokenId}, newest first, so the most recent lock on a creature
--- claims its first slot and becomes its main attacker (see
--- ActivatedAbilityCast:MainAttackerForTarget). One lock per minion.
+-- b = targetTokenId}, oldest first, so the FIRST minion locked onto a
+-- creature claims its first slot and becomes its main attacker (see
+-- ActivatedAbilityCast:MainAttackerForTarget) -- the one that makes the
+-- power roll and receives caster-side effects. Later locks on the same
+-- creature gang up as extra attackers. One lock per minion; re-locking a
+-- minion moves its entry to the end (its new choice is the newest).
 -- Cleared by the action bar at targeting start and cancel.
 --- @type {a: string, b: string}[]
 local g_squadLocks = {}
@@ -2949,12 +2956,13 @@ local g_squadLocks = {}
 -- minion. Returns the number of locks now aimed at targetToken so the UI can
 -- make sure the target has a slot per lock.
 function ActivatedAbility.LockSquadTargetingPair(minionToken, targetToken)
-    local newLocks = { { a = minionToken.id, b = targetToken.id } }
+    local newLocks = {}
     for _, lock in ipairs(g_squadLocks) do
         if lock.a ~= minionToken.id then
             newLocks[#newLocks + 1] = lock
         end
     end
+    newLocks[#newLocks + 1] = { a = minionToken.id, b = targetToken.id }
     g_squadLocks = newLocks
 
     local count = 0

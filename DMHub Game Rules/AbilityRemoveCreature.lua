@@ -337,7 +337,22 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             if target.token.properties:IsMonster() then
                 target.token.despawned = true
             else
-                charids[#charids+1] = target.token.charid
+                --Never hard-delete a player's hero: game.DeleteCharacters
+                --bypasses the engine's despawn-instead-of-delete guard for
+                --owned characters (GameLua passes deletePlayerChars=true), so
+                --a hero fed through it loses its character record entirely. A
+                --hero can end up targeted here via cast target-list bugs
+                --(report H5EEEYHX: cancelling Explosive Parade's summon step
+                --left the self-targeted caster in the list). Owned,
+                --non-summoned heroes despawn instead, mirroring the engine
+                --guard; summons (summonerid set) still delete as before.
+                local ownerId = target.token.ownerId or ""
+                local summonerid = target.token.summonerid or ""
+                if ownerId ~= "" and summonerid == "" then
+                    target.token.despawned = true
+                else
+                    charids[#charids+1] = target.token.charid
+                end
             end
         end
 

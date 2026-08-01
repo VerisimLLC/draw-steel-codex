@@ -1273,7 +1273,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local m_canceled = false
 
     local tiers = DeepCopy(self.tiers)
-    if ability.description ~= "" and ability:try_get("implementation", 3) ~= 3 and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
+    --Below Silver, a rule-parseable description (the ability's "Effect:" line) is
+    --auto-appended to every tier so it executes as part of the roll -- the
+    --auto-parse IS the implementation at that level. At Silver and above the
+    --effect is expected to be implemented with explicit behaviors, so appending
+    --would execute it twice (confirmed live with the Devil Scrivener's "shift 1"
+    --at Gold-eligible settings). Gate is < Silver, not ~= Silver.
+    if ability.description ~= "" and ability:try_get("implementation", 3) < gui.ImplementationStatus.Silver and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
         --append the rule to the tiers if it is a valid rule that could
         --appear on a power roll.
         for i=1,#tiers do

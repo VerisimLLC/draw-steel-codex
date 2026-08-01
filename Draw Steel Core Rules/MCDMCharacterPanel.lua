@@ -5984,9 +5984,12 @@ function TacPanel.Features()
     --forced open + locked, and hidden entirely when nothing matches.
     local function buildFlatGroupShell(bid)
         local body = buildChipBody()
-        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", hmargin = 4 }
+        --halign is explicit on both children: a horizontal-flow child with no
+        --alignment centers itself in the run, which only shows outside the dock
+        --(the icon rail's panel windows) where no ancestor supplies one.
+        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", halign = "left", hmargin = 4 }
         local titleLabel = gui.Label{
-            width = "auto", height = "auto", valign = "center",
+            width = "auto", height = "auto", valign = "center", halign = "left",
             fontSize = 12, bold = true, color = "@fg", text = "",
         }
         local header = gui.Panel{
@@ -6034,9 +6037,9 @@ function TacPanel.Features()
     --name; toggles in place via m_expandedLevels[lvl]; forced open while filtering.
     local function buildLevelShell(lvl)
         local body = buildChipBody()
-        local arrow = gui.CollapseArrow{ width = 9, height = 9, valign = "center", hmargin = 4 }
+        local arrow = gui.CollapseArrow{ width = 9, height = 9, valign = "center", halign = "left", hmargin = 4 }
         local titleLabel = gui.Label{
-            width = "auto", height = "auto", valign = "center",
+            width = "auto", height = "auto", valign = "center", halign = "left",
             fontSize = 11, color = "@fgMuted", text = "",
         }
         local header = gui.Panel{
@@ -6088,9 +6091,9 @@ function TacPanel.Features()
             width = "100%", height = "auto", flow = "vertical", lmargin = 4,
             data = { levelCache = {} },
         }
-        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", hmargin = 4 }
+        local arrow = gui.CollapseArrow{ width = 10, height = 10, valign = "center", halign = "left", hmargin = 4 }
         local titleLabel = gui.Label{
-            width = "auto", height = "auto", valign = "center",
+            width = "auto", height = "auto", valign = "center", halign = "left",
             fontSize = 12, bold = true, color = "@fg", text = "",
         }
         local header = gui.Panel{
@@ -8523,8 +8526,13 @@ function TacPanel.Conditions()
     local m_token = nil
 
     -- Add button first
+    --Explicit halign: {iconButton} supplies valign only, and a horizontal-flow
+    --child with no alignment centers itself -- visible outside the dock (the
+    --icon rail's panel windows). This is the row's first child, so without it
+    --every chip after it is displaced too.
     local m_addButton = gui.Button{
         classes = {"addButton"} ,
+        halign = "left",
         press = function(element)
             TacPanel.AddConditionMenu{
                 tokens = {m_token},

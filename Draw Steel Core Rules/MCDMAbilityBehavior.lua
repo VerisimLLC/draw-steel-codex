@@ -1632,6 +1632,22 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
             end
         end
 
+        --Draw Steel stat blocks routinely write a gated clause as an ALTERNATIVE to
+        --the clause right before it: "push 1 or A<[weak] push 3" means push 1
+        --normally, but push 3 *instead* when the target fails the potency. The
+        --gate regex leaves that alternative sitting at the end of head (".. push 1
+        --or "), so without this the resisted branch keeps a dangling "or" and the
+        --failed branch executes BOTH clauses. Split the alternative off head:
+        --keep it when the target resists, drop it when they don't.
+        local headResisted = gateMatch.head
+        local headFailed = gateMatch.head
+        local altMatch = regex.MatchGroups(gateMatch.head, "^(?<prefix>.*;\\s*)?(?<alt>[^;]*?) or $")
+        if altMatch ~= nil then
+            local prefix = altMatch.prefix or ""
+            headResisted = prefix .. (altMatch.alt or "")
+            headFailed = prefix
+        end
+
         local result = resistanceValue >= gate
         if result then
 
@@ -1640,13 +1656,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
             end
 
             --resisted don't do the gated part, but keep anything after the semicolon.
-            rule = gateMatch.head .. (gateMatch.rest or "")
+            rule = headResisted .. (gateMatch.rest or "")
         else
             if options.powerRollPass == "target" then
                 ability.RecordTokenMessage(targetToken, options, string.format("Did not resist potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
             end
             --did not resist.
-            rule = gateMatch.head .. gateMatch.tail .. (gateMatch.rest or "")
+            rule = headFailed .. gateMatch.tail .. (gateMatch.rest or "")
         end
     end
 

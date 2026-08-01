@@ -2,11 +2,11 @@
 LuaCore = {}
 
 --- Color: Examples:
-core.Color('#ff0000'): create a red color.
-core.Color('#00ff00bb'): create a green color that is partly translucent.
-core.Color{ r = 1, g = 0, b = 0 }: creates a red color.
-core.Color{ h = 0.3, s = 0.8, v = 0.8 }: creates a color hue shifted 30%, saturation of 80%, and value of 80%.
-core.Color{ h = 0, s = 0, v = 5 }: creates a super bright white.
+--- core.Color('#ff0000'): create a red color.
+--- core.Color('#00ff00bb'): create a green color that is partly translucent.
+--- core.Color{ r = 1, g = 0, b = 0 }: creates a red color.
+--- core.Color{ h = 0.3, s = 0.8, v = 0.8 }: creates a color hue shifted 30%, saturation of 80%, and value of 80%.
+--- core.Color{ h = 0, s = 0, v = 5 }: creates a super bright white.
 --- @param value string|table
 ---  @return Color
 function LuaCore.Color(value)

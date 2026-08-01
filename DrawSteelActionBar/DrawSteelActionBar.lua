@@ -447,6 +447,19 @@ local SEARCH_REVEAL_RULE = {
     easing = "easeInOutSine",
 }
 
+-- True while the director has the game in respite mode. During a respite the
+-- initiative queue is hidden and its gameMode is "respite" (same check as the
+-- End Respite bar in MCDMInitiativeBar).
+--
+-- Respite activities are hosted by two different drawers depending on this: the
+-- dedicated respite drawer during a respite, and the maneuver drawer outside of
+-- one. Every site that routes them has to read the gate the same way, so they
+-- all call through here.
+local function InRespiteMode()
+    local q = dmhub.initiativeQueue
+    return q ~= nil and q.hidden and q.gameMode == "respite"
+end
+
 -- Which drawer an ability lives in, mirroring the per-type filtering the
 -- "menu" event applies to g_abilities. Returns the drawer's `type` string, or
 -- nil when the ability is not surfaced by any drawer (then the reveal is a
@@ -467,8 +480,13 @@ local function DrawerTypeForAbility(ability)
         return "action"
     end
     if rid == CharacterResource.respiteActivityId then
-        --Respite activities live in their own respite-mode drawer.
-        return "respite"
+        --Respite activities live in their own drawer during a respite, and under
+        --the maneuver drawer outside of one. The novel-ability pip has to follow
+        --them, or a newly gained respite activity would flag a hidden drawer.
+        if InRespiteMode() then
+            return "respite"
+        end
+        return "maneuver"
     end
     if rid == CharacterResource.maneuverResourceId
         or rid == "none"
@@ -1221,10 +1239,11 @@ local function ActionBarDrawer(args)
 
             if args.type == "respite" then
                 --Only show the respite drawer while the game is in respite mode.
-                --During a respite the initiative queue is hidden and its gameMode
-                --is "respite" (same check as the End Respite bar in MCDMInitiativeBar).
-                local q = dmhub.initiativeQueue
-                local inRespite = q ~= nil and q.hidden and q.gameMode == "respite"
+                --Outside of a respite these abilities are still reachable: they
+                --are listed under the maneuver drawer's "Respite Activities"
+                --heading (see the ActionMenu "menu" handler), so this drawer can
+                --stay hidden rather than taking up room on the bar.
+                local inRespite = InRespiteMode()
                 resultPanel:SetClass("hidden", not inRespite)
                 if not inRespite then
                     return
@@ -2634,8 +2653,17 @@ ActionMenu = function()
                     end
                 end
             else
+                --Outside of a respite the respite drawer is hidden, so the
+                --maneuver drawer hosts respite activities instead. The grouping
+                --pass below files them under their own "Respite Activities"
+                --heading, so they read as a separate section rather than as
+                --maneuvers. The filter matches the respite drawer's own above
+                --(everything but "Hidden"), so the same set of abilities shows up
+                --either way -- only the host drawer changes.
+                local includeRespite = args.type == "maneuver" and (not InRespiteMode())
                 for _, ability in ipairs(g_abilities) do
-                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger")) and ability.categorization ~= "Hidden" then
+                    local isRespiteActivity = ability.actionResourceId == CharacterResource.respiteActivityId
+                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger") or (includeRespite and isRespiteActivity)) and ability.categorization ~= "Hidden" then
                         abilities[#abilities + 1] = ability
                     end
                 end

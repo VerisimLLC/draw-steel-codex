@@ -1231,11 +1231,63 @@ function AuraComponent.CreatePropertiesEditor(component)
     }
 end
 
+--Opt-in. When true, casting this ability places its aura in place of any aura the
+--same caster previously placed with the same ability, rather than alongside it.
+--This is the "...until the end of the encounter or you use this ability again"
+--wording. Off by default so no existing ability changes behavior.
+ActivatedAbilityAuraBehavior.replacePrevious = false
+
+--- Removes auras this caster previously placed with this same ability.
+--- Matches on both the ability guid stamped at placement time and the caster id:
+--- the ability guid keeps one aura ability from purging a different one, and the
+--- caster id keeps two creatures using the same ability from purging each other.
+--- Auras placed before sourceAbilityId existed carry no stamp and are left alone.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+function ActivatedAbilityAuraBehavior:RemovePreviousAuras(ability, casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return
+    end
+
+    local abilityid = ability:try_get("guid")
+    if abilityid == nil then
+        return
+    end
+
+    --Collect first, mutate second: RemoveAura mutates the list we are walking.
+    local doomed = {}
+    for _,auraInstance in ipairs(casterToken.properties:try_get("auras", {})) do
+        if auraInstance:try_get("sourceAbilityId") == abilityid and auraInstance:try_get("casterid") == casterToken.id then
+            doomed[#doomed+1] = auraInstance.guid
+        end
+    end
+
+    if #doomed == 0 then
+        return
+    end
+
+    casterToken:ModifyProperties {
+        description = "Replace Aura",
+        execute = function()
+            for _,auraid in ipairs(doomed) do
+                casterToken.properties:RemoveAura(auraid)
+            end
+        end,
+    }
+end
+
 --- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
 --- @param targets table
 --- @param options table
 function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, options)
+    --Purge before placing anything. This lives here rather than in CastOnArea
+    --because one cast can cover several areas (targetAreaList), and purging
+    --per-area would make a multi-area cast delete its own earlier areas.
+    if self:try_get("replacePrevious", false) then
+        self:RemovePreviousAuras(ability, casterToken)
+    end
+
     if options.targetAreaList ~= nil then
         --More than one area was supplied (e.g. a movement trail that diagonal
         --steps split into separate pieces). Create one aura over each area.
@@ -1284,6 +1336,10 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
         local auraInstance = AuraInstance.new {
             guid = guid,
             spellcastingFeature = ability:try_get("spellcastingFeature"),
+            --Stamped so a later cast of this same ability by this same caster can
+            --find and remove this instance (see RemovePreviousAuras). Only read
+            --when the behavior opts in via replacePrevious.
+            sourceAbilityId = ability:try_get("guid"),
             casterid = casterToken.id,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the

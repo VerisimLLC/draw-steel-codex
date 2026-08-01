@@ -339,6 +339,43 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+--Counts the end-of-turn condition clauses in the power table, e.g. the "(eot)" in
+--"M<2 slowed (eot)". Drives both the surge cost and the display condition of effects
+--that upgrade those durations (Shadow Elf's Manifold Piercer).
+--
+--The count is the LARGEST SINGLE TIER's, not the sum across tiers: exactly one tier
+--resolves per power roll, so summing would charge for conditions that never land.
+--A clause covering several conditions ("dazed and slowed (eot)") carries one "(eot)"
+--and so counts once.
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "eotconditions",
+    type = "number",
+    desc = "The number of end-of-turn condition clauses in this ability's power table.",
+    calculate = function(c)
+        local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+        local most = 0
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                for _, entry in ipairs(behavior:try_get("tiers", {})) do
+                    local count = 0
+                    local rest = entry
+                    local match = regex.MatchGroups(rest, pattern)
+                    while match ~= nil do
+                        count = count + 1
+                        rest = match.postfix
+                        match = regex.MatchGroups(rest, pattern)
+                    end
+                    if count > most then
+                        most = count
+                    end
+                end
+            end
+        end
+
+        return most
+    end,
+})
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "hasforcedmovement",
     type = "boolean",

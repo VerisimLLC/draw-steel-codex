@@ -6107,6 +6107,7 @@ function creature:CaptureTeleportOpportunityAttackers(originLoc)
                and (not tok:IsFriend(self))
                and p._tmp_grabbedby ~= ourCharid
                and p:CanUseTriggeredAbilities()
+               and p:CanMakeOpportunityAttacks()
                and tok.loc ~= nil
                and originLoc:DistanceInTiles(tok.loc) <= 1 then
                 result = result or {}
@@ -6135,6 +6136,7 @@ function creature:DispatchTeleportOpportunityAttacks(observers)
            and ourToken.loc:DistanceInTiles(tok.loc) > 1
            and (not tok:IsFriend(self))
            and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
+           and tok.properties:CanMakeOpportunityAttacks()
            and tok.properties:TargetPassesFilter("opportunityattack", self) then
             tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
         end
@@ -6143,6 +6145,17 @@ end
 
 function creature:CanUseTriggeredAbilities()
     return (not self:IsDead()) and self:CalculateNamedCustomAttribute("Cannot Use Triggered Abilities") == 0
+end
+
+--Observer-side gate for opportunity attacks specifically. Deliberately narrower than
+--CanUseTriggeredAbilities, which suppresses EVERY triggered action: a creature carrying
+--the "Cannot Make Opportunity Attacks" custom attribute can still take other triggered
+--actions, and can still take non-OA "moves or shifts away" reactions (the ogre's Swat
+--the Fly, which listens on leaveadjacentorshift) -- it just cannot make an opportunity
+--attack. Call this alongside CanUseTriggeredAbilities anywhere a leaveadjacent dispatch
+--or an opportunity-attack preview is being decided.
+function creature:CanMakeOpportunityAttacks()
+    return self:CalculateNamedCustomAttribute("Cannot Make Opportunity Attacks") == 0
 end
 
 CreatureFilter.Register{
@@ -6384,7 +6397,7 @@ function creature:OnMove(path)
                     local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
 
                     if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
-                        if notImmuneForThisObserver then
+                        if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
                             tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
                         end

@@ -951,6 +951,13 @@ TokenHud.RegisterPanel{
                     return
                 end
 
+                if m_calculationCache.CanMakeOpportunityAttacks == nil then
+                    m_calculationCache.CanMakeOpportunityAttacks = token.properties:CanMakeOpportunityAttacks()
+                end
+                if not m_calculationCache.CanMakeOpportunityAttacks then
+                    return
+                end
+
                 if token.properties._tmp_grabbedby == movingToken.charid then
                     --grabbed tokens will be brought with the grabber.
                     return

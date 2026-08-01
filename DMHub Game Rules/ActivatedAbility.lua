@@ -1833,7 +1833,14 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 
         for _,target in ipairs(options.targets or {}) do
             if target.token ~= nil then
-                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties})
+                --attacker/hasattacker mirror the losehitpoints payload so a
+                --reaction to "a creature targets me with an ability" can reach
+                --the creature that used it (targetType = "attacker", or an
+                --Attacker.X condition). Without these the only symbols are the
+                --ability and its target, so the user of the ability was
+                --unreachable and reactions like "the target makes a strike
+                --against me, knock them prone" could not be expressed.
+                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties, attacker = casterToken.properties, hasattacker = true})
             end
         end
 	end

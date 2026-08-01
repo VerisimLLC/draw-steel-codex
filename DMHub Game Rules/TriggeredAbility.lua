@@ -131,7 +131,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'target',
 		text = 'Target',
 		condition = function(ability)
-			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.silent
+			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.trigger == "collide" or ability.silent
 		end,
 	},
     {
@@ -476,6 +476,21 @@ TriggeredAbility.triggers = {
                 name = "Pusher",
                 type = "creature",
                 desc = "The creature that pushed us into the object.",
+            },
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature or object on the other side of the collision. On the moving creature's trigger this is what it ran into; on the trigger of a creature that was hit, this is the creature that was moved into it. Only valid if Has Target is true.",
+            },
+            hastarget = {
+                name = "Has Target",
+                type = "boolean",
+                desc = "True if the collision was with a creature or object token. False when the collision was with a wall or terrain, which has no token to expose.",
+            },
+            collidedwith = {
+                name = "Collided With",
+                type = "creaturelist",
+                desc = "Every creature and object on the other side of the collision, for the rare case where more than one was hit at once.",
             },
             withobject = {
                 name = "With Object",

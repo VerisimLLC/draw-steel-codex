@@ -5191,8 +5191,9 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 		local adjustments = {}
 		local sizeDifferenceBonus = 0
 		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
-			local casterSize = casterToken.creatureSizeNumber
-			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved()
+			local isKnockback = ability:IsKnockbackManeuver()
+			local casterSize = casterToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
 			if casterSize > targetSize then
 				sizeDifferenceBonus = 1
 				adjustments[#adjustments+1] = "Big Versus Little: +1"

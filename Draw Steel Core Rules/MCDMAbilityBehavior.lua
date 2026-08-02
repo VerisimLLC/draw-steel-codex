@@ -513,8 +513,9 @@ local g_rulePatterns = {
                         end
                     end
                 end
-                local casterSize = pusherToken.creatureSizeNumber
-                local targetSize = targetToken.properties:CreatureSizeWhenBeingForceMoved()
+                local isKnockback = ability:IsKnockbackManeuver()
+                local casterSize = pusherToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+                local targetSize = targetToken.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
                 if casterSize > targetSize then
                     sizeDifferenceBonus = 1
 

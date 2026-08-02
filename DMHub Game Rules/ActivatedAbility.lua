@@ -2262,6 +2262,11 @@ local function DestroyLineOfSight(options)
     options.markLineOfSight = nil
 end
 
+--Removes a cast's red targeting arrows. options.markLineOfSight can be one
+--marker or a table of them, and destroying twice is safe. Other files should
+--call this instead of destroying markers by hand.
+ActivatedAbility.DestroyLineOfSight = DestroyLineOfSight
+
 function ActivatedAbility:RecordAbilityUsage(casterToken, options)
     if not casterToken.valid then return end
     local params = {

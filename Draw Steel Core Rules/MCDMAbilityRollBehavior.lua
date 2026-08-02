@@ -1467,6 +1467,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     while m_canceled == false and m_result.total == nil do
         coroutine.yield(0.1)
 
+        --If the dialog is gone or now showing a different roll, our callbacks
+        --will never fire and this loop would spin forever, leaving the red
+        --targeting arrows stuck on the map. Bail out as a cancel so the cast
+        --finishes and cleans them up.
+        if (not dialog.valid) or rollKey == nil or dialog.data.rollid ~= rollKey then
+            m_canceled = true
+        end
+
         if g_activeRollPanel ~= nil and g_activeRollPanel.valid and g_activeRoll.guid == rollKey and dmhub.HoldAmendableRollOpen ~= nil and dmhub.HoldAmendableRollOpen() and (holdOpenRefreshAt == nil or holdOpenRefreshAt < dmhub.Time()-2) then
             holdOpenRefreshAt = dmhub.Time()
             refreshAtPanel = g_activeRollPanel

@@ -196,6 +196,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
     local isRolledDamage = damage == nil
+    local damageDice = GameSystem.GetDamageDiceInRoll(match.damage)
 
     --Patron damage handling (Acolyte class).
     --The literal token "patron" in tier/rule text is a placeholder for the
@@ -340,7 +341,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, damagedice = damageDice, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
 
                     --Damage halved away by (half) power-roll modifiers counts as

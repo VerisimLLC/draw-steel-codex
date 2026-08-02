@@ -157,6 +157,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 
         local rollStr = dmhub.EvalGoblinScript(targetGroup.roll, casterToken.properties:LookupSymbol(symbols), string.format("Damage roll for %s", ability.name))
         local isRolledDamage = not dmhub.IsRollDeterministic(rollStr)
+        local damageDice = GameSystem.GetDamageDiceInRoll(rollStr)
 		local rollid = nil
         print("ROLL:: SHOW", rollStr)
 
@@ -346,7 +347,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, cast = options.symbols.cast, patrondamage = entry.patrondamage})
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, patrondamage = entry.patrondamage})
 								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage, entry.patrondamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end

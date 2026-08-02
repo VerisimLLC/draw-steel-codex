@@ -5525,6 +5525,7 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.rawdamage = info.rawdamage
         eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
         eventArg.damagetype = eventArg.damagetype or "none"
+        eventArg.damagedice = eventArg.damagedice or StringSet.new{}
         eventArg.hasattacker = eventArg.attacker ~= nil
         eventArg.surges = info.surges or 0
         eventArg.edges = 0
@@ -5566,6 +5567,7 @@ function creature.TakeDamage(self, amount, note, info)
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
                 hasrolleddamage = eventArg.hasrolleddamage,
+                damagedice = eventArg.damagedice,
                 --The ActivatedAbilityCast associated with this damage, if any.
                 --hascast lets trigger formulas guard before reading Cast.Tier etc.
                 cast = eventArg.cast,
@@ -5686,6 +5688,7 @@ function creature.TakeDamage(self, amount, note, info)
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
     eventArg.damagetype = eventArg.damagetype or "untyped"
+    eventArg.damagedice = eventArg.damagedice or StringSet.new{}
     eventArg.hasattacker = eventArg.attacker ~= nil
     eventArg.surges = info.surges or 0
     eventArg.edges = 0
@@ -5839,6 +5842,7 @@ function creature.TakeDamage(self, amount, note, info)
             ability = eventArg.ability,
             usedability = eventArg.ability,
             hasrolleddamage = eventArg.hasrolleddamage,
+            damagedice = eventArg.damagedice,
             --The ActivatedAbilityCast associated with this damage, if any.
             --hascast lets trigger formulas guard before reading Cast.Tier etc.
             cast = eventArg.cast,

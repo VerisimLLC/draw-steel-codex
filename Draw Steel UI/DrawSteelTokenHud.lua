@@ -194,14 +194,19 @@ TokenHud.RegisterPanel{
 
                 if triggers ~= nil then
                     local allfree = true
+                    local anyHostile = false
                     for key,value in pairs(triggers) do
-                        if not value:IsFreeTriggeredAbility() then
+                        if value.hostile then
+                            anyHostile = true
+                        elseif not value:IsFreeTriggeredAbility() then
                             allfree = false
-                            break
                         end
                     end
 
-                    element:SetClass("free", allfree)
+                    --Any pending hostile prompt turns the icon red; otherwise
+                    --blue when the (non-hostile) triggers are all free.
+                    element:SetClass("hostile", anyHostile)
+                    element:SetClass("free", (not anyHostile) and allfree)
                 end
 
                 if m_haveTrigger == false and notrigger == false and token.canControl and token.activeControllerId == nil then
@@ -948,6 +953,13 @@ TokenHud.RegisterPanel{
                     m_calculationCache.CanUseTriggeredAbilities = token.properties:CanUseTriggeredAbilities()
                 end
                 if not m_calculationCache.CanUseTriggeredAbilities then
+                    return
+                end
+
+                if m_calculationCache.CanMakeOpportunityAttacks == nil then
+                    m_calculationCache.CanMakeOpportunityAttacks = token.properties:CanMakeOpportunityAttacks()
+                end
+                if not m_calculationCache.CanMakeOpportunityAttacks then
                     return
                 end
 

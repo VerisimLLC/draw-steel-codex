@@ -282,6 +282,22 @@ function ActivatedAbility:RemoveKeyword(keyword)
     self.keywords[keyword] = nil
 end
 
+--- Whether this ability is the Knockback maneuver (or a variant of it, such as
+--- the Elementalist's Practical Magic knockback). Knockback abilities are
+--- identified by firing the BeginKnockback custom trigger. The "Knockback
+--- Caster Size" / "Knockback Target Size" attributes apply only to these
+--- abilities, not to other forced movement.
+--- @return boolean
+function ActivatedAbility:IsKnockbackManeuver()
+    for _, behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityCustomTriggerBehavior" and behavior:try_get("triggerName") == "BeginKnockback" then
+            return true
+        end
+    end
+
+    return false
+end
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "Keywords",
     type = "set",

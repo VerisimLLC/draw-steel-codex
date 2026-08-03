@@ -24,6 +24,12 @@ function GameHud.TokenMoving(self, token, path)
         text = string.format(tr("%s (+%d elevation)"), text, round(altitudeDelta))
     end
 
+    --Predicted collision/fall damage numbers, forwarded to the movement
+    --cross-section diagram (movingPathDamages below) so it draws the same red
+    --"-N" annotations the forced-move targeting labels show on the map.
+    local diagramCollisionDamage = nil
+    local diagramFallDamage = nil
+
     if path.forced then
         if path.collisionSpeed > 0 then
             local collideCreatures = path:GetCreaturesCollidingWith(token)
@@ -31,8 +37,10 @@ function GameHud.TokenMoving(self, token, path)
 
             if collideCreatures == nil or #collideCreatures == 0 then
                 text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles into an object, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed+2)
+                diagramCollisionDamage = path.collisionSpeed + 2
             else
                 text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed)
+                diagramCollisionDamage = path.collisionSpeed
             end
         end
 
@@ -101,7 +109,23 @@ function GameHud.TokenMoving(self, token, path)
             --Green to match the cross-section diagram's "Falls Safely" drop arrow (MovementCrossSection.ColSafeDrop).
             statusText = statusText .. "\n" .. string.format(tr("<color=#4dc74d>Safely drops %d squares.</color>"), path.fallDistance)
         else
-            statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
+            local predicted = token.properties ~= nil and token.properties:PredictedFallDamage(path.fallDistance, path.landsInWater) or 0
+            if predicted > 0 then
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking %d damage.</color>"), path.fallDistance, predicted)
+            else
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
+            end
+        end
+    end
+
+    --Fall-damage number for the cross-section diagram: any damaging end-of-move
+    --fall, INCLUDING forced movement (the red tooltip line above deliberately
+    --excludes forced paths, but the diagram draws their fall arrow and should
+    --number it). Flyers hover rather than fall.
+    if path.fallDistance > 0 and not path.teleport and token.properties ~= nil and not token.properties:CanFly() then
+        local predicted = token.properties:PredictedFallDamage(path.fallDistance, path.landsInWater)
+        if predicted > 0 then
+            diagramFallDamage = predicted
         end
     end
 
@@ -308,5 +332,6 @@ function GameHud.TokenMoving(self, token, path)
 		--(see CreateMovementDiagramPanel in GameHud.lua).
 		movingToken = token,
 		movingPath = path,
+		movingPathDamages = { collision = diagramCollisionDamage, fall = diagramFallDamage },
 	})
 end

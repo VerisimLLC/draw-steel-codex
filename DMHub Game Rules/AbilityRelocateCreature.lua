@@ -528,6 +528,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							hitCreatures[tok.id] = true
 							--see the note on suppressCollisionDamage below.
 							local suppressPassthroughDamage = TargetableObject.TokenSuppressesCollisionDamage(tok)
+							--each side of the collision gets a handle on the other:
+							--the creature passed through sees the mover, the mover
+							--sees the creature it passed through.
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
 								speed = 1,
@@ -537,6 +540,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
+								target = casterToken.properties,
+								hastarget = true,
+								collidedwith = {casterToken.properties},
 							})
 							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 							casterToken.properties:TriggerEvent("collide", {
@@ -547,6 +553,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
+								target = tok.properties,
+								hastarget = true,
+								collidedwith = {tok.properties},
 							})
 						end
 					end
@@ -594,6 +603,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
                 end
 
+                --Expose what was actually hit. The mover sees everything it ran
+                --into; each thing it ran into sees the mover. A wall collision
+                --has an empty collideWith, so hastarget is false there and
+                --Target is left nil rather than pointing at something wrong.
+                local collidedWithProps = {}
+                for _,tok in ipairs(collisionInfo.collideWith or {}) do
+                    collidedWithProps[#collidedWithProps+1] = tok.properties
+                end
+
                 print("TRIGGERCOLLIDE:: objects =", #objectsCollidedWith, collisionInfo.speed, withobject, collisionInfo.collideWith)
                 if casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                     casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
@@ -605,6 +623,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
+                        target = collidedWithProps[1],
+                        hastarget = #collidedWithProps > 0,
+                        collidedwith = collidedWithProps,
                     })
                 end
 
@@ -629,6 +650,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
+                        target = casterToken.properties,
+                        hastarget = true,
+                        collidedwith = {casterToken.properties},
 					})
 				end
 
@@ -669,6 +693,12 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						end
 					end
 
+					--see the note on collidedWithProps above.
+					local bounceCollidedWithProps = {}
+					for _,tok in ipairs(collideWith) do
+						bounceCollidedWithProps[#bounceCollidedWithProps+1] = tok.properties
+					end
+
 					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 					casterToken.properties:TriggerEvent("collide", {
 						speed = collision.speed,
@@ -678,6 +708,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						pusher = options.symbols.invoker,
 						haspusher = options.symbols.invoker ~= nil,
 						movementtype = forcedMovementType,
+						target = bounceCollidedWithProps[1],
+						hastarget = #bounceCollidedWithProps > 0,
+						collidedwith = bounceCollidedWithProps,
 					})
 
 					for _,tok in ipairs(collideWith) do
@@ -690,6 +723,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							pusher = options.symbols.invoker,
 							haspusher = options.symbols.invoker ~= nil,
 							movementtype = forcedMovementType,
+							target = casterToken.properties,
+							hastarget = true,
+							collidedwith = {casterToken.properties},
 						})
 					end
 				end

@@ -24,7 +24,7 @@ MonsterAI:RegisterTactic{
     id = "Aid Attack",
     description = "Monsters using this tactic prefer to attack enemies who their allies are aiding attack on.",
     score = function(self, token, tokenLoc, enemy, ability)
-        if enemy._tmp_ai_aidAttack == true then
+        if enemy.properties._tmp_ai_aidAttack == true then
             return 1
         end
     end,

@@ -3949,7 +3949,7 @@ function gui.AudioEditor(args)
 						local uploadDialog = nil
 						dmhub.OpenFileDialog{
 							id = 'AudioAssets',
-							extensions = {'ogg', 'mp3', 'wav', 'flac'},
+							extensions = {'ogg', 'mp3', 'wav', 'flac', 'm4a'},
 							multiFiles = true,
 							prompt = "Choose audio to load",
 							open = function(path)

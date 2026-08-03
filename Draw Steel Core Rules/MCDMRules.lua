@@ -916,6 +916,7 @@ GameSystem.ActionBarGroupings = {
     ["Abilities"] = 4,
     ["Common Abilities"] = 5,
     ["Triggers"] = 6,
+    ["Respite Activities"] = 7,
 }
 
 function GameSystem.GetAbilityCategoryInfo(category)

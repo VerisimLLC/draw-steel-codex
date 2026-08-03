@@ -618,7 +618,7 @@ end
 
 --Recognised raw audio file extensions. Used only to decide whether a stored
 --description looks like an un-renamed upload filename, for DISPLAY purposes.
-local audioFileExtensions = { "mp3", "ogg", "wav", "flac" }
+local audioFileExtensions = { "mp3", "ogg", "wav", "flac", "m4a" }
 
 --Display name for an asset: strips a recognised file extension (case-insensitive)
 --from the stored description for DISPLAY ONLY -- the stored description itself is
@@ -7121,7 +7121,7 @@ local function DoAudioStudioUpload(category)
 	EnsureCategoryFolder(category, function(folderid)
 	dmhub.OpenFileDialog{
 		id = 'AudioAssets',
-		extensions = {'ogg', 'mp3', 'wav', 'flac'},
+		extensions = {'ogg', 'mp3', 'wav', 'flac', 'm4a'},
 		multiFiles = true,
 		prompt = "Choose audio to load",
 		open = function(path)

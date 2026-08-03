@@ -16,6 +16,10 @@ local mod = dmhub.GetModLoading()
 --- @field subauras nil|Aura[] Optional child aura payloads. Each shares this aura's area, caster,
 --- duration, and removal, but has its own applyto/creatureFilter/modifiers/triggers/terrain flags/
 --- move damage. Child defs never use objectid, icon/display, relocate fields, or nested subauras.
+--- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the aura or starting its turn there (fires through the onenter trigger path as a free triggered action on the creature; see Aura:GetSimplePowerRollTrigger).
+--- @field powerRollBonus number The X in the 2d10 + X power roll.
+--- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+), executed by the Draw Steel command parser.
+--- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
 Aura.TriggerConditions = {
@@ -167,6 +171,289 @@ function Aura:CreaturePassesFilter(c, auraInstance)
     local result = ExecuteGoblinScript(self.creatureFilter, c:LookupSymbol { caster = caster, target = c, aura = auraInstance },
         "Aura Creature Filter")
     return GoblinScriptTrue(result)
+end
+
+--- Builds the synthesized enter/start-of-turn power roll trigger from the simple
+--- power roll fields (powerRollEnabled/powerRollBonus/powerRollTiers), or nil when
+--- disabled, empty, or the power roll behavior type is not loaded. The returned
+--- table is shaped like an entry of Aura.triggers ({trigger, ability}) and the
+--- ability is a free (no action resource), non-mandatory triggered action: it
+--- comes up as a trigger prompt on the creature, and the roll is flagged as an
+--- environment roll so it counts as a roll made AGAINST the creature for power
+--- roll modifiers (their own modifiers do not apply to it).
+--- @return nil|{trigger: string, ability: TriggeredAbility}
+function Aura:GetSimplePowerRollTrigger()
+    if not self:try_get("powerRollEnabled", false) then
+        return nil
+    end
+
+    local rollBehaviorType = rawget(_G, "ActivatedAbilityPowerRollBehavior")
+    if rollBehaviorType == nil then
+        return nil
+    end
+
+    local tiers = self:try_get("powerRollTiers")
+    if tiers == nil then
+        return nil
+    end
+
+    local hasText = false
+    for i = 1, 3 do
+        if trim(tiers[i] or "") ~= "" then
+            hasText = true
+            break
+        end
+    end
+    if not hasText then
+        return nil
+    end
+
+    local bonus = math.floor(tonumber(self:try_get("powerRollBonus", 0)) or 0)
+    local roll
+    if bonus < 0 then
+        roll = string.format("2d10 - %d", -bonus)
+    else
+        roll = string.format("2d10 + %d", bonus)
+    end
+
+    return {
+        trigger = "onenter",
+        ability = TriggeredAbility.Create{
+            name = self.name,
+            trigger = "onenter",
+            targetType = "self",
+            range = 0,
+            radius = 0,
+            silent = true,
+            mandatory = false,
+            environmentRoll = true,
+            iconid = self.iconid,
+            behaviors = {
+                rollBehaviorType.new{
+                    roll = roll,
+                    tiers = {tiers[1] or "", tiers[2] or "", tiers[3] or ""},
+                },
+            },
+        },
+    }
+end
+
+local g_powerRollTierLabels = {"11 or less", "12 - 16", "17 +"}
+
+--Composes a short human-readable summary of tier text validator findings
+--(ActivatedAbilityDrawSteelCommandBehavior.DiagnoseTierText). Copy mirrors the
+--ability editor's diagnostics chips, compressed for an inline label.
+local function ComposePowerRollFindingSummary(findings)
+    local parts = {}
+    for _,finding in ipairs(findings) do
+        if #parts >= 2 then
+            parts[#parts+1] = "..."
+            break
+        end
+        if finding.kind == "damageType_unknown" and finding.token ~= nil then
+            if finding.suggestion ~= nil and finding.suggestion ~= "" then
+                parts[#parts+1] = string.format("Damage type '%s' isn't recognized - did you mean '%s'?", finding.token, finding.suggestion)
+            else
+                parts[#parts+1] = string.format("Damage type '%s' isn't recognized.", finding.token)
+            end
+        elseif finding.kind == "duration_missing" and finding.condition ~= nil then
+            parts[#parts+1] = string.format("Condition '%s' needs a duration - try (save ends), (EoT), or (EoE).", finding.condition)
+        elseif finding.kind == "near_miss" and finding.suggestion ~= nil and finding.segment ~= nil then
+            parts[#parts+1] = string.format("Did you mean '%s' in '%s'?", finding.suggestion, finding.segment)
+        elseif finding.kind == "unknown_segment" and finding.segment ~= nil then
+            parts[#parts+1] = string.format("'%s' isn't read as a rule.", finding.segment)
+        end
+    end
+    return table.concat(parts, " ")
+end
+
+--- Shared editor section for the simple enter/start-of-turn power roll fields.
+--- Used by both the Aura editor (Aura:GenerateEditor) and the Environmental
+--- Keywords compendium editor. Reads/writes powerRollEnabled, powerRollBonus and
+--- powerRollTiers directly on options.obj; options.change (optional) is invoked
+--- after every mutation so the host editor can persist/refresh.
+--- Returns an empty collapsed panel when the Draw Steel power roll machinery is
+--- not loaded (non-DS game systems).
+--- @param options {obj: table, change: nil|fun()}
+--- @return Panel
+function Aura.CreateSimplePowerRollEditor(options)
+    local obj = options.obj
+    local onchange = options.change or function() end
+
+    if rawget(_G, "ActivatedAbilityPowerRollBehavior") == nil then
+        return gui.Panel{ classes = {"collapsed"}, width = 1, height = 1 }
+    end
+
+    local tierPanels = {}
+    for i = 1, 3 do
+        local index = i
+
+        --forward-declare: the input's change handler refreshes this label.
+        local validationLabel
+
+        local UpdateValidation = function()
+            local tiers = obj:try_get("powerRollTiers")
+            local text = ""
+            if tiers ~= nil then
+                text = tiers[index] or ""
+            end
+
+            if trim(text) == "" then
+                validationLabel:SetClass("collapsed", true)
+                return
+            end
+
+            local cmdType = rawget(_G, "ActivatedAbilityDrawSteelCommandBehavior")
+            if cmdType == nil then
+                validationLabel:SetClass("collapsed", true)
+                return
+            end
+
+            local preview = text
+            pcall(function()
+                preview = cmdType.FormatRuleValidation(text)
+            end)
+
+            local findings = {}
+            pcall(function()
+                findings = cmdType.DiagnoseTierText(text) or {}
+            end)
+
+            validationLabel:SetClass("collapsed", false)
+            if #findings == 0 then
+                validationLabel.text = string.format("<color=#79b877>Recognized:</color> %s", preview)
+            else
+                validationLabel.text = string.format("<color=#e0b050>%s</color>\n%s", ComposePowerRollFindingSummary(findings), preview)
+            end
+        end
+
+        validationLabel = gui.Label{
+            classes = {"collapsed"},
+            width = "100%-100",
+            height = "auto",
+            halign = "right",
+            fontSize = 13,
+            textWrap = true,
+            bmargin = 4,
+        }
+
+        tierPanels[#tierPanels+1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+
+                gui.Label{
+                    text = g_powerRollTierLabels[index],
+                    width = 90,
+                    height = "auto",
+                    fontSize = 16,
+                    valign = "center",
+                },
+
+                gui.Input{
+                    text = (obj:try_get("powerRollTiers") or {})[index] or "",
+                    width = "100%-100",
+                    height = 26,
+                    fontSize = 16,
+                    valign = "center",
+                    change = function(element)
+                        local tiers = obj:get_or_add("powerRollTiers", {"", "", ""})
+                        tiers[index] = element.text
+                        UpdateValidation()
+                        onchange()
+                    end,
+                },
+            },
+
+            validationLabel,
+
+            create = function(element)
+                UpdateValidation()
+            end,
+        }
+    end
+
+    local detailsChildren = {
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 4,
+
+            gui.Label{
+                text = "Power Roll: 2d10 +",
+                width = "auto",
+                height = "auto",
+                fontSize = 16,
+                valign = "center",
+            },
+
+            gui.Input{
+                text = tostring(math.floor(tonumber(obj:try_get("powerRollBonus", 0)) or 0)),
+                width = 40,
+                height = 22,
+                fontSize = 16,
+                hmargin = 8,
+                valign = "center",
+                characterLimit = 4,
+                change = function(element)
+                    local num = tonumber(element.text)
+                    if num == nil then
+                        element.text = tostring(math.floor(tonumber(obj:try_get("powerRollBonus", 0)) or 0))
+                    else
+                        obj.powerRollBonus = math.floor(num)
+                        onchange()
+                    end
+                end,
+            },
+        },
+
+        gui.Label{
+            text = "A power roll made against any creature that enters the area or starts its turn there. It appears as a free triggered action on the creature.",
+            width = "100%",
+            height = "auto",
+            fontSize = 13,
+            bmargin = 4,
+        },
+    }
+
+    for _,tierPanel in ipairs(tierPanels) do
+        detailsChildren[#detailsChildren+1] = tierPanel
+    end
+
+    local detailsPanel = gui.Panel{
+        classes = {cond(obj:try_get("powerRollEnabled", false), nil, "collapsed")},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        lmargin = 20,
+        children = detailsChildren,
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+
+        gui.Check{
+            halign = "left",
+            text = "Power Roll on Enter / Start of Turn",
+            value = obj:try_get("powerRollEnabled", false),
+            change = function(element)
+                obj.powerRollEnabled = element.value
+                detailsPanel:SetClass("collapsed", not element.value)
+                onchange()
+            end,
+        },
+
+        detailsPanel,
+    }
 end
 
 function Aura:GenerateEditor(options)
@@ -533,6 +820,13 @@ function Aura:GenerateEditor(options)
                 end,
                 refreshAura = function(element)
                     element:SetClass("collapsed", self:try_get("movedamage", "none") == "none")
+                end,
+            },
+
+            Aura.CreateSimplePowerRollEditor{
+                obj = self,
+                change = function()
+                    resultPanel:FireEventTree("refreshAura")
                 end,
             },
 
@@ -1231,11 +1525,63 @@ function AuraComponent.CreatePropertiesEditor(component)
     }
 end
 
+--Opt-in. When true, casting this ability places its aura in place of any aura the
+--same caster previously placed with the same ability, rather than alongside it.
+--This is the "...until the end of the encounter or you use this ability again"
+--wording. Off by default so no existing ability changes behavior.
+ActivatedAbilityAuraBehavior.replacePrevious = false
+
+--- Removes auras this caster previously placed with this same ability.
+--- Matches on both the ability guid stamped at placement time and the caster id:
+--- the ability guid keeps one aura ability from purging a different one, and the
+--- caster id keeps two creatures using the same ability from purging each other.
+--- Auras placed before sourceAbilityId existed carry no stamp and are left alone.
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+function ActivatedAbilityAuraBehavior:RemovePreviousAuras(ability, casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return
+    end
+
+    local abilityid = ability:try_get("guid")
+    if abilityid == nil then
+        return
+    end
+
+    --Collect first, mutate second: RemoveAura mutates the list we are walking.
+    local doomed = {}
+    for _,auraInstance in ipairs(casterToken.properties:try_get("auras", {})) do
+        if auraInstance:try_get("sourceAbilityId") == abilityid and auraInstance:try_get("casterid") == casterToken.id then
+            doomed[#doomed+1] = auraInstance.guid
+        end
+    end
+
+    if #doomed == 0 then
+        return
+    end
+
+    casterToken:ModifyProperties {
+        description = "Replace Aura",
+        execute = function()
+            for _,auraid in ipairs(doomed) do
+                casterToken.properties:RemoveAura(auraid)
+            end
+        end,
+    }
+end
+
 --- @param ability ActivatedAbility
 --- @param casterToken CharacterToken
 --- @param targets table
 --- @param options table
 function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, options)
+    --Purge before placing anything. This lives here rather than in CastOnArea
+    --because one cast can cover several areas (targetAreaList), and purging
+    --per-area would make a multi-area cast delete its own earlier areas.
+    if self:try_get("replacePrevious", false) then
+        self:RemovePreviousAuras(ability, casterToken)
+    end
+
     if options.targetAreaList ~= nil then
         --More than one area was supplied (e.g. a movement trail that diagonal
         --steps split into separate pieces). Create one aura over each area.
@@ -1281,9 +1627,28 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             auraArea = auraArea:Grow(grow)
         end
         local guid = dmhub.GenerateGuid()
+
+        --Fold in the effects of any Environmental Keyword this aura names, so a
+        --keyword applied through an ability carries the same mechanics it would
+        --as a painted map zone: concealment, difficult terrain, water, move
+        --damage, entry power roll, and the keyword's modifiers. The merge is
+        --additive, so an aura that already states a flag itself is unchanged.
+        --Sub-auras carry their own keyword, matching their own payload.
+        --EnvironmentalKeyword lives in a later-loading module, hence the
+        --runtime lookup rather than a direct reference.
+        local auraDef = DeepCopy(self.aura)
+        local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+        if environmentalKeywordType ~= nil then
+            environmentalKeywordType.ApplyToAuraTree(auraDef)
+        end
+
         local auraInstance = AuraInstance.new {
             guid = guid,
             spellcastingFeature = ability:try_get("spellcastingFeature"),
+            --Stamped so a later cast of this same ability by this same caster can
+            --find and remove this instance (see RemovePreviousAuras). Only read
+            --when the behavior opts in via replacePrevious.
+            sourceAbilityId = ability:try_get("guid"),
             casterid = casterToken.id,
             --snapshot the caster's party allegiance so an aura that persists past the
             --caster's death (aliveafterdeath) can still tell friend from foe after the
@@ -1298,7 +1663,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             duration = self:try_get("duration", "none"),
             symbols = symbols,
             aliveafterdeath = self:try_get("aliveafterdeath"),
-            aura = DeepCopy(self.aura),
+            aura = auraDef,
         }
 
         if auraInstance.duration == "endnextturn" then

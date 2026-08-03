@@ -349,13 +349,113 @@ captain, grouped monsters, or a lone monster) and accumulates under
 Monsters tab (`DSVictoryScreen.ComputeMonsterRoles`, debug via `/monsterroles`).
 Full contract in `STATS_TRACKING.md` ("Monster-side tracking").
 
+## The battle log + `encounter_complete` (end of combat)
+
+The per-encounter stats above live inside the initiative queue and are **destroyed
+when combat ends**. `LiveEncounter.CompleteEncounter(outcome, roles)` is what
+harvests them first. It runs once, on the director's client, from the two places
+combat can end:
+
+- `DSVictoryScreen.ProceedEndCombat` — outcome is `"victory"` / `"defeat"`.
+- `PerformEndCombat` in `MCDMInitiativeBar.lua` — outcome is `"ended"`.
+
+It does two things with deliberately different detail:
+
+1. **`BattleLog`** — a permanent, player-visible record appended to the
+   `dsBattleLog` shared document, keyed by the combat's guid
+   (`initiativeQueue.guid`, so a re-record overwrites rather than duplicating).
+   This is the reviewable campaign history. Read it with
+   `BattleLog.GetBattles()` (newest first) / `BattleLog.GetBattle(id)`, monitor it
+   with `BattleLog.GetDocPath()`, wipe it with `BattleLog.Clear()`.
+2. **The `encounter_complete` analytics event** — the same header plus the full
+   per-hero stat dump and every seriousness input.
+
+Because the log rides inside `gameDetails` (downloaded in full by every client on
+every game load) it is bounded and trimmed: `BattleLog.maxRecords` (200) prunes
+the oldest, zero-valued stats are omitted (`BattleNonZero` — read them back with
+`or 0`), and anything that exists only for offline reporting is carried in the
+record's `analytics` sub-table, which `CompleteEncounter` **strips before
+storing**. A measured record is ~2KB, so the cap is ~390KB; the numbers are in the
+comment on `maxRecords`.
+
+`BuildBattleRecord` returns `nil` — nothing is logged and no event fires — when
+no blow was struck in either direction. That is what keeps opened-and-closed
+combats and respite/downtime queues (they end through the same path) out of the
+log.
+
+### Seriousness
+
+Every record carries `serious` (boolean) plus `notSerious`, a comma-separated list
+of the checks it failed: `lobby`, `harness`, `users` (fewer than 3 connected),
+`rounds` (< 2), `heroes` (< 2), `monsters` (none), `damage` (none dealt),
+`duration` (< 180s, only checked when the onset time is known), `outcome` (neither
+victory nor defeat awarded). The point of a **reason list** rather than a bare
+boolean is that offline reporting can re-derive the verdict with different
+thresholds — accepting `notSerious == "outcome"`, say — without a client change.
+Every raw input (`usercount`, `onsetUsercount`, `playerCount`, `ownerCount`,
+`players`, round/hero/monster counts, duration) is on the analytics event.
+
+Connected users are sampled at **both** combat start (`LiveEncounter.onsetTimestamp`
+/ `onsetUsercount`, stamped by the first `RecordOnsetHeroes` /
+`RecordOnsetMonsterGroups` and never overwritten) and combat end; the check uses
+the larger, so a player dropping before the director presses Proceed cannot make a
+four-person session look like a solo test.
+
+### `hero_role_fallback` — the "we had nothing for this hero" diagnostic
+
+Every hero now finishes every fight with a title, but not every title is earned.
+Role assignment runs in three passes (see the hero-role section of
+`Draw Steel UI/DSVictoryScreen.lua`), and the role each hero ends up with records
+which pass produced it in `fallback`:
+
+| `fallback` | Pass | Meaning |
+|---|---|---|
+| `nil` | 1 — winners | They topped that role's criteria. Nobody beat them at it. |
+| `"cascade"` | 2 — cascade | A role its winner did not show was offered to its **runner-up** — and only to a runner-up who was best at nothing, so a second-place title can never cost a hero a win, and no title appears twice on one screen. |
+| `"floor"` | 3 — floor | Pacifist / Tourist (dealt no damage) or **Backbone**, the catch-all for everyone else. Between them these cover every hero unconditionally. |
+
+A non-nil `fallback` means the role set had nothing this hero was actually best
+at. Every fight with at least one emits `hero_role_fallback` from
+`TrackHeroRoleFallbacks` in `MCDMEncounter.lua` — the data behind driving those
+fallbacks down by adding roles. It is deliberately **self-contained** (joins to
+`encounter_complete` on `battleid`, but does not need to):
+
+| Field | What |
+|---|---|
+| `fallbackCount`, `cascadeCount`, `floorCount` | The headline. `floorCount` is the number even the cascade could not cover — **the metric to drive to zero**. |
+| `noRoleCount` | Canary. The floor roles cover everyone, so this must always be 0; anything else means that coverage broke. |
+| `fallbackClasses`, `fallbackRoles` | Who fell back and what they were given, as csv. |
+| `fallbacks[]` | Per fallback hero: identity + headline stats, and `eligible[]` — every role they **qualified** for with their `rank` in it and the role's own phrasing of their number. Rank 2 in four roles is a tie-break problem; `eligibleCount == 0` means nothing in the current role set describes what they did at all. |
+| `roleWinners[]` | The rank-1 line of every role that had a qualifier. `awarded` = it was handed out; `cascaded` = its rank-1 hero showed something better and the runner-up inherited it; neither = the fight had no room for it. |
+| `heroes[]` | The whole party's full stat dump (same shape as `encounter_complete`, plus `roleFallback`), for judging a case in context. |
+| `serious`, `notSerious`, `usercount`, `rounds`, ... | The same seriousness verdict and inputs as `encounter_complete`. |
+
+Gating is looser than `serious` on purpose: lobby and harness combats are dropped
+outright, everything else is sent with the verdict attached so reporting filters
+on `serious` itself rather than being starved of cases by the client's
+thresholds. `dailyLimit` is 20.
+
+Computing it here is safe because `CompleteEncounter` runs **before**
+`RecordHeroRoles` bumps the per-hero role history that biases selection, so
+`DSVictoryScreen.ComputeHeroRoleDebugInfo` still reproduces exactly what the
+players were looking at.
+
+### Attribution caveat
+
+Per-hero `ownerId` is the owning player's userid, but it is the string `"PARTY"`
+for party-owned tokens — a very common setup — and parties have **no user
+membership** to resolve against. So `ownerCount` can be 0 for a full party. The
+reliable "who was in this session" is the `players` list (connected non-director
+userids). Attributing a specific hero's stats to a specific user needs either
+individually-owned tokens or a player-side emit.
+
 ### Cross-component wiring
 
 | Layer | File | What |
 |---|---|---|
 | Engine (C#) | `Assets/Scripts/LuaInterface.cs` | `dmhub:IncrementInitiativeData(path, amount)` — builds the absolute `/GameDetails/<gameid>/initiativeQueues/<currentMapId>/<path>` and calls `DataStore.IncrementData`. |
 | Stub | `draw-steel-codex/Definitions/dmhub.lua` | LuaLS signature for `IncrementInitiativeData`. |
-| Rules (Lua) | `Draw Steel Core Rules/MCDMEncounter.lua` | `stats` init in `Create`; `TrackHeroStats` (static, safe), `IncrementStat`, `ResolveStatHero`, `GetStats`, `GetStatsForToken`. |
+| Rules (Lua) | `Draw Steel Core Rules/MCDMEncounter.lua` | `stats` init in `Create`; `TrackHeroStats` (static, safe), `IncrementStat`, `ResolveStatHero`, `GetStats`, `GetStatsForToken`; `BattleLog`, `BuildBattleRecord`, `CompleteEncounter`. |
 
 ## Gotchas & conventions
 

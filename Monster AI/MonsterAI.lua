@@ -543,19 +543,26 @@ function MonsterAI:FindBestMoveToUseBurst(token, ability, scorefn)
     scorefn = scorefn or function() return 1 end
     local range = ability:GetRange(token.properties)
     local bestScore = nil
+    local bestCost = nil
     local bestMove = nil
     local allTokens = dmhub.allTokens
+    local symbols = {mode = 1}
     for _,info in pairs(self.paths) do
         local score = 0
         local destLoc = info.loc
-        for _,targetToken in ipairs(allTokens) do
-            if targetToken ~= token and targetToken:Distance(destLoc) <= range then
-                score = score + scorefn(targetToken)
-            end
-        end
 
-        if bestScore == nil or score > bestScore then
+        token:ExecuteWithTheoreticalLoc(destLoc, function()
+            for _,targetToken in ipairs(allTokens) do
+                if targetToken.valid and targetToken:Distance(token) <= range and ability:TargetPassesFilter(token, targetToken, symbols) then
+                    score = score + scorefn(targetToken)
+                end
+            end
+        end)
+
+        local cost = info.cost or 0
+        if bestScore == nil or score > bestScore or (score == bestScore and cost < bestCost) then
             bestScore = score
+            bestCost = cost
             bestMove = destLoc
         end
     end

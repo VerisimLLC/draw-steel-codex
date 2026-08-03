@@ -22,10 +22,12 @@ end
 --- @field description string Rules text shown to players.
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
 --- @field range number|string|table Targeting range in world units.
+--- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
 --- @field lineDistance number|string|table Length for line-area targeting.
 --- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
+--- @field environmentRoll boolean|nil If true, the ability's power roll is made by the environment: the caster only executes the roll and it counts as a roll made AGAINST them (their own modifiers are excluded; their defensive "rolls against you" modifiers apply even on a self-cast). Set on abilities synthesized by Aura:GetSimplePowerRollTrigger.
 --- @field recharge boolean|number Recharge roll threshold (false = no recharge mechanic).
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
@@ -925,10 +927,19 @@ function ActivatedAbility:DescribeAOE(casterCreature)
 	return '--'
 end
 
---- Returns the token to use as the origin for range calculations (invoker override or caster).
+--- Returns the token to use as the origin for range calculations (explicit token id, invoker override, or caster).
 --- @param token CharacterToken
 --- @return CharacterToken
 function ActivatedAbility:GetRangeSource(token)
+	local rangeOriginTokenId = self:try_get("rangeOriginTokenId")
+	if rangeOriginTokenId ~= nil then
+		local tok = dmhub.GetTokenById(rangeOriginTokenId)
+
+		if tok ~= nil and tok.valid then
+			return tok
+		end
+	end
+
 	if self:has_key("invoker") and self:try_get("rangeUsesInvoker") then
 		local tok = dmhub.LookupToken(self.invoker)
 
@@ -2262,6 +2273,11 @@ local function DestroyLineOfSight(options)
     options.markLineOfSight = nil
 end
 
+--Removes a cast's red targeting arrows. options.markLineOfSight can be one
+--marker or a table of them, and destroying twice is safe. Other files should
+--call this instead of destroying markers by hand.
+ActivatedAbility.DestroyLineOfSight = DestroyLineOfSight
+
 function ActivatedAbility:RecordAbilityUsage(casterToken, options)
     if not casterToken.valid then return end
     local params = {
@@ -2539,9 +2555,22 @@ function CastActivatedAbilityChatMessage.Render(self, message)
         }
     end
 
+    --Build the content list densely: typeLabel and targetsPanel may be nil, and a
+    --nil hole in the array makes CreateActionLogCard's ipairs stop early, leaving
+    --statusLabel (and targetsPanel) created but never attached to a parent -- the
+    --engine leak sweep then destroys them and reports the leak.
+    local cardContent = {abilityLabel}
+    if typeLabel ~= nil then
+        cardContent[#cardContent+1] = typeLabel
+    end
+    cardContent[#cardContent+1] = statusLabel
+    if targetsPanel ~= nil then
+        cardContent[#cardContent+1] = targetsPanel
+    end
+
     local card = CreateActionLogCard{
         token = token,
-        content = {abilityLabel, typeLabel, statusLabel, targetsPanel},
+        content = cardContent,
     }
 
     local resultPanel = gui.Panel{
@@ -5191,8 +5220,9 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 		local adjustments = {}
 		local sizeDifferenceBonus = 0
 		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
-			local casterSize = casterToken.creatureSizeNumber
-			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved()
+			local isKnockback = ability:IsKnockbackManeuver()
+			local casterSize = casterToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
 			if casterSize > targetSize then
 				sizeDifferenceBonus = 1
 				adjustments[#adjustments+1] = "Big Versus Little: +1"

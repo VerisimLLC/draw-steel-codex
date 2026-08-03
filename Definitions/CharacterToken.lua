@@ -61,6 +61,7 @@
 --- @field loc Loc (Read-only) The location the token is at.
 --- @field locsOccupying Loc[] (Read-only) An array of locations the token is occupying. The number of items in this array will be based on the token's creature size.
 --- @field hasConcealment boolean Is true if the token is in a location that has concealment.
+--- @field hasTerrainConcealment boolean Is true if the terrain at the token's location grants concealment by itself, ignoring any concealment contributed by auras or zones.
 --- @field mapid string (Read-only) the id of the map the token is currently on.
 --- @field floorid string (Read-only) the id of the floor the token is currently on.
 --- @field canCurrentlyClimb boolean True if the creature can climb in the current location it is in now.
@@ -114,6 +115,21 @@ end
 --- FindCorpse: Finds the corpse object for this creature
 --- @return any
 function CharacterToken:FindCorpse()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
+--- @param mountToken CharacterToken
+--- @return boolean
+function CharacterToken:ClimbOntoCreature(mountToken)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DismountTo: Get out of the saddle this token is in (on a creature or an object) and stand at loc. Pass a loc at the height of the saddle to have the creature drop from there -- the usual falling rules then apply -- or a loc on the ground for it to climb down safely. When slide is true the token climbs down over the usual movement animation instead of appearing at loc; leave it false for a fall, where the drop is the animation. Returns false if the token was not in a saddle.
+--- @param loc Loc
+--- @param slide nil|boolean
+--- @return boolean
+function CharacterToken:DismountTo(loc, slide)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -278,21 +294,6 @@ end
 --- @param loc Loc
 --- @return Loc[]
 function CharacterToken:LocsOccupyingWhenAt(loc)
-	-- dummy implementation for documentation purposes only
-end
-
---- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
---- @param mountToken CharacterToken
---- @return boolean
-function CharacterToken:ClimbOntoCreature(mountToken)
-	-- dummy implementation for documentation purposes only
-end
-
---- DismountTo: Get out of the saddle this token is in (on a creature or an object) and stand at loc. Pass a loc at the height of the saddle to have the creature drop from there -- the usual falling rules then apply -- or a loc on the ground for it to climb down safely. When slide is true the token climbs down over the usual movement animation instead of appearing at loc; leave it false for a fall, where the drop is the animation. Returns false if the token was not in a saddle.
---- @param loc Loc
---- @param slide nil|boolean
---- @return boolean
-function CharacterToken:DismountTo(loc, slide)
 	-- dummy implementation for documentation purposes only
 end
 

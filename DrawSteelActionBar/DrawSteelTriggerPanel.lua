@@ -87,6 +87,22 @@ mod.shared.passiveTriggerGradient = gui.Gradient{
     }
 }
 
+mod.shared.hostileTriggerGradient = gui.Gradient{
+    type = "radial",
+    point_a = {x = 0.5, y = 0.5},
+    point_b = {x = 1, y = 0.5},
+    stops = {
+        {
+            position = 0,
+            color = "srgb:#570808",
+        },
+        {
+            position = 1,
+            color = "srgb:#2D0C0C",
+        }
+    }
+}
+
 mod.shared.CreateTriggerPanel = function()
 
 	local m_activeTriggerPanels = {}
@@ -661,6 +677,7 @@ mod.shared.CreateTriggerPanel = function()
 
 							local m_ping = trigger.ping
                             local isPassive = trigger.powerRollModifier and trigger.powerRollModifier.type == "passive"
+                            local isHostile = trigger.hostile
 
                             --A trigger prompt ages out after a fixed window (which
                             --resets whenever the user interacts with any trigger --
@@ -945,20 +962,22 @@ mod.shared.CreateTriggerPanel = function()
                                 expiryBar,
 
                                 gui.Button{
-                                    classes = {"closeButton", "sizeS"},
+                                    classes = {"closeButton", "sizeS", "triggerCloseButton"},
                                     floating = true,
                                     halign = "right",
                                     valign = "top",
                                     hmargin = -3,
                                     vmargin = -3,
+                                    --the reveal rule must name triggerCloseButton: styles cascade to
+                                    --descendants, and the themed closeButton is an iconButton chrome
+                                    --panel wrapping a buttonIcon child that owns the X glyph. Without
+                                    --the marker class the rule also matches that child, whose "parent"
+                                    --is the button rather than the trigger panel -- so the glyph stayed
+                                    --hidden unless the mouse was directly on the button.
                                     styles = {
                                         {
-                                            selectors = {"~parent:hover", "~hover"},
+                                            selectors = {"triggerCloseButton", "~parent:hover", "~hover"},
                                             hidden = 1,
-                                        },
-                                        {
-                                            selectors = {"~hover"},
-                                            brightness = 0.7,
                                         },
                                     },
                                     swallowPress = true,
@@ -1012,7 +1031,7 @@ mod.shared.CreateTriggerPanel = function()
         --icon panel.
         gui.Label{
             textAlignment = "center",
-            color = cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730")),
+            color = cond(isHostile, "srgb:#FF4040", cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730"))),
             bold = true,
             text = "!",
             fontSize = 24,
@@ -1025,7 +1044,7 @@ mod.shared.CreateTriggerPanel = function()
             bgcolor = "white",
             borderWidth = 1,
             borderColor = "black",
-            gradient = cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient)),
+            gradient = cond(isHostile, mod.shared.hostileTriggerGradient, cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient))),
 
         },
 
@@ -1083,7 +1102,7 @@ mod.shared.CreateTriggerPanel = function()
 
                                     gui.Label{
                                         textAlignment = "center",
-                                        color = cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730")),
+                                        color = cond(isHostile, "srgb:#FF4040", cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730"))),
                                         bold = true,
                                         text = "!",
                                         fontSize = 24,
@@ -1096,7 +1115,7 @@ mod.shared.CreateTriggerPanel = function()
                                         bgcolor = "white",
                                         borderWidth = 1,
                                         borderColor = "black",
-                                        gradient = cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient)),
+                                        gradient = cond(isHostile, mod.shared.hostileTriggerGradient, cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient))),
                                     },
 
                                     gui.Panel{

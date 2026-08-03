@@ -4070,13 +4070,14 @@ local ShowItemDetailsPanel = function(args)
 
 		width = "auto",
 		height = "auto",
-		--Floated at the top of the (full-height) main lower panel that hosts it.
+		--A layout (non-floating) child of the main lower panel, so the panel's
+		--auto height wraps this and the scroll region ends right below the Go
+		--Back button instead of running a full screen-height past the header.
 		--The lower panel starts right under the "Store" header (the featured
 		--banner and the inventory/artist headers above it all collapse in the
 		--details view), so top-aligning here puts the showcase banner the same
 		--distance below the header as the products page's featured banner --
 		--rather than centering it in the screen and leaving a large gap.
-		floating = true,
 		halign = "center",
 		valign = "top",
 
@@ -4239,6 +4240,12 @@ local function CreateShopScreenInternal(arguments)
 	}
 
 	arguments = arguments or {}
+
+	--Same wider-than-16:9 test CreateShopScreen uses to size the shop root:
+	--on ultrawide screens the root is logically wider than 1920 and the
+	--content column centers itself in it (see the scroll column below).
+	local screenDialog = arguments.titlescreen.data.dialog
+	local screenIsUltrawide = 1920*(screenDialog.height/screenDialog.width) < 1080
 
 	local initialArtistid = arguments.artistid
 	arguments.artistid = nil
@@ -4794,7 +4801,15 @@ local function CreateShopScreenInternal(arguments)
 			gui.Panel{
 
 
-				halign = "right",
+				--The scroll column keeps the 1920 logical width the shop is
+				--authored for, so percent-sized descendants (the coupon
+				--inventory, the redeem screen) keep their authored size at
+				--every aspect. On wider-than-16:9 screens the shop root is
+				--logically wider than 1920 (see CreateShopScreen), so center
+				--the column there; at 16:9 and narrower the root is exactly
+				--1920 and the right-align keeps the scrollbar's 16px slack on
+				--the left, same as always.
+				halign = cond(screenIsUltrawide, "center", "right"),
 				valign = "top",
 				width = "1920-16",
 				height = "100%",
@@ -5472,11 +5487,11 @@ local function CreateShopScreenInternal(arguments)
 					},
 				},
 
-				--main lower panel. Height is auto while browsing the grid (so the
-				--product rows scroll normally), but fills the screen while viewing a
-				--single product's details, so the floated details panel can center
-				--vertically instead of hugging the top. Toggled by the
-				--showProductDetails/showProducts handlers below.
+				--main lower panel. Height is always auto: while browsing it wraps
+				--the product rows, and while viewing a single product's details it
+				--wraps the (top-aligned, non-floating) details panel, so the
+				--scroll region ends at the content and no scrollbar appears when
+				--everything fits on screen.
 				gui.Panel{
 					classes = {"lowerShopPanel"},
 					width = "100%",
@@ -5487,10 +5502,6 @@ local function CreateShopScreenInternal(arguments)
 							height = "auto",
 						},
 						{
-							selectors = {"lowerShopPanel", "viewingDetails"},
-							height = "100%",
-						},
-						{
 							selectors = {"showingCouponInventory"},
 							collapsed = 1,
 						},
@@ -5499,14 +5510,6 @@ local function CreateShopScreenInternal(arguments)
 							collapsed = 1,
 						},
 					},
-
-					showProductDetails = function(element)
-						element:SetClass("viewingDetails", true)
-					end,
-
-					showProducts = function(element)
-						element:SetClass("viewingDetails", false)
-					end,
 
 					ShowItemDetailsPanel(),
 
@@ -6267,8 +6270,20 @@ function CreateShopScreen(arguments)
 	local dialog = arguments.titlescreen.data.dialog
 
 	--scale everything so we have a width of 1920, and a varying height.
+	--On screens wider than 16:9 a width-based scale would leave under 1080
+	--of logical height and the store (authored for 1080; the featured dice
+	--banner alone is ~750 with its header) would have to scroll. There,
+	--scale by height instead: the panel keeps 1080 logical height and grows
+	--logically wider than 1920, with the content column centering itself in
+	--the extra width and the corner chrome still pinned to the screen edges.
 	local uiscale = dialog.width/1920
 	local dialogPanelHeight = 1920*(dialog.height/dialog.width)
+	local dialogPanelWidth = 1920
+	if dialogPanelHeight < 1080 then
+		uiscale = dialog.height/1080
+		dialogPanelHeight = 1080
+		dialogPanelWidth = dialog.width/uiscale
+	end
 
 
 	local dialogPanel
@@ -6277,7 +6292,7 @@ function CreateShopScreen(arguments)
 	dialogPanel = gui.Panel{
 		classes = {"framedPanel"},
 		floating = true,
-		width = 1920, --/dmhub.uiVerticalScale,
+		width = dialogPanelWidth,
 		height = dialogPanelHeight,
 		uiscale = uiscale,
 		halign = "center",

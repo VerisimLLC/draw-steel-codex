@@ -1230,6 +1230,14 @@ CreateChatPanel = function()
 									--late adoption: mirrors the full pass below.
 									local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
 									if adoptiveParentPanel ~= nil and adoptiveParentPanel.valid then
+										--Unparent BEFORE AddChild: the engine reparent inside AddChild does
+										--NOT remove the panel from its old parent's children list, so
+										--adopting a panel that is already a child of this scroll panel left
+										--a stale alias behind. When the adopted panel was later destroyed
+										--(routine >128-message pruning), the alias became a destroyed-panel
+										--entry and every subsequent children mutation on the scroll panel
+										--logged "Set null as child of panel".
+										child:Unparent()
 										adoptiveParentPanel:AddChild(child)
 										adoptedPanels[key] = child
 									end
@@ -1333,6 +1341,13 @@ CreateChatPanel = function()
                             --roll's own panel moves under it as soon as it exists.
                             local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
                             if adoptiveParentPanel ~= nil then
+                                --Unparent first -- see the incremental path above: without this the
+                                --panel stays aliased in this scroll panel's children list, and the
+                                --element.children assignment below would orphan-destroy it out from
+                                --under its adoptive parent.
+                                if child.valid then
+                                    child:Unparent()
+                                end
                                 adoptiveParentPanel:AddChild(child)
                                 adoptedPanels[key] = child
                             else

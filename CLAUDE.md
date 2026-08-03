@@ -168,6 +168,20 @@ local mySetting = setting{
 
 ## Lua File Constraints
 
+**Syntax-check before you deploy.** The repo ships a Lua 5.4.7 interpreter built from the
+same source as the engine's `lua54.dll` — do not go looking for one elsewhere:
+
+```bash
+../dependencies/lua/bin/luac.exe -p SomeFile.lua
+```
+
+`-p` parses without executing, so it works on files full of engine globals. Actually
+*running* a codex file with `lua.exe` will fail on the first `import`/`dmhub`/`gui`
+reference; that is expected. One false positive to know about: a raw `luac -p` reports
+`unexpected symbol near '@'` on the two files using the engine's `@if`/`@else`/`@end`
+preprocessor directives — that is not a real error. See "Checking Lua Yourself" in the
+root [`CLAUDE.md`](../CLAUDE.md) for the preprocessor-aware sweep command.
+
 **ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0-127). Never use em dashes, curly quotes, ellipses, or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of em dashes, `"` instead of curly quotes, `...` instead of ellipses.
 
 **Forward-declare self-referencing locals.** In Lua, `local x = expr` does not bring `x` into scope until `expr` finishes evaluating. If a closure inside the initializer needs to reference the variable (common with gui panel event handlers like `click`, `change`, `think`), you must split declaration and assignment:

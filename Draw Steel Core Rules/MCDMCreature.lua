@@ -2519,7 +2519,21 @@ creature.creatureSize = "1M"
 
 CustomAttribute.RegisterAttribute { id = "creaturesizewhenforcemoved", text = "Size When Force Moved", attributeType = "number", category = "Forced Movement" }
 
-function creature:CreatureSizeWhenBeingForceMoved()
+--- The effective size of this creature when it is being force moved.
+--- If isKnockback is true, the data-defined "Knockback Target Size" attribute
+--- is used instead; its base value formula (SizeWhenForceMoved) chains back
+--- through this function, so knockback-specific size features layer on top of
+--- general force-move size features.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenBeingForceMoved(isKnockback)
+    if isKnockback then
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol["knockbacktargetsize"]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
     local token = dmhub.LookupToken(self)
     local size = 3
     if token ~= nil and token.valid then
@@ -2529,6 +2543,36 @@ function creature:CreatureSizeWhenBeingForceMoved()
     end
 
     return self:CalculateAttribute("creaturesizewhenforcemoved", size)
+end
+
+--- The effective size of this creature when it force moves another creature:
+--- the pusher's side of the "Big Versus Little" rule. Uses the data-defined
+--- "SizeWhenForceMoving" attribute (base value: Size) so features that
+--- artificially increase size when force moving are recognized. If isKnockback
+--- is true, uses "Knockback Caster Size" (base value: SizeWhenForceMoving)
+--- so knockback-specific size features layer on top.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenForceMoving(isKnockback)
+    local attrNames = {"sizewhenforcemoving"}
+    if isKnockback then
+        attrNames = {"knockbackcastersize", "sizewhenforcemoving"}
+    end
+
+    for _, attrName in ipairs(attrNames) do
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol[attrName]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
+    --fallback if the compendium does not define the size attributes: raw size.
+    local token = dmhub.LookupToken(self)
+    if token ~= nil and token.valid then
+        return token.creatureSizeNumber
+    end
+
+    return self:GetBaseCreatureSizeNumber() or 3
 end
 
 creature.RegisterSymbol {
@@ -2612,6 +2656,54 @@ creature.RegisterSymbol {
         type = "function",
         desc = "Given the name of an aura will return the creature that's controlling it.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "environment",
+    lookup = function(c)
+        local result = {}
+        local token = dmhub.LookupToken(c)
+        if token == nil then
+            return StringSet.new{
+                strings = result,
+            }
+        end
+
+        --Map-markup zone auras carry the id of the Environmental Keyword they
+        --were built from (see MapMarkup BuildZoneAuraInstance); resolve each
+        --id to the keyword's live name. A deleted or unresolvable keyword
+        --contributes nothing; multiple zones of the same keyword contribute
+        --its name once.
+        local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+        local seenIds = {}
+        local seenNames = {}
+        local aurasTouching = token.properties:GetAurasAffecting(token) or {}
+        for _,info in ipairs(aurasTouching) do
+            local keywordid = info.auraInstance.aura:try_get("environmentalKeywordId")
+            if keywordid ~= nil and seenIds[keywordid] == nil then
+                seenIds[keywordid] = true
+                local keyword = keywordsTable[keywordid]
+                if keyword ~= nil and (not keyword:try_get("hidden", false)) then
+                    local name = keyword.name
+                    if name ~= nil and seenNames[string.lower(name)] == nil then
+                        seenNames[string.lower(name)] = true
+                        result[#result + 1] = name
+                    end
+                end
+            end
+        end
+
+        return StringSet.new{
+            strings = result,
+        }
+    end,
+    help = {
+        name = "Environment",
+        type = "set",
+        desc = "The names of the Environmental Keywords of the map zones the creature is currently inside. Zone display names do not matter; the underlying keyword's name is what appears in the set.",
+        seealso = {"Auras Affecting"},
+        examples = {"Environment has \"Darkness\"", "target.Environment has \"Darkness\""},
     }
 }
 
@@ -3402,6 +3494,77 @@ creature.RegisterSymbol {
         name = "Concealed",
         type = "boolean",
         desc = "True if the creature is in an area that is concealed.",
+    }
+}
+
+--True if the creature has concealment from a source other than darkness:
+--invisibility, a concealment aura or zone whose Environmental Keyword is not
+--Darkness, or terrain tiles flagged as concealing. Used by the Concealment
+--global rule mod so "ignores concealment created by darkness" features (e.g.
+--shadow elf Of the Umbra) still take the bane when the target is also
+--concealed by something else.
+function creature:HasConcealmentIgnoringDarkness()
+    --Invisibility marks concealment via a game-update stamp rather than the
+    --map; use the same freshness rule as the _tmp_concealed refresh.
+    if self:try_get("_tmp_concealedInvisibleUpdate", -10) >= dmhub.ngameupdate - 1 then
+        return true
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return false
+    end
+
+    --Concealment auras/zones affecting the creature. A concealment aura whose
+    --keyword does not resolve to "Darkness" counts, as does one with no
+    --keyword at all: only auras stamped with the Darkness keyword are
+    --"created by darkness". Keyword resolution mirrors the Environment
+    --symbol, including hidden keywords contributing no name.
+    local aurasTouching = self:GetAurasAffecting(token)
+    if aurasTouching ~= nil then
+        local keywordsTable = nil
+        for _,info in ipairs(aurasTouching) do
+            local instance = info.auraInstance
+            local ok, concealing = pcall(function() return instance:GetConcealment() end)
+            if ok and concealing then
+                local isDarkness = false
+                local keywordid = instance.aura:try_get("environmentalKeywordId")
+                if keywordid ~= nil then
+                    keywordsTable = keywordsTable or dmhub.GetTable("environmentalKeywords") or {}
+                    local keyword = keywordsTable[keywordid]
+                    if keyword ~= nil and (not keyword:try_get("hidden", false)) and string.lower(keyword.name or "") == "darkness" then
+                        isDarkness = true
+                    end
+                end
+                if not isDarkness then
+                    return true
+                end
+            end
+        end
+    end
+
+    --Terrain tiles flagged as concealing. hasTerrainConcealment excludes
+    --aura/zone contributions, unlike the merged tile rules which fold
+    --apply-to-all zone auras in. pcall guards engine builds that predate the
+    --property; they degrade to treating the overlap as darkness-only.
+    local ok, terrain = pcall(function() return token.hasTerrainConcealment end)
+    if ok and terrain == true then
+        return true
+    end
+
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "concealedignoringdarkness",
+    lookup = function(c)
+        return c:HasConcealmentIgnoringDarkness()
+    end,
+    help = {
+        name = "Concealed Ignoring Darkness",
+        type = "boolean",
+        desc = "True if the creature has concealment from a source other than darkness: invisibility, a concealment zone or aura whose keyword is not Darkness, or concealing terrain.",
+        seealso = {"Concealed", "Environment"},
     }
 }
 

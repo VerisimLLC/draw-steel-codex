@@ -127,7 +127,7 @@ local g_channeledResourcePanel
 
 local g_casterTokenStack = {}
 
---- @type {shapePathEnd: nil|LuaShape[], labelsAtPathEnd: nil|LuaObjectReference[], pathEndOvershoot: nil|number, fallingShape: nil|LuaObjectReference, shapeRequiresConfirm: nil|boolean, shapeConfirmedLoc: nil|Loc, shape: nil|LuaShape, label: nil|LuaObjectReference, radius: nil|LuaObjectReference, showingMovementArrow: nil|boolean}
+--- @type {shapePathEnd: nil|LuaShape[], labelsAtPathEnd: nil|LuaObjectReference[], pathEndOvershoot: nil|number, fallingShape: nil|LuaObjectReference, fallDamageLabel: nil|LuaObjectReference, fallDamageKey: nil|string, shapeRequiresConfirm: nil|boolean, shapeConfirmedLoc: nil|Loc, shape: nil|LuaShape, label: nil|LuaObjectReference, radius: nil|LuaObjectReference, showingMovementArrow: nil|boolean}
 local g_pointTargeting = {}
 
 --- @type nil|{oncast=nil|function, oncancel=nil|function}
@@ -256,7 +256,11 @@ local g_movementDiagramShown = false
 ---        tiletooltip event as movingPathAlternates so the movement diagram can
 ---        render ghost outcomes (multi-outcome rendering is engine work; the
 ---        GameHud handler ignores the arg until then).
-local function ShowMovementDiagram(token, path, label, alternates)
+--- @param damages nil|{collision: nil|number, fall: nil|number} predicted damage
+---        numbers (already computed from the game rules); forwarded through the
+---        tiletooltip event as movingPathDamages so the movement diagram draws
+---        the same red "-N" annotations the map targeting labels show.
+local function ShowMovementDiagram(token, path, label, alternates, damages)
     if token == nil or path == nil or GameHud.instance == nil then
         return
     end
@@ -291,6 +295,7 @@ local function ShowMovementDiagram(token, path, label, alternates)
         movingToken = token,
         movingPath = path,
         movingPathAlternates = alternates,
+        movingPathDamages = damages,
     })
     g_movementDiagramShown = true
 end
@@ -334,6 +339,10 @@ local function ClearPointTargeting()
 
     if g_pointTargeting.fallingShape ~= nil then
         g_pointTargeting.fallingShape:Destroy()
+    end
+
+    if g_pointTargeting.fallDamageLabel ~= nil then
+        g_pointTargeting.fallDamageLabel:Destroy()
     end
 
     if g_pointTargeting.label ~= nil then
@@ -447,6 +456,19 @@ local SEARCH_REVEAL_RULE = {
     easing = "easeInOutSine",
 }
 
+-- True while the director has the game in respite mode. During a respite the
+-- initiative queue is hidden and its gameMode is "respite" (same check as the
+-- End Respite bar in MCDMInitiativeBar).
+--
+-- Respite activities are hosted by two different drawers depending on this: the
+-- dedicated respite drawer during a respite, and the maneuver drawer outside of
+-- one. Every site that routes them has to read the gate the same way, so they
+-- all call through here.
+local function InRespiteMode()
+    local q = dmhub.initiativeQueue
+    return q ~= nil and q.hidden and q.gameMode == "respite"
+end
+
 -- Which drawer an ability lives in, mirroring the per-type filtering the
 -- "menu" event applies to g_abilities. Returns the drawer's `type` string, or
 -- nil when the ability is not surfaced by any drawer (then the reveal is a
@@ -467,8 +489,13 @@ local function DrawerTypeForAbility(ability)
         return "action"
     end
     if rid == CharacterResource.respiteActivityId then
-        --Respite activities live in their own respite-mode drawer.
-        return "respite"
+        --Respite activities live in their own drawer during a respite, and under
+        --the maneuver drawer outside of one. The novel-ability pip has to follow
+        --them, or a newly gained respite activity would flag a hidden drawer.
+        if InRespiteMode() then
+            return "respite"
+        end
+        return "maneuver"
     end
     if rid == CharacterResource.maneuverResourceId
         or rid == "none"
@@ -1221,10 +1248,11 @@ local function ActionBarDrawer(args)
 
             if args.type == "respite" then
                 --Only show the respite drawer while the game is in respite mode.
-                --During a respite the initiative queue is hidden and its gameMode
-                --is "respite" (same check as the End Respite bar in MCDMInitiativeBar).
-                local q = dmhub.initiativeQueue
-                local inRespite = q ~= nil and q.hidden and q.gameMode == "respite"
+                --Outside of a respite these abilities are still reachable: they
+                --are listed under the maneuver drawer's "Respite Activities"
+                --heading (see the ActionMenu "menu" handler), so this drawer can
+                --stay hidden rather than taking up room on the bar.
+                local inRespite = InRespiteMode()
                 resultPanel:SetClass("hidden", not inRespite)
                 if not inRespite then
                     return
@@ -2634,8 +2662,17 @@ ActionMenu = function()
                     end
                 end
             else
+                --Outside of a respite the respite drawer is hidden, so the
+                --maneuver drawer hosts respite activities instead. The grouping
+                --pass below files them under their own "Respite Activities"
+                --heading, so they read as a separate section rather than as
+                --maneuvers. The filter matches the respite drawer's own above
+                --(everything but "Hidden"), so the same set of abilities shows up
+                --either way -- only the host drawer changes.
+                local includeRespite = args.type == "maneuver" and (not InRespiteMode())
                 for _, ability in ipairs(g_abilities) do
-                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger")) and ability.categorization ~= "Hidden" then
+                    local isRespiteActivity = ability.actionResourceId == CharacterResource.respiteActivityId
+                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger") or (includeRespite and isRespiteActivity)) and ability.categorization ~= "Hidden" then
                         abilities[#abilities + 1] = ability
                     end
                 end
@@ -3347,6 +3384,18 @@ local AddCustomAreaMarker = function(locs, color)
 end
 
 local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
+    --An effectively-unlimited range (the content convention is 999, e.g. the
+    --invoked "Forced Free Strike"/"Forced Signature Ability" helpers) would
+    --mark every tile on the map. On a large or void map the CalculateShape
+    --call, the per-loc Lua filter loop, and MarkLocs below then run over
+    --millions of tiles and freeze the app for tens of seconds ("Codex.exe is
+    --not responding") the moment the prompt arms. The ring would cover
+    --everything anyway, so draw nothing for such ranges.
+    if radius ~= nil and radius > 100 * dmhub.unitsPerSquare then
+        print(string.format("MovementRadius:: SKIP radius marker for effectively-unlimited radius %s", tostring(radius)))
+        return
+    end
+
     local tokenCasting = g_token
     if g_currentAbility ~= nil then
         tokenCasting = g_currentAbility:GetRangeSource(g_token)
@@ -5428,6 +5477,12 @@ CreateAbilityController = function()
                 return
             end
 
+            --DIAG: anchor invoke prompts in the log for the prompt-hang
+            --investigation. Safe to keep.
+            print(string.format("PROMPTDIAG:: invokeAbility caster=%s ability=%s instantCast=%s prompt=%s T=%.2f",
+                tostring(casterToken.name or casterToken.charid), tostring(ability.name),
+                tostring(options.instantCast), tostring(ability:try_get("promptOverride")), dmhub.Time()))
+
             g_invokerInfo = invokerInfo
             symbols.invoked = true
 
@@ -5597,6 +5652,7 @@ CreateAbilityController = function()
             end
             local destroyLabelsBeforeReturning = g_pointTargeting.labelsAtPathEnd ~= nil
             local destroyThroughCreatureLabels = g_pointTargeting.labelsAtThroughCreatures ~= nil
+            local destroyFallDamageLabel = g_pointTargeting.fallDamageLabel ~= nil
             local pathfinding = false
             if point ~= nil and g_currentAbility.targetType ~= "areatemplate" then
                 local radius = g_currentAbility:GetRadius(g_token.properties, g_currentSymbols)
@@ -5897,18 +5953,15 @@ CreateAbilityController = function()
                         clearMovementArrow = false
                     end
 
-                    --Forced-move targeting (push/pull/slide): show the same floating
-                    --movement tooltip + cross-section diagram the manual token-drag
-                    --uses. Only for straightline (true forced movement) -- straightpath
-                    --(Charge) and other movement previews are left alone. Cleared below
-                    --when the movement arrow is cleared (mouse off a valid square) and on
-                    --targeting teardown via ClearPointTargeting.
-                    if targetingType == "straightline" and movementInfo ~= nil then
-                        ShowMovementDiagram(g_token, movementInfo.path, tr("Forced Movement"))
-                    end
-
                     if movementInfo ~= nil then
                         local path = movementInfo.path
+
+                        --Predicted damage numbers for the movement cross-section diagram,
+                        --recorded where the map labels below compute them so the diagram
+                        --shows exactly the same red "-N" annotations (see the
+                        --ShowMovementDiagram call at the end of this block).
+                        local diagramCollisionDamage = nil
+                        local diagramFallDamage = nil
                         local abilityDist = g_currentAbility:GetRange(g_token.properties, g_currentSymbols) /
                             dmhub.unitsPerSquare
                         g_currentSymbols.range = abilityDist
@@ -5923,7 +5976,17 @@ CreateAbilityController = function()
 
                         if pathDist < requestDist and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                             local prevOvershoot = g_pointTargeting.pathEndOvershoot
-                            g_pointTargeting.pathEndOvershoot = requestDist - pathDist
+
+                            --Prefer the engine-reported force remaining at the collision
+                            --(distance travelled and wall-break stamina already deducted).
+                            --The tile-distance fallback below is 2D only, so it miscounts
+                            --vertical trajectories -- e.g. a vertical pull banging into the
+                            --ceiling. Mirrors the cast flow in AbilityRelocateCreature.
+                            local overshoot = requestDist - pathDist
+                            if path.collisionForce ~= nil and path.collisionForce >= 0 then
+                                overshoot = path.collisionForce
+                            end
+                            g_pointTargeting.pathEndOvershoot = overshoot
 
                             local prevPathEnd = g_pointTargeting.shapePathEnd
                             destroyLabelsBeforeReturning = false
@@ -5974,6 +6037,10 @@ CreateAbilityController = function()
                                     suppressDamage = false
                                     break
                                 end
+                            end
+
+                            if not suppressDamage then
+                                diagramCollisionDamage = collideDamage
                             end
 
                             local textLabels = {}
@@ -6198,6 +6265,64 @@ CreateAbilityController = function()
                                         }
                                 end
                             end
+                        end
+
+                        --Red damage number when the previewed move ends in a damaging fall --
+                        --e.g. a vertical pull upward that leaves the creature in mid-air (or
+                        --banging into the ceiling), or a push off a ledge. Shown at the landing
+                        --square, offset below so it never overlaps a collision number at the
+                        --same square. Flyers don't fall, and the actual damage comes from the
+                        --Falling global rule when the move resolves.
+                        local fallDamage = 0
+                        local fallDist = path.fallDistance or 0
+                        if fallDist > 0 and not g_token.properties:CanFly() then
+                            fallDamage = g_token.properties:PredictedFallDamage(fallDist, path.landsInWater)
+                        end
+
+                        if fallDamage > 0 then
+                            diagramFallDamage = fallDamage
+                            destroyFallDamageLabel = false
+                            local fallKey = path.destination.str .. "|" .. fallDamage
+                            if g_pointTargeting.fallDamageKey ~= fallKey then
+                                if g_pointTargeting.fallDamageLabel ~= nil then
+                                    g_pointTargeting.fallDamageLabel:Destroy()
+                                end
+
+                                local landPoint = path.destination.point3
+                                if g_token.creatureDimensions.x % 2 == 0 then
+                                    local offset = (g_token.creatureDimensions.x - 1) * 0.5
+                                    landPoint = core.Vector3(landPoint.x + offset, landPoint.y + offset, landPoint.z)
+                                end
+                                landPoint = core.Vector3(landPoint.x, landPoint.y - 0.7, landPoint.z)
+
+                                g_pointTargeting.fallDamageLabel = dmhub.CreateCanvasOnMap {
+                                    point = landPoint,
+                                    sheet = gui.Label {
+                                        interactable = false,
+                                        halign = "center",
+                                        valign = "center",
+                                        color = "red",
+                                        width = "auto",
+                                        height = "auto",
+                                        fontSize = 0.5,
+                                        text = string.format("-%d<color=#00000000>-</color>", fallDamage),
+                                    }
+                                }
+                                g_pointTargeting.fallDamageKey = fallKey
+                            end
+                        end
+
+                        --Forced-move targeting (push/pull/slide): show the same floating
+                        --movement tooltip + cross-section diagram the manual token-drag
+                        --uses, annotated with the predicted collision/fall damage numbers
+                        --computed above so the diagram draws the same red "-N" labels as
+                        --the map. Only for straightline (true forced movement) --
+                        --straightpath (Charge) and other movement previews are left alone.
+                        --Cleared below when the movement arrow is cleared (mouse off a
+                        --valid square) and on targeting teardown via ClearPointTargeting.
+                        if targetingType == "straightline" then
+                            ShowMovementDiagram(g_token, path, tr("Forced Movement"), nil,
+                                { collision = diagramCollisionDamage, fall = diagramFallDamage })
                         end
 
                         --falling.
@@ -6673,6 +6798,12 @@ CreateAbilityController = function()
                 end
                 g_pointTargeting.labelsAtThroughCreatures = nil
             end
+
+            if destroyFallDamageLabel and g_pointTargeting ~= nil and g_pointTargeting.fallDamageLabel ~= nil then
+                g_pointTargeting.fallDamageLabel:Destroy()
+                g_pointTargeting.fallDamageLabel = nil
+                g_pointTargeting.fallDamageKey = nil
+            end
         end,
 
         mappress = function(element, loc, point)
@@ -6800,7 +6931,8 @@ CreateAbilityController = function()
                     if loc ~= nil and (g_currentAbility.targeting == "contiguous" or g_currentAbility.targeting == "contiguous_wall") then
                         if #targets == 0 then
                             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
-                            if g_token:Distance(loc) > range then
+                            local rangeSource = g_currentAbility:GetRangeSource(g_token)
+                            if rangeSource:Distance(loc) > range then
                                 return
                             end
                         else
@@ -7084,6 +7216,9 @@ end
 
 local g_potentialTargetTokens = {}
 
+--DIAG: last targeting-state summary printed, so the trace below only logs changes.
+local g_lastTargetDiagLine = nil
+
 local function CalculateSpellTargetFocusing(symbols)
 
     local range = symbols.range
@@ -7220,11 +7355,17 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local casterLocOverride = g_currentAbility:try_get("casterLocOverride")
+                local rangeSource = g_currentAbility:GetRangeSource(g_token)
+                local directRangeSource = casterLocOverride or rangeSource
+                local checkStrictRange = (not g_token.properties.minion) or rangeSource ~= g_token
 
                 if canTarget then
                     --give us an extra square of range to account for diagonals.
-                    if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) and not (range + dmhub.unitsPerSquare > targetToken:Distance(casterLocOverride or g_token)) then
-                        if not spell:IsTargetInRangeOfCastingOrigins(g_token, targetToken, range) then
+                    if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange and not (range + dmhub.unitsPerSquare > targetToken:Distance(directRangeSource)) then
+                        --An explicit range source is the complete origin contract. Casting-
+                        --origin relays still apply to ordinary casts, but must not widen an
+                        --invoked ability centered on its parent cast's primary target.
+                        if rangeSource ~= g_token or not spell:IsTargetInRangeOfCastingOrigins(g_token, targetToken, range) then
                             failReason = "Out of range"
                         end
                     end
@@ -7234,10 +7375,10 @@ local function CalculateSpellTargetFocusing(symbols)
                     --of range when it alone exceeds the range. Mirrors EffectiveArrowRange and
                     --AddModifierLabelsToMarker so arrow greying, the "Out of Range" label, and
                     --the strict-targeting block all agree.
-                    if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) then
-                        local altDiff = math.abs(g_token.altitude - targetToken.altitude)
+                    if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange then
+                        local altDiff = math.abs(rangeSource.altitude - targetToken.altitude)
                         if altDiff > 0 then
-                            local horizDist = targetToken:Distance(casterLocOverride or g_token)
+                            local horizDist = targetToken:Distance(directRangeSource)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
                             if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
                                 failReason = string.format("Out of range (altitude difference: %d)", altDiff)
@@ -7305,6 +7446,24 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
             end
         end
+    end
+
+    --DIAG: compact targeting-state trace for the invoke-prompt hang
+    --investigation. Logs once per state change: which ability is targeting,
+    --as whom, and how many candidate tokens were armed/valid. Safe to keep.
+    local validCount = 0
+    for _, tok in ipairs(potentialTargetTokens) do
+        if tok.valid and tok.sheet ~= nil and tok.sheet.data.targetValid then
+            validCount = validCount + 1
+        end
+    end
+    local diagLine = string.format("TARGETDIAG:: ability=%s caster=%s armed=%d valid=%d chosen=%d",
+        tostring(spell.name),
+        tostring(g_token ~= nil and (g_token.name or g_token.charid) or "nil"),
+        #potentialTargetTokens, validCount, #g_targetsChosen)
+    if diagLine ~= g_lastTargetDiagLine then
+        g_lastTargetDiagLine = diagLine
+        print(string.format("%s T=%.2f", diagLine, dmhub.Time()))
     end
 
     return potentialTargetTokens

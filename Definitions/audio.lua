@@ -23,15 +23,15 @@ function audio.UploadMasterVolume()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetOutputDevices: Returns the available audio output devices as a list of {value, text} entries suitable for a dropdown enum, beginning with the system-default entry (value = empty string).
---- @return table
-function audio.GetOutputDevices()
-	-- dummy implementation for documentation purposes only
-end
-
 --- UploadNormalizeLoudness: Uploads the current loudness-normalization toggle to the server.
 --- @return nil
 function audio.UploadNormalizeLoudness()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetOutputDevices: Returns the available audio output devices as a list of {value, text} entries suitable for a dropdown enum, beginning with the system-default entry (value = empty string).
+--- @return table
+function audio.GetOutputDevices()
 	-- dummy implementation for documentation purposes only
 end
 

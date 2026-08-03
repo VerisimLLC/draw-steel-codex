@@ -1068,6 +1068,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
         -- Get the power table text from this target's rollProperties.
         local tierText = targetRollProps and targetRollProps.tiers and targetRollProps.tiers[tier]
+        if tierText ~= nil then
+            --Show only the chosen alternative of any "or" choice groups
+            --("slowed (eot) or dazed (save ends)" -> "slowed (eot)").
+            --Choices live on the shared rollProperties; per-target
+            --rollProperties clones fall back to it, mirroring execution.
+            local orChoices = (targetRollProps ~= nil and targetRollProps:try_get("orChoices"))
+                or (rollProperties ~= nil and rollProperties:try_get("orChoices"))
+                or nil
+            tierText = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(tierText, orChoices, tier)
+        end
         markers:AddLabel(ExtractTierLabel(tierText, tier), "result")
 
         -- Show surge indicator if surges are allocated to this target.
@@ -5410,6 +5420,19 @@ function GameHud.CreateEmbeddedRollDialog()
                     end
                     if not cleared then
                         dmhub.CancelCurrentRoll()
+                    end
+                end
+
+                --Backstop: if this dialog dies mid-roll, the cast that normally
+                --removes the targeting arrows can get stuck waiting forever, so
+                --remove them here too. Destroying twice is safe.
+                if m_options ~= nil and m_options.markLineOfSight ~= nil then
+                    local marks = m_options.markLineOfSight
+                    if type(marks) ~= "table" then
+                        marks = {marks}
+                    end
+                    for _, mark in pairs(marks) do
+                        pcall(function() mark:DestroyLineOfSight() end)
                     end
                 end
             end,

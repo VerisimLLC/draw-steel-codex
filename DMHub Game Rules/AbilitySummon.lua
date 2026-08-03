@@ -2601,9 +2601,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		}
 
 		list[#list+1] = gui.Panel{
-			classes = {"formPanel", cond(not self.choosePlacement, "hidden")},
+			classes = {"formPanel", cond(not self.choosePlacement, "collapsed")},
 			refreshChoosePlacement = function(element)
-				element:SetClass("hidden", not self.choosePlacement)
+				element:SetClass("collapsed", not self.choosePlacement)
 			end,
 			gui.Label{
 				classes = "formLabel",
@@ -2637,9 +2637,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		}
 
 		list[#list+1] = gui.Panel{
-			classes = {"formPanel", cond(not self.choosePlacement, "hidden")},
+			classes = {"formPanel", cond(not self.choosePlacement, "collapsed")},
 			refreshChoosePlacement = function(element)
-				element:SetClass("hidden", not self.choosePlacement)
+				element:SetClass("collapsed", not self.choosePlacement)
 			end,
 			gui.Label{
 				classes = "formLabel",
@@ -2667,9 +2667,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		}
 
 		list[#list+1] = gui.Panel{
-			classes = {"formPanel", cond(not self.tweakPlacement, "hidden")},
+			classes = {"formPanel", cond(not self.tweakPlacement, "collapsed")},
 			refreshTweakPlacement = function(element)
-				element:SetClass("hidden", not self.tweakPlacement)
+				element:SetClass("collapsed", not self.tweakPlacement)
 			end,
 			gui.Label{
 				classes = "formLabel",
@@ -2703,9 +2703,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		}
 
 		list[#list+1] = gui.Panel{
-			classes = {"formPanel", cond(not self.tweakPlacement, "hidden")},
+			classes = {"formPanel", cond(not self.tweakPlacement, "collapsed")},
 			refreshTweakPlacement = function(element)
-				element:SetClass("hidden", not self.tweakPlacement)
+				element:SetClass("collapsed", not self.tweakPlacement)
 			end,
 			gui.Label{
 				classes = "formLabel",
@@ -2776,13 +2776,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 	end
 
 	list[#list+1] = gui.Panel{
-		classes = {"formPanel", cond(self.monsterType ~= "custom", "hidden")},
+		classes = {"formPanel", cond(self.monsterType ~= "custom", "collapsed")},
         refreshMonsterType = function(element)
-            if self.monsterType == "custom" then
-                element:SetClass("hidden", false)
-            else
-                element:SetClass("hidden", true)
-            end
+            element:SetClass("collapsed", self.monsterType ~= "custom")
         end,
 		gui.Label{
 			classes = "formLabel",

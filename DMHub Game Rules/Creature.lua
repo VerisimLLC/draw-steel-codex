@@ -200,6 +200,12 @@ creature._tmp_aipromptCallback = false
 creature._tmp_debug = false
 creature._tmp_concealed = false
 
+--ngameupdate stamp of the last update in which an invisibility modifier marked this
+--creature as concealed. Lets GetActiveModifiers count invisibility toward "Concealed"
+--when filtering modifiers, even though invisibility can only stamp from OnTokenRefresh,
+--which runs after the modifier list is rebuilt.
+creature._tmp_concealedInvisibleUpdate = -10
+
 creature.max_hitpoints = 1
 creature.temporary_hitpoints = 0
 
@@ -524,6 +530,38 @@ function creature:SafeFallDistance(inWater)
     return safe
 end
 
+--- The damage this creature would take from a fall of fallDist squares, per the
+--- Falling rule: 2 damage per effective square fallen (capped at 50 before
+--- reductions) minus Fall Damage Reduction. Landing in water lowers the
+--- effective height by 4 squares. Zero when the fall is within the creature's
+--- safe distance or it is immune to fall damage (Stop Fall Damage >= 1).
+--- Used by targeting previews to show the predicted damage number; the actual
+--- damage is still dealt by the Falling global rule when the fall resolves.
+--- @param fallDist number Fall distance in squares
+--- @param inWater boolean|nil true if the fall lands in water
+--- @return number
+function creature:PredictedFallDamage(fallDist, inWater)
+    if fallDist == nil or fallDist <= 0 then
+        return 0
+    end
+    if self:CalculateNamedCustomAttribute("Stop Fall Damage", 0) >= 1 then
+        return 0
+    end
+    local speed = fallDist
+    if inWater == true or inWater == 1 then
+        speed = speed - 4
+    end
+    local effective = speed - self:CalculateNamedCustomAttribute("Fall Reduction", 0)
+    if effective < 2 then
+        return 0
+    end
+    local damage = math.min(50, effective * 2) - self:CalculateNamedCustomAttribute("Fall Damage Reduction", 0)
+    if damage < 0 then
+        damage = 0
+    end
+    return damage
+end
+
 --- Plays a single footstep sound matching the landing surface type.
 --- Called by the engine for on-feet landings on solid ground.
 --- @param surfaceType number The surface type ID from TileGameRules
@@ -754,6 +792,12 @@ end
 --- Use to randomize hitpoints, name, etc.
 function creature:OnCreateFromBestiary()
 	self.damage_taken = 0
+
+	--belt and braces: OnAddToBestiary should already have stripped these, but an entry
+	--authored before that existed (or written by a path that bypasses it, e.g. editing the
+	--entry directly in the character sheet) can still carry a previous token's history.
+	self:PurgeStatHistory()
+
 	self:ValidateAndRepair(true)
 end
 
@@ -1685,6 +1729,41 @@ function creature:GetStatHistory(id)
 		self[key] = result
 	end
 	return result
+end
+
+--- Purge every stat history tracker off this creature.
+---
+--- A stat history ("recent changes to stamina", heroic resource, surges, a companion's
+--- rampage, ...) records what happened to one specific token. It has no business riding
+--- along into a bestiary entry and then back out onto every future spawn of that monster,
+--- so both directions of the bestiary trip purge it.
+---
+--- Trackers live under the key "<statid>_history". The value is normally a StatHistory, but
+--- GetStatHistory above has to cope with a raw table turning up there, so purge on either
+--- the type or the key suffix.
+function creature:PurgeStatHistory()
+	local keys = nil
+	for k,v in pairs(self) do
+		if type(k) == "string" and type(v) == "table" and (v.typeName == "StatHistory" or string.ends_with(k, "_history")) then
+			keys = keys or {}
+			keys[#keys+1] = k
+		end
+	end
+
+	if keys == nil then
+		return
+	end
+
+	for _,k in ipairs(keys) do
+		self[k] = nil
+	end
+end
+
+--- Called by the engine just before this creature is written into a bestiary entry. A
+--- bestiary entry is a template for future spawns rather than a live token, so this is
+--- where per-token runtime state gets stripped.
+function creature:OnAddToBestiary()
+	self:PurgeStatHistory()
 end
 
 --- The creature's base maximum hitpoints before modifiers.
@@ -4979,6 +5058,17 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 		return self._tmp_modifiers_excluding_auras
 	end
 
+	--refresh concealment before modifiers are filtered: filterConditions using the
+	--"Concealed" symbol read _tmp_concealed, and it must reflect the token's current
+	--location rather than the previous game update's value, or concealment-gated
+	--modifiers attach/clear one update late after a move. This must happen here, not
+	--in GetActiveModifiers, because GetAuras also triggers this rebuild (before
+	--RefreshToken runs) and the stamped list would otherwise keep the stale filter
+	--results for the whole update. Invisibility modifiers can only mark concealment
+	--from OnTokenRefresh, which runs after this rebuild, so their stamp from the
+	--previous update keeps them counted.
+	self._tmp_concealed = self:IsConcealed() or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+
 	self._tmp_modifiers_excluding_auras = self:CalculateActiveModifiers(calculatingModifiers)
 	self._tmp_modifiersRefreshExcludingAuras = dmhub.ngameupdate
 
@@ -6107,6 +6197,7 @@ function creature:CaptureTeleportOpportunityAttackers(originLoc)
                and (not tok:IsFriend(self))
                and p._tmp_grabbedby ~= ourCharid
                and p:CanUseTriggeredAbilities()
+               and p:CanMakeOpportunityAttacks()
                and tok.loc ~= nil
                and originLoc:DistanceInTiles(tok.loc) <= 1 then
                 result = result or {}
@@ -6135,6 +6226,7 @@ function creature:DispatchTeleportOpportunityAttacks(observers)
            and ourToken.loc:DistanceInTiles(tok.loc) > 1
            and (not tok:IsFriend(self))
            and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
+           and tok.properties:CanMakeOpportunityAttacks()
            and tok.properties:TargetPassesFilter("opportunityattack", self) then
             tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
         end
@@ -6143,6 +6235,17 @@ end
 
 function creature:CanUseTriggeredAbilities()
     return (not self:IsDead()) and self:CalculateNamedCustomAttribute("Cannot Use Triggered Abilities") == 0
+end
+
+--Observer-side gate for opportunity attacks specifically. Deliberately narrower than
+--CanUseTriggeredAbilities, which suppresses EVERY triggered action: a creature carrying
+--the "Cannot Make Opportunity Attacks" custom attribute can still take other triggered
+--actions, and can still take non-OA "moves or shifts away" reactions (the ogre's Swat
+--the Fly, which listens on leaveadjacentorshift) -- it just cannot make an opportunity
+--attack. Call this alongside CanUseTriggeredAbilities anywhere a leaveadjacent dispatch
+--or an opportunity-attack preview is being decided.
+function creature:CanMakeOpportunityAttacks()
+    return self:CalculateNamedCustomAttribute("Cannot Make Opportunity Attacks") == 0
 end
 
 CreatureFilter.Register{
@@ -6384,7 +6487,7 @@ function creature:OnMove(path)
                     local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
 
                     if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
-                        if notImmuneForThisObserver then
+                        if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
                             tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
                         end
@@ -9640,6 +9743,7 @@ end
 --- @field id string
 --- @field charid string
 --- @field free boolean
+--- @field hostile boolean
 --- @field heroicResourceCost number
 --- @field targets string[]
 --- @field powerRollModifier false|CharacterModifier
@@ -9652,10 +9756,21 @@ end
 --- @field modes {text: string, rules: string}[]
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
+--- @field abilityGuid false|string The guid of the TriggeredAbility that created this prompt.
+--- @field abilityName false|string The name of the TriggeredAbility that created this prompt.
+--- @field watcherUserid false|string The user whose session hosts the sustain coroutine watching this prompt.
+--- @field auraControllerId false|string
+--- @field execSymbols false|table SerializeEventValue-encoded event symbols for orphan recovery.
+--- @field execTargets false|table SerializeEventValue-encoded targets for orphan recovery.
 ActiveTrigger = RegisterGameType("ActiveTrigger")
 ActiveTrigger.id = ""
 ActiveTrigger.charid = ""
 ActiveTrigger.free = true
+--A hostile trigger is a harmful prompt forced on the creature (e.g. Bleeding
+--damage) rather than a beneficial reaction offer. Hostile triggers never age
+--out -- they stay until manually activated or dismissed -- and display with a
+--red icon instead of the gold/blue trigger colors.
+ActiveTrigger.hostile = false
 ActiveTrigger.timestamp = 0
 ActiveTrigger.heroicResourceCost = 0
 ActiveTrigger.epicResourceCost = 0
@@ -9675,6 +9790,23 @@ ActiveTrigger.modes = {}
 ActiveTrigger.casterid = false
 ActiveTrigger.originalAbilityRange = 0
 ActiveTrigger.params = {}
+
+--Orphan-recovery context. A prompt's executor is a session-local coroutine
+--(the sustain coroutine in TriggeredAbility.lua), so a prompt that survives a
+--restart or reload -- hostile prompts never expire -- comes back with no
+--executor. These fields let an accepting client rebuild and run the cast via
+--TriggeredAbility.ActivateOrphanedTrigger: abilityGuid/abilityName identify
+--the TriggeredAbility on the caster's modifiers, watcherUserid identifies the
+--user whose session hosts the live coroutine (only that user may adopt an
+--orphan, to avoid double-firing against a coroutine alive on another
+--machine), and execSymbols/execTargets are the SerializeEventValue-encoded
+--event context.
+ActiveTrigger.abilityGuid = false
+ActiveTrigger.abilityName = false
+ActiveTrigger.watcherUserid = false
+ActiveTrigger.auraControllerId = false
+ActiveTrigger.execSymbols = false
+ActiveTrigger.execTargets = false
 
 --expiryTimestamp is the clock the age-out below runs on. It is separate from
 --timestamp (which orders the prompts in the trigger panel) because it gets
@@ -9704,6 +9836,15 @@ local function TriggerExpiryAge(value)
     return TimestampAgeInSeconds(timestamp)
 end
 
+--Whether this trigger has aged out. Hostile triggers never age out: they must
+--be manually resolved or dismissed.
+local function TriggerExpired(value)
+    if value.hostile then
+        return false
+    end
+    return TriggerExpiryAge(value) > g_triggerExpirySeconds
+end
+
 --Seconds until this trigger ages out. May be negative.
 function ActiveTrigger:SecondsUntilExpiry()
     return g_triggerExpirySeconds - TriggerExpiryAge(self)
@@ -9713,6 +9854,10 @@ end
 --it is not close enough to expiry to warn about yet. Drives the draining bar on
 --the trigger prompt.
 function ActiveTrigger:ExpiryWarningFraction()
+    if self.hostile then
+        return nil
+    end
+
     local remaining = self:SecondsUntilExpiry()
     if remaining >= g_triggerExpiryWarningSeconds then
         return nil
@@ -9740,7 +9885,8 @@ function ActiveTrigger.RefreshAllTimers()
                     local age = TriggerExpiryAge(value)
                     --Only refresh live prompts: an entry that has already aged
                     --out is on its way to being cleared and must not be revived.
-                    if (not value.dismissed) and age > g_triggerRefreshDebounceSeconds and age <= g_triggerExpirySeconds then
+                    --Hostile triggers never expire, so they need no re-stamping.
+                    if (not value.dismissed) and (not value.hostile) and age > g_triggerRefreshDebounceSeconds and age <= g_triggerExpirySeconds then
                         refreshKeys = refreshKeys or {}
                         refreshKeys[#refreshKeys+1] = key
                     end
@@ -9851,8 +9997,7 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	local hasExpired = false
 	local hasValid = false
 	for key,value in pairs(availableTriggers) do
-		local age = TriggerExpiryAge(value)
-		if age > g_triggerExpirySeconds or value.id ~= key then
+		if TriggerExpired(value) or value.id ~= key then
 			hasExpired = true
 		elseif (not value.dismissed) or (not excludeDismissed) then
 			hasValid = true
@@ -9870,8 +10015,7 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	local result = {}
 	for key,value in pairs(availableTriggers) do
 		if value.id == key and ((not value.dismissed) or (not excludeDismissed)) then
-			local age = TriggerExpiryAge(value)
-			if age <= g_triggerExpirySeconds then
+			if not TriggerExpired(value) then
 				result[key] = value
 			end
 		end
@@ -9928,8 +10072,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do
-		local age = TriggerExpiryAge(value)
-		if age > g_triggerExpirySeconds then
+		if TriggerExpired(value) then
 			deletes[#deletes+1] = key
 		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false and (not triggerInfo.noDeduplicate) and (not value.noDeduplicate) then
             --de-duplicate spammy triggers that all do the same thing, e.g. if Tactician Mastermind's Overwatch trigger against the same moving creature.
@@ -9955,6 +10098,30 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 
     if isInteraction then
         ScheduleTriggerTimerRefresh()
+
+        --An acceptance is normally consumed by the sustain coroutine that
+        --created the prompt (TriggeredAbility.lua); if that coroutine died
+        --with a previous session or reload, the acceptance would be recorded
+        --and never consumed. Give TriggeredAbility a chance to adopt and
+        --execute it from the context persisted on the record. Deferred out of
+        --the caller's ModifyProperties block, with enough delay for a live
+        --watcher -- here or on another of this user's clients -- to consume
+        --the acceptance first (which removes the record and turns the
+        --adoption into a no-op).
+        local stored = availableTriggers[triggerInfo.id]
+        if stored ~= nil and stored.triggered ~= false and (not stored.dismissed) and stored.powerRollModifier == false then
+            local token = dmhub.LookupToken(self)
+            if token ~= nil then
+                local charid = token.charid
+                local triggerid = stored.id
+                dmhub.Schedule(0.25, function()
+                    if mod.unloaded then
+                        return
+                    end
+                    TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                end)
+            end
+        end
     end
 end
 
@@ -9975,8 +10142,7 @@ function creature:ClearAvailableTrigger(triggerInfo)
 
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do
-		local age = TriggerExpiryAge(value)
-		if age > g_triggerExpirySeconds or key == triggerInfo.id then
+		if TriggerExpired(value) or key == triggerInfo.id then
 			deletes[#deletes+1] = key
 		end
 	end
@@ -10051,6 +10217,19 @@ function creature:EnterAura(info)
                 info:Destroy()
             end
 		end
+	end
+
+	--The simple power roll option (powerRollEnabled and friends on the Aura)
+	--synthesizes an onenter trigger rather than storing one in aura.triggers,
+	--so the roll always reflects the aura's current fields.
+	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger()
+	if simplePowerRollTrigger ~= nil then
+		local auraCasterToken = info.token
+		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+			auraCasterToken = dmhub.LookupToken(self)
+		end
+		result = true
+		info.auraInstance:FireTriggeredAbility(simplePowerRollTrigger.ability, self, auraCasterToken)
 	end
 
 	return result

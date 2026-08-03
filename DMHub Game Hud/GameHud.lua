@@ -83,8 +83,9 @@ local g_diagramMaxWidth = 340
 --A cheap identity for the proposed move so the diagram only rebuilds when the
 --path actually changes, not every time the tooltip event fires. Includes the
 --lower-tier jump alternates (if any) so a hover that changes only the
---shortfall outcomes still re-renders.
-local function DiagramPathSignature(token, path, alternates)
+--shortfall outcomes still re-renders, and the damage-number annotations so a
+--hover that changes only the predicted damage does too.
+local function DiagramPathSignature(token, path, alternates, damages)
 	local parts = {
 		token.charid,
 		path.movementType,
@@ -96,6 +97,8 @@ local function DiagramPathSignature(token, path, alternates)
 		--mount) without changing any step, so it has to be part of the identity: hovering the
 		--saddle marker on a tile the mover could also just walk onto toggles only this.
 		tostring(path.mount),
+		tostring(damages ~= nil and damages.collision or nil),
+		tostring(damages ~= nil and damages.fall or nil),
 	}
 
 	local steps = path.steps
@@ -305,7 +308,7 @@ end
 --uniformly to fit g_diagramMaxWidth so tiles stay square. Returns true if a
 --diagram is shown, false if the move has no drawable cross-section (the caller
 --collapses in that case).
-local function DiagramRender(diagramPanel, token, path, alternates)
+local function DiagramRender(diagramPanel, token, path, alternates, damages)
 	--Lower-tier jump alternates -> secondaryPaths ghost outcomes. The arg is
 	--simply ignored by engine builds that predate secondaryPaths support.
 	local secondaryPaths = nil
@@ -318,7 +321,18 @@ local function DiagramRender(diagramPanel, token, path, alternates)
 		end
 	end
 
-	local result = dmhub.SetMovementCrossSection{token = token, path = path, secondaryPaths = secondaryPaths}
+	--Predicted damage-number annotations (collision / fall), computed by whoever
+	--fired the tiletooltip event (they are game-system rules). Drawn as red "-N"
+	--labels in the diagram, mirroring the map's forced-move targeting labels.
+	--Ignored by engine builds that predate the args.
+	local collisionDamage = nil
+	local fallDamage = nil
+	if damages ~= nil then
+		collisionDamage = damages.collision
+		fallDamage = damages.fall
+	end
+
+	local result = dmhub.SetMovementCrossSection{token = token, path = path, secondaryPaths = secondaryPaths, collisionDamage = collisionDamage, fallDamage = fallDamage}
 	if result == nil then
 		diagramPanel:SetClass("collapsed", true)
 		dmhub.ClearMovementCrossSection()
@@ -376,7 +390,7 @@ local function CreateMovementDiagramPanel()
 				return
 			end
 
-			local sig = DiagramPathSignature(args.movingToken, args.movingPath, args.movingPathAlternates)
+			local sig = DiagramPathSignature(args.movingToken, args.movingPath, args.movingPathAlternates, args.movingPathDamages)
 			if sig == element.data.signature then
 				return
 			end
@@ -391,7 +405,7 @@ local function CreateMovementDiagramPanel()
 				return
 			end
 
-			DiagramRender(element, args.movingToken, args.movingPath, args.movingPathAlternates)
+			DiagramRender(element, args.movingToken, args.movingPath, args.movingPathAlternates, args.movingPathDamages)
 		end,
 	}
 end

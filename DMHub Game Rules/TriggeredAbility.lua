@@ -131,7 +131,7 @@ TriggeredAbility.TargetTypes = {
 		id = 'target',
 		text = 'Target',
 		condition = function(ability)
-			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.silent
+			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.trigger == "pressureplateoff" or ability.trigger == "collide" or ability.silent
 		end,
 	},
     {
@@ -476,6 +476,21 @@ TriggeredAbility.triggers = {
                 name = "Pusher",
                 type = "creature",
                 desc = "The creature that pushed us into the object.",
+            },
+            target = {
+                name = "Target",
+                type = "creature",
+                desc = "The creature or object on the other side of the collision. On the moving creature's trigger this is what it ran into; on the trigger of a creature that was hit, this is the creature that was moved into it. Only valid if Has Target is true.",
+            },
+            hastarget = {
+                name = "Has Target",
+                type = "boolean",
+                desc = "True if the collision was with a creature or object token. False when the collision was with a wall or terrain, which has no token to expose.",
+            },
+            collidedwith = {
+                name = "Collided With",
+                type = "creaturelist",
+                desc = "Every creature and object on the other side of the collision, for the rare case where more than one was hit at once.",
             },
             withobject = {
                 name = "With Object",
@@ -849,6 +864,10 @@ TriggeredAbility.conditionFormula = ""
 TriggeredAbility.save = 'none'
 TriggeredAbility.savedc = '10'
 TriggeredAbility.mandatory = true
+--A hostile trigger is a harmful prompt forced on the creature (e.g. Bleeding
+--damage) rather than a beneficial reaction offer. Its prompt shows a red icon,
+--never ages out, and must be manually activated or dismissed.
+TriggeredAbility.hostile = false
 
 function TriggeredAbility.OnDeserialize(self)
 	ActivatedAbility.OnDeserialize(self)
@@ -890,6 +909,45 @@ function TriggeredAbility:HasDismissBehaviors()
         end
     end
     return false
+end
+
+--The sustain coroutines below register the prompt ids they are watching here.
+--Session-local by nature: a restart or Lua reload that kills the coroutines
+--also empties this table, which is exactly what marks any surviving prompts
+--as orphaned -- see ActivateOrphanedTrigger.
+local g_liveTriggerWatchers = {}
+
+--Encode a trigger's execution context so it can be persisted (on the
+--ActiveTrigger record or in remoteInvokes) and rebuilt in another session or
+--on another machine: GenerateSymbols function wrappers are unwrapped to their
+--underlying creatures, and SerializeEventValue converts live tokens/creatures
+--into string refs which DeserializeEventValue resolves back to live objects.
+local function SerializeTriggerContext(symbols, targets)
+	local visited = {}
+	local serializedSymbols = {}
+	for k,v in pairs(symbols or {}) do
+		if type(v) == "function" then
+			--GenerateSymbols wrappers: unwrap to the underlying creature so it
+			--serializes as a charid ref rather than being dropped.
+			local unwrapped = nil
+			pcall(function() unwrapped = v("self") end)
+			v = unwrapped
+		end
+		serializedSymbols[k] = SerializeEventValue(v, visited)
+	end
+
+	local serializedTargets = {}
+	for _,entry in ipairs(targets or {}) do
+		serializedTargets[#serializedTargets+1] = {
+			loc = entry.loc,
+			token = SerializeEventValue(entry.token, visited),
+			--lets the receiver distinguish "never had a token" (loc-only
+			--targets, e.g. pathmoved) from "the token despawned in transit".
+			hadToken = entry.token ~= nil,
+		}
+	end
+
+	return serializedSymbols, serializedTargets
 end
 
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
@@ -1276,6 +1334,11 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		dmhub.Coroutine(function()
 			local guid = dmhub.GenerateGuid()
 
+			--Register as the live watcher for this prompt before it becomes
+			--visible: an acceptance is consumed by this coroutine, never by
+			--the orphan-recovery path -- see ActivateOrphanedTrigger.
+			g_liveTriggerWatchers[guid] = true
+
             local targetids = {}
             for i,tok in ipairs(targets) do
                 if tok.token.charid ~= casterToken.charid then
@@ -1317,6 +1380,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 text = string.format("%s (%d %s)", text, cost, casterToken.properties:GetHeroicResourceName())
             end
 
+            --Persist the execution context on the record itself: if this
+            --session dies before the prompt is resolved (hostile prompts can
+            --outlive many sessions), the accepting client rebuilds the cast
+            --from these fields -- see ActivateOrphanedTrigger.
+            local serializedSymbols, serializedTargets = SerializeTriggerContext(symbols, targets)
+            local auraControllerId = nil
+            if auraControllerToken ~= nil and auraControllerToken.charid ~= casterToken.charid then
+                auraControllerId = auraControllerToken.charid
+            end
+
 			local trigger = ActiveTrigger.new{
 				id = guid,
                 activateText = activateText,
@@ -1326,7 +1399,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 clearOnDismiss = true,
                 modes = modes,
                 heroicResourceCost = tonumber(cost),
-                noDeduplicate = self:try_get("allowDuplicateTriggers", false),
+                hostile = self.hostile,
+                --Hostile prompts each represent a separate debt (e.g. two
+                --Bleeding losses from two actions), so they never merge.
+                noDeduplicate = self:try_get("allowDuplicateTriggers", false) or self.hostile,
+                abilityGuid = self:try_get("guid"),
+                abilityName = self.name,
+                watcherUserid = dmhub.userid,
+                auraControllerId = auraControllerId,
+                execSymbols = serializedSymbols,
+                execTargets = serializedTargets,
 			}
 
             if self:ActionResource() == CharacterResource.triggerResourceId then
@@ -1373,7 +1455,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     if dmhub.Time() >= expireAt then
                         sustain = false
                     end
-                elseif casterToken.properties:GetResourceRefreshId("turn") ~= turnid and (dmhub.initiativeQueue == nil or (not dmhub.initiativeQueue:ChoosingTurn())) then
+                elseif (not self.hostile) and casterToken.properties:GetResourceRefreshId("turn") ~= turnid and (dmhub.initiativeQueue == nil or (not dmhub.initiativeQueue:ChoosingTurn())) then
+                    --Hostile prompts are exempt: they survive turn changes and
+                    --wait indefinitely for a manual resolution.
                     expireAt = dmhub.Time() + 6
                 end
 
@@ -1454,6 +1538,10 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             if casterToken == nil or (not casterToken.valid) then
                 casterToken = dmhub.GetTokenById(tokid)
             end
+
+            --This coroutine is done watching the prompt; from here any entry
+            --that somehow survives the cleanup below is orphaned.
+            g_liveTriggerWatchers[guid] = nil
 
 			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
 			--path (triggered, dismissed, sustain lost, caster invalid, transient
@@ -1624,7 +1712,21 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 	g_triggerDepth = g_triggerDepth + 1
 
-	dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
+	--Held back until every cast active right now completes -- including the
+	--triggering cast when this fires mid-cast (e.g. ability damage triggering
+	--the target's mandatory Ferocity replenish). Executing immediately let the
+	--trigger's own roll acquire the ability sidebar while the attacking cast's
+	--invoke prompt was live, displacing the prompt card and silently cancelling
+	--the invoke. Mirrors the deferral on the other dispatch sites
+	--(SendTriggerCastToController above, MCDModifyPowerRolls triggerOnUse).
+	--Runs immediately when no casts are active, so triggers fired outside a
+	--cast are unchanged.
+	ActivatedAbility.RunWhenCastsComplete(function()
+		if casterToken == nil or not casterToken.valid then
+			return
+		end
+		dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
+	end)
 
 	g_triggerDepth = g_triggerDepth - 1
 end
@@ -1644,29 +1746,7 @@ TriggeredAbilityRemoteExecution = RegisterGameType("TriggeredAbilityRemoteExecut
 function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 	local casterToken = args.casterToken
 
-	local visited = {}
-	local serializedSymbols = {}
-	for k,v in pairs(args.symbols or {}) do
-		if type(v) == "function" then
-			--GenerateSymbols wrappers: unwrap to the underlying creature so it
-			--serializes as a charid ref rather than being dropped.
-			local unwrapped = nil
-			pcall(function() unwrapped = v("self") end)
-			v = unwrapped
-		end
-		serializedSymbols[k] = SerializeEventValue(v, visited)
-	end
-
-	local serializedTargets = {}
-	for _,entry in ipairs(args.targets or {}) do
-		serializedTargets[#serializedTargets+1] = {
-			loc = entry.loc,
-			token = SerializeEventValue(entry.token, visited),
-			--lets the receiver distinguish "never had a token" (loc-only
-			--targets, e.g. pathmoved) from "the token despawned in transit".
-			hadToken = entry.token ~= nil,
-		}
-	end
+	local serializedSymbols, serializedTargets = SerializeTriggerContext(args.symbols, args.targets)
 
 	local auraControllerId = nil
 	if args.auraControllerToken ~= nil and args.auraControllerToken.charid ~= casterToken.charid then
@@ -1790,6 +1870,170 @@ function TriggeredAbilityRemoteExecution:Invoke()
 	})
 
 	return true
+end
+
+--Adopts and executes a trigger prompt whose sustain coroutine no longer
+--exists: the session that dispatched it restarted or reloaded, which is
+--routine for hostile prompts since they never age out. Scheduled by
+--creature:DispatchAvailableTrigger whenever an acceptance is recorded, and a
+--no-op in the normal case where a live coroutine on this client is watching
+--the prompt. Reconstructs the modifier/ability the same way
+--TriggeredAbilityRemoteExecution:Invoke does, but from the context persisted
+--on the ActiveTrigger record itself. Any failure to reconstruct cancels the
+--prompt: it must go away rather than stay clickable-but-inert.
+function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
+	if casterToken == nil or (not casterToken.valid) then
+		return
+	end
+
+	if g_liveTriggerWatchers[triggerid] then
+		--the normal case: the coroutine that created the prompt is alive on
+		--this client and consumes the acceptance itself.
+		return
+	end
+
+	local casterCreature = casterToken.properties
+	local availableTriggers = casterCreature:try_get("availableTriggers")
+	local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+	if record == nil then
+		--already consumed.
+		return
+	end
+
+	if record.triggered == false or record.dismissed then
+		return
+	end
+
+	--Power-table prompts (roll dialog triggers) are owned by the dialog that
+	--spawned them, and prompts created before orphan recovery existed carry
+	--no context to rebuild from. Neither is ours to adopt.
+	if record.powerRollModifier ~= false then
+		return
+	end
+	if record.abilityGuid == false and record.abilityName == false then
+		return
+	end
+
+	--A coroutine on another client may still be watching this record (e.g.
+	--the Director accepting a player's prompt while the player's session is
+	--alive). Only the user whose session created the prompt adopts it: for
+	--them, absence from g_liveTriggerWatchers proves the watcher is dead.
+	if record.watcherUserid ~= false and record.watcherUserid ~= dmhub.userid then
+		return
+	end
+
+	printf("OrphanTrigger:: adopting %s (%s) on %s", tostring(record.abilityName), tostring(record.abilityGuid), casterToken.charid)
+
+	--Whatever happens next, consume the prompt -- mirroring the sustain
+	--coroutine's accept path (clear first, execute second) and guaranteeing
+	--that a prompt which fails to reconstruct goes away.
+	casterToken:ModifyProperties{
+		description = "Clear Trigger",
+		undoable = false,
+		execute = function()
+			casterCreature:ClearAvailableTrigger({id = triggerid})
+		end,
+	}
+
+	--Find the triggered ability on the caster's active modifiers, preferring
+	--the persisted guid, with a name fallback so prompts survive a compendium
+	--re-import changing guids.
+	local characterModifier = nil
+	local modContext = nil
+	local nameMatch = nil
+	for _,entry in ipairs(casterCreature:GetActiveModifiers()) do
+		local triggeredAbility = entry.mod:try_get("triggeredAbility")
+		if triggeredAbility ~= nil then
+			if record.abilityGuid ~= false and triggeredAbility:try_get("guid") == record.abilityGuid then
+				characterModifier = entry.mod
+				modContext = entry
+				break
+			elseif nameMatch == nil and record.abilityName ~= false and triggeredAbility.name == record.abilityName then
+				nameMatch = entry
+			end
+		end
+	end
+
+	if characterModifier == nil and nameMatch ~= nil then
+		characterModifier = nameMatch.mod
+		modContext = nameMatch
+	end
+
+	if characterModifier == nil then
+		printf("OrphanTrigger:: could not find triggered ability %s (%s) on the caster; canceling the prompt.", tostring(record.abilityName), tostring(record.abilityGuid))
+		return
+	end
+
+	--The cast pipeline can yield, so run it inside a coroutine, the same way
+	--PumpRemoteInvokes runs remote executions. The deserialization steps are
+	--pcall-protected (they cannot yield); the Trigger call is not, since this
+	--runtime forbids yielding across a pcall boundary.
+	dmhub.Coroutine(function()
+		local symbols = nil
+		local targets = nil
+		local ok, err = pcall(function()
+			local execSymbols = record.execSymbols
+			if execSymbols == false then
+				execSymbols = {}
+			end
+			symbols = DeserializeEventValue(DeepCopy(execSymbols)) or {}
+
+			local execTargets = record.execTargets
+			if execTargets == false then
+				execTargets = {}
+			end
+			targets = {}
+			for _,entry in ipairs(execTargets) do
+				local token = DeserializeEventValue(entry.token)
+				local tokenAlive = token ~= nil and token.valid
+				if entry.hadToken and not tokenAlive then
+					--this target despawned while the prompt was pending; drop
+					--it, matching the sustain coroutine's despawn filtering.
+				else
+					targets[#targets+1] = { loc = entry.loc, token = token }
+				end
+			end
+		end)
+
+		if not ok then
+			printf("OrphanTrigger:: failed to reconstruct context for %s: %s", tostring(record.abilityName), tostring(err))
+			return
+		end
+
+		if #targets == 0 then
+			printf("OrphanTrigger:: no surviving targets for %s; canceling the prompt.", tostring(record.abilityName))
+			return
+		end
+
+		if type(record.triggered) == "number" then
+			--the first mode is just the 'activate' which shows up as true.
+			symbols.mode = record.triggered + 1
+		else
+			symbols.mode = 1
+		end
+
+		--Mirror TriggeredAbilityRemoteExecution:Invoke: install per-modifier
+		--context symbols, then apply the creature's Modify Abilities pass.
+		characterModifier:InstallSymbolsFromContext(modContext)
+		for k,v in pairs(characterModifier._tmp_symbols or {}) do
+			symbols[k] = v
+		end
+
+		local ability = casterCreature:ApplyAbilityModifiers(characterModifier.triggeredAbility, nil, "triggered") or characterModifier.triggeredAbility
+
+		local auraControllerToken = nil
+		if record.auraControllerId ~= false then
+			auraControllerToken = dmhub.GetCharacterById(record.auraControllerId)
+		end
+
+		ability:Trigger(characterModifier, casterCreature, symbols, auraControllerToken, modContext, {
+			remoteExecution = {
+				targets = targets,
+				dismiss = false,
+				alreadyPaid = false,
+			},
+		})
+	end)
 end
 
 function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, creature, symbols, auraControllerToken, modContext, argOptions)

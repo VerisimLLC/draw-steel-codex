@@ -25,6 +25,10 @@ local g_triggerLookupSymbols = {
     free = function(t)
         return t._free and 1 or 0
     end,
+
+    hostile = function(t)
+        return t._hostile and 1 or 0
+    end,
 }
 
 local g_triggerHelpSymbols = {
@@ -48,6 +52,11 @@ local g_triggerHelpSymbols = {
         type = "boolean",
         desc = "Whether the trigger is a free triggered action.",
     },
+    {
+        name = "Hostile",
+        type = "boolean",
+        desc = "Whether the trigger is a hostile trigger (a harmful prompt that never expires and must be manually resolved).",
+    },
 }
 
 RegisterGoblinScriptTypeInfo("trigger", g_triggerHelpSymbols)
@@ -62,6 +71,7 @@ local function MakeTriggerSymbolObject(triggerInfo)
         _text = triggerInfo.text or "",
         _rules = triggerInfo:GetRulesText(),
         _free = triggerInfo:IsFreeTriggeredAbility(),
+        _hostile = triggerInfo.hostile,
     }
 end
 

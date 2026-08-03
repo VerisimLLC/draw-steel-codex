@@ -616,7 +616,16 @@ CreateUserSessionPanel = function(userid)
 					local perf = sessionInfo.perf
 					local loggedInText = "Logged In"
 					if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
-						loggedInText = string.format("Last seen %s", DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+						--the server only persists a coarse last-contact time, and records
+						--written before it did so have none at all -- in which case
+						--timeSinceLastContact is measured from the epoch and would render as
+						--"20664 days ago". lastContactKnown reads nil on engine builds that
+						--predate it; treat that as known.
+						if sessionInfo.lastContactKnown == false then
+							loggedInText = "Last seen: unknown"
+						else
+							loggedInText = string.format("Last seen %s", DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+						end
 					else
 						if sessionInfo.ping == nil then
 							loggedInText = loggedInText .. "\nPing: unknown"

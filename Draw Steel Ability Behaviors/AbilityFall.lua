@@ -189,7 +189,11 @@ function ActivatedAbilityDigVerticalBehavior:Cast(ability, casterToken, targets,
 	local function digReactionBusy()
 		local trigs = casterToken.properties:GetAvailableTriggers()
 		if trigs ~= nil then
-			for _ in pairs(trigs) do return true end
+			--Hostile prompts (e.g. pending Bleeding damage) never age out, so
+			--they must not stall the movement prompt.
+			for _,trig in pairs(trigs) do
+				if not trig.hostile then return true end
+			end
 		end
 		if gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell() then
 			return true

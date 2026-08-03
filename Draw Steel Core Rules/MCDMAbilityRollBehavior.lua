@@ -111,6 +111,136 @@ local function FormatTierText(text, skipValidation)
     return text
 end
 
+--Render tier text that may contain "or" choice groups (see ParseOrGroups
+--in MCDMAbilityBehavior.lua). Alternatives are wrapped in
+--<link=or:tier:group:alt> regions: the chosen alternative is underlined,
+--unchosen ones are dimmed. A label showing this text with links = true
+--can read element.linkHovered in its press handler to react to clicks.
+--Text without choice groups renders exactly as FormatTierText would.
+local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tierIndex, rollProperties)
+    local groups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(rawText)
+    if groups == nil then
+        local tierText = rawText
+        if caster ~= nil then
+            tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, skipValidation)
+        end
+        return FormatTierText(tierText, skipValidation)
+    end
+
+    local choices = nil
+    if rollProperties ~= nil then
+        choices = rollProperties:try_get("orChoices")
+    end
+
+    --Run the display pipeline piece by piece so byte spans from the raw
+    --text stay aligned with what we emit. Alternatives skip the
+    --unparseable-text dimming (they validated as rules to form a group);
+    --the surrounding text keeps it.
+    local Transform = function(piece, skipPieceValidation)
+        if piece == "" then
+            return piece
+        end
+        if caster ~= nil then
+            piece = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, piece, nil, skipPieceValidation)
+        elseif not skipPieceValidation then
+            piece = ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(piece)
+        end
+        return piece
+    end
+
+    local out = {}
+    local pos = 1
+    for gi,g in ipairs(groups) do
+        local key = string.format("%d:%d", tierIndex, gi)
+        local chosen = 1
+        if choices ~= nil and type(choices[key]) == "number" and choices[key] >= 1 and choices[key] <= #g.alts then
+            chosen = choices[key]
+        end
+
+        out[#out+1] = Transform(string.sub(rawText, pos, g.alts[1].s - 1), skipValidation)
+
+        for ai,alt in ipairs(g.alts) do
+            if ai > 1 then
+                --separator text between alternatives (" or ", ",")
+                out[#out+1] = string.sub(rawText, g.alts[ai-1].e + 1, alt.s - 1)
+            end
+            local altText = Transform(string.sub(rawText, alt.s, alt.e), true)
+            local linkid = string.format("or:%d:%d:%d", tierIndex, gi, ai)
+            if ai == chosen then
+                out[#out+1] = string.format("<link=%s><u>%s</u></link>", linkid, altText)
+            else
+                --#AA (~67%) rather than a heavier fade: unchosen options must
+                --stay comfortably readable on the accent-filled result row.
+                out[#out+1] = string.format("<link=%s><alpha=#AA>%s<alpha=#FF></link>", linkid, altText)
+            end
+        end
+
+        --the distributed duration suffix (and any gap) after the last
+        --alternative still displays at full strength.
+        if g.suffixE > g.alts[#g.alts].e then
+            out[#out+1] = Transform(string.sub(rawText, g.alts[#g.alts].e + 1, g.suffixE), true)
+        end
+
+        pos = math.max(g.suffixE, g.alts[#g.alts].e) + 1
+    end
+    out[#out+1] = Transform(string.sub(rawText, pos), skipValidation)
+
+    local text = table.concat(out)
+
+    --the tail of FormatTierText: bold leading damage, then the rich text
+    --pass. Validation dimming already happened per piece above.
+    local damageGroups = regex.MatchGroups(text, "^(?<damage>[0-9]+).*?damage")
+    if damageGroups ~= nil then
+        text = string.format("<b>%s</b>%s", damageGroups.damage, string.sub(text, string.len(damageGroups.damage)+1))
+    end
+    text = MarkdownDocument.FormatRichText(text, {player = not dmhub.isDM})
+    return text
+end
+
+--Record an "or" choice on rollProperties. The same choice usually appears
+--on every tier row with only its duration differing ("slowed or weakened
+--(save ends)" vs "(EoT)"), and the user cannot know which tier will land
+--before rolling, so a click also selects the matching alternative in the
+--other tiers' groups (matched on duration-stripped alternative text).
+local function SetOrChoice(rollProperties, tierIndex, groupIndex, altIndex)
+    local orChoices = rollProperties:get_or_add("orChoices", {})
+    orChoices[string.format("%d:%d", tierIndex, groupIndex)] = altIndex
+
+    local sourceText = rollProperties.tiers[tierIndex]
+    if type(sourceText) ~= "string" then
+        return
+    end
+    local sourceGroups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(sourceText)
+    local sourceGroup = sourceGroups ~= nil and sourceGroups[groupIndex] or nil
+    if sourceGroup == nil then
+        return
+    end
+
+    local sourceKeys = {}
+    for ai,alt in ipairs(sourceGroup.alts) do
+        sourceKeys[ai] = ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(sourceText, alt.s, alt.e))
+    end
+
+    for ti,tierText in ipairs(rollProperties.tiers) do
+        if ti ~= tierIndex and type(tierText) == "string" then
+            for gi,g in ipairs(ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(tierText) or {}) do
+                if #g.alts == #sourceKeys then
+                    local same = true
+                    for ai,alt in ipairs(g.alts) do
+                        if ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(tierText, alt.s, alt.e)) ~= sourceKeys[ai] then
+                            same = false
+                            break
+                        end
+                    end
+                    if same then
+                        orChoices[string.format("%d:%d", ti, gi)] = altIndex
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function BoonsAndBanesToMod(boons, banes)
     if boons >= 2 and banes == 0 then
         return 0
@@ -177,6 +307,27 @@ end
 
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
+
+--Resolve the "or" choice groups in a tier command to the alternatives the
+--user picked in the roll dialog. Choices live in rollProperties.orChoices
+--(keys "tier:group", values 1-based alternative indexes; written by the
+--power table's tier labels, synced across clients via UploadProperties).
+--Multitarget rollProperties clones never saw the dialog, so fall back to
+--the primary rollProperties' choices. Unrecorded groups resolve to their
+--first alternative.
+local function ResolveTierOrChoices(rollProperties, fallbackProperties, tier, command)
+    if type(command) ~= "string" then
+        return command
+    end
+    local choices = nil
+    if rollProperties ~= nil then
+        choices = rollProperties:try_get("orChoices")
+    end
+    if choices == nil and fallbackProperties ~= nil then
+        choices = fallbackProperties:try_get("orChoices")
+    end
+    return ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(command, choices, tier)
+end
 
 local g_TierNames = {"!", "@", "#"}
 
@@ -324,15 +475,21 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     bgcolor = "@accent",
                 },
                 {
+                    --Full black rather than @fgInverse: the accent-gold result
+                    --row wants maximum text contrast, especially next to the
+                    --alpha-dimmed unchosen "or" alternatives.
                     selectors = {"label", "highlight"},
-                    color = "@fgInverse",
+                    color = "#000000",
                 },
                 {
                     --Hovered rows fill with the light @accentHover gold, so the
                     --tier text must flip to the dark inverse color to stay legible
                     --(mirrors the {label, highlight} rule above for the accent fill).
-                    selectors = {"label", "hover"},
-                    color = "@fgInverse",
+                    --Gated on "selectable" to match the row fill rule below: before the
+                    --roll finishes the row isn't pressable and gets no gold fill, so
+                    --recoloring the text there would just look like a broken hover.
+                    selectors = {"label", "selectable", "hover"},
+                    color = "#000000",
                 },
                 {
                     selectors = {"row", "flash"},
@@ -527,12 +684,6 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         --math.max so power tables with an optional 4th "Critical" tier render a 4th row;
         --3-tier ability rolls still produce exactly #g_TierNames rows.
         for i=1, math.max(#g_TierNames, #rollProperties.tiers) do
-            local tierText = rollProperties.tiers[i]
-
-            if caster ~= nil then
-                tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
-            end
-
             --Tier 4 = "Critical": DrawSteelGlyphs has no crit glyph, so use a plain text label.
             local tierIcon
             if i == 4 then
@@ -546,6 +697,15 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 width = "100%",
                 height = "auto",
                 press = function(element)
+                    element:FireEvent("pressTierRow")
+                end,
+                --Named so the tier label can forward non-link clicks here; see
+                --the label's press handler below.
+                pressTierRow = function(element)
+                    --DIAG: log every tier-row press attempt for the prompt-hang
+                    --investigation, including rejected ones. Safe to keep.
+                    print(string.format("ROLLDIAG:: tier row %d pressed selectable=%s highlight=%s T=%.2f",
+                        i, tostring(element:HasClass("selectable")), tostring(element:HasClass("highlight")), dmhub.Time()))
                     if (not element:HasClass("selectable")) or element:HasClass("highlight") then
                         return
                     end
@@ -574,7 +734,10 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     end
 
                     if finish then
-                        element:SetClass("selectable", true)
+                        --SetClassTree so the descendant labels can gate their hover
+                        --recolor on "selectable" too (see the {label, selectable, hover}
+                        --rule); the press guard above still reads it off the row itself.
+                        element:SetClassTree("selectable", true)
                     end
                 end,
                 tierIcon,
@@ -586,17 +749,49 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     valign = "center",
                     hpad = 0,
                     gui.Label{
-                        text = FormatTierText(tierText, m_fullyImplemented),
+                        text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties),
                         fontSize = 15,
                         width = 280,
                         height = "auto",
                         vpad = 0,
-                        refreshMods = function(element)
-                            local tierText = rollProperties.tiers[i]
-                            if caster ~= nil then
-                                tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
+                        links = true,
+                        --a label's text glyphs are not a raycast surface; the
+                        --press handler below never fires without a (near
+                        --invisible) bgimage backing.
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000001",
+                        --Clicking an "or" alternative selects it; any other click
+                        --on the label behaves like a click on the row (tier
+                        --override), which the label's own press would otherwise
+                        --swallow.
+                        press = function(element)
+                            local link = element.linkHovered
+                            if link ~= nil then
+                                local t, g, a = string.match(link, "^or:(%d+):(%d+):(%d+)$")
+                                if t ~= nil then
+                                    SetOrChoice(rollProperties, tonumber(t), tonumber(g), tonumber(a))
+                                    parentPanel:FireEventTree("refreshMods")
+                                    if m_rollInfo ~= nil then
+                                        m_rollInfo:UploadProperties(rollProperties)
+                                    end
+                                    if options ~= nil and options.onOrChoiceChanged ~= nil then
+                                        options.onOrChoiceChanged()
+                                    end
+                                    return
+                                end
                             end
-                            element.text = FormatTierText(tierText, m_fullyImplemented)
+                            element:FireEventOnParents("pressTierRow")
+                        end,
+                        hoverLink = function(element, link)
+                            if string.starts_with(link, "or:") then
+                                gui.Tooltip("Click to choose this option")(element)
+                            end
+                        end,
+                        dehoverLink = function(element, link)
+                            element.tooltip = nil
+                        end,
+                        refreshMods = function(element)
+                            element.text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties)
                         end,
                         finishRoll = function(element, tierNumber)
                             if i >= tierNumber then
@@ -722,15 +917,17 @@ function creature:HasBanesOnGenericFreeStrike(targetToken)
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
 
         if m ~= nil then
-            m.hint = m.modifier:HintModifyPowerRolls(mod, self, "enemy_ability_power_roll", {
+            m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
+                caster = self,
                 target = targetCreature,
                 --attribute = self:try_get("attrid"),
                 --skills = {self:try_get("skillid")}
             })
             if m.hint ~= nil and m.hint.result then
-                roll = m.modifier:ModifyPowerRolls(mod, self, "enemy_ability_power_roll", roll, {
+                roll = m.modifier:ModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", roll, {
                     ability = ability,
+                    caster = self,
                     target = targetCreature,
                 })
             end
@@ -847,7 +1044,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 	local modifiersApplied = nil
     local appliedTargetCreature = nil
 
+    --Environment rolls (hazard auras / environmental keywords): the "caster"
+    --is only executing the roll on the environment's behalf, and the roll
+    --counts as a roll made AGAINST them. Their own modifiers must not help
+    --or hinder it, and their defensive "rolls against you" modifiers must
+    --apply even though they are also the target (see CalculateMultitargets).
+    local environmentRoll = ability:try_get("environmentRoll", false)
+
     local modifiersOnCaster = caster:GetActiveModifiers()
+    if environmentRoll then
+        modifiersOnCaster = {}
+    end
 
     if rollType == "ability_power_roll" then
         local paramModifications = options.symbols.cast:GetParamModifications("ability_damage")
@@ -1014,9 +1221,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             end
 
             local modifiersOnTarget = {}
-            
-            if target.token.charid ~= casterToken.charid then
+
+            if target.token.charid ~= casterToken.charid or environmentRoll then
                 --if this is not the caster, we need to check for modifiers on the target.
+                --Environment rolls target the roller themselves, but still count as a
+                --roll made against them, so their defensive modifiers apply.
                 modifiersOnTarget = targetCreature:GetActiveModifiers()
             end
 
@@ -1096,9 +1305,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         m.modifier:InstallSymbolsFromContext(options.symbols)
                     end
 
-                    --this is told from the caster's perspective.
-                    m.hint = m.modifier:HintModifyPowerRolls(mod, caster, "enemy_ability_power_roll", {
+                    --Evaluate target-owned modifiers from the defender's
+                    --perspective while exposing the attacker as Caster.
+                    m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                         ability = ability,
+                        caster = caster,
                         target = targetCreature,
                     })
 
@@ -1358,6 +1569,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties, caster, {
             ability = ability,
             onTierOverride = function(tier)
+                if dialog.valid and dialog.data and dialog.data.UpdateArrowLabels then
+                    dialog.data.UpdateArrowLabels()
+                end
+            end,
+            --an "or" choice click changes what the targeting-arrow effect
+            --preview should show, same as a tier override does.
+            onOrChoiceChanged = function()
                 if dialog.valid and dialog.data and dialog.data.UpdateArrowLabels then
                     dialog.data.UpdateArrowLabels()
                 end
@@ -1642,7 +1860,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
                 end
 
-                local command = targetRollProperties.tiers[tier]
+                local command = ResolveTierOrChoices(targetRollProperties, rollProperties, tier, targetRollProperties.tiers[tier])
 
                 local surges = 0
                 local potencyApplied = 0
@@ -2331,7 +2549,9 @@ function RollPropertiesPowerTable:GetSymbols(rollInfo, targetCreature)
 
     for i,entry in ipairs(multitargets) do
         if entry.token.charid == token.charid then
-            local tier = self.tiers[entry.tier]
+            --resolve "or" choice groups so trigger symbols (push/pull/slide
+            --amounts etc.) read the alternative that was actually chosen.
+            local tier = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(self.tiers[entry.tier], self:try_get("orChoices"), entry.tier)
             return GenerateSymbols(TierSymbols.new{tier = tier})
         end
     end
@@ -2777,11 +2997,14 @@ function RollPropertiesPowerTable:CustomPanel(message)
                             height = "auto",
                             gui.Label{ text = g_TierNames[i], fontSize = 30, fontFace = "DrawSteelGlyphs", valign = "center", width = 60, height = 20, },
                             gui.Label{
-                                text = FormatTierText(tier),
+                                --or-aware but display-only in chat: the chosen
+                                --alternative shows underlined, unchosen dimmed.
+                                --Choices are made in the roll dialog.
+                                text = FormatTierTextWithOrChoices(tier, nil, false, i, self),
                                 width = "100%-60",
                                 height = "auto",
                                 refreshTiers = function(element)
-                                    element.text = FormatTierText(self.tiers[i])
+                                    element.text = FormatTierTextWithOrChoices(self.tiers[i], nil, false, i, self)
                                 end,
                                 revealTier = function(element)
                                     local text = self.tiers[i]
@@ -2792,6 +3015,10 @@ function RollPropertiesPowerTable:CustomPanel(message)
                             },
                             width = "100%",
                             press = function(element)
+                                --DIAG: log chat tier-row presses for the prompt-hang
+                                --investigation. Safe to keep.
+                                print(string.format("ROLLDIAG:: chat tier row %d pressed amendable=%s T=%.2f",
+                                    i, tostring(element:HasClass("amendable")), dmhub.Time()))
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)

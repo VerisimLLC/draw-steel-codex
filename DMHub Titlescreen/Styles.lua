@@ -186,10 +186,12 @@ Styles = {
         triggerColor = "#cccc00",
         freeColor = "#9999ff",
 		passiveColor = "#006300",
+		hostileColor = "#bb2222",
 
         triggerColorAgainstText = "#aaaa00",
         freeColorAgainstText = "#7777ee",
 		passiveColorAgainstText = "#006300",
+		hostileColorAgainstText = "#992020",
     },
     TriggerStyles = {
         gui.Style{
@@ -207,6 +209,12 @@ Styles = {
 		gui.Style{
 			selectors = {"triggeredActionPanel", "passive"},
 			bgcolor = "#006300",
+			color = "white",
+		},
+		--hostile sits after free/passive so it wins when both classes apply.
+		gui.Style{
+			selectors = {"triggeredActionPanel", "hostile"},
+			bgcolor = "#bb2222",
 			color = "white",
 		},
         gui.Style{

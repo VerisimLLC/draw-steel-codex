@@ -2520,8 +2520,14 @@ local function CreateTopBar()
                 },
         }
 
-        if dmhub.inGame and not dmhub.isLobbyGame then
-            m_dialog = gamehud:ModalDialog{
+        local function ShowInGamehudModal()
+            local gh = rawget(_G, "gamehud")
+            if gh == nil then
+                report:Cancel()
+                return
+            end
+
+            m_dialog = gh:ModalDialog{
                 title = kindInfo.title,
 
                 --ModalDialog's frame defaults to 768 tall; the 830-tall body
@@ -2538,55 +2544,56 @@ local function CreateTopBar()
                 bodyPanel,
             }
             m_dialog:AddChild(closeButton)
+        end
+
+        --Host selection. In a real game the gamehud modal stack owns the dialog.
+        --
+        --On the titlescreen we normally host on the titlescreen root, like the
+        --other titlescreen dialogs -- but NOT while a character sheet is open.
+        --EditHero sets "titlescreenHidden" on the root, and the root's style
+        --rule hides every direct child of it, so a report parented there is
+        --invisible (the reported bug: the sheet appears "over" the report).
+        --The titlescreen has to get out of the way like that because the
+        --character sheet's canvas swallows all pointer input even though it
+        --renders below the titlescreen -- a visible titlescreen over an open
+        --sheet would be dead UI. The gamehud modal layer lives in the sheet's
+        --own canvas and sorts above it, so that is the only host that keeps
+        --the report on top while a sheet is up.
+        local root = rawget(_G, "CodexTitlescreenRoot")
+        local canHostOnTitlescreen = root ~= nil and root.valid
+            and not root:HasClass("titlescreenHidden")
+
+        if (dmhub.inGame and not dmhub.isLobbyGame) or (not canHostOnTitlescreen) then
+            ShowInGamehudModal()
         else
-            --On the titlescreen there is no gamehud modal stack, so host the
-            --dialog as a floating framed panel on the titlescreen root, like
-            --the other titlescreen dialogs. The panel owns its own theme
-            --cascade, mirroring the frame that gamehud:ModalDialog builds.
-            local root = rawget(_G, "CodexTitlescreenRoot")
-            if root ~= nil and root.valid then
-                m_titlescreenModal = gui.Panel{
-                    classes = {"framedPanel"},
-                    floating = true,
-                    width = 1024,
-                    height = 960,
+            --Floating framed panel on the titlescreen root. The panel owns its
+            --own theme cascade, mirroring the frame gamehud:ModalDialog builds.
+            m_titlescreenModal = gui.Panel{
+                classes = {"framedPanel"},
+                floating = true,
+                width = 1024,
+                height = 960,
+                halign = "center",
+                valign = "center",
+                styles = ThemeEngine.GetStyles(),
+
+                gui.Panel{
+                    width = "100%-32",
+                    height = "100%-32",
+                    flow = "vertical",
                     halign = "center",
-                    valign = "center",
-                    styles = ThemeEngine.GetStyles(),
+                    valign = "top",
 
-                    gui.Panel{
-                        width = "100%-32",
-                        height = "100%-32",
-                        flow = "vertical",
-                        halign = "center",
-                        valign = "top",
-
-                        gui.Label{
-                            classes = {"dialogTitle"},
-                            text = kindInfo.title,
-                        },
-
-                        bodyPanel,
+                    gui.Label{
+                        classes = {"dialogTitle"},
+                        text = kindInfo.title,
                     },
-                }
-                root:AddChild(m_titlescreenModal)
-                m_titlescreenModal:AddChild(closeButton)
-            else
-                --fallback: no titlescreen root available; use the gamehud modal.
-                local gh = rawget(_G, "gamehud")
-                if gh ~= nil then
-                    m_dialog = gh:ModalDialog{
-                        title = kindInfo.title,
-                        width = 1024,
-                        height = 960,
-                        buttons = {},
-                        bodyPanel,
-                    }
-                    m_dialog:AddChild(closeButton)
-                else
-                    report:Cancel()
-                end
-            end
+
+                    bodyPanel,
+                },
+            }
+            root:AddChild(m_titlescreenModal)
+            m_titlescreenModal:AddChild(closeButton)
         end
     end
 

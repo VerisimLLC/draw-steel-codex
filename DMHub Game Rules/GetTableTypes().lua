@@ -22,6 +22,17 @@ CharacterModifier.TypeInfo.aura = {
             return
         end
         
+		--Fold in the effects of any Environmental Keyword the aura names, so a
+		--keyword carried around by a creature means the same thing it does as a
+		--painted map zone or an ability aura. Only copies when a keyword is
+		--actually named: this runs on every aura regeneration, and the shared
+		--modifier.aura reference must not be mutated in place.
+		local auraDef = modifier.aura
+		local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+		if environmentalKeywordType ~= nil and environmentalKeywordType.AuraNamesKeyword(auraDef) then
+			auraDef = environmentalKeywordType.ApplyToAuraTree(DeepCopy(auraDef))
+		end
+
 		local auraInstance = AuraInstance.new{
 			guid = modifier:try_get("seq", "--"),
 			casterid = token.id,
@@ -31,7 +42,7 @@ CharacterModifier.TypeInfo.aura = {
 				caster = GenerateSymbols(creature),
 			},
 
-			aura = modifier.aura,
+			aura = auraDef,
 
 			area = dmhub.CalculateShape{
 				shape = 'radiusfromcreature',

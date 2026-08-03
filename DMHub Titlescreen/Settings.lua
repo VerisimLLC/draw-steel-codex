@@ -34,7 +34,7 @@ setting{
 
 setting{
     id = "tileheight:overlay",
-    description = "Show Tile Height Overlay",
+    description = "Show Map Overlay",
     help = "Draws contour lines and integer labels showing the game-rules height of each tile on the current floor.",
     storage = "preference",
     section = "Map",

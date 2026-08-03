@@ -50,6 +50,14 @@ local function PerformEndCombat()
 		dailyLimit = 10,
 	})
 
+	--Permanent battle log entry + the encounter_complete analytics event, for a
+	--combat that ended without the director awarding victory or defeat (the
+	--outcome screen's Proceed covers those; see DSVictoryScreen.ProceedEndCombat).
+	--Must run before the queue is hidden -- it reads the live round and entries.
+	--Director-only, single-fire, and it no-ops for a queue that was never a fight,
+	--so respite/downtime queues ending through here record nothing.
+	LiveEncounter.CompleteEncounter("ended")
+
 	q.hidden = true
 	q.gameMode = "exploration"
 	dmhub:UploadInitiativeQueue()

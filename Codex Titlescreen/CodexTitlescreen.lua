@@ -840,7 +840,8 @@ local function EditHero(element, character)
         -- reflect the player's actual choices, not the defaults.
         local c = character
         if c ~= nil and c.valid then
-            local classInfo = c.properties:GetClass()
+            -- Monster-typed heroes have creature properties, which have no GetClass.
+            local classInfo = c.properties.typeName == "character" and c.properties:GetClass() or nil
             local kitTable = dmhub.GetTable("kits")
             local kitId = c.properties:try_get("kitid")
             track("character_create", {
@@ -3878,6 +3879,7 @@ function CreateGameLoadingScreen(moduleInfo, backend)
                 width = 160,
                 height = "auto",
                 fontSize = 18,
+                textAlignment = "center",
                 text = "Creating Game",
                 data = {
                     n = 0,
@@ -3887,6 +3889,13 @@ function CreateGameLoadingScreen(moduleInfo, backend)
                 end,
                 thinkTime = 0.2,
                 think = function(element)
+                    -- Once an error is showing, stop animating: the ticker below
+                    -- rewrites element.text every tick and would otherwise wipe the
+                    -- message out before the user could read it.
+                    if element.data.errorMessage ~= nil then
+                        return
+                    end
+
                     element.data.n = (element.data.n + 1) % 4
                     local dots = string.rep(".", element.data.n)
                     element.text = "Creating Game" .. dots
@@ -3912,6 +3921,14 @@ function CreateGameLoadingScreen(moduleInfo, backend)
                     end
                 end,
                 error = function(element, message)
+                    -- The engine's failure path passes the (empty) gameid rather than
+                    -- a reason, so fall back to something readable.
+                    if message == nil or message == "" then
+                        message = "The game could not be created. Please try again."
+                    end
+                    element.data.errorMessage = message
+                    -- The label is sized for "Creating Game..."; a sentence needs room.
+                    element.selfStyle.width = 600
                     element.text = message
                     element.selfStyle.color = "red"
                 end,
@@ -4479,7 +4496,9 @@ local function MakeHeroPanel(heroIndex)
                         fontSize = 24,
                         halign = "center",
                         click = function(element)
-                            local classInfo = m_character.properties:GetClass()
+                            -- Monster-typed heroes have creature properties, which have no GetClass.
+                            local props = m_character.properties
+                            local classInfo = props.typeName == "character" and props:GetClass() or nil
                             track("character_delete", {
                                 class = classInfo and classInfo.name or "",
                                 ancestry = m_character.properties:RaceOrMonsterType() or "",

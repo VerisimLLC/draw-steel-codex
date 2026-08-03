@@ -65,6 +65,10 @@ function monster.OnCreateFromBestiary(self, token)
 
 	self.damage_taken = 0
 
+	--this shadows creature:OnCreateFromBestiary rather than chaining to it, so purge the
+	--previous token's stat history here too. See creature:PurgeStatHistory.
+	self:PurgeStatHistory()
+
 	if token.numAppearanceVariations > 1 then
 		appearanceJukebox:CheckSize(token.numAppearanceVariations)
 

@@ -1309,6 +1309,19 @@ local function buildSetupSection(ability, refreshSection, fireChange)
         end,
     }
 
+    -- Hostile Trigger checkbox. A hostile trigger is a harmful prompt forced
+    -- on the creature (e.g. Bleeding damage) rather than a beneficial
+    -- reaction offer: its prompt shows a red icon, never ages out, and must
+    -- be manually activated or dismissed.
+    children[#children + 1] = gui.Check{
+        text = "Hostile trigger (harmful prompt; never expires, must be manually dismissed)",
+        value = ability:try_get("hostile", false),
+        vmargin = 6,
+        change = function(element)
+            ability.hostile = element.value
+        end,
+    }
+
     -- Targeting block (Target Type + Range + numTargets + AOE shape +
     -- proximity + Affects + Can Target Self + Object ID + Target Filter +
     -- Range Text + Target Text + "More options" -> Ability Filters /

@@ -24,7 +24,7 @@
 --- @field SelectFloor fun(floorid: string): nil A function that can be set to select a floor asset by id in the UI.
 --- @field SelectWall fun(wallid: string): nil A function that can be set to select a wall asset by id in the UI.
 --- @field SelectEffect fun(effectid: string): nil A function that can be set to select an effect asset by id in the UI.
---- @field ObjectsSelected fun(objects: LuaObjectInstance[]): nil A function that is called when objects are selected on the map, receiving a list of object instances (each a LuaObjectInstance with floorid/objid set; read ids via obj.objid). An empty list means the selection was cleared.
+--- @field ObjectsSelected fun(objects: LuaObjectInstance[]): nil A function that is called when objects are selected on the map, receiving a list of object instances (see DMSheetHud.Update: each entry is a LuaObjectInstance with floorid/objid set). An empty list means the selection was cleared.
 --- @field GetLightingInfo fun(floorid: string): {cacheable: boolean, indoors: Color, outdoors: Color, illumination: number, shadow: {dir: Vector2, color: Color} } A function that can be set to tell the engine what the current lighting looks like. It will be called every frame to set the lighting.
 --- @field ObjectEditingEnabled fun(): boolean A function that returns whether object editing mode is currently enabled in the UI.
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
@@ -68,10 +68,10 @@
 --- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
 --- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
 --- @field GetWallPointsInvisibleOnly fun(): boolean Editor callback function: whether the wall Edit Points tool should restrict itself to walls with invisible assets. Set by the Map Markup panel while it drives the tool, so vertex editing from markup cannot disturb visible art walls.
---- @field GetMarkupZones fun(): {panelOpen: boolean, terrainZones: boolean, footstepsMode: boolean, revision: number, zones: {locs: Loc[], color: string, angleRadians: number, label: string, labelIcon: string|nil, playerVisible: boolean, difficultTerrain: boolean, water: boolean, concealment: boolean, floorIndex: number}[]}|nil Editor callback function: the Map Markup panel's zone overlay feed. Returns the markup zones to render as diagonal stripes + labels on the tile height overlay, or nil for none. revision must change whenever the zone data changes (or the returned list is swapped) so the overlay mesh rebuilds. panelOpen makes the zone stripes render even when the tileheight:overlay preference is off; terrainZones additionally renders the overlay's built-in terrain-rule stripes (set while the panel's Zones tab is open); footstepsMode instead restricts the built-in terrain-rule stripes to WATER ONLY regardless of the tileheight:overlay preference (set while the Footsteps tab is open, when the feed returns the footstep-surface regions - plus any water rules zones - instead of the full rules zones; water stays visible because water tiles play water sounds over painted footstep surfaces). labelIcon is an optional icon id (e.g. "phosphor/footprints-fill.png") drawn beside the zone's label, tinted like the label text. Player clients only render zones with playerVisible set.
+--- @field GetMarkupZones fun(): {panelOpen: boolean, terrainZones: boolean, footstepsMode: boolean, revision: number, zones: {locs: Loc[], color: string, angleRadians: number, label: string, labelIcon: string|nil, playerVisible: boolean, difficultTerrain: boolean, water: boolean, concealment: boolean, floorIndex: number}[]}|nil Editor callback function: the Map Markup panel's zone overlay feed. Returns the markup zones to render as diagonal stripes + labels on the tile height overlay, or nil for none. revision must change whenever the zone data changes (or the returned list is swapped) so the overlay mesh rebuilds. panelOpen makes the zone stripes render even when the tileheight:overlay preference is off; terrainZones additionally renders the overlay's built-in terrain-rule stripes (set while the panel's Zones tab is open); footstepsMode instead restricts the built-in terrain-rule stripes to WATER ONLY regardless of the tileheight:overlay preference (set while the Footsteps tab is open, when the feed returns the footstep-surface regions - plus any water rules zones - instead of the full rules zones; water stays visible because water tiles play water sounds over painted footstep surfaces). labelIcon is an optional icon id (e.g. 'phosphor/footprints-fill.png') drawn beside the zone's label, tinted like the label text. Player clients only render zones with playerVisible set.
 --- @field GetMapAuras fun(): AuraInstance[]|nil Callback function: map-level aura instances (e.g. markup zones) to register with the aura system, re-polled on every aura rebuild. Each entry must be an AuraInstance whose GetArea() returns a shape (use dmhub.CalculateShape{shape='locations'} for arbitrary tile sets). Call dmhub.RefreshMapAuras() after changing the underlying data to force a rebuild.
---- @field supportsObjectEditingFilter boolean True when this engine build honors the dmhub.GetObjectEditingFilter callback (markup-prop keyword filtering of object visibility, selection and dragging). Callers must gate on this: on older builds the callback is accepted but never polled, so filtered props would be placed but stay invisible and unselectable. Reads as nil on older builds.
 --- @field GetObjectEditingFilter fun(): string|nil Editor callback function: keyword filter for markup-prop editing. When this returns a keyword, objects whose Core keywords include it are shown (even locked, invisible-to-players ones, DM only) and become the only objects the mouse can select or drag - locked filtered objects drag as if unlocked, and everything else on the map is inert to object selection. The Map Markup panel's Props tab sets this while it has focus. Return nil for normal object interaction rules.
+--- @field supportsObjectEditingFilter boolean True when this engine build honors the dmhub.GetObjectEditingFilter callback (markup-prop keyword filtering of object visibility, selection and dragging). Callers must gate on this: on older builds the callback is accepted but never polled, so filtered props would be placed but stay invisible and unselectable.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
@@ -546,13 +546,13 @@ function dmhub.DumpRenderTextures()
 end
 
 --- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
-
-Options:
-  token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
-  filename: default filename suggested in the save dialog (default: token name + .png).
-  padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
-  resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
-  error: optional callback invoked with a string message on failure.
+---
+--- Options:
+---   token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
+---   filename: default filename suggested in the save dialog (default: token name + .png).
+---   padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
+---   resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
+---   error: optional callback invoked with a string message on failure.
 --- @field options {token: LuaCharacterToken, filename: string?, padding: number?, resolution: number?, error: (fun(message: string): nil)?}
 function dmhub.ExportTokenImage(options)
 	-- dummy implementation for documentation purposes only
@@ -791,8 +791,8 @@ function dmhub.ClearRollBonusTypes()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move -- a token plus its movement path (LuaPath) -- and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it. Used by the token-drag movement tooltip.
---- @param args {token: any, path: any, secondaryPaths: nil|{path: any, label: nil|string}[]}
+--- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move -- a token plus its movement path (LuaPath) -- and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it. Used by the token-drag movement tooltip. collisionDamage/fallDamage (optional) are predicted damage numbers computed by the caller; when > 0 they draw as red "-N" annotations at the collision stop point / beside the fall arrow, mirroring the map's forced-move targeting labels.
+--- @param args {token: any, path: any, secondaryPaths: nil|{path: any, label: nil|string}[], collisionDamage: nil|number, fallDamage: nil|number}
 --- @return nil|{image: string, width: number, height: number}
 function dmhub.SetMovementCrossSection(args)
 	-- dummy implementation for documentation purposes only
@@ -805,23 +805,23 @@ function dmhub.ClearMovementCrossSection()
 end
 
 --- Roll: Execute a dice roll. Returns an object that manages the roll.
-
-The rolldef table accepts a `forcedDice` field for integrations driving rolls from an
-external source (e.g. Bluetooth GoDice, webcam dice readers). When supplied, the virtual
-dice tumble normally but land showing the listed face values, which become the natural
-roll. Each entry is `{ numFaces = <int>, result = <int 1..numFaces> }`, ordered
-to match the dice in the roll expression. Out-of-range or unmatched entries are dropped
-with a Debug.LogWarning. The resulting ChatMessageDiceRollInfo's `rolls`, `naturalRoll`,
-`nat1`, `nat20`, and tier/crit detection populate exactly as if the engine had rolled
-the dice itself, so OnBeforeRoll interceptors no longer have to collapse the dice
-expression to a numeric literal. Example:
-
-    dmhub.Roll{
-        roll = '2d10 1 bane',
-        instant = true, silent = true,
-        forcedDice = {{numFaces=10, result=7}, {numFaces=10, result=4}},
-        complete = function(rollInfo) ... end,
-    }
+---
+--- The rolldef table accepts a `forcedDice` field for integrations driving rolls from an
+--- external source (e.g. Bluetooth GoDice, webcam dice readers). When supplied, the virtual
+--- dice tumble normally but land showing the listed face values, which become the natural
+--- roll. Each entry is `{ numFaces = <int>, result = <int 1..numFaces> }`, ordered
+--- to match the dice in the roll expression. Out-of-range or unmatched entries are dropped
+--- with a Debug.LogWarning. The resulting ChatMessageDiceRollInfo's `rolls`, `naturalRoll`,
+--- `nat1`, `nat20`, and tier/crit detection populate exactly as if the engine had rolled
+--- the dice itself, so OnBeforeRoll interceptors no longer have to collapse the dice
+--- expression to a numeric literal. Example:
+---
+---     dmhub.Roll{
+---         roll = '2d10 1 bane',
+---         instant = true, silent = true,
+---         forcedDice = {{numFaces=10, result=7}, {numFaces=10, result=4}},
+---         complete = function(rollInfo) ... end,
+---     }
 --- @param rolldef RollDefinition
 --- @return nil|ActiveRollLua
 function dmhub.Roll(rolldef)
@@ -829,11 +829,11 @@ function dmhub.Roll(rolldef)
 end
 
 --- StartDiceBridge: Start the external physical-dice bridge process (the Bluetooth
-dice bridge for GoDice/Pixels) if it isn't already running. The executable is resolved
-engine-side -- from the 'externaldice:bridgepath' preference, falling back to
-dice-bridge.exe next to the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
-bridge is running when the call returns. The bridge exits on its own if it stops
-receiving /v1/heartbeat POSTs for 60 seconds, and is force-killed when DMHub exits.
+--- dice bridge for GoDice/Pixels) if it isn't already running. The executable is resolved
+--- engine-side -- from the 'externaldice:bridgepath' preference, falling back to
+--- dice-bridge.exe next to the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
+--- bridge is running when the call returns. The bridge exits on its own if it stops
+--- receiving /v1/heartbeat POSTs for 60 seconds, and is force-killed when DMHub exits.
 --- @return boolean
 function dmhub.StartDiceBridge()
 	-- dummy implementation for documentation purposes only

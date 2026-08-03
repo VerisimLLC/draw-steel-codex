@@ -93,7 +93,7 @@ local function ImportAudioWizard()
 			height = "60%",
 			valign = "center",
 
-			dragAndDropExtensions = {".ogg", ".mp3", ".wav", ".flac"},
+			dragAndDropExtensions = {".ogg", ".mp3", ".wav", ".flac", ".m4a"},
 
 			dropfiles = function(element, paths)
 				contentPanel:FireEvent("processFiles", paths)
@@ -105,7 +105,7 @@ local function ImportAudioWizard()
 				height = "auto",
 				halign = "center",
 				valign = "center",
-				text = "Drag & Drop audio (mp3, wav, ogg, or flac) files here",
+				text = "Drag & Drop audio (mp3, wav, ogg, flac, or m4a) files here",
 			},
 		},
 
@@ -126,7 +126,7 @@ local function ImportAudioWizard()
 			click = function(element)
 				dmhub.OpenFileDialog{
 					id = "AudioPath",
-					extensions = {"ogg", "mp3", "wav", "flac"},
+					extensions = {"ogg", "mp3", "wav", "flac", "m4a"},
 					multiFiles = true,
 					prompt = "Choose audio files.",
 					openFiles = function(paths)

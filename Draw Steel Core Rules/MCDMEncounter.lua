@@ -685,6 +685,39 @@ LiveEncounter.onsetHeroes = nil
 -- reinforcements join (Commands.rollinitiative additions, DeployWave).
 LiveEncounter.onsetMonsterGroups = nil
 
+-- Server time in milliseconds when combat began. Stamped by the first
+-- RecordOnsetHeroes / RecordOnsetMonsterGroups call and never overwritten, so
+-- reinforcements topping up the snapshot do not restart the clock. Read by
+-- BuildBattleRecord to give each battle log entry a real duration. 0 means
+-- unknown (a combat that started before this field existed, or one whose onset
+-- was never snapshotted); duration is omitted from the record in that case.
+-- dmhub.serverTimeMilliseconds is used rather than ServerTimestamp() because it
+-- is a plain number, consistent across clients, and readable immediately without
+-- waiting for a server-side placeholder to resolve.
+LiveEncounter.onsetTimestamp = 0
+
+-- How many users were connected when combat began (see CountLoggedInUsers).
+-- Stamped alongside onsetTimestamp. The battle record keeps this as well as the
+-- count at the end of combat, because either one alone undercounts a real
+-- session: someone can drop before the director gets round to pressing Proceed,
+-- and someone else can join mid-fight. The seriousness check uses the larger of
+-- the two. 0 means unknown.
+LiveEncounter.onsetUsercount = 0
+
+-- Stamp the combat start time and connected-user count, if not already stamped.
+-- Callers network the change afterwards, like every other live-encounter
+-- mutation. Never overwrites, so reinforcements topping up the onset snapshot do
+-- not restart the clock.
+function LiveEncounter:StampOnsetTimestamp()
+    if self:try_get("onsetTimestamp", 0) > 0 then
+        return
+    end
+    self.onsetTimestamp = dmhub.serverTimeMilliseconds
+    local users = 0
+    pcall(function() users = CountLoggedInUsers() end)
+    self.onsetUsercount = users
+end
+
 -- Construct a LiveEncounter from an authored Encounter. The result is a deep copy
 -- of the encounter's data, re-typed as a LiveEncounter: its typeName, metatable,
 -- and tableName are updated to LiveEncounter so it serializes and behaves as a
@@ -760,6 +793,7 @@ function LiveEncounter:RecordOnsetHeroes(heroCharids)
         end
     end
     self.onsetHeroes = heroes
+    self:StampOnsetTimestamp()
 end
 
 -- The onset hero snapshot (see RecordOnsetHeroes); always a list.
@@ -828,6 +862,7 @@ function LiveEncounter:RecordOnsetMonsterGroups(tokenids)
         end
 
         self.onsetMonsterGroups = groups
+        self:StampOnsetTimestamp()
     end)
 
     if not ok then
@@ -1340,6 +1375,937 @@ function LiveEncounter:GetAwardedOutcome()
         return "defeat"
     end
     return nil
+end
+
+----------------------------------------------------------------------
+-- Battle log + the encounter_complete analytics event
+--
+-- When an encounter ends, the director's client does two things exactly once:
+--
+--  1. Appends a permanent record of the battle to the game's BATTLE LOG (a
+--     shared document, so every client can read it and it outlives the
+--     initiative queue being torn down). This is the reviewable campaign
+--     history: what was fought, how it ended, and who did what.
+--  2. Emits the encounter_complete ANALYTICS EVENT -- the same header plus the
+--     full per-hero stat dump and a "seriousness" assessment, so offline
+--     reporting can tell a real play session apart from a test or a preview.
+--
+-- The two deliberately carry different detail. The log lives inside gameDetails,
+-- which every client downloads in full on load, so it keeps only the headline
+-- numbers per hero and is capped at BattleLog.maxRecords. The analytics event is
+-- a one-shot push that is never stored in the game, so it carries everything.
+--
+-- Both are driven by LiveEncounter.CompleteEncounter(outcome), called from the
+-- two places combat can end: the outcome screen's Proceed button
+-- (Draw Steel UI/DSVictoryScreen.lua) and the initiative bar's End Combat
+-- (MCDMInitiativeBar.lua). Never throws -- ending combat must not be able to
+-- fail because of bookkeeping.
+----------------------------------------------------------------------
+
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
+BattleLog = {}
+
+-- The shared document holding the battle log, keyed by battle id.
+BattleLog.docId = "dsBattleLog"
+
+-- How many battles to keep. The log rides inside gameDetails, which every client
+-- downloads in full on load, so it is bounded: recording battle N+1 prunes the
+-- oldest.
+--
+-- SIZE: measured, not estimated. A real record built against a live 5-hero fight
+-- is ~2KB of JSON (guids and key names dominate; zero stats are already omitted
+-- and the analytics-only payload is already excluded). So this cap is what the log
+-- adds to every client's game load:
+--
+--     100 -> ~195KB       150 -> ~295KB       200 -> ~390KB
+--
+-- 200 is roughly a year and a half for a weekly group running two fights a
+-- session. Lower it here if the load cost matters more than the history depth.
+BattleLog.maxRecords = 200
+
+mod:RegisterDocumentForCheckpointBackups(BattleLog.docId)
+
+-- The document path, for panels that want to monitorGame the log.
+function BattleLog.GetDocPath()
+    return mod:GetDocumentPath(BattleLog.docId)
+end
+
+-- Every recorded battle, newest first. Each entry is the record built by
+-- LiveEncounter:BuildBattleRecord (see there for the field list). Always a list;
+-- empty when nothing has been recorded in this game yet.
+function BattleLog.GetBattles()
+    local result = {}
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    local battles = doc.data.battles
+    if type(battles) ~= "table" then
+        return result
+    end
+
+    --Read-only: these tables belong to the live document, so nothing here
+    --mutates them (an unannounced write would show up as a spurious diff the
+    --next time anything calls BeginChange on this document).
+    for _, record in pairs(battles) do
+        if type(record) == "table" then
+            result[#result + 1] = record
+        end
+    end
+
+    table.sort(result, function(a, b)
+        local at = a.t or 0
+        local bt = b.t or 0
+        if at ~= bt then
+            return at > bt
+        end
+        return tostring(a.id) < tostring(b.id)
+    end)
+
+    return result
+end
+
+-- One battle by id, or nil.
+function BattleLog.GetBattle(battleid)
+    if battleid == nil then
+        return nil
+    end
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    local battles = doc.data.battles
+    if type(battles) ~= "table" then
+        return nil
+    end
+    local record = battles[battleid]
+    if type(record) ~= "table" then
+        return nil
+    end
+    return record
+end
+
+-- Append a battle record and prune the oldest beyond BattleLog.maxRecords.
+-- Keyed by record.id (the combat's guid), so a double-record of the same combat
+-- overwrites rather than duplicating. Director-only in practice -- the callers
+-- gate on it -- so there is no concurrent-writer problem. Returns true if the
+-- record was written.
+function BattleLog.RecordBattle(record)
+    if type(record) ~= "table" or record.id == nil then
+        return false
+    end
+
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    doc:BeginChange()
+    if type(doc.data.battles) ~= "table" then
+        doc.data.battles = {}
+    end
+    doc.data.battles[record.id] = record
+
+    --prune the oldest records beyond the cap. Collect (id, t) pairs, sort
+    --oldest-first, and drop the excess.
+    local ordered = {}
+    for id, entry in pairs(doc.data.battles) do
+        if type(entry) == "table" then
+            ordered[#ordered + 1] = { id = id, t = entry.t or 0 }
+        else
+            --junk value; drop it.
+            doc.data.battles[id] = nil
+        end
+    end
+    if #ordered > BattleLog.maxRecords then
+        table.sort(ordered, function(a, b)
+            if a.t ~= b.t then
+                return a.t < b.t
+            end
+            return tostring(a.id) < tostring(b.id)
+        end)
+        local excess = #ordered - BattleLog.maxRecords
+        for i = 1, excess do
+            doc.data.battles[ordered[i].id] = nil
+        end
+    end
+
+    doc:CompleteChange("Record battle", { undoable = false })
+    return true
+end
+
+-- Delete every recorded battle. For the director, and for testing.
+function BattleLog.Clear()
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    if type(doc.data.battles) ~= "table" then
+        return
+    end
+    doc:BeginChange()
+    doc.data.battles = {}
+    doc:CompleteChange("Clear battle log", { undoable = false })
+end
+
+-- Seriousness thresholds. An encounter must clear ALL of these to be recorded as
+-- a real play session; the raw inputs are stored on the record either way, so
+-- offline reporting can re-derive the verdict with its own thresholds without a
+-- client change.
+local BATTLE_MIN_USERS = 3        -- connected users (director + players)
+local BATTLE_MIN_ROUNDS = 2       -- a one-round combat is almost always a test
+local BATTLE_MIN_HEROES = 2       -- a party, not a single token being poked at
+local BATTLE_MIN_SECONDS = 180    -- only checked when the onset time is known
+
+-- The users actually present for this combat: their userids, how many are
+-- players (not directors), and the total. "Present" is CountLoggedInUsers'
+-- definition -- not logged out and seen within the last 2 minutes -- because
+-- dmhub.users keeps stale entries for people who left the session long ago.
+-- Returns playerIds (a list of non-director userids), playerCount, total.
+local function BattlePresentUsers()
+    local playerIds = {}
+    local total = 0
+    pcall(function()
+        for _, userid in ipairs(dmhub.users or {}) do
+            local info = dmhub.GetSessionInfo(userid)
+            if info ~= nil and (not info.loggedOut) and info.timeSinceLastContact < 120 then
+                total = total + 1
+                if not info.dm then
+                    playerIds[#playerIds + 1] = userid
+                end
+            end
+        end
+    end)
+    return playerIds, #playerIds, total
+end
+
+-- nil for zero, the value otherwise. Used all through the battle record: a stat
+-- that is absent reads back as 0 anyway (BattleStatTotal and the UI both default
+-- it), and most heroes score nothing on most stats, so dropping the zeros roughly
+-- halves what the log costs inside gameDetails. Never apply this to a value where
+-- "absent" and "zero" must be distinguishable.
+local function BattleNonZero(v)
+    if type(v) ~= "number" or v == 0 then
+        return nil
+    end
+    return v
+end
+
+-- A hero's display name. token.name is frequently nil (it is the optional
+-- override); token.description is the name actually shown in game.
+local function BattleTokenName(token)
+    if token == nil then
+        return nil
+    end
+    if type(token.name) == "string" and token.name ~= "" then
+        return token.name
+    end
+    if type(token.description) == "string" and token.description ~= "" then
+        return token.description
+    end
+    return nil
+end
+
+-- Sum one numeric stat across a hero's whole encounter, tolerating a missing or
+-- nested value. totals comes from GetStatsForToken (already round-summed).
+local function BattleStatTotal(totals, statid)
+    local v = totals ~= nil and totals[statid] or nil
+    if type(v) == "number" then
+        return v
+    end
+    return 0
+end
+
+-- Sum every numeric leaf of a nested stat sub-table (tierRolls,
+-- conditionsInflicted, ...). Returns 0 when the stat was never recorded.
+local function BattleStatNestedTotal(totals, statid)
+    local t = totals ~= nil and totals[statid] or nil
+    if type(t) ~= "table" then
+        return 0
+    end
+    local sum = 0
+    for _, v in pairs(t) do
+        if type(v) == "number" then
+            sum = sum + v
+        end
+    end
+    return sum
+end
+
+-- Build the permanent record of this encounter.
+--
+-- outcome is "victory", "defeat", or "ended" (combat closed without the director
+-- awarding either). roles is the hero-role map from
+-- DSVictoryScreen.ComputeHeroRoles; pass the same table the outcome screen
+-- displayed, because role selection is biased by each hero's role history and
+-- recomputing it after that history has been bumped can yield different roles.
+--
+-- Returns nil when there is nothing worth recording (no heroes, no rounds, or a
+-- combat in which no blow was struck -- respite/downtime queues end through the
+-- same code path). Otherwise the record is:
+--
+--   id, t, durationSeconds,
+--   name (encounter name; nil for a Custom combat), outcome, rounds, eds,
+--   mapid, mapName, serious, notSerious,
+--   heroes  = { { charid, name, ownerId, class, subclass, ancestry, level,
+--                 role, roleText, survived, damage, taken, prevented,
+--                 kills, minionKills, criticals,
+--                 recoveriesStart, recoveriesEnd }, ... },
+--   monsters = { { name, monster, role, count, dead,
+--                  damage, taken, deaths, turns, battleRole }, ... },
+--   party = { damage, taken, prevented, kills, minionKills, downed, deaths },
+--   analytics = { ... }   -- lifted off and dropped by CompleteEncounter
+--
+-- Zero-valued stats are omitted throughout (see BattleNonZero) -- read them back
+-- with a `or 0` default. The per-hero set is deliberately the headline numbers
+-- only: the full stat dump and every seriousness input ride in `analytics`, which
+-- goes to the event and never into the game document.
+function LiveEncounter:BuildBattleRecord(outcome, roles)
+    local q = dmhub.initiativeQueue
+    local heroTokens = self:GetBattleHeroTokens()
+    local groups = self:GetMonsterGroups()
+    local rounds = (q ~= nil and q.round) or 0
+
+    if #heroTokens == 0 or rounds < 1 then
+        return nil
+    end
+
+    if type(roles) ~= "table" then
+        roles = {}
+        local victoryScreen = rawget(_G, "DSVictoryScreen")
+        if victoryScreen ~= nil then
+            pcall(function() roles = victoryScreen.ComputeHeroRoles(self) or {} end)
+        end
+    end
+
+    local monsterRoles = {}
+    do
+        local victoryScreen = rawget(_G, "DSVictoryScreen")
+        if victoryScreen ~= nil then
+            pcall(function() monsterRoles = victoryScreen.ComputeMonsterRoles(self) or {} end)
+        end
+    end
+
+    local party = {
+        damage = 0,
+        taken = 0,
+        prevented = 0,
+        kills = 0,
+        minionKills = 0,
+        downed = 0,
+        deaths = 0,
+    }
+
+    local owners = {}
+    local ownerCount = 0
+    local heroes = {}
+    local fullStats = {}
+
+    for _, token in ipairs(heroTokens) do
+        local props = token.properties
+        local totals = self:GetStatsForToken(token.charid) or {}
+
+        local className = nil
+        local classInfo = nil
+        pcall(function() classInfo = props:GetClass() end)
+        if classInfo ~= nil then
+            className = classInfo.name
+        end
+
+        local subclassName = nil
+        pcall(function()
+            for _, entry in ipairs(props:GetSubclasses() or {}) do
+                if subclassName == nil then
+                    subclassName = entry.name
+                else
+                    subclassName = subclassName .. "/" .. entry.name
+                end
+            end
+        end)
+
+        local ancestry = nil
+        pcall(function() ancestry = props:RaceOrMonsterType() end)
+
+        local level = nil
+        pcall(function() level = props:Level() end)
+
+        local dead = false
+        pcall(function() dead = props:IsDead() end)
+        local dying = false
+        pcall(function() dying = props:IsDying() end)
+
+        local onsetRecoveries, currentRecoveries = self:GetHeroRecoveries(token)
+
+        --ownerId is the userid of the player who owns this hero, or the string
+        --"PARTY" for a party-owned token, or nil for a director-controlled one.
+        --Party ownership is common and a party has no user membership to resolve
+        --against, so ownerCount is 0 for such a group -- see the note on
+        --record.players below.
+        local ownerId = token.ownerId
+        if type(ownerId) == "string" and ownerId ~= "" and ownerId ~= "PARTY" and not owners[ownerId] then
+            owners[ownerId] = true
+            ownerCount = ownerCount + 1
+        end
+
+        local roleInfo = roles[token.charid]
+
+        local tierRolls = totals.tierRolls
+        if type(tierRolls) ~= "table" then
+            tierRolls = {}
+        end
+
+        local damage = BattleStatTotal(totals, "damageDealt")
+        local taken = BattleStatTotal(totals, "damageTaken")
+        local prevented = BattleStatTotal(totals, "damagePrevention")
+        local kills = BattleStatTotal(totals, "kills")
+        local minionKills = BattleStatTotal(totals, "minionKills")
+        local criticals = BattleStatTotal(totals, "criticals")
+
+        party.damage = party.damage + damage
+        party.taken = party.taken + taken
+        party.prevented = party.prevented + prevented
+        party.kills = party.kills + kills
+        party.minionKills = party.minionKills + minionKills
+        if dead then
+            party.deaths = party.deaths + 1
+        elseif dying then
+            party.downed = party.downed + 1
+        end
+
+        heroes[#heroes + 1] = {
+            charid = token.charid,
+            name = BattleTokenName(token),
+            ownerId = ownerId,
+            class = className,
+            subclass = subclassName,
+            ancestry = ancestry,
+            level = level,
+            role = roleInfo ~= nil and roleInfo.role or nil,
+            roleText = roleInfo ~= nil and roleInfo.text or nil,
+            survived = not dead,
+            damage = BattleNonZero(damage),
+            taken = BattleNonZero(taken),
+            prevented = BattleNonZero(prevented),
+            kills = BattleNonZero(kills),
+            minionKills = BattleNonZero(minionKills),
+            criticals = BattleNonZero(criticals),
+            recoveriesStart = onsetRecoveries,
+            recoveriesEnd = currentRecoveries,
+        }
+
+        --the analytics-only expansion: everything else the encounter tracked.
+        fullStats[#fullStats + 1] = {
+            charid = token.charid,
+            ownerId = ownerId,
+            class = className,
+            subclass = subclassName,
+            ancestry = ancestry,
+            level = level,
+            role = roleInfo ~= nil and roleInfo.role or nil,
+            --nil when they won the role outright; "cascade" / "floor" when the
+            --awarder had to fall back. See TrackHeroRoleFallbacks below.
+            roleFallback = roleInfo ~= nil and roleInfo.fallback or nil,
+            survived = not dead,
+            damage = damage,
+            taken = taken,
+            prevented = prevented,
+            kills = kills,
+            minionKills = minionKills,
+            criticals = criticals,
+            overkill = BattleStatTotal(totals, "overkill"),
+            spacesMoved = BattleStatTotal(totals, "spacesMoved"),
+            allyDamageDealt = BattleStatTotal(totals, "allyDamageDealt"),
+            enemyTurnDamage = BattleStatTotal(totals, "enemyTurnDamage"),
+            forcedMovementDealt = BattleStatTotal(totals, "forcedMovementDealt"),
+            forcedMovementTaken = BattleStatTotal(totals, "forcedMovementTaken"),
+            standsFirm = BattleStatTotal(totals, "standsFirm"),
+            resourcesGained = BattleStatTotal(totals, "heroicResourcesGained"),
+            resourcesSpent = BattleStatTotal(totals, "heroicResourcesSpent"),
+            edges = BattleStatTotal(totals, "edges"),
+            banes = BattleStatTotal(totals, "banes"),
+            tier1 = BattleStatTotal(tierRolls, "tier1"),
+            tier2 = BattleStatTotal(tierRolls, "tier2"),
+            tier3 = BattleStatTotal(tierRolls, "tier3"),
+            conditionsInflicted = BattleStatNestedTotal(totals, "conditionsInflicted"),
+            conditionsReceived = BattleStatNestedTotal(totals, "conditionsReceived"),
+            recoveriesSpent = (onsetRecoveries ~= nil and currentRecoveries ~= nil)
+                and math.max(0, onsetRecoveries - currentRecoveries) or nil,
+        }
+    end
+
+    local monsters = {}
+    local monsterCount = 0
+    for _, group in ipairs(groups) do
+        local totals = self:GetStatsForMonsterGroup(group.statKey) or {}
+        monsterCount = monsterCount + group.memberCount
+
+        local monsterType = nil
+        local monsterRole = nil
+        local primary = group.primaryToken
+        if primary ~= nil and primary.properties ~= nil then
+            monsterType = primary.properties:try_get("monster_type")
+            local r = primary.properties:try_get("role")
+            if r ~= nil and r ~= "" then
+                monsterRole = r
+            end
+        end
+
+        local groupRoleInfo = monsterRoles[group.groupid]
+
+        --No groupid and no allDead: the initiative id is only useful for keying
+        --the live stats table, which is gone by the time anything reads this back,
+        --and allDead is just count == dead.
+        monsters[#monsters + 1] = {
+            name = group.name,
+            monster = monsterType,
+            role = monsterRole,
+            count = group.memberCount,
+            dead = BattleNonZero(group.deadCount),
+            damage = BattleNonZero(BattleStatTotal(totals, "damageDealt")),
+            taken = BattleNonZero(BattleStatTotal(totals, "damageTaken")),
+            deaths = BattleNonZero(BattleStatTotal(totals, "deaths")),
+            turns = BattleNonZero(BattleStatTotal(totals, "turnsTaken")),
+            battleRole = groupRoleInfo ~= nil and groupRoleInfo.role or nil,
+        }
+    end
+
+    --Nothing actually happened: no blow was struck in either direction. This is a
+    --combat that was opened and closed again, or a respite / downtime queue (they
+    --end through the same End Combat path). Not a battle -- do not put it in the
+    --player-visible log at all. Every real fight lands damage one way or the
+    --other, and kills imply damage dealt while deaths imply damage taken, so this
+    --single test covers them too. Note this is a stricter bar than `serious`:
+    --a short scrappy fight is logged but may well not be serious.
+    if party.damage <= 0 and party.taken <= 0 then
+        return nil
+    end
+
+    --Connected users at the end of combat, and at the start. Seriousness uses the
+    --larger: a player dropping before the director presses Proceed must not make a
+    --four-person session look like a solo test, and someone joining mid-fight
+    --should still count.
+    local playerIds, playerCount, usercount = BattlePresentUsers()
+    local onsetUsercount = self:try_get("onsetUsercount", 0)
+    if type(onsetUsercount) ~= "number" then
+        onsetUsercount = 0
+    end
+    local peakUsercount = math.max(usercount, onsetUsercount)
+
+    local startedAt = self:try_get("onsetTimestamp")
+    if type(startedAt) ~= "number" or startedAt <= 0 then
+        startedAt = nil
+    end
+    local now = dmhub.serverTimeMilliseconds
+    local durationSeconds = nil
+    if startedAt ~= nil then
+        durationSeconds = math.max(0, math.floor((now - startedAt) / 1000))
+    end
+
+    local eds = nil
+    pcall(function() eds = self:CountEDS() end)
+    if type(eds) ~= "number" or eds <= 0 then
+        eds = nil
+    end
+
+    local name = self:GetName()
+    if name == "" then
+        name = nil
+    end
+
+    --Seriousness: was this an actual play session working through an actual
+    --encounter, rather than a test, a preview, or someone poking at a token?
+    local failed = {}
+    if dmhub.isLobbyGame then
+        failed[#failed + 1] = "lobby"
+    end
+    if dmhub.harnessMode ~= nil then
+        failed[#failed + 1] = "harness"
+    end
+    if peakUsercount < BATTLE_MIN_USERS then
+        failed[#failed + 1] = "users"
+    end
+    if rounds < BATTLE_MIN_ROUNDS then
+        failed[#failed + 1] = "rounds"
+    end
+    if #heroTokens < BATTLE_MIN_HEROES then
+        failed[#failed + 1] = "heroes"
+    end
+    if #monsters == 0 then
+        failed[#failed + 1] = "monsters"
+    end
+    if party.damage <= 0 then
+        failed[#failed + 1] = "damage"
+    end
+    if durationSeconds ~= nil and durationSeconds < BATTLE_MIN_SECONDS then
+        failed[#failed + 1] = "duration"
+    end
+    if outcome ~= "victory" and outcome ~= "defeat" then
+        failed[#failed + 1] = "outcome"
+    end
+
+    --The STORED record. Only what a player reviewing their campaign's battles
+    --needs: everything here is paid for by every client on every game load, so
+    --anything that exists purely for offline reporting goes in `analytics` below
+    --instead. startedAt is omitted as derivable (t - durationSeconds * 1000).
+    local record = {
+        --the combat's guid, so re-recording the same combat overwrites.
+        id = (q ~= nil and q:try_get("guid")) or dmhub.GenerateGuid(),
+        t = now,
+        durationSeconds = durationSeconds,
+        name = name,
+        outcome = outcome,
+        rounds = rounds,
+        eds = eds,
+        mapid = game.currentMapId,
+        mapName = (game.currentMap ~= nil and game.currentMap.description) or nil,
+        --kept because a review UI wants to separate real battles from the
+        --leftovers of a test; the inputs behind it are analytics-only.
+        serious = #failed == 0,
+        heroes = heroes,
+        monsters = monsters,
+        party = party,
+    }
+    if #failed > 0 then
+        record.notSerious = table.concat(failed, ",")
+    end
+
+    --Carried out to the caller for the encounter_complete event ONLY.
+    --CompleteEncounter strips this before the record is written, so none of it
+    --reaches the game document. (The record is a plain table, so the _tmp_
+    --game-type convention does not apply -- the stripping is what keeps it out.)
+    record.analytics = {
+        heroStats = fullStats,
+        monsterCount = monsterCount,
+        usercount = usercount,
+        onsetUsercount = onsetUsercount,
+        playerCount = playerCount,
+        ownerCount = ownerCount,
+        --The connected non-director userids: the reliable answer to "who was in
+        --this session", and the only one when the party's heroes are PARTY-owned
+        --(ownerCount is 0 then -- a party has no user membership to resolve
+        --against). Per-hero attribution needs individually-owned tokens, or a
+        --player-side emit.
+        players = playerIds,
+    }
+
+    return record
+end
+
+----------------------------------------------------------------------
+-- hero_role_fallback: heroes the role set had nothing to say about
+--
+-- Every hero now finishes every fight with a title, but not every title is
+-- earned. The three assignment passes in Draw Steel UI/DSVictoryScreen.lua go:
+-- win it outright (`fallback` nil), inherit an unawarded role as its runner-up
+-- ("cascade"), or take a floor role that asks nothing of you at all ("floor" --
+-- Pacifist, Tourist, Backbone). A non-nil `fallback` is the interesting signal:
+-- the role set had nothing this hero was actually BEST at, and the awarder had
+-- to reach for a consolation. That is what this event measures -- how often it
+-- happens in a real fight, to which kind of hero, and what they were doing while
+-- everyone else was winning something -- so new roles can be designed to cover
+-- the gap and the fallbacks can wither away.
+--
+-- One event per encounter with at least one fallback. It is deliberately
+-- SELF-CONTAINED -- the whole party's stat lines ride along, not just the
+-- fallback heroes' -- because "why was there no title for this hero" is only
+-- answerable next to what the rest of the party did. It also carries the winning
+-- line of every role that was in contention, which is the bar they failed to
+-- clear. Joins to encounter_complete on battleid.
+--
+-- Kept OUT of encounter_complete on purpose: that fires for every fight, and
+-- this is several KB of diagnostic detail that only matters for the fights that
+-- have the problem.
+--
+-- Gating is deliberately looser than `serious`: lobby and harness combats are
+-- dropped (they are never real play), but everything else is sent with the full
+-- seriousness verdict attached, so offline reporting filters on `serious` /
+-- `notSerious` rather than being starved of cases by the client's thresholds.
+local function TrackHeroRoleFallbacks(live, record, extra)
+    --never real play; the lobby is a solo character-creation game and the
+    --harness is a fixture surface.
+    if dmhub.isLobbyGame or dmhub.harnessMode ~= nil then
+        return
+    end
+
+    local heroStats = extra.heroStats
+    if type(heroStats) ~= "table" or #heroStats == 0 then
+        return
+    end
+
+    --The full eligibility picture, computed the way the outcome screen computed
+    --it. Safe to compute here: CompleteEncounter runs BEFORE RecordHeroRoles
+    --bumps the per-hero role history that biases selection, so this still
+    --reproduces exactly what the players were just looking at.
+    local victoryScreen = rawget(_G, "DSVictoryScreen")
+    if victoryScreen == nil then
+        return
+    end
+    local debugInfo = nil
+    pcall(function() debugInfo = victoryScreen.ComputeHeroRoleDebugInfo(live) end)
+    if type(debugInfo) ~= "table" or #debugInfo == 0 then
+        return
+    end
+
+    --Who was awarded what. This comes from the role map the outcome screen
+    --actually displayed (passed into BuildBattleRecord), so it -- not the
+    --recomputed debug info -- is what decides who fell back.
+    local statsByChar = {}
+    local roleHolder = {}
+    local awardedList = {}
+    for _, h in ipairs(heroStats) do
+        statsByChar[h.charid] = h
+        if h.role ~= nil then
+            roleHolder[h.role] = h.charid
+            awardedList[#awardedList + 1] = h.role
+        end
+    end
+
+    local roleWinners = {}
+    local fallbacks = {}
+    local cascadeCount = 0
+    local floorCount = 0
+    local noRoleCount = 0
+    for _, info in ipairs(debugInfo) do
+        local stats = statsByChar[info.charid]
+        local eligible = info.eligible or {}
+
+        --rank 1 in a hero's eligibility list IS that role's winner, so scanning
+        --every hero reconstructs the whole contest. `awarded` marks the roles
+        --that were handed out at all; `cascaded` marks the ones whose rank-1
+        --hero showed something better and whose runner-up inherited it. A role
+        --with neither is one the fight had no room for.
+        for _, e in ipairs(eligible) do
+            if e.rank == 1 then
+                local holder = roleHolder[e.role]
+                roleWinners[#roleWinners + 1] = {
+                    role = e.role,
+                    charid = info.charid,
+                    class = stats ~= nil and stats.class or nil,
+                    text = e.text,
+                    awarded = holder ~= nil,
+                    cascaded = (holder ~= nil and holder ~= info.charid) or nil,
+                    floor = e.isFloor or nil,
+                }
+            end
+        end
+
+        local fallback = stats ~= nil and stats.roleFallback or nil
+        if stats ~= nil and stats.role == nil then
+            --Should be unreachable: the floor roles cover every hero between
+            --them. Counted as a canary -- if this is ever above zero in the
+            --data, that coverage broke.
+            noRoleCount = noRoleCount + 1
+            fallback = "none"
+        end
+
+        if fallback ~= nil then
+            if fallback == "cascade" then
+                cascadeCount = cascadeCount + 1
+            elseif fallback == "floor" then
+                floorCount = floorCount + 1
+            end
+
+            --The actionable half. A hero who placed 2nd in four roles is a
+            --tie-break problem; a hero who qualified for nothing at all needs a
+            --new role built for whatever they were doing instead. `text` is the
+            --role's own phrasing of their number ("Dealt 40 damage"), so a case
+            --reads without cross-referencing the stat ids.
+            local placings = {}
+            for _, e in ipairs(eligible) do
+                placings[#placings + 1] = { role = e.role, rank = e.rank, text = e.text }
+            end
+
+            fallbacks[#fallbacks + 1] = {
+                charid = info.charid,
+                fallback = fallback,
+                role = stats.role,
+                class = stats.class,
+                subclass = stats.subclass,
+                ancestry = stats.ancestry,
+                level = stats.level,
+                survived = stats.survived,
+                damage = stats.damage,
+                taken = stats.taken,
+                prevented = stats.prevented,
+                kills = stats.kills,
+                minionKills = stats.minionKills,
+                criticals = stats.criticals,
+                conditionsInflicted = stats.conditionsInflicted,
+                eligibleCount = #placings,
+                eligible = placings,
+            }
+        end
+    end
+
+    if #fallbacks == 0 then
+        return
+    end
+
+    local fallbackClasses = {}
+    local fallbackRoles = {}
+    for _, h in ipairs(fallbacks) do
+        fallbackClasses[#fallbackClasses + 1] = h.class or "?"
+        fallbackRoles[#fallbackRoles + 1] = h.role or "?"
+    end
+
+    track("hero_role_fallback", {
+        --the join key back to encounter_complete and the battle log.
+        battleid = record.id,
+        encounter = record.name,
+        outcome = record.outcome,
+        rounds = record.rounds,
+        durationSeconds = record.durationSeconds,
+        eds = record.eds,
+        mapName = record.mapName,
+
+        --seriousness, carried in full so this table can be filtered exactly like
+        --encounter_complete without a join.
+        serious = record.serious,
+        notSerious = record.notSerious,
+        usercount = extra.usercount,
+        onsetUsercount = extra.onsetUsercount,
+        playerCount = extra.playerCount,
+
+        heroCount = #record.heroes,
+        monsterGroupCount = #record.monsters,
+        monsterCount = extra.monsterCount,
+        partyDamage = record.party.damage,
+        partyTaken = record.party.taken,
+
+        --the headline: how many heroes had to be given a title rather than
+        --winning one, how far the awarder had to reach, which classes they were,
+        --and which roles the fight handed out in total. floorCount is the number
+        --that even the cascade could not cover -- the metric to drive to zero by
+        --adding roles. noRoleCount should always be 0 (see the canary above).
+        fallbackCount = #fallbacks,
+        cascadeCount = cascadeCount,
+        floorCount = floorCount,
+        noRoleCount = noRoleCount,
+        fallbackClasses = table.concat(fallbackClasses, ","),
+        fallbackRoles = table.concat(fallbackRoles, ","),
+        rolesAwarded = table.concat(awardedList, ","),
+        rolesAwardedCount = #awardedList,
+
+        --the detail: each fallback hero with the roles they placed in but did
+        --not win, every role's winning line (awarded, cascaded, or neither), and
+        --the whole party's full stat dump for context.
+        fallbacks = fallbacks,
+        roleWinners = roleWinners,
+        heroes = heroStats,
+
+        dailyLimit = 20,
+    })
+end
+
+-- Called once, on the director's client, when an encounter ends: writes the
+-- battle log entry and emits the encounter_complete analytics event.
+--
+-- outcome is "victory" / "defeat" / "ended". roles is optional -- pass the role
+-- map the outcome screen displayed so the recorded roles match what players saw
+-- (see BuildBattleRecord). Safe to call unconditionally: it no-ops for players,
+-- for a second call on the same combat, and for anything that was not a fight,
+-- and it never throws.
+function LiveEncounter.CompleteEncounter(outcome, roles)
+    local ok, err = pcall(function()
+        if not dmhub.isDM then
+            return
+        end
+
+        local q = dmhub.initiativeQueue
+        if q == nil then
+            return
+        end
+
+        local live = q:try_get("liveEncounter")
+        if type(live) ~= "table" then
+            return
+        end
+
+        --single-fire per combat. Transient, which is all that is needed: only
+        --this client can re-enter the end-combat paths before the queue is torn
+        --down, and the record is keyed by the combat guid anyway.
+        if live:try_get("_tmp_dsBattleRecorded", false) then
+            return
+        end
+        live._tmp_dsBattleRecorded = true
+
+        local record = live:BuildBattleRecord(outcome, roles)
+        if record == nil then
+            return
+        end
+
+        --Lift the analytics-only payload off the record BEFORE storing it, so
+        --none of it lands in the game document.
+        local extra = record.analytics or {}
+        record.analytics = nil
+
+        BattleLog.RecordBattle(record)
+
+        --malice is the director's side of the economy; a missing/zeroed resource
+        --must not cost us the whole event.
+        local maliceRemaining = nil
+        pcall(function() maliceRemaining = CharacterResource.GetMalice() end)
+
+        local monsterNames = {}
+        local monsterRoleNames = {}
+        for _, m in ipairs(record.monsters) do
+            if m.monster ~= nil then
+                monsterNames[#monsterNames + 1] = m.monster
+            end
+            if m.role ~= nil then
+                monsterRoleNames[#monsterRoleNames + 1] = m.role
+            end
+        end
+
+        track("encounter_complete", {
+            battleid = record.id,
+            encounter = record.name,
+            outcome = record.outcome,
+            rounds = record.rounds,
+            eds = record.eds,
+            mapid = record.mapid,
+            mapName = record.mapName,
+            durationSeconds = record.durationSeconds,
+
+            --seriousness: the verdict plus every input behind it, so offline
+            --reporting can re-derive it with different thresholds.
+            serious = record.serious,
+            notSerious = record.notSerious,
+            usercount = extra.usercount,
+            onsetUsercount = extra.onsetUsercount,
+            playerCount = extra.playerCount,
+            ownerCount = extra.ownerCount,
+            players = table.concat(extra.players or {}, ","),
+            heroCount = #record.heroes,
+            monsterGroupCount = #record.monsters,
+            monsterCount = extra.monsterCount,
+            lobby = dmhub.isLobbyGame,
+
+            monsterTypes = table.concat(monsterNames, ","),
+            monsterRoles = table.concat(monsterRoleNames, ","),
+
+            partyDamage = record.party.damage,
+            partyTaken = record.party.taken,
+            partyPrevented = record.party.prevented,
+            partyKills = record.party.kills,
+            partyMinionKills = record.party.minionKills,
+            heroesDowned = record.party.downed,
+            heroesDead = record.party.deaths,
+            maliceRemaining = maliceRemaining,
+
+            heroes = extra.heroStats,
+            monsters = record.monsters,
+
+            dailyLimit = 20,
+        })
+
+        --And, only when somebody had to be handed a role rather than winning
+        --one, the diagnostic feed for closing that gap. Its own pcall: a failure
+        --computing role eligibility must not lose the encounter_complete event
+        --above, which has already been sent, nor stop combat from ending.
+        pcall(TrackHeroRoleFallbacks, live, record, extra)
+    end)
+
+    if not ok then
+        dmhub.Debug(string.format("BattleLog: CompleteEncounter failed: %s", tostring(err)))
+    end
 end
 
 -- The "readied" encounter: an Encounter the DM has staged via an encounter's

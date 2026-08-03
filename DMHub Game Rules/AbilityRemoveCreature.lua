@@ -301,7 +301,16 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
                 if not target.token.valid or target.token.properties == nil then
                     break
                 end
-                local hasPrompt = target.token.properties:GetAvailableTriggers() ~= nil
+                --Hostile prompts (e.g. pending Bleeding damage) never age out,
+                --so they must not hold the removal open; only ordinary prompts
+                --(which resolve within the trigger window) are waited on.
+                local hasPrompt = false
+                for _,pendingTrigger in pairs(target.token.properties:GetAvailableTriggers() or {}) do
+                    if not pendingTrigger.hostile then
+                        hasPrompt = true
+                        break
+                    end
+                end
                 local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(target.token)
                 if (not hasPrompt) and (not hasCast) then
                     idleSince = idleSince or dmhub.Time()

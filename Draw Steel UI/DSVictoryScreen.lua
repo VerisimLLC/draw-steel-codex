@@ -61,13 +61,30 @@ local DEFEAT_BACKGROUND_HEIGHT_PERCENT = 100 * 2635 / 4096
 --
 -- Fun titles awarded from the live encounter's per-round hero stats (see
 -- Draw Steel Core Rules/STATS_TRACKING.md for the stats and their layout).
--- Candidate roles are evaluated in priority order, most interesting first.
--- A role is only ever awarded to its WINNER -- the single top-ranked hero for
--- that role's criteria -- and each hero shows just one role, so a hero who
--- both dealt the most damage and opened with the round-1 Initiator strike
--- shows only Damage Dealer, and Initiator goes unawarded rather than sliding
--- down to the runner-up. A hero who wins nothing shows no role at all, so a
--- role on a card always means "nobody beat you at this".
+-- Candidate roles are evaluated in priority order, most interesting first, and
+-- assignment runs in three passes. EVERY hero finishes with a role; the passes
+-- decide how good it is.
+--
+--  1. WINNERS. Each role goes to its single top-ranked hero, and each hero
+--     shows just one role, so a hero who both dealt the most damage and opened
+--     with the round-1 Initiator strike shows only Damage Dealer. Initiator is
+--     left on the table -- it does NOT slide down to the runner-up here. A role
+--     awarded in this pass always means "nobody beat you at this".
+--  2. CASCADE. The roles pass 1 left on the table are then offered to their
+--     RUNNER-UP, but only onto a hero who was best at nothing -- a hero who
+--     already won something never picks up a second-place title, and a role
+--     that pass 1 did award is never handed out twice. This is what fills the
+--     card of a hero who was second-best at everything.
+--  3. FLOOR. Whatever is still blank gets a floor role, which may repeat across
+--     several cards: Pacifist / Tourist for a hero who dealt no damage at all,
+--     and Backbone, the catch-all, for everyone else. Between them these cover
+--     every hero unconditionally, so a blank role slot is now a bug -- see the
+--     `fallback` field below.
+--
+-- Each awarded role carries `fallback`: nil for a pass-1 win, "cascade" for a
+-- pass-2 runner-up title, "floor" for a pass-3 one. Anything non-nil means the
+-- role set had nothing this hero was actually best at, which is what the
+-- hero_role_fallback analytics event measures (MCDMEncounter.lua).
 --
 -- Stats consumed: damageDealt, damageTaken, damagePrevention, overkill, kills,
 -- minionKills, criticals (recorded by the shipped Critical Hit content),
@@ -849,6 +866,29 @@ local function ComputeHeroRolesInternal(live)
         AddRole("Tourist", entries, true)
     end
 
+    --Backbone: the catch-all. Dealt damage, was not the best at anything, and no
+    --unawarded role cascaded down to them either. Pacifist and Tourist between
+    --them already cover every hero who dealt NO damage, so gating this on
+    --damage > 0 makes the three disjoint and complete: every hero qualifies for
+    --exactly one floor role, and nobody can finish a fight with a blank card.
+    --Says what they actually did rather than commiserating, because unlike the
+    --other two floor roles this one lands on a hero who was pulling their weight.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            local damage = Total(d, "damageDealt")
+            if damage > 0 then
+                local taken = Total(d, "damageTaken")
+                local text = string.format("You dealt %d damage", damage)
+                if taken > 0 then
+                    text = string.format("You dealt %d damage and took %d", damage, taken)
+                end
+                entries[#entries+1] = { d = d, text = text, tooltip = "No headlines. Just the work." }
+            end
+        end
+        AddRole("Backbone", entries, true)
+    end
+
     --How many times a hero has previously been awarded a given role, read from
     --the persistent per-hero history written by RecordHeroRoles at end of
     --combat. Used to bias selection toward roles a hero has earned less often.
@@ -916,7 +956,7 @@ local function ComputeHeroRolesInternal(live)
 
     --Highest score first, then priority, then charid, so every client resolves
     --ties identically.
-    table.sort(edges, function(a, b)
+    local function CompareEdges(a, b)
         if a.score ~= b.score then
             return a.score > b.score
         end
@@ -924,10 +964,14 @@ local function ComputeHeroRolesInternal(live)
             return a.priorityIdx < b.priorityIdx
         end
         return a.charid < b.charid
-    end)
+    end
 
-    --One edge per role (built above), so each hero simply takes the first role
-    --they win and no role can be handed out twice.
+    table.sort(edges, CompareEdges)
+
+    --PASS 1 -- winners. One edge per role (built above), so each hero simply
+    --takes the first role they win and no role can be handed out twice. The
+    --roles nobody is left holding are what pass 2 gets to offer around.
+    local awardedRoleNames = {}
     for _, edge in ipairs(edges) do
         local charid = edge.charid
         if roles[charid] == nil then
@@ -936,11 +980,64 @@ local function ComputeHeroRolesInternal(live)
                 text = edge.entry.text,
                 tooltip = edge.entry.tooltip,
             }
+            awardedRoleNames[edge.candidate.role] = true
         end
     end
 
-    --Floor roles last, in priority order, landing on every still-roleless
-    --qualifying hero (they allow duplicates and are never biased).
+    --PASS 2 -- cascade. A role that pass 1 left UNAWARDED (its winner is showing
+    --something better) is offered to its runner-up, and only to a runner-up who
+    --was best at nothing. Both halves of that matter:
+    --
+    --  * unawarded only, so no title ever appears twice on the same screen and
+    --    the hero who actually topped a stat is never shown up by a card
+    --    carrying the same role with a smaller number;
+    --  * roleless heroes only, so winning something never costs a hero their win
+    --    -- a second-place title can only ever land on a blank card.
+    --
+    --The runner-up's entry was built for their own numbers (that is why the
+    --ranked list is kept in full), so the card reads honestly: rank 2 in Damage
+    --Dealer shows their real damage, and the tooltip names the hero who beat
+    --them. Same scoring as pass 1, so a hero eligible for several cascades takes
+    --the most interesting one they have earned least often.
+    local cascadeEdges = {}
+    for priorityIdx, candidate in ipairs(interestingCandidates) do
+        local entry = candidate.entries[2]
+        if entry ~= nil and not awardedRoleNames[candidate.role] then
+            local charid = entry.d.token.charid
+            if roles[charid] == nil then
+                cascadeEdges[#cascadeEdges+1] = {
+                    candidate = candidate,
+                    entry = entry,
+                    charid = charid,
+                    priorityIdx = priorityIdx,
+                    score = -(priorityIdx - 1) * INTEREST_WEIGHT
+                            - RoleCount(entry.d, candidate.role) * FATIGUE_WEIGHT,
+                }
+            end
+        end
+    end
+
+    table.sort(cascadeEdges, CompareEdges)
+
+    --Again one edge per role, so the roleless check is the only guard needed:
+    --the first cascade a hero is offered is the best one available to them.
+    for _, edge in ipairs(cascadeEdges) do
+        local charid = edge.charid
+        if roles[charid] == nil then
+            roles[charid] = {
+                role = edge.candidate.role,
+                text = edge.entry.text,
+                tooltip = edge.entry.tooltip,
+                fallback = "cascade",
+            }
+            awardedRoleNames[edge.candidate.role] = true
+        end
+    end
+
+    --PASS 3 -- floor roles, in priority order, landing on every still-roleless
+    --qualifying hero (they allow duplicates and are never biased). Pacifist,
+    --Tourist and Backbone are disjoint and cover every hero, so this pass always
+    --empties the blank cards: after it, roles[charid] is non-nil for everyone.
     for _, candidate in ipairs(floorCandidates) do
         for _, entry in ipairs(candidate.entries) do
             local charid = entry.d.token.charid
@@ -949,6 +1046,7 @@ local function ComputeHeroRolesInternal(live)
                     role = candidate.role,
                     text = entry.text,
                     tooltip = entry.tooltip,
+                    fallback = "floor",
                 }
             end
         end
@@ -962,9 +1060,13 @@ end
 
 --Compute the fun role each party member played this encounter.
 --Returns { [charid] = { role = "Damage Dealer", text = "Dealt 47 damage",
---tooltip = "Mirala dealt 31 damage" } }; heroes who earned no role are simply
---absent. Never throws -- any failure (stats missing, old encounter data)
---returns an empty table so the victory screen renders without roles.
+--tooltip = "Mirala dealt 31 damage", fallback = nil | "cascade" | "floor" } }.
+--Every hero in the fight gets an entry -- the three assignment passes above end
+--in floor roles that cover everyone -- so a missing charid means the hero was
+--not in the fight, not that they earned nothing. `fallback` says how hard the
+--awarder had to work: nil is a role they won outright. Never throws -- any
+--failure (stats missing, old encounter data) returns an empty table so the
+--victory screen renders without roles.
 function DSVictoryScreen.ComputeHeroRoles(live)
     if live == nil then
         return {}
@@ -1012,8 +1114,10 @@ function DSVictoryScreen.ComputeHeroRoleDebugInfo(live)
         --Candidates are already in priority order (most interesting first, floor
         --roles last), so collecting the entries this hero appears in preserves
         --that order; rank is the hero's standing among that role's qualifiers.
-        --Only rank 1 can ever be awarded a (non-floor) role, so a rank above 1
-        --here means "qualified, but someone else won it".
+        --Rank 1 is a role they can win outright; rank 2 is one they can only be
+        --given if its winner takes something else AND they win nothing at all
+        --themselves (the cascade pass); rank 3 and below is never awardable and
+        --reads purely as "you qualified, here is where you placed".
         local eligible = {}
         for _, candidate in ipairs(candidates) do
             for rank, entry in ipairs(candidate.entries) do
@@ -1619,7 +1723,12 @@ end
 -- the role assignment is deterministic, so recomputing it here yields the same
 -- roles every client saw on the victory screen. Floor roles (Tourist/Pacifist)
 -- are recorded too but never bias selection, so counting them is harmless.
-local function RecordHeroRoles(live)
+--
+-- roles is the already-computed role map. It MUST be passed in rather than
+-- recomputed here: this function bumps the history that biases role selection, so
+-- anything that computes roles after it runs can get a different answer than the
+-- screen displayed.
+local function RecordHeroRoles(live, roles)
     if type(live) ~= "table" or not dmhub.isDM then
         return
     end
@@ -1631,7 +1740,9 @@ local function RecordHeroRoles(live)
     end
     live._tmp_dsRolesRecorded = true
 
-    local roles = DSVictoryScreen.ComputeHeroRoles(live)
+    if type(roles) ~= "table" then
+        roles = DSVictoryScreen.ComputeHeroRoles(live)
+    end
     for _, token in ipairs(live:GetBattleHeroTokens()) do
         local info = token ~= nil and roles[token.charid] or nil
         if info ~= nil and token.properties ~= nil then
@@ -1667,9 +1778,22 @@ local function ProceedEndCombat()
 
     local live = q:try_get("liveEncounter")
     if type(live) == "table" then
-        -- Record awarded roles while the queue is still live (GetBattleHeroTokens
-        -- reads it) and before the outcome flags are cleared.
-        RecordHeroRoles(live)
+        -- Everything below runs while the queue is still live (GetBattleHeroTokens
+        -- and the stat readers need it) and before the outcome flags are cleared.
+        --
+        -- Roles are computed ONCE here and shared: RecordHeroRoles bumps the
+        -- per-hero role history that biases role selection, so the battle record
+        -- has to be built from the same table, or it could name different roles
+        -- than the screen just showed.
+        local outcome = live:GetAwardedOutcome() or "ended"
+        local roles = DSVictoryScreen.ComputeHeroRoles(live)
+
+        -- Permanent battle log entry + the encounter_complete analytics event.
+        -- Director-only and single-fire; no-ops safely for anything that was not
+        -- really a fight. See the battle log section of MCDMEncounter.lua.
+        LiveEncounter.CompleteEncounter(outcome, roles)
+
+        RecordHeroRoles(live, roles)
         live.victoryAwarded = false
         live.defeatAwarded = false
     end
@@ -2307,9 +2431,10 @@ function DSVictoryScreen.Create()
         height = string.format("%f%% width", DEFEAT_BACKGROUND_HEIGHT_PERCENT),
         halign = "center",
         valign = "center",
+        blurBackground = true,
         styles = {
             { selectors = {"defeatBackdrop"}, opacity = 0, transitionTime = 1.4 },
-            { selectors = {"defeatBackdrop", "shown"}, opacity = 0.5, transitionTime = 1.4 },
+            { selectors = {"defeatBackdrop", "shown"}, opacity = 0.9, transitionTime = 1.4 },
         },
         imageLoaded = function(element)
             --first download (or cache hit) completed; fade in if a defeat

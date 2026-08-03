@@ -134,16 +134,33 @@ ActivatedAbilityInvokeAbilityBehavior.promptText = ''
 --if true we will invoke on the caster token.
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
 ActivatedAbilityInvokeAbilityBehavior.runOnController = false
+ActivatedAbilityInvokeAbilityBehavior.rangeOrigin = ""
 
 --If false (the default), the invoked ability will not use squad coordination even if
 --it would normally (signature abilities, free strikes, other Strike-keyworded
 --abilities, and squad maneuvers). Set true to opt in.
 ActivatedAbilityInvokeAbilityBehavior.useSquadCoordination = false
 
+local function GetParentPrimaryTargetTokenId(options)
+    local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
+    for _,target in ipairs(cast ~= nil and cast.targets or {}) do
+        local targetToken = target.token
+        if targetToken ~= nil and targetToken.valid and targetToken.id ~= nil then
+            return targetToken.id
+        end
+    end
+
+    return nil
+end
+
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
+    local rangeOriginTokenId = nil
+    if self:try_get("rangeOrigin", "") == "parent_primary_target" then
+        rangeOriginTokenId = GetParentPrimaryTargetTokenId(options)
+    end
 
     local targetChoices = {}
     if promptWhenResolving then
@@ -271,6 +288,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             disableSquadCoordination = cond(not self:try_get("useSquadCoordination", false), true),
                         }
                     }
+
+                    if rangeOriginTokenId ~= nil then
+                        invocation.abilityAttr.rangeOriginTokenId = rangeOriginTokenId
+                    end
 
                     --Held back until the casts currently resolving on this
                     --client complete. This invoke may come from a triggered
@@ -460,6 +481,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         if self.targeting == "formula" or self.targeting == "prompt_inherit" then
                             options.targetingFormula = self:try_get("targetingFormula", "")
+                        end
+
+                        if rangeOriginTokenId ~= nil then
+                            abilityClone.rangeOriginTokenId = rangeOriginTokenId
                         end
 
                         print("Invoke:: Execute...")
@@ -732,6 +757,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
         end
 
+        local lastWaitDiag = 0
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
@@ -739,6 +765,16 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 return false
             end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
+
+            --DIAG: heartbeat while an invoke waits on its prompt/cast so a
+            --"hung" session's log shows what it is waiting on. Safe to keep.
+            local now = dmhub.Time()
+            if now - lastWaitDiag > 5 then
+                lastWaitDiag = now
+                print(string.format("INVOKEDIAG:: waiting for %s casting=%s preparing=%s T=%.2f",
+                    tostring(abilityClone.name), tostring(isCasting),
+                    tostring(isPreparing ~= false and isPreparing ~= nil), now))
+            end
 
             return isCasting or isPreparing
         end)

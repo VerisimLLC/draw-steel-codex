@@ -1068,6 +1068,16 @@ function GameHud.CreateEmbeddedRollDialog()
 
         -- Get the power table text from this target's rollProperties.
         local tierText = targetRollProps and targetRollProps.tiers and targetRollProps.tiers[tier]
+        if tierText ~= nil then
+            --Show only the chosen alternative of any "or" choice groups
+            --("slowed (eot) or dazed (save ends)" -> "slowed (eot)").
+            --Choices live on the shared rollProperties; per-target
+            --rollProperties clones fall back to it, mirroring execution.
+            local orChoices = (targetRollProps ~= nil and targetRollProps:try_get("orChoices"))
+                or (rollProperties ~= nil and rollProperties:try_get("orChoices"))
+                or nil
+            tierText = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(tierText, orChoices, tier)
+        end
         markers:AddLabel(ExtractTierLabel(tierText, tier), "result")
 
         -- Show surge indicator if surges are allocated to this target.

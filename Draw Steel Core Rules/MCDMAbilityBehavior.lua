@@ -49,6 +49,28 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
     ability:CommitToPaying(casterToken, options)
 
+    --These applyto values resolve the behavior's TARGETS to the creature(s)
+    --that actually perform/receive the caster-benefit effect: plain "caster"
+    --resolves to the main attacker of each struck creature in a squad-
+    --coordinated strike (NOT the squad instigator), and the companion/
+    --summoner/riders variants resolve to a different creature entirely. The
+    --command must execute with that resolved creature as its caster so
+    --self-movement rules (shift/jump/teleport) move the right token --
+    --mirroring the main-attacker substitution the tier-text path does in
+    --MCDMAbilityRollBehavior. Rule interpolation below follows the actor for
+    --plain "caster" (a squad minion's {Movement Speed} reads that minion), but
+    --for the companion/summoner/riders variants it stays bound to the
+    --ability's caster: formulas like {Intuition} in a companion shift refer
+    --to the hero, not the companion.
+    local casterBenefitApplyTo = {
+        caster = true,
+        caster_companion = true,
+        caster_summoner = true,
+        caster_riders = true,
+        caster_including_squad = true,
+    }
+    local commandActorIsTarget = casterBenefitApplyTo[self:try_get("applyto", "targets")] == true
+
     repeat
         if promptWhenResolving and #targets > 0 then
 
@@ -109,7 +131,30 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 end
                 local rule = StringInterpolateGoblinScript(self.rule, commandCaster.properties:LookupSymbol(ruleSymbols))
                 --print("INTERPOLATE::", self.rule, "->", rule)
-                self:ExecuteCommand(ability, commandCaster, target.token, options, rule)
+                --The companion/summoner/riders applyto variants also execute
+                --with the resolved target as the acting token (so self-movement
+                --rules move the companion, not the hero), but unlike plain
+                --"caster" their rule interpolation above stays bound to the
+                --ability's caster: {Intuition} in a companion shift refers to
+                --the hero.
+                local commandCasterToken = commandCaster
+                if commandActorIsTarget then
+                    commandCasterToken = target.token
+                else
+                    --Squad coordinated strike with applyto targets: the command
+                    --for each struck creature is sourced from the MAIN minion
+                    --for THAT creature (the first minion to attack it), not the
+                    --squad instigator -- so caster-moving rules like Vault's
+                    --"shift to opposite side of target" vault each attacking
+                    --minion over its own target, and push directions/condition
+                    --sources come from the right minion. Mirrors the tier-text
+                    --substitution in MCDMAbilityRollBehavior. Falls back to the
+                    --caster on non-squad casts.
+                    if options.symbols ~= nil and options.symbols.cast ~= nil then
+                        commandCasterToken = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, commandCasterToken)
+                    end
+                end
+                self:ExecuteCommand(ability, commandCasterToken, target.token, options, rule)
             end
         end
     until promptWhenResolving == false or targetChoices == nil or #targetChoices == 0
@@ -179,9 +224,13 @@ local function InvokeAbility(ability, abilityClone, targetToken, casterToken, op
     --multiplies the target count by the squad's minion count -- the action bar
     --then waits for N destination spaces ("1/4 targets") instead of 1. Invoked
     --effect abilities (shift, teleport, etc.) are always per-creature, never
-    --squad-coordinated, so opt out explicitly. Same fix as the forced-movement
-    --pattern's abilityAttr.disableSquadCoordination below.
-    abilityClone.disableSquadCoordination = true
+    --squad-coordinated, so opt out by default -- callers that really want a
+    --squad-coordinated invoke can set the flag explicitly, mirroring the YAML
+    --invoke path (ActivatedAbilityInvokeAbilityBehavior) and the forced-
+    --movement pattern's abilityAttr.disableSquadCoordination below.
+    if abilityClone:try_get("disableSquadCoordination") == nil then
+        abilityClone.disableSquadCoordination = true
+    end
 
     local casting = false
 
@@ -1230,6 +1279,136 @@ ActivatedAbility.RegisterPowerTableRule{
     end,
 }
 
+ActivatedAbility.RegisterPowerTableRule{
+    --a unique ID which defines this rule.
+    id = "targetlosessurges",
+
+    --Matches surge loss: "lose all surges", "lose 2 surges", and prose forms
+    --like "the target loses all their surges" / "each target loses two surges".
+    pattern = "^((the |each )?targets? )?loses? (?<quantity>all|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]+) (of )?(their |its |his |her )?surges?",
+
+    --once the text matches the pattern we execute this to make the behavior happen.
+    --- @param behavior ActivatedAbilityBehavior
+    --- @param ability ActivatedAbility
+    --- @param casterToken CharacterToken
+    --- @param targetToken CharacterToken
+    --- @param options table
+    --- @param match table
+    execute = function(behavior, ability, casterToken, targetToken, options, match)
+        --Surge-sharing summons bank their surges on their summoner, so operate on
+        --the token that actually holds them (mirrors targetgainssurges above).
+        --ConsumeResource would redirect internally anyway, but then the mutation
+        --would land outside the ModifyProperties wrap and never upload.
+        local recipientToken = targetToken
+        local summonerToken = targetToken.properties:GetSurgeSharingSummonerToken()
+        if summonerToken ~= nil then
+            recipientToken = summonerToken
+        end
+
+        local available = recipientToken.properties:GetAvailableSurges()
+
+        local quantity
+        if match.quantity == "all" then
+            quantity = available
+        else
+            --Losing more surges than held just empties them: no error, no negative.
+            quantity = math.min(StringToNumber(match.quantity), available)
+        end
+
+        if quantity <= 0 then
+            --Nothing to lose; don't record a no-op undo entry.
+            return
+        end
+
+        local plural = "s"
+        if quantity == 1 then
+            plural = ""
+        end
+        ability.RecordTokenMessage(recipientToken, options, string.format("Loses %d surge%s", quantity, plural))
+
+        recipientToken:ModifyProperties{
+            description = "Lose Surges",
+            execute = function()
+                recipientToken.properties:ConsumeResource(CharacterResource.surgeResourceId, "unbounded", quantity, string.format("%s used %s", casterToken.name, ability.name))
+            end,
+        }
+    end,
+}
+
+ActivatedAbility.RegisterPowerTableRule{
+    --a unique ID which defines this rule.
+    id = "shifttooppositesideoftarget",
+
+    --Moves the CASTER to the mirror square on the far side of the TARGET:
+    --the inverse of the "teleport to opposite side" rule above, which moves
+    --the target across the caster. Used by abilities like the Shadow Elf
+    --Nightstrike's Vault ("the nightstrike leaps over the target, shifting
+    --into an unoccupied square adjacent to the target opposite from their
+    --starting position").
+    pattern = "^shift to opposite side of (the )?target",
+
+    --Caster pass: when run from power-table tier text this executes once for
+    --the caster (against the highest-tier target) rather than once per target.
+    --When run from a standalone Power Table Effect behavior, powerRollPass is
+    --nil and the rule executes against the behavior's target as normal.
+    pass = "caster",
+
+    --once the text matches the pattern we execute this to make the behavior happen.
+    --- @param behavior ActivatedAbilityBehavior
+    --- @param ability ActivatedAbility
+    --- @param casterToken CharacterToken
+    --- @param targetToken CharacterToken
+    --- @param options table
+    --- @param match table
+    execute = function(behavior, ability, casterToken, targetToken, options, match)
+        ability:CommitToPaying(casterToken, options)
+        local GetAverageLocation = function(locs)
+            local x, y = 0, 0
+            for _,loc in ipairs(locs) do
+                x = x + loc.x
+                y = y + loc.y
+            end
+            return {x = x / #locs, y = y / #locs}
+        end
+
+        local casterLoc = GetAverageLocation(casterToken.locsOccupying)
+        local targetLoc = GetAverageLocation(targetToken.locsOccupying)
+        local dx = targetLoc.x - casterLoc.x
+        local dy = targetLoc.y - casterLoc.y
+
+        local originalLoc = casterToken.loc
+        local destLoc = originalLoc:dir(round(dx*2), round(dy*2))
+
+        --The rules text requires an UNOCCUPIED space on the far side. Teleport
+        --happily stacks tokens on an occupied square (verified live), so check
+        --occupancy ourselves: any living creature there means there is nowhere
+        --to vault to, and the caster simply doesn't move.
+        for _,occupant in ipairs(game.GetTokensAtLoc(destLoc) or {}) do
+            if occupant.charid ~= casterToken.charid and (not occupant.properties:IsDead()) then
+                return true --this tells it to stop processing more rules.
+            end
+        end
+
+        casterToken:Teleport(destLoc)
+
+        local t = dmhub.Time()
+        for t=1,1000 do
+            if dmhub.Time() > t + 0.3 then
+                break
+            end
+        end
+
+        local newLoc = casterToken.loc
+        if newLoc.x ~= destLoc.x or newLoc.y ~= destLoc.y then
+            --we didn't land on the opposite side (blocked by a wall or invalid
+            --terrain), so we undo the move entirely: all-or-nothing, same as
+            --the sibling rule.
+            casterToken:Teleport(originalLoc)
+            return true --this tells it to stop processing more rules.
+        end
+    end,
+}
+
 local g_gainResourceIndex = nil
 local g_applyConditionIndex = nil
 local g_gainConditionWithRiderIndex = nil
@@ -1588,6 +1767,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
     rule = rule:gsub("'", "")
     --print("Rule:: After normalize: " .. rule)
 
+    --Resolve any "or" choice groups that reach execution unresolved to
+    --their default (first) alternative. The roll pipeline resolves real
+    --choices before the command gets here (see MCDMAbilityRollBehavior);
+    --this is the safety net for pathways with no choice UI, e.g. free
+    --strikes and resistance rolls.
+    rule = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroups(rule, nil)
+
     rule = ActivatedAbilityDrawSteelCommandBehavior.NormalizeRuleTextForCreature(casterToken.properties, rule)
 
     local gateMatch = regex.MatchGroups(rule, "^(?<head>.*)(?<cond>(?<attr>[marip]) ?< ?\\[?(?<gate>-?[0-9]+|weak|average|strong)\\]?,? )(?<tail>[^;]*)(?<rest>;.*)?$")
@@ -1892,6 +2078,325 @@ function ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.AppendToFreeS
     freeStrikeAbility.behaviors[#freeStrikeAbility.behaviors+1] = ActivatedAbilityApplyFreeStrikePowerRollModifiersBehavior.new{}
 end
 
+----------------------------------------------------------------
+-- "Or" choice groups in power table rule text
+----------------------------------------------------------------
+-- A tier string (or an addText rider) may offer an exclusive choice
+-- between effects: "I<2 slowed (EoT) or weakened (EoT)", or
+-- "5 fire damage; slowed or weakened (save ends)". A " or " separator
+-- only forms a real choice group when EVERY alternative independently
+-- validates as an executable rule clause, so prose containing "or" is
+-- never split. Two pieces of shared text distribute across the
+-- alternatives: a potency gate at the head of the segment applies to
+-- whichever alternative is chosen, and a duration suffix on the final
+-- alternative distributes back onto alternatives that lack their own
+-- ("slowed or weakened (save ends)"). An oxford list ("bleeding, dazed,
+-- or slowed (save ends)") splits on its top-level commas as well.
+--
+-- ParseOrGroups returns nil, or a list of groups ordered by position:
+--   { alts = { {s=,e=,useSuffix=}, ... },  -- byte spans of each alternative;
+--                               -- useSuffix marks ones that need the
+--                               -- distributed suffix appended to resolve
+--                               -- ("prone" does not, "bleeding" does)
+--     suffixS, suffixE }        -- span of the distributed duration
+--                               -- suffix (empty when suffixE < suffixS)
+-- Spans index the text that was passed in. Results are cached; callers
+-- must treat them as read-only.
+--
+-- The executor and validator resolve unchosen groups to their FIRST
+-- alternative, so pathways with no choice UI (free strikes, resistance
+-- rolls) behave deterministically. The roll dialog records real choices
+-- in rollProperties.orChoices; see GetPowerTablePopulateCustom in
+-- MCDMAbilityRollBehavior.lua.
+
+local g_orGroupCache = {}
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    g_orGroupCache = {}
+end)
+
+local g_orDurationSuffixPattern = "(?<dur>\\s*\\((eot|eoe|save ends)\\)[\\s.]*)$"
+--Matches a potency gate at the head of a segment, tolerating the display
+--markup DisplayRuleTextForCreature wraps gates in (color/uppercase tags).
+local g_orGatePrefixPattern = "^(?<prefix>\\s*(<color=[^>]+>)?(<uppercase>)?[marip](</uppercase>)?\\s*<\\s*\\[?(-?[0-9]+|weak|average|strong)\\]?(</color>)?,?\\s+)"
+
+--Single pass over the text recording structure at "top level": outside
+--{...} runs (GoblinScript / reveal markers) and outside <...> rich text
+--tags. A "<" only opens a tag when followed by a letter or "/" so potency
+--comparators ("I<2", "i < 2") are not mistaken for tags.
+local function ScanOrStructure(lowerText)
+    local segments = {}
+    local orSpans = {}
+    local commaPositions = {}
+    local segStart = 1
+    local braceDepth = 0
+    local inTag = false
+    local i = 1
+    local n = #lowerText
+    while i <= n do
+        local c = string.sub(lowerText, i, i)
+        if inTag then
+            if c == ">" then
+                inTag = false
+            end
+        elseif c == "<" and string.match(string.sub(lowerText, i+1, i+1) or "", "^[%a/]") ~= nil then
+            inTag = true
+        elseif c == "{" then
+            braceDepth = braceDepth + 1
+        elseif c == "}" then
+            if braceDepth > 0 then
+                braceDepth = braceDepth - 1
+            end
+        elseif braceDepth == 0 then
+            if c == ";" then
+                segments[#segments+1] = {s = segStart, e = i - 1}
+                segStart = i + 1
+            elseif c == "," then
+                commaPositions[#commaPositions+1] = {pos = i, seg = #segments + 1}
+            elseif c == " " and string.sub(lowerText, i, i + 3) == " or " then
+                orSpans[#orSpans+1] = {s = i, e = i + 3, seg = #segments + 1}
+                i = i + 3
+            end
+        end
+        i = i + 1
+    end
+    segments[#segments+1] = {s = segStart, e = n}
+    return segments, orSpans, commaPositions
+end
+
+local function BuildOrGroups(text)
+    local lowerText = string.lower(text)
+    local segments, orSpans, commaPositions = ScanOrStructure(lowerText)
+    local groups = {}
+    for segIndex,seg in ipairs(segments) do
+        local segOrs = {}
+        for _,sp in ipairs(orSpans) do
+            if sp.seg == segIndex then
+                segOrs[#segOrs+1] = sp
+            end
+        end
+        if #segOrs > 0 and seg.e >= seg.s then
+            local lowerSeg = string.sub(lowerText, seg.s, seg.e)
+
+            --a potency gate prefix distributes to every alternative.
+            local prefixLen = 0
+            local prefixMatch = regex.MatchGroups(lowerSeg, g_orGatePrefixPattern)
+            if prefixMatch ~= nil then
+                prefixLen = #prefixMatch.prefix
+            end
+
+            --oxford list: with a ", or" separator present, the segment's
+            --top-level commas separate alternatives too.
+            local separators = {}
+            if regex.MatchGroups(lowerSeg, ",\\s+or\\s") ~= nil then
+                for _,cp in ipairs(commaPositions) do
+                    if cp.seg == segIndex and cp.pos > seg.s + prefixLen then
+                        separators[#separators+1] = {s = cp.pos, e = cp.pos}
+                    end
+                end
+            end
+            for _,sp in ipairs(segOrs) do
+                separators[#separators+1] = {s = sp.s, e = sp.e}
+            end
+            table.sort(separators, function(a,b) return a.s < b.s end)
+
+            --cut the segment at the separators; trim; drop empty chunks
+            --(adjacent ", or " separators produce one).
+            local alts = {}
+            local last = seg.s + prefixLen
+            for sepIndex = 1, #separators + 1 do
+                local chunkS = last
+                local chunkE
+                if sepIndex <= #separators then
+                    chunkE = separators[sepIndex].s - 1
+                    last = separators[sepIndex].e + 1
+                else
+                    chunkE = seg.e
+                end
+                while chunkS <= chunkE and string.sub(text, chunkS, chunkS) == " " do
+                    chunkS = chunkS + 1
+                end
+                while chunkE >= chunkS and string.sub(text, chunkE, chunkE) == " " do
+                    chunkE = chunkE - 1
+                end
+                if chunkE >= chunkS then
+                    alts[#alts+1] = {s = chunkS, e = chunkE}
+                end
+            end
+
+            if #alts >= 2 then
+                --distributed duration suffix taken from the final
+                --alternative when an earlier one lacks its own.
+                local suffixS = alts[#alts].e + 1
+                local suffixE = alts[#alts].e
+                local lastAltLower = string.sub(lowerText, alts[#alts].s, alts[#alts].e)
+                local durMatch = regex.MatchGroups(lastAltLower, g_orDurationSuffixPattern)
+                if durMatch ~= nil and #durMatch.dur < #lastAltLower then
+                    local anyMissing = false
+                    for ai = 1, #alts - 1 do
+                        local altLower = string.sub(lowerText, alts[ai].s, alts[ai].e)
+                        if regex.MatchGroups(altLower, g_orDurationSuffixPattern) == nil then
+                            anyMissing = true
+                            break
+                        end
+                    end
+                    if anyMissing then
+                        suffixS = alts[#alts].e - #durMatch.dur + 1
+                        suffixE = alts[#alts].e
+                        local newE = suffixS - 1
+                        while newE >= alts[#alts].s and string.sub(text, newE, newE) == " " do
+                            newE = newE - 1
+                        end
+                        alts[#alts] = {s = alts[#alts].s, e = newE}
+                    end
+                end
+
+                local prefixText = ""
+                if prefixLen > 0 then
+                    prefixText = string.sub(text, seg.s, seg.s + prefixLen - 1)
+                end
+                local suffixText = ""
+                if suffixE >= suffixS then
+                    suffixText = string.sub(text, suffixS, suffixE)
+                end
+
+                --every alternative must validate as an executable rule.
+                --mirror ExecuteCommandInternal's normalization. The trim
+                --matters: a mid-text segment's gate prefix carries the
+                --leading space from after the ";", and the rule patterns
+                --are ^-anchored (the executor sheds that space when it
+                --strips the "; " separator, so trimming matches it).
+                local Validates = function(candidate)
+                    candidate = regex.ReplaceAll(candidate, "<[^<>]*?>", "")
+                    candidate = candidate:gsub("'", "")
+                    candidate = trim(candidate)
+                    return candidate ~= "" and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(candidate) == true
+                end
+
+                --an alternative takes the distributed suffix only when it
+                --needs it to validate: "M<2 prone or bleeding (eot)" must
+                --resolve prone WITHOUT the duration (prone takes none) but
+                --bleeding WITH it. The useSuffix flag drives resolution.
+                local allValid = true
+                for _,alt in ipairs(alts) do
+                    local altText = string.sub(text, alt.s, alt.e)
+                    alt.useSuffix = false
+                    if Validates(prefixText .. altText) then
+                        --valid standalone
+                    elseif suffixText ~= "" and regex.MatchGroups(string.lower(altText), g_orDurationSuffixPattern) == nil and Validates(prefixText .. altText .. suffixText) then
+                        alt.useSuffix = true
+                    else
+                        allValid = false
+                        break
+                    end
+                end
+
+                if allValid then
+                    groups[#groups+1] = {
+                        alts = alts,
+                        suffixS = suffixS,
+                        suffixE = suffixE,
+                    }
+                end
+            end
+        end
+    end
+    if #groups == 0 then
+        return nil
+    end
+    return groups
+end
+
+--- Parse "or" choice groups out of power table rule text.
+--- @param text string
+--- @return nil|{alts: {s: number, e: number}[], suffixS: number, suffixE: number}[]
+function ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(text)
+    if type(text) ~= "string" or text == "" then
+        return nil
+    end
+    if string.find(string.lower(text), " or ", 1, true) == nil then
+        return nil
+    end
+    local cached = g_orGroupCache[text]
+    if cached ~= nil then
+        if cached == false then
+            return nil
+        end
+        return cached
+    end
+    local groups = BuildOrGroups(text)
+    if groups == nil then
+        g_orGroupCache[text] = false
+    else
+        g_orGroupCache[text] = groups
+    end
+    return groups
+end
+
+--- Rewrite rule text keeping only the chosen alternative of each "or"
+--- choice group. chooser is nil (always the first alternative) or a
+--- function(groupIndex) returning the 1-based alternative to keep.
+--- @param text string
+--- @param chooser nil|fun(groupIndex: number): number|nil
+--- @return string
+function ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroups(text, chooser)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    local groups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(text)
+    if groups == nil then
+        return text
+    end
+    local out = {}
+    local pos = 1
+    for gi,g in ipairs(groups) do
+        local chosen = 1
+        if chooser ~= nil then
+            local c = chooser(gi)
+            if type(c) == "number" and c >= 1 and c <= #g.alts then
+                chosen = math.floor(c)
+            end
+        end
+        out[#out+1] = string.sub(text, pos, g.alts[1].s - 1)
+        out[#out+1] = string.sub(text, g.alts[chosen].s, g.alts[chosen].e)
+        if g.suffixE >= g.suffixS and g.alts[chosen].useSuffix then
+            out[#out+1] = string.sub(text, g.suffixS, g.suffixE)
+        end
+        pos = math.max(g.suffixE, g.alts[#g.alts].e) + 1
+    end
+    out[#out+1] = string.sub(text, pos)
+    return table.concat(out)
+end
+
+--- Resolve a tier command against choices recorded by the roll dialog.
+--- orChoices maps "tier:group" keys to 1-based alternative indexes.
+--- @param text string
+--- @param orChoices nil|table<string, number>
+--- @param tierIndex number
+--- @return string
+function ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(text, orChoices, tierIndex)
+    if orChoices == nil then
+        return ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroups(text, nil)
+    end
+    return ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroups(text, function(gi)
+        return orChoices[string.format("%d:%d", tierIndex, gi)]
+    end)
+end
+
+--- Comparison key for matching "the same" alternative across tiers whose
+--- durations differ (tier 1 "slowed (save ends)" vs tier 2 "slowed (EoT)"):
+--- lowercased, markup and duration suffix stripped, trimmed.
+--- @param text string
+--- @return string
+function ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(text)
+    text = string.lower(text or "")
+    text = regex.ReplaceAll(text, "<[^<>]*?>", "")
+    local durMatch = regex.MatchGroups(text, g_orDurationSuffixPattern)
+    if durMatch ~= nil then
+        text = string.sub(text, 1, #text - #durMatch.dur)
+    end
+    return trim(text)
+end
+
 function ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
 
     --print("Rule:: Validating rule(" .. rule .. ")")
@@ -1900,6 +2405,12 @@ function ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
         --print("Rule:: Returning true")
         return true
     end
+
+    --An "or" choice group validates when its alternatives do (ParseOrGroups
+    --validated each one), so validate the default resolution. Alternatives
+    --never contain top-level " or " themselves, which is what keeps the
+    --ParseOrGroups -> ValidateRule -> ParseOrGroups recursion finite.
+    rule = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroups(rule, nil)
 
     local AddGate = function(str)
         return str
@@ -2133,6 +2644,13 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
     --print("Rule:: Validating (" .. rule .. ")")
     local text = ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
     if type(text) == "string" then
+        --ValidateRule resolves "or" choice groups before validating, so the
+        --unvalidated suffix it returns can be positioned against the resolved
+        --text rather than ours. If it is not a literal suffix of the rule we
+        --were given, skip the dim markup instead of slicing at a wrong spot.
+        if #text > #rule or string.lower(string.sub(rule, #rule - #text + 1)) ~= text then
+            return rule
+        end
         local before = string.sub(rule, 1, -#text - 1)
 
         --print("Rule:: rule = ", rule, "text = ", text, "before = ", before)

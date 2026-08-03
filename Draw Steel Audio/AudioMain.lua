@@ -976,6 +976,20 @@ audio.SoundEvent{
     ignoreDuplicates = 0.01,
 }
 
+--Noxa NUmglow
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Noxa",
+    mixgroup = "dice",
+    sounds = {"dice/cust/noxa/Dice_NumGlow_noxa_01.wav","dice/cust/noxa/Dice_NumGlow_noxa_02.wav","dice/cust/noxa/Dice_NumGlow_noxa_03.wav","dice/cust/noxa/Dice_NumGlow_noxa_04.wav","dice/cust/noxa/Dice_NumGlow_noxa_05.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+     play = function(instance)
+        audio.FireSoundEvent("Dice.Numglow_Generic")
+    end,
+
+}
 
 
 
@@ -1012,6 +1026,7 @@ DiceImpactFamilies.families = {
     { id = "GlassSparkle",text = "Glass Sparkle",   suffix = "GlassSparkle"},
     { id = "MetalShield", text = "Metal Shield",    suffix = "MetalShield" },
     { id = "Spectral",   text = "Spectral",         suffix = "Spectral" },
+    { id = "GlassGas",   text = "Glass Gas",         suffix = "GlassGas" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1192,6 +1207,36 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+
+--GlassGas (Noxa)
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Hard_01.wav","dice/glassgas/DiceImp_glassgas_Hard_02.wav","dice/glassgas/DiceImp_glassgas_Hard_03.wav","dice/glassgas/DiceImp_glassgas_Hard_04.wav","dice/glassgas/DiceImp_glassgas_Hard_05.wav","dice/glassgas/DiceImp_glassgas_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Mild_01.wav","dice/glassgas/DiceImp_glassgas_Mild_02.wav","dice/glassgas/DiceImp_glassgas_Mild_03.wav","dice/glassgas/DiceImp_glassgas_Mild_04.wav","dice/glassgas/DiceImp_glassgas_Mild_05.wav","dice/glassgas/DiceImp_glassgas_Mild_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Soft_01.wav","dice/glassgas/DiceImp_glassgas_Soft_02.wav","dice/glassgas/DiceImp_glassgas_Soft_03.wav","dice/glassgas/DiceImp_glassgas_Soft_04.wav","dice/glassgas/DiceImp_glassgas_Soft_05.wav","dice/glassgas/DiceImp_glassgas_Soft_06.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+}
+
+
+
 
 
 --spectral Dice Impacts

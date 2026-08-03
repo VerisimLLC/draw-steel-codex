@@ -80,38 +80,68 @@ function CharacterTitleChoice:SaveSelection(hero, option)
     return true
 end
 
+--- Draw Steel echelons map onto level bands: 1st echelon is levels 1-3, 2nd is
+--- 4-6, 3rd is 7-9, and 4th is level 10. A hero can only hold a title from an
+--- echelon they have reached.
+--- @param level number
+--- @return number
+local function _echelonForLevel(level)
+    level = tonumber(level) or 1
+    if level >= 10 then return 4 end
+    if level >= 7 then return 3 end
+    if level >= 4 then return 2 end
+    return 1
+end
+
 function CharacterTitleChoice._optionsAndChoices(hero)
     local options = {}
     local choices = {}
 
+    -- Titles are earned per echelon of play, so a 1st-level hero must not be
+    -- offered a 4th-echelon title. Title.echelon defaults to "1", which is why
+    -- the 27 title records that omit the field are still handled correctly.
+    --
+    -- Deliberately NOT filtered on: Title.prerequisite. Unlike complication
+    -- prerequisites, which are GoblinScript, title prerequisites are prose
+    -- describing a deed the Director adjudicates ("you defeat five non-minion
+    -- enemies using weapon abilities..."). It is already shown to the player by
+    -- Title:RenderToMarkdown, which is the right treatment for a narrative gate.
+    local heroEchelon = _echelonForLevel(hero:CharacterLevel())
+
     local allTitles = dmhub.GetTableVisible(Title.tableName)
     for id,item in pairs(allTitles) do
-        local renderFn = function()
-            return gui.Label{
-                classes = {"builder-base", "label", "info"},
-                width = "98%",
-                height = "auto",
-                halign = "left",
-                vmargin = 12,
-                textAlignment = "topleft",
-                markdown = true,
-                text = item:RenderToMarkdown{ noninteractive = true }.content,
+        local titleEchelon = tonumber(item.echelon) or 1
+        if titleEchelon <= heroEchelon then
+            local renderFn = function()
+                return gui.Label{
+                    classes = {"builder-base", "label", "info"},
+                    width = "98%",
+                    height = "auto",
+                    halign = "left",
+                    vmargin = 12,
+                    textAlignment = "topleft",
+                    markdown = true,
+                    text = item:RenderToMarkdown{ noninteractive = true }.content,
+                }
+            end
+            -- unique = true stops the SAME title being taken twice. Holding
+            -- several DIFFERENT titles remains legal: heroes earn roughly one
+            -- per echelon of play.
+            options[#options+1] = {
+                guid = id,
+                name = item.name,
+                description = nil,
+                unique = true,
+                render = renderFn,
+            }
+            choices[#choices+1] = {
+                id = id,
+                text = item.name,
+                description = nil,
+                unique = true,
+                render = renderFn,
             }
         end
-        options[#options+1] = {
-            guid = id,
-            name = item.name,
-            description = nil,
-            unique = false,
-            render = renderFn,
-        }
-        choices[#choices+1] = {
-            id = id,
-            text = item.name,
-            description = nil,
-            unique = false,
-            render = renderFn,
-        }
     end
     table.sort(options, function(a,b) return a.name < b.name end)
     table.sort(choices, function(a,b) return a.text < b.text end)

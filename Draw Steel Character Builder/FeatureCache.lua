@@ -713,6 +713,14 @@ function CBFeatureWrapper:_excludeChoice(hero, choice)
             if skillItem then return hero:ProficientInSkill(skillItem) end
             return false
         end,
+        -- Titles are stored on hero.titles rather than in levelChoices (see
+        -- CharacterTitleChoice:SaveSelection), so the generic levelChoices
+        -- sweep below cannot see them and would let the same title be taken
+        -- more than once.
+        CharacterTitleChoice = function(hero, choice)
+            local titles = hero:try_get("titles", {})
+            return titles[choice:GetGuid()] == true
+        end,
     }
 
     local fn = validators[self.feature.typeName]

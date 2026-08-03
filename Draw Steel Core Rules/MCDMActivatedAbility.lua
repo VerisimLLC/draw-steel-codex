@@ -282,6 +282,22 @@ function ActivatedAbility:RemoveKeyword(keyword)
     self.keywords[keyword] = nil
 end
 
+--- Whether this ability is the Knockback maneuver (or a variant of it, such as
+--- the Elementalist's Practical Magic knockback). Knockback abilities are
+--- identified by firing the BeginKnockback custom trigger. The "Knockback
+--- Caster Size" / "Knockback Target Size" attributes apply only to these
+--- abilities, not to other forced movement.
+--- @return boolean
+function ActivatedAbility:IsKnockbackManeuver()
+    for _, behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityCustomTriggerBehavior" and behavior:try_get("triggerName") == "BeginKnockback" then
+            return true
+        end
+    end
+
+    return false
+end
+
 RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "Keywords",
     type = "set",
@@ -336,6 +352,43 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
         end
 
         return false
+    end,
+})
+
+--Counts the end-of-turn condition clauses in the power table, e.g. the "(eot)" in
+--"M<2 slowed (eot)". Drives both the surge cost and the display condition of effects
+--that upgrade those durations (Shadow Elf's Manifold Piercer).
+--
+--The count is the LARGEST SINGLE TIER's, not the sum across tiers: exactly one tier
+--resolves per power roll, so summing would charge for conditions that never land.
+--A clause covering several conditions ("dazed and slowed (eot)") carries one "(eot)"
+--and so counts once.
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "eotconditions",
+    type = "number",
+    desc = "The number of end-of-turn condition clauses in this ability's power table.",
+    calculate = function(c)
+        local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+        local most = 0
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                for _, entry in ipairs(behavior:try_get("tiers", {})) do
+                    local count = 0
+                    local rest = entry
+                    local match = regex.MatchGroups(rest, pattern)
+                    while match ~= nil do
+                        count = count + 1
+                        rest = match.postfix
+                        match = regex.MatchGroups(rest, pattern)
+                    end
+                    if count > most then
+                        most = count
+                    end
+                end
+            end
+        end
+
+        return most
     end,
 })
 

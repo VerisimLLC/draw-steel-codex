@@ -2848,6 +2848,15 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
         end,
     }
 
+    list[#list+1] = gui.Check{
+        text = "Replace Previous Cast",
+        value = self:try_get("replacePrevious", false),
+        change = function(element)
+            self.replacePrevious = element.value
+			parentPanel:FireEvent('refreshBehavior')
+        end,
+    }
+
 	list[#list+1] = gui.Button{
 		width = 160,
 		height = 32,

@@ -5422,6 +5422,19 @@ function GameHud.CreateEmbeddedRollDialog()
                         dmhub.CancelCurrentRoll()
                     end
                 end
+
+                --Backstop: if this dialog dies mid-roll, the cast that normally
+                --removes the targeting arrows can get stuck waiting forever, so
+                --remove them here too. Destroying twice is safe.
+                if m_options ~= nil and m_options.markLineOfSight ~= nil then
+                    local marks = m_options.markLineOfSight
+                    if type(marks) ~= "table" then
+                        marks = {marks}
+                    end
+                    for _, mark in pairs(marks) do
+                        pcall(function() mark:DestroyLineOfSight() end)
+                    end
+                end
             end,
             broadcastDialogState = function(element)
                 BroadcastDialogState()

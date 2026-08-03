@@ -2519,7 +2519,21 @@ creature.creatureSize = "1M"
 
 CustomAttribute.RegisterAttribute { id = "creaturesizewhenforcemoved", text = "Size When Force Moved", attributeType = "number", category = "Forced Movement" }
 
-function creature:CreatureSizeWhenBeingForceMoved()
+--- The effective size of this creature when it is being force moved.
+--- If isKnockback is true, the data-defined "Knockback Target Size" attribute
+--- is used instead; its base value formula (SizeWhenForceMoved) chains back
+--- through this function, so knockback-specific size features layer on top of
+--- general force-move size features.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenBeingForceMoved(isKnockback)
+    if isKnockback then
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol["knockbacktargetsize"]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
     local token = dmhub.LookupToken(self)
     local size = 3
     if token ~= nil and token.valid then
@@ -2529,6 +2543,36 @@ function creature:CreatureSizeWhenBeingForceMoved()
     end
 
     return self:CalculateAttribute("creaturesizewhenforcemoved", size)
+end
+
+--- The effective size of this creature when it force moves another creature:
+--- the pusher's side of the "Big Versus Little" rule. Uses the data-defined
+--- "SizeWhenForceMoving" attribute (base value: Size) so features that
+--- artificially increase size when force moving are recognized. If isKnockback
+--- is true, uses "Knockback Caster Size" (base value: SizeWhenForceMoving)
+--- so knockback-specific size features layer on top.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenForceMoving(isKnockback)
+    local attrNames = {"sizewhenforcemoving"}
+    if isKnockback then
+        attrNames = {"knockbackcastersize", "sizewhenforcemoving"}
+    end
+
+    for _, attrName in ipairs(attrNames) do
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol[attrName]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
+    --fallback if the compendium does not define the size attributes: raw size.
+    local token = dmhub.LookupToken(self)
+    if token ~= nil and token.valid then
+        return token.creatureSizeNumber
+    end
+
+    return self:GetBaseCreatureSizeNumber() or 3
 end
 
 creature.RegisterSymbol {

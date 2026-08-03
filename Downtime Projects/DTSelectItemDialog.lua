@@ -75,6 +75,7 @@ function DTSelectItemDialog._createPanel(callbacks)
 
         local dropdown = root:Get("itemSelector")
         if dropdown then
+            dropdown.options = {}
             dropdown.options = sourceLists[sourceType] or {}
             dropdown.idChosen = nil
         end

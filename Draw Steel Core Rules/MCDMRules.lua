@@ -916,6 +916,7 @@ GameSystem.ActionBarGroupings = {
     ["Abilities"] = 4,
     ["Common Abilities"] = 5,
     ["Triggers"] = 6,
+    ["Respite Activities"] = 7,
 }
 
 function GameSystem.GetAbilityCategoryInfo(category)
@@ -1355,7 +1356,12 @@ TriggeredAbility.RegisterTrigger{
     id = "targetwithability",
     text = "Target With Ability",
     symbols = {
-        ability = {
+        --NOTE: the key must match the payload key dispatched in
+        --ActivatedAbility:FireUseAbility, since the payload IS the symbol
+        --table (the keys here only drive editor help). This was
+        --registered as "ability" while the payload sends "usedability", so
+        --Ability.X silently resolved to nothing in author formulas.
+        usedability = {
             name = "Used Ability",
             type = "ability",
             desc = "The ability used.",
@@ -1364,7 +1370,17 @@ TriggeredAbility.RegisterTrigger{
             name = "Target",
             type = "creature",
             desc = "The target creature.",
-        }
+        },
+        attacker = {
+            name = "Attacker",
+            type = "creature",
+            desc = "The creature that used the ability. Only valid if Has Attacker is true.",
+        },
+        hasattacker = {
+            name = "Has Attacker",
+            type = "boolean",
+            desc = "True if the creature that used the ability is known.",
+        },
     },
 }
 

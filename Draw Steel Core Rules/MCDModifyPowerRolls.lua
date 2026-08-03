@@ -980,6 +980,28 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        --Upgrade every end-of-turn condition clause in the power table to save ends,
+        --e.g. "M<2 slowed (eot)" becomes "M<2 slowed (save ends)". Shadow Elf's
+        --Manifold Piercer. Like replaceForcedMovement above, this rewrites the tier
+        --TEXT rather than signalling the infliction site: the text is the contract the
+        --power table parser reads, so the condition then lands with duration "save"
+        --with no further plumbing, and the token shows the same condition icon it
+        --always would.
+        if self:try_get("convertEotToSaveEnds", false) then
+            local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. "(save ends)"
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
         local surges = self:try_get("surges", "")
         if surges ~= "" then
             local addSurges = ExecuteGoblinScript(surges, lookupFunction, 0, "Power Roll Surges")

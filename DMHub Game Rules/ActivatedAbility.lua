@@ -1844,7 +1844,14 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 
         for _,target in ipairs(options.targets or {}) do
             if target.token ~= nil then
-                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties})
+                --attacker/hasattacker mirror the losehitpoints payload so a
+                --reaction to "a creature targets me with an ability" can reach
+                --the creature that used it (targetType = "attacker", or an
+                --Attacker.X condition). Without these the only symbols are the
+                --ability and its target, so the user of the ability was
+                --unreachable and reactions like "the target makes a strike
+                --against me, knock them prone" could not be expressed.
+                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties, attacker = casterToken.properties, hasattacker = true})
             end
         end
 	end
@@ -2265,6 +2272,11 @@ local function DestroyLineOfSight(options)
 
     options.markLineOfSight = nil
 end
+
+--Removes a cast's red targeting arrows. options.markLineOfSight can be one
+--marker or a table of them, and destroying twice is safe. Other files should
+--call this instead of destroying markers by hand.
+ActivatedAbility.DestroyLineOfSight = DestroyLineOfSight
 
 function ActivatedAbility:RecordAbilityUsage(casterToken, options)
     if not casterToken.valid then return end
@@ -5208,8 +5220,9 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 		local adjustments = {}
 		local sizeDifferenceBonus = 0
 		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
-			local casterSize = casterToken.creatureSizeNumber
-			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved()
+			local isKnockback = ability:IsKnockbackManeuver()
+			local casterSize = casterToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
 			if casterSize > targetSize then
 				sizeDifferenceBonus = 1
 				adjustments[#adjustments+1] = "Big Versus Little: +1"

@@ -76,6 +76,23 @@ function ActivatedAbilitySaveBehavior:GetSaveRollFormula(targetCreature, item)
             end
         end
     end
+
+    -- Per-condition save modifier: a custom attribute named "Save Bonus vs <name>"
+    -- (e.g. "Save Bonus vs Frightened") adjusts saves against that one condition or
+    -- ongoing effect only. The attribute may not exist for most conditions, and
+    -- CalculateNamedCustomAttribute raises on unknown names, so probe under pcall.
+    local vsBonus = nil
+    pcall(function()
+        vsBonus = targetCreature:CalculateNamedCustomAttribute("Save Bonus vs " .. item.name)
+    end)
+    if type(vsBonus) == "number" and vsBonus ~= 0 then
+        if vsBonus > 0 then
+            rollStr = string.format("%s + %d", rollStr, vsBonus)
+        else
+            rollStr = string.format("%s - %d", rollStr, -vsBonus)
+        end
+    end
+
     return rollStr
 end
 

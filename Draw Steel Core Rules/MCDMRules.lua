@@ -73,6 +73,31 @@ GameSystem.ApplyBoons = function(roll, boons)
     return dmhub.RollToString(rollInfo)
 end
 
+--- Returns a StringSet of the die sizes (e.g. "d3", "d6") actually rolled to
+--- produce a damage roll, so triggers can key off a specific die rather than
+--- just "any dice were rolled". rollStr should already be fully resolved (no
+--- outstanding GoblinScript symbols), matching the roll text handed to the
+--- roll dialog. Empty for flat/fixed damage.
+function GameSystem.GetDamageDiceInRoll(rollStr)
+    local result = StringSet.new{}
+    if rollStr == nil or rollStr == "" then
+        return result
+    end
+
+    local ok, rollInfo = pcall(dmhub.ParseRoll, rollStr)
+    if ok and rollInfo ~= nil and rollInfo.categories ~= nil then
+        for _,category in pairs(rollInfo.categories) do
+            for _,group in ipairs(category.groups or {}) do
+                if group.numFaces ~= nil then
+                    result:Add(string.format("d%d", group.numFaces))
+                end
+            end
+        end
+    end
+
+    return result
+end
+
 GameSystem.CalculateDeathSavingThrowRoll = function(creature)
     return "1d20"
 end
@@ -1471,12 +1496,21 @@ TriggeredAbility.RegisterTrigger{
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
         },
+        damagedice = {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
+        },
     },
 
     examples = {
         {
             script = "damage > 8 and (damage type is slashing or damage type is piercing)",
             text = "The triggered ability only activates if more than 8 damage was done and the damage was slashing or piercing damage."
+        },
+        {
+            script = 'Damage Dice has "d3" or Damage Dice has "d6"',
+            text = "The triggered ability only activates if the damage came from rolling a 1d3 or a 1d6."
         }
     },
 }
@@ -1546,6 +1580,11 @@ TriggeredAbility.RegisterTrigger{
             name = "hasrolleddamage",
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
+        {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
         },
         {
             name = "HasCast",

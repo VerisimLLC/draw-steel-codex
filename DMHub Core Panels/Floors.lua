@@ -591,7 +591,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			end
 			dmhub.OpenFileDialog{
 				id = "MapAppearanceImage",
-				extensions = {"jpeg", "jpg", "png", "webp", "bmp"},
+				extensions = {"jpeg", "jpg", "png", "mp4", "webm", "webp", "bmp"},
 				prompt = "Choose a map image to use as an alternate appearance",
 				multiFiles = false,
 				open = function(path)

@@ -4798,6 +4798,11 @@ function creature:RefreshToken(token)
     end
 
     self._tmp_grabbedby = nil
+    --Rebuild prone from the current inflicted-condition state on every token refresh.
+    --The modifier cache can already be stamped for this game update before
+    --this base refresh runs, which skips Invalidate() above; without this
+    --explicit reset, removing Prone can leave _tmp_prone stuck true.
+    self._tmp_prone = nil
 
     --check if grabbed.
     local inflictedConditions = self:try_get("inflictedConditions")

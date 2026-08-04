@@ -1307,6 +1307,14 @@ function AuraInstance:FillActivatedAbilities(creature, resultAbilities)
     if self.aura.canrelocate and self:GetArea() ~= nil then
         local area = self:GetArea()
 
+        --A relocated aura's stored area is an explicit-locations shape (see
+        --ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea), whose shape
+        --type ("Locations") is not a placeable target type. Fall back to the
+        --targeting shape recorded at relocation time.
+        local targetType = area.shape
+        if string.lower(tostring(targetType)) == "locations" then
+            targetType = self:try_get("moveTargetType", "cube")
+        end
 
         resultAbilities[#resultAbilities + 1] = ActivatedAbility.Create {
             name = string.format("Move %s", self.name),
@@ -1314,7 +1322,7 @@ function AuraInstance:FillActivatedAbilities(creature, resultAbilities)
             iconid = self.iconid,
             casterLocOverride = self.area.origin,
             display = self.display,
-            targetType = area.shape,
+            targetType = targetType,
             range = self.aura.relocateRange,
             radius = area.radius,
             actionResourceId = self.aura.relocateResource,
@@ -1890,6 +1898,90 @@ function creature:GetAura(auraid)
     end
 end
 
+--Relocating an aura's map object only moves the VISUAL. The mechanical area
+--lives in TWO serialized copies of the AuraInstance, and both must be updated:
+-- 1. The copy inside the object's Aura component: this is the one the engine
+--    actually registers in the aura index, so it decides which tiles the
+--    aura's concealment/damage/triggers apply to.
+-- 2. The copy in the CASTER's auras list: drives the aura panel outline and
+--    caster-side bookkeeping.
+--The area is also converted to an explicit-locations shape before assignment.
+--A serialized targeted shape is a RECIPE {originCreature, targetPoint, range,
+--checklos} that the engine re-evaluates on every aura index rebuild and on
+--load, re-clamping the target point by the ORIGINAL cast's range and line of
+--sight. For an aura cast at short range (e.g. Shadow Skulk's range-1 "leave
+--darkness in your space") that recompute pins the mechanical area near the
+--cast location no matter where the object is moved. A locations shape stores
+--the exact tiles and recomputes to itself.
+--NOTE: assign a whole shape; mutating the existing shape's .locations does not
+--persist, because AuraInstance:GetArea materialises a fresh userdata per read.
+function ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea(obj, newArea)
+    if newArea == nil then
+        return
+    end
+
+    local component = obj:GetComponent("Aura")
+    if component == nil or component.properties == nil then
+        return
+    end
+
+    --Remember the targeting shape the aura was placed with ("Cube" etc.)
+    --before converting: FillActivatedAbilities builds the aura's built-in
+    --Move ability from the stored area's shape/radius, and a converted area
+    --reports shape "Locations", which is not a placeable target type.
+    local moveTargetType = nil
+    local locs = newArea.locations
+    if locs ~= nil and #locs > 0 then
+        local converted = dmhub.CalculateShape{
+            shape = "locations",
+            locations = locs,
+            locOverride = newArea.origin or locs[1],
+            radius = tonumber(newArea.radius) or 0,
+            range = 0,
+            checklos = false,
+        }
+        if converted ~= nil then
+            moveTargetType = newArea.shape
+            newArea = converted
+        end
+    end
+
+    local objInstance = component.properties:try_get("aura")
+    if objInstance ~= nil then
+        component:BeginChanges()
+        objInstance.area = newArea
+        if moveTargetType ~= nil then
+            objInstance.moveTargetType = moveTargetType
+        end
+        component:CompleteChanges("Relocate aura area")
+    end
+
+    local auraid = component.properties:try_get("auraid")
+    local casterid = component.properties:try_get("casterid")
+    if auraid == nil or casterid == nil then
+        return
+    end
+
+    local casterTok = dmhub.GetTokenById(casterid)
+    if casterTok == nil or not casterTok.valid then
+        return
+    end
+
+    casterTok:ModifyProperties {
+        description = "Relocate aura area",
+        undoable = false,
+        execute = function()
+            local inst = casterTok.properties:GetAura(auraid)
+            if inst ~= nil then
+                inst.area = newArea
+                if moveTargetType ~= nil then
+                    inst.moveTargetType = moveTargetType
+                end
+            end
+        end,
+    }
+end
+
 function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, options)
     if options.targetArea == nil or self:try_get("object") == nil then
         return
@@ -1904,19 +1996,23 @@ function ActivatedAbilityMoveAuraBehavior:Cast(ability, casterToken, targets, op
 
     local destx = options.targetArea.xpos
     local desty = options.targetArea.ypos
+    local dx = destx - obj.x
+    local dy = desty - obj.y
 
     local objAura = obj:GetComponent("Aura")
     if objAura ~= nil then
         objAura:SetAndUploadProperties {
             moveTimestamp = dmhub.serverTime,
-            movex = destx - obj.x,
-            movey = desty - obj.y,
+            movex = dx,
+            movey = dy,
         }
     end
 
     obj:SetAndUploadPos(destx, desty)
 
     dmhub.EndTransaction()
+
+    ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea(obj, options.targetArea)
 
     ability:ConsumeResources(casterToken, {
         costOverride = options.costOverride,

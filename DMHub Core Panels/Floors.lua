@@ -591,8 +591,10 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			end
 			dmhub.OpenFileDialog{
 				id = "MapAppearanceImage",
-				extensions = {"jpeg", "jpg", "png", "webp", "bmp"},
-				prompt = "Choose a map image to use as an alternate appearance",
+				--Video is allowed as well as stills: UploadImageAsset detects a video path and routes it
+				--through the video upload path, and bgimage plays videos, so an animated map just works.
+				extensions = {"jpeg", "jpg", "png", "webp", "bmp", "mp4", "webm"},
+				prompt = "Choose a map image or video to use as an alternate appearance",
 				multiFiles = false,
 				open = function(path)
 					uploading = true

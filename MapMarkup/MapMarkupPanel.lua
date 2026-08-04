@@ -32,6 +32,34 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--============================================================================
+--"Fade Map": dims the whole map so the markup being drawn stands out instead
+--of competing with busy map art. Purely a local viewing aid - a preference,
+--not map data, and never seen by players.
+--
+--The engine reads this setting DIRECTLY (SettingsManager.GetFloatOptional in
+--TileHeightOverlay.Update), so there is nothing to feed through
+--dmhub.GetMarkupZones and no revision to bump; the slider's live
+--PreviewSettingValue during a drag is picked up on the very next frame.
+--MapFadeOverlay.cs applies it, gated on the panel actually being open, so a
+--value left on the slider cannot follow the Director back to the table.
+--
+--No `section`, so it stays out of the global Settings screen - it does
+--nothing with this panel closed, and CreateSettingsEditorsForSection only
+--picks up settings that declare one.
+--============================================================================
+setting{
+    id = "markup:fade",
+    description = "Fade Map",
+    help = "Dims the map - terrain, walls, objects, tokens and all - so the markup you are drawing stands out. Only applies while this panel is open.",
+    storage = "preference",
+    editor = "slider",
+    default = 0,
+    min = 0,
+    max = 1,
+    percent = true,
+}
+
 --The Core invisible ("see-thru") wall asset markup wall types are duplicated
 --from. Wall assets require an image (ImageAsset.ValidationCheck), so presets
 --cannot be created from scratch; we duplicate this invisible base and set
@@ -1077,6 +1105,131 @@ local function SaveZonePalette(entries)
     g_zonePaletteSetting:Set(SerializeZonePalette(entries))
 end
 
+--============================================================================
+--"Entire Map" zone types: a type the whole map carries by default, with no
+--painted region. Stored per map as a ';'-joined list of keyword ids, exactly
+--like the palette above; the palette chip's "Entire Map" button toggles it.
+--
+--A blanket type registers one aura per floor covering every tile of the map's
+--extent EXCEPT the tiles of painted zones that interact with it: zones of the
+--same keyword (which would otherwise double up on those tiles), zones whose
+--keyword dispels it, and zones of keywords it dispels. Explicit painting
+--always wins over the blanket -- which is also what keeps a blanketed map
+--paintable, since the paint-time dispel rules only ever consult painted
+--records (ZonesOnFloor), never these entries.
+--
+--Blankets deliberately do NOT feed the overlay: striping every tile of the
+--map would bury the painted zones the DM is actually working with. The lit
+--button on the palette chip is the indicator.
+--
+--One table rather than a handful of file-level locals: this chunk is a few
+--locals short of Lua's 200-locals cap (same reason as m_zoneStripes and
+--m_dispelState). Rebuild is assigned much further down, where the keyword
+--helpers and the zone cache it reads are already in scope.
+--============================================================================
+local m_entireMap = {
+    --resolved blanket entries (same shape as m_zoneCache entries, plus
+    --entireMap = true); rebuilt with the zone cache.
+    entries = {},
+
+    --the CacheKey value the entries were built from; see EnsureZoneCache.
+    cacheKey = false,
+
+    setting = setting{
+        id = "markup:zoneentiremap",
+        description = "Map Markup Entire-Map Zone Types",
+        storage = "map",
+        default = "",
+    },
+}
+
+--pcall-guarded: this is read from EnsureZoneCache, which runs on every aura
+--poll -- including polls that land before there is a map to scope a
+--map-storage setting to (boot, map switches).
+function m_entireMap.Serialized()
+    local str = nil
+    pcall(function()
+        str = m_entireMap.setting:Get()
+    end)
+    if type(str) ~= "string" then
+        return ""
+    end
+    return str
+end
+
+--Set of keyword ids this map blankets.
+function m_entireMap.Keywords()
+    local result = {}
+    for _,id in ipairs(string.split(m_entireMap.Serialized(), ";")) do
+        if id ~= "" then
+            result[id] = true
+        end
+    end
+    return result
+end
+
+function m_entireMap.IsSet(keywordid)
+    if keywordid == nil then
+        return false
+    end
+    return m_entireMap.Keywords()[keywordid] == true
+end
+
+--Turns the blanket on or off for a keyword. Ids are stored sorted so the
+--serialized value is stable: it doubles as part of the zone cache's validity
+--key, and a reordering would rebuild the cache for nothing.
+function m_entireMap.Set(keywordid, value)
+    if keywordid == nil then
+        return
+    end
+
+    local ids = m_entireMap.Keywords()
+    if (ids[keywordid] == true) == (value == true) then
+        return
+    end
+
+    if value == true then
+        ids[keywordid] = true
+    else
+        ids[keywordid] = nil
+    end
+
+    local sorted = {}
+    for id,_ in pairs(ids) do
+        sorted[#sorted+1] = id
+    end
+    table.sort(sorted)
+    m_entireMap.setting:Set(table.concat(sorted, ";"))
+end
+
+--The zone cache's validity key for blankets. The setting can change without
+--any zone record changing (and can change on another client), so the cache
+--compares this rather than trusting a callback. The map extent rides along
+--because that is exactly what a blanket covers: resizing the map has to
+--rebuild it. Empty string when nothing is blanketed -- the common case, and
+--the reason the extent is only read when it can matter (this runs on every
+--aura poll).
+function m_entireMap.CacheKey()
+    local str = m_entireMap.Serialized()
+    if str == "" then
+        return ""
+    end
+
+    local dims = nil
+    pcall(function()
+        local map = game.currentMap
+        if map ~= nil then
+            dims = map.dimensions
+        end
+    end)
+    if dims == nil then
+        return str
+    end
+
+    return string.format("%s@%d,%d,%d,%d", str,
+        math.floor(dims.x), math.floor(dims.y), math.floor(dims.z), math.floor(dims.w))
+end
+
 local ENVIRONMENTAL_KEYWORDS_TABLE = "environmentalKeywords"
 
 local function GetKeywordTable()
@@ -1749,6 +1902,98 @@ local function BuildSurfaceAuraInstance(entry)
     }
 end
 
+--Builds the blanket entries for the current map: one per (blanket keyword,
+--floor), covering the map's whole extent minus the tiles of painted zones
+--that interact with that keyword. Called from RebuildZoneCache after the
+--record walk, because it carves against the painted zones that walk found.
+--`floors` is the {floorid, floorIndex} list collected there.
+function m_entireMap.Rebuild(floors)
+    m_entireMap.entries = {}
+
+    local ids = m_entireMap.Keywords()
+    if next(ids) == nil then
+        return
+    end
+
+    local dims = nil
+    pcall(function()
+        local map = game.currentMap
+        if map ~= nil then
+            dims = map.dimensions
+        end
+    end)
+    if dims == nil then
+        return
+    end
+
+    --dimensions = (dimMin.x, dimMin.y, dimMax.x+1, dimMax.y+1) in tile-index
+    --space -- tiles run x..z-1 inclusive. See ZoneAreaDescription.
+    local x0, y0 = math.floor(dims.x), math.floor(dims.y)
+    local x1, y1 = math.floor(dims.z) - 1, math.floor(dims.w) - 1
+    if x1 < x0 or y1 < y0 then
+        return
+    end
+
+    for keywordid,_ in pairs(ids) do
+        local kw = GetKeyword(keywordid)
+        if kw ~= nil then
+            local dispels = KeywordDispels(kw)
+            local kwName = kw.name or "Zone"
+
+            for _,floorInfo in ipairs(floors) do
+                --tiles the blanket yields to. Same keyword: a painted zone
+                --already covers them (and a second aura would double up any
+                --damage/modifier the keyword carries). Either dispel
+                --direction: the explicitly painted zone takes the ground,
+                --matching "last drawn wins" at paint time.
+                local blocked = {}
+                for _,entry in ipairs(m_zoneCache) do
+                    if entry.floorid == floorInfo.floorid and entry.keywordid ~= nil
+                        and (entry.keywordid == keywordid
+                            or dispels[entry.keywordid] ~= nil
+                            or KeywordDispels(entry.keywordInfo)[keywordid] ~= nil) then
+                        for _,l in ipairs(entry.locs) do
+                            blocked[ZoneLocKey(l.x, l.y)] = true
+                        end
+                    end
+                end
+
+                local locs = {}
+                for y = y0, y1 do
+                    for x = x0, x1 do
+                        if blocked[ZoneLocKey(x, y)] == nil then
+                            locs[#locs+1] = { x = x, y = y }
+                        end
+                    end
+                end
+
+                if #locs > 0 then
+                    m_entireMap.entries[#m_entireMap.entries+1] = {
+                        --stable per keyword+floor: the aura guid keys
+                        --triggers and entered-tracking off it.
+                        zoneid = string.format("entiremap-%s-%s", keywordid, floorInfo.floorid),
+                        floorid = floorInfo.floorid,
+                        floorIndex = floorInfo.floorIndex,
+                        name = kwName,
+                        keywordid = keywordid,
+                        keywordName = kwName,
+                        keywordInfo = kw,
+                        flags = KeywordFlags(kw),
+                        locs = locs,
+                        altitude = 0,
+                        --height stays absent: unlimited, so the blanket
+                        --reaches flyers as well as the ground.
+                        playerVisible = false,
+                        patternColor = KeywordColor(keywordid, kw),
+                        patternAngle = m_zoneStripes.AngleForKeyword(keywordid),
+                        entireMap = true,
+                    }
+                end
+            end
+        end
+    end
+end
+
 local function RebuildZoneCache()
     m_zoneCache = {}
     m_surfaceCache = {}
@@ -1770,6 +2015,11 @@ local function RebuildZoneCache()
         return
     end
 
+    --every floor the map currently shows, for the "Entire Map" blanket pass
+    --below. Layers are separate entries here with their own floorIndex, which
+    --is right: a token stands on exactly one of them.
+    local floorList = {}
+
     for _,floor in ipairs(map.floors or {}) do
         local zones = nil
         local floorIndex = nil
@@ -1777,6 +2027,10 @@ local function RebuildZoneCache()
             zones = floor.markupZones
             floorIndex = floor.floorIndex
         end)
+
+        if floorIndex ~= nil and floorIndex >= 0 then
+            floorList[#floorList+1] = { floorid = floor.floorid, floorIndex = floorIndex }
+        end
 
         --floorIndex is -1 when the floor isn't currently visible (e.g. the
         --title screen); keep the records in the cache (the zone list needs
@@ -1977,6 +2231,29 @@ local function RebuildZoneCache()
         end
     end
 
+    --"Entire Map" types: one aura per floor over everything the painted zones
+    --left it, and NO overlay entry - a blanket that striped the whole map
+    --would bury the zones the DM is painting. They go in auraSources like any
+    --other zone so a live dispelling aura suppresses them the same way.
+    m_entireMap.Rebuild(floorList)
+    for _,entry in ipairs(m_entireMap.entries) do
+        local locsUserdata = {}
+        for _,l in ipairs(entry.locs) do
+            locsUserdata[#locsUserdata+1] = core.Loc{
+                x = l.x,
+                y = l.y,
+                floorIndex = entry.floorIndex,
+            }
+        end
+        entry.locsUserdata = locsUserdata
+
+        local instance = BuildZoneAuraInstance(entry)
+        if instance ~= nil then
+            m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
+            m_dispelState.auraSources[#m_zoneAuraInstances] = entry
+        end
+    end
+
     --Footsteps-mode feed list: the surface regions plus any WATER rules
     --zones. A water tile plays water sounds over any painted footstep
     --surface, so the DM needs to see water while painting footsteps. Water
@@ -2009,27 +2286,32 @@ function m_dispelState.RebuildLists()
         return
     end
 
-    --zoneid -> set of suppressed "x,y" keys.
+    --zoneid -> set of suppressed "x,y" keys. Painted zones and "Entire Map"
+    --blankets alike: a live dispelling aura carves both.
     local suppressedByZone = {}
-    for _,entry in ipairs(m_zoneCache or {}) do
-        if entry.keywordid ~= nil and entry.floorIndex ~= nil and entry.floorIndex >= 0 then
-            local suppressed = nil
-            for _,fp in ipairs(footprints) do
-                if fp.floorIndex == entry.floorIndex and fp.dispelledIds[entry.keywordid] ~= nil then
-                    for _,l in ipairs(entry.locs) do
-                        local key = ZoneLocKey(l.x, l.y)
-                        if fp.locKeys[key] ~= nil then
-                            suppressed = suppressed or {}
-                            suppressed[key] = true
+    local CollectSuppressed = function(entries)
+        for _,entry in ipairs(entries or {}) do
+            if entry.keywordid ~= nil and entry.floorIndex ~= nil and entry.floorIndex >= 0 then
+                local suppressed = nil
+                for _,fp in ipairs(footprints) do
+                    if fp.floorIndex == entry.floorIndex and fp.dispelledIds[entry.keywordid] ~= nil then
+                        for _,l in ipairs(entry.locs) do
+                            local key = ZoneLocKey(l.x, l.y)
+                            if fp.locKeys[key] ~= nil then
+                                suppressed = suppressed or {}
+                                suppressed[key] = true
+                            end
                         end
                     end
                 end
-            end
-            if suppressed ~= nil then
-                suppressedByZone[entry.zoneid] = suppressed
+                if suppressed ~= nil then
+                    suppressedByZone[entry.zoneid] = suppressed
+                end
             end
         end
     end
+    CollectSuppressed(m_zoneCache)
+    CollectSuppressed(m_entireMap.entries)
 
     if next(suppressedByZone) == nil then
         return
@@ -2103,14 +2385,19 @@ local function EnsureZoneCache()
 
     local seq = dmhub.markupZonesSeq
     local mapid = game.currentMapId
+    --blankets live in a per-map setting, not in the zone records, so no
+    --record write (and no seq bump) accompanies a change to them -- here or
+    --on another client. Compare the value itself.
+    local blanketKey = m_entireMap.CacheKey()
     if m_zoneCache ~= nil and seq == m_zoneCacheSeq and mapid == m_zoneCacheMapid
-        and m_zoneCacheTablesGen == m_zoneTablesGen then
+        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey then
         return
     end
 
     m_zoneCacheSeq = seq
     m_zoneCacheMapid = mapid
     m_zoneCacheTablesGen = m_zoneTablesGen
+    m_entireMap.cacheKey = blanketKey
     m_zoneRevision = m_zoneRevision + 1
     RebuildZoneCache()
 end
@@ -2439,8 +2726,27 @@ pcall(function()
             end
         end
 
+        --"Entire Map" types draw nothing (that is the point - a blanket is
+        --implied), but their auras still contribute terrain rules to every
+        --tile, and the engine's BUILT-IN rule stripes/labels are driven off
+        --GetTileRulesAtLoc. Without telling the overlay which flags the whole
+        --floor now carries, turning a blanket on floods the map with built-in
+        --stripes -- which looks exactly like the blanket drawing itself.
+        --Flags only, no tiles: a per-tile suppression set would marshal the
+        --whole map across the bridge on every poll of this feed.
+        local blankets = {}
+        for _,entry in ipairs(m_entireMap.entries) do
+            blankets[#blankets+1] = {
+                floorIndex = entry.floorIndex,
+                difficultTerrain = entry.flags.difficultTerrain,
+                water = entry.flags.water,
+                concealment = entry.flags.concealment,
+            }
+        end
+
         return {
             panelOpen = panelOpen,
+            blankets = blankets,
             --The Zones tab also lights up the overlay's built-in terrain-rule
             --striping (water/difficult/concealment/climbable), so the user
             --sees existing terrain conditions alongside the zones they are
@@ -2462,7 +2768,7 @@ dmhub.RegisterEventHandler("refreshTables", function()
         return
     end
     EnsureZoneCache()
-    if m_zoneCache ~= nil and #m_zoneCache > 0 then
+    if (m_zoneCache ~= nil and #m_zoneCache > 0) or #m_entireMap.entries > 0 then
         pcall(function()
             dmhub.RefreshMapAuras()
         end)
@@ -3947,6 +4253,9 @@ local TOOL_ERASE = {
     icon = "phosphor/eraser-fill.png",
     mapTool = "rectangle",
     mapToolClosed = true,
+    --draws the engine's stroke preview red instead of white (see the think
+    --handler's SetMapTool call), like the zone and footstep erasers.
+    erase = true,
     help = "Eraser: drag a rectangle to erase every markup wall (and markup solid block) inside it. Visible art walls are not affected.",
 }
 
@@ -4163,6 +4472,36 @@ local function MarkupChipStyles()
         {
             selectors = {"markupWallLine"},
             bgcolor = "@fgMuted",
+        },
+
+        --the zone chip's "Entire Map" toggle: a small pill that lights up
+        --while this zone type blankets the whole map.
+        {
+            selectors = {"markupEntireMap"},
+            borderWidth = 1,
+            borderColor = "@border",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"markupEntireMap", "hover"},
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"markupEntireMap", "lit"},
+            bgcolor = "@accent",
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"markupEntireMapLabel"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"markupEntireMapLabel", "parent:hover"},
+            color = "@fg",
+        },
+        {
+            selectors = {"markupEntireMapLabel", "parent:lit"},
+            color = "@fgInverse",
         },
 
         --gui.Slider deliberately sets NO default width/height (Gui.lua: doing
@@ -4430,6 +4769,9 @@ CreateMarkupEditor = function()
     --click after it silently does nothing. Forward-declared because it closes
     --over the per-mode tool panels, which are declared further down.
     local TakeMarkupFocus
+    --Companion for presses that write the SHARED building-tool settings; see
+    --its definition next to TakeMarkupFocus.
+    local ReassertMarkupFocus
 
     m_paletteEntries = ParsePalette()
     if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
@@ -4489,6 +4831,27 @@ CreateMarkupEditor = function()
             SetWallHeightSetting(preset.height)
         end
 
+        --Picking a wall type means "I want to draw this", so the destructive
+        --tools don't stay armed on the new type: Eraser / Delete Wall fall
+        --back to the active strip's default drawing tool (the rectangle).
+        --Deliberately only for those two - a drawing tool the user chose is
+        --their choice and survives changing type.
+        local rearmedTool = nil
+        if m_toolId == "erase" or m_toolId == "delete" then
+            local defaultTool = ActiveToolInfos()[1]
+            m_toolId = defaultTool.id
+            rearmedTool = defaultTool
+            --settings first: refreshtools reads buildingtool back to decide
+            --which engine drawing tool shows selected.
+            if defaultTool.tool ~= nil then
+                dmhub.SetSettingValue("building:erase", false)
+                dmhub.SetSettingValue("buildingtool", defaultTool.tool)
+            end
+            if toolsPanel ~= nil and toolsPanel.valid then
+                toolsPanel:FireEvent("refreshtools")
+            end
+        end
+
         if palettePanel ~= nil and palettePanel.valid then
             palettePanel:FireEvent("refreshchips")
             --focus + immediate tool registration: in solid mode the tools are
@@ -4502,6 +4865,14 @@ CreateMarkupEditor = function()
         --building-tool setting.
         if m_solidMode and EntryIsOpenable(entry) then
             SetDrawMode(false)
+        end
+
+        --rearming a thin drawing tool wrote the shared building-tool setting,
+        --so the Building editor's palette re-presses its own chip on the next
+        --monitor poll and steals the focus TakeMarkupFocus just took. Take it
+        --back a beat later. (SetDrawMode does its own reassert.)
+        if rearmedTool ~= nil and rearmedTool.tool ~= nil then
+            ReassertMarkupFocus(m_toolId)
         end
 
         --the selection can flip between openable and plain types, which
@@ -4952,14 +5323,20 @@ CreateMarkupEditor = function()
                         dmhub.SetSettingValue("buildingtool", element.data.tool)
                     end
                     toolsPanel:FireEvent("refreshtools")
-                    --take focus back: the Building editor's palette
-                    --monitors buildingtool and refocuses itself when the
-                    --tool changes.
-                    gui.SetFocus(element)
-                    --immediately register the custom tool (it requires
-                    --focus, so this must come after SetFocus) rather than
-                    --waiting for the next think tick.
-                    toolsPanel:FireEvent("think")
+                    --Take focus (on contentPanel, NOT on this button: the
+                    --strip is rebuilt wholesale by rebuildtools, and focus
+                    --parked on a destroyed button leaves focus nil and the
+                    --panel silently disarmed). Also re-registers the custom
+                    --map tool immediately, since that think is focus-gated.
+                    TakeMarkupFocus()
+                    --...and take it AGAIN a beat later. Setting monitors are
+                    --polled once per frame, not fired inline from
+                    --SetSettingValue, so the Building editor's palette does
+                    --not re-press + refocus its own wall chip until the frame
+                    --AFTER our write above - stealing the focus we just took
+                    --and disarming wall drawing until the user clicks a wall
+                    --type again.
+                    ReassertMarkupFocus(m_toolId)
                 end,
             }
         end
@@ -5125,6 +5502,13 @@ CreateMarkupEditor = function()
                     --instead, and a dot would suggest drawing. Older engines
                     --ignore the field.
                     editorCursor = toolInfo.id ~= "delete",
+                    --Draw the stroke preview in the erase colour (red) rather
+                    --than white. A custom map tool's stroke comes back to us
+                    --as a 'tool' event instead of going through the engine's
+                    --building-operation path, so it never sets building:erase
+                    --and the engine cannot tell on its own that we are about
+                    --to erase. Display only; older engines ignore the field.
+                    erase = toolInfo.erase == true,
                 }
                 if eventSource ~= nil then
                     eventSource:Listen(element)
@@ -5350,6 +5734,12 @@ CreateMarkupEditor = function()
         if toolsPanel ~= nil and toolsPanel.valid then
             toolsPanel:FireEvent("think")
         end
+
+        --Landing on thin mode wrote buildingtool above, so the Building
+        --editor's palette will refocus its own chip on the next monitor poll;
+        --take focus back after that. No-op in solid mode (nothing was
+        --written) and whenever we still hold focus.
+        ReassertMarkupFocus(m_toolId)
     end
 
     local CreateDrawModeChip = function(solid)
@@ -5378,8 +5768,9 @@ CreateMarkupEditor = function()
 
             press = function(element)
                 --focus first: SetDrawMode registers the custom map tool, and
-                --the think handler that does it is focus-gated.
-                gui.SetFocus(element)
+                --the think handler that does it is focus-gated. On
+                --contentPanel rather than this chip, per TakeMarkupFocus.
+                TakeMarkupFocus()
                 SetDrawMode(element.data.solid)
             end,
 
@@ -5659,10 +6050,52 @@ CreateMarkupEditor = function()
             summary = "Missing from the compendium"
         end
 
+        --"Entire Map": this type blankets the whole map instead of only the
+        --regions painted with it. Nothing is striped on the map for it -- the
+        --lit pill is the indicator -- so keep the tooltip explicit about that.
+        local entireMapButton
+        entireMapButton = gui.Panel{
+            classes = {"markupEntireMap", cond(m_entireMap.IsSet(entry.keywordid), "lit")},
+            width = 60,
+            height = 16,
+            halign = "right",
+            valign = "center",
+            bgimage = "panels/square.png",
+            hover = gui.Tooltip("Apply this zone type to the whole map. Zones that dispel it (and zones painted with it) carve it out. Nothing is drawn on the map for it."),
+
+            click = function(element)
+                --a preset chip has no keyword until something uses it.
+                local keywordid = EnsureZoneTypeKeyword(index)
+                if keywordid == nil then
+                    return
+                end
+
+                local lit = not m_entireMap.IsSet(keywordid)
+                m_entireMap.Set(keywordid, lit)
+                element:SetClass("lit", lit)
+
+                --a blanket registers (or drops) real auras, so rebuild now
+                --instead of waiting for an unrelated aura rebuild.
+                pcall(function()
+                    dmhub.RefreshMapAuras()
+                end)
+            end,
+
+            gui.Label{
+                classes = {"markupEntireMapLabel", "sizeXs"},
+                text = "Entire Map",
+                fontSize = 10,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        }
+
         return gui.Panel{
             classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
             width = "48%",
-            height = 56,
+            height = 62,
             flow = "vertical",
             bgimage = true,
             pad = 6,
@@ -5701,6 +6134,17 @@ CreateMarkupEditor = function()
                             text = "Remove from Palette",
                             click = function()
                                 element.popup = nil
+                                --drop the blanket with the chip: otherwise it
+                                --keeps applying to the map with no UI left to
+                                --turn it off.
+                                local removed = m_zonePaletteEntries[element.data.index]
+                                if removed ~= nil and removed.keywordid ~= nil
+                                    and m_entireMap.IsSet(removed.keywordid) then
+                                    m_entireMap.Set(removed.keywordid, false)
+                                    pcall(function()
+                                        dmhub.RefreshMapAuras()
+                                    end)
+                                end
                                 table.remove(m_zonePaletteEntries, element.data.index)
                                 if m_zoneSelectedType > #m_zonePaletteEntries then
                                     m_zoneSelectedType = #m_zonePaletteEntries
@@ -5753,12 +6197,21 @@ CreateMarkupEditor = function()
                 },
             },
 
-            gui.Label{
-                classes = {"fgMuted", "sizeXs"},
-                text = summary,
+            gui.Panel{
                 width = "100%",
                 height = "auto",
+                flow = "horizontal",
                 vmargin = 2,
+
+                gui.Label{
+                    classes = {"fgMuted", "sizeXs"},
+                    text = summary,
+                    width = "100%-64",
+                    height = "auto",
+                    valign = "center",
+                },
+
+                entireMapButton,
             },
         }
     end
@@ -5772,7 +6225,9 @@ CreateMarkupEditor = function()
 
         --monitorAssets: keyword table edits change chip names/colors/summaries.
         monitorAssets = true,
-        multimonitor = {"markup:zonepalette"},
+        --zoneentiremap as well as the palette: the "Entire Map" pills read it,
+        --and it can change from another client (or from an undo).
+        multimonitor = {"markup:zonepalette", "markup:zoneentiremap"},
 
         events = {
             monitor = function(element)
@@ -6238,6 +6693,11 @@ CreateMarkupEditor = function()
                     --start), like the Building editor's tools do. Older
                     --engines ignore the field.
                     editorCursor = true,
+                    --Draw the stroke preview in the erase colour (red) rather
+                    --than white: a custom map tool never sets building:erase,
+                    --so the engine cannot tell on its own. Display only; older
+                    --engines ignore the field.
+                    erase = toolInfo.erase == true,
                 }
                 if eventSource ~= nil then
                     eventSource:Listen(element)
@@ -6862,6 +7322,11 @@ CreateMarkupEditor = function()
                     --start), like the Building editor's tools do. Older
                     --engines ignore the field.
                     editorCursor = true,
+                    --Draw the stroke preview in the erase colour (red) rather
+                    --than white: a custom map tool never sets building:erase,
+                    --so the engine cannot tell on its own. Display only; older
+                    --engines ignore the field.
+                    erase = toolInfo.erase == true,
                 }
                 if eventSource ~= nil then
                     eventSource:Listen(element)
@@ -8971,16 +9436,17 @@ CreateMarkupEditor = function()
     --setting, so this checkbox and the settings screen stay in sync.
     --Exception: the Props tab places objects, not height/zone geometry, so the
     --overlay toggle is irrelevant there and collapses out.
+    --
+    --The Fade Map slider below it does NOT collapse with the checkbox. It is
+    --live in every mode (fading the art helps just as much when placing props),
+    --and more importantly a fade left up on a mode that hid its own control
+    --would be a dimmed map with no visible way to undim it.
     local overlayPanel = gui.Panel{
         width = "96%",
         height = "auto",
         halign = "center",
         flow = "vertical",
         vmargin = 4,
-
-        markupmode = function(element)
-            element:SetClass("collapsed", m_mode == "props")
-        end,
 
         gui.Label{
             classes = {"bold"},
@@ -8991,7 +9457,23 @@ CreateMarkupEditor = function()
             vmargin = 4,
         },
 
-        CreateSettingsEditor("tileheight:overlay"),
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+
+            markupmode = function(element)
+                element:SetClass("collapsed", m_mode == "props")
+            end,
+
+            CreateSettingsEditor("tileheight:overlay"),
+        },
+
+        --stacked: the default horizontal settings row gives its label width "60%",
+        --which in a dock this narrow leaves the 160px slider hanging off the right
+        --edge - the top of its range was literally unreachable. Stacked puts the
+        --label on its own line and the slider below it, fully in view.
+        CreateSettingsEditor("markup:fade", {stacked = true}),
     }
 
     --Take GUI focus for the panel and immediately (re-)register the current
@@ -9029,6 +9511,39 @@ CreateMarkupEditor = function()
         if toolPanel ~= nil and toolPanel.valid then
             toolPanel:FireEvent("think")
         end
+    end
+
+    --Second half of the focus grab, for the presses that write the SHARED
+    --building-tool settings (the thin-wall tool strip and the Thin/Solid
+    --toggle). Setting monitors are POLLED - SheetPanel compares the
+    --variable's nupdates once per frame - so they do NOT run inline from
+    --dmhub.SetSettingValue. The Building editor's wall palette monitors
+    --buildingtool and re-presses + refocuses its own chip when it changes, so
+    --its steal lands the frame AFTER our press, undoing the TakeMarkupFocus
+    --the press just did: the panel silently disarms, wall drawing stops, and
+    --the only way back is clicking a wall type (which does not touch
+    --buildingtool, so nothing steals focus from it). Re-take focus once the
+    --monitor pass has run.
+    --
+    --Guarded to stay polite: it does nothing if we still hold focus (nothing
+    --stole it), if the user has moved on to a different tool or mode in the
+    --meantime, or if the panel has gone away.
+    ReassertMarkupFocus = function(toolId)
+        dmhub.Schedule(0.1, function()
+            if mod.unloaded then
+                return
+            end
+            if contentPanel == nil or not contentPanel.valid or not contentPanel.enabled then
+                return
+            end
+            if m_mode ~= "walls" or m_toolId ~= toolId then
+                return
+            end
+            if gui.ChildHasFocus(contentPanel) then
+                return
+            end
+            TakeMarkupFocus()
+        end)
     end
 
     contentPanel = gui.Panel{

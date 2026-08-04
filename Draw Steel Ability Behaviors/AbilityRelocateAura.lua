@@ -83,6 +83,8 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     -- Destination coordinates come from the ability's targeted area.
     local destx = options.targetArea.xpos
     local desty = options.targetArea.ypos
+    local dx = destx - obj.x
+    local dy = desty - obj.y
 
     -- Record the movement delta on the Aura component so the engine plays the slide animation
     -- from the old position to the new one.
@@ -90,8 +92,8 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     if objAura ~= nil then
         objAura:SetAndUploadProperties{
             moveTimestamp = dmhub.serverTime,
-            movex = destx - obj.x,
-            movey = desty - obj.y,
+            movex = dx,
+            movey = dy,
         }
     end
 
@@ -99,6 +101,14 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     obj:SetAndUploadPos(destx, desty)
 
     dmhub.EndTransaction()
+
+    -- Moving the object only moves the VISUAL: the mechanical area lives in
+    -- serialized AuraInstance copies on the object's Aura component (the one
+    -- the engine registers) and in the caster's auras list. The shared helper
+    -- in DMHub Game Rules/Aura.lua updates both, converting the area to an
+    -- explicit-locations shape so the engine's recipe recompute cannot clamp
+    -- it back toward the original cast position.
+    ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea(obj, options.targetArea)
 end
 
 --- Builds the editor UI for this behavior: a single text input for the aura's name.

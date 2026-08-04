@@ -4798,6 +4798,11 @@ function creature:RefreshToken(token)
     end
 
     self._tmp_grabbedby = nil
+    --Rebuild prone from the current inflicted-condition state on every token refresh.
+    --The modifier cache can already be stamped for this game update before
+    --this base refresh runs, which skips Invalidate() above; without this
+    --explicit reset, removing Prone can leave _tmp_prone stuck true.
+    self._tmp_prone = nil
 
     --check if grabbed.
     local inflictedConditions = self:try_get("inflictedConditions")
@@ -6371,6 +6376,14 @@ function creature:OnMove(path)
     
     local movedThroughTokens = rawget(self, "_tmp_movedThroughTokens")
 
+    -- Tracks whether we've fired "movethrough" yet during THIS move (this single
+    -- OnMove call), as opposed to movedThroughTokens above which dedupes per
+    -- creature across the whole round. Local to this call, never persisted, so
+    -- it resets on every new move -- lets a trigger's conditionFormula check
+    -- "First" to fire only for the first creature moved through per move,
+    -- without needing a turn-scoped usage charge that would block later moves.
+    local firedMoveThroughThisMove = false
+
     -- Reaping Scythe (Beastheart deinonychus L10): totally inert unless the mover carries the
     -- "Reaping Scythe Damage" custom attribute (> 0 only while rampaging under an L10 beastheart,
     -- set entirely in data via a filterCondition'd attribute modifier whose value is the mover's
@@ -6415,8 +6428,9 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties })
+                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties, first = not firedMoveThroughThisMove })
                         movedThroughTokens[otherToken.charid] = true
+                        firedMoveThroughThisMove = true
                     end
                 end
 
@@ -9808,6 +9822,14 @@ ActiveTrigger.auraControllerId = false
 ActiveTrigger.execSymbols = false
 ActiveTrigger.execTargets = false
 
+--A prompt card that offers an ability invocation rather than a triggered
+--ability: a serialization-safe AbilityInvocation record (see
+--AbilityInvokeAbility.lua). These cards have no sustain coroutine at all;
+--acceptance is consumed by AbilityInvocation.ActivateInvocationPrompt via the
+--interaction hook in DispatchAvailableTrigger below, on the accepting client.
+--Dispatched by AbilityInvocation.PromptStandardAbility.
+ActiveTrigger.invocation = false
+
 --expiryTimestamp is the clock the age-out below runs on. It is separate from
 --timestamp (which orders the prompts in the trigger panel) because it gets
 --reset on every pending trigger whenever the user interacts with any one of
@@ -10114,11 +10136,19 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             if token ~= nil then
                 local charid = token.charid
                 local triggerid = stored.id
+                --Invocation prompt cards (see ActiveTrigger.invocation above)
+                --never have a watcher coroutine: the acceptance is always
+                --consumed here, on the accepting client.
+                local isInvocation = stored.invocation ~= false
                 dmhub.Schedule(0.25, function()
                     if mod.unloaded then
                         return
                     end
-                    TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    if isInvocation then
+                        AbilityInvocation.ActivateInvocationPrompt(dmhub.GetCharacterById(charid), triggerid)
+                    else
+                        TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    end
                 end)
             end
         end

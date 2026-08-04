@@ -38,6 +38,81 @@ local function BuildRetargetCandidates(powerMod, symbols)
     return targets, reasons
 end
 
+-- Opens the retarget picker for a trigger whose triggerBefore flow has
+-- completed and marked the trigger as needing a new-target choice (the
+-- serialized triggerBeforeRetarget flag, set by the trigger's own nested
+-- ability -- e.g. Devilish Charm tier 1). Mirrors the immediate changeTarget
+-- press flow below, but re-fetches the live trigger by id when the choice is
+-- made so a stale snapshot can never be dispatched.
+local function RunTriggerRetargetChoice(element, triggerToken, trigger)
+    local targetToken = nil
+    if #trigger.targets > 0 then
+        targetToken = dmhub.GetTokenById(trigger.targets[1])
+    end
+    local casterToken = nil
+    if trigger.casterid then
+        casterToken = dmhub.GetTokenById(trigger.casterid)
+    end
+    if targetToken == nil or casterToken == nil then
+        return
+    end
+
+    local symbols = {
+        current = targetToken.properties:LookupSymbol{},
+        triggerer = triggerToken.properties:LookupSymbol{},
+        caster = casterToken.properties:LookupSymbol{},
+    }
+    local powerMod = trigger.powerRollModifier.powerRollModifier
+    local targets, retargetReasons = BuildRetargetCandidates(powerMod, symbols)
+
+    local sourceToken = triggerToken
+    local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, triggerToken.properties:LookupSymbol(symbols), 10))
+    local rangeType = powerMod:try_get("changeTargetRange", "none")
+    if rangeType == "ability" then
+        sourceToken = casterToken
+        range = trigger.originalAbilityRange
+    elseif rangeType == "distance" then
+        range = powerMod:try_get("changeTargetDistance", 10)
+    end
+
+    local controller = element:Get("abilityController")
+    if controller == nil then
+        return
+    end
+
+    local trigid = trigger.id
+    controller:FireEventTree("chooseTarget", {
+        sourceToken = sourceToken,
+        radius = range,
+        targets = targets,
+        reasons = retargetReasons,
+        choose = function(newTargetToken)
+            if triggerToken == nil or not triggerToken.valid then
+                return
+            end
+
+            triggerToken:ModifyProperties{
+                undoable = false,
+                description = "Trigger",
+                execute = function()
+                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                    local t = live[trigid]
+                    if t == nil then
+                        return
+                    end
+                    t.triggered = true
+                    t.retargetid = newTargetToken.charid
+                    t.triggerBeforeRetarget = false
+                    triggerToken.properties:DispatchAvailableTrigger(t)
+                end,
+            }
+        end,
+
+        cancel = function()
+        end,
+    })
+end
+
 mod.shared.triggerGradient = gui.Gradient{
     type = "radial",
     point_a = {x = 0.5, y = 0.5},
@@ -418,7 +493,7 @@ mod.shared.CreateTriggerPanel = function()
                                     audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
 
-                                    if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") then
+                                    if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --this changes the target of the trigger.
 								        local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                         local casterToken = dmhub.GetTokenById(trigger.casterid)
@@ -527,6 +602,23 @@ mod.shared.CreateTriggerPanel = function()
                                                             }
                                                         end
                                                     end
+
+                                                    --If the trigger-before flow marked this trigger as needing a
+                                                    --new-target choice (the serialized triggerBeforeRetarget flag,
+                                                    --set by the nested ability's own logic -- e.g. Devilish Charm
+                                                    --tier 1), open the retarget picker now. Read the live trigger
+                                                    --from the token: the panel's availableTriggers snapshot may
+                                                    --predate the nested ability's dispatch.
+                                                    if triggerToken.valid then
+                                                        local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                        local freshTrigger = live[key]
+                                                        if freshTrigger ~= nil and freshTrigger:try_get("triggerBeforeRetarget", false)
+                                                                and freshTrigger.powerRollModifier
+                                                                and freshTrigger.powerRollModifier.powerRollModifier:try_get("changeTarget")
+                                                                and not freshTrigger.retargetid then
+                                                            RunTriggerRetargetChoice(parentElement, triggerToken, freshTrigger)
+                                                        end
+                                                    end
                                                 end
                                             end,
                                         })
@@ -559,7 +651,15 @@ mod.shared.CreateTriggerPanel = function()
 								end,
 							}
 
-							local enhancementOptions = trigger:EnhancementOptions(g_token)
+							--hideEnhancementOptions (on the powertabletrigger modifier) is an
+							--opt-in for triggers whose outcome is decided by a nested
+							--trigger-before ability (e.g. Devilish Charm's Presence test):
+							--the additional cost modifiers still exist as outcome data, but
+							--they are not offered as manually pressable options.
+							local enhancementOptions = {}
+							if not (trigger.powerRollModifier and trigger.powerRollModifier:try_get("hideEnhancementOptions", false)) then
+								enhancementOptions = trigger:EnhancementOptions(g_token)
+							end
 							for index,option in ipairs(enhancementOptions) do
 								buttons[#buttons+1] = gui.Label{
 									classes = {"triggerButton"},
@@ -569,7 +669,7 @@ mod.shared.CreateTriggerPanel = function()
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
-                                        if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") then
+                                        if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                             local casterToken = dmhub.GetTokenById(trigger.casterid)
@@ -789,7 +889,7 @@ mod.shared.CreateTriggerPanel = function()
 
                                     audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
-                                    if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") then
+                                    if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --this changes the target of the trigger.
 								        local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                         local casterToken = dmhub.GetTokenById(trigger.casterid)
@@ -897,6 +997,23 @@ mod.shared.CreateTriggerPanel = function()
                                                                     triggerToken.properties:DispatchAvailableTrigger(trigger)
                                                                 end,
                                                             }
+                                                        end
+                                                    end
+
+                                                    --If the trigger-before flow marked this trigger as needing a
+                                                    --new-target choice (the serialized triggerBeforeRetarget flag,
+                                                    --set by the nested ability's own logic -- e.g. Devilish Charm
+                                                    --tier 1), open the retarget picker now. Read the live trigger
+                                                    --from the token: the panel's availableTriggers snapshot may
+                                                    --predate the nested ability's dispatch.
+                                                    if triggerToken.valid then
+                                                        local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                        local freshTrigger = live[key]
+                                                        if freshTrigger ~= nil and freshTrigger:try_get("triggerBeforeRetarget", false)
+                                                                and freshTrigger.powerRollModifier
+                                                                and freshTrigger.powerRollModifier.powerRollModifier:try_get("changeTarget")
+                                                                and not freshTrigger.retargetid then
+                                                            RunTriggerRetargetChoice(parentElement, triggerToken, freshTrigger)
                                                         end
                                                     end
                                                 end
@@ -1084,7 +1201,15 @@ mod.shared.CreateTriggerPanel = function()
 
                             local children = {triggerPanel}
 
-							local enhancementOptions = trigger:EnhancementOptions(g_token)
+							--hideEnhancementOptions (on the powertabletrigger modifier) is an
+							--opt-in for triggers whose outcome is decided by a nested
+							--trigger-before ability (e.g. Devilish Charm's Presence test):
+							--the additional cost modifiers still exist as outcome data, but
+							--they are not offered as manually pressable options.
+							local enhancementOptions = {}
+							if not (trigger.powerRollModifier and trigger.powerRollModifier:try_get("hideEnhancementOptions", false)) then
+								enhancementOptions = trigger:EnhancementOptions(g_token)
+							end
 							for index,option in ipairs(enhancementOptions) do
 								children[#children+1] = gui.Panel{
 									classes = {"triggerPanel"},
@@ -1173,7 +1298,7 @@ mod.shared.CreateTriggerPanel = function()
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
-                                        if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") then
+                                        if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                             --this changes the target of the trigger.
                                             local targetToken = dmhub.GetTokenById(trigger.targets[1])
                                             local casterToken = dmhub.GetTokenById(trigger.casterid)

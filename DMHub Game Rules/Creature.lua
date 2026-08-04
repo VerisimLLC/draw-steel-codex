@@ -6376,6 +6376,14 @@ function creature:OnMove(path)
     
     local movedThroughTokens = rawget(self, "_tmp_movedThroughTokens")
 
+    -- Tracks whether we've fired "movethrough" yet during THIS move (this single
+    -- OnMove call), as opposed to movedThroughTokens above which dedupes per
+    -- creature across the whole round. Local to this call, never persisted, so
+    -- it resets on every new move -- lets a trigger's conditionFormula check
+    -- "First" to fire only for the first creature moved through per move,
+    -- without needing a turn-scoped usage charge that would block later moves.
+    local firedMoveThroughThisMove = false
+
     -- Reaping Scythe (Beastheart deinonychus L10): totally inert unless the mover carries the
     -- "Reaping Scythe Damage" custom attribute (> 0 only while rampaging under an L10 beastheart,
     -- set entirely in data via a filterCondition'd attribute modifier whose value is the mover's
@@ -6420,8 +6428,9 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties })
+                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties, first = not firedMoveThroughThisMove })
                         movedThroughTokens[otherToken.charid] = true
+                        firedMoveThroughThisMove = true
                     end
                 end
 

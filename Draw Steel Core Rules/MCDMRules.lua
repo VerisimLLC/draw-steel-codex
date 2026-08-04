@@ -1064,6 +1064,11 @@ TriggeredAbility.RegisterTrigger{
             type = "creature",
             desc = "The creature being moved through.",
         },
+        first = {
+            name = "First",
+            type = "boolean",
+            desc = "True if this is the first creature moved through during this move action.",
+        },
     }
 }
 

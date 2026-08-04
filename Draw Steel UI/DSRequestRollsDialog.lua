@@ -399,6 +399,38 @@ function RollCheck.LoadSkills()
 end
 
 
+--A roll request whose checks carry options.parallelWithRollDialog = true is
+--allowed to surface its prompt while another roll dialog is on screen. Used by
+--triggered tests (e.g. Devilish Charm's Presence test) that must resolve while
+--the roll that triggered them is still open and pending. Everything else keeps
+--the historical behavior of deferring until no roll dialog is shown. pcall
+--guarded so an exotic request payload can never break the listener panel.
+local function RequestAllowsParallelPrompt(request)
+    local result = false
+    pcall(function()
+        if request.info.typeName ~= "RollRequest" then
+            return
+        end
+        for _,check in ipairs(request.info.checks or {}) do
+            local opts = check:try_get("options")
+            if opts ~= nil and opts.parallelWithRollDialog then
+                result = true
+                return
+            end
+        end
+    end)
+    return result
+end
+
+local function HaveParallelPromptRequest()
+    for _,request in pairs(dmhub.GetPlayerActionRequests() or {}) do
+        if RequestAllowsParallelPrompt(request) then
+            return true
+        end
+    end
+    return false
+end
+
 --this is a hidden panel which just listens for required rolls.
 function GameHud:RequireRollListenerPanel()
 
@@ -425,24 +457,36 @@ function GameHud:RequireRollListenerPanel()
 			--Otherwise a table roll (e.g. the Conduit prayer, which routes to the
 			--standalone host) pops on top of an in-flight ability/ongoing-effect
 			--roll shown in the embedded dialog. See CharacterPanel.AnyRollDialogShown.
-			if CharacterPanel.AnyRollDialogShown() then
-				if self.rollDialog.data.IsShown() and showingRollId == gamehud.rollDialog.data.rollid then
-					--we requested the current roll dialog that is shown. See if our reason
-					--for doing so has been canceled, in which case we want to close that dialog.
-					if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
-						self.rollDialog.data.Cancel()
-					end
-				end
+			--Exception: requests flagged parallelWithRollDialog (see
+			--RequestAllowsParallelPrompt above) surface immediately; only the
+			--flagged requests are processed in that state, everything else keeps
+			--deferring until the blocking dialog closes.
+			local dialogShown = CharacterPanel.AnyRollDialogShown()
 
-				--we are currently blocked by a roll dialog. Try again in a little while.
+			if dialogShown and self.rollDialog.data.IsShown() and showingRollId == gamehud.rollDialog.data.rollid then
+				--we requested the current roll dialog that is shown. See if our reason
+				--for doing so has been canceled, in which case we want to close that dialog.
+				if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
+					self.rollDialog.data.Cancel()
+				end
+			end
+
+			if dialogShown then
+				--we are currently blocked by a roll dialog. Try again in a little
+				--while. (Also scheduled in the parallel fall-through, so deferred
+				--non-flagged requests still surface once the dialog closes.)
 				element:ScheduleEvent("refreshGame", 0.2)
 
-				return
+				if not HaveParallelPromptRequest() then
+					return
+				end
 			end
 
 			local requests = dmhub.GetPlayerActionRequests()
 			for k,request in pairs(requests) do
-				if request.info.typeName == 'RestRequest' then
+				if dialogShown and not RequestAllowsParallelPrompt(request) then
+					--still deferred behind the open roll dialog.
+				elseif request.info.typeName == 'RestRequest' then
 					--request for resting, see if we want to handle it and if we do go over to that.
 					if self:TryHandleRestRequest(k, request) then
 						return

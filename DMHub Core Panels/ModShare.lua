@@ -3600,7 +3600,13 @@ mod.shared.ShowDownloadShareDialog = function()
 				newBadge:SetClass("hidden", true)
 
 				deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
-				deprecatedBadge.data.message = moduleInfo.deprecationMessage
+				if moduleInfo.deprecated then
+					local state = "It is disabled in your games unless you enable it again."
+					if moduleInfo.deprecationOverridden then
+						state = "You have chosen to enable it in this game anyway."
+					end
+					deprecatedBadge.data.message = string.format("%s\n\n%s", moduleInfo.deprecationMessage, state)
+				end
 
 				moduleInfo:QueryStats(function(modid, stats)
 					if element.valid and modid == moduleInfo.fullid then
@@ -4025,10 +4031,11 @@ mod.shared.ShowDownloadShareDialog = function()
 			think = function(element)
 				local mod = moduleDetailedDisplay.data.moduleInfo
 
-				--a deprecated module is never loaded, so there is nothing to
-				--install or update. Uninstalling is still offered so a game can
-				--be cleaned up.
-				if mod.deprecated then
+				--a deprecated module is disabled by default in every game, so
+				--there is nothing to gain by newly installing it. A game which
+				--has already explicitly enabled it keeps the normal buttons.
+				--Uninstalling is still offered so a game can be cleaned up.
+				if mod.deprecated and not mod.deprecationOverridden then
 					installButton:SetClass("collapsed", true)
 					element.text = "This module has been deprecated and cannot be installed."
 					uninstallButton:SetClass("collapsed", mod.installedVersion == nil)
@@ -4191,7 +4198,11 @@ mod.shared.ShowDownloadShareDialog = function()
 
 			detailedDisplayDeprecated:SetClass("collapsed", not moduleInfo.deprecated)
 			if moduleInfo.deprecated then
-				detailedDisplayDeprecated.text = string.format("DEPRECATED: %s", moduleInfo.deprecationMessage)
+				local state = "It is disabled in your games unless you enable it again in Compendium -> Manage Compendium."
+				if moduleInfo.deprecationOverridden then
+					state = "You have chosen to enable it in this game anyway."
+				end
+				detailedDisplayDeprecated.text = string.format("DEPRECATED: %s\n\n%s", moduleInfo.deprecationMessage, state)
 			end
 
 			local details = moduleInfo.details or ""

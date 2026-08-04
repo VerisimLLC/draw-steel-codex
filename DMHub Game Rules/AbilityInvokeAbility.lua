@@ -1268,3 +1268,188 @@ function AbilityInvocation:Invoke()
 	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	return true
 end
+
+--Post a prompt card on a creature's trigger panel offering to cast a standard
+--ability. The card is stored in the creature's properties (availableTriggers),
+--so it syncs to and renders on whichever client controls the creature --
+--local or remote -- styled like any other trigger prompt, with Activate and
+--Dismiss buttons. Dismissing clears the card and nothing happens. Accepting
+--casts the standard ability with the creature as caster ON THE ACCEPTING
+--CLIENT, through the same pipeline as the Invoke Ability behavior: <<param>>
+--markers in the ability are substituted from args.params (each value is
+--interpolated/evaluated as GoblinScript against the invoker, with args.symbols
+--available, AT ACCEPT TIME -- pre-evaluate values yourself if you need
+--dispatch-time snapshots), and parameters not in args.params fall back to
+--their <<param=default>> defaults.
+--
+--Must be called from a client with authority to modify the token. Two users
+--accepting the same card near-simultaneously on different clients is resolved
+--by the clear-then-execute in ActivateInvocationPrompt once the clear
+--replicates; the deferral in DispatchAvailableTrigger keeps that window small.
+--
+--args:
+--  token            CharacterToken (required). The creature that will cast.
+--  standardAbility  string (required). Standard ability id or name.
+--  invoker          CharacterToken (optional). Creature credited as invoking
+--                   the ability: the subject for parameter substitution, the
+--                   invoked ability's invoker, and the portrait shown on the
+--                   card. Defaults to token. If the invoker is deleted while
+--                   the card is pending, the card is cleared (Invoke cannot
+--                   run without a live invoker anyway).
+--  params           table<string,string> (optional). <<param>> substitutions.
+--  symbols          table (optional). Extra symbols visible to parameter
+--                   substitution and the cast. Tokens/creatures (including
+--                   GenerateSymbols wrappers) are converted to string refs and
+--                   resolved back to live objects on the accepting client.
+--  prompt           string (optional). Title of the card. Defaults to the
+--                   ability's name.
+--  rules            string (optional). Rules/body text shown on the card.
+--  activateText     string (optional). Label of the accept button. Defaults
+--                   to "Activate".
+--  castPrompt       string (optional). promptOverride shown while resolving
+--                   the accepted cast.
+--  targeting        string (optional). "prompt" (default): the accepting
+--                   player targets the ability normally. "self": cast on the
+--                   creature itself. "formula": target creatures matching
+--                   args.targetingFormula.
+--  targetingFormula string (optional). GoblinScript for targeting "formula".
+--  hostile          boolean (optional). Styles the card as a hostile prompt
+--                   and makes it persist until resolved instead of aging out
+--                   after ~60 seconds.
+--  free             boolean (optional, default true). false uses the non-free
+--                   (gold) trigger styling instead of the free (blue) one.
+--
+--Returns the prompt's trigger id (its key in availableTriggers, usable to
+--watch for resolution), or nil if the ability doesn't exist or the token is
+--invalid.
+function AbilityInvocation.PromptStandardAbility(args)
+    local token = args.token
+    if token == nil or (not token.valid) or token.properties == nil then
+        printf("PromptStandardAbility: invalid token")
+        return nil
+    end
+
+    local invokerToken = args.invoker or token
+
+    local abilityTemplate = MCDMUtils.GetStandardAbility(args.standardAbility)
+    if abilityTemplate == nil then
+        printf("PromptStandardAbility: unknown standard ability: %s", tostring(args.standardAbility))
+        return nil
+    end
+
+    --Make the symbols serialization-safe, unwrapping GenerateSymbols function
+    --wrappers to their underlying creatures the same way trigger prompts do
+    --(see SerializeTriggerContext in TriggeredAbility.lua). The card lives in
+    --the creature's properties, so live objects must not leak into it.
+    local serializedSymbols = {}
+    local visited = {}
+    for k,v in pairs(args.symbols or {}) do
+        if type(v) == "function" then
+            local unwrapped = nil
+            pcall(function() unwrapped = v("self") end)
+            v = unwrapped
+        end
+        serializedSymbols[k] = SerializeEventValue(v, visited)
+    end
+
+    local abilityAttr = {
+        disableSquadCoordination = true,
+    }
+    if args.castPrompt ~= nil and args.castPrompt ~= "" then
+        abilityAttr.promptOverride = args.castPrompt
+    end
+
+    local invocation = AbilityInvocation.new{
+        timestamp = ServerTimestamp(),
+        abilityType = "standard",
+        standardAbility = args.standardAbility,
+        standardAbilityParams = args.params,
+        targeting = args.targeting or "prompt",
+        targetingFormula = args.targetingFormula or "",
+        invokerid = invokerToken.id,
+        casterid = token.id,
+        targetid = token.id,
+        symbols = serializedSymbols,
+        abilityAttr = abilityAttr,
+    }
+
+    --Show who is prompting on the card when the invoker is a different
+    --creature. Listing the invoker in targets also means the card clears if
+    --the invoker is deleted (see creature:OnTokenDelete).
+    local cardTargets = {}
+    if invokerToken.charid ~= token.charid then
+        cardTargets[#cardTargets+1] = invokerToken.charid
+    end
+
+    local trigger = ActiveTrigger.new{
+        id = dmhub.GenerateGuid(),
+        text = args.prompt or abilityTemplate.name,
+        rules = args.rules or "",
+        activateText = args.activateText or "Activate",
+        targets = cardTargets,
+        clearOnDismiss = true,
+        noDeduplicate = true,
+        free = args.free ~= false,
+        hostile = args.hostile == true,
+        invocation = invocation,
+    }
+
+    local triggerid = trigger.id
+
+    token:ModifyProperties{
+        description = "Ability Prompt",
+        undoable = false,
+        execute = function()
+            token.properties:DispatchAvailableTrigger(trigger)
+        end,
+    }
+
+    return triggerid
+end
+
+--Consume an accepted invocation prompt. Scheduled (deferred ~0.25s) from
+--creature:DispatchAvailableTrigger on the client that recorded the
+--acceptance -- normally the player controlling the creature, or the Director
+--accepting on their behalf. Re-reads the live record (the acceptance can be
+--toggled off before the deferral fires), clears the card FIRST -- mirroring
+--ActivateOrphanedTrigger's clear-then-execute order, so a record that fails
+--to run goes away rather than staying clickable -- then deserializes and runs
+--the invocation through the same pipeline PumpRemoteInvokes uses for
+--remoteInvokes records.
+function AbilityInvocation.ActivateInvocationPrompt(casterToken, triggerid)
+    if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+        return
+    end
+
+    local availableTriggers = casterToken.properties:try_get("availableTriggers")
+    local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+    if record == nil then
+        --already consumed.
+        return
+    end
+
+    if record.triggered == false or record.dismissed then
+        return
+    end
+
+    local invocation = record.invocation
+    if invocation == false or invocation == nil then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Clear Ability Prompt",
+        undoable = false,
+        execute = function()
+            casterToken.properties:ClearAvailableTrigger({id = triggerid})
+        end,
+    }
+
+    --Resolve "charid:"/"tokenid:" refs in the stored record back to live
+    --objects, the same way PumpRemoteInvokes does for remote invocations.
+    local invoke = DeserializeEventValue(DeepCopy(invocation))
+
+    dmhub.Coroutine(function()
+        invoke:Invoke()
+    end)
+end

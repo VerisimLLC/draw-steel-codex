@@ -744,19 +744,23 @@ local CreateSourcesPanel = function(options)
 				end,
 
 				hover = function(element)
-					if source.deprecated then
-						gui.Tooltip(source.deprecationMessage)(element)
+					if not source.deprecated then
+						return
 					end
+
+					--deprecation only sets the default: say so, and say which
+					--side of it this game is currently on.
+					local m = module.GetModule(source.moduleid)
+					local suffix = "\n\nIt is disabled in your games. Right click to enable it again anyway."
+					if source.ismodule and m ~= nil and m.deprecationOverridden then
+						suffix = "\n\nYou have chosen to enable it in this game anyway. Right click to disable it."
+					end
+
+					gui.Tooltip(string.format("DEPRECATED: %s%s", source.deprecationMessage, suffix))(element)
 				end,
 
 				rightClick = function(element)
 					if not source.ismodule then
-						return
-					end
-
-					--a deprecated module is force-disabled everywhere and cannot
-					--be turned back on.
-					if source.deprecated then
 						return
 					end
 

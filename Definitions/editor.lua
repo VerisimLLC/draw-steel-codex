@@ -25,7 +25,8 @@ end
 --- invisible map tiles visible while the tool is active), snapToGrid (boolean: snap like the building
 --- tools -- editor:snaptogrid + ctrl-to-invert -- instead of the object snap setting), editorCursor
 --- (boolean: show the editor cursor dot at the snapped point where a stroke would start, like the
---- building tools do).
+--- building tools do), erase (boolean: draw the stroke preview in the erase colour -- red -- rather
+--- than white; display only, since a custom tool's stroke never sets building:erase).
 --- @param toolInfo table Configuration table for the custom map tool.
 --- @return nil|EventSourceLua
 function editor:SetMapTool(toolInfo)

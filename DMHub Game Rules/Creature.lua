@@ -9808,6 +9808,14 @@ ActiveTrigger.auraControllerId = false
 ActiveTrigger.execSymbols = false
 ActiveTrigger.execTargets = false
 
+--A prompt card that offers an ability invocation rather than a triggered
+--ability: a serialization-safe AbilityInvocation record (see
+--AbilityInvokeAbility.lua). These cards have no sustain coroutine at all;
+--acceptance is consumed by AbilityInvocation.ActivateInvocationPrompt via the
+--interaction hook in DispatchAvailableTrigger below, on the accepting client.
+--Dispatched by AbilityInvocation.PromptStandardAbility.
+ActiveTrigger.invocation = false
+
 --expiryTimestamp is the clock the age-out below runs on. It is separate from
 --timestamp (which orders the prompts in the trigger panel) because it gets
 --reset on every pending trigger whenever the user interacts with any one of
@@ -10114,11 +10122,19 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             if token ~= nil then
                 local charid = token.charid
                 local triggerid = stored.id
+                --Invocation prompt cards (see ActiveTrigger.invocation above)
+                --never have a watcher coroutine: the acceptance is always
+                --consumed here, on the accepting client.
+                local isInvocation = stored.invocation ~= false
                 dmhub.Schedule(0.25, function()
                     if mod.unloaded then
                         return
                     end
-                    TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    if isInvocation then
+                        AbilityInvocation.ActivateInvocationPrompt(dmhub.GetCharacterById(charid), triggerid)
+                    else
+                        TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    end
                 end)
             end
         end

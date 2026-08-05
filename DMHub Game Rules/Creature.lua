@@ -10235,16 +10235,25 @@ function creature:EnterAura(info)
 
 	for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
 		if triggerInfo.trigger == "onenter" then
-            local auraCasterToken = info.token
-            if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
-                auraCasterToken = dmhub.LookupToken(self)
-            end
-			result = true
-            print("AURA:: FIRE")
-			info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
-            if triggerInfo.destroyaura then
-                print("AURA:: DESTROY", info)
-                info:Destroy()
+            --"Forced Movement Only" triggers cannot be judged here: this is called the
+            --same way whether the creature walked in or was shoved in. Stash it and let
+            --the forced-movement wrapper rule on it once the move has finished
+            --(see Aura.StashForcedMovementTrigger).
+            if triggerInfo.movementFilter == "forced" then
+                result = true
+                Aura.StashForcedMovementTrigger(self, info.auraInstance, triggerInfo)
+            else
+                local auraCasterToken = info.token
+                if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+                    auraCasterToken = dmhub.LookupToken(self)
+                end
+                result = true
+                print("AURA:: FIRE")
+                info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
+                if triggerInfo.destroyaura then
+                    print("AURA:: DESTROY", info)
+                    info:Destroy()
+                end
             end
 		end
 	end

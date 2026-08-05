@@ -3619,7 +3619,29 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     --Deliberately NOT `ability.forcedMovement`, which "Forced Movement: Slide" never declares.
     local isForcedMove = movementType == "move" and (ability.targeting == "straightline" or ability.targetType == "line")
 
+    --Aura triggers marked "Forced Movement Only" are stashed by creature:EnterAura rather
+    --than fired, because entry cannot tell a shove from a walk-in. Clear the stash first so
+    --only entries made during THIS relocate are eligible -- otherwise an aura entered by
+    --walking earlier in the turn would fire on the next unrelated push.
+    local movedCreature = nil
+    if casterToken ~= nil and casterToken.valid then
+        movedCreature = casterToken.properties
+    end
+    Aura.ClearForcedMovementTriggers(movedCreature)
+
     g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
+
+    --Now that the move is over its type is known, so the stashed triggers can be ruled on.
+    --A non-forced move drops them; a forced one fires them ("force moved into or within the
+    --area" -- e.g. the Thorn Dragon's Bramble Barricade inflicting bleeding).
+    if casterToken ~= nil and casterToken.valid then
+        movedCreature = casterToken.properties
+    end
+    if isForcedMove then
+        Aura.FireForcedMovementTriggers(movedCreature, casterToken)
+    else
+        Aura.ClearForcedMovementTriggers(movedCreature)
+    end
 
     --Record WHERE a forced move dropped the creature. The Void Portal's onenter aura trigger
     --cannot tell a shove from a walk-in on its own, and an ally who was shoved onto a portal must

@@ -6,7 +6,9 @@ local mod = dmhub.GetModLoading()
 --- @field canrelocate boolean If true, the caster can spend an action to move the aura.
 --- @field relocateResource string Action resource id used to relocate the aura.
 --- @field relocateRange number Maximum range in world units for relocating the aura.
---- @field triggers table[] List of trigger definitions {trigger: string, ability: TriggeredAbility, destroyaura: boolean}.
+--- @field triggers table[] List of trigger definitions {trigger: string, ability: TriggeredAbility, destroyaura: boolean, movementFilter: string}.
+--- movementFilter ("all" or "forced", default "all") restricts an onenter trigger to entries made
+--- by forced movement; see Aura.TriggerMovementFilters and the stash helpers further down.
 --- @field name string Display name.
 --- @field source string Source description string.
 --- @field description string Rules text.
@@ -65,6 +67,22 @@ Aura.ApplyOptions = {
     {
         id = "othertype",
         text = "Other Type Creatures",
+    },
+}
+
+--Which kind of movement into the aura may fire an "onenter" trigger. Deliberately
+--offers fewer options than movementDamageFilter: move damage is filtered by the
+--engine, which sees the movement type, whereas creature:EnterAura is called
+--identically for a shove and for a walk-in, so "forced" is the only distinction
+--Lua can honour (see the stash helpers below).
+Aura.TriggerMovementFilters = {
+    {
+        id = "all",
+        text = "Any Movement",
+    },
+    {
+        id = "forced",
+        text = "Forced Movement Only",
     },
 }
 
@@ -522,6 +540,20 @@ function Aura:GenerateEditor(options)
                         value = (trigger.destroyaura or false),
                         change = function(element)
                             trigger.destroyaura = element.value
+                            resultPanel:FireEventTree("refreshAura")
+                        end,
+                    },
+
+                    --Only entering the aura can be attributed to a kind of movement;
+                    --the end-of-turn trigger has no movement to filter.
+                    gui.Dropdown {
+                        styles = ThemeEngine.GetStyles(),
+                        classes = { "formDropdown", cond(trigger.trigger ~= "onenter", "collapsed") },
+                        halign = "left",
+                        options = Aura.TriggerMovementFilters,
+                        idChosen = trigger.movementFilter or "all",
+                        change = function(element)
+                            trigger.movementFilter = element.idChosen
                             resultPanel:FireEventTree("refreshAura")
                         end,
                     },
@@ -1132,6 +1164,76 @@ function AuraInstance:FireTriggeredAbility(ability, castingCreature, targetToken
         debugLog = {}
     }
     ability:Trigger(temporaryModifier, castingCreature, symbols, targetToken, nil, options)
+end
+
+--A trigger with movementFilter "forced" cannot be resolved at entry time. The engine
+--calls creature:EnterAura identically for a shove and for a walk-in -- the same
+--limitation the Void Portal ran into, documented at length in
+--Draw Steel Ability Behaviors/AbilityRelocateAura.lua -- so the decision has to be
+--deferred until the move has finished and something that knows the movement type can
+--rule on it.
+--
+--Entry therefore STASHES the trigger on the moving creature and the Draw Steel
+--forced-movement wrapper (Draw Steel Core Rules/MCDMAbilityBehavior.lua) drains it.
+--The stash is transient and is reset at the START of every relocate, so entries left
+--behind by ordinary movement are discarded instead of leaking into a later push.
+
+--- Stash an aura trigger that only fires on forced movement, to be resolved once the
+--- move completes.
+--- @param c creature The creature that entered the aura.
+--- @param auraInstance AuraInstance The aura that was entered.
+--- @param triggerInfo table The entry from aura.triggers.
+function Aura.StashForcedMovementTrigger(c, auraInstance, triggerInfo)
+    if c == nil then
+        return
+    end
+
+    local pending = c:try_get("_tmp_pendingForcedAuraTriggers")
+    if pending == nil then
+        pending = {}
+        c._tmp_pendingForcedAuraTriggers = pending
+    end
+
+    pending[#pending + 1] = { auraInstance = auraInstance, triggerInfo = triggerInfo }
+end
+
+--- Discard any stashed forced-movement aura triggers without firing them. Called before
+--- a relocate begins so only entries made during that relocate can fire.
+--- @param c nil|creature
+function Aura.ClearForcedMovementTriggers(c)
+    if c ~= nil then
+        c._tmp_pendingForcedAuraTriggers = nil
+    end
+end
+
+--- Fire, then clear, the aura triggers stashed during the move that just finished.
+--- Only called when that move was forced movement.
+--- @param c nil|creature The creature that was force moved.
+--- @param token nil|CharacterToken That creature's token.
+function Aura.FireForcedMovementTriggers(c, token)
+    if c == nil then
+        return
+    end
+
+    local pending = c:try_get("_tmp_pendingForcedAuraTriggers")
+    c._tmp_pendingForcedAuraTriggers = nil
+    if pending == nil then
+        return
+    end
+
+    --Mirrors the caster-token fallback in creature:EnterAura: a non-uploadable token
+    --cannot own the triggered cast, so fall back to the creature's own token.
+    local auraCasterToken = token
+    if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+        auraCasterToken = dmhub.LookupToken(c)
+    end
+
+    for _, entry in ipairs(pending) do
+        entry.auraInstance:FireTriggeredAbility(entry.triggerInfo.ability, c, auraCasterToken)
+        if entry.triggerInfo.destroyaura then
+            entry.auraInstance:DestroyAura(c)
+        end
+    end
 end
 
 --creates a temporary triggered ability copy and populates it with our spellcasting feature making it ready to use.

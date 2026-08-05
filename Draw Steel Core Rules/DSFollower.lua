@@ -174,14 +174,23 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
         return
     end
 
+    --A follower normally appears next to its mentor. If the mentor has no token on
+    --the map we're looking at -- e.g. the sheet was opened from the party panel --
+    --there is nowhere to put it, so loc stays nil and the follower is created
+    --unplaced: it still joins the mentor's party, and the Director can drop it on a
+    --map later like any other character.
     local locs = mentorToken.properties:AdjacentLocations()
-    local loc = #locs and locs[1] or mentorToken.properties.locsOccupying[1]
+    local loc = locs[1] or mentorToken.locsOccupying[1]
     local newCharId
     local newFollower
 
     dmhub.Coroutine(function()
         if followerType == "premaderetainer" and (pregenid and pregenid ~= "none") then
-            newFollower = game.SpawnTokenFromBestiaryLocally(pregenid, loc, {fitLocatoin = true})
+            newFollower = game.SpawnTokenFromBestiaryLocally(pregenid, loc, {fitLocation = true})
+            if newFollower == nil then
+                --The retainer isn't in the bestiary any more, so there is nothing to create.
+                return
+            end
             newCharId = newFollower.charid
 
             SetFollowerPartyInfo(newFollower, followerInfo, mentorToken)
@@ -255,13 +264,21 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
 
                     newFollower:UploadToken()
                     game.UpdateCharacterTokens()
-                    newFollower:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+                    if loc ~= nil then
+                        newFollower:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+                    end
                     break
                 end
                 coroutine.yield(0.1)
             end
         end
-        local newFollower = dmhub.GetTokenById(newCharId)
+        --Look the follower up by character id, not token id: a follower that wasn't
+        --placed has no token on the map, and GetTokenById only finds placed ones.
+        local newFollower = dmhub.GetCharacterById(newCharId)
+        if newFollower == nil then
+            return
+        end
+
         mentorToken.properties:AddFollowerToMentor(newFollower.id)
         
         if open ~= false then

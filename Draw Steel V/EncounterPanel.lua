@@ -741,7 +741,13 @@ end
 --group.balancing when the popup closes, then refresh() re-runs the budget.
 local function ShowBalancingPopup(element, group, refresh)
     local balancing = DeepCopy(group.balancing or {})
-    for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
+    --Seed every index from 1, not just the 3-7 the UI edits. balancing is keyed
+    --by hero count, so a table holding only keys 3-7 is sparse; serialization
+    --compacts it to a dense array and the entries come back shifted onto the
+    --wrong hero counts (3 heroes reading what was entered for 5, and 6-7
+    --reading nothing at all). Keeping it dense from 1 makes index == hero count
+    --survive the round trip.
+    for i = 1, 7 do
         balancing[i] = balancing[i] or {}
         balancing[i].monsters = balancing[i].monsters or {}
     end

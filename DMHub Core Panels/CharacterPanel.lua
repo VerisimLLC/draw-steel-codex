@@ -2491,10 +2491,11 @@ CharacterPanel.CreateMapModificationsFolder = function()
             }
         end
 
-        --wall-building records (e.g. Motivate Earth) reference the wall voxels
-        --they placed; reverting one removes whatever remains of the wall.
-        --voxelCount/voxelsRemaining are nil on engine builds without wall records.
-        local IsWallRecord = function()
+        --Object-placing records (walls from Motivate Earth, the brambles from a
+        --Bramble Barricade) reference the objects they placed rather than captured
+        --map edits; reverting one removes whatever of the placement still stands.
+        --voxelCount/voxelsRemaining are nil on engine builds without object records.
+        local IsPlacementRecord = function()
             return (modInfo.voxelCount or 0) > 0 and (modInfo.count or 0) == 0
         end
 
@@ -2508,7 +2509,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
 
         local EntryText = function()
             local text = BaseText()
-            if IsWallRecord() and (modInfo.voxelsRemaining or 0) == 0 then
+            if IsPlacementRecord() and (modInfo.voxelsRemaining or 0) == 0 then
                 text = text .. " (destroyed)"
             end
             return text
@@ -2550,13 +2551,13 @@ CharacterPanel.CreateMapModificationsFolder = function()
                     local revertEntryText = "Revert Modification"
                     local confirmTitle = "Revert Map Modification?"
                     local confirmMessage = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", BaseText())
-                    if IsWallRecord() then
-                        revertEntryText = "Remove Wall"
-                        confirmTitle = "Remove Wall?"
+                    if IsPlacementRecord() then
+                        revertEntryText = "Remove Placement"
+                        confirmTitle = "Remove Placement?"
                         if (modInfo.voxelsRemaining or 0) > 0 then
-                            confirmMessage = string.format("This will remove what remains of the wall created by %s.", BaseText())
+                            confirmMessage = string.format("This will remove what remains of what %s placed on the map.", BaseText())
                         else
-                            confirmMessage = string.format("The wall created by %s has already been destroyed. This will remove its record.", BaseText())
+                            confirmMessage = string.format("What %s placed on the map has already been destroyed. This will remove its record.", BaseText())
                         end
                     end
 
@@ -2578,8 +2579,16 @@ CharacterPanel.CreateMapModificationsFolder = function()
                                         message = confirmMessage,
                                         options = {
                                             {
-                                                text = cond(IsWallRecord(), "Remove", "Revert"),
+                                                text = cond(IsPlacementRecord(), "Remove", "Revert"),
                                                 execute = function()
+                                                    --The engine's own revert only collapses wall-voxel
+                                                    --columns, so plain created objects (brambles and
+                                                    --the like) have to be torn down from Lua first;
+                                                    --they are stamped with this record's key at spawn.
+                                                    local createObject = rawget(_G, "ActivatedAbilityCreateObjectBehavior")
+                                                    if createObject ~= nil and createObject.DestroyRecordedObjects ~= nil then
+                                                        createObject.DestroyRecordedObjects(modInfo.key)
+                                                    end
                                                     game.DeleteMapModification(modInfo.id)
                                                     resultPanel:FireEventTree("refresh")
                                                 end,
@@ -2633,7 +2642,13 @@ CharacterPanel.CreateMapModificationsFolder = function()
                                         {
                                             text = "Revert All",
                                             execute = function()
+                                                --see the per-record revert above: created objects
+                                                --are torn down from Lua, the engine handles the rest.
+                                                local createObject = rawget(_G, "ActivatedAbilityCreateObjectBehavior")
                                                 for _,m in ipairs(game.GetMapModifications()) do
+                                                    if createObject ~= nil and createObject.DestroyRecordedObjects ~= nil then
+                                                        createObject.DestroyRecordedObjects(m.key)
+                                                    end
                                                     game.DeleteMapModification(m.id)
                                                 end
                                                 resultPanel:FireEventTree("refresh")

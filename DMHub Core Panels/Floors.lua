@@ -987,6 +987,68 @@ local function ShowFloorSettings(floor, onHeightChanged)
 		heightSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
 	end
 
+	--Ceiling setting. By default a floor has a ceiling when another floor is above it or
+	--when it is below ground level; this dropdown forces it on or off. A floor with a
+	--ceiling is capped at its height: full-height walls draw black tops that nothing can
+	--stand on, vertical movement stops at the ceiling, and cross-section diagrams draw a
+	--solid mass. An open-topped floor shows wall tops and creatures can move onto them.
+	--Only meaningful on top-level floors (sub-layers use their parent floor's setting).
+	--pcall guards keep the dialog working on engine builds that predate the ceiling bridge.
+	local ceilingSection
+	if isLayer then
+		ceilingSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	else
+		local function ResolvedCeilingText()
+			local has = false
+			pcall(function() has = floor.hasCeiling end)
+			if has then
+				return "This floor currently has a ceiling."
+			end
+			return "This floor is currently open-topped."
+		end
+
+		local resolvedLabel = gui.Label{
+			classes = {"formStacked"},
+			text = ResolvedCeilingText(),
+			fontSize = 12,
+			bold = false,
+		}
+
+		local ceilingValue = "auto"
+		pcall(function() ceilingValue = floor.ceiling end)
+
+		ceilingSection = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 8,
+
+			gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Ceiling:",
+					linger = gui.Tooltip("Whether this floor is capped by a ceiling at its height. Automatic: it has a ceiling if another floor is above it or if it is below ground level. With a ceiling, full-height walls are blacked out on top and nothing can stand on them; without one, wall tops are visible and creatures can move onto them."),
+				},
+				gui.Dropdown{
+					classes = {"formStacked"},
+					options = {
+						{id = "auto", text = "Automatic"},
+						{id = "yes", text = "Ceiling"},
+						{id = "no", text = "No Ceiling"},
+					},
+					idChosen = ceilingValue,
+					change = function(element)
+						pcall(function() floor.ceiling = element.idChosen end)
+						resolvedLabel.text = ResolvedCeilingText()
+					end,
+				},
+			},
+
+			resolvedLabel,
+		}
+	end
+
 	--Default floor: the floor selected automatically when the map is entered. This is stored as a
 	--single floor id on the map manifest, so checking it here implicitly clears whichever floor was
 	--the default before -- a map can only ever have one. Sub-layers are never selectable as the
@@ -1055,6 +1117,8 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			defaultFloorSection,
 
 			heightSection,
+
+			ceilingSection,
 
 			typeSection,
 

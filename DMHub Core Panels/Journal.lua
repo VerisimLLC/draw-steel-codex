@@ -2313,7 +2313,17 @@ CreateJournalPanel = function(options)
                                     doc.ownerid = dmhub.loginUserid
                                 end
                                 doc.parentFolder = newDocumentParentFolder
-                                doc:ShowCreateDialog()
+                                --Straight to the new document, for EVERY type.
+                                --This used to call doc:ShowCreateDialog(), which
+                                --is only a direct create for the functional
+                                --subtypes (montage/negotiation/heroic test) --
+                                --MarkdownDocument overrides it with a template
+                                --picker, so the six plain types (Note, Narration,
+                                --Exploration, Combat, Location, NPC) detoured
+                                --through a second dialog. Same path the tab bar's
+                                --+ takes (DocumentSystem.lua, onNewDocument).
+                                doc:Upload()
+                                doc:ShowDocument{edit = true}
                             end,
                         }
                     end

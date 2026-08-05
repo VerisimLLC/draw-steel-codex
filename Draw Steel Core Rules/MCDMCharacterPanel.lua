@@ -2309,7 +2309,18 @@ function TacPanel.HeroTokenBox()
                     element.textNoNotify = string.format("%d", token.properties:GetHeroTokens())
                 end,
                 refreshValue = function(element, token)
+                    --a game update must not stomp on what the user is currently typing.
+                    if element.hasFocus then
+                        return
+                    end
                     element.textNoNotify = tostring(token.properties:GetHeroTokens())
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.parent.parent.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshValue", token)
+                    end
                 end,
             },
         },
@@ -2448,6 +2459,10 @@ function TacPanel.SurgesBox()
                     element.textNoNotify = tostring(token.properties:GetAvailableSurges())
                 end,
                 refreshValue = function(element, token)
+                    --a game update must not stomp on what the user is currently typing.
+                    if element.hasFocus then
+                        return
+                    end
                     local q = dmhub.initiativeQueue
                     if q == nil or q.hidden then
                         element.editable = false
@@ -2455,6 +2470,13 @@ function TacPanel.SurgesBox()
                     else
                         element.editable = true
                         element.textNoNotify = tostring(token.properties:GetAvailableSurges())
+                    end
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.parent.parent.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshValue", token)
                     end
                 end,
             },
@@ -2495,7 +2517,19 @@ function TacPanel.VictoriesBox()
                     element.textNoNotify = string.format("%d", token.properties:GetVictories())
                 end,
                 refreshToken = function(element, token)
+                    --a game update must not stomp on what the user is currently typing.
+                    element.data.token = token
+                    if element.hasFocus then
+                        return
+                    end
                     element:FireEvent("refreshCharacter", token)
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshCharacter", token)
+                    end
                 end,
                 change = function(element)
                     local token = element.data.token
@@ -2518,6 +2552,11 @@ function TacPanel.VictoriesBox()
                     end
                 end,
                 refreshValue = function(element, token)
+                    --a game update must not stomp on what the user is currently typing.
+                    element.data.token = token
+                    if element.hasFocus then
+                        return
+                    end
                     element:FireEvent("refreshCharacter", token)
                 end,
             },
@@ -2603,7 +2642,19 @@ function TacPanel.HeroicResourcesBox()
                     end
                 end,
                 refreshToken = function(element, token)
+                    --a game update must not stomp on what the user is currently typing.
+                    element.data.token = token
+                    if element.hasFocus then
+                        return
+                    end
                     element:FireEvent("refreshCharacter", token)
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshCharacter", token)
+                    end
                 end,
                 change = function(element)
                     local token = element.data.token
@@ -3019,9 +3070,20 @@ function TacPanel.StaminaBox()
                 end,
                 refreshValue = function(element, token)
                     element.data.token = token
+                    --a game update must not stomp on what the user is currently typing.
+                    if element.hasFocus then
+                        return
+                    end
                     local text = tostring(token.properties:CurrentHitpoints())
                     element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
                     element.textNoNotify = text
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshValue", token)
+                    end
                 end,
             },
             gui.Label{

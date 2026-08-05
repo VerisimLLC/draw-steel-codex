@@ -1166,72 +1166,152 @@ function AuraInstance:FireTriggeredAbility(ability, castingCreature, targetToken
     ability:Trigger(temporaryModifier, castingCreature, symbols, targetToken, nil, options)
 end
 
---A trigger with movementFilter "forced" cannot be resolved at entry time. The engine
---calls creature:EnterAura identically for a shove and for a walk-in -- the same
---limitation the Void Portal ran into, documented at length in
---Draw Steel Ability Behaviors/AbilityRelocateAura.lua -- so the decision has to be
---deferred until the move has finished and something that knows the movement type can
---rule on it.
+--"Forced Movement Only" aura triggers are resolved by WALKING THE PATH after the move,
+--not from creature:EnterAura. Two findings from tracing a real push forced this:
 --
---Entry therefore STASHES the trigger on the moving creature and the Draw Steel
---forced-movement wrapper (Draw Steel Core Rules/MCDMAbilityBehavior.lua) drains it.
---The stash is transient and is reset at the START of every relocate, so entries left
---behind by ordinary movement are discarded instead of leaking into a later push.
+-- 1. EnterAura runs BEFORE the relocate behavior's Cast. The engine walks the prospective
+--    path while planning the move (that is what EnterAuraHaltsMovement answers), so
+--    anything the relocate wrapper did around the Cast was always out of step with it.
+--
+-- 2. EnterAura is gated to once per aura per turn, and -- worse -- the PLANNING pass is
+--    what consumes the gate, so the real movement's entries are reported with the gate
+--    already closed. "Force moved into the area" has no such limit: a creature shoved in,
+--    cleared, and shoved in again on the same turn takes the effect both times.
+--
+--Walking the path sidesteps both. Forced movement is straight-line by definition (the
+--engine's own test is straightline/line targeting plus a "move"), so the squares entered
+--are the steps from the origin through to where the creature came to rest.
 
---- Stash an aura trigger that only fires on forced movement, to be resolved once the
---- move completes.
---- @param c creature The creature that entered the aura.
---- @param auraInstance AuraInstance The aura that was entered.
---- @param triggerInfo table The entry from aura.triggers.
-function Aura.StashForcedMovementTrigger(c, auraInstance, triggerInfo)
-    if c == nil then
-        return
+--- The squares a creature ENTERED moving from originLoc to destLoc: every step after the
+--- origin, up to and including the destination. Empty if it did not actually move.
+--- @param originLoc Loc
+--- @param destLoc Loc
+--- @return {x: number, y: number}[]
+local function ForcedPathLocs(originLoc, destLoc)
+    local dx = destLoc.x - originLoc.x
+    local dy = destLoc.y - originLoc.y
+    local steps = math.max(math.abs(dx), math.abs(dy))
+    if steps <= 0 then
+        return {}
     end
 
-    local pending = c:try_get("_tmp_pendingForcedAuraTriggers")
-    if pending == nil then
-        pending = {}
-        c._tmp_pendingForcedAuraTriggers = pending
+    local result = {}
+    for i = 1, steps do
+        result[#result + 1] = {
+            x = originLoc.x + round(dx * i / steps),
+            y = originLoc.y + round(dy * i / steps),
+        }
     end
 
-    pending[#pending + 1] = { auraInstance = auraInstance, triggerInfo = triggerInfo }
+    return result
 end
 
---- Discard any stashed forced-movement aura triggers without firing them. Called before
---- a relocate begins so only entries made during that relocate can fire.
---- @param c nil|creature
-function Aura.ClearForcedMovementTriggers(c)
-    if c ~= nil then
-        c._tmp_pendingForcedAuraTriggers = nil
+--- Index every object-hosted aura on the given floor that carries a "forced" trigger,
+--- keyed by the square it sits on. Object auras are positioned by their object (their
+--- stored area shape is authored data and does not track the spawn location), which is
+--- also how the engine places them.
+--- @param floorIndex number
+--- @return table<string, AuraInstance[]>
+local function CollectForcedTriggerAurasByLoc(floorIndex)
+    local result = {}
+
+    for _, floor in ipairs(game.currentMap.floors) do
+        for _, obj in pairs(floor.objects) do
+            if obj.valid and obj.floorIndex == floorIndex then
+                local component = obj:GetComponent("Aura")
+                local auraInstance = nil
+                if component ~= nil and component.properties ~= nil then
+                    auraInstance = component.properties:try_get("aura")
+                end
+
+                if auraInstance ~= nil then
+                    local key = string.format("%d,%d", math.floor(obj.x + 0.5), math.floor(obj.y + 0.5))
+                    local list = result[key]
+                    if list == nil then
+                        list = {}
+                        result[key] = list
+                    end
+                    list[#list + 1] = auraInstance
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--- Call fn(instance, triggerInfo) for each "forced" onenter trigger on this aura,
+--- including those carried by its sub-auras (a split aura normally keeps its triggers on
+--- the child payload). Child triggers fire through the child view so the trigger sees the
+--- child's own payload.
+local function ForEachForcedTrigger(auraInstance, fn)
+    for _, triggerInfo in ipairs(auraInstance.aura:try_get("triggers", {})) do
+        if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter == "forced" then
+            fn(auraInstance, triggerInfo)
+        end
+    end
+
+    for _, child in ipairs(auraInstance:GetChildInstances() or {}) do
+        for _, triggerInfo in ipairs(child.aura:try_get("triggers", {})) do
+            if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter == "forced" then
+                fn(child, triggerInfo)
+            end
+        end
     end
 end
 
---- Fire, then clear, the aura triggers stashed during the move that just finished.
---- Only called when that move was forced movement.
+--- Fire the "Forced Movement Only" triggers of every aura whose squares a creature entered
+--- during the forced move that just finished. Fires every time, with no per-turn dedupe --
+--- see the note above.
 --- @param c nil|creature The creature that was force moved.
 --- @param token nil|CharacterToken That creature's token.
-function Aura.FireForcedMovementTriggers(c, token)
-    if c == nil then
+--- @param originLoc nil|Loc Where it stood before the move.
+--- @return nil
+function Aura.FireForcedMovementTriggersForPath(c, token, originLoc)
+    if c == nil or token == nil or (not token.valid) or originLoc == nil then
         return
     end
 
-    local pending = c:try_get("_tmp_pendingForcedAuraTriggers")
-    c._tmp_pendingForcedAuraTriggers = nil
-    if pending == nil then
+    local destLoc = token.loc
+    if destLoc == nil or originLoc.floor ~= destLoc.floor then
         return
     end
+
+    local path = ForcedPathLocs(originLoc, destLoc)
+    if #path == 0 then
+        --Shoved into a wall and went nowhere: nothing was entered.
+        return
+    end
+
+    local aurasByLoc = CollectForcedTriggerAurasByLoc(destLoc.floor)
 
     --Mirrors the caster-token fallback in creature:EnterAura: a non-uploadable token
     --cannot own the triggered cast, so fall back to the creature's own token.
     local auraCasterToken = token
-    if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+    if auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
         auraCasterToken = dmhub.LookupToken(c)
     end
 
-    for _, entry in ipairs(pending) do
-        entry.auraInstance:FireTriggeredAbility(entry.triggerInfo.ability, c, auraCasterToken)
-        if entry.triggerInfo.destroyaura then
-            entry.auraInstance:DestroyAura(c)
+    --One firing per aura instance per move: a straight line cannot re-enter the same
+    --square, but a creature larger than one square can report it twice.
+    local fired = {}
+
+    for _, loc in ipairs(path) do
+        for _, auraInstance in ipairs(aurasByLoc[string.format("%d,%d", loc.x, loc.y)] or {}) do
+            ForEachForcedTrigger(auraInstance, function(instance, triggerInfo)
+                if fired[instance.guid] then
+                    return
+                end
+                if instance.aura:CreaturePassesFilter(c, instance) == false then
+                    return
+                end
+
+                fired[instance.guid] = true
+                instance:FireTriggeredAbility(triggerInfo.ability, c, auraCasterToken)
+                if triggerInfo.destroyaura then
+                    instance:DestroyAura(c)
+                end
+            end)
         end
     end
 end

@@ -36,6 +36,48 @@ local function StampRecordKey(obj, key)
     end
 end
 
+--True if this aura definition carries any onenter/end-of-turn trigger, counting
+--sub-aura triggers (a split aura normally keeps its triggers on the child payload).
+local function AuraDefHasTriggers(auraDef)
+    if auraDef == nil then
+        return false
+    end
+
+    if #auraDef:try_get("triggers", {}) > 0 then
+        return true
+    end
+
+    for _, childDef in ipairs(auraDef:try_get("subauras", {})) do
+        if #childDef:try_get("triggers", {}) > 0 then
+            return true
+        end
+    end
+
+    return false
+end
+
+--Object assets bake a FIXED AuraInstance guid, so every object spawned from one asset
+--shares it. creature.aurasEntered dedupes aura triggers by that guid for the rest of the
+--turn (see creature:EnterAuraHaltsMovement), which collapses a whole wall of spawned
+--squares into a SINGLE trigger slot: enter any one square and no other square can fire
+--again that turn. Worse, the slot is burned by entries that produce nothing -- starting a
+--turn inside the area, or walking in before being pushed in -- so the trigger looks
+--intermittent. Give each spawned object its own instance guid so squares dedupe
+--independently. Child instances derive their guid from the parent's, so the sub-aura
+--carrying the triggers becomes distinct too.
+--
+--Restricted to auras that actually have triggers. A trigger-less aura has nothing to
+--dedupe, and its guid still feeds EnterAuraHaltsMovement -- making those unique would
+--start halting movement at EVERY square of existing content (the Delian Tomb brambles)
+--rather than once per turn, which is a gameplay change nobody asked for.
+local function FreshenSpawnedAuraGuid(auraInstance)
+    if auraInstance == nil or (not AuraDefHasTriggers(auraInstance.aura)) then
+        return
+    end
+
+    auraInstance.guid = dmhub.GenerateGuid()
+end
+
 --Stamp the caster onto a spawned object's aura so the aura knows who made it.
 --Without this an object-hosted aura has no casterid, which leaves every
 --caster-relative audience ("All Other Creatures", "Enemies", ...) resolving
@@ -58,6 +100,21 @@ local function StampAuraCaster(obj, casterToken)
     if auraInstance ~= nil then
         auraInstance.casterid = casterToken.id
     end
+end
+
+--Give a spawned object's aura its own identity (see FreshenSpawnedAuraGuid). Split out
+--from StampAuraCaster because this applies even to objects created with no caster.
+local function StampAuraIdentity(obj)
+    if obj == nil then
+        return
+    end
+
+    local auraComponent = obj:GetComponent("Aura")
+    if auraComponent == nil or auraComponent.properties == nil then
+        return
+    end
+
+    FreshenSpawnedAuraGuid(auraComponent.properties:try_get("aura"))
 end
 
 --record a spawned object into the active map modification recording, so the
@@ -158,6 +215,7 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
                 obj.x = loc.x + xdelta
                 obj.y = loc.y + ydelta
                 StampRecordKey(obj, recordKey)
+                StampAuraIdentity(obj)
                 StampAuraCaster(obj, casterToken)
                 RecordObjectInModification(obj)
                 for _,child in ipairs(spawnOptions.outChildren) do

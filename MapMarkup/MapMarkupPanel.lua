@@ -554,14 +554,16 @@ local function CreateWallLinePreview(fields)
         end
     end
 
+    --Segment sizing keeps the widest pattern under 100px, the width of the
+    --preview column in the palette rows, so a dash never runs under the name.
     if dashed then
         for _ = 1,7 do
             segments[#segments+1] = gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
-                width = 10,
+                width = 9,
                 height = 3,
-                hmargin = 3,
+                hmargin = 2,
                 valign = "center",
             }
         end
@@ -572,7 +574,7 @@ local function CreateWallLinePreview(fields)
                 bgimage = true,
                 width = 3,
                 height = 3,
-                hmargin = 3,
+                hmargin = 2,
                 valign = "center",
             }
         end
@@ -666,9 +668,14 @@ end
 --Solid chips render a filled-region preview - a bordered box of diagonal
 --stripes, echoing how the tile height overlay draws solid blocks on the map -
 --instead of the thin chips' line preview. This is the "fills area" marker.
+--Spans the chip's full width like the thin chip's line, so the two draw-mode
+--previews read as equals. The stripe count deliberately OVERFILLS the box
+--and clip trims the excess at the border, so the pattern reaches the right
+--edge exactly at any chip width instead of stopping wherever a fixed count
+--happens to end.
 local function CreateSolidBlockPreview()
     local stripes = {}
-    for _ = 1,7 do
+    for _ = 1,24 do
         stripes[#stripes+1] = gui.Panel{
             classes = {"markupWallLine"},
             bgimage = true,
@@ -680,16 +687,32 @@ local function CreateSolidBlockPreview()
         }
     end
 
+    --Border on the outer panel, stripes clipped in an inner layer: clip uses
+    --the panel's own bgimage as the mask (Unity Mask semantics) and clipHidden
+    --keeps that mask image from drawing - the islandLayer recipe from
+    --MarkdownDocument.lua. Clipping the border's panel itself would eat the
+    --border pixels at the mask edge.
     return gui.Panel{
-        width = "70%",
+        width = "100%",
         height = 12,
         halign = "center",
-        flow = "horizontal",
         bgimage = true,
         bgcolor = "clear",
         borderWidth = 1,
         borderColor = "@fgMuted",
-        children = stripes,
+
+        gui.Panel{
+            width = "100%-2",
+            height = "100%-2",
+            halign = "center",
+            valign = "center",
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            clip = true,
+            clipHidden = true,
+            children = stripes,
+        },
     }
 end
 
@@ -4250,6 +4273,7 @@ local MODES = {
 --Wall tools are shared between the thin and solid tool strips.
 local TOOL_ERASE = {
     id = "erase",
+    text = "Erase",
     icon = "phosphor/eraser-fill.png",
     mapTool = "rectangle",
     mapToolClosed = true,
@@ -4261,6 +4285,7 @@ local TOOL_ERASE = {
 
 local TOOL_DELETE = {
     id = "delete",
+    text = "Delete",
     icon = "ui-icons/close.png",
     --Inert sentinel: keeping a custom map tool alive (wallSkeletons=true)
     --leaves the grey wall skeleton overlay up so the user can see the walls
@@ -4280,6 +4305,7 @@ local TOOLS = {
     {
         id = "rectangle",
         shape = "rect",
+        text = "Rect",
         icon = "game-icons/square.png",
         tool = "rectangle",
         help = "Rectangle tool: drag to draw a rectangle of walls.",
@@ -4287,6 +4313,7 @@ local TOOLS = {
     {
         id = "line",
         shape = "poly",
+        text = "Line",
         icon = "game-icons/polygon-segments.png",
         tool = "shape",
         help = "Line tool: click to chain wall segments; double-click or press Enter to finish.",
@@ -4294,12 +4321,14 @@ local TOOLS = {
     {
         id = "free",
         shape = "free",
+        text = "Draw",
         icon = "panels/hud/icon_line_tool_82.png",
         tool = "free",
         help = "Freehand tool: drag to draw walls along the cursor.",
     },
     {
         id = "points",
+        text = "Points",
         icon = "icons/icon_gesture/icon_gesture_47.png",
         tool = "points",
         help = "Edit Points: drag a wall vertex to move it. Right-click a vertex to delete it, click on a wall line to add a vertex, and click a one-way wall's direction marker to flip its facing.",
@@ -4319,6 +4348,7 @@ local SOLID_TOOLS = {
     {
         id = "solidrect",
         shape = "rect",
+        text = "Rect",
         icon = "game-icons/square.png",
         mapTool = "rectangle",
         mapToolClosed = true,
@@ -4327,6 +4357,7 @@ local SOLID_TOOLS = {
     {
         id = "solidpoly",
         shape = "poly",
+        text = "Poly",
         icon = "game-icons/polygon-segments.png",
         mapTool = "shape",
         mapToolClosed = true,
@@ -4335,6 +4366,7 @@ local SOLID_TOOLS = {
     {
         id = "solidfree",
         shape = "free",
+        text = "Draw",
         icon = "panels/hud/icon_line_tool_82.png",
         mapTool = "free",
         mapToolClosed = true,
@@ -4350,24 +4382,28 @@ local SOLID_TOOLS = {
 local ZONE_TOOLS = {
     {
         id = "zonerect",
+        text = "Rect",
         icon = "game-icons/square.png",
         mapTool = "rectangle",
         help = "Rectangle: drag to paint the selected zone type over an area.",
     },
     {
         id = "zonepoly",
+        text = "Poly",
         icon = "game-icons/polygon-segments.png",
         mapTool = "shape",
         help = "Polygon: click to chain vertices around the area to paint; double-click or press Enter to finish.",
     },
     {
         id = "zonefree",
+        text = "Draw",
         icon = "panels/hud/icon_line_tool_82.png",
         mapTool = "free",
         help = "Freehand: drag to trace the outline of the area to paint.",
     },
     {
         id = "zoneerase",
+        text = "Erase",
         icon = "phosphor/eraser-fill.png",
         mapTool = "rectangle",
         erase = true,
@@ -4389,24 +4425,28 @@ end
 local FOOTSTEP_TOOLS = {
     {
         id = "footrect",
+        text = "Rect",
         icon = "game-icons/square.png",
         mapTool = "rectangle",
         help = "Rectangle: drag to paint the selected footstep surface over an area.",
     },
     {
         id = "footpoly",
+        text = "Poly",
         icon = "game-icons/polygon-segments.png",
         mapTool = "shape",
         help = "Polygon: click to chain vertices around the area to paint; double-click or press Enter to finish.",
     },
     {
         id = "footfree",
+        text = "Draw",
         icon = "panels/hud/icon_line_tool_82.png",
         mapTool = "free",
         help = "Freehand: drag to trace the outline of the area to paint.",
     },
     {
         id = "footerase",
+        text = "Erase",
         icon = "phosphor/eraser-fill.png",
         mapTool = "rectangle",
         erase = true,
@@ -4464,10 +4504,13 @@ local function MarkupChipStyles()
             selectors = {"markupChip", "hover"},
             borderColor = "@fg",
         },
+        --the selected chip must be unmistakable at a glance: filled AND a
+        --thicker accent border, not just a slightly brighter outline.
         {
             selectors = {"markupChip", "selected"},
             bgcolor = "@bgAlt",
-            borderColor = "@fg",
+            borderColor = "@accent",
+            borderWidth = 2,
         },
         {
             selectors = {"markupWallLine"},
@@ -4504,6 +4547,71 @@ local function MarkupChipStyles()
             color = "@fgInverse",
         },
 
+        --small uppercase section headers ("WALL TYPES", "SHAPE", "TOOL"):
+        --quieter than body text so the selectable content reads first.
+        {
+            selectors = {"markupSectionHeader"},
+            fontSize = 12,
+            bold = true,
+            color = "@fgMuted",
+        },
+
+        --the armed-state dot on the active mode tab: bright while the panel
+        --holds focus (drawing armed), dim when a click elsewhere disarmed it.
+        {
+            selectors = {"markupStateDot"},
+            bgcolor = "@disabled",
+        },
+        {
+            selectors = {"markupStateDot", "armed"},
+            bgcolor = "@fgStrong",
+        },
+
+        --tool chips: icon over a small caption. The destructive pair (erase /
+        --delete) is tinted @danger so it cannot be mistaken for a drawing tool.
+        {
+            selectors = {"markupToolChip"},
+            borderWidth = 1,
+            borderColor = "@border",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"markupToolChip", "hover"},
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"markupToolChip", "selected"},
+            bgcolor = "@bgAlt",
+            borderColor = "@accent",
+            borderWidth = 2,
+        },
+        --after selected, so a selected destructive tool keeps the red border.
+        {
+            selectors = {"markupToolChip", "danger"},
+            borderColor = "@danger",
+        },
+        {
+            selectors = {"markupToolIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"markupToolIcon", "danger"},
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"markupToolLabel"},
+            fontSize = 10,
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"markupToolLabel", "danger"},
+            color = "@danger",
+        },
+        {
+            selectors = {"markupToolDivider"},
+            bgcolor = "@border",
+        },
+
         --gui.Slider deliberately sets NO default width/height (Gui.lua: doing
         --so would be selfStyle and would beat any cascade rule the caller
         --supplied), and it sizes its handle off its own height
@@ -4529,6 +4637,28 @@ local function GetPanelStyles()
     return ThemeEngine.MergeStyles{
         MarkupChipStyles(),
     }
+end
+
+--Tooltip that opens to the SIDE of the dock - over the map, not over the
+--panel - so it never covers the controls it describes. Side is picked per
+--hover from where the panel is docked: left dock opens right, right dock
+--opens left. Falls back to the right for undocked hosts.
+local function SideTooltip(text)
+    if text == nil then
+        return nil
+    end
+    return function(element)
+        local halign = "right"
+        local dock = element:FindParentWithClass("dock")
+        if dock ~= nil and dock:HasClass("right") then
+            halign = "left"
+        end
+        element.tooltip = CreateTooltipPanel{
+            text = text,
+            halign = halign,
+            valign = "center",
+        }
+    end
 end
 
 --============================================================================
@@ -4773,6 +4903,20 @@ CreateMarkupEditor = function()
     --its definition next to TakeMarkupFocus.
     local ReassertMarkupFocus
 
+    --Small uppercase section header used by every mode's sections, quieter
+    --than the selectable content beneath it.
+    local SectionHeader = function(text)
+        return gui.Label{
+            classes = {"markupSectionHeader"},
+            text = text,
+            uppercase = true,
+            width = "96%",
+            height = "auto",
+            halign = "center",
+            vmargin = 4,
+        }
+    end
+
     m_paletteEntries = ParsePalette()
     if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
         m_selectedIndex = nil
@@ -4930,10 +5074,12 @@ CreateMarkupEditor = function()
         return result
     end
 
-    --A palette tile: name, then a preview of the line the wall draws on the
-    --map, then a one-line summary; laid out two per row. The preview shows
-    --the wall's own behavior (blocks / one-way), which is the same whether it
-    --is drawn thin or solid, so it does not vary with the draw mode.
+    --A palette row: the name over a one-line summary, then a fixed-width
+    --preview of the line the wall draws on the map at the right; one row per
+    --type. Text leads because the name is what the user scans for; the
+    --preview shows the wall's own behavior (blocks / one-way), which is the
+    --same whether it is drawn thin or solid, so it does not vary with the
+    --draw mode.
     local CreateWallChip = function(index, entry)
         local preview
         if EntryIsOpenable(entry) then
@@ -4941,16 +5087,58 @@ CreateMarkupEditor = function()
         else
             preview = CreateWallLinePreview(EntryFields(entry))
         end
+
+        --Summaries follow a "<behavior> - <cover/extra>" grammar. Rendered as
+        --one string the separator lands wherever the first clause ends, which
+        --looks ragged stacked in a list - so split at the first " - " and lay
+        --the clauses out as two fixed columns; the second clause then starts
+        --at the same x on every row and needs no separator at all.
+        local summaryA, summaryB = string.match(SummarizeEntry(entry), "^(.-) %- (.*)$")
+        if summaryA == nil then
+            summaryA = SummarizeEntry(entry)
+        end
+        local summaryPanel
+        if summaryB == nil then
+            summaryPanel = gui.Label{
+                classes = {"fgMuted", "sizeXs"},
+                text = summaryA,
+                width = "100%",
+                height = "auto",
+            }
+        else
+            summaryPanel = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+
+                gui.Label{
+                    classes = {"fgMuted", "sizeXs"},
+                    text = summaryA,
+                    width = 76,
+                    height = "auto",
+                },
+
+                gui.Label{
+                    classes = {"fgMuted", "sizeXs"},
+                    text = summaryB,
+                    width = "100%-76",
+                    height = "auto",
+                },
+            }
+        end
         return gui.Panel{
             classes = {"markupChip", cond(index == m_selectedIndex, "selected")},
-            width = "48%",
-            height = 62,
-            flow = "vertical",
+            --palettePanel is already the panel's 96% content column, so rows
+            --fill it entirely; the Add Wall Type row below is a sibling OF
+            --that column at 96% itself, and the two must end up equally wide.
+            width = "100%",
+            height = 36,
+            halign = "center",
+            flow = "horizontal",
             bgimage = true,
             pad = 6,
             borderBox = true,
-            hmargin = 2,
-            vmargin = 2,
+            vmargin = 1,
 
             data = {
                 index = index,
@@ -4966,20 +5154,29 @@ CreateMarkupEditor = function()
                 }
             end,
 
-            gui.Label{
-                classes = {"bold"},
-                text = EntryDisplayName(entry),
-                width = "100%",
+            gui.Panel{
+                width = "100%-110",
                 height = "auto",
+                valign = "center",
+                flow = "vertical",
+                hmargin = 4,
+
+                gui.Label{
+                    classes = {"bold"},
+                    text = EntryDisplayName(entry),
+                    width = "100%",
+                    height = "auto",
+                },
+
+                summaryPanel,
             },
 
-            preview,
-
-            gui.Label{
-                classes = {"fgMuted", "sizeXs"},
-                text = SummarizeEntry(entry),
-                width = "100%",
+            gui.Panel{
+                width = 100,
                 height = "auto",
+                valign = "center",
+                flow = "horizontal",
+                preview,
             },
         }
     end
@@ -5013,11 +5210,36 @@ CreateMarkupEditor = function()
                         for _,tab in ipairs(element.parent.children) do
                             tab:SetClass("selected", tab.data.modeid == m_mode)
                         end
+                        element.parent:FireEventTree("refreshtab")
                         contentPanel:FireEventTree("markupmode")
                         --arm the new mode's tool right away: switching tabs is
                         --a deliberate "I want to draw this" click.
                         TakeMarkupFocus()
                     end,
+
+                    --Armed-state dot on the active tab: bright while the panel
+                    --holds GUI focus (every drawing path is focus-gated, so
+                    --focus IS "clicks on the map will draw"), dim otherwise.
+                    --Driven by contentPanel's childfocus/childdefocus, which
+                    --already fire to highlight the dock title.
+                    gui.Panel{
+                        classes = {"markupStateDot", cond(modeInfo.id ~= m_mode, "hidden")},
+                        floating = true,
+                        bgimage = "game-icons/plain-circle.png",
+                        width = 6,
+                        height = 6,
+                        halign = "right",
+                        valign = "center",
+                        hmargin = 5,
+
+                        refreshtab = function(element)
+                            element:SetClass("hidden", element.parent.data.modeid ~= m_mode)
+                        end,
+
+                        markuparmed = function(element, armed)
+                            element:SetClass("armed", armed)
+                        end,
+                    },
                 }
             end
             return result
@@ -5028,8 +5250,7 @@ CreateMarkupEditor = function()
         width = "96%",
         height = "auto",
         halign = "center",
-        flow = "horizontal",
-        wrap = true,
+        flow = "vertical",
 
         monitorAssets = "Tilesheet",
         multimonitor = {"markup:wallpalette"},
@@ -5081,14 +5302,30 @@ CreateMarkupEditor = function()
         },
     }
 
+    --Styled as one more palette row (full width, chip border) so the list
+    --reads as a single column ending in its add action, not a separate button.
     local addButton
-    addButton = gui.Button{
-        classes = {"sizeM"},
-        text = "+ Add Wall Type",
+    addButton = gui.Panel{
+        classes = {"markupChip"},
+        width = "96%",
+        height = 28,
         halign = "center",
-        vmargin = 4,
+        bgimage = true,
+        borderBox = true,
+        vmargin = 2,
+
+        gui.Label{
+            classes = {"fgMuted"},
+            text = "+ Add Wall Type",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+
         events = {
-            click = function(element)
+            press = function(element)
                 local entries = {}
 
                 for _,preset in ipairs(WALL_PRESETS) do
@@ -5303,15 +5540,47 @@ CreateMarkupEditor = function()
     --panel's think loop, with their strokes coming back as 'tool' events.
     --The strip's buttons are rebuilt when the selected chip flips between
     --thin and solid (rebuildtools).
+    --Each tool is an icon-over-caption chip; the destructive pair (erase /
+    --delete) sits behind a divider and is tinted @danger, so a misclick
+    --cannot silently turn a drawing gesture into a removal.
     local BuildToolButtons = function()
         local result = {}
+        local dividerAdded = false
         for _,toolInfo in ipairs(ActiveToolInfos()) do
-            result[#result+1] = gui.Button{
-                classes = {"sizeL", "bordered", cond(toolInfo.id == m_toolId, "selected")},
-                icon = toolInfo.icon,
-                tooltip = toolInfo.help,
+            local destructive = toolInfo.id == "erase" or toolInfo.id == "delete"
+            if destructive and not dividerAdded then
+                dividerAdded = true
+                result[#result+1] = gui.Panel{
+                    classes = {"markupToolDivider"},
+                    bgimage = true,
+                    width = 1,
+                    height = "70%",
+                    valign = "center",
+                    hmargin = 4,
+                    --refreshtools iterates children by data.toolid; give the
+                    --divider an empty data table so it reads as "no tool".
+                    data = {},
+                }
+            end
+
+            local chipClasses = {"markupToolChip"}
+            if toolInfo.id == m_toolId then
+                chipClasses[#chipClasses+1] = "selected"
+            end
+            if destructive then
+                chipClasses[#chipClasses+1] = "danger"
+            end
+
+            result[#result+1] = gui.Panel{
+                classes = chipClasses,
+                width = 44,
+                height = 42,
+                flow = "vertical",
+                bgimage = true,
+                borderBox = true,
                 valign = "center",
-                hmargin = 2,
+                hmargin = 1,
+                hover = SideTooltip(toolInfo.help),
                 data = {
                     toolid = toolInfo.id,
                     tool = toolInfo.tool,
@@ -5338,6 +5607,23 @@ CreateMarkupEditor = function()
                     --type again.
                     ReassertMarkupFocus(m_toolId)
                 end,
+
+                gui.Panel{
+                    classes = {"markupToolIcon", cond(destructive, "danger")},
+                    bgimage = toolInfo.icon,
+                    width = 18,
+                    height = 18,
+                    halign = "center",
+                    vmargin = 3,
+                },
+
+                gui.Label{
+                    classes = {"markupToolLabel", cond(destructive, "danger")},
+                    text = toolInfo.text or "",
+                    width = "100%",
+                    height = "auto",
+                    textAlignment = "center",
+                },
             }
         end
         return result
@@ -5754,13 +6040,15 @@ CreateMarkupEditor = function()
 
         return gui.Panel{
             classes = {"markupChip", cond(m_solidMode == solid, "selected")},
-            width = "48%",
+            --the pair plus the 4px spacer between them spans the full 96%
+            --content column, so the toggle's outer edges line up with the
+            --palette rows and the Add Wall Type row above.
+            width = "50%-2",
             height = "100%",
             flow = "vertical",
             bgimage = true,
             pad = 4,
             borderBox = true,
-            hmargin = 2,
 
             data = {
                 solid = solid,
@@ -5778,17 +6066,19 @@ CreateMarkupEditor = function()
                 element:SetClass("selected", m_solidMode == element.data.solid)
             end,
 
-            --the same miniatures the palette uses, so the difference between
-            --a line and a filled region is visible rather than just named.
-            preview,
-
             gui.Label{
                 classes = {"sizeXs"},
                 text = cond(solid, "Solid Block", "Thin Wall"),
                 width = "100%",
                 height = "auto",
                 textAlignment = "center",
+                vmargin = 2,
             },
+
+            --the same miniatures the palette uses, so the difference between
+            --a line and a filled region is visible rather than just named.
+            --Below the name, mirroring the palette rows' text-then-visual.
+            preview,
         }
     end
 
@@ -5799,7 +6089,7 @@ CreateMarkupEditor = function()
         flow = "horizontal",
         vmargin = 2,
 
-        hover = gui.Tooltip("Thin Wall draws a barrier along the line you trace. Solid Block fills the area you draw with volume: it has a height, can be stood on and climbed, and blocks sight up to its height. Both use the wall type selected above."),
+        hover = SideTooltip("Thin Wall draws a barrier along the line you trace. Solid Block fills the area you draw with volume: it has a height, can be stood on and climbed, and blocks sight up to its height. Both use the wall type selected above."),
 
         --openable (door) types are thin-only (their strokes must be wall
         --operations the engine attaches door state to), so the toggle hides.
@@ -5812,6 +6102,10 @@ CreateMarkupEditor = function()
 
         children = {
             CreateDrawModeChip(false),
+            gui.Panel{
+                width = 4,
+                height = 1,
+            },
             CreateDrawModeChip(true),
         },
     }
@@ -5824,8 +6118,7 @@ CreateMarkupEditor = function()
         width = "96%",
         height = "auto",
         halign = "center",
-        vmargin = 4,
-        flow = "horizontal",
+        flow = "vertical",
 
         multimonitor = {"building:specifywallheight", "building:wallheightvalue"},
 
@@ -5835,74 +6128,86 @@ CreateMarkupEditor = function()
             end,
         },
 
-        hover = gui.Tooltip("Walls with a height can be flown over, seen over, and climbed over by creatures high enough. Walls set To Roof always block. For solid blocks the height is the block's height: a block with a height has a standable top, while To Roof fills floor to ceiling."),
+        hover = SideTooltip("Walls with a height can be flown over, seen over, and climbed over by creatures high enough. Walls set To Roof always block. For solid blocks the height is the block's height: a block with a height has a standable top, while To Roof fills floor to ceiling."),
 
+        --Section header like Shape / Wall Types; on its own line so the
+        --stepper beneath cannot read as "Wall Height: -" / "To Roof: +".
         gui.Label{
-            text = "Wall Height:",
-            width = "auto",
+            classes = {"markupSectionHeader"},
+            text = "Wall Height",
+            uppercase = true,
+            width = "100%",
             height = "auto",
-            valign = "center",
+            vmargin = 4,
             refreshheight = function(element)
-                element.text = cond(m_solidMode, "Block Height:", "Wall Height:")
+                element.text = cond(m_solidMode, "Block Height", "Wall Height")
             end,
         },
 
-        gui.Button{
-            classes = {"sizeXs"},
-            text = "-",
-            width = 24,
-            valign = "center",
-            hmargin = 4,
-            events = {
-                click = function()
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+
+            gui.Button{
+                classes = {"sizeS"},
+                text = "-",
+                width = 30,
+                valign = "center",
+                hmargin = 6,
+                events = {
+                    click = function()
+                        local height = GetWallHeightSetting()
+                        if height == nil then
+                            return
+                        end
+                        if height <= 1 then
+                            SetWallHeightSetting(nil)
+                        else
+                            SetWallHeightSetting(height - 1)
+                        end
+                    end,
+                },
+            },
+
+            gui.Label{
+                text = "",
+                fontSize = 18,
+                --wide enough for "To Roof" (the no-height label) without wrapping.
+                width = 90,
+                height = "auto",
+                valign = "center",
+                textAlignment = "center",
+                create = function(element)
+                    element:FireEvent("refreshheight")
+                end,
+                refreshheight = function(element)
                     local height = GetWallHeightSetting()
                     if height == nil then
-                        return
-                    end
-                    if height <= 1 then
-                        SetWallHeightSetting(nil)
+                        element.text = "To Roof"
                     else
-                        SetWallHeightSetting(height - 1)
+                        element.text = string.format("%d", math.floor(height + 0.5))
                     end
                 end,
             },
-        },
 
-        gui.Label{
-            text = "",
-            --wide enough for "To Roof" (the no-height label) without wrapping.
-            width = 64,
-            height = "auto",
-            valign = "center",
-            textAlignment = "center",
-            create = function(element)
-                element:FireEvent("refreshheight")
-            end,
-            refreshheight = function(element)
-                local height = GetWallHeightSetting()
-                if height == nil then
-                    element.text = "To Roof"
-                else
-                    element.text = string.format("%d", math.floor(height + 0.5))
-                end
-            end,
-        },
-
-        gui.Button{
-            classes = {"sizeXs"},
-            text = "+",
-            width = 24,
-            valign = "center",
-            hmargin = 4,
-            events = {
-                click = function()
-                    local height = GetWallHeightSetting()
-                    if height == nil then
-                        SetWallHeightSetting(1)
-                    elseif height < 10 then
-                        SetWallHeightSetting(height + 1)
-                    end
-                end,
+            gui.Button{
+                classes = {"sizeS"},
+                text = "+",
+                width = 30,
+                valign = "center",
+                hmargin = 6,
+                events = {
+                    click = function()
+                        local height = GetWallHeightSetting()
+                        if height == nil then
+                            SetWallHeightSetting(1)
+                        elseif height < 10 then
+                            SetWallHeightSetting(height + 1)
+                        end
+                    end,
+                },
             },
         },
     }
@@ -5917,48 +6222,29 @@ CreateMarkupEditor = function()
             element:SetClass("collapsed", m_mode ~= "walls")
         end,
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Wall Types",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        --Fixed "how you draw" controls lead; the wall type list comes last
+        --because it is the only section that grows (custom types), and
+        --putting it below keeps the tool strip at a stable position.
+        SectionHeader("Tool"),
+
+        toolsPanel,
+
+        --"Shape" groups the stroke's geometry: thin vs solid, and the height
+        --stamped on each placement. It sits directly under the tool strip
+        --because the toggle swaps which tool strip is shown. The header
+        --stays up even for openable (door) types, where the thin/solid
+        --toggle collapses but the height stepper still applies.
+        SectionHeader("Shape"),
+
+        drawModePanel,
+
+        heightPanel,
+
+        SectionHeader("Wall Types"),
 
         palettePanel,
 
         addButton,
-
-        gui.Label{
-            classes = {"bold"},
-            text = "Draw As",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-            create = function(element)
-                element:FireEvent("refreshdoorchip")
-            end,
-            refreshdoorchip = function(element)
-                element:SetClass("collapsed", EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]))
-            end,
-        },
-
-        drawModePanel,
-
-        gui.Label{
-            classes = {"bold"},
-            text = "Tool",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
-
-        toolsPanel,
-
-        heightPanel,
     }
 
     --========================================================================
@@ -6058,10 +6344,9 @@ CreateMarkupEditor = function()
             classes = {"markupEntireMap", cond(m_entireMap.IsSet(entry.keywordid), "lit")},
             width = 60,
             height = 16,
-            halign = "right",
             valign = "center",
             bgimage = "panels/square.png",
-            hover = gui.Tooltip("Apply this zone type to the whole map. Zones that dispel it (and zones painted with it) carve it out. Nothing is drawn on the map for it."),
+            hover = SideTooltip("Apply this zone type to the whole map. Zones that dispel it (and zones painted with it) carve it out. Nothing is drawn on the map for it."),
 
             click = function(element)
                 --a preset chip has no keyword until something uses it.
@@ -6092,16 +6377,25 @@ CreateMarkupEditor = function()
             },
         }
 
+        --A wider version of m_zoneStripes.Swatch for the row's right-side
+        --visual, mirroring the wall rows' line-preview column: the stripe
+        --pattern at the angle the map will actually paint.
+        local gradient = m_zoneStripes.Gradient(color, m_zoneStripes.AngleForKeyword(entry.keywordid))
+        local swatchColor = color
+        if gradient ~= nil then
+            swatchColor = "white"
+        end
+
         return gui.Panel{
             classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
-            width = "48%",
-            height = 62,
-            flow = "vertical",
+            width = "100%",
+            height = 36,
+            halign = "center",
+            flow = "horizontal",
             bgimage = true,
             pad = 6,
             borderBox = true,
-            hmargin = 2,
-            vmargin = 2,
+            vmargin = 1,
 
             data = {
                 index = index,
@@ -6160,58 +6454,43 @@ CreateMarkupEditor = function()
             end,
 
             gui.Panel{
-                width = "100%",
+                width = "100%-104",
                 height = "auto",
-                flow = "horizontal",
-
-                m_zoneStripes.Swatch(color, m_zoneStripes.AngleForKeyword(entry.keywordid)),
+                valign = "center",
+                flow = "vertical",
+                hmargin = 4,
 
                 gui.Label{
                     classes = {"bold"},
                     text = name,
-                    width = "100%-40",
+                    width = "100%",
                     height = "auto",
-                    hmargin = 4,
-                    valign = "center",
                 },
-
-                --settings cog: opens the zone type's keyword editor dialog.
-                gui.Panel{
-                    width = 16,
-                    height = 16,
-                    halign = "right",
-                    valign = "center",
-                    bgimage = "phosphor/gear-fill.png",
-                    bgcolor = "#ccccccff",
-                    styles = {
-                        {
-                            selectors = {"hover"},
-                            bgcolor = "white",
-                            transitionTime = 0.1,
-                        },
-                    },
-                    hover = gui.Tooltip("Edit this zone type"),
-                    click = function(element)
-                        EditZoneTypeKeyword(index)
-                    end,
-                },
-            },
-
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                vmargin = 2,
 
                 gui.Label{
                     classes = {"fgMuted", "sizeXs"},
                     text = summary,
-                    width = "100%-64",
+                    width = "100%",
                     height = "auto",
-                    valign = "center",
                 },
+            },
 
-                entireMapButton,
+            entireMapButton,
+
+            --No settings cog: editing lives in the right-click menu ("Edit
+            --Zone Type..."). A square swatch at the row's right edge, nearly
+            --the row's full inner height: a filled region reads as an area,
+            --unlike the walls' thin lines.
+            gui.Panel{
+                width = 28,
+                height = 28,
+                hmargin = 4,
+                valign = "center",
+                bgimage = true,
+                bgcolor = swatchColor,
+                gradient = gradient,
+                borderWidth = 1,
+                borderColor = "@border",
             },
         }
     end
@@ -6220,8 +6499,7 @@ CreateMarkupEditor = function()
         width = "96%",
         height = "auto",
         halign = "center",
-        flow = "horizontal",
-        wrap = true,
+        flow = "vertical",
 
         --monitorAssets: keyword table edits change chip names/colors/summaries.
         monitorAssets = true,
@@ -6269,13 +6547,28 @@ CreateMarkupEditor = function()
         },
     }
 
+    --Styled as one more palette row, like the walls tab's Add Wall Type.
     local zoneAddButton
-    zoneAddButton = gui.Button{
-        classes = {"sizeM"},
-        text = "+ Add Zone Type",
+    zoneAddButton = gui.Panel{
+        classes = {"markupChip"},
+        width = "96%",
+        height = 28,
         halign = "center",
-        vmargin = 4,
-        click = function(element)
+        bgimage = true,
+        borderBox = true,
+        vmargin = 2,
+
+        gui.Label{
+            classes = {"fgMuted"},
+            text = "+ Add Zone Type",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+        },
+
+        press = function(element)
             local entries = {}
 
             for _,preset in ipairs(ZONE_PRESETS) do
@@ -6534,9 +6827,18 @@ CreateMarkupEditor = function()
             displayName = displayName .. " (empty)"
         end
 
+        --Same enlarged swatch treatment as the zone-type rows.
+        local rowGradient = m_zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
+        local rowSwatchColor = entry.patternColor
+        if rowGradient ~= nil then
+            rowSwatchColor = "white"
+        end
+
         return gui.Panel{
             classes = {"markupChip", cond(entry.zoneid == m_zoneTargetId, "selected")},
-            width = "96%",
+            --zoneListPanel is already the 96% content column, so rows fill it
+            --entirely and line up with the zone-type rows above.
+            width = "100%",
             height = 36,
             halign = "center",
             flow = "horizontal",
@@ -6601,10 +6903,19 @@ CreateMarkupEditor = function()
                 }
             end,
 
-            m_zoneStripes.Swatch(entry.patternColor, entry.patternAngle),
+            gui.Panel{
+                width = 28,
+                height = 28,
+                valign = "center",
+                bgimage = true,
+                bgcolor = rowSwatchColor,
+                gradient = rowGradient,
+                borderWidth = 1,
+                borderColor = "@border",
+            },
 
             gui.Panel{
-                width = "100%-20",
+                width = "100%-36",
                 height = "100%",
                 flow = "vertical",
                 hmargin = 4,
@@ -6626,26 +6937,72 @@ CreateMarkupEditor = function()
         }
     end
 
+    --Same icon-over-caption chips as the walls tool strip, with the eraser
+    --behind a divider and tinted @danger.
     local BuildZoneToolButtons = function()
         local result = {}
+        local dividerAdded = false
         for _,toolInfo in ipairs(ZONE_TOOLS) do
-            result[#result+1] = gui.Button{
-                classes = {"sizeL", "bordered", cond(toolInfo.id == m_zoneToolId, "selected")},
-                icon = toolInfo.icon,
-                tooltip = toolInfo.help,
+            local destructive = toolInfo.erase == true
+            if destructive and not dividerAdded then
+                dividerAdded = true
+                result[#result+1] = gui.Panel{
+                    classes = {"markupToolDivider"},
+                    bgimage = true,
+                    width = 1,
+                    height = "70%",
+                    valign = "center",
+                    hmargin = 4,
+                    data = {},
+                }
+            end
+
+            local chipClasses = {"markupToolChip"}
+            if toolInfo.id == m_zoneToolId then
+                chipClasses[#chipClasses+1] = "selected"
+            end
+            if destructive then
+                chipClasses[#chipClasses+1] = "danger"
+            end
+
+            result[#result+1] = gui.Panel{
+                classes = chipClasses,
+                width = 44,
+                height = 42,
+                flow = "vertical",
+                bgimage = true,
+                borderBox = true,
                 valign = "center",
-                hmargin = 2,
+                hmargin = 1,
+                hover = SideTooltip(toolInfo.help),
                 data = {
                     toolid = toolInfo.id,
                 },
                 press = function(element)
                     m_zoneToolId = element.data.toolid
                     zoneToolsPanel:FireEvent("refreshzonetools")
-                    gui.SetFocus(element)
-                    --register the custom tool immediately (requires focus, so
-                    --after SetFocus) instead of waiting for the next think.
-                    zoneToolsPanel:FireEvent("think")
+                    --focus + immediate tool registration; TakeMarkupFocus
+                    --parks focus on contentPanel (chips are transient) and
+                    --re-fires this strip's think.
+                    TakeMarkupFocus()
                 end,
+
+                gui.Panel{
+                    classes = {"markupToolIcon", cond(destructive, "danger")},
+                    bgimage = toolInfo.icon,
+                    width = 18,
+                    height = 18,
+                    halign = "center",
+                    vmargin = 3,
+                },
+
+                gui.Label{
+                    classes = {"markupToolLabel", cond(destructive, "danger")},
+                    text = toolInfo.text or "",
+                    width = "100%",
+                    height = "auto",
+                    textAlignment = "center",
+                },
             }
         end
         return result
@@ -7059,38 +7416,19 @@ CreateMarkupEditor = function()
             textAlignment = "center",
         },
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Zone Types",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        --Tool first, matching the walls tab: fixed controls at a stable
+        --position on top, the growable type list below.
+        SectionHeader("Tool"),
+
+        zoneToolsPanel,
+
+        SectionHeader("Zone Types"),
 
         zonePalettePanel,
 
         zoneAddButton,
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Tool",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
-
-        zoneToolsPanel,
-
-        gui.Label{
-            classes = {"bold"},
-            text = "Zones on This Floor",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        SectionHeader("Zones on This Floor"),
 
         zoneListPanel,
     }
@@ -7112,17 +7450,22 @@ CreateMarkupEditor = function()
         end
     end
 
+    --Grid chip: name at the left, sound-preview play button, then a square
+    --color swatch at the right edge - the walls/zones row treatment, kept
+    --two per row since surfaces are a short fixed set with no summaries.
+    --"50%-2" plus 1px side margins makes each pair span the full content
+    --column, so the grid's outer edges line up with the sections above.
     local CreateFootstepChip = function(surfaceInfo)
         return gui.Panel{
             classes = {"markupChip", cond(surfaceInfo.id == m_footstepSelected, "selected")},
-            width = "48%",
-            height = 30,
+            width = "50%-2",
+            height = 32,
             flow = "horizontal",
             bgimage = true,
-            pad = 6,
+            pad = 4,
             borderBox = true,
-            hmargin = 2,
-            vmargin = 2,
+            hmargin = 1,
+            vmargin = 1,
 
             data = {
                 surfaceid = surfaceInfo.id,
@@ -7134,11 +7477,16 @@ CreateMarkupEditor = function()
                 --picking a surface must arm the paint tool by itself; see
                 --TakeMarkupFocus.
                 TakeMarkupFocus()
+                --hear what was just selected. The play button still has a
+                --job: auditioning a surface WITHOUT changing the selection.
+                PlaySurfaceSample(surfaceInfo)
             end,
 
+            --Swatch on the LEFT here, unlike the walls/zones rows: it is the
+            --surface's identity mark, like the zone list rows' swatches.
             gui.Panel{
-                width = 14,
-                height = 14,
+                width = 22,
+                height = 22,
                 valign = "center",
                 bgimage = true,
                 bgcolor = SurfaceColor(surfaceInfo.id),
@@ -7149,20 +7497,22 @@ CreateMarkupEditor = function()
             gui.Label{
                 classes = {"bold", "sizeXs"},
                 text = surfaceInfo.text,
-                width = "100%-40",
+                width = "100%-50",
                 height = "auto",
                 hmargin = 4,
                 valign = "center",
             },
 
             gui.Panel{
+                --markupToolIcon for the themed icon tint: inline "@token"
+                --fields do not resolve (they ship the literal string and
+                --render black), only style rules routed through the cascade.
+                classes = {"markupToolIcon"},
                 width = 16,
                 height = 16,
                 valign = "center",
-                halign = "right",
                 bgimage = "ui-icons/ph-play-fill.png",
-                bgcolor = "@fgMuted",
-                hover = gui.Tooltip("Preview this footstep sound."),
+                hover = SideTooltip("Preview this footstep sound."),
                 press = function()
                     PlaySurfaceSample(surfaceInfo)
                 end,
@@ -7241,13 +7591,14 @@ CreateMarkupEditor = function()
         footstepDefaultDropdown,
 
         gui.Panel{
+            --markupToolIcon for the themed icon tint; see the chip play icon.
+            classes = {"markupToolIcon"},
             width = 18,
             height = 18,
             valign = "center",
             hmargin = 8,
             bgimage = "ui-icons/ph-play-fill.png",
-            bgcolor = "@fgMuted",
-            hover = gui.Tooltip("Preview the default footstep sound."),
+            hover = SideTooltip("Preview the default footstep sound."),
             press = function()
                 local defaultSurface = math.floor(tonumber(g_footstepDefaultSetting:Get()) or 0)
                 PlaySurfaceSample(SurfaceInfoById(defaultSurface))
@@ -7255,26 +7606,72 @@ CreateMarkupEditor = function()
         },
     }
 
+    --Same icon-over-caption chips as the walls tool strip, with the eraser
+    --behind a divider and tinted @danger.
     local BuildFootstepToolButtons = function()
         local result = {}
+        local dividerAdded = false
         for _,toolInfo in ipairs(FOOTSTEP_TOOLS) do
-            result[#result+1] = gui.Button{
-                classes = {"sizeL", "bordered", cond(toolInfo.id == m_footstepToolId, "selected")},
-                icon = toolInfo.icon,
-                tooltip = toolInfo.help,
+            local destructive = toolInfo.erase == true
+            if destructive and not dividerAdded then
+                dividerAdded = true
+                result[#result+1] = gui.Panel{
+                    classes = {"markupToolDivider"},
+                    bgimage = true,
+                    width = 1,
+                    height = "70%",
+                    valign = "center",
+                    hmargin = 4,
+                    data = {},
+                }
+            end
+
+            local chipClasses = {"markupToolChip"}
+            if toolInfo.id == m_footstepToolId then
+                chipClasses[#chipClasses+1] = "selected"
+            end
+            if destructive then
+                chipClasses[#chipClasses+1] = "danger"
+            end
+
+            result[#result+1] = gui.Panel{
+                classes = chipClasses,
+                width = 44,
+                height = 42,
+                flow = "vertical",
+                bgimage = true,
+                borderBox = true,
                 valign = "center",
-                hmargin = 2,
+                hmargin = 1,
+                hover = SideTooltip(toolInfo.help),
                 data = {
                     toolid = toolInfo.id,
                 },
                 press = function(element)
                     m_footstepToolId = element.data.toolid
                     footstepToolsPanel:FireEvent("refreshfoottools")
-                    gui.SetFocus(element)
-                    --register the custom tool immediately (requires focus, so
-                    --after SetFocus) instead of waiting for the next think.
-                    footstepToolsPanel:FireEvent("think")
+                    --focus + immediate tool registration; TakeMarkupFocus
+                    --parks focus on contentPanel (chips are transient) and
+                    --re-fires this strip's think.
+                    TakeMarkupFocus()
                 end,
+
+                gui.Panel{
+                    classes = {"markupToolIcon", cond(destructive, "danger")},
+                    bgimage = toolInfo.icon,
+                    width = 18,
+                    height = 18,
+                    halign = "center",
+                    vmargin = 3,
+                },
+
+                gui.Label{
+                    classes = {"markupToolLabel", cond(destructive, "danger")},
+                    text = toolInfo.text or "",
+                    width = "100%",
+                    height = "auto",
+                    textAlignment = "center",
+                },
             }
         end
         return result
@@ -7488,10 +7885,18 @@ CreateMarkupEditor = function()
     }
 
     local CreateFootstepRow = function(entry)
+        --Same enlarged swatch treatment as the zone rows.
+        local rowGradient = m_zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
+        local rowSwatchColor = entry.patternColor
+        if rowGradient ~= nil then
+            rowSwatchColor = "white"
+        end
+
         return gui.Panel{
             classes = {"markupChip"},
-            width = "96%",
-            height = 30,
+            --footstepListPanel is already the 96% content column; fill it.
+            width = "100%",
+            height = 32,
             halign = "center",
             flow = "horizontal",
             bgimage = true,
@@ -7499,13 +7904,16 @@ CreateMarkupEditor = function()
             borderBox = true,
             vmargin = 1,
 
-            hover = gui.Tooltip("Click to select this surface and show it on the map. Right-click for options."),
+            hover = SideTooltip("Click to select this surface and show it on the map. Right-click for options."),
 
             press = function(element)
                 m_footstepSelected = entry.surface
                 footstepPalettePanel:FireEvent("refreshchips")
                 JumpToZone(entry)
                 TakeMarkupFocus()
+                --hear what was just selected: the row IS the surface, so the
+                --click doubles as the sound preview.
+                PlaySurfaceSample(SurfaceInfoById(entry.surface))
             end,
 
             rightClick = function(element)
@@ -7526,7 +7934,16 @@ CreateMarkupEditor = function()
                 }
             end,
 
-            m_zoneStripes.Swatch(entry.patternColor, entry.patternAngle),
+            gui.Panel{
+                width = 24,
+                height = 24,
+                valign = "center",
+                bgimage = true,
+                bgcolor = rowSwatchColor,
+                gradient = rowGradient,
+                borderWidth = 1,
+                borderColor = "@border",
+            },
 
             gui.Label{
                 classes = {"bold", "sizeXs"},
@@ -7628,14 +8045,13 @@ CreateMarkupEditor = function()
             textAlignment = "center",
         },
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Map Default",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        --Tool first, matching the other tabs: fixed controls at a stable
+        --position on top.
+        SectionHeader("Tool"),
+
+        footstepToolsPanel,
+
+        SectionHeader("Map Default"),
 
         footstepDefaultRow,
 
@@ -7648,36 +8064,11 @@ CreateMarkupEditor = function()
             vmargin = 2,
         },
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Paint Surface",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        SectionHeader("Paint Surface"),
 
         footstepPalettePanel,
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Tool",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
-
-        footstepToolsPanel,
-
-        gui.Label{
-            classes = {"bold"},
-            text = "Footsteps on This Floor",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
+        SectionHeader("Footsteps on This Floor"),
 
         footstepListPanel,
     }
@@ -7721,6 +8112,91 @@ CreateMarkupEditor = function()
         }
     end
 
+    --The heightmaptool selector as the same icon-over-caption chips the other
+    --tabs use, driving the shared setting - the real Elevation Editor stays
+    --in sync through its own monitor. Options come from the setting's enum so
+    --a new engine tool appears here automatically (with its value as the
+    --label until one is curated).
+    local ELEVATION_TOOL_LABELS = {
+        rectangle = "Rect",
+        oval = "Oval",
+        shape = "Poly",
+        brush = "Brush",
+        picker = "Picker",
+    }
+
+    local elevationToolsPanel = gui.Panel{
+        width = "96%",
+        height = 48,
+        halign = "center",
+        flow = "horizontal",
+
+        monitor = "heightmaptool",
+
+        events = {
+            monitor = function(element)
+                local current = dmhub.GetSettingValue("heightmaptool")
+                for _,child in ipairs(element.children) do
+                    child:SetClass("selected", child.data.toolvalue == current)
+                end
+            end,
+        },
+
+        children = (function()
+            local result = {}
+            local settingInfo = Settings["heightmaptool"]
+            local enum = {}
+            if settingInfo ~= nil and settingInfo.enum ~= nil then
+                enum = settingInfo.enum
+            end
+            local current = dmhub.GetSettingValue("heightmaptool")
+            for _,option in ipairs(enum) do
+                local chipClasses = {"markupToolChip"}
+                if option.value == current then
+                    chipClasses[#chipClasses+1] = "selected"
+                end
+                result[#result+1] = gui.Panel{
+                    classes = chipClasses,
+                    width = 44,
+                    height = 42,
+                    flow = "vertical",
+                    bgimage = true,
+                    borderBox = true,
+                    valign = "center",
+                    hmargin = 1,
+                    hover = SideTooltip(option.help),
+                    data = {
+                        toolvalue = option.value,
+                    },
+                    press = function(element)
+                        dmhub.SetSettingValue("heightmaptool", element.data.toolvalue)
+                        --focus arms the height-editing poll (the
+                        --GetHeightEditingInfo chain is focus-gated).
+                        TakeMarkupFocus()
+                    end,
+
+                    gui.Panel{
+                        classes = {"markupToolIcon"},
+                        bgimage = option.icon,
+                        width = 18,
+                        height = 18,
+                        halign = "center",
+                        vmargin = 3,
+                    },
+
+                    gui.Label{
+                        classes = {"markupToolLabel"},
+                        text = ELEVATION_TOOL_LABELS[option.value] or option.value,
+                        width = "100%",
+                        height = "auto",
+                        textAlignment = "center",
+                    },
+                }
+            end
+            return result
+        end)(),
+    }
+
     --The editors themselves, hidden wholesale for non-patrons.
     --Built into an explicit list rather than a table literal: the brush strip
     --is nil when the Brush.lua export is missing, and a nil in the array part
@@ -7732,16 +8208,9 @@ CreateMarkupEditor = function()
         end
     end
 
-    AddElevationChild(gui.Label{
-        classes = {"bold"},
-        text = "Tool",
-        width = "96%",
-        height = "auto",
-        halign = "center",
-        vmargin = 4,
-    })
+    AddElevationChild(SectionHeader("Tool"))
 
-    AddElevationChild(CreateSettingsEditor("heightmaptool"))
+    AddElevationChild(elevationToolsPanel)
     AddElevationChild(elevationBrushPanel)
     AddElevationChild(CreateSettingsEditor("heightmap:height", elevationStackedOpts))
     AddElevationChild(CreateSettingsEditor("heightmap:blend", elevationStackedOpts))
@@ -7764,6 +8233,9 @@ CreateMarkupEditor = function()
         end,
     })
 
+    --The overlay controls are about READING heights, not painting them, so
+    --they get their own section.
+    AddElevationChild(SectionHeader("Overlay"))
     AddElevationChild(CreateSettingsEditor("heightmap:overlaytype", elevationStackedOpts))
     AddElevationChild(CreateSettingsEditor("heightmap:opacitysetting", elevationStackedOpts))
 
@@ -9448,15 +9920,13 @@ CreateMarkupEditor = function()
         flow = "vertical",
         vmargin = 4,
 
-        gui.Label{
-            classes = {"bold"},
-            text = "Overlay",
-            width = "96%",
-            height = "auto",
-            halign = "center",
-            vmargin = 4,
-        },
-
+        --No section header: the row is a single self-labelled checkbox, and a
+        --header over one checkbox reads as an empty section. Built directly
+        --instead of via CreateSettingsEditor because the generic editor
+        --centers a 90%-wide row, which left the checkbox indented relative to
+        --the content column above; the monitor keeps it in sync with the same
+        --checkbox on the Settings screen. Wrapped so only the checkbox
+        --collapses in Props mode; the Fade Map slider below stays live.
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -9466,7 +9936,32 @@ CreateMarkupEditor = function()
                 element:SetClass("collapsed", m_mode == "props")
             end,
 
-            CreateSettingsEditor("tileheight:overlay"),
+            gui.Check{
+                value = dmhub.GetSettingValue("tileheight:overlay"),
+                text = (Settings["tileheight:overlay"] or {}).description or "Show Map Overlay",
+                halign = "left",
+
+                hover = SideTooltip((Settings["tileheight:overlay"] or {}).help),
+
+                style = {
+                    width = "100%",
+                    height = 30,
+                    fontSize = 14,
+                    hpad = 0,
+                },
+
+                monitor = "tileheight:overlay",
+
+                events = {
+                    monitor = function(element)
+                        element.value = dmhub.GetSettingValue("tileheight:overlay")
+                    end,
+
+                    change = function(element)
+                        dmhub.SetSettingValue("tileheight:overlay", element.value)
+                    end,
+                },
+            },
         },
 
         --stacked: the default horizontal settings row gives its label width "60%",
@@ -9581,6 +10076,9 @@ CreateMarkupEditor = function()
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", true)
             end
+            --the armed-state dot on the active mode tab: focus IS armed,
+            --since every drawing path is gated on gui.ChildHasFocus.
+            element:FireEventTree("markuparmed", true)
         end,
 
         childdefocus = function(element)
@@ -9588,6 +10086,7 @@ CreateMarkupEditor = function()
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", false)
             end
+            element:FireEventTree("markuparmed", false)
         end,
 
         children = {

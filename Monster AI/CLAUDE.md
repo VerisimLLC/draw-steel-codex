@@ -10,7 +10,7 @@ This module provides an automated combat AI for monsters in DMHub. When active, 
 | `MonsterAIMonsters.lua` | Registered **moves** -- one per monster ability or combo. This is where specific monster AI behaviors live |
 | `MonsterAIPrompts.lua` | Registered **prompts** -- handlers for abilities that require a secondary choice (shift destination, push/pull direction, invoked sub-ability targets) |
 | `MonsterAITactics.lua` | Registered **tactics** -- passive scoring modifiers that bias target/position selection (flanking, aid attack, high ground) |
-| `MonsterAIPanel.lua` | DM-only dockable panel UI: start/stop AI, view analysis of available moves per monster type, enable/disable individual moves |
+| `MonsterAIPanel.lua` | DM-only dockable panel UI and AI thread: start/stop AI, dispatch registered triggered abilities, view analysis of available moves per monster type, enable/disable individual moves |
 
 ## Load Order
 
@@ -34,9 +34,9 @@ MonsterAITactics.lua
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. The loop breaks when no move scores above 0.
 4. After all tokens act, initiative advances automatically.
 
-### Three Registration Systems
+### Four Registration Systems
 
-The AI's behavior is defined by three registries on the `MonsterAI` singleton:
+The AI's behavior is defined by four registries on the `MonsterAI` singleton:
 
 #### 1. Moves (`MonsterAI:RegisterMove{}`)
 
@@ -58,6 +58,30 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 A **tactic** is a passive scoring modifier that adjusts the edge count when evaluating strike targets. Tactics don't execute anything -- they bias which target/position the AI prefers.
 - `id`, `description`
 - `score(self, token, tokenLoc, enemy, ability)` -- returns a number (typically 0 or 1) added to the target's edge score, or `nil`
+
+#### 4. Trigger handlers (`MonsterAI:RegisterTrigger{}`)
+
+A **trigger handler** decides whether the AI accepts or dismisses a specific optional triggered ability. Registrations can match `abilityGuids`, `abilities`, or the displayed trigger name in `triggers`. Adding `monsters` makes an ability-name or trigger-name registration monster-specific. Matching priority is GUID, monster-qualified ability name, generic ability name, monster-qualified trigger name, then generic trigger name. Trigger names are read through `ActiveTrigger:GetText()`, which also supports power-roll triggers.
+
+The handler receives `(ai, token, triggerInfo)` and returns one of:
+
+- `{activate = true}` -- accept using the default mode.
+- `{activate = true, mode = N}` -- accept using the one-based ability mode.
+- `{dismiss = true}` -- dismiss the trigger.
+- `nil` -- leave the trigger for the Director.
+
+It can also return `expectedPrompt = {targets = ..., casterid = ..., sleep = ...}` to pre-seed one nested targeting prompt. Registered prompt handlers remain available while the out-of-turn triggered cast resolves.
+
+```lua
+MonsterAI:RegisterTrigger{
+    id = "Retaliatory Strike",
+    monsters = {"Example Monster"},
+    abilities = {"Retaliatory Strike"},
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+```
 
 ### Scoring Model
 
@@ -264,6 +288,7 @@ Currently implemented in `MonsterAIMonsters.lua`:
 | Ghoul | Razor Claws, Leap and Claw |
 | Zombie | Clobber and Clutch, Zombie Dust |
 | Skeleton | Bone Shards, Bone Spur |
+| War Spider | Trigger: Skitter |
 
 ## Tips
 

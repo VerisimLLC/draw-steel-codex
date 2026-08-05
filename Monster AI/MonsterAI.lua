@@ -4,6 +4,11 @@ local mod = dmhub.GetModLoading()
 MonsterAI = RegisterGameType("MonsterAI")
 MonsterAI.moves = {} --a table of registered moves the ai can choose from.
 MonsterAI.prompts = {} --a table of prompted abilities the ai knows how to use.
+MonsterAI.triggerHandlersByGuid = {}
+MonsterAI.triggerHandlersByMonsterAbility = {}
+MonsterAI.triggerHandlersByAbility = {}
+MonsterAI.triggerHandlersByMonsterText = {}
+MonsterAI.triggerHandlersByText = {}
 MonsterAI.token = false
 MonsterAI.squadMembers = {}
 MonsterAI.squadCaptain = false
@@ -48,6 +53,178 @@ function MonsterAI.Sleep(seconds)
     while dmhub.Time() < endTime do
         coroutine.yield(0.1)
     end
+end
+
+function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
+    --the ability directly inserted the expected targets.
+    local expectedEntry = self:try_get("_tmp_expectedPromptTarget")
+    if expectedEntry ~= nil and expectedEntry.casterid == invokerToken.charid then
+        self._tmp_expectedPromptTarget = nil
+        if expectedEntry.sleep then
+            self.Sleep(expectedEntry.sleep)
+        end
+        options.targets = expectedEntry.targets
+        return "inherit"
+    end
+
+    --try_get: the invoker can be an object token (e.g. a wall voxel
+    --prompting for a target near it), whose TargetableObject
+    --properties have no monster_type field.
+    local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
+    local handler = self.prompts[abilityClone.name] or self.prompts[string.format("%s:%s", invokerMonsterType, abilityClone.name)]
+    if handler ~= nil then
+        local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
+        if result ~= nil then
+            for k,v in pairs(result) do
+                options[k] = v
+            end
+
+            return "inherit"
+        end
+    else
+        print("AI:: No handler for prompt ability:", string.format("%s:%s", invokerMonsterType, abilityClone.name))
+    end
+
+    return "prompt"
+end
+
+function MonsterAI:BeginTokenControl(token)
+    local previousCallback = token.properties._tmp_aipromptCallback
+    local promptCallback = function(invokerToken, casterToken, abilityClone, symbols, options)
+        return self:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
+    end
+
+    token.properties._tmp_aicontrol = token.properties._tmp_aicontrol + 1
+    token.properties._tmp_aipromptCallback = promptCallback
+
+    return {
+        promptCallback = promptCallback,
+        previousCallback = previousCallback,
+    }
+end
+
+function MonsterAI:EndTokenControl(token, controlInfo)
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
+
+    token.properties._tmp_aicontrol = math.max(0, token.properties._tmp_aicontrol - 1)
+    if token.properties._tmp_aipromptCallback == controlInfo.promptCallback then
+        token.properties._tmp_aipromptCallback = controlInfo.previousCallback
+    end
+end
+
+function MonsterAI:FindTriggerHandler(token, triggerInfo)
+    local function MatchingHandler(handler)
+        if handler ~= nil and self.MoveMatchesMonster(token, handler, true) then
+            return handler
+        end
+    end
+
+    if type(triggerInfo.abilityGuid) == "string" then
+        local handler = MatchingHandler(self.triggerHandlersByGuid[triggerInfo.abilityGuid])
+        if handler ~= nil then
+            return handler
+        end
+    end
+
+    if type(triggerInfo.abilityName) == "string" then
+        local monsterType = token.properties:try_get("monster_type", "")
+        local qualifiedName = string.format("%s:%s", monsterType, triggerInfo.abilityName)
+        local handler = MatchingHandler(self.triggerHandlersByMonsterAbility[qualifiedName])
+        if handler ~= nil then
+            return handler
+        end
+
+        handler = MatchingHandler(self.triggerHandlersByAbility[triggerInfo.abilityName])
+        if handler ~= nil then
+            return handler
+        end
+    end
+
+    local triggerText = triggerInfo:GetText()
+    if type(triggerText) == "string" then
+        local monsterType = token.properties:try_get("monster_type", "")
+        local qualifiedText = string.format("%s:%s", monsterType, triggerText)
+        local handler = MatchingHandler(self.triggerHandlersByMonsterText[qualifiedText])
+        if handler ~= nil then
+            return handler
+        end
+
+        return MatchingHandler(self.triggerHandlersByText[triggerText])
+    end
+end
+
+function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
+    if triggerInfo == nil or triggerInfo.triggered or triggerInfo.dismissed then
+        return false
+    end
+
+    local registeredTrigger = self:FindTriggerHandler(token, triggerInfo)
+    if registeredTrigger == nil then
+        return false
+    end
+
+    self.token = token
+    local decision = registeredTrigger.handler(self, token, triggerInfo)
+    if decision == true then
+        decision = {activate = true}
+    end
+
+    if type(decision) ~= "table" or (not decision.activate and not decision.dismiss) then
+        return false
+    end
+
+    if decision.expectedPrompt ~= nil then
+        local expectedPrompt = table.shallow_copy(decision.expectedPrompt)
+        expectedPrompt.casterid = expectedPrompt.casterid or token.charid
+        self:SetTargetsForExpectedPrompt(expectedPrompt)
+    end
+
+    local controlInfo = self:BeginTokenControl(token)
+
+    token:ModifyProperties{
+        description = string.format("AI Trigger: %s", registeredTrigger.id),
+        undoable = false,
+        execute = function()
+            if decision.dismiss then
+                triggerInfo.dismissed = true
+            elseif type(decision.mode) == "number" and decision.mode > 1 then
+                --ActiveTrigger stores alternate modes zero-based relative to the
+                --ability's mode list: true selects mode 1, 1 selects mode 2, etc.
+                triggerInfo.triggered = decision.mode - 1
+            else
+                triggerInfo.triggered = true
+            end
+
+            token.properties:DispatchAvailableTrigger(triggerInfo)
+        end,
+    }
+
+    --An accepted trigger may wait for the cast that caused it to finish before
+    --starting its own cast. Keep AI prompt control installed until the prompt is
+    --gone and all casts have been idle for a short grace period.
+    local deadline = dmhub.Time() + 45
+    local idleSince = nil
+    while token.valid and dmhub.Time() < deadline do
+        local availableTriggers = token.properties:GetAvailableTriggers() or {}
+        local triggerPending = availableTriggers[triggerInfo.id] ~= nil
+        local castPending = ActivatedAbility.CountActiveCasts() > 0
+        if not triggerPending and not castPending then
+            idleSince = idleSince or dmhub.Time()
+            if dmhub.Time() - idleSince >= 0.3 then
+                break
+            end
+        else
+            idleSince = nil
+        end
+
+        coroutine.yield(0.1)
+    end
+
+    self:EndTokenControl(token, controlInfo)
+    self._tmp_expectedPromptTarget = nil
+    return true
 end
 
 function MonsterAI:PlayTurn(initiativeid)
@@ -116,35 +293,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                 end
 
                 local promptCallback = function(invokerToken, casterToken, abilityClone, symbols, options)
-                    --the ability directly inserted the expected targets.
-                    local expectedEntry = self:try_get("_tmp_expectedPromptTarget")
-                    if expectedEntry ~= nil and expectedEntry.casterid == invokerToken.charid then
-                        if expectedEntry.sleep then
-                            self.Sleep(expectedEntry.sleep)
-                        end
-                        options.targets = expectedEntry.targets
-                        return "inherit"
-                    end
-
-                    --try_get: the invoker can be an object token (e.g. a wall voxel
-                    --prompting for a target near it), whose TargetableObject
-                    --properties have no monster_type field.
-                    local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
-                    local handler = self.prompts[abilityClone.name] or self.prompts[string.format("%s:%s", invokerMonsterType, abilityClone.name)]
-                    if handler ~= nil then
-                        local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
-                        if result ~= nil then
-                            for k,v in pairs(result) do
-                                options[k] = v
-                            end
-
-                            return "inherit"
-                        end
-                    else
-                        print("AI:: No handler for prompt ability:", string.format("%s:%s", invokerMonsterType, abilityClone.name))
-                    end
-
-                    return "prompt"
+                    return self:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
                 end
 
                 if #self.squadMembers > 0 then
@@ -970,6 +1119,34 @@ end
 function MonsterAI:RegisterPrompt(args)
     for _,prompt in ipairs(args.prompts) do
         self.prompts[prompt] = args
+    end
+end
+
+function MonsterAI:RegisterTrigger(args)
+    for _,guid in ipairs(args.abilityGuids or {}) do
+        self.triggerHandlersByGuid[guid] = args
+    end
+
+    for _,abilityName in ipairs(args.abilities or {}) do
+        if args.monsters ~= nil then
+            for _,monsterType in ipairs(args.monsters) do
+                local qualifiedName = string.format("%s:%s", monsterType, abilityName)
+                self.triggerHandlersByMonsterAbility[qualifiedName] = args
+            end
+        else
+            self.triggerHandlersByAbility[abilityName] = args
+        end
+    end
+
+    for _,triggerText in ipairs(args.triggers or {}) do
+        if args.monsters ~= nil then
+            for _,monsterType in ipairs(args.monsters) do
+                local qualifiedText = string.format("%s:%s", monsterType, triggerText)
+                self.triggerHandlersByMonsterText[qualifiedText] = args
+            end
+        else
+            self.triggerHandlersByText[triggerText] = args
+        end
     end
 end
 

@@ -507,6 +507,16 @@ MonsterAI:RegisterMove{
     end,
 }
 
+MonsterAI:RegisterTrigger{
+    id = "War Spider:Skitter",
+    monsters = {"War Spider"},
+    triggers = {"Skitter"},
+    description = "Use Skitter to halve damage to the war spider or one of its riders, then shift 2 after the triggering effect resolves.",
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+
 --------------------------------------------------------------------------------
 -- Wallmaster.
 --

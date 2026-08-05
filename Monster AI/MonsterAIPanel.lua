@@ -30,6 +30,15 @@ local g_thread = nil
 local g_terminate = false
 local g_status = nil
 
+MonsterAI:RegisterTrigger{
+    id = "Opportunity Attack",
+    triggers = {"Opportunity Attack"},
+    description = "Automatically use opportunity attacks offered to non-player creatures.",
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+
 local function MonsterAIThread()
     g_status = nil
     while true do
@@ -42,27 +51,31 @@ local function MonsterAIThread()
         local queue = dmhub.initiativeQueue
 
 
-        --check for opportunity attacks.
+        --check for registered triggered abilities.
+        local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
                 if not token.playerControlled then
                     local triggers = token.properties:GetAvailableTriggers()
                     if triggers ~= nil then
+                        local ai = MonsterAI.new{token = token}
                         for _,trigger in pairs(triggers) do
-                            if trigger.text == "Opportunity Attack" and (not trigger.triggered) then
-                                print("AI:: DISPATCH OPPORTUNITY ATTACK")
-                                trigger.triggered = true
-                                token.properties:DispatchAvailableTrigger(trigger)
+                            if ai:HandleAvailableTrigger(token, trigger) then
+                                handledTrigger = true
                                 break
                             end
                         end
                     end
                 end
+
+                if handledTrigger then
+                    break
+                end
             end
         end
 
 
-        if queue ~= nil and (not queue.hidden) and (not queue:IsPlayersTurn()) then
+        if (not handledTrigger) and queue ~= nil and (not queue.hidden) and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
 
             if initiativeid == nil then

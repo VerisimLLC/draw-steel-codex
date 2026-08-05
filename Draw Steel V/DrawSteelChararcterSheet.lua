@@ -934,7 +934,10 @@ local function CreateAbilityListPanel()
         m_villainActionsLabel,
         m_villainSlotsPanel,
         styles = buildActionMenuStyles(),
-        width = "100%-12",
+        --The malice/heroic cost diamond on each ability row deliberately sticks
+        --out past the row's right edge, so leave a wide gutter here. Without it
+        --the diamond ends up under the scroll bar and looks cut in half.
+        width = "100%-32",
         height = "auto",
         bgimage = true,
         bgcolor = "clear",

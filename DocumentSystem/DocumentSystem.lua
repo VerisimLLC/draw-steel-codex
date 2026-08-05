@@ -301,9 +301,21 @@ function CustomDocument:EditPanel()
         defocus = function(element)
         end,
         edit = function(element)
+            --arm the shell's periodic autosave (see documentEdited in
+            --CreateInterface).
+            CustomDocument.NotifyEdited(element)
         end,
         savedoc = function(element)
             self:SetTextContent(element.text)
+        end,
+        --this editor buffers text in the control rather than writing into the
+        --document object, so the shell's DeepEqual fallback cannot see dirty
+        --state; answer needsave from the buffer.
+        needsave = function(element, result)
+            result.responded = true
+            if element.text ~= (self:GetTextContent() or "") then
+                result.save = true
+            end
         end,
     }
 
@@ -344,6 +356,19 @@ function CustomDocument:IsPlayerView(element)
     return (not self:HaveEditPermissions()) or (element:FindParentWithClass("playerPreview") ~= nil)
 end
 
+--Editors call this from every change handler to tell the hosting document
+--interface (the CreateInterface shell, class "documentPanel") that the user
+--edited the document. The shell arms its periodic autosave off this event --
+--the same "documentEdited" the seamless markdown editor fires from its edit
+--hook. A no-op when the editor is hosted outside the shell (the compendium
+--montage editor hosts EditPanel with its own Save button).
+function CustomDocument.NotifyEdited(element)
+    local host = element:FindParentWithClass("documentPanel")
+    if host ~= nil then
+        host:FireEvent("documentEdited")
+    end
+end
+
 local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
     --writePanel is nil until the user first enters edit mode (it is built
     --lazily); no edit panel means nothing unsaved.
@@ -351,8 +376,19 @@ local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
         onProceed()
         return
     end
-    local needSave = {save = false}
+    local needSave = {save = false, responded = false}
     writePanel:FireEventTree("needsave", needSave)
+    if not needSave.responded then
+        --No editor answered needsave. The form editors (montage, heroic test,
+        --negotiation) write into the document object directly from their
+        --change handlers rather than buffering, so unsaved work shows up as a
+        --divergence from the last saved baseline. pendingOriginal is preferred
+        --so a save already in flight (awaiting server confirmation) does not
+        --read as unsaved. Editors that DO buffer state outside the document
+        --object must answer needsave themselves and set responded = true.
+        local baseline = resultPanel.data.pendingOriginal or resultPanel.data.original
+        needSave.save = baseline ~= nil and not dmhub.DeepEqual(doc, baseline)
+    end
     if not needSave.save then
         onProceed()
         return

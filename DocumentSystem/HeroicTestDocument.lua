@@ -245,8 +245,7 @@ end
 
 --One tier row caption, shared by the display and the editor. It answers to BOTH
 --refresh events on purpose: the display side broadcasts "savedoc", the editor
---broadcasts "refreshDifficulty" (in the editor, "savedoc" means upload, so the
---caption must not depend on it). The text is also set at construction so the
+--broadcasts "refreshDifficulty". The text is also set at construction so the
 --caption is never blank before the first broadcast.
 local function TierRowLabel(doc, index)
     local function Sync(element)
@@ -502,7 +501,7 @@ function HeroicTestDocument:EditPanel()
         placeholderText = "Heroic test title",
         change = function(element)
             self.description = element.text
-            resultPanel:FireEventTree("savedoc")
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -521,6 +520,7 @@ function HeroicTestDocument:EditPanel()
         placeholderText = "What is the hero attempting?",
         change = function(element)
             self.summary = element.text
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -549,6 +549,7 @@ function HeroicTestDocument:EditPanel()
                 text = self.tiers[i] or "",
                 change = function(element)
                     self.tiers[i] = element.text
+                    CustomDocument.NotifyEdited(element)
                 end,
                 refreshDifficulty = function(element)
                     element.text = self.tiers[i] or ""
@@ -581,6 +582,7 @@ function HeroicTestDocument:EditPanel()
             text = self:try_get("criticalTier", ""),
             change = function(element)
                 self.criticalTier = element.text
+                CustomDocument.NotifyEdited(element)
             end,
             refreshDifficulty = function(element)
                 element.text = self:try_get("criticalTier", "")
@@ -605,10 +607,10 @@ function HeroicTestDocument:EditPanel()
         idChosen = self:try_get("difficulty", "medium"),
         change = function(element)
             self:SetDifficulty(element.idChosen)
+            --refreshDifficulty re-points the tier inputs AND the row labels
+            --(TierRowLabel answers it alongside the display side's savedoc).
             resultPanel:FireEventTree("refreshDifficulty")
-            --Tier row labels live on savedoc, which is also what the display
-            --side listens to, so one broadcast keeps both in step.
-            resultPanel:FireEventTree("savedoc")
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -620,9 +622,11 @@ function HeroicTestDocument:EditPanel()
         valign = "top",
         vscroll = true,
 
-        savedoc = function(element)
-            self:Upload()
-        end,
+        --No savedoc handler here on purpose: the inputs write into the
+        --document object directly, so there is nothing to flush. Uploading is
+        --the shell's job (CreateInterface autosave / pencil-off / close guard),
+        --keyed off the CustomDocument.NotifyEdited calls in every change
+        --handler; a savedoc-time Upload here would double-write on every save.
 
         sectionLabel("## Title"),
         nameInput,
@@ -665,6 +669,7 @@ function HeroicTestDocument:EditPanel()
                     options = creature.attributeDropdownOptions,
                     change = function(element, val)
                         self.characteristics = val
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
             },
@@ -689,6 +694,7 @@ function HeroicTestDocument:EditPanel()
                     options = Skill.skillsDropdownOptions,
                     change = function(element, val)
                         self.skills = val
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
             },

@@ -10137,6 +10137,10 @@ function MarkdownDocument:SeamlessEditPanel(args)
         end,
 
         needsave = function(element, result)
+            --responded tells checkUnsavedChanges an editor answered, so it
+            --must not fall back to its DeepEqual baseline comparison (this
+            --editor buffers text in the control, which that check cannot see).
+            result.responded = true
             if m_doc:GetTextContent() ~= element.text or m_doc:try_get("_tmp_styleDirty") == true then
                 result.save = true
             end

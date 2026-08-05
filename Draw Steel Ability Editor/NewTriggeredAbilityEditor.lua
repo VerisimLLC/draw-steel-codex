@@ -6922,6 +6922,66 @@ function TriggeredAbility:GenerateEmbeddedEditor()
             },
         }
 
+        --Trigger Mode. Aura triggers used to always fire automatically, since
+        --TriggeredAbility.mandatory defaults to true and the embedded editor
+        --never surfaced it. This is the same setting the standalone trigger
+        --editor writes, so IsMandatory / MayBePrompted keep working unchanged.
+        local promptTextPanel
+        local hostileCheck
+
+        --Prompt Text and Hostile only do anything on the prompt path; hide
+        --them when the chosen mode fires without asking.
+        local RefreshPromptVisibility = function()
+            local mayPrompt = self:MayBePrompted()
+            promptTextPanel:SetClass("collapsed", not mayPrompt)
+            hostileCheck:SetClass("collapsed", not mayPrompt)
+        end
+
+        children[#children+1] = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Triggering:" },
+            gui.Dropdown{
+                classes = "formDropdown",
+                idChosen = self.mandatory,
+                options = TriggeredAbility.mandatoryTriggerSettings,
+                change = function(element)
+                    self.mandatory = element.idChosen
+                    RefreshPromptVisibility()
+                end,
+            },
+        }
+
+        promptTextPanel = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Prompt Text:" },
+            gui.Input{
+                classes = "formInput",
+                characterLimit = 300,
+                placeholderText = "Prompt shown to the player...",
+                text = self:try_get("triggerPrompt", ""),
+                change = function(element)
+                    self.triggerPrompt = element.text
+                end,
+            },
+        }
+        children[#children+1] = promptTextPanel
+
+        --A hostile trigger is a harmful prompt forced on the creature (e.g.
+        --an aura that burns anything standing in it) rather than a beneficial
+        --reaction offer: red prompt icon, never ages out at end of turn, and
+        --must be manually activated or dismissed.
+        hostileCheck = gui.Check{
+            halign = "left",
+            text = "Hostile trigger (harmful prompt; never expires, must be manually dismissed)",
+            value = self:try_get("hostile", false),
+            change = function(element)
+                self.hostile = element.value
+            end,
+        }
+        children[#children+1] = hostileCheck
+
+        RefreshPromptVisibility()
+
         local helpSymbols = {
             caster = {
                 name = "Caster",

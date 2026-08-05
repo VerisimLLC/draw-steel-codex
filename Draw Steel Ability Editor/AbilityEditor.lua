@@ -5209,6 +5209,30 @@ function AbilityEditor.GenerateEditor(ability, opts)
         _schedulePreviewRefresh()
     end
 
+    -- Some behaviors (Augmented Ability, Cast Spell, Recast) are flagged
+    -- "mono": they have to be the ability's only behavior. When one is present
+    -- the whole Add/Paste bar goes away so a second behavior cannot be added.
+    local function _abilityHasMonoBehavior()
+        for _, behavior in ipairs(ability.behaviors or {}) do
+            if behavior.mono then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Show or hide the Effects bottom bar and give its 42px back to the scroll
+    -- area when it is hidden. Call this any time the section or the behavior
+    -- list changes.
+    local function _syncEffectsBottomBar()
+        if effectsBottomBar == nil then return end
+        local hide = effectsBottomBar:HasClass("nae-not-effects") or _abilityHasMonoBehavior()
+        effectsBottomBar:SetClass("collapsed", hide)
+        if detailScroll ~= nil then
+            detailScroll.height = cond(hide, "100%", "100%-42")
+        end
+    end
+
     local function selectSection(sectionId)
         if rootPanel == nil then return end
         rootPanel.data.selectedSectionId = sectionId
@@ -5228,19 +5252,10 @@ function AbilityEditor.GenerateEditor(ability, opts)
         -- The Effects section gets a fixed bottom bar (Add/Paste buttons);
         -- other sections hide it and reclaim the space. The preview column
         -- stays visible in every section.
-        if sectionId == "effects" then
-            if effectsBottomBar ~= nil then
-                effectsBottomBar:SetClass("nae-not-effects", false)
-                effectsBottomBar:SetClass("collapsed", false)
-                detailScroll.height = "100%-42"
-            end
-        else
-            if effectsBottomBar ~= nil then
-                effectsBottomBar:SetClass("nae-not-effects", true)
-                effectsBottomBar:SetClass("collapsed", true)
-                detailScroll.height = "100%"
-            end
+        if effectsBottomBar ~= nil then
+            effectsBottomBar:SetClass("nae-not-effects", sectionId ~= "effects")
         end
+        _syncEffectsBottomBar()
     end
 
     for _, sectionDef in ipairs(sections) do
@@ -5356,10 +5371,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
         },
 
         refreshAbility = function(element)
-            local hideMono = #(ability.behaviors or {}) == 1
-                and ability.behaviors[1] ~= nil
-                and ability.behaviors[1].mono == true
-            element:SetClass("collapsed", element:HasClass("nae-not-effects") or hideMono)
+            _syncEffectsBottomBar()
         end,
     }
 

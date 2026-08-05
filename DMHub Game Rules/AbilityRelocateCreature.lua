@@ -140,6 +140,36 @@ ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
+ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
+
+--A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
+--when "Expend Full Movement" is set we bill the creature's entire remaining
+--movement for the turn no matter how far it actually travelled. Only meaningful
+--on the creature's own turn -- a creature shoved around on someone else's turn
+--has no movement pool to spend.
+function ActivatedAbilityRelocateCreatureBehavior:ExpendMovementIfNeeded(casterToken)
+    if not self.expendFullMovement then
+        return
+    end
+
+    if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+        return
+    end
+
+    if not casterToken.properties:IsOurTurn() then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Expend Movement",
+        undoable = false,
+        execute = function()
+            local speed = casterToken.properties:CurrentMovementSpeed()
+            casterToken.properties.moveDistance = math.max(casterToken.properties:DistanceMovedThisTurn(), speed)
+            casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+        end,
+    }
+end
 
 --Movement type used by targeting previews (ActivatedAbility:GetMovementType).
 --A shift the user has overridden to be a regular move reports "move".
@@ -823,6 +853,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
         local opportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks - startingOpportunityAttacks
         options.symbols.cast.opportunityAttacksTriggered = options.symbols.cast.opportunityAttacksTriggered + opportunityAttacks
 
+        self:ExpendMovementIfNeeded(casterToken)
+
         ability:CommitToPaying(casterToken, options)
     end
 
@@ -855,6 +887,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 				self.movementType = element.idChosen
 			end,
 		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Expend Full Movement",
+		tooltip = "If set, the creature uses up all of its movement for the turn, no matter how many squares it actually moved.",
+		value = self.expendFullMovement,
+		change = function(element)
+			self.expendFullMovement = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{

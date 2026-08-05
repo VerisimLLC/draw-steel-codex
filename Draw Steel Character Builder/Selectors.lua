@@ -107,8 +107,11 @@ function CBSelectors._makeItemsPanel(config)
     -- is committed. Absence needs a reason, and so does a dead control: say why
     -- they cannot be clicked rather than leaving the player to guess.
     if config.changeHint ~= nil then
+        -- Size and colour come from the shared class vocabulary ("sizeS" is 14pt,
+        -- "fgMuted" is @fgMuted) rather than literals. Both require the "label"
+        -- class, since the rules are registered as {label, sizeS} / {fgMuted}.
         buttons[#buttons+1] = gui.Label{
-            classes = {"builder-base", "collapsed"},
+            classes = {"builder-base", "label", "sizeS", "fgMuted", "collapsed"},
             width = CBStyles.SIZES.SELECTOR_BUTTON_WIDTH,
             height = "auto",
             valign = "top",
@@ -117,8 +120,6 @@ function CBSelectors._makeItemsPanel(config)
             hpad = 4,
             vpad = 2,
             borderBox = true,
-            fontSize = 12,
-            color = "@fgMuted",
             text = config.changeHint,
 
             create = function(element)
@@ -159,7 +160,7 @@ function CBSelectors._ancestryItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Race.tableName)), "name"),
         selectorName = SEL.ANCESTRY,
-        changeHint = "Use Change Ancestry to switch.",
+        changeHint = "Chosen. Use Change Ancestry to switch.",
         getSelected = function(hero)
             return hero:try_get("raceid")
         end,
@@ -174,7 +175,7 @@ function CBSelectors._careerItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Background.tableName)), "name"),
         selectorName = SEL.CAREER,
-        changeHint = "Use Change Career to switch.",
+        changeHint = "Chosen. Use Change Career to switch.",
         getSelected = function(hero)
             return hero:try_get("backgroundid")
         end,
@@ -189,7 +190,7 @@ function CBSelectors._classItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Class.tableName)), "name"),
         selectorName = SEL.CLASS,
-        changeHint = "Use Change Class to switch.",
+        changeHint = "Chosen. Use Change Class to switch.",
         getSelected = function(hero)
             local c = hero:GetClass()
             return c and c.id or nil

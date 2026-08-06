@@ -40,7 +40,7 @@ function module.GetModule(fullid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetOurPurchasedModules: Gets a list of module IDs that the current user has purchased.
+--- GetOurPurchasedModules: Gets a list of module IDs the current user has rights to: bought in the store, or granted by a Patreon membership of the publishing creator organization. Deduplicated, so a module that is both appears once.
 --- @return string[]
 function module.GetOurPurchasedModules()
 	-- dummy implementation for documentation purposes only

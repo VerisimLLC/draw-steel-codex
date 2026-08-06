@@ -2730,6 +2730,33 @@ function GameHud.CreateEmbeddedRollDialog()
         end,
     }
 
+    --Says what this roll actually is. A roll our own ability cast started has
+    --the ability card above it to explain itself, but a roll someone else
+    --pushed at us -- an opposed test, say -- arrives with nothing but a number.
+    --Opt-in via options.promptHeader so the ability-cast rolls, which all pass a
+    --description for the chat log, are not affected.
+    local promptHeaderLabel = gui.Label {
+        classes = { "hideWhenMinimized", "promptHeader", "collapsed-anim" },
+        --Must be 100%, not auto: an auto label sizes to its text and can come out
+        --wider than the dialog, which makes the dialog scrollable and clips its
+        --own bottom. Long text wraps instead.
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        textAlignment = "center",
+        fontSize = 18,
+        bmargin = 4,
+        prepare = function(element, options)
+            local text = options.promptHeader
+            if type(text) ~= "string" then
+                text = ""
+            end
+            element.text = text
+            element:SetClass("collapsed-anim", text == "")
+        end,
+    }
+
     if GameSystem.UseBoons then
         local boonsBanesLabels = {}
 
@@ -3923,6 +3950,7 @@ function GameHud.CreateEmbeddedRollDialog()
     local mainPanel = gui.Panel {
         classes = { 'main-panel' },
         children = {
+            promptHeaderLabel,
             alternateRollsBar,
             gui.Panel {
                 classes = {"rollPanel"},

@@ -2797,6 +2797,460 @@ local CreateEmailConfirmationPanel = function()
 	return resultPanel
 end
 
+--Patreon PATRON account linking, for the logged-in user's own Patreon account.
+--Distinct from PatreonOrgSection, which links a CREATOR's campaign to an
+--organization. This one grants the user their own patron tier.
+--
+--Flow mirrors the MCDM Shop link and the org link: ask patreonAuthStart for an
+--authorize URL, open it in the system browser, then poll patreonStatus until the
+--callback records the link. Both functions accept the desktop {userid, secretid}
+--that net.Post injects, so no Firebase idToken is needed here.
+--
+--Status comes from patreonStatus rather than dmhub.patronTier because the tier
+--alone cannot tell "not linked" from "linked but on a free/lapsed tier" - both
+--are 0, and offering "Connect" to someone already connected would rewrite their
+--binding. dmhub.patronTier still updates live off /Patrons and is what the rest
+--of the app gates on.
+local CreatePatreonAccountPanel = function()
+	local panel
+
+	--bumped to retire in-flight poll timers; each scheduled tick compares its
+	--captured generation against this before touching anything.
+	local m_pollGeneration = 0
+
+	local ShowUnlinked
+	local ShowLinked
+	local ShowConfirmDisconnect
+	local RefreshStatus
+	local StartLinkPoll
+
+	local function Heading()
+		return gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 14,
+			bold = true,
+			vmargin = 2,
+			text = "Patreon",
+		}
+	end
+
+	local function StatusChildren(text)
+		return {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				italics = true,
+				text = text,
+			},
+		}
+	end
+
+	local function ErrorLabel(message)
+		return gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			color = "#ff6666",
+			vmargin = 2,
+			text = message,
+		}
+	end
+
+	--tier 0 with a link is a real state: a free-tier or lapsed patron. Say so
+	--rather than implying nothing is connected.
+	local function ConnectedText(data)
+		local tier = data.tier or 0
+		local text
+		if tier > 0 then
+			text = string.format("Connected to Patreon   (patron tier %d)", tier)
+		else
+			text = "Connected to Patreon   (no active pledge)"
+		end
+		if (data.linkedAt or 0) > 0 then
+			text = string.format("%s   linked %s", text, os.date("%d %b %Y", math.floor(data.linkedAt / 1000)))
+		end
+		return text
+	end
+
+	--The creator organizations this Patreon pledge unlocks. Read straight from
+	--dmhub.patreonOrgEntitlements, which the engine mirrors live off /Patrons -
+	--so when the user subscribes, the campaign webhook writes the entitlement
+	--and this list gains a row within seconds, no refresh needed.
+	--
+	--Gate on `entitled`, not `active`: a creator can choose to let entitlements
+	--persist after a pledge lapses, and those users must keep their access.
+	local function EntitledOrgRows()
+		local rows = {}
+		local list = dmhub.patreonOrgEntitlements or {}
+
+		for _,entry in ipairs(list) do
+			if entry.entitled then
+				local label = entry.orgid
+				local suffix
+				if entry.active then
+					if (entry.cents or 0) > 0 then
+						suffix = string.format("$%.2f/month", entry.cents / 100)
+					else
+						suffix = "active"
+					end
+				else
+					--entitled but not active: kept by the creator's persist-on-lapse choice.
+					suffix = "access retained after your pledge ended"
+				end
+
+				rows[#rows+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					vmargin = 1,
+					text = string.format("%s   <color=#999999>(%s)</color>", label, suffix),
+					markdown = true,
+				}
+			end
+		end
+
+		if #rows == 0 then
+			return {
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "No creator content unlocked yet. Supporting a creator on Patreon unlocks their content here automatically.",
+				},
+			}
+		end
+
+		table.insert(rows, 1, gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			bold = true,
+			vmargin = 2,
+			text = "Creator content you have access to",
+		})
+		return rows
+	end
+
+	ShowLinked = function(data)
+		local children = {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				vmargin = 2,
+				text = ConnectedText(data),
+			},
+		}
+
+		for _,row in ipairs(EntitledOrgRows()) do
+			children[#children+1] = row
+		end
+
+		children[#children+1] = gui.Button{
+			width = 190,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			text = "Disconnect Patreon",
+			click = function(element)
+				ShowConfirmDisconnect(data)
+			end,
+		}
+
+		panel.children = children
+	end
+
+	--inline confirm. ShowMessage/ErrorModal are locals of
+	--CreateCreatorOrganizationsSection and are not in scope here, so this
+	--follows the MCDM Shop section's two-step button instead of a modal.
+	ShowConfirmDisconnect = function(data)
+		local children = {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				maxWidth = 600,
+				vmargin = 2,
+				text = "Disconnect your Patreon account? You will lose any benefits your patron tier unlocks until you link it again.",
+			},
+		}
+
+		local errorLabel = gui.Label{
+			classes = {"collapsed"},
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			color = "#ff6666",
+			vmargin = 2,
+			text = "",
+		}
+
+		children[#children+1] = gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			gui.Button{
+				width = 180,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Confirm Disconnect",
+				click = function(element)
+					element.text = "Disconnecting..."
+					element.interactable = false
+					errorLabel:SetClass("collapsed", true)
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/patreonUnlink",
+						data = {},
+						success = function(response)
+							if not panel.valid then
+								return
+							end
+							if type(response) == "table" and response.ok then
+								RefreshStatus()
+							else
+								element.text = "Confirm Disconnect"
+								element.interactable = true
+								errorLabel.text = "Could not disconnect. Please try again."
+								errorLabel:SetClass("collapsed", false)
+							end
+						end,
+						error = function(msg)
+							if not panel.valid then
+								return
+							end
+							element.text = "Confirm Disconnect"
+							element.interactable = true
+							errorLabel.text = "Could not contact the server. Please try again."
+							errorLabel:SetClass("collapsed", false)
+						end,
+					}
+				end,
+			},
+			gui.Button{
+				width = 120,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				hmargin = 8,
+				text = "Cancel",
+				click = function(element)
+					ShowLinked(data)
+				end,
+			},
+		}
+
+		children[#children+1] = errorLabel
+		panel.children = children
+	end
+
+	ShowUnlinked = function(message)
+		local children = { Heading() }
+
+		children[#children+1] = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			maxWidth = 600,
+			vmargin = 2,
+			text = "Link your Patreon account to unlock what your patron tier includes. We only read which tier you are on - never payment details.",
+		}
+
+		if message ~= nil then
+			children[#children+1] = ErrorLabel(message)
+		end
+
+		children[#children+1] = gui.Button{
+			width = 200,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			text = "Link Patreon Account",
+			click = function(element)
+				panel.children = StatusChildren("Opening Patreon in your browser...")
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/patreonAuthStart",
+					data = {},
+					success = function(data)
+						if not panel.valid then
+							return
+						end
+						if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
+							dmhub.OpenURL(data.authorizeUrl)
+							StartLinkPoll()
+						else
+							local err = "Could not start the link. Please try again."
+							if type(data) == "table" and type(data.error) == "string" then
+								err = data.error
+							end
+							ShowUnlinked(err)
+						end
+					end,
+					error = function(msg)
+						if not panel.valid then
+							return
+						end
+						ShowUnlinked("Could not contact the server. Please try again.")
+					end,
+				}
+			end,
+		}
+
+		panel.children = children
+	end
+
+	--4s tick, 180s deadline, Cancel available; transient errors do not end the
+	--wait, since the user is off in a browser and the network may blip.
+	StartLinkPoll = function()
+		m_pollGeneration = m_pollGeneration + 1
+		local generation = m_pollGeneration
+		local deadline = dmhub.Time() + 180
+
+		local children = StatusChildren("Waiting for you to finish linking Patreon in your browser...")
+		children[#children+1] = gui.Button{
+			width = 120,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			text = "Cancel",
+			click = function(element)
+				RefreshStatus()
+			end,
+		}
+		panel.children = children
+
+		local function PollExpired()
+			--the settings sheet may have been destroyed while a tick was
+			--scheduled; a dead panel is not safe to touch at all.
+			return mod.unloaded or generation ~= m_pollGeneration or (not panel.valid)
+		end
+
+		local function FinishTimedOut()
+			m_pollGeneration = m_pollGeneration + 1
+			ShowUnlinked("Linking timed out. Try again after finishing in your browser.")
+		end
+
+		local Tick
+		Tick = function()
+			if PollExpired() then
+				return
+			end
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
+				data = {},
+				success = function(data)
+					if PollExpired() then
+						return
+					end
+					if type(data) == "table" and data.ok and data.linked then
+						m_pollGeneration = m_pollGeneration + 1
+						ShowLinked(data)
+						return
+					end
+					if dmhub.Time() > deadline then
+						FinishTimedOut()
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+				error = function(msg)
+					if PollExpired() then
+						return
+					end
+					if dmhub.Time() > deadline then
+						FinishTimedOut()
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+			}
+		end
+
+		Tick()
+	end
+
+	--/Patrons/{uid} carries a token-free mirror of the link, and the engine
+	--already monitors it, so the linked state is in memory with no round trip.
+	--Render from that first and let the patreonStatus call confirm behind it -
+	--otherwise every visit to this tab eats a Cloud Function cold start (warm is
+	--~100ms, cold is seconds) before showing anything.
+	--
+	--dmhub.patreonUserId, NOT dmhub.patronTier: patronTier is a hardcoded 3 on
+	--MCDM white-label builds and says nothing about whether a Patreon is linked.
+	local function LocalStatus()
+		local id = dmhub.patreonUserId
+		if id == nil or id == "" then
+			return nil
+		end
+		return {
+			linked = true,
+			tier = dmhub.patreonPledgeTier,
+			patreonUserId = id,
+			linkedAt = dmhub.patreonLinkedAt,
+		}
+	end
+
+	RefreshStatus = function()
+		m_pollGeneration = m_pollGeneration + 1
+
+		local local_ = LocalStatus()
+		if local_ ~= nil then
+			ShowLinked(local_)
+		else
+			--absent could mean "not linked" or "mirror not populated yet" (a link
+			--made before the mirror existed), so still ask the server before
+			--claiming unlinked.
+			panel.children = StatusChildren("Checking Patreon...")
+		end
+
+		net.Post{
+			url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
+			data = {},
+			success = function(data)
+				if not panel.valid then
+					return
+				end
+				if type(data) == "table" and data.ok and data.linked then
+					ShowLinked(data)
+				else
+					ShowUnlinked(nil)
+				end
+			end,
+			error = function(msg)
+				if not panel.valid then
+					return
+				end
+				ShowUnlinked("Could not check Patreon status.")
+			end,
+		}
+	end
+
+	panel = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		create = function(element)
+			RefreshStatus()
+		end,
+	}
+
+	return panel
+end
+
 function CreateSettingsScreen(dialog, args)
     args = args or {}
 
@@ -3743,6 +4197,13 @@ function CreateSettingsScreen(dialog, args)
 								width = "auto",
 								height = "auto",
 							},
+
+							gui.Panel{
+								width = 16,
+								height = 16,
+							},
+
+							CreatePatreonAccountPanel(),
 
 							gui.Panel{
 								width = 16,

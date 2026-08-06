@@ -77,6 +77,7 @@
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
+--- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
 --- @field uploadQuotaTotal number The amount of data this user can upload each month, in bytes.
@@ -110,6 +111,11 @@
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
 --- @field durableObjectSeq number Latest sequence number stamped by the Durable Object game server on inbound messages. The DO resets this counter to 0 on every cold start/hibernation wake. Returns 0 if the current game is not DO-backed or no seq has been received yet.
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
+--- @field patreonUserId string|nil The Patreon user id linked to this account, or nil if no Patreon account is linked. Mirrored live from /Patrons, so it is available immediately with no round trip. Use this -- NOT patronTier -- to tell whether a Patreon account is linked: patronTier is a hardcoded 3 on MCDM white-label builds.
+--- @field patreonLinkedAt number Unix timestamp in milliseconds of when this account's Patreon was linked, or 0 if it is not linked.
+--- @field patreonPledgeTier number The raw Patreon tier recorded for this account (0-4), ignoring the MCDM white-label override that makes patronTier always report 3. Use for reporting the user's actual pledge; use patronTier to gate features.
+--- @field patreonOrgEntitlements {orgid: string, entitled: boolean, active: boolean, cents: number, campaignId: string}[] A list of the creator organizations this account has Patreon entitlements to. Mirrored live from /Patrons, so it updates within seconds of the user pledging -- no refresh call needed. Gate on `entitled`, not `active`: a lapsed patron of an org whose creator chose to let entitlements persist keeps entitled = true. Empty if no Patreon is linked.
+--- @field IsEntitledToOrg fun(orgid: string): boolean True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
 --- @field hasStoreAccess boolean (Read-only) controls whether there is a store in this version of the app.
@@ -307,6 +313,13 @@ end
 --- RefreshMapAuras: Requests a rebuild of the aura index (object auras, creature auras, and the map auras polled from dmhub.GetMapAuras), and refreshes creature state that depends on it. Call after changing the data behind dmhub.GetMapAuras (e.g. markup zone edits).
 --- @return nil
 function dmhub.RefreshMapAuras()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetDarkTiles: Deterministic gameplay light sampling: returns the candidate tiles whose computed light level is below threshold (0..1). Light = the floor's indoor/outdoor ambient plus token-settings lights and object Light components, shadowed by light-blocking walls and object occlusion, with all animation (flicker, fades, transient light effects) excluded so every client computes the same answer. Candidates come from either the inclusive tile rect x1,y1..x2,y2 or a flat interleaved locs array {x1,y1,x2,y2,...}. Returns {state=<hash string>, locs=<flat interleaved dark tiles>}, or nil when the result's state equals knownState (poll cheaply by passing the last state back). Tokens and objects hidden from players never contribute light. Gate on dmhub.supportsDynamicLightZones.
+--- @param args {floorIndex: number, threshold: number, x1: number|nil, y1: number|nil, x2: number|nil, y2: number|nil, locs: number[]|nil, knownState: string|nil}
+--- @return nil|{state: string, locs: number[]}
+function dmhub.GetDarkTiles(args)
 	-- dummy implementation for documentation purposes only
 end
 

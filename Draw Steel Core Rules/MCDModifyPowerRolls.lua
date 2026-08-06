@@ -426,7 +426,9 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "test_power_roll" and options.skills ~= nil then
+        --The roll tells us which skill is being used, so just check against that.
+        --An opposed test is rolled with a skill exactly like an ordinary test is.
+        if #self:try_get("skills", {}) > 0 and (rollType == "test_power_roll" or rollType == "opposed_power_roll") and options.skills ~= nil then
             local hasSkill = false
             for _,skillid in ipairs(self.skills) do
                 for _,skillid2 in ipairs(options.skills) do
@@ -442,17 +444,18 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" then
+        --No skill came with the roll: this is a defender's modifier being offered
+        --against someone else's opposed ability, so read the skill off that
+        --ability's attack side instead.
+        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" and options.skills == nil then
             if options.ability and options.ability.behaviors then
                 local behaviors = options.ability.behaviors or {}
                 for _, behavior in ipairs(behaviors) do
                     if behavior.typeName == "ActivatedAbilityOpposedRollBehavior" then
                         local hasSkill = false
-                        local skillInfo
-                        for _,skillid in pairs(behavior.attackAttributes) do
+                        for _,attr in ipairs(behavior.attackAttributes) do
                             for _, modSkillId in pairs(self.skills) do
-                                if skillid == modSkillId then
-                                    skillInfo = skillid
+                                if type(attr) == "table" and attr.skill == modSkillId then
                                     hasSkill = true
                                     break
                                 end

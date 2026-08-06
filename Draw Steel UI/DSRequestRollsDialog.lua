@@ -275,8 +275,37 @@ function RollCheck:GetModifiers(creature, rollRequest)
 
 		--Modifiers included from the Roll
 		local rollModifiers = self:try_get("modifiers", {})
-		--Modifiers for the creature making the roll
-		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", {attribute = self.id, skills = skills})
+
+        local checkOptions = self:try_get("options", {})
+        local modifierOptions = {
+            attribute = self.id,
+            skills = skills,
+            --The ability that started this opposed test, so a modifier can ask
+            --questions like "Ability.name is Search for Hidden Creatures".
+            ability = checkOptions.ability,
+            title = rollRequest ~= nil and rollRequest:try_get("title"),
+        }
+
+		--Modifiers for the creature making the roll. An opposed test is still a
+		--test, so ask for both kinds: a modifier set to "Tests" and one set to
+		--"Opposed Tests" should each show up here.
+		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", modifierOptions)
+
+		--A modifier set to "All" roll types answers both questions, so remember
+		--what we already have and don't list it twice.
+		local alreadyListed = {}
+		for _,mod in ipairs(result) do
+			alreadyListed[mod.modifier:try_get("guid") or mod.modifier] = true
+		end
+
+		for _,mod in ipairs(creature:GetModifiersForPowerRoll(self:GetRoll(creature), "opposed_power_roll", modifierOptions)) do
+			local key = mod.modifier:try_get("guid") or mod.modifier
+			if not alreadyListed[key] then
+				alreadyListed[key] = true
+				result[#result+1] = mod
+			end
+		end
+
 		if skill ~= nil and creature:ProficientInSkill(skill) then
             for _,mod in ipairs(result) do
                 if mod.modifier.name == "Skilled" then

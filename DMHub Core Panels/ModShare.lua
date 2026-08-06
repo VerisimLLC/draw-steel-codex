@@ -3970,7 +3970,16 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				searchFailedLabel:SetClass("collapsed", true)
 
 				if #result.items == 0 then
-					
+
+					--the Patreon tab is shown to anyone with a linked account, so
+					--"no matching modules found" is misleading when nothing is
+					--wrong: their creators simply have not included anything yet.
+					if m_tabSelected == "patreon" then
+						searchFailedLabel.text = "None of the creators you support on Patreon have included modules with their membership yet."
+					else
+						searchFailedLabel.text = "No matching modules found"
+					end
+
 					searchFailedLabel:SetClass("collapsed", false)
 					moduleGridContainer:SetClass("collapsed", true)
 					moduleDetailedDisplay:SetClass("collapsed", true)
@@ -4612,9 +4621,22 @@ mod.shared.ShowDownloadShareDialog = function(options)
 	-- so the visibly-last tab is computed from their visibility.
 	local hasPurchased = #module.GetOurPurchasedModules() > 0
 	local hasPublished = #module.GetOurPublishedModules() > 0
+
+	--Patreon tab: shown to anyone with a linked Patreon account, not merely to
+	--those who currently have modules through it. A patron whose creators have
+	--not included anything yet should still see where it will appear, and the
+	--tab's own empty state says so. pcall because an older engine build has no
+	--such property.
+	local hasPatreon = false
+	pcall(function()
+		hasPatreon = dmhub.patreonUserId ~= nil and dmhub.patreonUserId ~= ""
+	end)
+
 	local lastVisibleTab
 	if hasPublished then
 		lastVisibleTab = "published"
+	elseif hasPatreon then
+		lastVisibleTab = "patreon"
 	elseif hasPurchased then
 		lastVisibleTab = "purchased"
 	else
@@ -4739,6 +4761,19 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				hpad = 14,
 				data = {
 					tab = "purchased",
+				},
+
+				press = function(element)
+					element.parent:FireEvent("select", element)
+				end,
+			},
+			gui.Label{
+				classes = {"enumSliderOption", TabPosition("patreon"), cond(not hasPatreon, "collapsed")},
+				text = "Patreon",
+				width = "auto",
+				hpad = 14,
+				data = {
+					tab = "patreon",
 				},
 
 				press = function(element)

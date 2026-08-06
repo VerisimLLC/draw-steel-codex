@@ -14,7 +14,7 @@ function module.PrepareModuleStats(fn)
 	-- dummy implementation for documentation purposes only
 end
 
---- QueryModuleIndex: Queries the module index with the given options. Supports filtering by 'purchased', 'installed', or 'published' index types. Calls options.success with a ModuleIndexLua on success or options.failure on error.
+--- QueryModuleIndex: Queries the module index with the given options. Supports filtering by 'purchased', 'installed', 'published', or 'patreon' index types. Calls options.success with a ModuleIndexLua on success or options.failure on error.
 --- @param options table Options table with 'index' (string), 'success' (function(ModuleIndexLua)), and 'failure' (function(string)) fields.
 function module.QueryModuleIndex(options)
 	-- dummy implementation for documentation purposes only
@@ -40,7 +40,13 @@ function module.GetModule(fullid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetOurPurchasedModules: Gets a list of module IDs the current user has rights to: bought in the store, or granted by a Patreon membership of the publishing creator organization. Deduplicated, so a module that is both appears once.
+--- GetOurPatreonModules: Gets a list of module IDs granted to the current user by a Patreon membership of the publishing creator organization. Empty if no Patreon account is linked or no supported organization includes any modules.
+--- @return string[]
+function module.GetOurPatreonModules()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetOurPurchasedModules: Gets a list of module IDs that the current user has purchased from the store. Modules granted by a Patreon membership are not included -- see GetOurPatreonModules.
 --- @return string[]
 function module.GetOurPurchasedModules()
 	-- dummy implementation for documentation purposes only

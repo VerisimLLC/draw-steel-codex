@@ -61,7 +61,9 @@ CustomDocument.docType = "narration"
 --distinct art (compass vs pin), resolving the placeholder they used to share.
 CustomDocument.docTypeInfo = {
     note        = { text = "Note",        icon = "phosphor/note-pencil.png",          beat = false, glyph = "~", ord = 5 },
-    narration   = { text = "Narration",   icon = "phosphor/quotes.png",               beat = true,  glyph = "N", ord = 10 },
+    --book-open-text, NOT quotes: at the tree's 16px the quotes glyph reads
+    --as the text "99" rather than quotation marks.
+    narration   = { text = "Narration",   icon = "phosphor/book-open-text.png",       beat = true,  glyph = "N", ord = 10 },
     exploration = { text = "Exploration", icon = "phosphor/compass.png",              beat = true,  glyph = "E", ord = 20 },
     combat      = { text = "Combat",      icon = "phosphor/sword.png",                beat = true,  glyph = "C", ord = 30 },
     montage     = { text = "Montage",     icon = "phosphor/film-slate.png",           beat = true,  glyph = "M", ord = 40 },

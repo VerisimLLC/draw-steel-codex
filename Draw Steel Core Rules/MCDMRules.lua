@@ -1248,20 +1248,26 @@ local friendlyFire = setting{
 
 local g_hiddenConditionId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 
-function GameSystem.AllowTargeting(casterToken, targetToken, ability)
-	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
-		return false
-	end
-
-	-- Hidden: "While you are hidden from another creature, the creature can't
-	-- target you with abilities that don't have the Area keyword." A creature
-	-- with the Hidden condition is treated as hidden from all its enemies:
-	-- enemies lose non-Area targeting (including free strikes), while allies
-	-- can still target them normally. Area abilities are unaffected, so a
-	-- hidden creature standing in a swept area is still hit.
+-- Advisory (non-blocking) targeting note, shown as a tooltip on the target
+-- ring during ability targeting. Hidden: "While you are hidden from another
+-- creature, the creature can't target you with abilities that don't have the
+-- Area keyword." We deliberately do NOT hard-block this on the backend:
+-- abilities that exist to interact with hidden creatures (Search for Hidden,
+-- Revelator) must be able to target them, so the rule surfaces as a warning
+-- and the table adjudicates the exceptions. Allies are unaffected (a creature
+-- is only hidden from its enemies) and Area abilities are unaffected.
+function GameSystem.TargetingAdvisoryReason(casterToken, targetToken, ability)
 	if (not targetToken.isObject) and (not ability:HasKeyword("Area"))
 		and (not casterToken:IsFriend(targetToken))
 		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
+		return "This creature is hidden: it can't normally be targeted by abilities without the Area keyword."
+	end
+
+	return nil
+end
+
+function GameSystem.AllowTargeting(casterToken, targetToken, ability)
+	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
 		return false
 	end
 

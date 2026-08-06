@@ -1569,8 +1569,17 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         targetToken.sheet.data.targetInfo = nil
                                         targetToken.sheet:FireEvent("untarget")
                                     end
+
+                                    --game-system advisory (e.g. "this creature is hidden"):
+                                    --a non-blocking rules note surfaced as a tooltip on the
+                                    --target ring, the way reasoned filters surface reasons.
+                                    local advisoryReason = nil
+                                    if GameSystem.TargetingAdvisoryReason ~= nil then
+                                        advisoryReason = GameSystem.TargetingAdvisoryReason(token, targetToken, spell)
+                                    end
+
 									targetToken.sheet.data.targetInfo = targetInfo
-									targetToken.sheet:FireEvent('target', { classes = cond(valid, {}, {'invalid'}) })
+									targetToken.sheet:FireEvent('target', { classes = cond(valid, {}, {'invalid'}), reason = advisoryReason })
 
                                     potentialTargetTokens[#potentialTargetTokens+1] = targetToken
 								end

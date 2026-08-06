@@ -9,7 +9,7 @@
 --- @field keywordsAsJoinedString any 
 --- @field coverDocumentId string 
 --- @field coverart any 
---- @field owned boolean 
+--- @field owned boolean True if this account may use this module: it was bought in the store, OR a Patreon membership of the publishing creator organization grants it. Use this to gate installing or offering to buy. It is not a claim that a purchase exists -- see hasAccessThroughPatreon to tell the two apart.
 --- @field premium boolean
 --- @field hasAccessThroughPatreon boolean True if a Patreon membership grants this account access to this module: it is published under a creator organization we are entitled to, and that organization includes it with membership. A premium module is normally hidden on builds with no store; this is the second route past that, so patrons can see and install what they were granted.
 --- @field published boolean

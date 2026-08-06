@@ -1060,8 +1060,127 @@ local function CreateCreatorOrganizationsSection()
 				fontSize = 12,
 				italics = true,
 				vmargin = 2,
-				text = "When unchecked, access is removed if a patron cancels. This takes effect once module rewards are configured.",
+				text = "When unchecked, access is removed if a patron cancels.",
 			}
+
+			--Which of this organization's published modules come with a Patreon
+			--membership. Saved to ModuleAuthor/{orgid}/patreonModules, which is
+			--publicly readable - patrons are not members of the organization, so
+			--anything gated on membership would be invisible to exactly the people
+			--who need to see it.
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 8,
+				text = "Modules included with membership",
+			}
+
+			local orgModules = data.orgModules or {}
+			if #orgModules == 0 then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "This organization has not published any modules yet. Publish one and it will appear here.",
+				}
+			else
+				--current selection, mutated by the checkboxes and posted whole:
+				--the endpoint takes the complete list, so there is no partial
+				--state to reconcile if one save fails.
+				local included = {}
+				for _,id in ipairs(data.patreonModules or {}) do
+					included[id] = true
+				end
+
+				local moduleError = gui.Label{
+					classes = {"collapsed"},
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					color = "#ff6666",
+					vmargin = 2,
+					text = "",
+				}
+
+				local function SelectedList()
+					local out = {}
+					for _,id in ipairs(orgModules) do
+						if included[id] then
+							out[#out+1] = id
+						end
+					end
+					return out
+				end
+
+				for _,moduleId in ipairs(orgModules) do
+					local id = moduleId
+					local suppress = false
+					children[#children+1] = gui.Check{
+						text = id,
+						value = included[id] == true,
+						halign = "left",
+						vmargin = 1,
+						change = function(element)
+							if suppress then
+								return
+							end
+							local newValue = element.value
+							included[id] = newValue or nil
+							moduleError:SetClass("collapsed", true)
+							net.Post{
+								url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgSetModules",
+								data = {
+									orgid = org.id,
+									modules = SelectedList(),
+								},
+								success = function(response)
+									if not element.valid then
+										return
+									end
+									if type(response) ~= "table" or not response.ok then
+										--roll the local model back so the next save is not
+										--built on a selection the server rejected.
+										included[id] = (not newValue) or nil
+										suppress = true
+										element.value = not newValue
+										suppress = false
+										moduleError.text = "Could not save. Please try again."
+										moduleError:SetClass("collapsed", false)
+									end
+								end,
+								error = function(msg)
+									if not element.valid then
+										return
+									end
+									included[id] = (not newValue) or nil
+									suppress = true
+									element.value = not newValue
+									suppress = false
+									moduleError.text = "Could not contact the server. Please try again."
+									moduleError:SetClass("collapsed", false)
+								end,
+							}
+						end,
+					}
+				end
+
+				children[#children+1] = moduleError
+
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 12,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "Patrons of your campaign can see and install these from their account settings.",
+				}
+			end
 
 			children[#children+1] = gui.Button{
 				width = 190,
@@ -2901,6 +3020,42 @@ local CreatePatreonAccountPanel = function()
 					suffix = "access retained after your pledge ended"
 				end
 
+				local orgid = entry.orgid
+
+				--Which modules the membership includes lives on the org's public
+				--ModuleAuthor record, not in our entitlement, so it is one source
+				--of truth the creator can edit without a fan-out to every patron.
+				--Cost is this lookup; it is a settings panel, so that is fine.
+				local modulesLabel = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 12,
+					color = "#999999",
+					vmargin = 1,
+					text = "",
+					classes = {"collapsed"},
+					create = function(element)
+						module.GetOrganizationInfo{
+							orgid = orgid,
+							success = function(info)
+								if not element.valid then
+									return
+								end
+								local mods = info.patreonModules or {}
+								if #mods == 0 then
+									return
+								end
+								element.text = "Includes: " .. table.concat(mods, ", ")
+								element:SetClass("collapsed", false)
+							end,
+							failure = function(msg)
+								--silent: the entitlement itself is what matters, and a
+								--failed lookup should not make it look revoked.
+							end,
+						}
+					end,
+				}
+
 				rows[#rows+1] = gui.Label{
 					width = "100%",
 					height = "auto",
@@ -2909,6 +3064,7 @@ local CreatePatreonAccountPanel = function()
 					text = string.format("%s   <color=#999999>(%s)</color>", label, suffix),
 					markdown = true,
 				}
+				rows[#rows+1] = modulesLabel
 			end
 		end
 

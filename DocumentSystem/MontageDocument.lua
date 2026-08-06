@@ -448,6 +448,7 @@ function MontageDocument:EditPanel()
             characterLimit = 4096,
             change = function(element)
                 setText(element.text)
+                CustomDocument.NotifyEdited(element)
             end,
         }
     end
@@ -463,6 +464,7 @@ function MontageDocument:EditPanel()
         placeholderText = "Montage test title",
         change = function(element)
             self.description = element.text
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -474,9 +476,11 @@ function MontageDocument:EditPanel()
         valign = "top",
         vscroll = true,
 
-        savedoc = function(element)
-            self:Upload()
-        end,
+        --No savedoc handler here on purpose: the inputs above write into the
+        --document object directly, so there is nothing to flush. Uploading is
+        --the shell's job (CreateInterface autosave / pencil-off / close guard),
+        --keyed off the CustomDocument.NotifyEdited calls in every change
+        --handler; a savedoc-time Upload here would double-write on every save.
 
         sectionLabel("## Title"),
         nameInput,
@@ -502,7 +506,7 @@ function MontageDocument:EditPanel()
             value = self:try_get("sceneImage", ""),
             change = function(element)
                 self.sceneImage = element.value or ""
-                self:Upload()
+                CustomDocument.NotifyEdited(element)
             end,
         },
         proseInput(
@@ -540,6 +544,7 @@ function MontageDocument:ChallengesEditor()
                 skills = {},
             }
             resultPanel:FireEventTree("refreshChallenges")
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -565,6 +570,7 @@ function MontageDocument:ChallengesEditor()
                         characterLimit = 64,
                         change = function(element)
                             challenge.name = element.text
+                            CustomDocument.NotifyEdited(element)
                         end,
                         gui.Button {
                             classes = { "deleteButton", "sizeXs" },
@@ -572,6 +578,10 @@ function MontageDocument:ChallengesEditor()
                             x = 32,
                             press = function(element)
                                 table.remove(self.challenges, i)
+                                --notify BEFORE the rebuild: refreshChallenges
+                                --replaces the challenge rows, orphaning this
+                                --button, and NotifyEdited walks up from it.
+                                CustomDocument.NotifyEdited(element)
                                 resultPanel:FireEventTree("refreshChallenges")
                             end,
                         },
@@ -588,6 +598,7 @@ function MontageDocument:ChallengesEditor()
                         text = challenge.details,
                         change = function(element)
                             challenge.details = element.text
+                            CustomDocument.NotifyEdited(element)
                         end,
                     },
 
@@ -614,6 +625,7 @@ function MontageDocument:ChallengesEditor()
                             change = function(element)
                                 challenge.maximum = math.max(1, tonumber(element.text) or challenge.maximum)
                                 element.text = challenge.maximum
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
                     },
@@ -639,6 +651,7 @@ function MontageDocument:ChallengesEditor()
                             options = creature.attributeDropdownOptions,
                             change = function(element, val)
                                 challenge.characteristics = val
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
 
@@ -651,6 +664,7 @@ function MontageDocument:ChallengesEditor()
                             options = Skill.skillsDropdownOptions,
                             change = function(element, val)
                                 challenge.skills = val
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
                     },
@@ -722,6 +736,7 @@ function MontageDocument:OutcomesEditor()
                         local n = tonumber(element.text) or outcome.victoriesHard
                         outcome.victoriesHard = n
                         element.text = tostring(n)
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
                 gui.Label {
@@ -742,6 +757,7 @@ function MontageDocument:OutcomesEditor()
                         local n = tonumber(element.text) or outcome.victoriesMedium
                         outcome.victoriesMedium = n
                         element.text = tostring(n)
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
             }
@@ -776,6 +792,7 @@ function MontageDocument:OutcomesEditor()
                 text = outcome.text,
                 change = function(element)
                     outcome.text = element.text
+                    CustomDocument.NotifyEdited(element)
                 end,
             },
             victoriesPanel,

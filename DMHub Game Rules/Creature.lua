@@ -10281,7 +10281,11 @@ function creature:RemoveOngoingEffectsOnRest(restType)
 	end
 end
 
-function creature:Rest(restType)
+--Apply a rest to this creature. Pass keepOngoingEffects = true when the caller
+--already cleared "until rest" effects itself -- the respite game mode clears them
+--when the respite begins, so ending that respite must not clear them a second time
+--and wipe anything gained during it (e.g. a respite activity's bonus).
+function creature:Rest(restType, keepOngoingEffects)
 	local restid = dmhub.GenerateGuid()
 
 	if restType == 'long' then
@@ -10317,7 +10321,9 @@ function creature:Rest(restType)
 
 	self.shortRestId = restid
 
-	self:RemoveOngoingEffectsOnRest(restType)
+	if not keepOngoingEffects then
+		self:RemoveOngoingEffectsOnRest(restType)
+	end
 
 end
 

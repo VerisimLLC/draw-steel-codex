@@ -18,8 +18,10 @@
 --- @field opacityNoUpload any 
 --- @field floorOpacity any 
 --- @field floorOpacityNoUpload any 
---- @field ceilingHeightInTiles number The floor's physical ceiling in tiles above floor zero (the primary floor slab's height; layers report their parent floor's). Solid terrain or wall voxels stacked to this height touch the ceiling.
---- @field floorHeightInTiles number 
+--- @field ceilingHeightInTiles number The floor's slab height in tiles above floor zero (the primary floor slab's height; layers report their parent floor's). Solid terrain or wall voxels stack no higher than this. Whether the plane caps the floor is 'hasCeiling'.
+--- @field ceiling string The floor's ceiling override: "auto" (default -- has a ceiling when another floor is above it or the floor is below ground level), "yes" (always has a ceiling), or "no" (open-topped). Read inside pcall on engine builds that may predate the ceiling bridge.
+--- @field hasCeiling boolean Read-only. Whether this floor is capped by a ceiling at its slab height, after resolving the 'ceiling' override and the automatic rule (another floor above it, or below ground level). Layers report their parent floor's value.
+--- @field floorHeightInTiles number
 --- @field shadowCasting any 
 --- @field renderOrder any 
 --- @field shareLighting any 

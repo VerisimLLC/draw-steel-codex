@@ -5075,7 +5075,11 @@ function GameHud.CreateRespiteBar(self, info)
 	                            combine = true,
 	                            groupid = groupid,
 	                            execute = function()
-							        token.properties:Rest("long")
+									--Keep ongoing effects: BeginRespiteMode already ended the
+									--"until rest" ones when the respite started. Clearing them
+									--again here would wipe anything gained during this respite,
+									--like a respite activity's bonus.
+							        token.properties:Rest("long", true)
 	                            end,
 	                        }
 							local newXp = token.properties:try_get("xp", 0)

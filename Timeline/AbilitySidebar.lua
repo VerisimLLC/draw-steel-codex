@@ -173,6 +173,30 @@ local function BeginAbilitySharing(token, ability)
     dmhub.Schedule(3, HeartbeatAbilityShare)
 end
 
+--True when the local player's rolls (and therefore the ability card they are
+--casting from) are shared with the whole table. Anything else -- "dm" or
+--"dicetower" -- means some part of what is happening is private, which is what
+--the roll-visibility banner on the ability card announces.
+local function RollsVisibleToEveryone()
+    return dmhub.GetSettingValue("privaterolls") == "visible"
+end
+
+--Apply a roll-visibility change made from the ability card itself (the director's
+--eyelid, or the banner below). Writes the preference and starts/stops sharing so
+--the change takes effect on the card that is already on screen.
+local function SetAbilityRollVisibility(value, token)
+    dmhub.SetSettingValue("privaterolls", value)
+    dmhub.SetSettingValue("privaterolls:save", true)
+
+    if value == "visible" then
+        if g_displayedAbility ~= nil and token ~= nil and token.valid then
+            BeginAbilitySharing(token, g_displayedAbility)
+        end
+    else
+        ClearAbilityShare()
+    end
+end
+
 -- Boon/bane label strings matching the interactive dialog.
 local g_readOnlyBoonsLabels = { "BANEx2", "BANE", "NONE", "EDGE", "EDGEx2" }
 
@@ -1145,6 +1169,103 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
     g_remoteAbilityPanel = abilityPanel
 end
 
+--The grey banner pinned to the top of the ability card whenever the local
+--player's rolls are NOT visible to everyone.
+--
+--Both the director and players get it. The director can hide rolls deliberately
+--with the eyelid on the card, but a PLAYER has no eyelid at all and can end up
+--stuck on "Visible to you and Director" forever just by leaving "save roll
+--visibility preferences" ticked once in a roll dialog -- DSRollDialog writes the
+--dropdown choice straight back into the `privaterolls` preference. ShouldShareAbility
+--then refuses to broadcast anything they cast, so their ability cards silently stop
+--appearing for the whole table with nothing on screen explaining why (report
+--EHW82XXT: "I cannot see my player's ability cards while they are making rolls, I am
+--the director"). The banner makes that state visible to whoever caused it, and is
+--itself the one-click way out.
+local function CreateRollVisibilityBanner(token, cardWidth)
+    local function BannerText()
+        if dmhub.GetSettingValue("privaterolls") == "dicetower" then
+            return "Dice Tower Roll"
+        end
+        if dmhub.isDM then
+            return "Hidden from Players"
+        end
+        return "Hidden from Other Players"
+    end
+
+    local function BannerTooltip()
+        if dmhub.GetSettingValue("privaterolls") == "dicetower" then
+            return "This roll goes to the dice tower -- only the Director sees the result.\n\nClick to make your rolls visible to everyone."
+        end
+        if dmhub.isDM then
+            return "This ability is not being shared with your players.\n\nClick to make it visible to everyone."
+        end
+        return "This ability is only being shared with the Director -- the other players cannot see it.\n\nClick to make it visible to everyone."
+    end
+
+    local label
+
+    local function Refresh(element)
+        local hidden = not RollsVisibleToEveryone()
+        element:SetClass("collapsed", not hidden)
+        if hidden and label ~= nil and label.valid then
+            label.text = string.format("<b>%s</b>", BannerText())
+        end
+    end
+
+    label = gui.Label{
+        classes = {"fgMuted", "sizeS"},
+        text = string.format("<b>%s</b>", BannerText()),
+        markdown = true,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        lmargin = 6,
+    }
+
+    return gui.Panel{
+        classes = {"bgAlt", cond(RollsVisibleToEveryone(), "collapsed")},
+        bgimage = "panels/square.png",
+        width = cardWidth,
+        height = 22,
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        cornerRadius = 4,
+        bmargin = 2,
+        interactable = true,
+
+        --Settings are polled, so this fires a frame after the eyelid (or the dice
+        --panel, or the settings dialog) changes the preference.
+        multimonitor = {"privaterolls"},
+        monitor = function(element)
+            Refresh(element)
+        end,
+
+        press = function(element)
+            SetAbilityRollVisibility("visible", token)
+            Refresh(element)
+        end,
+
+        hover = function(element)
+            gui.Tooltip(BannerTooltip())(element)
+        end,
+
+        --The same eyelid that appears on the ability name, repeated here so the
+        --banner reads as the state of that control.
+        gui.Panel{
+            classes = {"bgFgMuted"},
+            bgimage = "ui-icons/eye-closed.png",
+            width = 16,
+            height = 16,
+            valign = "center",
+            lmargin = 8,
+        },
+
+        label,
+    }
+end
+
 -- Declared as a valid default so reading GameHud.instance.abilityDisplay returns
 -- false (rather than throwing "unknown field in type Hud") before
 -- InitAbilityDisplayPanel has run / on clients where the panel never gets set up.
@@ -1273,7 +1394,11 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                     classes = {"bgAlt"},
                     width = "auto",
                     height = "auto",
-                    valign = "center",
+                    --Top, not center: the card is no longer the direct child of the
+                    --sidebar, it shares a vertical wrapper with the visibility banner
+                    --and that wrapper does the centering. Two siblings with different
+                    --valigns in one vertical flow stack from opposite ends and overlap.
+                    valign = "top",
                     blurBackground = true,
                     panel,
                 }
@@ -1297,16 +1422,17 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                         press = function(el)
                             local isVisible = el:HasClass("visible")
                             el:FireEventTree("visible", not isVisible)
-                            dmhub.SetSettingValue("privaterolls", cond(isVisible, "dm", "visible"))
-                            dmhub.SetSettingValue("privaterolls:save", true)
-                            if isVisible then
-                                -- Toggled to hidden: clear any active share.
-                                ClearAbilityShare()
-                            else
-                                -- Toggled to visible: begin sharing if mid-ability.
-                                if g_displayedAbility ~= nil and token ~= nil and token.valid then
-                                    BeginAbilitySharing(token, g_displayedAbility)
-                                end
+                            SetAbilityRollVisibility(cond(isVisible, "dm", "visible"), token)
+                        end,
+
+                        --Keep the eyelid in step with the banner below it (and with
+                        --any other surface that writes the preference, e.g. the dice
+                        --panel's context menu or the settings dialog).
+                        multimonitor = {"privaterolls"},
+                        monitor = function(el)
+                            local shouldBeVisible = dmhub.GetSettingValue("privaterolls") ~= "dm"
+                            if el:HasClass("visible") ~= shouldBeVisible then
+                                el:FireEventTree("visible", shouldBeVisible)
                             end
                         end,
 
@@ -1325,7 +1451,27 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                 end
             end
 
-            element.children = {panel}
+            --Wrap the card so the roll-visibility banner can sit above it. The card
+            --width is fixed by the branch that built it (346 for the ability tooltip,
+            --340 for the trigger renderers), so the banner is given the same width
+            --rather than a "100%" that would have to resolve against an auto parent.
+            local cardWidth = cond(needParent, 340, 346)
+
+            --See the valign note above: the banner and the card must agree, and the
+            --wrapper carries the centering the card used to do itself.
+            panel.selfStyle.valign = "top"
+
+            element.children = {
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    flow = "vertical",
+
+                    CreateRollVisibilityBanner(token, cardWidth),
+                    panel,
+                }
+            }
 
         end,
 

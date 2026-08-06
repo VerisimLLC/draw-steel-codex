@@ -2302,12 +2302,18 @@ CreateJournalPanel = function(options)
 
                     local entries = {}
 
-                    for k, v in pairs(CustomDocument.documentTypes) do
+                    --Only plain markdown creation is offered here for now. The other
+                    --registered document types (montage, negotiation, heroic test, and
+                    --the rest of the docType palette) are deliberately not exposed yet;
+                    --they stay registered so existing documents of those types still
+                    --load and render, we just do not hand out a way to make new ones.
+                    local markdownType = CustomDocument.documentTypes["markdown"]
+                    if markdownType ~= nil then
                         entries[#entries + 1] = {
-                            text = v.text,
+                            text = "New Document",
                             click = function()
                                 element.popup = nil
-                                local doc = v.create()
+                                local doc = markdownType.create()
                                 doc.id = dmhub.GenerateGuid()
                                 if not dmhub.isDM then
                                     doc.ownerid = dmhub.loginUserid

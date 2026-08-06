@@ -42,7 +42,10 @@ function ActivatedAbilityOpposedRollBehavior:CreateCheck(ability, casterToken, t
         silent = false,
         options = {
             casterid = casterToken.charid,
-			skills = options.skills
+			skills = options.skills,
+			--Carried along so the roller's own modifiers can be filtered on the
+			--ability, e.g. "only when I am searching for hidden creatures".
+			ability = ability,
         },
     }
 

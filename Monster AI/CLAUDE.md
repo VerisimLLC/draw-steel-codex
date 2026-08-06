@@ -11,6 +11,7 @@ This module provides an automated combat AI for monsters in DMHub. When active, 
 | `MonsterAIPrompts.lua` | Registered **prompts** -- handlers for abilities that require a secondary choice (shift destination, push/pull direction, invoked sub-ability targets) |
 | `MonsterAITactics.lua` | Registered **tactics** -- passive scoring modifiers that bias target/position selection (flanking, aid attack, high ground) |
 | `MonsterAIPanel.lua` | DM-only dockable panel UI and AI thread: start/stop AI, dispatch registered triggered abilities, view analysis of available moves per monster type, enable/disable individual moves |
+| `shadow-elves.lua` | Shadow Elf band AI, including darkness-aware positioning and Eclipse villain actions |
 
 ## Load Order
 
@@ -21,6 +22,7 @@ MonsterAIPanel.lua
 MonsterAIMonsters.lua
 MonsterAIPrompts.lua
 MonsterAITactics.lua
+shadow-elves.lua
 ```
 
 ## Architecture
@@ -34,9 +36,9 @@ MonsterAITactics.lua
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. The loop breaks when no move scores above 0.
 4. After all tokens act, initiative advances automatically.
 
-### Four Registration Systems
+### Five Registration Systems
 
-The AI's behavior is defined by four registries on the `MonsterAI` singleton:
+The AI's behavior is defined by five registries on the `MonsterAI` singleton:
 
 #### 1. Moves (`MonsterAI:RegisterMove{}`)
 
@@ -79,6 +81,35 @@ MonsterAI:RegisterTrigger{
     abilities = {"Retaliatory Strike"},
     handler = function(ai, token, triggerInfo)
         return {activate = true}
+    end,
+}
+```
+
+#### 5. Villain actions (`MonsterAI:RegisterVillainAction{}`)
+
+A **villain action** is scored after a turn's `EndTurn` events finish and before
+the initiative queue advances. The scheduler enforces the shared one-per-round
+budget and the per-encounter used state. Round 1 uses `Villain Action 1`, round 2
+uses `Villain Action 2`, and round 3 uses `Villain Action 3`; later rounds do not
+automatically use a villain action.
+
+Scores are normalized to 0-1. At a window with `N` legal opportunities remaining
+including the current one, the use chance is `1 - (1 - score)^(1/N)`. If no later
+legal window remains, the highest-scoring valid action is forced so the round's
+budget is not wasted. The normal ability cast pipeline marks a successful action
+used and spends the shared budget.
+
+```lua
+MonsterAI:RegisterVillainAction{
+    id = "Example Villain: Dark Arrival",
+    monsters = {"Example Villain"},
+    abilities = {"Dark Arrival"},
+    description = "Use Dark Arrival when it has useful targets.",
+    score = function(self, ai, token, ability, context)
+        return {score = 0.75}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability)
     end,
 }
 ```

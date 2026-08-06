@@ -14,8 +14,10 @@ MonsterAI.squadMembers = {}
 MonsterAI.squadCaptain = false
 MonsterAI.abilities = {}
 MonsterAI.tactics = {}
+MonsterAI.villainActions = {}
 MonsterAI.paths = false
 MonsterAI.log = {}
+MonsterAI.active = false
 
 MonsterAI.activeTactics = {}
 
@@ -382,6 +384,234 @@ local function FindAbilityByName(abilities, name)
 
     return nil
 end 
+
+function MonsterAI:SetupCombatants(token, queue)
+    self.token = token
+    self.abilities = token.properties:GetActivatedAbilities()
+    self.enemyTokens = {}
+    self.allyTokens = {}
+    self.activeTactics = {}
+
+    for id,tactic in pairs(self.tactics) do
+        if self.MoveMatchesMonster(token, tactic) then
+            self.activeTactics[id] = tactic
+        end
+    end
+
+    for _,other in ipairs(dmhub.allTokens) do
+        local initiativeid = InitiativeQueue.GetInitiativeId(other)
+        if other.valid and other.properties ~= nil and initiativeid ~= nil
+            and queue.entries[initiativeid] ~= nil and not other.properties:IsDead() then
+            if dmhub.TokensAreFriendly(token, other) then
+                self.allyTokens[#self.allyTokens+1] = other
+            else
+                self.enemyTokens[#self.enemyTokens+1] = other
+            end
+        end
+    end
+end
+
+local function InitiativeEntryHasLiveToken(initiativeid)
+    for _,token in ipairs(InitiativeQueue.GetTokensForInitiativeId(initiativeid) or {}) do
+        if token.valid and token.properties ~= nil and not token.properties:IsDead() then
+            return true
+        end
+    end
+    return false
+end
+
+local function CountFutureVillainActionWindows(queue, endedInitiativeId, ownerInitiativeId)
+    local result = 0
+    for initiativeid,entry in pairs(queue.entries) do
+        if initiativeid ~= endedInitiativeId and initiativeid ~= ownerInitiativeId
+            and entry.round <= queue.round and InitiativeEntryHasLiveToken(initiativeid) then
+            result = result + 1
+        end
+    end
+    return result
+end
+
+local function RunYieldingFunction(fn)
+    local thread = coroutine.create(fn)
+    while coroutine.status(thread) ~= "dead" do
+        local ok, delay = coroutine.resume(thread)
+        if not ok then
+            return false, delay
+        end
+        if coroutine.status(thread) ~= "dead" then
+            coroutine.yield(type(delay) == "number" and delay or 0.1)
+        end
+    end
+    return true
+end
+
+function MonsterAI:RunWithTokenControl(token, fn)
+    local controlInfo = self:BeginTokenControl(token)
+    local ok, err = RunYieldingFunction(fn)
+    self:EndTokenControl(token, controlInfo)
+    self._tmp_expectedPromptTarget = nil
+    return ok, err
+end
+
+function MonsterAI:WaitForAbilityIdle(timeout)
+    local deadline = dmhub.Time() + (timeout or 45)
+    local idleSince = nil
+    while dmhub.Time() < deadline do
+        if ActivatedAbility.CountActiveCasts() <= 0 then
+            idleSince = idleSince or dmhub.Time()
+            if dmhub.Time() - idleSince >= 0.3 then
+                return
+            end
+        else
+            idleSince = nil
+        end
+        coroutine.yield(0.1)
+    end
+end
+
+function MonsterAI:ExecuteVillainActionCandidate(candidate)
+    local token = candidate.token
+    local ability = candidate.ability
+    local action = candidate.action
+    if not self.active or token == nil or not token.valid or token.properties:IsDead() then
+        return false
+    end
+    if CharacterResource.GetVillainActions() <= 0
+        or VillainActionState.HasUsed(token.charid, candidate.slot)
+        or not ability:CanAfford(token) then
+        return false
+    end
+
+    dmhub.CenterOnToken(token.charid, {smooth = true})
+    local subtitle = string.gsub(candidate.slot, "3", "III")
+    subtitle = string.gsub(subtitle, "2", "II")
+    subtitle = string.gsub(subtitle, "1", "I")
+    DramaticBanner.Show{
+        tokenid = token.charid,
+        text = ability.name or "",
+        subtitle = subtitle,
+    }
+    self.Sleep(DramaticBanner.TimeUntilDone() + 0.2)
+
+    if not self.active or not token.valid or CharacterResource.GetVillainActions() <= 0 then
+        return false
+    end
+
+    self:SetupCombatants(token, candidate.context.initiativeQueue)
+    local ok, err = self:RunWithTokenControl(token, function()
+        action.execute(action, self, token, candidate.scoringInfo, ability, candidate.context)
+    end)
+
+    if not ok then
+        print(string.format("AI:: Villain Action execution failed [%s]: %s", action.id, tostring(err)))
+        self:LogMove(token.properties.monster_type, action.id, "Execution failed: " .. tostring(err))
+        return false
+    end
+
+    self:WaitForAbilityIdle()
+    self:LogMove(token.properties.monster_type, action.id, "Executed villain action")
+    return true
+end
+
+function MonsterAI:HandleVillainActionWindow(context)
+    if not self.active or context == nil or context.initiativeQueue ~= dmhub.initiativeQueue then
+        return
+    end
+    if CharacterResource.GetVillainActions() <= 0 then
+        return
+    end
+
+    local round = context.round
+    if type(round) ~= "number" or round < 1 or round > 3 then
+        return
+    end
+    local slot = string.format("Villain Action %d", round)
+
+    -- End-turn triggers get a short grace period to start and finish before a
+    -- villain action is scored in the same between-turn window.
+    self:WaitForAbilityIdle()
+    if not self.active or CharacterResource.GetVillainActions() <= 0 then
+        return
+    end
+
+    self.log.analysis = self:Analysis()
+    local candidates = {}
+    for _,token in ipairs(dmhub.allTokens) do
+        local ownerInitiativeId = InitiativeQueue.GetInitiativeId(token)
+        if token.valid and token.properties ~= nil and not token.properties:IsDead()
+            and ownerInitiativeId ~= nil and ownerInitiativeId ~= context.endedInitiativeId
+            and context.initiativeQueue.entries[ownerInitiativeId] ~= nil
+            and context.initiativeQueue:IsEntryPlayer(ownerInitiativeId) == false then
+            local abilities = token.properties:GetActivatedAbilities()
+            for _,action in pairs(self.villainActions) do
+                if self.MoveMatchesMonster(token, action) then
+                    local ability = FindAbilityByName(abilities, action.abilities[1])
+                    if ability ~= nil and ability:try_get("villainAction") == slot
+                        and not VillainActionState.HasUsed(token.charid, slot)
+                        and ability:CanAfford(token) then
+                        self:SetupCombatants(token, context.initiativeQueue)
+                        local ok, scoringInfo = pcall(action.score, action, self, token, ability, context)
+                        if ok and type(scoringInfo) == "number" then
+                            scoringInfo = {score = scoringInfo}
+                        elseif not ok then
+                            print(string.format("AI:: Villain Action scoring failed [%s]: %s", action.id, tostring(scoringInfo)))
+                            scoringInfo = nil
+                        end
+
+                        if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
+                            local score = math.max(0, math.min(1, scoringInfo.score))
+                            local futureWindows = CountFutureVillainActionWindows(
+                                context.initiativeQueue,
+                                context.endedInitiativeId,
+                                ownerInitiativeId)
+                            local windowsIncludingNow = futureWindows + 1
+                            local chance = 1 - math.pow(1 - score, 1 / windowsIncludingNow)
+                            local roll = math.random()
+                            local candidate = {
+                                action = action,
+                                ability = ability,
+                                context = context,
+                                forced = futureWindows == 0,
+                                ownerInitiativeId = ownerInitiativeId,
+                                roll = roll,
+                                score = score,
+                                scoringInfo = scoringInfo,
+                                slot = slot,
+                                token = token,
+                                chance = chance,
+                            }
+                            candidates[#candidates+1] = candidate
+                            self:LogMove(token.properties.monster_type, action.id, string.format(
+                                "Score %.2f; chance %.2f; roll %.2f; %d window(s) including now%s",
+                                score, chance, roll, windowsIncludingNow, cond(candidate.forced, "; forced", "")))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local bestCandidate = nil
+    local haveForcedCandidate = false
+    for _,candidate in ipairs(candidates) do
+        if candidate.forced then
+            if not haveForcedCandidate or bestCandidate == nil or candidate.score > bestCandidate.score then
+                bestCandidate = candidate
+            end
+            haveForcedCandidate = true
+        elseif not haveForcedCandidate and candidate.roll <= candidate.chance then
+            local candidateValue = candidate.score + math.random() * 0.05
+            if bestCandidate == nil or candidateValue > bestCandidate.selectionValue then
+                candidate.selectionValue = candidateValue
+                bestCandidate = candidate
+            end
+        end
+    end
+
+    if bestCandidate ~= nil then
+        self:ExecuteVillainActionCandidate(bestCandidate)
+    end
+end
 
 function MonsterAI:FindClosestEnemy()
     local closestEnemy = nil
@@ -1001,6 +1231,7 @@ MonsterAI.AbilityCategories = {
     "Main Actions",
     "Basic Strikes",
     "Maneuvers",
+    "Villain Actions",
     "Tactics",
 }
 
@@ -1060,6 +1291,19 @@ function MonsterAI:Analysis()
                     end
                 end
 
+                for moveid,move in pairs(self.villainActions) do
+                    if self.MoveMatchesMonster(tok, move, true) then
+                        resultEntry.moves[#resultEntry.moves+1] = {
+                            monsterType = monsterType,
+                            id = moveid,
+                            description = move.description,
+                            category = move.category,
+                            abilities = move.abilities,
+                            enabled = move.enabled ~= false,
+                        }
+                    end
+                end
+
                 table.sort(resultEntry.moves, function(a,b)
                     return (g_abilityCategoryOrder[a.category or "Maneuvers"] or 0) < (g_abilityCategoryOrder[b.category or "Maneuvers"] or 0)
                 end)
@@ -1091,7 +1335,7 @@ function MonsterAI:SetTargetsForExpectedPrompt(options)
 end
 
 function MonsterAI:IsMoveEnabledForMonster(monsterType, id)
-    local move = self.moves[id] or self.tactics[id]
+    local move = self.moves[id] or self.tactics[id] or self.villainActions[id]
     if move ~= nil then
         if move.disabledForMonsters ~= nil and move.disabledForMonsters[monsterType] then
             return false
@@ -1102,7 +1346,7 @@ function MonsterAI:IsMoveEnabledForMonster(monsterType, id)
 end
 
 function MonsterAI:SetMoveEnabledForMonster(monsterType, id, enabled)
-    local move = self.moves[id] or self.tactics[id]
+    local move = self.moves[id] or self.tactics[id] or self.villainActions[id]
     if move ~= nil then
         move.disabledForMonsters = move.disabledForMonsters or {}
         move.disabledForMonsters[monsterType] = not enabled
@@ -1114,6 +1358,11 @@ function MonsterAI:RegisterMove(args)
         args.category = "Main Actions"
     end
     self.moves[args.id] = args
+end
+
+function MonsterAI:RegisterVillainAction(args)
+    args.category = "Villain Actions"
+    self.villainActions[args.id] = args
 end
 
 function MonsterAI:RegisterPrompt(args)

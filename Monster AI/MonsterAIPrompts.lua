@@ -27,11 +27,101 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
+local function FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range)
+    local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
+        or function() return true end
+    local shape = dmhub.CalculateShape{
+        shape = "RadiusFromCreature",
+        token = casterToken,
+        radius = range,
+        checklos = false,
+    }
+    local bestLoc = nil
+    local bestScore = nil
+
+    for _,testLoc in ipairs(shape.locations) do
+        if filterTargetPredicate(testLoc) then
+            local movementInfo = casterToken:MarkMovementArrow(testLoc, {
+                straightline = true,
+                ignorecreatures = false,
+            })
+            if movementInfo ~= nil then
+                local path = movementInfo.path
+                local dist = path.destination:DistanceInTiles(path.origin)
+                if dist > 0 then
+                    local collideWithAllies = 0
+                    local collideWithEnemies = 0
+                    local collideWithObject = false
+                    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                        if collideToken.isObject then
+                            collideWithObject = true
+                        elseif collideToken:IsFriend(invokerToken) then
+                            collideWithAllies = collideWithAllies + 1
+                        else
+                            collideWithEnemies = collideWithEnemies + 1
+                        end
+                    end
+
+                    local adjacentAllies = 0
+                    for _,other in ipairs(dmhub.allTokens) do
+                        if other.valid and other.properties ~= nil
+                            and other.charid ~= casterToken.charid
+                            and not other.properties:IsDead()
+                            and other:IsFriend(invokerToken)
+                            and other:Distance(path.destination) <= 1 then
+                            adjacentAllies = adjacentAllies + 1
+                        end
+                    end
+
+                    local fallDistance = path.destination.altitude
+                        - game.currentFloor:GetAltitudeAtLoc(path.destination)
+                    if fallDistance <= 1 then
+                        fallDistance = 0
+                    end
+
+                    -- Prefer using as much of the available pull as the board
+                    -- permits. Then value hazardous collisions/falls and an end
+                    -- position threatened by the puller's allies. Avoid colliding
+                    -- with those allies.
+                    local score = dist*10
+                        + collideWithEnemies*3
+                        + cond(collideWithObject, 4, 0)
+                        + fallDistance*2
+                        + adjacentAllies
+                        - collideWithAllies*4
+                        - invokerToken:Distance(path.destination)*0.01
+                    if bestScore == nil or score > bestScore then
+                        bestScore = score
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    casterToken:ClearMovementArrow()
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
         local range = abilityClone:GetRange(casterToken.properties)
+        if abilityClone:try_get("forcedMovement") == "pull" then
+            local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range)
+            print("AI:: best pull loc =", bestLoc)
+            if bestLoc ~= nil then
+                casterToken:MarkMovementArrow(bestLoc, {straightline = true, ignorecreatures = false})
+                MonsterAI.Sleep(1)
+                casterToken:ClearMovementArrow()
+                return {
+                    targets = {{loc = bestLoc}},
+                }
+            end
+            return nil
+        end
+
         local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols) or function(loc) return true end
 
 

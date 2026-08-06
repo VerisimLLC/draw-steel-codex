@@ -39,12 +39,25 @@ MonsterAI:RegisterTrigger{
     end,
 }
 
+GameHud.RegisterBetweenTurnHandler{
+    id = "Monster AI Villain Actions",
+    priority = 50,
+    run = function(context)
+        if MonsterAI.active then
+            local ai = MonsterAI.new{}
+            ai:HandleVillainActionWindow(context)
+        end
+    end,
+}
+
 local function MonsterAIThread()
+    MonsterAI.active = true
     g_status = nil
     while true do
         g_thread = coroutine.running()
         coroutine.yield(0.1)
         if mod.unloaded or g_terminate then
+            MonsterAI.active = false
             return
         end
 
@@ -75,7 +88,8 @@ local function MonsterAIThread()
         end
 
 
-        if (not handledTrigger) and queue ~= nil and (not queue.hidden) and (not queue:IsPlayersTurn()) then
+        if (not handledTrigger) and queue ~= nil and (not queue.hidden)
+            and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
 
             if initiativeid == nil then
@@ -196,6 +210,7 @@ MonsterAIPanel = function()
                     end
                 else
                     m_running = false
+                    MonsterAI.active = false
                     element.text = "Not Running"
                 end
                 resultPanel:FireEventTree("refreshai")
@@ -220,8 +235,10 @@ MonsterAIPanel = function()
             click = function()
                 if m_running then
                     g_terminate = true
+                    MonsterAI.active = false
                 else
                     g_terminate = false
+                    MonsterAI.active = true
                     dmhub.Coroutine(MonsterAIThread)
                 end
             end,

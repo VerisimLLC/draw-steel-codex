@@ -3354,7 +3354,283 @@ mod.shared.ShowShareDialog = function()
 end
 
 
-mod.shared.ShowDownloadShareDialog = function()
+--Builds one module card. Hoisted to file scope so the settings screen can
+--render the same widget for the modules a Patreon membership unlocks; it used
+--to be a local of ShowDownloadShareDialog. The only thing it took from that
+--closure was what a click does, which is now options.press(moduleInfo).
+local CreateModuleDisplaySlot = function(options)
+	local resultPanel
+	local moduleHeading = gui.Label{
+		classes = {"moduleHeading"},
+	}
+
+	local newBadge = gui.Panel{
+		bgimage = "ui-icons/newbadge.png",
+		bgcolor = "white",
+		x = -8,
+		y = -8,
+		width = 32,
+		height = 32,
+		floating = true,
+		halign = "left",
+		valign = "top",
+	}
+
+	--modules an administrator has deprecated are still listed in the
+	--Installed/Published/Purchased tabs (they are filtered out of browse),
+	--so mark them clearly.
+	local deprecatedBadge = gui.Label{
+		text = "DEPRECATED",
+		bgimage = "panels/square.png",
+		bgcolor = "#661111",
+		color = "#ffaaaa",
+		bold = true,
+		fontSize = 12,
+		width = "auto",
+		height = "auto",
+		hpad = 6,
+		vpad = 2,
+		borderBox = true,
+		floating = true,
+		halign = "center",
+		valign = "top",
+		y = 4,
+		hover = function(element)
+			gui.Tooltip(element.data.message)(element)
+		end,
+		data = {
+			message = "",
+		},
+	}
+
+	local installCheck = gui.Panel{
+		classes = {"installCheck"},
+	}
+
+	local headingAndInstall = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "top",
+		moduleHeading,
+		installCheck,
+	}
+
+	local headingPanel = gui.Panel{
+		flow = "vertical",
+		halign = "left",
+		valign = "top",
+		width = "auto",
+		height = "auto",
+		hmargin = 4,
+		headingAndInstall,
+		gui.Panel{
+			classes = {"moduleHeadingDivider"},
+		}
+	}
+
+	local authorLabel = gui.Label{
+		classes = {"moduleAuthor"},
+		valign = "bottom",
+	}
+
+	local iconContainer = gui.Panel{
+		classes = {"framedPanel"},
+		width = 96,
+		height = 96,
+		hmargin = 4,
+		vmargin = 8,
+		data = {
+			imageid = nil,
+		},
+		setimage = function(element, imageid)
+			if element.data.imageid == imageid then
+				return
+			end
+			element.data.imageid = imageid
+			element.children = {
+				gui.Panel{
+					classes = {"moduleIcon"},
+					autosizeimage = true,
+					bgimageStreamed = imageid,
+				}
+			}
+		end,
+	}
+
+	local detailsLabel = gui.Label{
+		classes = {"moduleDetails"},
+	}
+
+	local detailsPanel = gui.Panel{
+		flow = "horizontal",
+		halign = "left",
+		valign = "top",
+		width = "auto",
+		height = "auto",
+		iconContainer,
+		detailsLabel,
+	}
+
+	local publishedLabel = gui.Label{
+		classes = {"publishedLabel"},
+		floating = true,
+		text = "Published",
+	}
+
+	local installCountLabel = gui.Label{
+		classes = {"installCountLabel"},
+		text = "0",
+	}
+
+	local installCountIcon = gui.Panel{
+		classes = {"installCountIcon"},
+		hover = function(element)
+			gui.Tooltip(string.format("This module has been installed by %s users.", installCountLabel.text))(element)
+		end,
+	}
+
+	local installCountPanel = gui.Panel{
+		classes = {"installCountPanel"},
+		valign = "bottom",
+		halign = "right",
+		installCountLabel,
+		installCountIcon,
+	}
+
+
+	local upvoteCountLabel = gui.Label{
+		classes = {"installCountLabel"},
+		text = "0",
+	}
+
+	local upvoteCountIcon = gui.Panel{
+		classes = {"upvoteCountIcon"},
+		valign = "center",
+		halign = "right",
+		bgimage = "icons/icon_arrow/icon_arrow_29.png",
+	}
+
+	local upvoteCountPanel = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		valign = "top",
+		halign = "right",
+		upvoteCountLabel,
+		upvoteCountIcon,
+	}
+
+	local statsPanel = gui.Panel{
+		flow = "vertical",
+		floating = true,
+		halign = "right",
+		valign = "center",
+		width = "auto",
+		height = "100%",
+
+		upvoteCountPanel,
+
+		installCountPanel,
+		authorLabel,
+	}
+
+	resultPanel = gui.Panel{
+		classes = {"framedPanel", "moduleItem", "collapsed"},
+		headingPanel,
+		detailsPanel,
+		publishedLabel,
+
+		statsPanel,
+
+		newBadge,
+		deprecatedBadge,
+
+		data = {
+			moduleInfo = nil,
+		},
+
+		press = function(element)
+			--the owner of the slot decides what a click means: the browser
+			--swaps to its detail pane, the account panel opens the browser.
+			if options ~= nil and options.press ~= nil and element.data.moduleInfo ~= nil then
+				options.press(element.data.moduleInfo)
+			end
+		end,
+
+		setmodule = function(element, moduleInfo)
+			element.data.moduleInfo = moduleInfo
+
+			if moduleInfo == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			if moduleInfo.coverart ~= nil then
+				iconContainer:FireEvent("setimage", moduleInfo.coverart)
+			else
+				iconContainer:FireEvent("setimage", "panels/logo/DMHubLogo.png")
+			end
+
+			element:SetClass("collapsed", false)
+			moduleHeading.text = moduleInfo.name or moduleInfo.fullid
+			authorLabel.text = string.format("by %s", moduleInfo.authorid)
+			detailsLabel.text = moduleInfo.details
+
+			element:SetClassTree("published", cond(moduleInfo.publishedFromThisGame, true, false))
+			element:SetClassTree("installed", cond(moduleInfo.installedVersion, true, false))
+			element:SetClassTree("loaded", cond(moduleInfo.loadedVersion, true, false))
+
+			installCountPanel:SetClass("hidden", true)
+
+			newBadge:SetClass("hidden", true)
+
+			deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
+			if moduleInfo.deprecated then
+				local state = "It is disabled in your games unless you enable it again."
+				if moduleInfo.deprecationOverridden then
+					state = "You have chosen to enable it in this game anyway."
+				end
+				deprecatedBadge.data.message = string.format("%s\n\n%s", moduleInfo.deprecationMessage, state)
+			end
+
+			moduleInfo:QueryStats(function(modid, stats)
+				if element.valid and modid == moduleInfo.fullid then
+					local versions = moduleInfo.versions
+
+					local moduleAge = math.max(1, TimestampAgeInSeconds(versions[1].createTimestamp))
+
+					if moduleAge < 24*60*60*3 then
+						--modules less than 3 days old get a new badge.
+						newBadge:SetClass("hidden", false)
+					end
+
+					installCountPanel:SetClass("hidden", false)
+					installCountLabel.text = string.format("%d", stats.installs)
+					upvoteCountLabel.text = string.format("%d", stats.votes+1)
+					upvoteCountIcon:SetClass("upvoted", moduleInfo.vote > 0)
+				end
+			end)
+		end,
+
+		refreshModule = function(element)
+			element:FireEvent("setmodule", element.data.moduleInfo)
+		end,
+	}
+
+	return resultPanel
+end
+
+mod.shared.CreateModuleSlot = CreateModuleDisplaySlot
+
+--options.focusModule (a ModuleLua) opens straight onto that module's detail
+--page instead of the browse grid. Used by the account screen, so clicking a
+--module a Patreon membership unlocks lands on the real page with its Install
+--button rather than on a second, half-built copy of it.
+mod.shared.ShowDownloadShareDialog = function(options)
+	options = options or {}
+
 	local m_moduleIndex
 	local m_displayedItemIds = {}
 
@@ -3373,267 +3649,6 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 
-	local CreateModuleDisplaySlot = function()
-		local resultPanel
-		local moduleHeading = gui.Label{
-			classes = {"moduleHeading"},
-		}
-
-		local newBadge = gui.Panel{
-			bgimage = "ui-icons/newbadge.png",
-			bgcolor = "white",
-			x = -8,
-			y = -8,
-			width = 32,
-			height = 32,
-			floating = true,
-			halign = "left",
-			valign = "top",
-		}
-
-		--modules an administrator has deprecated are still listed in the
-		--Installed/Published/Purchased tabs (they are filtered out of browse),
-		--so mark them clearly.
-		local deprecatedBadge = gui.Label{
-			text = "DEPRECATED",
-			bgimage = "panels/square.png",
-			bgcolor = "#661111",
-			color = "#ffaaaa",
-			bold = true,
-			fontSize = 12,
-			width = "auto",
-			height = "auto",
-			hpad = 6,
-			vpad = 2,
-			borderBox = true,
-			floating = true,
-			halign = "center",
-			valign = "top",
-			y = 4,
-			hover = function(element)
-				gui.Tooltip(element.data.message)(element)
-			end,
-			data = {
-				message = "",
-			},
-		}
-
-		local installCheck = gui.Panel{
-			classes = {"installCheck"},
-		}
-
-		local headingAndInstall = gui.Panel{
-			flow = "horizontal",
-			width = "auto",
-			height = "auto",
-			halign = "left",
-			valign = "top",
-			moduleHeading,
-			installCheck,
-		}
-
-		local headingPanel = gui.Panel{
-			flow = "vertical",
-			halign = "left",
-			valign = "top",
-			width = "auto",
-			height = "auto",
-			hmargin = 4,
-			headingAndInstall,
-			gui.Panel{
-				classes = {"moduleHeadingDivider"},
-			}
-		}
-
-		local authorLabel = gui.Label{
-			classes = {"moduleAuthor"},
-			valign = "bottom",
-		}
-
-		local iconContainer = gui.Panel{
-			classes = {"framedPanel"},
-			width = 96,
-			height = 96,
-			hmargin = 4,
-			vmargin = 8,
-			data = {
-				imageid = nil,
-			},
-			setimage = function(element, imageid)
-				if element.data.imageid == imageid then
-					return
-				end
-				element.data.imageid = imageid
-				element.children = {
-					gui.Panel{
-						classes = {"moduleIcon"},
-						autosizeimage = true,
-						bgimageStreamed = imageid,
-					}
-				}
-			end,
-		}
-
-		local detailsLabel = gui.Label{
-			classes = {"moduleDetails"},
-		}
-
-		local detailsPanel = gui.Panel{
-			flow = "horizontal",
-			halign = "left",
-			valign = "top",
-			width = "auto",
-			height = "auto",
-			iconContainer,
-			detailsLabel,
-		}
-
-		local publishedLabel = gui.Label{
-			classes = {"publishedLabel"},
-			floating = true,
-			text = "Published",
-		}
-
-		local installCountLabel = gui.Label{
-			classes = {"installCountLabel"},
-			text = "0",
-		}
-
-		local installCountIcon = gui.Panel{
-			classes = {"installCountIcon"},
-			hover = function(element)
-				gui.Tooltip(string.format("This module has been installed by %s users.", installCountLabel.text))(element)
-			end,
-		}
-
-		local installCountPanel = gui.Panel{
-			classes = {"installCountPanel"},
-			valign = "bottom",
-			halign = "right",
-			installCountLabel,
-			installCountIcon,
-		}
-
-
-		local upvoteCountLabel = gui.Label{
-			classes = {"installCountLabel"},
-			text = "0",
-		}
-
-		local upvoteCountIcon = gui.Panel{
-			classes = {"upvoteCountIcon"},
-			valign = "center",
-			halign = "right",
-			bgimage = "icons/icon_arrow/icon_arrow_29.png",
-		}
-
-		local upvoteCountPanel = gui.Panel{
-			flow = "horizontal",
-			width = "auto",
-			height = "auto",
-			valign = "top",
-			halign = "right",
-			upvoteCountLabel,
-			upvoteCountIcon,
-		}
-
-		local statsPanel = gui.Panel{
-			flow = "vertical",
-			floating = true,
-			halign = "right",
-			valign = "center",
-			width = "auto",
-			height = "100%",
-
-			upvoteCountPanel,
-
-			installCountPanel,
-			authorLabel,
-		}
-
-		resultPanel = gui.Panel{
-			classes = {"framedPanel", "moduleItem", "collapsed"},
-			headingPanel,
-			detailsPanel,
-			publishedLabel,
-
-			statsPanel,
-
-			newBadge,
-			deprecatedBadge,
-
-			data = {
-				moduleInfo = nil,
-			},
-
-			press = function(element)
-				moduleGridContainer:SetClass("collapsed", true)
-				moduleDetailedDisplay:SetClass("collapsed", false)
-				moduleDetailedDisplay:FireEvent("displayModule", element.data.moduleInfo)
-			end,
-
-			setmodule = function(element, moduleInfo)
-				element.data.moduleInfo = moduleInfo
-
-				if moduleInfo == nil then
-					element:SetClass("collapsed", true)
-					return
-				end
-
-				if moduleInfo.coverart ~= nil then
-					iconContainer:FireEvent("setimage", moduleInfo.coverart)
-				else
-					iconContainer:FireEvent("setimage", "panels/logo/DMHubLogo.png")
-				end
-
-				element:SetClass("collapsed", false)
-				moduleHeading.text = moduleInfo.name or moduleInfo.fullid
-				authorLabel.text = string.format("by %s", moduleInfo.authorid)
-				detailsLabel.text = moduleInfo.details
-
-				element:SetClassTree("published", cond(moduleInfo.publishedFromThisGame, true, false))
-				element:SetClassTree("installed", cond(moduleInfo.installedVersion, true, false))
-				element:SetClassTree("loaded", cond(moduleInfo.loadedVersion, true, false))
-
-				installCountPanel:SetClass("hidden", true)
-
-				newBadge:SetClass("hidden", true)
-
-				deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
-				if moduleInfo.deprecated then
-					local state = "It is disabled in your games unless you enable it again."
-					if moduleInfo.deprecationOverridden then
-						state = "You have chosen to enable it in this game anyway."
-					end
-					deprecatedBadge.data.message = string.format("%s\n\n%s", moduleInfo.deprecationMessage, state)
-				end
-
-				moduleInfo:QueryStats(function(modid, stats)
-					if element.valid and modid == moduleInfo.fullid then
-						local versions = moduleInfo.versions
-
-						local moduleAge = math.max(1, TimestampAgeInSeconds(versions[1].createTimestamp))
-
-						if moduleAge < 24*60*60*3 then
-							--modules less than 3 days old get a new badge.
-							newBadge:SetClass("hidden", false)
-						end
-
-						installCountPanel:SetClass("hidden", false)
-						installCountLabel.text = string.format("%d", stats.installs)
-						upvoteCountLabel.text = string.format("%d", stats.votes+1)
-						upvoteCountIcon:SetClass("upvoted", moduleInfo.vote > 0)
-					end
-				end)
-			end,
-
-			refreshModule = function(element)
-				element:FireEvent("setmodule", element.data.moduleInfo)
-			end,
-		}
-
-		return resultPanel
-	end
 
 	local pageLeft
 	local pageRight
@@ -3647,7 +3662,15 @@ mod.shared.ShowDownloadShareDialog = function()
 
 	local gridItems = {}
 	for i=1,nrows*ncols do
-		gridItems[#gridItems+1] = CreateModuleDisplaySlot()
+		gridItems[#gridItems+1] = CreateModuleDisplaySlot{
+			--what a click meant before the factory was hoisted: hide the grid,
+			--show the detail pane for this module.
+			press = function(moduleInfo)
+				moduleGridContainer:SetClass("collapsed", true)
+				moduleDetailedDisplay:SetClass("collapsed", false)
+				moduleDetailedDisplay:FireEvent("displayModule", moduleInfo)
+			end,
+		}
 	end
 
 	local SetDisplayedModules = function(items)
@@ -4290,6 +4313,15 @@ mod.shared.ShowDownloadShareDialog = function()
 				moduleDisplayPanel:SetClass("collapsed", false)
 
 				ShowSearch("")
+
+				--jump straight to a module if we were opened for one. Done after
+				--ShowSearch so the grid behind it is still populated and the
+				--detail pane's back button has something to return to.
+				if options.focusModule ~= nil then
+					moduleGridContainer:SetClass("collapsed", true)
+					moduleDetailedDisplay:SetClass("collapsed", false)
+					moduleDetailedDisplay:FireEvent("displayModule", options.focusModule)
+				end
 
 			end,
 

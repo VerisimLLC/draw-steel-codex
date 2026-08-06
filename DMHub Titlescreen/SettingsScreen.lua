@@ -3026,14 +3026,19 @@ local CreatePatreonAccountPanel = function()
 				--ModuleAuthor record, not in our entitlement, so it is one source
 				--of truth the creator can edit without a fan-out to every patron.
 				--Cost is this lookup; it is a settings panel, so that is fine.
-				local modulesLabel = gui.Label{
+				--
+				--The cards are the module browser's own widget
+				--(mod.shared.CreateModuleSlot), so they look and behave exactly
+				--like the ones in Browse Modules, and clicking one opens the real
+				--module page with its Install button rather than a second copy of
+				--it built here.
+				local modulesContainer = gui.Panel{
+					classes = {"collapsed"},
+					flow = "horizontal",
+					wrap = true,
 					width = "100%",
 					height = "auto",
-					fontSize = 12,
-					color = "#999999",
-					vmargin = 1,
-					text = "",
-					classes = {"collapsed"},
+					vmargin = 2,
 					create = function(element)
 						module.GetOrganizationInfo{
 							orgid = orgid,
@@ -3041,12 +3046,44 @@ local CreatePatreonAccountPanel = function()
 								if not element.valid then
 									return
 								end
-								local mods = info.patreonModules or {}
-								if #mods == 0 then
+								local ids = info.patreonModules or {}
+								if #ids == 0 then
 									return
 								end
-								element.text = "Includes: " .. table.concat(mods, ", ")
-								element:SetClass("collapsed", false)
+
+								--one lookup per module: Search matches a bare module
+								--id directly, which is also the path that now honours
+								--a Patreon entitlement past the premium/store gate.
+								module.QueryModuleIndex{
+									index = "Hot",
+									success = function(moduleIndex)
+										if not element.valid then
+											return
+										end
+										local slots = {}
+										for _,fullid in ipairs(ids) do
+											moduleIndex:Search{
+												text = fullid,
+												success = function(result)
+													if not element.valid then
+														return
+													end
+													for _,moduleInfo in ipairs(result.items or {}) do
+														local slot = mod.shared.CreateModuleSlot{
+															press = function(info)
+																mod.shared.ShowDownloadShareDialog{focusModule = info}
+															end,
+														}
+														slots[#slots+1] = slot
+														element.children = slots
+														slot:FireEvent("setmodule", moduleInfo)
+														element:SetClass("collapsed", false)
+													end
+												end,
+											}
+										end
+									end,
+								}
 							end,
 							failure = function(msg)
 								--silent: the entitlement itself is what matters, and a
@@ -3064,7 +3101,7 @@ local CreatePatreonAccountPanel = function()
 					text = string.format("%s   <color=#999999>(%s)</color>", label, suffix),
 					markdown = true,
 				}
-				rows[#rows+1] = modulesLabel
+				rows[#rows+1] = modulesContainer
 			end
 		end
 

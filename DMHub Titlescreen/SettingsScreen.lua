@@ -3039,6 +3039,10 @@ local CreatePatreonAccountPanel = function()
 					width = "100%",
 					height = "auto",
 					vmargin = 2,
+					--the cards carry the browser's classes, so they need the
+					--browser's rules too. Without these a slot has no size and its
+					--details text spills across the whole settings column.
+					styles = ThemeEngine.MergeTokens(ModuleBrowser.moduleStyles),
 					create = function(element)
 						module.GetOrganizationInfo{
 							orgid = orgid,

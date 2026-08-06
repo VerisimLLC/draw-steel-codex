@@ -3633,6 +3633,211 @@ ModuleBrowser = {}
 --page instead of the browse grid. Used by the account screen, so clicking a
 --module a Patreon membership unlocks lands on the real page with its Install
 --button rather than on a second, half-built copy of it.
+--Card styling for the module grid. Hoisted alongside CreateModuleDisplaySlot so
+--anything rendering those cards outside this dialog can apply the same rules --
+--without them a slot has no size and its details text runs off the panel.
+--
+--Deliberately NOT dialogCustomStyles, which also defines framedPanel but sizes
+--it to the whole 1080-based dialog frame.
+local moduleDisplayCustomStyles = {
+
+		{
+			selectors = {"moduleItem"},
+			width = 312,
+			height = 138,
+			pad = 6,
+			halign = "left",
+			valign = "top",
+			margin = 8,
+			flow = "vertical",
+		},
+		{
+			selectors = {"moduleItem", "loaded"},
+		},
+		{
+			selectors = {"moduleItem", "installed"},
+		},
+		{
+			selectors = {"moduleItem", "published"},
+		},
+		{
+			selectors = {"moduleItem", "hover"},
+			brightness = 1.8,
+			transitionTime = 0.1,
+		},
+		{
+			selectors = {"moduleHeading"},
+			color = "@fgStrong",
+			fontFace = "@heading",
+			fontSize = 18,
+			minFontSize = 14,
+			fontWeight = "light",
+			maxWidth = 230,
+			width = "auto",
+			halign = "left",
+			valign = "top",
+			height = 24,
+			wrap = false,
+			textOverflow = "truncate",
+		},
+		{
+			selectors = {"moduleHeadingDivider"},
+			bgimage = "panels/square.png",
+			bgcolor = "@border",
+			width = 240,
+			height = 1,
+			vmargin = 1,
+			halign = "left",
+		},
+		{
+			selectors = {"installCheck"},
+			hidden = 1,
+			bgcolor = "white",
+			width = 20,
+			height = 20,
+			hmargin = 6,
+			valign = "center",
+			bgimage = "ui-icons/module-checkmark.png",
+		},
+		{
+			selectors = {"installCheck", "installed"},
+			hidden = 0,
+		},
+		{
+			selectors = {"moduleAuthor"},
+			color = "@fgMuted",
+			fontSize = 12,
+			width = "auto",
+			maxWidth = 160,
+			height = 14,
+			halign = "right",
+			valign = "bottom",
+			italics = true,
+			wrap = false,
+			textOverflow = "ellipsis",
+		},
+		{
+			selectors = {"moduleIcon"},
+			bgcolor = "white",
+			width = "auto",
+			height = "auto",
+			maxWidth = 92,
+			maxHeight = 92,
+			cornerRadius = 2,
+			valign = "center",
+			halign = "center",
+		},
+		{
+			selectors = {"moduleDetails"},
+			color = "@fg",
+			fontFace = "@label",
+			fontSize = 12,
+			width = "auto",
+			height = "auto",
+			vmargin = 4,
+			maxWidth = 160,
+			maxHeight = 90,
+			halign = "left",
+			valign = "top",
+			textOverflow = "ellipsis",
+		},
+
+		{
+			selectors = {"publishedLabel"},
+			hidden = 1,
+		},
+		{
+			selectors = {"publishedLabel", "published"},
+		--	hidden = 0,
+			color = "@fgStrong",
+			fontSize = 12,
+			halign = "right",
+			valign = "bottom",
+			width = "auto",
+			height = "auto",
+		},
+		{
+			selectors = {"installCountLabel"},
+			fontSize = 16,
+			minFontSize = 12,
+			color = "@fg",
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			hmargin = 2,
+		},
+
+		{
+			selectors = {"installCountIcon"},
+			width = 16,
+			height = 16,
+			bgcolor = "white",
+			bgimage = "ui-icons/downloadicon.png",
+
+		},
+
+		{
+			selectors = {"upvoteCountIcon"},
+			width = 16,
+			height = 16,
+			bgcolor = "white",
+			bgimage = "ui-icons/heartunclicked.png",
+
+		},
+
+		{
+			selectors = {"upvoteCountIcon", "upvoted"},
+			bgimage = "ui-icons/heartclicked.png",
+		},
+
+		{
+			selectors = {"installCountPanel"},
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+		},
+
+		{
+			selectors = {"pagingArrow"},
+			bgimage = "panels/InventoryArrow.png",
+			bgcolor = "white",
+			height = 40,
+			width = 20,
+			hmargin = 4,
+			halign = "center",
+		},
+
+		{
+			selectors = {"pagingArrow", "hover"},
+			brightness = 1.5,
+		},
+
+		-- Pill-bar styling for the tab strip: only the end options get
+		-- rounded corners, and middle options drop their left/right borders
+		-- so the strip reads as one continuous control. cornerRadius pairs
+		-- the corners by diagonal: x1 = top-left, x2 = bottom-right (TL-BR
+		-- diagonal); y1 = top-right, y2 = bottom-left (TR-BL diagonal).
+		-- border keys are (x1, x2, y1, y2) = (left, right, bottom, top).
+		-- The two-selector specificity beats the rounded theme variant's
+		-- flat `enumSliderOption` cornerRadius rule.
+		{
+			selectors = {"enumSliderOption", "firstOption"},
+			cornerRadius = {x1 = 5, x2 = 0, y1 = 0, y2 = 5},
+			border = {x1 = 2, x2 = 0, y1 = 2, y2 = 2},
+		},
+		{
+			selectors = {"enumSliderOption", "middleOption"},
+			cornerRadius = 0,
+			border = {x1 = 0, x2 = 0, y1 = 2, y2 = 2},
+		},
+		{
+			selectors = {"enumSliderOption", "lastOption"},
+			cornerRadius = {x1 = 0, x2 = 5, y1 = 5, y2 = 0},
+			border = {x1 = 0, x2 = 2, y1 = 2, y2 = 2},
+		},
+
+}
+
 mod.shared.ShowDownloadShareDialog = function(options)
 	options = options or {}
 
@@ -4400,204 +4605,6 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		pagingSection,
 	}
 
-	local moduleDisplayCustomStyles = {
-
-			{
-				selectors = {"moduleItem"},
-				width = 312,
-				height = 138,
-				pad = 6,
-				halign = "left",
-				valign = "top",
-				margin = 8,
-				flow = "vertical",
-			},
-			{
-				selectors = {"moduleItem", "loaded"},
-			},
-			{
-				selectors = {"moduleItem", "installed"},
-			},
-			{
-				selectors = {"moduleItem", "published"},
-			},
-			{
-				selectors = {"moduleItem", "hover"},
-				brightness = 1.8,
-				transitionTime = 0.1,
-			},
-			{
-				selectors = {"moduleHeading"},
-				color = "@fgStrong",
-				fontFace = "@heading",
-				fontSize = 18,
-				minFontSize = 14,
-				fontWeight = "light",
-				maxWidth = 230,
-				width = "auto",
-				halign = "left",
-				valign = "top",
-				height = 24,
-				wrap = false,
-				textOverflow = "truncate",
-			},
-			{
-				selectors = {"moduleHeadingDivider"},
-				bgimage = "panels/square.png",
-				bgcolor = "@border",
-				width = 240,
-				height = 1,
-				vmargin = 1,
-				halign = "left",
-			},
-			{
-				selectors = {"installCheck"},
-				hidden = 1,
-				bgcolor = "white",
-				width = 20,
-				height = 20,
-				hmargin = 6,
-				valign = "center",
-				bgimage = "ui-icons/module-checkmark.png",
-			},
-			{
-				selectors = {"installCheck", "installed"},
-				hidden = 0,
-			},
-			{
-				selectors = {"moduleAuthor"},
-				color = "@fgMuted",
-				fontSize = 12,
-				width = "auto",
-				maxWidth = 160,
-				height = 14,
-				halign = "right",
-				valign = "bottom",
-				italics = true,
-				wrap = false,
-				textOverflow = "ellipsis",
-			},
-			{
-				selectors = {"moduleIcon"},
-				bgcolor = "white",
-				width = "auto",
-				height = "auto",
-				maxWidth = 92,
-				maxHeight = 92,
-				cornerRadius = 2,
-				valign = "center",
-				halign = "center",
-			},
-			{
-				selectors = {"moduleDetails"},
-				color = "@fg",
-				fontFace = "@label",
-				fontSize = 12,
-				width = "auto",
-				height = "auto",
-				vmargin = 4,
-				maxWidth = 160,
-				maxHeight = 90,
-				halign = "left",
-				valign = "top",
-				textOverflow = "ellipsis",
-			},
-
-			{
-				selectors = {"publishedLabel"},
-				hidden = 1,
-			},
-			{
-				selectors = {"publishedLabel", "published"},
-			--	hidden = 0,
-				color = "@fgStrong",
-				fontSize = 12,
-				halign = "right",
-				valign = "bottom",
-				width = "auto",
-				height = "auto",
-			},
-			{
-				selectors = {"installCountLabel"},
-				fontSize = 16,
-				minFontSize = 12,
-				color = "@fg",
-				width = "auto",
-				height = "auto",
-				valign = "center",
-				hmargin = 2,
-			},
-
-			{
-				selectors = {"installCountIcon"},
-				width = 16,
-				height = 16,
-				bgcolor = "white",
-				bgimage = "ui-icons/downloadicon.png",
-
-			},
-
-			{
-				selectors = {"upvoteCountIcon"},
-				width = 16,
-				height = 16,
-				bgcolor = "white",
-				bgimage = "ui-icons/heartunclicked.png",
-
-			},
-
-			{
-				selectors = {"upvoteCountIcon", "upvoted"},
-				bgimage = "ui-icons/heartclicked.png",
-			},
-
-			{
-				selectors = {"installCountPanel"},
-				width = "auto",
-				height = "auto",
-				flow = "horizontal",
-			},
-
-			{
-				selectors = {"pagingArrow"},
-				bgimage = "panels/InventoryArrow.png",
-				bgcolor = "white",
-				height = 40,
-				width = 20,
-				hmargin = 4,
-				halign = "center",
-			},
-
-			{
-				selectors = {"pagingArrow", "hover"},
-				brightness = 1.5,
-			},
-
-			-- Pill-bar styling for the tab strip: only the end options get
-			-- rounded corners, and middle options drop their left/right borders
-			-- so the strip reads as one continuous control. cornerRadius pairs
-			-- the corners by diagonal: x1 = top-left, x2 = bottom-right (TL-BR
-			-- diagonal); y1 = top-right, y2 = bottom-left (TR-BL diagonal).
-			-- border keys are (x1, x2, y1, y2) = (left, right, bottom, top).
-			-- The two-selector specificity beats the rounded theme variant's
-			-- flat `enumSliderOption` cornerRadius rule.
-			{
-				selectors = {"enumSliderOption", "firstOption"},
-				cornerRadius = {x1 = 5, x2 = 0, y1 = 0, y2 = 5},
-				border = {x1 = 2, x2 = 0, y1 = 2, y2 = 2},
-			},
-			{
-				selectors = {"enumSliderOption", "middleOption"},
-				cornerRadius = 0,
-				border = {x1 = 0, x2 = 0, y1 = 2, y2 = 2},
-			},
-			{
-				selectors = {"enumSliderOption", "lastOption"},
-				cornerRadius = {x1 = 0, x2 = 5, y1 = 5, y2 = 0},
-				border = {x1 = 0, x2 = 2, y1 = 2, y2 = 2},
-			},
-
-	}
 
 	-- Positional classes drive asymmetric corner rounding + adjacent-border
 	-- removal so the strip reads as a single pill bar rather than a row of
@@ -5386,3 +5393,6 @@ Commands.Register{
 --another mod reaches for them.
 ModuleBrowser.CreateModuleSlot = CreateModuleDisplaySlot
 ModuleBrowser.ShowDialog = mod.shared.ShowDownloadShareDialog
+--the card rules a slot needs; apply with ThemeEngine.MergeTokens on whatever
+--panel is hosting the slots.
+ModuleBrowser.moduleStyles = moduleDisplayCustomStyles

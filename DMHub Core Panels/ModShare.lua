@@ -3622,7 +3622,12 @@ local CreateModuleDisplaySlot = function(options)
 	return resultPanel
 end
 
-mod.shared.CreateModuleSlot = CreateModuleDisplaySlot
+--Cross-mod entry points, populated at the end of this file once the dialog
+--exists. mod.shared is scoped to ONE mod, and the account screen that renders
+--these cards lives in DMHub_Titlescreen while this file is DMHub_Core_Panels,
+--so sharing has to go through a global -- the same convention ThemeEngine and
+--CharacterPanel use.
+ModuleBrowser = {}
 
 --options.focusModule (a ModuleLua) opens straight onto that module's detail
 --page instead of the browse grid. Used by the account screen, so clicking a
@@ -5375,3 +5380,9 @@ Commands.Register{
 	ord = 2,
 	dmonly = true,
 }
+
+--Populated here, at the bottom, because ShowDownloadShareDialog is assigned
+--partway down the file and both entry points must exist before anything in
+--another mod reaches for them.
+ModuleBrowser.CreateModuleSlot = CreateModuleDisplaySlot
+ModuleBrowser.ShowDialog = mod.shared.ShowDownloadShareDialog

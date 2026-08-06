@@ -3069,9 +3069,11 @@ local CreatePatreonAccountPanel = function()
 														return
 													end
 													for _,moduleInfo in ipairs(result.items or {}) do
-														local slot = mod.shared.CreateModuleSlot{
+														--ModuleBrowser, not mod.shared: that table is per-mod
+														--and ModShare lives in a different one.
+														local slot = ModuleBrowser.CreateModuleSlot{
 															press = function(info)
-																mod.shared.ShowDownloadShareDialog{focusModule = info}
+																ModuleBrowser.ShowDialog{focusModule = info}
 															end,
 														}
 														slots[#slots+1] = slot

@@ -4293,6 +4293,15 @@ local function CreateTopBar()
                 local dockablePanels = DockablePanel.GetMenuItems()
                 dockablePanels = table.filter(dockablePanels, function(item) return item.text ~= "Development Tools" end)
 
+                --folder submenus (Map Editing) are a different kind of row
+                --than the panel toggles; giving them their own group makes
+                --the context menu insert a divider before them.
+                for _,p in ipairs(dockablePanels) do
+                    if p.submenu ~= nil then
+                        p.group = "folder"
+                    end
+                end
+
                 local locked = dmhub.GetSettingValue("uilocked")
 
                 if locked then
@@ -4320,8 +4329,11 @@ local function CreateTopBar()
                     end
                 end
 
+                --icons so the dock rows align with the panel rows below,
+                --which all carry check gutter + icon + text.
                 table.insert(dockablePanels, 1, {
                     text = "Left Dock",
+                    icon = "phosphor/sidebar-simple.png",
                     check = not dmhub.GetSettingValue("leftdockoffscreen"),
                     group = "panel",
 
@@ -4332,6 +4344,7 @@ local function CreateTopBar()
 
                 table.insert(dockablePanels, 1, {
                     text = "Right Dock",
+                    icon = "phosphor/sidebar-simple.png",
                     check = not dmhub.GetSettingValue("rightdockoffscreen"),
                     group = "panel",
 

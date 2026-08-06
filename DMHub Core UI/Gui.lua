@@ -2915,7 +2915,9 @@ function gui.ContextMenuItem(args, params)
 		checkPanel = gui.Panel{
 			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
-			bgimage = "icons/icon_common/icon_common_29.png",
+			--phosphor's geometric check rather than the hand-drawn
+			--icon_common_29 tick, matching the icon set used elsewhere.
+			bgimage = "phosphor/check-bold.png",
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -3077,9 +3079,13 @@ function gui.ContextMenu(args)
 				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
+			--invisible when unchecked, NOT faintly visible: a ghost check on
+			--every row reads as noise in long menus (e.g. Panels). The panel
+			--keeps its 16px slot so labels stay aligned, and the parent:hover
+			--rule below still previews the check on the hovered row.
 			{
 				selectors = {'contextMenuCheck'},
-				opacity = 0.1,
+				opacity = 0,
 			},
 			{
 				selectors = {'contextMenuCheck', 'checked'},

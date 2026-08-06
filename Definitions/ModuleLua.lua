@@ -10,8 +10,9 @@
 --- @field coverDocumentId string 
 --- @field coverart any 
 --- @field owned boolean 
---- @field premium boolean 
---- @field published boolean 
+--- @field premium boolean
+--- @field hasAccessThroughPatreon boolean True if a Patreon membership grants this account access to this module: it is published under a creator organization we are entitled to, and that organization includes it with membership. A premium module is normally hidden on builds with no store; this is the second route past that, so patrons can see and install what they were granted.
+--- @field published boolean
 --- @field deleted boolean 
 --- @field deprecated boolean True if an administrator has deprecated this module. A deprecated module is disabled in every game by default, but the user may explicitly enable it again with SetDisabled(false). Read-only: deprecation is set by an offline admin script.
 --- @field deprecationOverridden boolean True if this module is deprecated but this game has explicitly enabled it anyway. Only meaningful when deprecated is true.

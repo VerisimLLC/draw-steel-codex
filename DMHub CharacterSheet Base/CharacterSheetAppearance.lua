@@ -2697,6 +2697,10 @@ function CharSheet.AppearancePanel()
                     hmargin = 32,
                     autoplay = true,
                     refreshAppearance = function(element, info)
+                        --apply the token's configured anthem volume BEFORE assigning value:
+                        --setting value runs the AudioEditor's SetValue -> UpdateAutoplay, which
+                        --starts the preview at autoplayVolume, which defaults to 1 (max).
+                        element:FireEvent("volume", CharacterSheet.instance.data.info.token.anthemVolume or 1)
                         element.value = CharacterSheet.instance.data.info.token.anthem
                     end,
                     change = function(element)

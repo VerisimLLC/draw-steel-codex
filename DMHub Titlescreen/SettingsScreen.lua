@@ -579,6 +579,7 @@ local function CreateLocalAssetsSection()
 			gui.Label{
 				classes = {"form"},
 				width = 26,
+				minWidth = 26,
 				halign = "left",
 				valign = "center",
 				fontSize = 14,
@@ -788,7 +789,328 @@ local function CreateLocalAssetsSection()
 		end,
 	}
 
-	return {
+	--------------------------------------------------------------------
+	--File browser (multi-dir Phase 2): a collapsible, lazily-built tree per
+	--configured directory driven by the engine's live index via
+	--dmhub.LocalAssetsFileTree, plus a search box over ids, display names
+	--and filenames via dmhub.LocalAssetsSearch. Children are built only when
+	--a node expands, and a directory node re-fetches its tree on every
+	--expand, so the view stays fresh without polling. Clicking a row reveals
+	--the file in the OS file browser. Only shown when local assets mode is
+	--actually active (the index lives in the running LocalAssetDirectory)
+	--and the engine has the browser bridges.
+	--------------------------------------------------------------------
+
+	local function CreateFileBrowser()
+		if dmhub.LocalAssetsFileTree == nil then
+			return nil --engine build predates the browser bridges.
+		end
+
+		local status = dmhub.LocalAssetsStatus()
+		if status == nil or (not status.active) or status.directories == nil then
+			return nil
+		end
+
+		local browserStyles = {
+			gui.Style{
+				selectors = {"latree-row"},
+				bgcolor = "clear",
+			},
+			gui.Style{
+				selectors = {"latree-row", "hover"},
+				bgcolor = "#ffffff22",
+			},
+		}
+
+		--attached DIRECTLY to each triangle panel, with a selector-less base
+		--rule, matching every working triangle in the codebase (gui.TreeNode,
+		--ModShare, ClassEditor). Cascading these rules down from an ancestor
+		--styles list left the rotate unapplied -- the triangles rendered but
+		--always pointed down.
+		local triangleStyles = {
+			gui.Style{
+				width = 10,
+				height = 10,
+				hmargin = 4,
+				valign = "center",
+				rotate = 90,
+			},
+			gui.Style{
+				selectors = {"expanded"},
+				rotate = 0,
+				transitionTime = 0.2,
+			},
+		}
+
+		--one clickable row for an item file. entry comes from
+		--LocalAssetsFileTree or LocalAssetsSearch; detail is optional extra
+		--dim text appended after the filename (search attribution).
+		local function FileRow(entry, detail)
+			local nameText = entry.displayName or entry.id or entry.fileName
+			local fileText = entry.fileName
+			if entry.shadowed then
+				fileText = fileText .. " (shadowed)"
+			end
+			if detail ~= nil then
+				fileText = fileText .. "  " .. detail
+			end
+			return gui.Panel{
+				classes = {"latree-row"},
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				bgimage = "panels/square.png",
+				click = function(element)
+					dmhub.RevealInFileBrowser(entry.path)
+				end,
+				gui.Label{
+					width = "45%",
+					height = "auto",
+					fontSize = 13,
+					valign = "center",
+					italics = entry.shadowed,
+					opacity = cond(entry.shadowed, 0.6, 1),
+					text = nameText,
+				},
+				gui.Label{
+					width = "55%",
+					height = "auto",
+					fontSize = 12,
+					valign = "center",
+					opacity = 0.6,
+					italics = entry.shadowed,
+					text = fileText,
+				},
+			}
+		end
+
+		--a collapsible node: a header row with a triangle. buildChildren()
+		--runs fresh on every expand; collapse clears the children so large
+		--trees never linger in the hierarchy.
+		local function TreeNode(labelText, countText, buildChildren)
+			local expanded = false
+			local triangle = gui.Panel{
+				bgimage = "panels/triangle.png",
+				--inline, not in triangleStyles: something in the settings
+				--sheet's style cascade was overriding the style-rule bgcolor
+				--to black; inline properties win.
+				bgcolor = "white",
+				styles = triangleStyles,
+			}
+			local childrenPanel = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				lmargin = 16,
+			}
+			local header = gui.Panel{
+				classes = {"latree-row"},
+				flow = "horizontal",
+				width = "100%",
+				height = 22,
+				bgimage = "panels/square.png",
+				click = function(element)
+					expanded = not expanded
+					triangle:SetClass("expanded", expanded)
+					if expanded then
+						childrenPanel.children = buildChildren()
+					else
+						childrenPanel.children = {}
+					end
+				end,
+				triangle,
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 14,
+					valign = "center",
+					text = labelText,
+				},
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 12,
+					valign = "center",
+					hmargin = 6,
+					opacity = 0.6,
+					text = countText or "",
+				},
+			}
+			return gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				header,
+				childrenPanel,
+			}
+		end
+
+		local function NoteLabel(text)
+			return gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				italics = true,
+				opacity = 0.6,
+				text = text,
+			}
+		end
+
+		--item rows are capped per node; anything bigger is what search is for.
+		local MaxRowsPerNode = 500
+
+		local function BuildItemRows(items)
+			local rows = {}
+			for i,entry in ipairs(items) do
+				if i > MaxRowsPerNode then
+					rows[#rows+1] = NoteLabel(string.format("... and %d more; use search to narrow down.", #items - MaxRowsPerNode))
+					break
+				end
+				rows[#rows+1] = FileRow(entry)
+			end
+			return rows
+		end
+
+		--category data is captured when the directory node fetches its tree;
+		--expanding the directory again re-fetches everything beneath it.
+		local function CategoryNode(cat)
+			local total = #cat.items
+			for _,c in ipairs(cat.containers) do
+				total = total + #c.items
+			end
+			return TreeNode(cat.name, string.format("(%d)", total), function()
+				local children = {}
+				for _,c in ipairs(cat.containers) do
+					children[#children+1] = TreeNode(c.displayName or c.id, string.format("(%d)", #c.items), function()
+						return BuildItemRows(c.items)
+					end)
+				end
+				for _,row in ipairs(BuildItemRows(cat.items)) do
+					children[#children+1] = row
+				end
+				return children
+			end)
+		end
+
+		local function DirectoryNode(dirIndex, dirPath)
+			return TreeNode(string.format("%d. %s", dirIndex, dirPath), nil, function()
+				local tree = dmhub.LocalAssetsFileTree(dirIndex)
+				if tree == nil then
+					return { NoteLabel("Could not read the directory index.") }
+				end
+				local children = {}
+				for _,cat in ipairs(tree.categories) do
+					children[#children+1] = CategoryNode(cat)
+				end
+				if #children == 0 then
+					children[1] = NoteLabel("No indexed files in this directory.")
+				end
+				return children
+			end)
+		end
+
+		local function BuildDirectoryNodes()
+			local nodes = {}
+			local liveStatus = dmhub.LocalAssetsStatus()
+			if liveStatus ~= nil and liveStatus.active and liveStatus.directories ~= nil then
+				for i,dir in ipairs(liveStatus.directories) do
+					nodes[#nodes+1] = DirectoryNode(i, dir)
+				end
+			end
+			return nodes
+		end
+
+		--the trees rebuild when the directory settings change (e.g. a live
+		--reorder renumbers the directories).
+		local treesArgs = {
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			multimonitor = {"localassets:dirs", "localassets:dir"},
+			events = {
+				monitor = function(element)
+					element.children = BuildDirectoryNodes()
+				end,
+			},
+		}
+		for _,node in ipairs(BuildDirectoryNodes()) do
+			treesArgs[#treesArgs+1] = node
+		end
+		local treesPanel = gui.Panel(treesArgs)
+
+		local searchResultsPanel = gui.Panel{
+			classes = {"collapsed"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+		}
+
+		local MaxSearchRows = 100
+
+		local searchInput = gui.Input{
+			width = 280,
+			height = 24,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			placeholderText = "Search ids, names, filenames...",
+			editlag = 0.25,
+			edit = function(element)
+				local text = element.text
+				if text == nil or #text < 2 then
+					searchResultsPanel.children = {}
+					searchResultsPanel:SetClass("collapsed", true)
+					treesPanel:SetClass("collapsed", false)
+					return
+				end
+
+				local results = dmhub.LocalAssetsSearch(text) or {}
+				local rows = {}
+				for i,entry in ipairs(results) do
+					if i > MaxSearchRows then
+						break
+					end
+					local loc = entry.category
+					if entry.tableid ~= nil then
+						loc = loc .. "/" .. entry.tableid
+					end
+					rows[#rows+1] = FileRow(entry, string.format("[%s]  (dir %d)", loc, entry.dirIndex))
+				end
+				if #rows == 0 then
+					rows[1] = NoteLabel("No matches.")
+				elseif #results > MaxSearchRows then
+					rows[#rows+1] = NoteLabel(string.format("Showing the first %d of %d matches.", MaxSearchRows, #results))
+				end
+				searchResultsPanel.children = rows
+				searchResultsPanel:SetClass("collapsed", false)
+				treesPanel:SetClass("collapsed", true)
+			end,
+		}
+
+		return gui.Panel{
+			flow = "vertical",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 6,
+			styles = browserStyles,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 16,
+				bold = true,
+				vmargin = 4,
+				text = "Browse Files",
+			},
+
+			searchInput,
+			searchResultsPanel,
+			treesPanel,
+		}
+	end
+
+	local resultPanels = {
 		gui.Label{
 			width = "100%",
 			height = 40,
@@ -822,6 +1144,13 @@ local function CreateLocalAssetsSection()
 
 		statusLabel,
 	}
+
+	local browserPanel = CreateFileBrowser()
+	if browserPanel ~= nil then
+		resultPanels[#resultPanels+1] = browserPanel
+	end
+
+	return resultPanels
 end
 
 --Creator Organizations: create an organization (or convert your personal

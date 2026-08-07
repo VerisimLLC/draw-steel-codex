@@ -693,6 +693,20 @@ function dmhub.LocalAssetsApplyDirs()
 	-- dummy implementation for documentation purposes only
 end
 
+--- LocalAssetsFileTree: Returns the indexed contents of one local-assets directory as a tree: categories, then (for nested categories such as objectTables) containers, then items. Each item is { path, fileName, id, displayName, shadowed }; shadowed means a higher-precedence directory's copy of the same item wins. Built from the live index, not a disk walk; categories, containers and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @return { directory: string, categories: { name: string, items: table[], containers: { id: string, displayName: string|nil, metaPath: string|nil, items: table[] }[] }[] }|nil
+function dmhub.LocalAssetsFileTree(dirIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsSearch: Searches the local-assets index -- item ids, display names, container ids and filenames -- across every configured directory. Returns matching files (each copy of a multi-directory item, winner first) with directory attribution: dirIndex is a 1-based index into LocalAssetsStatus().directories. Capped at 200 results. Dev mode only; returns nil when local assets mode is not active.
+--- @param text string Search text; case-insensitive substring match.
+--- @return { path: string, fileName: string, id: string|nil, displayName: string|nil, category: string, tableid: string|nil, dirIndex: number, directory: string, shadowed: boolean }[]|nil
+function dmhub.LocalAssetsSearch(text)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RevealInFileBrowser: Reveals the given file or directory in the operating system's file browser (Windows Explorer / macOS Finder). Dev mode only; does nothing otherwise.
 --- @param path string The directory or file to reveal.
 function dmhub.RevealInFileBrowser(path)

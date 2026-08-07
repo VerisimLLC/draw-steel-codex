@@ -4683,6 +4683,14 @@ end
 
 local g_creatureSetCurrentHitpoints = creature.SetCurrentHitpoints
 function creature.SetCurrentHitpoints(self, amount, note)
+    if type(amount) == 'string' then
+        amount = tonumber(amount)
+    end
+
+    if type(amount) ~= 'number' then
+        return
+    end
+
     if (not mod.unloaded) and self.minion and self:has_key("_tmp_minionSquad") then
         local token = dmhub.LookupToken(self)
         if token ~= nil then

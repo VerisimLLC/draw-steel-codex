@@ -4752,6 +4752,9 @@ local ICON_RAIL_TOP = 64
 --vertical space the dock/tray button and its separator occupy above the
 --panel buttons (button + 12px separator strip). Both rails carry a tray.
 local ICON_RAIL_TRAY_OFFSET = ICON_RAIL_BUTTON + 12
+--the rearrange-mode trash zone: larger than a button so it reads as a
+--zone rather than another slot, floated at the very bottom of the column.
+local ICON_RAIL_TRASH = 60
 
 --the two rails, keyed "left"/"right".
 local g_iconRails = {}
@@ -4790,9 +4793,23 @@ local function IconRailUIWidth()
     return 1080 * (dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y)
 end
 
+--the height of the rail's coordinate space, measured the same way (the
+--layer is ~1048 units tall, not 1080; see IconRailUIWidth).
+local function IconRailUIHeight()
+    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+        local h = GameHud.instance.documentsPanel.renderedHeight
+        if type(h) == "number" and h > 100 then
+            return h
+        end
+    end
+    return 1080
+end
+
 --Buttons occupy SLOTS on their rail: a sparse column where empty slots
 --render as gaps, so users can leave blank spots between buttons. Slot
---pitch is one button plus one gap.
+--pitch is one button plus one gap. MAX_SLOT is the rearrange-drop clamp:
+--slot 16 bottoms out around y=924 in the ~1048-unit-tall layer, keeping
+--every droppable slot clear of the trash zone at the column's foot.
 local ICON_RAIL_MAX_SLOT = 16
 
 --The current button layout. Returns TWO values:
@@ -4900,14 +4917,32 @@ local function RailLayout()
             end
             return a.ord < b.ord
         end)
-        --Dense list: the rail always packs from the top with no gaps. The
-        --stored slot only drives the sort above; blank spacer slots are not
-        --preserved. (Prototype of the dense-list reorder model -- reordering
-        --shifts neighbours by one and never opens a hole, matching how a
-        --tab strip / bookmark bar / dock behaves.)
-        for i, e in ipairs(sideList) do
-            e.slot = i - 1
+        --Sparse column: entries KEEP their stored slots, so empty slots
+        --render as gaps and rearrange mode can drop into them (the
+        --dense-list experiment that repacked from the top is retired --
+        --blank spots are part of the layout again). Slot collisions bump
+        --downward to the next free slot; legacy/default entries (ord, no
+        --slot) fill the lowest free slots in order.
+        local used = {}
+        local nextFree = 0
+        for _, e in ipairs(sideList) do
+            local s = e.slot
+            if s == nil then
+                s = nextFree
+            end
+            while used[s] do
+                s = s + 1
+            end
+            used[s] = true
+            e.slot = s
+            while used[nextFree] do
+                nextFree = nextFree + 1
+            end
         end
+        --a slotless entry may have been assigned a gap ABOVE slotted
+        --entries; consumers (button construction's margin chain) need
+        --the list in final-slot order.
+        table.sort(sideList, function(a, b) return a.slot < b.slot end)
     end
     return sides, inert
 end
@@ -4967,14 +5002,12 @@ local function RailDropTarget(side, slot, element)
     if targetSlot < 0 then
         targetSlot = 0
     end
-    --Dense list: you can only drop between existing icons or at the end, so
-    --clamp to the target rail's length. This keeps the ghost preview in step
-    --with where the drop actually lands -- no aiming into empty space and
-    --getting snapped back to the tail.
-    local sides = RailLayout()
-    local count = #(sides[targetSide] or {})
-    if targetSlot > count then
-        targetSlot = count
+    --Sparse column: empty slots are legitimate targets -- aiming into the
+    --blank space below the last icon lands there and stays there. Only
+    --the column's capacity clamps the drop, which also keeps every
+    --droppable slot clear of the trash zone at the bottom.
+    if targetSlot > ICON_RAIL_MAX_SLOT then
+        targetSlot = ICON_RAIL_MAX_SLOT
     end
     return targetSide, targetSlot
 end
@@ -4997,11 +5030,20 @@ local function DocumentsLayer()
     return panel
 end
 
---the drag ghost panel and its helpers live below IconRailStyles, which
---they depend on.
+--the drag ghost panels and their helpers live below IconRailStyles,
+--which they depend on. TWO ghosts for the two drop behaviors: the
+--dotted BOX previews landing in an empty slot, the thin LINE previews
+--inserting between existing buttons.
 local g_railDragGhost = nil
+local g_railDragGhostLine = nil
 local ShowRailGhost
 local HideRailGhost
+--the rearrange-mode trash zones, keyed "left"/"right". They are LAYER
+--children beside the rails, not rail children: the rail is a vertical
+--flow sized to its content, and giving it a fixed full-column height
+--to anchor a bottom trash makes the flow distribute the buttons across
+--it (field-tested: the icons spread apart and the slot geometry broke).
+local g_railTrashZones = {}
 
 --Whether a slot on a side holds a button other than excludeKey (the
 --dragged button's own slot never reads as occupied).
@@ -5245,6 +5287,80 @@ local function IconRailStyles()
             selectors = {"iconRailGhostDash"},
             bgcolor = "#ffffff8c",
         },
+        --rearrange mode: every button rocks between +/-3 degrees AND
+        --breathes between 97% and 103% scale (the iOS home-screen
+        --wiggle). Rotation and scale run on separate event loops with
+        --different periods ("wiggle" / "wigglePulse"), so their phases
+        --drift against each other and the motion reads organic rather
+        --than metronomic; neighbours also start desynced. The cascade
+        --is per-property: wigglePhase overrides only rotate, pulsePhase
+        --only scale, both inheriting the rest from the base rule.
+        {
+            selectors = {"iconRailButton", "rearranging"},
+            rotate = 3,
+            scale = 1.03,
+            transitionTime = 0.12,
+        },
+        {
+            selectors = {"iconRailButton", "rearranging", "wigglePhase"},
+            rotate = -3,
+        },
+        {
+            selectors = {"iconRailButton", "rearranging", "pulsePhase"},
+            scale = 0.97,
+        },
+        --the stop-rearranging X: the one deliberately coloured control
+        --on the monochrome rail, so "exit this mode" cannot be read as
+        --just another wiggling icon.
+        {
+            selectors = {"iconRailStopButton"},
+            bgcolor = "#8c1d2bcc",
+            border = 0,
+            cornerRadius = 8,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailStopButton", "hover"},
+            bgcolor = "#b3243aee",
+        },
+        {
+            selectors = {"iconRailStopIcon"},
+            bgcolor = "#ffffff",
+            transitionTime = 0.15,
+        },
+        --the trash drop zone: quiet until a dragged button is over it,
+        --then red to signal the destructive drop. priority 6 outranks
+        --the global drag-target styles (priority 5 in DefaultStyles),
+        --which would otherwise accent-tint it like any drop target.
+        {
+            selectors = {"iconRailTrash"},
+            bgcolor = "#000000cc",
+            border = 0,
+            cornerRadius = 12,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailTrash", "drag-target"},
+            bgcolor = "#000000cc",
+            priority = 6,
+        },
+        {
+            selectors = {"iconRailTrash", "drag-target-hover"},
+            bgcolor = "#8c1d2bee",
+            borderWidth = 2,
+            borderColor = "#ff4a5c",
+            priority = 6,
+        },
+        {
+            selectors = {"iconRailTrashIcon"},
+            bgcolor = "@fg",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailTrashIcon", "parent:drag-target-hover"},
+            bgcolor = "#ffffff",
+            priority = 6,
+        },
         --the Views toast box and its text (the chip itself is gone --
         --Lisa+David review 2026-07-19 -- but the toast reuses its look).
         {
@@ -5313,15 +5429,19 @@ HideRailGhost = function()
     if g_railDragGhost ~= nil and g_railDragGhost.valid then
         g_railDragGhost:SetClass("hidden", true)
     end
+    if g_railDragGhostLine ~= nil and g_railDragGhostLine.valid then
+        g_railDragGhostLine:SetClass("hidden", true)
+    end
 end
 
---Live preview of where a dragged button/document will land (Lisa+David
---review 2026-07-19): a lightly filled placeholder box sits at the target
---slot, and when that slot is occupied the buttons from it down SHIFT to
---open a real gap for the box (extra tmargin on the first affected
---button; vertical flow carries everything below it along). excludeKey
---is the dragged button's own key: its slot never reads as occupied and
---it never shifts (the engine is already moving it with the cursor).
+--Live preview of where a dragged button/document will land: a dotted
+--placeholder box sits at the target slot -- including an EMPTY slot in
+--the blank space below the last icon, which the sparse column makes a
+--legitimate target. The rail itself stays still while dragging: no live
+--shuffling (it read as jitter -- Lisa+David review 2026-07-19); a drop
+--on an occupied slot chain-bumps the occupants at drop time instead.
+--excludeKey is accepted for signature compatibility but unused now:
+--nothing shifts, so nothing needs excluding.
 --Build the four dashed edges of the drop placeholder. The engine exposes
 --no dotted border style and ships no dotted 9-slice image, so each edge is
 --a flow of small dash panels; DASH and the gap between dashes are equal, so
@@ -5370,32 +5490,62 @@ ShowRailGhost = function(side, slot, excludeKey)
     if layer == nil then
         return
     end
-    --Insertion LINE (dense-list model): a thin bright bar in the gap where the
-    --dragged icon will land, rather than a box occupying a slot with the
-    --buttons below shoved down. The line reads as "it goes HERE" and the rail
-    --stays still -- no shuffling, which was jittery and reinforced the old
-    --absolute-cell feel. excludeKey is unused now (nothing shifts).
-    if g_railDragGhost == nil or not g_railDragGhost.valid then
-        g_railDragGhost = gui.Panel{
-            classes = {"iconRailGhostLine"},
-            bgimage = "panels/square.png",
-            bgcolor = "#ffffffe0",
-            cornerRadius = 2,
-            width = ICON_RAIL_BUTTON,
-            height = 3,
-            halign = "left",
-            valign = "top",
-            interactable = false,
-        }
-        layer:AddChild(g_railDragGhost)
-    end
 
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
     local slotTop = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+
+    --An OCCUPIED slot gets the insertion LINE in the gap above it ("slots
+    --in between these two"); an EMPTY slot gets the dotted BOX ("lands in
+    --this blank spot") -- matching the two drop behaviors. excludeKey
+    --keeps the dragged button's own slot reading as empty, so hovering
+    --home shows the box it would snap back into.
+    if RailSlotOccupied(side, slot, excludeKey) then
+        if g_railDragGhost ~= nil and g_railDragGhost.valid then
+            g_railDragGhost:SetClass("hidden", true)
+        end
+        if g_railDragGhostLine == nil or not g_railDragGhostLine.valid then
+            g_railDragGhostLine = gui.Panel{
+                classes = {"iconRailGhostLine"},
+                bgimage = "panels/square.png",
+                bgcolor = "#ffffffe0",
+                cornerRadius = 2,
+                width = ICON_RAIL_BUTTON,
+                height = 3,
+                halign = "left",
+                valign = "top",
+                interactable = false,
+            }
+            layer:AddChild(g_railDragGhostLine)
+        end
+        g_railDragGhostLine.x = railX
+        --centred in the gap ABOVE the target slot: the drop inserts just
+        --above that slot's occupant.
+        g_railDragGhostLine.y = slotTop - ICON_RAIL_GAP / 2 - 1
+        g_railDragGhostLine:SetClass("hidden", false)
+        return
+    end
+
+    if g_railDragGhostLine ~= nil and g_railDragGhostLine.valid then
+        g_railDragGhostLine:SetClass("hidden", true)
+    end
+    if g_railDragGhost == nil or not g_railDragGhost.valid then
+        g_railDragGhost = gui.Panel{
+            classes = {"iconRailGhost"},
+            --a layer child sits outside the rails' style cascade, so it
+            --carries the rail styles itself.
+            styles = IconRailStyles(),
+            bgimage = "panels/square.png",
+            width = ICON_RAIL_BUTTON,
+            height = ICON_RAIL_BUTTON,
+            halign = "left",
+            valign = "top",
+            interactable = false,
+            children = DottedOutlineChildren(ICON_RAIL_BUTTON),
+        }
+        layer:AddChild(g_railDragGhost)
+    end
     g_railDragGhost.x = railX
-    --centre the line in the gap ABOVE the target slot (between the previous
-    --icon and this one); slotTop is that slot's top edge.
-    g_railDragGhost.y = slotTop - ICON_RAIL_GAP / 2 - 1
+    g_railDragGhost.y = slotTop
     g_railDragGhost:SetClass("hidden", false)
 end
 
@@ -5534,6 +5684,20 @@ end
 --forward-declared: button drag handlers rebuild the rails.
 local RebuildIconRails
 
+--Rearrange mode (context menu > Rearrange...): the only time rail
+--buttons can be dragged. While on, buttons wiggle, the tray button
+--becomes the red stop-X (Escape also exits), and a trash drop zone
+--appears at the bottom of each rail. Session state, never saved.
+local g_railRearranging = false
+
+local function RailSetRearranging(on)
+    if g_railRearranging == on then
+        return
+    end
+    g_railRearranging = on
+    RebuildIconRails()
+end
+
 --Non-drag rearrangement (accessibility parity, Views brief A9a): the
 --same moves dragging performs, driven from the rail-button context menu.
 --op: "up" | "down" | "side" | "remove".
@@ -5553,7 +5717,7 @@ local function RailMovePanel(key, op)
 
     if op == "up" or op == "down" then
         local target = entry.slot + cond(op == "up", -1, 1)
-        if target < 0 then
+        if target < 0 or target > ICON_RAIL_MAX_SLOT then
             return
         end
         for _, e in ipairs(list) do
@@ -5934,122 +6098,174 @@ local function CreateIconRail(side, entries)
         trayLabelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
     end
 
-    buttons[#buttons + 1] = gui.Panel{
-        classes = {"iconRailButton"},
-        bgimage = true,
-        blurBackground = true,
-        width = ICON_RAIL_BUTTON,
-        height = ICON_RAIL_BUTTON,
-        flow = "none",
-        swallowPress = true,
-        --empty data so the drag-reflow sweeps can read .data on every
-        --rail child without the engine logging index errors.
-        data = {},
-
-        gui.Panel{
-            classes = trayIconClasses,
-            --square: phosphor glyphs are square art, unlike the 14x28 handle.
-            bgimage = "phosphor/sidebar-simple-light.png",
-            width = 20,
-            height = 20,
-            halign = "center",
-            valign = "center",
-        },
-
-        gui.Label{
-            classes = {"iconRailLabel"},
-            floating = true,
-            --the label opens over whatever the rail sits next to, and rail
-            --windows left open sit between it and the viewer -- so it drew
-            --BEHIND them and was unreadable. renderOnTop puts it on the
-            --top-most sorting canvas.
-            renderOnTop = true,
-            x = trayLabelArgs.x,
-            halign = trayLabelArgs.halign,
-            valign = "center",
-            interactable = false,
+    --Rearrange mode replaces the dock/tray button with the STOP button:
+    --a red X -- the one deliberately coloured control on the monochrome
+    --rail, so "exit this mode" cannot be read as another wiggling icon.
+    --Same footprint as the tray, so the buttons below do not move and
+    --the slot geometry (RailDropTarget) stays valid. Escape exits the
+    --mode too: escapeActivates fires this panel's click handler.
+    if g_railRearranging then
+        buttons[#buttons + 1] = gui.Panel{
+            classes = {"iconRailButton", "iconRailStopButton"},
             bgimage = true,
-            text = "DOCK",
-            width = "auto",
-            height = "auto",
-            hpad = 8,
-            vpad = 4,
-            borderBox = true,
-            textWrap = false,
-        },
+            blurBackground = true,
+            width = ICON_RAIL_BUTTON,
+            height = ICON_RAIL_BUTTON,
+            flow = "none",
+            swallowPress = true,
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            data = {},
 
-        click = function(element)
-            local restoring = dmhub.GetSettingValue(dockSettingId) == true
-            if restoring then
-                --the dock mirrors this rail: same panels, same order --
-                --and it takes over hosting them, so this side's open
-                --rail windows close (pins stay saved in the setting).
-                local entries = RailLayout()[side]
-                local names = {}
-                for _, e in ipairs(entries) do
-                    --only registered panels can live in a dock; document
-                    --and character shortcuts stay rail-only.
-                    if e.docid == nil and e.charid == nil then
-                        names[#names + 1] = e.name
-                    end
-                end
-                DockablePanel.SetDockPanels(side, names)
-                for _, e in ipairs(entries) do
-                    local doc = RailPanelDocument(e.key)
-                    if doc ~= nil and doc:PresentDocumentOpen() then
-                        if g_railTransientKey == e.key then
-                            g_railTransientKey = nil
+            gui.Panel{
+                classes = {"iconRailStopIcon"},
+                bgimage = "phosphor/x-bold.png",
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+            },
+
+            gui.Label{
+                classes = {"iconRailLabel"},
+                floating = true,
+                renderOnTop = true,
+                x = trayLabelArgs.x,
+                halign = trayLabelArgs.halign,
+                valign = "center",
+                interactable = false,
+                bgimage = true,
+                text = "STOP REARRANGING",
+                width = "auto",
+                height = "auto",
+                hpad = 8,
+                vpad = 4,
+                borderBox = true,
+                textWrap = false,
+            },
+
+            click = function(element)
+                RailSetRearranging(false)
+            end,
+        }
+    else
+        buttons[#buttons + 1] = gui.Panel{
+            classes = {"iconRailButton"},
+            bgimage = true,
+            blurBackground = true,
+            width = ICON_RAIL_BUTTON,
+            height = ICON_RAIL_BUTTON,
+            flow = "none",
+            swallowPress = true,
+            --empty data so the drag-reflow sweeps can read .data on every
+            --rail child without the engine logging index errors.
+            data = {},
+
+            gui.Panel{
+                classes = trayIconClasses,
+                --square: phosphor glyphs are square art, unlike the 14x28 handle.
+                bgimage = "phosphor/sidebar-simple-light.png",
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+            },
+
+            gui.Label{
+                classes = {"iconRailLabel"},
+                floating = true,
+                --the label opens over whatever the rail sits next to, and rail
+                --windows left open sit between it and the viewer -- so it drew
+                --BEHIND them and was unreadable. renderOnTop puts it on the
+                --top-most sorting canvas.
+                renderOnTop = true,
+                x = trayLabelArgs.x,
+                halign = trayLabelArgs.halign,
+                valign = "center",
+                interactable = false,
+                bgimage = true,
+                text = "DOCK",
+                width = "auto",
+                height = "auto",
+                hpad = 8,
+                vpad = 4,
+                borderBox = true,
+                textWrap = false,
+            },
+
+            click = function(element)
+                local restoring = dmhub.GetSettingValue(dockSettingId) == true
+                if restoring then
+                    --the dock mirrors this rail: same panels, same order --
+                    --and it takes over hosting them, so this side's open
+                    --rail windows close (pins stay saved in the setting).
+                    local entries = RailLayout()[side]
+                    local names = {}
+                    for _, e in ipairs(entries) do
+                        --only registered panels can live in a dock; document
+                        --and character shortcuts stay rail-only.
+                        if e.docid == nil and e.charid == nil then
+                            names[#names + 1] = e.name
                         end
-                        doc:ClosePanel()
+                    end
+                    DockablePanel.SetDockPanels(side, names)
+                    for _, e in ipairs(entries) do
+                        local doc = RailPanelDocument(e.key)
+                        if doc ~= nil and doc:PresentDocumentOpen() then
+                            if g_railTransientKey == e.key then
+                                g_railTransientKey = nil
+                            end
+                            doc:ClosePanel()
+                        end
                     end
                 end
-            end
-            dmhub.SetSettingValue(dockSettingId, not dmhub.GetSettingValue(dockSettingId))
-            element:FireEvent("refreshRail")
-            for _, rail in pairs(g_iconRails) do
-                if rail ~= nil and rail.valid then
-                    rail:FireEvent("syncDockMode")
+                dmhub.SetSettingValue(dockSettingId, not dmhub.GetSettingValue(dockSettingId))
+                element:FireEvent("refreshRail")
+                for _, rail in pairs(g_iconRails) do
+                    if rail ~= nil and rail.valid then
+                        rail:FireEvent("syncDockMode")
+                    end
                 end
-            end
-        end,
+            end,
 
-        refreshRail = function(element)
-            element:SetClass("active", not dmhub.GetSettingValue(dockSettingId))
-        end,
+            refreshRail = function(element)
+                element:SetClass("active", not dmhub.GetSettingValue(dockSettingId))
+            end,
 
-        --right-click the tray: add any available panel to this rail
-        --(the inverse of "Remove from rail", and the door for the ~40
-        --registered panels beyond the curated defaults).
-        rightClick = function(element)
-            local onRail = {}
-            local sides = RailLayout()
-            for _, l in pairs(sides) do
-                for _, e in ipairs(l) do
-                    onRail[e.key] = true
+            --right-click the tray: add any available panel to this rail
+            --(the inverse of "Remove from rail", and the door for the ~40
+            --registered panels beyond the curated defaults).
+            rightClick = function(element)
+                local onRail = {}
+                local sides = RailLayout()
+                for _, l in pairs(sides) do
+                    for _, e in ipairs(l) do
+                        onRail[e.key] = true
+                    end
                 end
-            end
-            local entries = {}
-            local items = DockablePanel.GetMenuItems(true)
-            table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
-            for _, item in ipairs(items) do
-                local name = item.text
-                if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
-                    entries[#entries + 1] = {
-                        text = "Add: " .. name,
-                        click = function()
-                            element.popup = nil
-                            RailAddPanel(name, side)
-                        end,
+                local entries = {}
+                local items = DockablePanel.GetMenuItems(true)
+                table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
+                for _, item in ipairs(items) do
+                    local name = item.text
+                    if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
+                        entries[#entries + 1] = {
+                            text = "Add: " .. name,
+                            click = function()
+                                element.popup = nil
+                                RailAddPanel(name, side)
+                            end,
+                        }
+                    end
+                end
+                if #entries > 0 then
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
                     }
                 end
-            end
-            if #entries > 0 then
-                element.popup = gui.ContextMenu{
-                    entries = entries,
-                }
-            end
-        end,
-    }
+            end,
+        }
+    end
 
     --separator between the tray button and the panel icons; pointless on
     --a rail with no panel buttons (a fresh right rail is just the tray).
@@ -6146,6 +6362,18 @@ local function CreateIconRail(side, entries)
             buttonClasses[#buttonClasses + 1] = "justDropped"
             g_railJustDropped = nil
         end
+        --rearrange mode: wiggle, with neighbours desynced from the
+        --start (odd slots begin counter-tilted, alternating pairs
+        --begin contracted).
+        if g_railRearranging then
+            buttonClasses[#buttonClasses + 1] = "rearranging"
+            if index % 2 == 1 then
+                buttonClasses[#buttonClasses + 1] = "wigglePhase"
+            end
+            if index % 4 >= 2 then
+                buttonClasses[#buttonClasses + 1] = "pulsePhase"
+            end
+        end
 
         buttons[#buttons + 1] = gui.Panel{
             classes = buttonClasses,
@@ -6168,9 +6396,34 @@ local function CreateIconRail(side, entries)
                 if element:HasClass("justDropped") then
                     element:ScheduleEvent("settleDrop", 0.05)
                 end
+                if g_railRearranging then
+                    --stagger the first flips by slot so the rail
+                    --shimmers rather than ticking in lockstep.
+                    element:ScheduleEvent("wiggle", 0.12 + (index % 3) * 0.04)
+                    element:ScheduleEvent("wigglePulse", 0.17 + (index % 4) * 0.05)
+                end
             end,
             settleDrop = function(element)
                 element:SetClass("justDropped", false)
+            end,
+            --the rearrange-mode wiggle: two loops on different periods
+            --("wiggle" flips the tilt, "wigglePulse" the scale) so the
+            --phases drift and the motion stays organic. The loops die
+            --with the button -- exiting the mode rebuilds the rails --
+            --but guard anyway for events landing mid-teardown.
+            wiggle = function(element)
+                if mod.unloaded or not g_railRearranging or not element.valid then
+                    return
+                end
+                element:SetClass("wigglePhase", not element:HasClass("wigglePhase"))
+                element:ScheduleEvent("wiggle", 0.12)
+            end,
+            wigglePulse = function(element)
+                if mod.unloaded or not g_railRearranging or not element.valid then
+                    return
+                end
+                element:SetClass("pulsePhase", not element:HasClass("pulsePhase"))
+                element:ScheduleEvent("wigglePulse", 0.17)
             end,
 
             gui.Panel{
@@ -6226,43 +6479,67 @@ local function CreateIconRail(side, entries)
                 textWrap = false,
             },
 
-            --drag a button to rearrange: drop position decides which rail
-            --it lands on (screen half) and which slot. While dragging, a
-            --placeholder box marks the landing slot and occupied buttons
-            --below shift down live to open the gap. Empty slots stay
-            --empty (blank spots are part of the layout); dropping onto an
-            --occupied slot bumps the occupant down.
-            draggable = true,
-            dragging = function(element)
+            --Buttons can only be dragged in rearrange mode (context
+            --menu > Rearrange...). Drop position decides which rail it
+            --lands on (screen half) and which slot. The drop is hybrid:
+            --an EMPTY slot takes the button as-is (leaving a hole
+            --behind), an OCCUPIED slot means "insert in between" and
+            --shuffles the run without creating holes. The ghost
+            --previews which one you will get (dotted box vs insertion
+            --line). Dropping on the trash zone removes the button from
+            --the rail instead.
+            draggable = g_railRearranging,
+            --LOAD-BEARING: the engine resolves drag targets only for
+            --panels that define canDragOnto (a nil handler means "no
+            --targets at all"), so without this the drag handlers below
+            --would never see the trash. Only the trash is approved --
+            --slot placement stays geometric (RailDropTarget), and this
+            --also keeps the global drag-target accent styles off the
+            --other buttons while one is dragged.
+            canDragOnto = function(element, target)
+                return target:HasClass("iconRailTrash")
+            end,
+            dragging = function(element, target)
+                --over the trash: the insertion line would lie (this
+                --drop removes, not moves), so hide it. The trash
+                --itself lights up via the drag-target-hover styles.
+                if target ~= nil and target.valid and target:HasClass("iconRailTrash") then
+                    HideRailGhost()
+                    return
+                end
                 local targetSide, targetSlot = RailDropTarget(side, index, element)
                 ShowRailGhost(targetSide, targetSlot, key)
             end,
-            drag = function(element)
+            drag = function(element, target)
                 g_railDragTime = dmhub.Time()
                 HideRailGhost()
 
+                --dropped on the trash: take the button off the rail
+                --(parks the layout entry inert, exactly like the
+                --context menu's "Remove from rail").
+                if target ~= nil and target.valid and target:HasClass("iconRailTrash") then
+                    RailMovePanel(key, "remove")
+                    return
+                end
+
                 local targetSide, targetSlot = RailDropTarget(side, index, element)
                 if targetSide == side and targetSlot == index then
-                    --Landed on the slot it started from, so nothing was
-                    --rearranged -- the user meant to CLICK this button.
-                    --That is the common case, not an edge case: the
-                    --engine turns a press with even one or two pixels of
-                    --motion into a drag and never delivers the click, so
-                    --without this an ordinary slightly-imprecise click on
-                    --a rail icon did nothing at all.
-                    element:FireEvent("activateRailButton")
+                    --landed on the slot it started from: nothing was
+                    --rearranged, just snap the button back home.
                     RebuildIconRails()
                     return
                 end
 
                 local sides, inert = RailLayout()
 
-                local dragged = nil
+                --locate the dragged entry; it stays in place for now --
+                --the run boundaries below are computed over the pristine
+                --layout, and which branch runs decides how it moves.
+                local dragged, sourceList, sourceIdx, sourceSlot
                 for _, sideList in pairs(sides) do
                     for j, e in ipairs(sideList) do
                         if e.key == key then
-                            dragged = table.remove(sideList, j)
-                            break
+                            dragged, sourceList, sourceIdx, sourceSlot = e, sideList, j, e.slot
                         end
                     end
                 end
@@ -6270,34 +6547,108 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                dragged.slot = targetSlot
                 local targetList = sides[targetSide]
-                table.insert(targetList, dragged)
-
-                --Dense insert: the dragged button takes the contested slot and
-                --everything renumbers contiguously, so it lands just before
-                --whatever held that slot and the list stays packed -- no hole
-                --where it came from, nothing bumped into a blank spot. The
-                --dragged button wins the tie so it sorts into its target slot.
-                table.sort(targetList, function(a, b)
-                    if a.slot == b.slot then
-                        return a == dragged
+                local function anyAt(list, s)
+                    for _, e in ipairs(list) do
+                        if e.slot == s then
+                            return true
+                        end
                     end
-                    return a.slot < b.slot
-                end)
-                for i, e in ipairs(targetList) do
-                    e.slot = i - 1
+                    return false
+                end
+                local function occupiedByOther(list, s)
+                    for _, e in ipairs(list) do
+                        if e.slot == s and e ~= dragged then
+                            return true
+                        end
+                    end
+                    return false
                 end
 
-                --A cross-rail move leaves a gap in the SOURCE rail's numbering
-                --(the dragged entry was pulled out mid-list); repack it too so
-                --both rails stay dense immediately, not just after the next
-                --RailLayout read.
-                for sn, sideList in pairs(sides) do
-                    if sn ~= targetSide then
-                        table.sort(sideList, function(a, b) return a.slot < b.slot end)
-                        for i, e in ipairs(sideList) do
-                            e.slot = i - 1
+                if not occupiedByOther(targetList, targetSlot) then
+                    --EMPTY target slot: sparse placement. Land exactly
+                    --there and leave a hole where the button came from --
+                    --blank spots are part of the layout, and dragging a
+                    --button into empty space is how they are made.
+                    table.remove(sourceList, sourceIdx)
+                    dragged.slot = targetSlot
+                    table.insert(targetList, dragged)
+                    table.sort(targetList, function(a, b) return a.slot < b.slot end)
+                else
+                    --OCCUPIED target slot: reorder semantics -- this drop
+                    --means "in between", never "make a gap". The shape of
+                    --the shuffle depends on whether the button comes from
+                    --inside or outside the contiguous occupied run around
+                    --the target.
+                    local runStart = targetSlot
+                    while runStart > 0 and anyAt(targetList, runStart - 1) do
+                        runStart = runStart - 1
+                    end
+                    local runEnd = targetSlot
+                    while anyAt(targetList, runEnd + 1) do
+                        runEnd = runEnd + 1
+                    end
+
+                    if sourceList == targetList and sourceSlot >= runStart and sourceSlot <= runEnd then
+                        --Reorder WITHIN one run (the packed-rail common
+                        --case): the dragged button slots in just above the
+                        --occupant of the target slot and the neighbours
+                        --slide toward the spot it vacated. The run's slot
+                        --numbers are reassigned as the SAME set, so the
+                        --shuffle never opens a hole and never disturbs the
+                        --blank space around the run.
+                        local runSlots, runEntries = {}, {}
+                        for _, e in ipairs(targetList) do
+                            if e.slot >= runStart and e.slot <= runEnd then
+                                runSlots[#runSlots + 1] = e.slot
+                                runEntries[#runEntries + 1] = e
+                            end
+                        end
+                        dragged.slot = targetSlot
+                        table.sort(runEntries, function(a, b)
+                            if a.slot == b.slot then
+                                return a == dragged
+                            end
+                            return a.slot < b.slot
+                        end)
+                        for i, e in ipairs(runEntries) do
+                            e.slot = runSlots[i]
+                        end
+                        table.sort(targetList, function(a, b) return a.slot < b.slot end)
+                    else
+                        --Insert from OUTSIDE the run (another cluster, an
+                        --isolated button, or the other rail): the dragged
+                        --button takes the slot and the occupants chain-bump
+                        --down into the first free slot. The cluster it left
+                        --closes up behind it -- reorder-type drops never
+                        --leave holes; only drops into empty space do.
+                        local sourceEnd = sourceSlot
+                        while anyAt(sourceList, sourceEnd + 1) do
+                            sourceEnd = sourceEnd + 1
+                        end
+                        table.remove(sourceList, sourceIdx)
+                        for _, e in ipairs(sourceList) do
+                            if e.slot > sourceSlot and e.slot <= sourceEnd then
+                                e.slot = e.slot - 1
+                            end
+                        end
+
+                        dragged.slot = targetSlot
+                        table.insert(targetList, dragged)
+                        table.sort(targetList, function(a, b)
+                            if a.slot == b.slot then
+                                return a == dragged
+                            end
+                            return a.slot < b.slot
+                        end)
+                        local used = {}
+                        for _, e in ipairs(targetList) do
+                            local s = e.slot
+                            while used[s] do
+                                s = s + 1
+                            end
+                            used[s] = true
+                            e.slot = s
                         end
                     end
                 end
@@ -6307,9 +6658,8 @@ local function CreateIconRail(side, entries)
                 RebuildIconRails()
             end,
 
-            --Open/close this button's window. Fired by the click handler
-            --AND by a drag that ended where it began -- see the drag
-            --handler for why that is the same gesture.
+            --Open/close this button's window. Fired by the press handler
+            --and by the context menu's "Open" entry.
             activateRailButton = function(element)
                 --document shortcut: open the doc in the journal viewer.
                 if docid ~= nil then
@@ -6366,10 +6716,13 @@ local function CreateIconRail(side, entries)
                 RefreshRails()
             end,
 
-            click = function(element)
-                --the release at the end of a rearrange drag can also
-                --deliver a click; ignore it.
-                if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+            --Open on PRESS, not click: the window appears the moment the
+            --mouse goes down, which reads as snappier -- and since the
+            --buttons are not draggable outside rearrange mode, there is
+            --no press-vs-drag ambiguity to wait out.
+            press = function(element)
+                --in rearrange mode presses begin drags, never open.
+                if g_railRearranging then
                     return
                 end
 
@@ -6383,6 +6736,11 @@ local function CreateIconRail(side, entries)
                 if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
                     return
                 end
+                --rearrange mode has exactly two verbs -- drag and stop --
+                --so no menus over the wiggling buttons.
+                if g_railRearranging then
+                    return
+                end
 
                 --shortcuts (documents, characters) get the reduced menu:
                 --open + moves. They are not part of the curated panel
@@ -6394,7 +6752,14 @@ local function CreateIconRail(side, entries)
                                 text = "Open",
                                 click = function()
                                     element.popup = nil
-                                    element:FireEvent("click")
+                                    element:FireEvent("activateRailButton")
+                                end,
+                            },
+                            {
+                                text = "Rearrange...",
+                                click = function()
+                                    element.popup = nil
+                                    RailSetRearranging(true)
                                 end,
                             },
                             {
@@ -6470,7 +6835,7 @@ local function CreateIconRail(side, entries)
                             text = "Open",
                             click = function()
                                 element.popup = nil
-                                element:FireEvent("click")
+                                element:FireEvent("activateRailButton")
                             end,
                         },
                         {
@@ -6478,6 +6843,13 @@ local function CreateIconRail(side, entries)
                             click = function()
                                 element.popup = nil
                                 openPinned()
+                            end,
+                        },
+                        {
+                            text = "Rearrange...",
+                            click = function()
+                                element.popup = nil
+                                RailSetRearranging(true)
                             end,
                         },
                         {
@@ -6542,6 +6914,11 @@ local function CreateIconRail(side, entries)
         rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
         tmargin = ICON_RAIL_TOP,
         width = ICON_RAIL_BUTTON,
+        --ALWAYS auto, never a fixed column height: the vertical flow
+        --distributes children across a fixed height, spreading the
+        --buttons apart and breaking the slot geometry (field-tested).
+        --This is why the rearrange-mode trash zone lives on the layer
+        --rather than in the rail.
         height = "auto",
         flow = "vertical",
         --journal documents dropped on the rail background append to the
@@ -6634,6 +7011,66 @@ local function CreateIconRail(side, entries)
     }
 end
 
+--The rearrange-mode trash zone for one side: floats at the very bottom
+--of the rail's column, slightly inset from the screen edge and larger
+--than a rail button so it reads as a zone rather than another slot.
+--Dragging a button onto it removes it from the rail; the drag handlers
+--find it by the iconRailTrash class. It sits below ICON_RAIL_MAX_SLOT's
+--reach, so no droppable slot hides under it. Deliberately NOT an
+--iconRailButton: RailDocDropSlot treats that class as a slot, and a
+--journal document dropped on the trash must not be ADDED to the rail.
+local function CreateRailTrashZone(side)
+    return gui.Panel{
+        classes = {"iconRailTrash"},
+        --a layer child sits outside the rails' style cascade, so it
+        --carries the rail styles itself.
+        styles = IconRailStyles(),
+        bgimage = true,
+        blurBackground = true,
+        width = ICON_RAIL_TRASH,
+        height = ICON_RAIL_TRASH,
+        flow = "none",
+        halign = side,
+        valign = "bottom",
+        lmargin = cond(side == "left", ICON_RAIL_LEFT + 10, 0),
+        rmargin = cond(side == "right", ICON_RAIL_LEFT + 10, 0),
+        bmargin = 16,
+        swallowPress = true,
+        dragTarget = true,
+        --outrank the rail background (and any button) when the dragged
+        --button overlaps more than one target.
+        dragTargetPriority = 10,
+        data = {},
+
+        gui.Panel{
+            classes = {"iconRailTrashIcon"},
+            bgimage = "phosphor/trash-light.png",
+            width = 28,
+            height = 28,
+            halign = "center",
+            valign = "center",
+        },
+
+        gui.Label{
+            classes = {"iconRailLabel"},
+            floating = true,
+            renderOnTop = true,
+            x = cond(side == "left", ICON_RAIL_TRASH + 10, -(ICON_RAIL_TRASH + 10)),
+            halign = cond(side == "left", "left", "right"),
+            valign = "center",
+            interactable = false,
+            bgimage = true,
+            text = "DRAG HERE TO REMOVE",
+            width = "auto",
+            height = "auto",
+            hpad = 8,
+            vpad = 4,
+            borderBox = true,
+            textWrap = false,
+        },
+    }
+end
+
 local function BuildIconRails()
     local layer = DocumentsLayer()
     if layer == nil then
@@ -6644,6 +7081,11 @@ local function BuildIconRails()
         local rail = CreateIconRail(side, sides[side])
         g_iconRails[side] = rail
         layer:AddChild(rail)
+        if g_railRearranging then
+            local trash = CreateRailTrashZone(side)
+            g_railTrashZones[side] = trash
+            layer:AddChild(trash)
+        end
     end
 
     --One chat listener for both rails, so the "/" hotkey opens one window.
@@ -6665,10 +7107,20 @@ local function DestroyIconRails()
         end
         g_iconRails[side] = nil
     end
+    for side, trash in pairs(g_railTrashZones) do
+        if trash ~= nil and trash.valid then
+            trash:DestroySelf()
+        end
+        g_railTrashZones[side] = nil
+    end
     if g_railDragGhost ~= nil and g_railDragGhost.valid then
         g_railDragGhost:DestroySelf()
     end
     g_railDragGhost = nil
+    if g_railDragGhostLine ~= nil and g_railDragGhostLine.valid then
+        g_railDragGhostLine:DestroySelf()
+    end
+    g_railDragGhostLine = nil
 end
 
 --Tear down and rebuild both rails from the saved layout (after a button
@@ -6689,6 +7141,10 @@ function EnsureIconRail()
     local enabled = dmhub.GetSettingValue("iconrail") == true and devmode()
 
     if not enabled then
+        --don't strand rearrange mode across a disable/re-enable (the
+        --setter is not used here: it would rebuild rails we are about
+        --to destroy).
+        g_railRearranging = false
         DestroyIconRails()
         --restore the docks' own handles and remove the dock-mounted
         --tray buttons.
@@ -6714,7 +7170,7 @@ function EnsureIconRail()
     --stacked under the new one, and its clicks open windows the new
     --generation cannot see).
     for _, child in ipairs(layer.children) do
-        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
+        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailGhostLine") or child:HasClass("iconRailTrash") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
             child:DestroySelf()
         end
     end

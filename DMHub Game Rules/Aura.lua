@@ -2078,3 +2078,477 @@ dmhub.CreateAuraComponent = function()
         }
     }
 end
+--=============================================================================
+-- Directional lane aura objects (e.g. Time Raider Helix's Kinetic Lane).
+--
+-- A map object carrying an Aura component whose Aura DEFINITION has
+-- directionalLane = true is treated as a "lane": a straight strip of squares,
+-- laneLength long and 1 wide, anchored on the object's square and extending
+-- in the direction the object is rotated to face (quantized to the 8 compass
+-- directions, 45 degree steps). Any token that ENTERS the lane is
+-- automatically force-slid laneSlideDistance squares in the lane's direction,
+-- with no prompt.
+--
+-- The engine does not translate or rotate an object-attached aura's area when
+-- the object moves, and it never fires aura enter triggers for area-anchored
+-- auras (only token-attached radius auras are tracked; verified empirically).
+-- So both halves are driven from Lua by a watcher that runs on the DM's
+-- client only (single writer):
+--   1. Sync: whenever a lane object's position or rotation changes, the
+--      watcher rewrites its aura area to the matching list of squares. The
+--      aura's displayOutline then renders the player-visible outline in the
+--      right place. Freshly placed copies of the asset also get a unique
+--      aura guid stamped (placement clones the asset's components verbatim,
+--      so every copy starts with the same guid).
+--   2. Enter detection: the watcher tracks which tokens stand in each lane.
+--      A token that shows up in the lane's squares without having been there
+--      the previous tick has entered, and gets slid.
+--
+-- Aura definition fields:
+--   directionalLane (boolean) - marks the aura as a lane.
+--   laneLength (number) - length of the lane in squares. Default 4.
+--   laneWidth (number) - width of the lane in squares. Default 1.
+--   laneSlideDistance (number) - squares to slide entering tokens. Default 3.
+--
+-- A lane can also be placed by an ability (create_lane_object behavior below):
+-- the behavior stamps the aura's area with the EXACT squares of the targeted
+-- line and records the object transform it was stamped at (laneSyncX/Y/Rot).
+-- The watcher leaves a stamped area alone until the object is moved or
+-- rotated, at which point it recomputes the lane from the object transform.
+--=============================================================================
+
+Aura.laneLength = 4
+Aura.laneWidth = 1
+Aura.laneSlideDistance = 3
+
+--Compass directions for rotation quantized to 45 degree steps. Unity rotates
+--counterclockwise for positive angles, with rotation 0 facing north (+y).
+--Index is round(rotation/45) % 8.
+local g_laneDirections = {
+    [0] = {x = 0, y = 1},
+    [1] = {x = -1, y = 1},
+    [2] = {x = -1, y = 0},
+    [3] = {x = -1, y = -1},
+    [4] = {x = 0, y = -1},
+    [5] = {x = 1, y = -1},
+    [6] = {x = 1, y = 0},
+    [7] = {x = 1, y = 1},
+}
+
+--- Quantize an object rotation (degrees) to one of the 8 compass directions.
+--- @param rotation number
+--- @return {x: number, y: number}
+local function LaneDirectionFromRotation(rotation)
+    local index = math.floor((rotation or 0)/45 + 0.5) % 8
+    if index < 0 then
+        index = index + 8
+    end
+    return g_laneDirections[index]
+end
+
+--- Compute the list of squares a lane object should cover. Extra width rows
+--- are laid perpendicular to the lane direction (to its right side).
+--- @param obj LuaObjectInstance
+--- @param laneLength number
+--- @param laneWidth number
+--- @return Loc[], {x: number, y: number}
+local function ComputeLaneLocs(obj, laneLength, laneWidth)
+    local dir = LaneDirectionFromRotation(obj.rotation)
+    local perp = {x = dir.y, y = -dir.x}
+    local anchor = core.Loc{
+        x = math.floor(obj.x + 0.5),
+        y = math.floor(obj.y + 0.5),
+        floorIndex = obj.floorIndex,
+    }
+    local locs = {}
+    for i = 0, laneLength-1 do
+        for w = 0, laneWidth-1 do
+            locs[#locs+1] = anchor:dir(dir.x*i + perp.x*w, dir.y*i + perp.y*w)
+        end
+    end
+    return locs, dir
+end
+
+--Float compare tolerant of serialization round-trips, so the watcher does not
+--endlessly rewrite an area because a stored coordinate came back a hair off.
+local function LaneNear(a, b)
+    return a ~= nil and b ~= nil and math.abs(a - b) < 0.001
+end
+
+--Transient watcher state, keyed by "floorid/objid". Lives only on the DM's
+--client; rebuilt from live positions every tick, so nothing here needs to
+--survive a reload.
+local g_laneStates = {}
+
+--Tokens currently mid-slide (tokenid -> true). Global across lanes so a
+--token being animated by one lane is not re-processed by another until it
+--lands.
+local g_slidingTokens = {}
+
+--Safety valve against ping-pong loops between facing lanes: recent slide
+--timestamps per token. A token slid 3+ times in the last 10 seconds is left
+--alone until the window clears.
+local g_slideHistory = {}
+
+local function TokenMaySlide(tokenid)
+    local now = dmhub.Time()
+    local history = g_slideHistory[tokenid] or {}
+    local recent = {}
+    for _,t in ipairs(history) do
+        if now - t < 10 then
+            recent[#recent+1] = t
+        end
+    end
+    g_slideHistory[tokenid] = recent
+    return #recent < 3
+end
+
+--- Force-slide a token dist squares in the given direction, with collision
+--- events, mirroring the straightline "move" branch of
+--- ActivatedAbilityRelocateCreatureBehavior:Cast.
+--- @param tok CharacterToken
+--- @param dir {x: number, y: number}
+--- @param dist number
+--- @param state table The lane's watcher state entry.
+local function SlideLaneToken(tok, dir, dist, state)
+    g_slidingTokens[tok.id] = true
+    local history = g_slideHistory[tok.id] or {}
+    history[#history+1] = dmhub.Time()
+    g_slideHistory[tok.id] = history
+
+    dmhub.Coroutine(function()
+        local ok, err = pcall(function()
+            local destLoc = tok.loc:dir(dir.x*dist, dir.y*dist)
+
+            --GetForcedPushOptions is defined by the Draw Steel rules layer;
+            --guard with pcall so this generic-layer code still works if a
+            --game system does not define it.
+            local forcedPushOptions = { rebound = false, maxBounces = 0 }
+            pcall(function()
+                forcedPushOptions = tok.properties:GetForcedPushOptions()
+            end)
+
+            --Measure the slide first so we know whether it collides and with
+            --what, then perform the actual move.
+            local collisionInfo = nil
+            local movementInfo = tok:MarkMovementArrow(destLoc, {
+                straightline = true,
+                forcedMovementDistance = dist,
+                rebound = forcedPushOptions.rebound,
+                maxBounces = forcedPushOptions.maxBounces,
+            })
+            if movementInfo ~= nil then
+                local path = movementInfo.path
+                local requestDist = math.min(destLoc:DistanceInTiles(path.origin), dist)
+                local freeMovement = path.freeMovementSteps
+                if path.hasCollision and requestDist < dist then
+                    requestDist = dist
+                end
+                local hasCollision = freeMovement < requestDist
+                local collisionSpeed = requestDist - freeMovement
+
+                --The engine reports the true force remaining at the moment of
+                --collision (see the same logic in AbilityRelocateCreature).
+                local collisionForce = path.collisionForce
+                if collisionForce ~= nil then
+                    if collisionForce >= 0 then
+                        hasCollision = true
+                        collisionSpeed = collisionForce
+                    elseif not path.hasCollision then
+                        hasCollision = false
+                        collisionSpeed = 0
+                    end
+                end
+
+                if hasCollision then
+                    collisionInfo = {
+                        speed = collisionSpeed,
+                        collideWith = movementInfo.collideWith,
+                    }
+                end
+            end
+            tok:ClearMovementArrow()
+
+            local path = tok:Move(destLoc, {
+                straightline = true,
+                maxCost = 30000,
+                movementType = "move",
+                forcedMovementDistance = dist,
+                rebound = forcedPushOptions.rebound,
+                maxBounces = forcedPushOptions.maxBounces,
+            })
+
+            --filter out passthrough creatures from collision.
+            if collisionInfo ~= nil and collisionInfo.collideWith ~= nil and #collisionInfo.collideWith > 0 then
+                local filtered = {}
+                for _,other in ipairs(collisionInfo.collideWith) do
+                    if other.properties:CalculateNamedCustomAttribute("Passthrough") == 0 then
+                        filtered[#filtered+1] = other
+                    end
+                end
+                collisionInfo.collideWith = filtered
+                if #filtered == 0 then
+                    collisionInfo = nil
+                end
+            end
+
+            local withobject = false
+            if collisionInfo ~= nil then
+                withobject = #(collisionInfo.collideWith or {}) == 0
+                if not withobject then
+                    for _,other in ipairs(collisionInfo.collideWith or {}) do
+                        if other.isObject then
+                            withobject = true
+                            break
+                        end
+                    end
+                end
+            end
+
+            --Let "when force moved" triggered abilities react to the slide.
+            tok.properties:DispatchEvent("forcemove", {
+                hasattacker = false,
+                type = "slide",
+                vertical = false,
+                collision = (collisionInfo ~= nil) and collisionInfo.speed or 0,
+                collidewithobject = withobject,
+                distance = math.floor((path ~= nil and path.numSteps) or 0),
+                melee = false,
+            })
+
+            if collisionInfo ~= nil then
+                if tok.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+                    tok.properties:TriggerEvent("collide", {
+                        speed = collisionInfo.speed,
+                        withobject = withobject,
+                        withcreature = not withobject,
+                        haspusher = false,
+                        movementtype = "slide",
+                    })
+                end
+
+                for _,other in ipairs(collisionInfo.collideWith or {}) do
+                    other.properties:TriggerEvent("collide", {
+                        speed = collisionInfo.speed,
+                        withobject = withobject,
+                        withcreature = not withobject,
+                        haspusher = false,
+                        movementtype = "slide",
+                    })
+                end
+            end
+        end)
+
+        if not ok then
+            printf("LANE:: error sliding token: %s", tostring(err))
+        end
+
+        g_slidingTokens[tok.id] = nil
+
+        --Mark the token as inside so the landing position does not read as a
+        --fresh entry on the next tick. The tick after that recomputes true
+        --membership from live positions.
+        if tok.valid then
+            state.insideTokens[tok.id] = true
+        end
+    end)
+end
+
+--- Process one lane object: sync its aura area to the object transform,
+--- slide any tokens that entered since the previous tick, and when a new
+--- initiative turn just started (turnStartInitiativeId not nil) slide tokens
+--- inside the lane whose turn it now is.
+--- @param obj LuaObjectInstance
+--- @param comp LuaObjectComponentAura
+--- @param turnStartInitiativeId nil|string
+local function ProcessLaneObject(obj, comp, turnStartInitiativeId)
+    local inst = comp.properties.aura
+    local auraDef = inst.aura
+
+    local laneLength = tonumber(auraDef:try_get("laneLength", Aura.laneLength)) or Aura.laneLength
+    local laneWidth = tonumber(auraDef:try_get("laneWidth", Aura.laneWidth)) or Aura.laneWidth
+    local slideDist = tonumber(auraDef:try_get("laneSlideDistance", Aura.laneSlideDistance)) or Aura.laneSlideDistance
+
+    --If the aura's area was stamped at the object's current transform (either
+    --by us on a previous tick or by the create_lane_object behavior placing
+    --the exact squares of a targeted line), leave it untouched. Otherwise the
+    --object was newly placed, moved, or rotated: recompute the lane from the
+    --object transform.
+    local locs
+    local dir
+    local stamped = inst:try_get("laneObjId") == obj.objid
+        and LaneNear(inst:try_get("laneSyncX"), obj.x)
+        and LaneNear(inst:try_get("laneSyncY"), obj.y)
+        and LaneNear(inst:try_get("laneSyncRot"), obj.rotation)
+        and inst:try_get("area") ~= nil
+
+    if stamped then
+        locs = inst.area.locations or {}
+        local storedDir = inst:try_get("laneDirection")
+        if storedDir ~= nil and storedDir.x ~= nil then
+            dir = {x = storedDir.x, y = storedDir.y}
+        else
+            dir = LaneDirectionFromRotation(obj.rotation)
+        end
+    else
+        locs, dir = ComputeLaneLocs(obj, laneLength, laneWidth)
+        comp:BeginChanges()
+        if inst:try_get("laneObjId") ~= obj.objid then
+            --Newly placed (or copied) lane: placement clones the asset's
+            --components verbatim, so stamp a unique guid.
+            inst.guid = dmhub.GenerateGuid()
+            inst.laneObjId = obj.objid
+        end
+        inst.laneDirection = {x = dir.x, y = dir.y}
+        inst.laneSyncX = obj.x
+        inst.laneSyncY = obj.y
+        inst.laneSyncRot = obj.rotation
+        inst.area = dmhub.CalculateShape{
+            shape = "locations",
+            locOverride = locs[1],
+            targetPoint = core.Vector3(locs[1].x + 0.5, locs[1].y + 0.5, 0),
+            range = (laneLength + laneWidth)*2,
+            radius = 0,
+            checklos = false,
+            locations = locs,
+        }
+        comp:CompleteChanges("Sync lane area")
+    end
+
+    --Entry detection.
+    local key = obj.floorid .. "/" .. obj.objid
+    local state = g_laneStates[key]
+    if state == nil then
+        state = { insideTokens = nil }
+        g_laneStates[key] = state
+    end
+
+    local inside = {}
+    for _,loc in ipairs(locs) do
+        for _,tok in ipairs(game.GetTokensAtLoc(loc) or {}) do
+            if tok.valid and (not tok.isObject) then
+                inside[tok.id] = tok
+            end
+        end
+    end
+
+    local prev = state.insideTokens
+    state.insideTokens = {}
+    for id,_ in pairs(inside) do
+        state.insideTokens[id] = true
+    end
+
+    --On the very first tick for this lane (including right after a reload)
+    --just record membership without sliding anyone.
+    if prev == nil then
+        return
+    end
+
+    for id,tok in pairs(inside) do
+        if g_slidingTokens[id] then
+            --Mid-animation states are not entries; keep the previous
+            --membership for this token.
+            state.insideTokens[id] = prev[id] or nil
+        elseif not prev[id] then
+            if tok.properties ~= nil and (not tok.properties:IsDead()) and TokenMaySlide(id) then
+                SlideLaneToken(tok, dir, slideDist, state)
+            end
+        end
+    end
+
+    --"Starts their turn there": when a new turn just began, slide tokens
+    --standing in the lane whose initiative entry now has the turn.
+    if turnStartInitiativeId ~= nil then
+        for id,tok in pairs(inside) do
+            if (not g_slidingTokens[id]) and tok.properties ~= nil and (not tok.properties:IsDead()) then
+                local ok, initid = pcall(function() return InitiativeQueue.GetInitiativeId(tok) end)
+                if ok and initid == turnStartInitiativeId and TokenMaySlide(id) then
+                    SlideLaneToken(tok, dir, slideDist, state)
+                end
+            end
+        end
+    end
+end
+
+local LANE_THINK_INTERVAL = 0.25
+
+--Last initiative turn id seen by the watcher, for start-of-turn slides.
+local g_laneLastTurnId = nil
+
+local function LaneThink()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(LANE_THINK_INTERVAL, LaneThink)
+
+    if not dmhub.isDM then
+        return
+    end
+
+    local map = game.currentMap
+    if map == nil then
+        return
+    end
+
+    local ok, err = pcall(function()
+        --Detect the start of a new initiative turn. On the tick where the
+        --turn changes, pass the initiative id whose turn began so lanes can
+        --slide tokens that start their turn standing in them. The first
+        --observation after a reload (or when initiative is hidden) only
+        --records state.
+        local turnStartInitiativeId = nil
+        local q = dmhub.initiativeQueue
+        if q ~= nil and q.hidden == false then
+            local turnid = q:GetTurnId()
+            if turnid ~= g_laneLastTurnId then
+                local firstObservation = (g_laneLastTurnId == nil)
+                g_laneLastTurnId = turnid
+                if not firstObservation then
+                    turnStartInitiativeId = q:CurrentInitiativeId()
+                end
+            end
+        else
+            g_laneLastTurnId = nil
+        end
+
+        for _,floor in ipairs(map.floors or {}) do
+            --floor.objects can be transiently nil for floors that are not
+            --currently loaded, and the objects getter itself raises on a
+            --floor that is tearing down, so gate on floor.valid first.
+            for _,obj in pairs((floor.valid and floor.objects) or {}) do
+                local comp = obj:GetComponent("Aura")
+                if comp ~= nil and comp.properties ~= nil and comp.properties:has_key("aura") then
+                    local inst = comp.properties.aura
+                    if inst:has_key("aura") and inst.aura:try_get("directionalLane", false) then
+                        ProcessLaneObject(obj, comp, turnStartInitiativeId)
+                    end
+                end
+            end
+        end
+    end)
+
+    if not ok then
+        printf("LANE:: watcher error: %s", tostring(err))
+    end
+end
+
+dmhub.Schedule(LANE_THINK_INTERVAL, LaneThink)
+
+--Internal lane API for later-loading files. This file loads BEFORE
+--ActivatedAbility.lua, so the create_lane_object ability behavior cannot be
+--registered here; it lives in Draw Steel Ability Behaviors/AbilityCreateObject.lua
+--and reaches the lane internals through this table.
+Aura.laneInternal = {
+    directions = g_laneDirections,
+    SlideToken = SlideLaneToken,
+    TokenMaySlide = TokenMaySlide,
+    GetOrCreateLaneState = function(key)
+        local state = g_laneStates[key]
+        if state == nil then
+            state = { insideTokens = {} }
+            g_laneStates[key] = state
+        end
+        state.insideTokens = state.insideTokens or {}
+        return state
+    end,
+}

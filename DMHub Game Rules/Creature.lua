@@ -6059,12 +6059,19 @@ function creature:IsDownCached()
     return self:try_get("_tmp_down", false)
 end
 
+--Not everyone dies at 0 Stamina: heroes and retainers die at minus their
+--BloodiedThreshold. Deal enough to reach this creature's own kill threshold,
+--or a healthy one ends up merely dying instead of dead.
 function creature:Destroy(note)
     if self.minion then
-	    self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
-    else
-	    self:TakeDamage(self:MaxHitpoints(), note, {doesNotTrigger = true})
+        --Minions die at 0, so one member's share of the pool is enough.
+        self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
+        return
     end
+
+    --math.max keeps this at least as lethal as the old max-Stamina version.
+    local needed = self:CurrentHitpoints() + self:TemporaryHitpoints() - self:KillThresholdStamina()
+    self:TakeDamage(math.max(needed, self:MaxHitpoints()), note, {doesNotTrigger = true})
 end
 
 function creature:ProficiencyBonus()

@@ -842,10 +842,118 @@ local function CreateLocalAssetsSection()
 			},
 		}
 
+		------------------------------------------------------------------
+		--Git awareness (Phase 3): read-only status badges from the engine's
+		--GitStatusService via dmhub.LocalAssetsGitRefresh/GitStatus. The
+		--last completed status per directory is cached in m_gitStatus and
+		--broadcast down the browser with FireEventTree("gitstatus", dirIndex,
+		--st); rows/labels also pull the cache from their create event so
+		--nodes built after a refresh start out correct. All keyed by the
+		--normPath the bridges attach to every item -- normalization happens
+		--in ONE place, the engine's LocalAssetDirectory.NormalizePath.
+		------------------------------------------------------------------
+
+		local browserRoot = nil
+		local m_gitStatus = {} --dirIndex -> last completed status snapshot
+		local m_byNorm = {}    --dirIndex -> normPath -> tree item entry
+		local m_polling = {}
+
+		--"Show Only Git Changes": when on (the default), tree items filter
+		--to files git reports as changed. Directories without git info (not
+		--a repo, git missing, status not loaded yet) always show all files.
+		local m_showOnlyChanges = true
+		local m_builtSig = {} --dirIndex -> filter signature the tree was last built with
+
+		local gitStateInfo = {
+			untracked = { letter = "?", color = "#77cc77" },
+			added = { letter = "A", color = "#77cc77" },
+			modified = { letter = "M", color = "#ddbb55" },
+			deleted = { letter = "D", color = "#cc6666" },
+			renamed = { letter = "R", color = "#77aacc" },
+		}
+
+		local function RefreshGitFor(dirIndex)
+			if dmhub.LocalAssetsGitRefresh == nil then
+				return --engine build predates the git integration.
+			end
+
+			dmhub.LocalAssetsGitRefresh(dirIndex)
+			if m_polling[dirIndex] then
+				return
+			end
+			m_polling[dirIndex] = true
+
+			local attempts = 0
+			local function Poll()
+				if browserRoot == nil or (not browserRoot.valid) then
+					m_polling[dirIndex] = nil
+					return
+				end
+				local st = dmhub.LocalAssetsGitStatus(dirIndex)
+				attempts = attempts + 1
+				if st ~= nil and st.refreshing and attempts < 120 then
+					dmhub.Schedule(0.25, Poll)
+					return
+				end
+				m_polling[dirIndex] = nil
+				if st ~= nil then
+					m_gitStatus[dirIndex] = st
+					browserRoot:FireEventTree("gitstatus", dirIndex, st)
+				end
+			end
+			dmhub.Schedule(0.25, Poll)
+		end
+
+		--true when the changes-only filter actually applies to a directory:
+		--the checkbox is on AND git produced a usable status for it.
+		local function GitFilterActive(dirIndex)
+			if not m_showOnlyChanges then
+				return false
+			end
+			if dmhub.LocalAssetsGitStatus == nil then
+				return false
+			end
+			local st = m_gitStatus[dirIndex]
+			if st == nil or (not st.hasResult) or st.error ~= nil or (not st.isRepo) then
+				return false
+			end
+			return true
+		end
+
+		local function FilterItems(items, dirIndex)
+			if not GitFilterActive(dirIndex) then
+				return items
+			end
+			local states = m_gitStatus[dirIndex].states or {}
+			local result = {}
+			for _,entry in ipairs(items) do
+				if entry.normPath ~= nil and states[entry.normPath] ~= nil then
+					result[#result+1] = entry
+				end
+			end
+			return result
+		end
+
+		--identity of the changed-file set a tree build was based on; used to
+		--skip pointless (and sub-node-collapsing) rebuilds when a refresh
+		--reports the same changes again.
+		local function FilterSignature(st)
+			if st == nil or (not st.hasResult) or st.error ~= nil or (not st.isRepo) then
+				return "nogit"
+			end
+			local parts = {}
+			for _,c in ipairs(st.changes) do
+				parts[#parts+1] = c.normPath .. "=" .. c.state
+			end
+			return table.concat(parts, ";")
+		end
+
 		--one clickable row for an item file. entry comes from
-		--LocalAssetsFileTree or LocalAssetsSearch; detail is optional extra
-		--dim text appended after the filename (search attribution).
-		local function FileRow(entry, detail)
+		--LocalAssetsFileTree or LocalAssetsSearch (or is synthesized by the
+		--Changes view; entry.revealPath overrides the click target there);
+		--detail is optional extra dim text appended after the filename
+		--(search attribution). dirIndex drives the git badge.
+		local function FileRow(entry, detail, dirIndex)
 			local nameText = entry.displayName or entry.id or entry.fileName
 			local fileText = entry.fileName
 			if entry.shadowed then
@@ -854,6 +962,35 @@ local function CreateLocalAssetsSection()
 			if detail ~= nil then
 				fileText = fileText .. "  " .. detail
 			end
+
+			local badge = gui.Label{
+				width = 12,
+				height = "auto",
+				fontSize = 12,
+				bold = true,
+				valign = "center",
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex ~= dirIndex then
+						return
+					end
+					local state = nil
+					if st ~= nil and st.states ~= nil and entry.normPath ~= nil then
+						state = st.states[entry.normPath]
+					end
+					local info = gitStateInfo[state]
+					if info == nil then
+						element.text = ""
+					else
+						element.text = info.letter
+						element.selfStyle.color = info.color
+					end
+				end,
+			}
+
 			return gui.Panel{
 				classes = {"latree-row"},
 				flow = "horizontal",
@@ -861,10 +998,11 @@ local function CreateLocalAssetsSection()
 				height = "auto",
 				bgimage = "panels/square.png",
 				click = function(element)
-					dmhub.RevealInFileBrowser(entry.path)
+					dmhub.RevealInFileBrowser(entry.revealPath or entry.path)
 				end,
+				badge,
 				gui.Label{
-					width = "45%",
+					width = "42%",
 					height = "auto",
 					fontSize = 13,
 					valign = "center",
@@ -873,7 +1011,7 @@ local function CreateLocalAssetsSection()
 					text = nameText,
 				},
 				gui.Label{
-					width = "55%",
+					width = "52%",
 					height = "auto",
 					fontSize = 12,
 					valign = "center",
@@ -886,8 +1024,13 @@ local function CreateLocalAssetsSection()
 
 		--a collapsible node: a header row with a triangle. buildChildren()
 		--runs fresh on every expand; collapse clears the children so large
-		--trees never linger in the hierarchy.
-		local function TreeNode(labelText, countText, buildChildren)
+		--trees never linger in the hierarchy. extraHeader (optional) is an
+		--extra panel appended to the header row (git summary / live counts).
+		--rebuildEvents (optional) maps event name -> predicate(...); when
+		--the event fires on the node and the predicate passes, an EXPANDED
+		--node rebuilds its children in place (used by the changes-only
+		--filter; collapsed nodes rebuild naturally on their next expand).
+		local function TreeNode(labelText, countText, buildChildren, extraHeader, rebuildEvents)
 			local expanded = false
 			local triangle = gui.Panel{
 				bgimage = "panels/triangle.png",
@@ -935,14 +1078,36 @@ local function CreateLocalAssetsSection()
 					opacity = 0.6,
 					text = countText or "",
 				},
+				extraHeader,
 			}
-			return gui.Panel{
+
+			local nodeArgs = {
 				flow = "vertical",
 				width = "100%",
 				height = "auto",
 				header,
 				childrenPanel,
 			}
+			if rebuildEvents ~= nil then
+				--the rebuild is deferred a tick: these events arrive via
+				--FireEventTree, and swapping the children out mid-traversal
+				--would let the same event reach just-destroyed row panels.
+				local rebuildPending = false
+				for eventName,predicate in pairs(rebuildEvents) do
+					nodeArgs[eventName] = function(element, ...)
+						if expanded and (not rebuildPending) and predicate(...) then
+							rebuildPending = true
+							dmhub.Schedule(0.05, function()
+								rebuildPending = false
+								if element.valid and expanded then
+									childrenPanel.children = buildChildren()
+								end
+							end)
+						end
+					end
+				end
+			end
+			return gui.Panel(nodeArgs)
 		end
 
 		local function NoteLabel(text)
@@ -959,54 +1124,229 @@ local function CreateLocalAssetsSection()
 		--item rows are capped per node; anything bigger is what search is for.
 		local MaxRowsPerNode = 500
 
-		local function BuildItemRows(items)
+		local function BuildItemRows(items, dirIndex)
 			local rows = {}
 			for i,entry in ipairs(items) do
 				if i > MaxRowsPerNode then
 					rows[#rows+1] = NoteLabel(string.format("... and %d more; use search to narrow down.", #items - MaxRowsPerNode))
 					break
 				end
-				rows[#rows+1] = FileRow(entry)
+				rows[#rows+1] = FileRow(entry, nil, dirIndex)
 			end
 			return rows
 		end
 
 		--category data is captured when the directory node fetches its tree;
 		--expanding the directory again re-fetches everything beneath it.
-		local function CategoryNode(cat)
-			local total = #cat.items
+		--With the changes-only filter active the item lists are filtered up
+		--front (so header counts match), containers with no changed items
+		--are dropped, and a fully-unchanged category returns nil.
+		local function CategoryNode(cat, dirIndex)
+			local filtering = GitFilterActive(dirIndex)
+			local flatItems = FilterItems(cat.items, dirIndex)
+			local containers = {}
+			local total = #flatItems
 			for _,c in ipairs(cat.containers) do
-				total = total + #c.items
+				local citems = FilterItems(c.items, dirIndex)
+				if (#citems > 0) or (not filtering) then
+					containers[#containers+1] = { data = c, items = citems }
+					total = total + #citems
+				end
 			end
+
+			if filtering and total == 0 then
+				return nil
+			end
+
 			return TreeNode(cat.name, string.format("(%d)", total), function()
 				local children = {}
-				for _,c in ipairs(cat.containers) do
-					children[#children+1] = TreeNode(c.displayName or c.id, string.format("(%d)", #c.items), function()
-						return BuildItemRows(c.items)
+				for _,c in ipairs(containers) do
+					children[#children+1] = TreeNode(c.data.displayName or c.data.id, string.format("(%d)", #c.items), function()
+						return BuildItemRows(c.items, dirIndex)
 					end)
 				end
-				for _,row in ipairs(BuildItemRows(cat.items)) do
+				for _,row in ipairs(BuildItemRows(flatItems, dirIndex)) do
 					children[#children+1] = row
 				end
 				return children
 			end)
 		end
 
+		--compact per-directory git summary shown on the directory header,
+		--e.g. "git: 3M 1D 4?"; empty until a refresh has completed.
+		local function GitSummaryText(st)
+			if st == nil or (not st.hasResult) then
+				return ""
+			end
+			if st.error ~= nil then
+				return "git: error"
+			end
+			if not st.isRepo then
+				return "no git"
+			end
+			local c = st.counts
+			if c == nil or c.total == 0 then
+				return "git: clean"
+			end
+			local parts = {}
+			if c.modified > 0 then parts[#parts+1] = c.modified .. "M" end
+			if c.added > 0 then parts[#parts+1] = c.added .. "A" end
+			if c.renamed > 0 then parts[#parts+1] = c.renamed .. "R" end
+			if c.deleted > 0 then parts[#parts+1] = c.deleted .. "D" end
+			if c.untracked > 0 then parts[#parts+1] = c.untracked .. "?" end
+			return "git: " .. table.concat(parts, " ")
+		end
+
+		local function GitSummaryLabel(dirIndex)
+			return gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				valign = "center",
+				hmargin = 6,
+				opacity = 0.75,
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex == dirIndex then
+						element.text = GitSummaryText(st)
+					end
+				end,
+			}
+		end
+
+		--the per-directory Changes view: every file git reports as changed,
+		--INCLUDING deleted files, which have no live tree row (a deleted
+		--row's click reveals the containing folder instead). Built from the
+		--cached status at expand time; the header count stays live.
+		local function ChangesNode(dirIndex)
+			local countLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				valign = "center",
+				hmargin = 6,
+				opacity = 0.6,
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex ~= dirIndex then
+						return
+					end
+					if st == nil or st.counts == nil then
+						element.text = ""
+					else
+						element.text = string.format("(%d)", st.counts.total)
+					end
+				end,
+			}
+
+			return TreeNode("Changes", nil, function()
+				local st = m_gitStatus[dirIndex]
+				if st == nil or (not st.hasResult) then
+					return { NoteLabel("Git status not loaded yet; try again in a moment.") }
+				end
+				if st.error ~= nil then
+					return { NoteLabel("Git error: " .. st.error) }
+				end
+				if not st.isRepo then
+					return { NoteLabel("Not inside a git repository.") }
+				end
+
+				local rows = {}
+				local byNorm = m_byNorm[dirIndex] or {}
+				for i,c in ipairs(st.changes) do
+					if i > MaxRowsPerNode then
+						rows[#rows+1] = NoteLabel(string.format("... and %d more.", #st.changes - MaxRowsPerNode))
+						break
+					end
+					local treeEntry = byNorm[c.normPath]
+					local entry = {
+						path = c.path,
+						normPath = c.normPath,
+						fileName = c.fileName,
+					}
+					if treeEntry ~= nil then
+						entry.displayName = treeEntry.displayName
+					end
+					if c.state == "deleted" then
+						entry.revealPath = c.path:match("^(.*)/[^/]*$")
+					end
+					rows[#rows+1] = FileRow(entry, nil, dirIndex)
+				end
+				if #rows == 0 then
+					rows[1] = NoteLabel("No changes -- working tree clean.")
+				end
+				return rows
+			end, countLabel)
+		end
+
 		local function DirectoryNode(dirIndex, dirPath)
 			return TreeNode(string.format("%d. %s", dirIndex, dirPath), nil, function()
+				RefreshGitFor(dirIndex)
+				m_builtSig[dirIndex] = FilterSignature(m_gitStatus[dirIndex])
+
 				local tree = dmhub.LocalAssetsFileTree(dirIndex)
 				if tree == nil then
 					return { NoteLabel("Could not read the directory index.") }
 				end
-				local children = {}
+
+				--index the tree by normPath so the Changes view can show
+				--display names for files that still exist. (normPath is
+				--absent on engine builds that predate the git integration.)
+				local byNorm = {}
 				for _,cat in ipairs(tree.categories) do
-					children[#children+1] = CategoryNode(cat)
+					for _,item in ipairs(cat.items) do
+						if item.normPath ~= nil then
+							byNorm[item.normPath] = item
+						end
+					end
+					for _,c in ipairs(cat.containers) do
+						for _,item in ipairs(c.items) do
+							if item.normPath ~= nil then
+								byNorm[item.normPath] = item
+							end
+						end
+					end
+				end
+				m_byNorm[dirIndex] = byNorm
+
+				local children = {}
+				if dmhub.LocalAssetsGitStatus ~= nil then
+					children[#children+1] = ChangesNode(dirIndex)
+				end
+				local nCategories = 0
+				for _,cat in ipairs(tree.categories) do
+					local node = CategoryNode(cat, dirIndex)
+					if node ~= nil then
+						children[#children+1] = node
+						nCategories = nCategories + 1
+					end
 				end
 				if #children == 0 then
 					children[1] = NoteLabel("No indexed files in this directory.")
+				elseif nCategories == 0 and GitFilterActive(dirIndex) then
+					children[#children+1] = NoteLabel("No git changes; uncheck Show Only Git Changes to see all files.")
 				end
 				return children
-			end)
+			end, GitSummaryLabel(dirIndex), {
+				--re-filter in place when a git refresh changes the set of
+				--changed files (only relevant while the filter is on; badge
+				--labels update themselves otherwise), and on checkbox toggle.
+				gitstatus = function(evDirIndex, st)
+					if evDirIndex ~= dirIndex or (not m_showOnlyChanges) then
+						return false
+					end
+					return FilterSignature(st) ~= m_builtSig[dirIndex]
+				end,
+				latreeRebuild = function()
+					return true
+				end,
+			})
 		end
 
 		local function BuildDirectoryNodes()
@@ -1048,7 +1388,7 @@ local function CreateLocalAssetsSection()
 		local MaxSearchRows = 100
 
 		local searchInput = gui.Input{
-			width = 280,
+			width = 180,
 			height = 24,
 			fontSize = 14,
 			halign = "left",
@@ -1074,7 +1414,7 @@ local function CreateLocalAssetsSection()
 					if entry.tableid ~= nil then
 						loc = loc .. "/" .. entry.tableid
 					end
-					rows[#rows+1] = FileRow(entry, string.format("[%s]  (dir %d)", loc, entry.dirIndex))
+					rows[#rows+1] = FileRow(entry, string.format("[%s]  (dir %d)", loc, entry.dirIndex), entry.dirIndex)
 				end
 				if #rows == 0 then
 					rows[1] = NoteLabel("No matches.")
@@ -1087,7 +1427,154 @@ local function CreateLocalAssetsSection()
 			end,
 		}
 
-		return gui.Panel{
+		--refreshes git status for every configured directory. Sits next to
+		--the search box rather than on the tree headers so a click can never
+		--double as an expand toggle.
+		local refreshGitButton = nil
+		if dmhub.LocalAssetsGitStatus ~= nil then
+			refreshGitButton = gui.Button{
+				width = 110,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 8,
+				text = "Refresh Git",
+				click = function(element)
+					local liveStatus = dmhub.LocalAssetsStatus()
+					if liveStatus ~= nil and liveStatus.directories ~= nil then
+						for i,_ in ipairs(liveStatus.directories) do
+							RefreshGitFor(i)
+						end
+					end
+				end,
+			}
+		end
+
+		--"Show Only Git Changes" (default ON): filters the trees to files
+		--git reports as changed; directories without git info always show
+		--everything. Toggling rebuilds any expanded directory in place via
+		--the latreeRebuild event.
+		local changesOnlyCheck = nil
+		if dmhub.LocalAssetsGitStatus ~= nil then
+			changesOnlyCheck = gui.Check{
+				text = "Show Only Git Changes",
+				value = m_showOnlyChanges,
+				halign = "left",
+				valign = "center",
+				hmargin = 8,
+				change = function(element)
+					m_showOnlyChanges = element.value
+					if browserRoot ~= nil and browserRoot.valid then
+						browserRoot:FireEventTree("latreeRebuild")
+					end
+				end,
+			}
+		end
+
+		local toolbarArgs = {
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			searchInput,
+		}
+		if changesOnlyCheck ~= nil then
+			toolbarArgs[#toolbarArgs+1] = changesOnlyCheck
+		end
+		if refreshGitButton ~= nil then
+			toolbarArgs[#toolbarArgs+1] = refreshGitButton
+		end
+		local toolbar = gui.Panel(toolbarArgs)
+
+		--which git executable the integration uses: the resolved path and
+		--version, a Locate browse fallback (stores localassets:gitpath, a
+		--GLOBAL setting), and Auto to return to auto-detection.
+		local function GitPathRow()
+			if dmhub.LocalAssetsGitInfo == nil then
+				return nil
+			end
+
+			local function InfoText()
+				local info = dmhub.LocalAssetsGitInfo()
+				if info == nil then
+					return ""
+				end
+				if info.path ~= nil then
+					local src = ""
+					if info.source == "setting" then
+						src = " (configured)"
+					end
+					return string.format("Git: %s -- %s%s", info.path, info.version or "?", src)
+				end
+				return "Git: not found -- status badges disabled. Use Locate to point at a git executable."
+			end
+
+			local infoLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 13,
+				valign = "center",
+				opacity = 0.8,
+				text = InfoText(),
+			}
+
+			local locateButton = gui.Button{
+				width = 100,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 8,
+				text = "Locate Git...",
+				click = function(element)
+					dmhub.OpenFileDialog{
+						id = "localassetsgit",
+						--Windows filter; on Mac auto-detection covers the
+						--standard install locations so Locate is rarely needed.
+						extensions = {"exe"},
+						prompt = "Locate the git executable",
+						open = function(path)
+							local version = dmhub.LocalAssetsValidateGit(path)
+							if version == nil then
+								gui.ModalMessage{
+									title = "Not a Git Executable",
+									message = string.format("%s did not answer --version like git does.", path),
+								}
+								return
+							end
+							dmhub.SetSettingValue("localassets:gitpath", path)
+							infoLabel.text = InfoText()
+						end,
+					}
+				end,
+			}
+
+			local autoButton = gui.Button{
+				width = 60,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 4,
+				text = "Auto",
+				click = function(element)
+					dmhub.SetSettingValue("localassets:gitpath", "")
+					infoLabel.text = InfoText()
+				end,
+			}
+
+			return gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 2,
+				infoLabel,
+				locateButton,
+				autoButton,
+			}
+		end
+
+		--assembled programmatically: GitPathRow() is nil on engine builds
+		--without the git bridges, and a nil hole in the positional children
+		--would truncate everything after it.
+		local rootArgs = {
 			flow = "vertical",
 			width = "90%",
 			height = "auto",
@@ -1103,11 +1590,17 @@ local function CreateLocalAssetsSection()
 				vmargin = 4,
 				text = "Browse Files",
 			},
-
-			searchInput,
-			searchResultsPanel,
-			treesPanel,
 		}
+		local gitRow = GitPathRow()
+		if gitRow ~= nil then
+			rootArgs[#rootArgs+1] = gitRow
+		end
+		rootArgs[#rootArgs+1] = toolbar
+		rootArgs[#rootArgs+1] = searchResultsPanel
+		rootArgs[#rootArgs+1] = treesPanel
+
+		browserRoot = gui.Panel(rootArgs)
+		return browserRoot
 	end
 
 	local resultPanels = {

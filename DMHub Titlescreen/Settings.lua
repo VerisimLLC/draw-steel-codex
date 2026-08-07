@@ -866,6 +866,19 @@ setting{
 	default = "",
 }
 
+--dev-only, GLOBAL (not per-game): explicit path to the git executable used
+--by the local-assets read-only git integration (status badges in the file
+--browser). When empty, the engine auto-detects git from PATH and common
+--install locations; set this only when auto-detection fails. Edited via the
+--git row in the Local Assets settings section; the engine reads it in
+--GitStatusService.ResolveGitPath.
+setting{
+	id = "localassets:gitpath",
+	description = "Git Executable for Local Assets (dev)",
+	storage = "preference",
+	default = "",
+}
+
 setting{
 	id = "showdeleted",
 	description = "Shows library items that have been deleted",

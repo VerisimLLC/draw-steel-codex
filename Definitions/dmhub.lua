@@ -693,7 +693,7 @@ function dmhub.LocalAssetsApplyDirs()
 	-- dummy implementation for documentation purposes only
 end
 
---- LocalAssetsFileTree: Returns the indexed contents of one local-assets directory as a tree: categories, then (for nested categories such as objectTables) containers, then items. Each item is { path, fileName, id, displayName, shadowed }; shadowed means a higher-precedence directory's copy of the same item wins. Built from the live index, not a disk walk; categories, containers and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active or dirIndex is out of range.
+--- LocalAssetsFileTree: Returns the indexed contents of one local-assets directory as a tree: categories, then (for nested categories such as objectTables) containers, then items. Each item is { path, normPath, fileName, id, displayName, shadowed }; shadowed means a higher-precedence directory's copy of the same item wins; normPath is the normalized path git status is keyed by. Built from the live index, not a disk walk; categories, containers and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active or dirIndex is out of range.
 --- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
 --- @return { directory: string, categories: { name: string, items: table[], containers: { id: string, displayName: string|nil, metaPath: string|nil, items: table[] }[] }[] }|nil
 function dmhub.LocalAssetsFileTree(dirIndex)
@@ -702,8 +702,34 @@ end
 
 --- LocalAssetsSearch: Searches the local-assets index -- item ids, display names, container ids and filenames -- across every configured directory. Returns matching files (each copy of a multi-directory item, winner first) with directory attribution: dirIndex is a 1-based index into LocalAssetsStatus().directories. Capped at 200 results. Dev mode only; returns nil when local assets mode is not active.
 --- @param text string Search text; case-insensitive substring match.
---- @return { path: string, fileName: string, id: string|nil, displayName: string|nil, category: string, tableid: string|nil, dirIndex: number, directory: string, shadowed: boolean }[]|nil
+--- @return { path: string, normPath: string, fileName: string, id: string|nil, displayName: string|nil, category: string, tableid: string|nil, dirIndex: number, directory: string, shadowed: boolean }[]|nil
 function dmhub.LocalAssetsSearch(text)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitInfo: Returns which git executable the local-assets git integration is using: the resolved path and its version (nil when no working git was found), where it came from (source 'setting' = the localassets:gitpath setting, 'auto' = auto-detected from PATH/common install locations), and the raw configured setting value. Resolution is cached per setting value. Dev mode only; nil otherwise.
+--- @return { path: string|nil, version: string|nil, source: string|nil, configured: string|nil }|nil
+function dmhub.LocalAssetsGitInfo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsValidateGit: Validates a candidate git executable by running it with --version (a few seconds timeout). Returns the version string on success, nil on failure. Used by the Browse fallback in the local-assets git row before storing localassets:gitpath. Dev mode only.
+--- @param path string Candidate git executable path.
+--- @return string|nil
+function dmhub.LocalAssetsValidateGit(path)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitRefresh: Kicks off a background git status refresh for one local-assets directory (rev-parse + status --porcelain on a worker thread; read-only). No-op while a refresh for that directory is already running. Poll LocalAssetsGitStatus for the result. Dev mode only; does nothing when local assets mode is not active.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+function dmhub.LocalAssetsGitRefresh(dirIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitStatus: Returns the cached git status for one local-assets directory. 'available' is whether a git executable was resolved; 'hasResult' whether at least one refresh has completed (call LocalAssetsGitRefresh and poll while 'refreshing'). 'states' maps NORMALIZED file paths (full path, forward slashes, lowercase -- the normPath field of LocalAssetsFileTree/Search items) to a state: added, modified, deleted, renamed or untracked; unlisted files are unchanged. 'changes' lists every changed file (including deleted ones, which have no live tree row), sorted by path. Dev mode only; nil when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @return { available: boolean, hasResult: boolean, refreshing: boolean, isRepo: boolean, repoRoot: string|nil, error: string|nil, states: table<string,string>, counts: { added: number, modified: number, deleted: number, renamed: number, untracked: number, total: number }, changes: { path: string, normPath: string, fileName: string, state: string }[] }|nil
+function dmhub.LocalAssetsGitStatus(dirIndex)
 	-- dummy implementation for documentation purposes only
 end
 

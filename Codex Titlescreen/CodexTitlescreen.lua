@@ -4659,36 +4659,74 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	local m_emailSending = false
 	local m_emailWaiting = false
 
+	--completion state drives which face each section shows (the ask vs the
+	--compact done row) and the Close/Done button label.
+	local m_patreonDone = args.patreonLinked == true
+	local m_emailDone = args.emailConfirmed == true
+
 	local contractDialog
 	local patreonSection
+	local patreonAsk
+	local patreonDoneRow
 	local patreonButton
 	local patreonStatus
 	local emailSection
+	local emailAsk
+	local emailDoneRow
 	local emailInput
 	local emailButton
+	local emailRetryLink
 	local emailStatus
+	local closeButton
+
+	local STATUS_ERROR_COLOR = "#ff6666"
+	local STATUS_GOOD_COLOR = "#88ff88"
+
+	--accents sampled from the Codex logo: the hexagon ring's orange for
+	--Patreon, the d20 faces' blue for the news signup. The FRAME shades
+	--are the same hues dimmed for 1px card borders.
+	local PATREON_ACCENT = "#E54B25"
+	local PATREON_FRAME = "#89301A"
+	local EMAIL_ACCENT = "#1B7196"
+	local EMAIL_FRAME = "#0F4258"
+
+	--swap a section between its ask panel and its done row, and let the
+	--Close button read "Done" once nothing is left to ask for.
+	local function RefreshSections()
+		patreonAsk:SetClass("collapsed", m_patreonDone)
+		patreonDoneRow:SetClass("collapsed", not m_patreonDone)
+		emailAsk:SetClass("collapsed", m_emailDone)
+		emailDoneRow:SetClass("collapsed", not m_emailDone)
+		if m_patreonDone and m_emailDone then
+			closeButton.text = "Done"
+		end
+	end
 
 	local function SetPatreonStatus(text, isError)
 		patreonStatus.text = text or ""
 		patreonStatus:SetClass("collapsed", text == nil or text == "")
-		patreonStatus.selfStyle.color = cond(isError, "#ff6666", "#88ff88")
+		patreonStatus.selfStyle.color = cond(isError, STATUS_ERROR_COLOR, STATUS_GOOD_COLOR)
 	end
 
 	local function SetEmailStatus(text, isError)
 		emailStatus.text = text or ""
 		emailStatus:SetClass("collapsed", text == nil or text == "")
-		emailStatus.selfStyle.color = cond(isError, "#ff6666", "#88ff88")
+		emailStatus.selfStyle.color = cond(isError, STATUS_ERROR_COLOR, STATUS_GOOD_COLOR)
 	end
 
+	--the titlescreen display face, same as the dialog title: display type
+	--for structure, serif for reading. Set in caps to match the title and
+	--the CAMPAIGNS/HEROES headers.
 	local SectionHeading = function(text)
 		return gui.Label{
 			color = Styles.textColor,
-			fontSize = 22,
-			bold = true,
+			fontFace = "book",
+			fontSize = 20,
 			width = "100%",
 			height = "auto",
 			halign = "left",
 			vmargin = 4,
+			bmargin = 6,
 			text = text,
 		}
 	end
@@ -4701,6 +4739,127 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 			height = "auto",
 			halign = "left",
 			text = text,
+		}
+	end
+
+	--each ask lives in its own bordered card with a gold diamond riding the
+	--top border -- the titlescreen's "distinct action" motif (see the
+	--DIRECTOR/PLAYER buttons) -- so the two asks read as two separate
+	--decisions rather than one run-on column.
+	--children ride the constructor literal via table.unpack, NOT appended
+	--to the args table afterwards: post-construction integer inserts land
+	--in the table's hash part (the literal sized the array part at 1), and
+	--the engine walks children with pairs(), which returns hash-part keys
+	--in undefined order -- the headings visibly shuffled to the bottom.
+	--Frame geometry: the card draws left/right/bottom borders itself (edge
+	--convention: y1 is the BOTTOM edge -- zeroing y1 loses the bottom
+	--border, and a full y2 top border silently bridges the notch gap); the
+	--top edge is two floating half-width lines meeting a chevron notch (a
+	--45-degree square bordered on its two lower edges only -- the drawer
+	--diamond recipe from MCDMInitiativeBar) that the frame "dips" through,
+	--with the diamond sitting in the notch. Floating children anchor to
+	--the CONTENT box (inside pad), so x/y offsets of -pad reach the card's
+	--true edges. Chevron 24px: horizontal diagonal ~34px, so each border
+	--run is content-50% minus 3px, and the diamond keeps a ~5px margin.
+	local CARD_PAD = 14
+
+	local AskCard = function(children, diamondColor, frameColor)
+		return gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 12,
+			bgimage = true,
+			bgcolor = "#101010",
+			--border table only, no borderWidth: a blanket borderWidth
+			--overrides the per-edge widths and re-draws all four edges.
+			border = {x1 = 1, x2 = 1, y1 = 1, y2 = 0},
+			borderColor = frameColor,
+			pad = CARD_PAD,
+			borderBox = true,
+
+			gui.Panel{
+				floating = true,
+				halign = "left",
+				valign = "top",
+				x = -CARD_PAD,
+				y = -CARD_PAD,
+				width = "50%-3",
+				height = 1,
+				bgimage = true,
+				bgcolor = frameColor,
+			},
+			gui.Panel{
+				floating = true,
+				halign = "right",
+				valign = "top",
+				x = CARD_PAD,
+				y = -CARD_PAD,
+				width = "50%-3",
+				height = 1,
+				bgimage = true,
+				bgcolor = frameColor,
+			},
+			--the notch: bordered on the two edges that read as a chevron
+			--pointing DOWN after the 45-degree rotation.
+			gui.Panel{
+				floating = true,
+				halign = "center",
+				valign = "top",
+				y = -CARD_PAD - 12,
+				width = 24,
+				height = 24,
+				rotate = 45,
+				bgimage = true,
+				bgcolor = "clear",
+				border = {x1 = 1, y1 = 1, x2 = 0, y2 = 0},
+				borderColor = frameColor,
+			},
+			--the diamond itself, nested in the notch.
+			gui.Panel{
+				floating = true,
+				bgimage = "panels/square.png",
+				rotate = 45,
+				width = 14,
+				height = 14,
+				bgcolor = diamondColor,
+				halign = "center",
+				valign = "top",
+				y = -CARD_PAD - 7,
+			},
+
+			table.unpack(children),
+		}
+	end
+
+	--a satisfied ask collapses to this instead of vanishing: the card
+	--acknowledges what is already done rather than opening lopsided. The
+	--check wears the card's accent so the two-color system holds.
+	local DoneRow = function(text, accentColor)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 4,
+
+			gui.Panel{
+				bgimage = "phosphor/check-bold.png",
+				bgcolor = accentColor,
+				width = 18,
+				height = 18,
+				halign = "left",
+				valign = "center",
+			},
+			gui.Label{
+				color = Styles.textColor,
+				fontSize = 18,
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				lmargin = 8,
+				text = text,
+			},
 		}
 	end
 
@@ -4717,11 +4876,13 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 	patreonButton = gui.Button{
 		text = "Link Patreon Account",
-		width = 280,
-		height = 40,
-		fontSize = 18,
+		width = 220,
+		height = 34,
+		fontSize = 16,
 		halign = "left",
 		vmargin = 6,
+		borderColor = PATREON_ACCENT,
+		color = PATREON_ACCENT,
 		click = function(element)
 			local patreon = PatreonAccountGlobal()
 			if patreon == nil or patreon.BeginLink == nil then
@@ -4737,7 +4898,8 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				end,
 				linked = function(data)
 					m_link = nil
-					SetPatreonStatus("Your Patreon account is linked. Thank you!", false)
+					m_patreonDone = true
+					RefreshSections()
 				end,
 				failed = function(msg)
 					m_link = nil
@@ -4748,18 +4910,23 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 		end,
 	}
 
-	patreonSection = gui.Panel{
-		classes = {cond(args.patreonLinked, "collapsed")},
+	patreonAsk = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
-		vmargin = 8,
 
-		SectionHeading("Link your Patreon"),
 		BodyLabel("Get access to in-development adventures, character options and more by linking your MCDM Patreon account."),
 		patreonButton,
 		patreonStatus,
 	}
+
+	patreonDoneRow = DoneRow("Your Patreon account is linked. Thank you!", PATREON_ACCENT)
+
+	patreonSection = AskCard({
+		SectionHeading("LINK YOUR PATREON"),
+		patreonAsk,
+		patreonDoneRow,
+	}, PATREON_ACCENT, PATREON_FRAME)
 
 	emailStatus = gui.Label{
 		classes = {"collapsed"},
@@ -4772,8 +4939,18 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 		text = "",
 	}
 
+	--the button is always visible so the section always shows its action;
+	--it is merely disabled until the text looks like an address. It only
+	--collapses while we are waiting on a sent confirmation link, when the
+	--retry link takes over as the section's action. The blue accent is the
+	--"ready" signal: neutral while disabled, blue once sendable.
 	local RefreshEmailButton = function()
-		emailButton:SetClass("collapsed", m_emailWaiting or LooksLikeEmail(emailInput.text) == false)
+		local canSend = (not m_emailSending) and LooksLikeEmail(emailInput.text)
+		emailButton:SetClass("collapsed", m_emailWaiting)
+		emailButton.interactable = canSend
+		emailButton:SetClass("disabled", not canSend)
+		emailButton.selfStyle.color = cond(canSend, EMAIL_ACCENT, Styles.textColor)
+		emailButton.selfStyle.borderColor = cond(canSend, EMAIL_ACCENT, Styles.textColor)
 	end
 
 	local SubmitEmail = function()
@@ -4804,6 +4981,7 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				if result ~= nil and result.ok and result.status == "sent" then
 					m_emailWaiting = true
 					emailInput:SetClass("collapsed", true)
+					emailRetryLink:SetClass("collapsed", false)
 					RefreshEmailButton()
 					SetEmailStatus(string.format("We've emailed a confirmation link to %s. Click the link in that email to finish.", address), false)
 				elseif result ~= nil and (result.httpStatus == 429 or result.error == "rate_limited") then
@@ -4823,48 +5001,90 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	emailInput = gui.Input{
 		placeholderText = "Enter your email address...",
 		characterLimit = 64,
-		width = 320,
-		height = 30,
+		width = "58%",
+		--27 + the border chrome renders at the button's measured 33px
+		--visual height (the 2px border draws outside the declared rect).
+		height = 27,
 		fontSize = 17,
 		bgimage = "panels/square.png",
 		borderWidth = 2,
-		borderColor = "#c8a45a",
+		borderColor = EMAIL_ACCENT,
 		halign = "left",
-		vmargin = 6,
+		valign = "center",
 		--`edit` (per keystroke), not `change`: change also fires on focus loss,
 		--which would fire off a confirmation mail to a half-typed address when
-		--the user clicks Close. The button is the only way to send.
+		--the user clicks Close. Only the button and Enter send.
 		edit = function(element)
 			RefreshEmailButton()
+		end,
+		enter = function(element)
+			SubmitEmail()
 		end,
 	}
 
 	emailButton = gui.Button{
-		classes = {"collapsed"},
-		text = "Send Confirmation Email",
-		width = 280,
-		height = 40,
-		fontSize = 18,
+		classes = {"disabled"},
+		interactable = false,
+		text = "Send Confirmation",
+		width = "36%-8",
+		height = 34,
+		fontSize = 16,
 		halign = "left",
-		vmargin = 4,
+		valign = "center",
+		lmargin = 8,
 		click = function(element)
 			SubmitEmail()
 		end,
 	}
 
-	emailSection = gui.Panel{
-		classes = {cond(args.emailConfirmed, "collapsed")},
+	--escape hatch for a typo'd address: restores the input so the user can
+	--correct and resend instead of being stuck on "we emailed you".
+	emailRetryLink = gui.Label{
+		classes = {"collapsed"},
+		fontSize = 15,
+		underline = true,
+		color = Styles.textColor,
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		vmargin = 4,
+		text = "Wrong address? Try again",
+		click = function(element)
+			m_emailWaiting = false
+			element:SetClass("collapsed", true)
+			emailInput:SetClass("collapsed", false)
+			SetEmailStatus(nil, false)
+			RefreshEmailButton()
+		end,
+	}
+
+	emailAsk = gui.Panel{
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
-		vmargin = 8,
 
-		SectionHeading("Sign up for news"),
-		BodyLabel("Enter your email to receive news, updates, and special offers. We won't share your email with third parties"),
-		emailInput,
-		emailButton,
+		BodyLabel("Enter your email to receive news, updates, and special offers. We won't share your email with third parties."),
+		--input and send button share one row; both collapse while a
+		--confirmation is pending and the retry link takes over.
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 6,
+			emailInput,
+			emailButton,
+		},
+		emailRetryLink,
 		emailStatus,
 	}
+
+	emailDoneRow = DoneRow("Your email address is confirmed. Thank you!", EMAIL_ACCENT)
+
+	emailSection = AskCard({
+		SectionHeading("SIGN UP FOR NEWS"),
+		emailAsk,
+		emailDoneRow,
+	}, EMAIL_ACCENT, EMAIL_FRAME)
 
 	contractDialog = gui.Panel{
 		id = "infernalContract",
@@ -4874,11 +5094,30 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 		width = dialog.width,
 		height = dialog.height,
 		bgimage = "panels/square.png",
-		bgcolor = "#000000d0",
+		--near-opaque scrim + frosted blur so the busy titlescreen behind
+		--the modal recedes completely while it is up.
+		bgcolor = "#000000ee",
+		blurBackground = true,
 
 		styles = {
 			Styles.Default,
 			Styles.Panel,
+			--the titlescreen's legacy styles have no disabled-button look, so
+			--the Send button (disabled until the address validates) needs one
+			--locally or it reads as clickable.
+			{
+				selectors = {"button", "disabled"},
+				opacity = 0.4,
+			},
+			--the legacy {label,button} style carries hmargin = 8, which
+			--staggers every button 8px right of the flush-left text and
+			--input. One shared left edge for the whole column. Two selectors,
+			--NOT {"button"} alone: a one-selector rule loses to the legacy
+			--two-selector rule on specificity regardless of cascade order.
+			{
+				selectors = {"label", "button"},
+				hmargin = 0,
+			},
 		},
 
 		captureEscape = true,
@@ -4900,9 +5139,8 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 				if state ~= nil and state.emailConfirmed == true then
 					m_emailWaiting = false
-					emailInput:SetClass("collapsed", true)
-					emailButton:SetClass("collapsed", true)
-					SetEmailStatus("Your email address is confirmed. Thank you!", false)
+					m_emailDone = true
+					RefreshSections()
 				end
 			end)
 		end,
@@ -4921,22 +5159,31 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 
 		gui.Panel{
 			classes = {"framedPanel"},
-			width = 1180,
-			height = 780,
+			width = 1040,
+			height = 560,
 			halign = "center",
 			valign = "center",
 			flow = "horizontal",
 
-			--the art bleeds the full height of the card on the left; the offer
-			--reads down the column on the right.
+			--the art bleeds the full height of the card on the left; the
+			--offer reads down the column on the right. The 4px inset on
+			--every side (lmargin + the -8 height) keeps the framedPanel
+			--border visible -- without lmargin the art covers the left
+			--border and the frame looks cut off.
 			gui.Panel{
 				bgimage = "panels/titlescreen/infernal-contract.png",
 				bgcolor = "white",
-				width = 546,
-				height = 720,
+				width = 418,
+				height = "100%-8",
 				halign = "left",
 				valign = "center",
-				hmargin = 16,
+				lmargin = 4,
+				--portrait zoom on the upper-center of the art. imageRect y
+				--is BOTTOM-up, so y2 is the crop's top edge. The fractions
+				--must be aspect-matched or the engine stretches the crop to
+				--fill: source 1564x2048 (0.7637) vs panel 418x552 (0.7572)
+				--means width fraction = height fraction * 0.9915.
+				imageRect = {x1 = 0.2521, y1 = 0.425, x2 = 0.7479, y2 = 0.925},
 			},
 
 			gui.Panel{
@@ -4945,39 +5192,75 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				height = "100%",
 				halign = "left",
 				valign = "center",
-				hmargin = 12,
-				vpad = 40,
-				borderBox = true,
+				hmargin = 16,
 
+				--the title wears the titlescreen's display face (the
+				--"CAMPAIGNS" header font) and anchors to the top of the
+				--card; the flavor tail tucks under its right end like a
+				--signature line.
 				gui.Label{
 					color = Styles.textColor,
-					fontSize = 32,
-					bold = true,
+					fontSize = 38,
+					fontFace = "book",
 					width = "100%",
 					height = "auto",
-					halign = "left",
-					vmargin = 12,
-					text = "An infernal contract for you to sign...",
+					halign = "center",
+					textAlignment = "center",
+					tmargin = 16,
+					text = "AN INFERNAL CONTRACT",
+				},
+				gui.Label{
+					color = Styles.textColor,
+					fontSize = 19,
+					italics = true,
+					width = "100%",
+					height = "auto",
+					halign = "right",
+					textAlignment = "right",
+					bmargin = 10,
+					text = "...for you to sign.",
 				},
 
 				patreonSection,
 				emailSection,
 
-				gui.Button{
-					text = "Close",
-					width = 200,
-					height = 36,
-					fontSize = 20,
-					halign = "left",
-					valign = "bottom",
-					vmargin = 24,
-					click = function(element)
-						contractDialog:FireEvent("closeContract")
-					end,
-				},
+				(function()
+					closeButton = gui.Button{
+						text = "Close",
+						width = 200,
+						height = 36,
+						fontSize = 20,
+						halign = "right",
+						valign = "bottom",
+						bmargin = 20,
+						click = function(element)
+							contractDialog:FireEvent("closeContract")
+						end,
+					}
+					return closeButton
+				end)(),
+			},
+
+			--conventional dismiss affordance in the corner, alongside the
+			--Close button and escape. escapeActivates off: the dialog root
+			--already owns escape via captureEscape.
+			gui.CloseButton{
+				floating = true,
+				escapeActivates = false,
+				width = 24,
+				height = 24,
+				halign = "right",
+				valign = "top",
+				hmargin = 10,
+				vmargin = 10,
+				press = function(element)
+					contractDialog:FireEvent("closeContract")
+				end,
 			},
 		},
 	}
+
+	RefreshSections()
 
 	return contractDialog
 end

@@ -843,10 +843,25 @@ setting{
 --dev-only: when set for a game, the game's cloud assets are replaced by a
 --local directory tree of YAML files (see the /localassets macro). Takes
 --effect on the next game load. Edited via the custom Local Assets section
---in the Editing settings tab (no generic editor).
+--in the Editing settings tab (no generic editor). Superseded by
+--localassets:dirs when that is non-empty; kept as a fallback so games
+--configured before the multi-directory feature keep working.
 setting{
 	id = "localassets:dir",
 	description = "Local Assets Directory (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only: ordered list of local asset directories, stored as a single
+--newline-delimited string. The FIRST entry is the "top" directory: highest
+--precedence (an item present in several directories loads from the top-most
+--one holding it) and the home for newly created entries. Edited via the
+--custom Local Assets section in the Editing settings tab (no generic
+--editor); the engine reads it in LocalAssetDirectory.MaybeActivate.
+setting{
+	id = "localassets:dirs",
+	description = "Local Assets Directories (dev)",
 	storage = "pergamepreference",
 	default = "",
 }

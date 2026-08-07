@@ -450,28 +450,85 @@ local function CreateImageEditorChooser()
 end
 
 --Local assets: a per-game developer feature where the game's cloud assets are
---replaced by a local directory tree of YAML files (see LocalAssetDirectory in
---the engine and the /localassets macro). Returns a list of panels for the
---Editing settings tab, or an empty list when the feature does not apply
---(not in dev mode, or not in a real game).
+--replaced by one or more local directory trees of YAML files (see
+--LocalAssetDirectory in the engine and the /localassets macro). Multiple
+--directories form an ordered overlay: the FIRST is the "top" directory --
+--highest precedence, and the home for newly created entries. Returns a list
+--of panels for the Editing settings tab, or an empty list when the feature
+--does not apply (not in dev mode, or not in a real game).
 local function CreateLocalAssetsSection()
 	if dmhub.isLobbyGame or (not dmhub.GetSettingValue("dev")) then
 		return {}
 	end
 
-	local function CurrentDir()
-		local dir = dmhub.GetSettingValue("localassets:dir")
-		if dir == nil then
+	--The directory list is stored newline-delimited in localassets:dirs, top
+	--directory first; the legacy single-path localassets:dir is honored as a
+	--fallback so games configured before the multi-directory feature keep
+	--working until the list is first edited here.
+	local function GetDirs()
+		local result = {}
+		local str = dmhub.GetSettingValue("localassets:dirs")
+		if str ~= nil and str ~= "" then
+			for line in string.gmatch(str, "[^\n]+") do
+				line = line:match("^%s*(.-)%s*$")
+				if line ~= "" then
+					result[#result+1] = line
+				end
+			end
+		end
+		if #result == 0 then
+			local legacy = dmhub.GetSettingValue("localassets:dir")
+			if legacy ~= nil and legacy ~= "" then
+				result[1] = legacy
+			end
+		end
+		return result
+	end
+
+	local function SetDirs(dirs)
+		dmhub.SetSettingValue("localassets:dirs", table.concat(dirs, "\n"))
+		if #dirs == 0 then
+			--clear the legacy single-dir setting too, or GetDirs would fall
+			--back to it and the feature would not actually turn off.
+			dmhub.SetSettingValue("localassets:dir", "")
+		end
+		--a pure reordering may apply live; other changes require a game
+		--reload. The status label reflects which via LocalAssetsStatus.
+		if dmhub.LocalAssetsApplyDirs ~= nil then
+			dmhub.LocalAssetsApplyDirs()
+		end
+	end
+
+	local function TopDir()
+		local dirs = GetDirs()
+		if dirs[1] == nil then
 			return ""
 		end
-		return dir
+		return dirs[1]
 	end
 
 	local function StatusText()
 		local status = dmhub.LocalAssetsStatus()
-		if status ~= nil and status.active and status.directory ~= nil then
-			return string.format("Active: this game's assets are loading from %s.", status.directory)
-		elseif CurrentDir() ~= "" then
+		local dirs = GetDirs()
+		if status ~= nil and status.active then
+			local ndirs = 1
+			if status.directories ~= nil and #status.directories > 0 then
+				ndirs = #status.directories
+			end
+			local text
+			if ndirs > 1 then
+				text = string.format("Active: assets load from %d directories; new entries are created in %s.", ndirs, status.directories[1])
+			else
+				text = string.format("Active: this game's assets are loading from %s.", status.directory or "?")
+			end
+			if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+				text = text .. string.format(" %d item(s) exist in multiple directories; the higher directory's copy wins.", status.shadowedCount)
+			end
+			if status.reloadRequired then
+				text = text .. " Directory changes are PENDING: reload the game to apply them."
+			end
+			return text
+		elseif #dirs > 0 then
 			return "Set, but not active yet: reload the game to activate."
 		else
 			return "Not set: this game uses cloud assets."
@@ -486,7 +543,7 @@ local function CreateLocalAssetsSection()
 		vmargin = 2,
 		italics = true,
 		text = StatusText(),
-		multimonitor = {"localassets:dir"},
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
 			monitor = function(element)
 				element.text = StatusText()
@@ -494,44 +551,158 @@ local function CreateLocalAssetsSection()
 		},
 	}
 
-	local dirInput = gui.Input{
-		classes = {"form"},
-		width = 300,
-		halign = "right",
-		valign = "center",
-		text = CurrentDir(),
-		multimonitor = {"localassets:dir"},
+	local function SmallButton(text, w, disabled, fn)
+		return gui.Button{
+			width = w,
+			height = 24,
+			fontSize = 12,
+			halign = "left",
+			valign = "center",
+			hmargin = 2,
+			text = text,
+			classes = {cond(disabled, "disabled")},
+			interactable = not disabled,
+			click = fn,
+		}
+	end
+
+	--One row per configured directory: position, editable path, Browse, and
+	--reordering controls. Rows are rebuilt whenever the setting changes, so
+	--the captured indexes are always fresh.
+	local function MakeDirRow(index, dir, count)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = 30,
+			vmargin = 2,
+
+			gui.Label{
+				classes = {"form"},
+				width = 26,
+				halign = "left",
+				valign = "center",
+				fontSize = 14,
+				text = string.format("%d.", index),
+			},
+
+			gui.Input{
+				classes = {"form"},
+				width = 250,
+				valign = "center",
+				fontSize = 14,
+				text = dir,
+				change = function(element)
+					local dirs = GetDirs()
+					local text = element.text:match("^%s*(.-)%s*$")
+					if text == "" then
+						table.remove(dirs, index)
+					else
+						dirs[index] = text
+					end
+					SetDirs(dirs)
+				end,
+			},
+
+			SmallButton("Browse...", 64, false, function(element)
+				dmhub.OpenFolderDialog{
+					id = "localassets",
+					extensions = {"yaml"},
+					prompt = "Select Local Assets Directory",
+					open = function(folderPath, filePaths)
+						local dirs = GetDirs()
+						dirs[index] = folderPath
+						SetDirs(dirs)
+					end,
+				}
+			end),
+
+			SmallButton("Top", 40, index == 1, function(element)
+				local dirs = GetDirs()
+				local d = table.remove(dirs, index)
+				table.insert(dirs, 1, d)
+				SetDirs(dirs)
+			end),
+
+			SmallButton("Up", 36, index == 1, function(element)
+				local dirs = GetDirs()
+				dirs[index], dirs[index-1] = dirs[index-1], dirs[index]
+				SetDirs(dirs)
+			end),
+
+			SmallButton("Down", 52, index == count, function(element)
+				local dirs = GetDirs()
+				dirs[index], dirs[index+1] = dirs[index+1], dirs[index]
+				SetDirs(dirs)
+			end),
+
+			SmallButton("X", 26, false, function(element)
+				local dirs = GetDirs()
+				table.remove(dirs, index)
+				SetDirs(dirs)
+			end),
+		}
+	end
+
+	local function BuildDirRows()
+		local dirs = GetDirs()
+		local rows = {}
+		for i,dir in ipairs(dirs) do
+			rows[#rows+1] = MakeDirRow(i, dir, #dirs)
+		end
+		if #rows == 0 then
+			rows[1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				italics = true,
+				text = "No directories configured.",
+			}
+		end
+		return rows
+	end
+
+	local dirsListArgs = {
+		width = "90%",
+		height = "auto",
+		flow = "vertical",
+		halign = "center",
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
-			change = function(element)
-				dmhub.SetSettingValue("localassets:dir", element.text)
-			end,
 			monitor = function(element)
-				element.text = CurrentDir()
+				element.children = BuildDirRows()
 			end,
 		},
 	}
+	for _,row in ipairs(BuildDirRows()) do
+		dirsListArgs[#dirsListArgs+1] = row
+	end
+	local dirsListPanel = gui.Panel(dirsListArgs)
 
-	local browseButton = gui.Button{
-		width = 110,
+	local addButton = gui.Button{
+		width = 150,
 		height = 32,
 		fontSize = 16,
 		halign = "left",
 		valign = "center",
-		text = "Browse...",
+		text = "Add Directory...",
 		click = function(element)
 			dmhub.OpenFolderDialog{
 				id = "localassets",
 				extensions = {"yaml"},
 				prompt = "Select Local Assets Directory",
 				open = function(folderPath, filePaths)
-					dmhub.SetSettingValue("localassets:dir", folderPath)
+					local dirs = GetDirs()
+					--the new directory goes on TOP: highest precedence and
+					--the home for new entries. Use Down to lower it.
+					table.insert(dirs, 1, folderPath)
+					SetDirs(dirs)
 				end,
 			}
 		end,
 	}
 
 	local function DoExport()
-		local dir = CurrentDir()
+		local dir = TopDir()
 		local result = dmhub.ExportAllAssets{directory = dir}
 		if result == nil then
 			gui.ModalMessage{
@@ -560,7 +731,7 @@ local function CreateLocalAssetsSection()
 		if status == nil or not status.active then
 			return false
 		end
-		local dir = CurrentDir()
+		local dir = TopDir()
 		if dir == "" or dmhub.GetDirectoryInfo == nil then
 			return false
 		end
@@ -570,15 +741,15 @@ local function CreateLocalAssetsSection()
 
 	local populateDisabled = PopulateDisabled()
 	local populateButton = gui.Button{
-		width = 200,
+		width = 210,
 		height = 32,
 		fontSize = 16,
 		halign = "left",
 		valign = "center",
-		text = "Populate Directory",
+		text = "Populate Top Directory",
 		classes = {cond(populateDisabled, "disabled")},
 		interactable = not populateDisabled,
-		multimonitor = {"localassets:dir"},
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
 			monitor = function(element)
 				local disabled = PopulateDisabled()
@@ -587,11 +758,11 @@ local function CreateLocalAssetsSection()
 			end,
 		},
 		click = function(element)
-			local dir = CurrentDir()
+			local dir = TopDir()
 			if dir == "" then
 				gui.ModalMessage{
 					title = "Local Assets",
-					message = "Choose a directory first.",
+					message = "Add a directory first.",
 				}
 				return
 			end
@@ -633,20 +804,10 @@ local function CreateLocalAssetsSection()
 			halign = "center",
 			fontSize = 14,
 			vmargin = 4,
-			text = "Point this game at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits you make in-game are written back to it as YAML, and external changes to the files hot-reload into the game. Takes effect when the game loads. If the directory does not exist, it is created and populated from the game's assets automatically on next load. Use Populate Directory to fill it immediately.",
+			text = "Point this game at one or more local directories of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directories, edits you make in-game are written back to the file each item lives in, and external changes to the files hot-reload into the game. Directory 1 is the TOP directory: when an item exists in several directories the top-most copy wins, and newly created entries are written to it. Use Top/Up/Down to reorder; sending a directory to the top makes it the home for new entries. Takes effect when the game loads (pure reordering usually applies immediately). If the directories are all empty or missing, the top one is populated from the game's assets automatically on next load; use Populate Top Directory to fill it immediately.",
 		},
 
-		gui.Panel{
-			classes = {"formRow"},
-			width = "90%",
-			halign = "center",
-			gui.Label{
-				classes = {"form"},
-				width = "40%",
-				text = "Directory:",
-			},
-			dirInput,
-		},
+		dirsListPanel,
 
 		gui.Panel{
 			flow = "horizontal",
@@ -654,7 +815,7 @@ local function CreateLocalAssetsSection()
 			height = "auto",
 			halign = "center",
 			vmargin = 4,
-			browseButton,
+			addButton,
 			gui.Panel{ width = 16, height = 1 },
 			populateButton,
 		},

@@ -681,9 +681,15 @@ function dmhub.GetDirectoryInfo(path)
 	-- dummy implementation for documentation purposes only
 end
 
---- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether a local asset directory is active (replacing the game's cloud assets), and if so which directory.
---- @return { active: boolean, directory: string|nil }
+--- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether local asset directories are active (replacing the game's cloud assets), the ordered directory list (top/highest-precedence first; 'directory' is the top one), how many items are shadowed by a higher directory, and whether the configured list differs from the active one (game reload required).
+--- @return { active: boolean, directory: string|nil, directories: string[]|nil, shadowedCount: number|nil, reloadRequired: boolean|nil }
 function dmhub.LocalAssetsStatus()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsApplyDirs: Re-reads the localassets:dirs setting and applies it to the running local-assets instance when safe to do live (a pure reordering that changes no item's winning file). Returns 'inactive' when the feature is not running (the next game load picks the setting up), 'applied' when the change took effect immediately, or 'reload' when a game reload is required. Dev mode only.
+--- @return string # "inactive"|"applied"|"reload"
+function dmhub.LocalAssetsApplyDirs()
 	-- dummy implementation for documentation purposes only
 end
 

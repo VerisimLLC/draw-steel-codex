@@ -42,10 +42,10 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
 
             if OnBeginCast ~= nil then
                 local oldBeginCast = synth:try_get("OnBeginCast")
-                synth.OnBeginCast = function()
-                    OnBeginCast()
+                synth.OnBeginCast = function(synthAbility, castOptions)
+                    OnBeginCast(synthAbility, castOptions)
                     if oldBeginCast ~= nil then
-                        oldBeginCast()
+                        oldBeginCast(synthAbility, castOptions)
                     end
                 end
             end

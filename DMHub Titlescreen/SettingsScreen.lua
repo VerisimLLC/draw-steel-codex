@@ -820,6 +820,16 @@ local function CreateLocalAssetsSection()
 				selectors = {"latree-row", "hover"},
 				bgcolor = "#ffffff22",
 			},
+			--directory headers light up as drop targets while a file row is
+			--being dragged (engine-applied drag state classes).
+			gui.Style{
+				selectors = {"latree-row", "drag-target"},
+				bgcolor = "#33663377",
+			},
+			gui.Style{
+				selectors = {"latree-row", "drag-target-hover"},
+				bgcolor = "#55aa5599",
+			},
 		}
 
 		--attached DIRECTLY to each triangle panel, with a selector-less base
@@ -948,6 +958,99 @@ local function CreateLocalAssetsSection()
 			return table.concat(parts, ";")
 		end
 
+		------------------------------------------------------------------
+		--Git operations (Phase 4): move a file to another directory (drag
+		--onto a directory header, or the right-click Move to... menu) and
+		--per-file reverts. Both confirm destructive steps with a modal.
+		------------------------------------------------------------------
+
+		--after a mutating operation: refresh git promptly, then again once
+		--the watcher/sweep and debounces have settled, with a tree rebuild
+		--so rows appear/vanish even when the changes-only filter is off.
+		local function AfterGitOp(dirIndexes)
+			for _,i in ipairs(dirIndexes) do
+				RefreshGitFor(i)
+			end
+			dmhub.Schedule(3, function()
+				if browserRoot ~= nil and browserRoot.valid then
+					for _,i in ipairs(dirIndexes) do
+						RefreshGitFor(i)
+					end
+					browserRoot:FireEventTree("latreeRebuild")
+				end
+			end)
+		end
+
+		local DoMove
+		DoMove = function(entry, fromDirIndex, toDirIndex, overwrite)
+			local result = dmhub.LocalAssetsMoveFile(entry.path, toDirIndex, overwrite == true)
+			if result == nil then
+				return
+			end
+
+			if result.collision and (not (overwrite == true)) then
+				gui.ModalMessage{
+					title = "Overwrite File?",
+					message = string.format("Directory %d already has a file for this item:\n%s\n\nMoving will overwrite that copy with the file being moved. Continue?", toDirIndex, result.collisionPath or "?"),
+					options = {
+						{ text = "Cancel" },
+						{ text = "Overwrite", execute = function()
+							DoMove(entry, fromDirIndex, toDirIndex, true)
+						end },
+					},
+				}
+				return
+			end
+
+			if not result.success then
+				gui.ModalMessage{
+					title = "Move Failed",
+					message = result.error or "Unknown error.",
+				}
+				return
+			end
+
+			--the index updated synchronously, so rebuild right away; the
+			--delayed AfterGitOp pass catches the staged git states.
+			if browserRoot ~= nil and browserRoot.valid then
+				browserRoot:FireEventTree("latreeRebuild")
+			end
+			AfterGitOp({fromDirIndex, toDirIndex})
+		end
+
+		local revertLabels = {
+			modified = { menu = "Revert Changes", confirm = "Discard the local changes to %s and restore the last committed version?" },
+			deleted = { menu = "Restore Deleted File", confirm = "Restore %s from the last committed version?" },
+			renamed = { menu = "Revert Rename", confirm = "Attempt to revert the rename of %s? Renames may need manual git use if this fails." },
+			added = { menu = "Revert Added File", confirm = "Un-stage %s and DELETE it from disk?" },
+			untracked = { menu = "Delete Untracked File", confirm = "DELETE %s from disk? It is not tracked by git, so this cannot be undone." },
+		}
+
+		local function DoRevert(entry, dirIndex, state)
+			local info = revertLabels[state]
+			if info == nil then
+				return
+			end
+			gui.ModalMessage{
+				title = "Confirm Git Revert",
+				message = string.format(info.confirm, entry.fileName),
+				options = {
+					{ text = "Cancel" },
+					{ text = info.menu, execute = function()
+						local err = dmhub.LocalAssetsRevertFile(dirIndex, entry.path, state)
+						if err ~= nil then
+							gui.ModalMessage{
+								title = "Revert Failed",
+								message = err,
+							}
+							return
+						end
+						AfterGitOp({dirIndex})
+					end },
+				},
+			}
+		end
+
 		--one clickable row for an item file. entry comes from
 		--LocalAssetsFileTree or LocalAssetsSearch (or is synthesized by the
 		--Changes view; entry.revealPath overrides the click target there);
@@ -991,6 +1094,8 @@ local function CreateLocalAssetsSection()
 				end,
 			}
 
+			local canMove = dmhub.LocalAssetsMoveFile ~= nil and dirIndex ~= nil
+
 			return gui.Panel{
 				classes = {"latree-row"},
 				flow = "horizontal",
@@ -1000,6 +1105,68 @@ local function CreateLocalAssetsSection()
 				click = function(element)
 					dmhub.RevealInFileBrowser(entry.revealPath or entry.path)
 				end,
+
+				--drag a row onto another directory's header to move it.
+				draggable = canMove,
+				canDragOnto = function(element, target)
+					return target:HasClass("latree-dirtarget") and target.data ~= nil and target.data.dirIndex ~= dirIndex
+				end,
+				drag = function(element, target)
+					if target ~= nil and target.data ~= nil and target.data.dirIndex ~= nil then
+						DoMove(entry, dirIndex, target.data.dirIndex)
+					end
+				end,
+
+				rightClick = function(element)
+					local entries = {}
+					entries[#entries+1] = {
+						text = "Reveal in File Browser",
+						click = function()
+							element.popup = nil
+							dmhub.RevealInFileBrowser(entry.revealPath or entry.path)
+						end,
+					}
+
+					local state = nil
+					local st = m_gitStatus[dirIndex]
+					if st ~= nil and st.states ~= nil and entry.normPath ~= nil then
+						state = st.states[entry.normPath]
+					end
+
+					--a deleted file has nothing on disk to move.
+					if canMove and state ~= "deleted" then
+						local liveStatus = dmhub.LocalAssetsStatus()
+						local dirs = (liveStatus ~= nil and liveStatus.directories) or {}
+						if #dirs > 1 then
+							for k,dirPath in ipairs(dirs) do
+								if k ~= dirIndex then
+									entries[#entries+1] = {
+										text = string.format("Move to %d. %s", k, dirPath),
+										click = function()
+											element.popup = nil
+											DoMove(entry, dirIndex, k)
+										end,
+									}
+								end
+							end
+						end
+					end
+
+					if dmhub.LocalAssetsRevertFile ~= nil and state ~= nil and revertLabels[state] ~= nil then
+						entries[#entries+1] = {
+							text = revertLabels[state].menu .. "...",
+							click = function()
+								element.popup = nil
+								DoRevert(entry, dirIndex, state)
+							end,
+						}
+					end
+
+					element.popup = gui.ContextMenu{
+						entries = entries,
+					}
+				end,
+
 				badge,
 				gui.Label{
 					width = "42%",
@@ -1030,7 +1197,9 @@ local function CreateLocalAssetsSection()
 		--the event fires on the node and the predicate passes, an EXPANDED
 		--node rebuilds its children in place (used by the changes-only
 		--filter; collapsed nodes rebuild naturally on their next expand).
-		local function TreeNode(labelText, countText, buildChildren, extraHeader, rebuildEvents)
+		--dropTargetDirIndex (optional) makes the header a drag target for
+		--file rows (moving files into that directory).
+		local function TreeNode(labelText, countText, buildChildren, extraHeader, rebuildEvents, dropTargetDirIndex)
 			local expanded = false
 			local triangle = gui.Panel{
 				bgimage = "panels/triangle.png",
@@ -1046,8 +1215,15 @@ local function CreateLocalAssetsSection()
 				height = "auto",
 				lmargin = 16,
 			}
+			local headerClasses = {"latree-row"}
+			if dropTargetDirIndex ~= nil then
+				headerClasses[#headerClasses+1] = "latree-dirtarget"
+			end
+
 			local header = gui.Panel{
-				classes = {"latree-row"},
+				classes = headerClasses,
+				dragTarget = dropTargetDirIndex ~= nil,
+				data = { dirIndex = dropTargetDirIndex },
 				flow = "horizontal",
 				width = "100%",
 				height = 22,
@@ -1346,7 +1522,7 @@ local function CreateLocalAssetsSection()
 				latreeRebuild = function()
 					return true
 				end,
-			})
+			}, dirIndex)
 		end
 
 		local function BuildDirectoryNodes()

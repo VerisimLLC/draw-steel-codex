@@ -733,6 +733,24 @@ function dmhub.LocalAssetsGitStatus(dirIndex)
 	-- dummy implementation for documentation purposes only
 end
 
+--- LocalAssetsMoveFile: Moves an indexed local-assets file into another configured directory, preserving its category/container subpath (and creating the container's _meta.yaml in the target when missing). Git-aware: same repo -> git mv; tracked across repos -> move + git rm + git add; untracked/no-git -> plain move (stages, never commits). When the target directory already holds a file for the same item, returns collision=true with collisionPath unless overwrite is true, in which case that copy is removed (git rm when tracked) and replaced. Routed through LocalAssetDirectory so the index updates, the resulting watcher events are echo-suppressed, and the item's winning file recomputes. Dev mode only; error when local assets mode is not active.
+--- @param path string Full path of an indexed local-assets file.
+--- @param targetDirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @param overwrite boolean Pass true after the user confirms overwriting the target directory's existing copy of the same item.
+--- @return { success: boolean, collision: boolean, collisionPath: string|nil, targetPath: string|nil, error: string|nil }
+function dmhub.LocalAssetsMoveFile(path, targetDirIndex, overwrite)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsRevertFile: Reverts one file's git changes: modified/deleted/renamed -> git checkout HEAD -- <file>; added -> git rm -f (un-stage and delete); untracked -> delete the file. Deliberately performs plain git/fs operations with NO echo suppression -- the restored content flows into the game through the normal hot-reload path (the sweep guarantees pickup within a couple of seconds). The UI must confirm with the user before calling. Dev mode only; error when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus (the directory containing the file).
+--- @param path string Full path of the file to revert.
+--- @param state string The file's git state as reported by LocalAssetsGitStatus: modified, deleted, renamed, added or untracked.
+--- @return string|nil # nil on success, else a human-readable error.
+function dmhub.LocalAssetsRevertFile(dirIndex, path, state)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RevealInFileBrowser: Reveals the given file or directory in the operating system's file browser (Windows Explorer / macOS Finder). Dev mode only; does nothing otherwise.
 --- @param path string The directory or file to reveal.
 function dmhub.RevealInFileBrowser(path)

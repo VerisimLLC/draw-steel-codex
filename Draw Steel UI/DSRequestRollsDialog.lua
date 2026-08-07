@@ -275,8 +275,37 @@ function RollCheck:GetModifiers(creature, rollRequest)
 
 		--Modifiers included from the Roll
 		local rollModifiers = self:try_get("modifiers", {})
-		--Modifiers for the creature making the roll
-		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", {attribute = self.id, skills = skills})
+
+        local checkOptions = self:try_get("options", {})
+        local modifierOptions = {
+            attribute = self.id,
+            skills = skills,
+            --The ability that started this opposed test, so a modifier can ask
+            --questions like "Ability.name is Search for Hidden Creatures".
+            ability = checkOptions.ability,
+            title = rollRequest ~= nil and rollRequest:try_get("title"),
+        }
+
+		--Modifiers for the creature making the roll. An opposed test is still a
+		--test, so ask for both kinds: a modifier set to "Tests" and one set to
+		--"Opposed Tests" should each show up here.
+		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", modifierOptions)
+
+		--A modifier set to "All" roll types answers both questions, so remember
+		--what we already have and don't list it twice.
+		local alreadyListed = {}
+		for _,mod in ipairs(result) do
+			alreadyListed[mod.modifier:try_get("guid") or mod.modifier] = true
+		end
+
+		for _,mod in ipairs(creature:GetModifiersForPowerRoll(self:GetRoll(creature), "opposed_power_roll", modifierOptions)) do
+			local key = mod.modifier:try_get("guid") or mod.modifier
+			if not alreadyListed[key] then
+				alreadyListed[key] = true
+				result[#result+1] = mod
+			end
+		end
+
 		if skill ~= nil and creature:ProficientInSkill(skill) then
             for _,mod in ipairs(result) do
                 if mod.modifier.name == "Skilled" then
@@ -431,6 +460,206 @@ local function HaveParallelPromptRequest()
     return false
 end
 
+--Roll types shown in the newer Timeline roller (the one that mounts under the
+--ability card) instead of the old floating dialog. Anything not listed here
+--keeps the old dialog. Move one type over at a time.
+local g_timelineRollTypes = {
+    opposed_power_roll = true,
+}
+
+--Wraps the old floating dialog so callers can treat both dialogs the same way.
+local function LegacyPromptHandle(rollid)
+    return {
+        rollid = rollid,
+        IsShown = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil
+                and dialog.data.IsShown ~= nil and dialog.data.IsShown()
+        end,
+        LiveRollId = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.rollid or nil
+        end,
+        Cancel = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            if dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                dialog.data.Cancel()
+            end
+        end,
+    }
+end
+
+--Show a requested roll in the Timeline roller. Returns a handle, or nil if we
+--could not get a Timeline surface and the caller should use the old dialog.
+--
+--dialogParams is modified in place on success (we add the header text and wrap
+--the finish callbacks), so only call this when we are committed to this route.
+local function ShowTimelinePrompt(check, dialogParams)
+    if rawget(_G, "CharacterPanel") == nil or CharacterPanel.EmbedPromptRollDialog == nil then
+        return nil
+    end
+
+    local checkOptions = check:try_get("options", {})
+
+    local casterToken = nil
+    if checkOptions.casterid ~= nil then
+        casterToken = dmhub.GetTokenById(checkOptions.casterid)
+    end
+
+    local mount = CharacterPanel.EmbedPromptRollDialog{
+        token = casterToken,
+        ability = checkOptions.ability,
+    }
+
+    if mount == nil or mount.dialog == nil or not mount.dialog.valid
+       or mount.dialog.data == nil or mount.dialog.data.ShowDialog == nil then
+        return nil
+    end
+
+    --The Timeline roller shows no title of its own, so hand it the same two
+    --lines the old dialog printed above the roll.
+    local headerLines = {}
+    if dialogParams.description ~= nil and dialogParams.description ~= "" then
+        headerLines[#headerLines+1] = string.format("<b>%s</b>", dialogParams.description)
+    end
+    if dialogParams.explanation ~= nil and dialogParams.explanation ~= "" then
+        headerLines[#headerLines+1] = dialogParams.explanation
+    end
+    dialogParams.promptHeader = table.concat(headerLines, "\n")
+
+    --Put the ability card away again if we were the ones who put it up. Nothing
+    --else will: only a real ability cast installs a teardown handler.
+    local tornDown = false
+    local function Teardown()
+        if tornDown then
+            return
+        end
+        tornDown = true
+
+        if mount.dialog ~= nil and mount.dialog.valid and mount.dialog.data ~= nil then
+            mount.dialog.data.promptPending = nil
+        end
+
+        if mount.locked then
+            CharacterPanel.UnlockDisplayAbility()
+        end
+        if mount.ownedAbility ~= nil then
+            --Safe if someone else has since taken the card over; HideAbility
+            --only acts when the card is still showing this ability.
+            CharacterPanel.HideAbility(mount.ownedAbility)
+        end
+    end
+
+    local resolved = false
+    local origComplete = dialogParams.completeRoll
+    local origCancel = dialogParams.cancelRoll
+
+    --Original first so the action request is always written, teardown after.
+    dialogParams.completeRoll = function(rollInfo)
+        resolved = true
+        if origComplete ~= nil then
+            origComplete(rollInfo)
+        end
+        Teardown()
+    end
+
+    dialogParams.cancelRoll = function()
+        resolved = true
+        if origCancel ~= nil then
+            origCancel()
+        end
+        Teardown()
+    end
+
+    --Give the freshly mounted dialog time to build itself before the roll goes
+    --in; see mount.showDelay. ShowDialog handles this for us: outside a
+    --coroutine it picks a roll id, reschedules itself, and hands the id back
+    --now, so the request bookkeeping below still gets its id immediately.
+    dialogParams.delay = mount.showDelay
+
+    local rollid = mount.dialog.data.ShowDialog(dialogParams)
+
+    if not mount.dialog.valid or rollid == nil then
+        --ShowDialog bailed. Undo everything and let the caller fall back.
+        dialogParams.completeRoll = origComplete
+        dialogParams.cancelRoll = origCancel
+        dialogParams.promptHeader = nil
+        dialogParams.delay = nil
+        Teardown()
+        return nil
+    end
+
+    --If the panel is destroyed without finishing -- displaced by a new cast, or
+    --the card closed from somewhere else -- neither callback fires, which would
+    --leave the request stuck waiting on a roll that can no longer happen. Watch
+    --for that and release it.
+    --
+    --Only a DESTROYED panel counts. The dialog hides itself the moment the dice
+    --are thrown and stays hidden while they are still in the air, so "hidden" is
+    --not "finished" -- and the roll keeps calling into the panel the whole time,
+    --so we must never destroy it here either.
+    local Watch
+    Watch = function()
+        if mod.unloaded or tornDown or resolved then
+            return
+        end
+
+        local dialog = mount.dialog
+        if dialog == nil or not dialog.valid then
+            resolved = true
+            if origCancel ~= nil then
+                origCancel()
+            end
+            Teardown()
+            return
+        end
+
+        dmhub.Schedule(0.25, Watch)
+    end
+    dmhub.Schedule(0.25, Watch)
+
+    return {
+        rollid = rollid,
+        IsShown = function()
+            local dialog = mount.dialog
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil
+                and dialog.data.IsShown ~= nil and dialog.data.IsShown()
+        end,
+        LiveRollId = function()
+            local dialog = mount.dialog
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.rollid or nil
+        end,
+        Cancel = function()
+            local dialog = mount.dialog
+            if dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                dialog.data.Cancel()
+            end
+        end,
+    }
+end
+
+--Show a requested roll in whichever dialog that roll type uses.
+local function ShowRollPrompt(check, dialogParams)
+    if check == nil then
+        return nil
+    end
+
+    local customInfo = check:CustomInfo()
+    if customInfo ~= nil and customInfo.ShowDialog ~= nil then
+        return LegacyPromptHandle(customInfo.ShowDialog(check, dialogParams))
+    end
+
+    if g_timelineRollTypes[check.type] then
+        local handle = ShowTimelinePrompt(check, dialogParams)
+        if handle ~= nil then
+            return handle
+        end
+        --No Timeline surface available; fall through to the old dialog.
+    end
+
+    return LegacyPromptHandle(gamehud.rollDialog.data.ShowDialog(dialogParams))
+end
+
 --this is a hidden panel which just listens for required rolls.
 function GameHud:RequireRollListenerPanel()
 
@@ -438,8 +667,10 @@ function GameHud:RequireRollListenerPanel()
 	local autoCancelId = nil
 
 	--tracks the ID of the roll dialog we are showing. This way we can cancel that dialog
-	--if needed due to the roll request being retracted.
+	--if needed due to the roll request being retracted. showingPrompt is the handle
+	--for whichever dialog that turned out to be -- the roll type decides.
 	local showingRollId = nil
+	local showingPrompt = nil
 	local rollRequestId = nil
 
 	--track rolls we currently have ongoing
@@ -463,11 +694,12 @@ function GameHud:RequireRollListenerPanel()
 			--deferring until the blocking dialog closes.
 			local dialogShown = CharacterPanel.AnyRollDialogShown()
 
-			if dialogShown and self.rollDialog.data.IsShown() and showingRollId == gamehud.rollDialog.data.rollid then
+			if dialogShown and showingPrompt ~= nil and showingPrompt.IsShown()
+			   and showingRollId == showingPrompt.LiveRollId() then
 				--we requested the current roll dialog that is shown. See if our reason
 				--for doing so has been canceled, in which case we want to close that dialog.
 				if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
-					self.rollDialog.data.Cancel()
+					showingPrompt.Cancel()
 				end
 			end
 
@@ -549,6 +781,13 @@ function GameHud:RequireRollListenerPanel()
 								local ShowPromptDialog
 								ShowPromptDialog = function(checkIndex, nofadein)
 									local check = checks[checkIndex]
+									if check == nil then
+										--The request asked this token to roll but handed it no
+										--checks to roll. Badly authored content can do this;
+										--don't take the client down over it.
+										printf("WARNING: roll request %s has no check %d for token %s -- nothing to prompt.", tostring(k), checkIndex, tostring(tokid))
+										return
+									end
 
 									--build a list of alternate options.
 									local alternateOptions = {}
@@ -627,7 +866,9 @@ function GameHud:RequireRollListenerPanel()
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
-										    gamehud.rollDialog.data.Cancel()
+										    if showingPrompt ~= nil then
+										        showingPrompt.Cancel()
+										    end
 											ShowPromptDialog(alternateIndex, true)
 										end,
 
@@ -697,11 +938,8 @@ function GameHud:RequireRollListenerPanel()
 									}
 
 
-									if check:CustomInfo() ~= nil and check:CustomInfo().ShowDialog ~= nil then
-										showingRollId = check:CustomInfo().ShowDialog(check, dialogParams)
-									else
-										showingRollId = gamehud.rollDialog.data.ShowDialog(dialogParams)
-									end
+									showingPrompt = ShowRollPrompt(check, dialogParams)
+									showingRollId = showingPrompt ~= nil and showingPrompt.rollid or nil
 								end
 
 								ShowPromptDialog(1)

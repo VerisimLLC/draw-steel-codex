@@ -3658,6 +3658,9 @@ local function CreateShiftController()
     }
 
     resultPanel = gui.Panel {
+        --starts collapsed like the other cast-specific controllers; only the
+        --cast flows that detect a shift movement type un-collapse it.
+        classes = { "collapsed" },
         halign = "center",
         width = "auto",
         height = "auto",
@@ -5388,6 +5391,10 @@ CreateAbilityController = function()
             g_castMessage:FireEvent("refresh")
             g_abilityController:SetClass("collapsed", false)
             g_castButton:SetClass("collapsed", true)
+
+            --a bare token pick has no movement: never show the shift toggle,
+            --which may have been left visible by a previous shift-move cast.
+            m_shiftController:SetClass("collapsed", true)
 
             local targetChooser = gui.Panel {
                 width = 1,

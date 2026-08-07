@@ -334,6 +334,15 @@ TacPanelStyles.ControlButtons = ThemeEngine.MergeTokens{
         bgimage = "ui-icons/character-sheet.png",
         bgcolor = "@fgPending",
     },
+    {
+        selectors = {"summoner-btn"},
+        bgimage = "drawsteel/hero-token.png",
+        bgcolor = "@fgMuted",
+    },
+    {   --lit when the monster currently has a summoner assigned.
+        selectors = {"summoner-btn", "light-on"},
+        bgcolor = "@accent",
+    },
 }
 TacPanelStyles.TokenBox = ThemeEngine.MergeTokens{
     {
@@ -2059,6 +2068,94 @@ function TacPanel.Portrait()
                 end,
                 linger = function(element)
                     gui.Tooltip("Open Character Sheet")(element)
+                end,
+            }),
+
+            --DM-only: manually assign which hero counts as this monster's
+            --summoner (for monsters placed outside a summon ability).
+            outlineButton(gui.Panel{
+                classes = {"toggle-btn", "summoner-btn", "collapsed"},
+                hoverCursor = "pressbutton",
+                width = visionBtnSize,
+                height = visionBtnSize,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local props = nil
+                    if token ~= nil and token.valid then
+                        props = token.properties
+                    end
+                    local show = dmhub.isDM and props ~= nil and not props:IsHero()
+                    element:SetClass("collapsed", not show)
+                    if show then
+                        element:SetClass("light-on", token.summonerid ~= nil)
+                    end
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+
+                    --any creature on the map except the monster itself can be
+                    --the summoner: heroes summon minions, but monsters can
+                    --summon for other monsters too.
+                    local candidates = {}
+                    for _,tok in ipairs(dmhub.allTokens) do
+                        if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid then
+                            candidates[#candidates+1] = tok
+                        end
+                    end
+
+                    if #candidates == 0 then
+                        gui.Tooltip("No other creatures on this map to assign as summoner.")(element)
+                        return
+                    end
+
+                    local currentid = token.summonerid
+                    local prompt = "Choose this monster's summoner"
+                    if currentid ~= nil then
+                        prompt = "Choose this monster's summoner (pick the current summoner to clear)"
+                    end
+
+                    --enter map targeting: candidates light up with the target
+                    --reticule; clicking one assigns it, Escape cancels.
+                    gamehud.actionBarPanel:FireEventTree("chooseTargetToken", {
+                        sourceToken = token,
+                        targets = candidates,
+                        prompt = prompt,
+                        choose = function(summonerTok)
+                            local t = element.valid and element.data.token or token
+                            if t == nil or not t.valid or summonerTok == nil or not summonerTok.valid then
+                                return
+                            end
+                            if summonerTok.charid == t.summonerid then
+                                --picking the current summoner clears the link.
+                                DrawSteelMinion.SetSummoner(t, nil)
+                            else
+                                DrawSteelMinion.SetSummoner(t, summonerTok)
+                            end
+                            if element.valid then
+                                element:FireEvent("refreshCharacter", t)
+                            end
+                        end,
+                        cancel = function() end,
+                    })
+                end,
+                linger = function(element)
+                    local token = element.data.token
+                    local text = "Assign Summoner"
+                    if token ~= nil and token.valid and token.summonerid ~= nil then
+                        local summonerTok = dmhub.GetTokenById(token.summonerid)
+                        if summonerTok ~= nil and summonerTok.valid then
+                            text = string.format("Summoner: %s (click to change; pick them again to clear)", summonerTok.description)
+                        end
+                    end
+                    gui.Tooltip(text)(element)
                 end,
             }),
 

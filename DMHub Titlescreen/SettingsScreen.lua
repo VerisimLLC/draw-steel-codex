@@ -4010,11 +4010,6 @@ local CreateEmailConfirmationPanel = function()
 	}
 
 	local resultPanel = gui.Panel{
-		-- Gate the email-update interface behind the same dev:storepreview
-		-- preference that controls whether the shop is available (the
-		-- Shop/Inventory title-bar menu and the MCDM Shop section
-		-- below). When the store isn't live, the email section stays hidden.
-		classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
@@ -4075,6 +4070,138 @@ local CreateEmailConfirmationPanel = function()
 	return resultPanel
 end
 
+--The Patreon OAuth link flow, hoisted out of the account panel below so more
+--than one place can offer it. A global table rather than mod.shared, which is
+--per-mod: the module browser lives in another mod and offers the same one-click
+--connect on the page of a module a membership unlocks. Same pattern as the
+--ModuleBrowser global that browser exports.
+--rawget: reading a never-assigned global raises in this runtime.
+PatreonAccount = rawget(_G, "PatreonAccount") or {}
+
+--Begins linking a Patreon account: ask patreonAuthStart for an authorize URL,
+--open it in the system browser, then poll patreonStatus until the OAuth
+--callback records the link.
+--
+--options:
+--  alive     function -> boolean. Return false once the caller's UI is gone.
+--            Every callback and every scheduled tick from then on is dropped -
+--            a dead panel is not safe to touch at all.
+--  progress  function(text)  status text as the flow advances.
+--  linked    function(data)  the link completed; data is the patreonStatus reply.
+--  failed    function(msg)   could not start, or the user never finished.
+--
+--Returns a handle with :Cancel(), which retires the flow without calling back.
+function PatreonAccount.BeginLink(options)
+	local m_finished = false
+
+	local handle = {}
+	function handle:Cancel()
+		m_finished = true
+	end
+
+	local function Expired()
+		return m_finished or mod.unloaded or (options.alive ~= nil and options.alive() ~= true)
+	end
+
+	local function Progress(text)
+		if options.progress ~= nil then
+			options.progress(text)
+		end
+	end
+
+	local function Failed(msg)
+		m_finished = true
+		if options.failed ~= nil then
+			options.failed(msg)
+		end
+	end
+
+	--4s tick, 180s deadline; transient errors do not end the wait, since the
+	--user is off in a browser and the network may blip.
+	local function StartPoll()
+		local deadline = dmhub.Time() + 180
+
+		local Tick
+		Tick = function()
+			if Expired() then
+				return
+			end
+
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
+				data = {},
+				success = function(data)
+					if Expired() then
+						return
+					end
+					if type(data) == "table" and data.ok and data.linked then
+						m_finished = true
+						if options.linked ~= nil then
+							options.linked(data)
+						end
+						return
+					end
+					if dmhub.Time() > deadline then
+						Failed("Linking timed out. Try again after finishing in your browser.")
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+				error = function(msg)
+					if Expired() then
+						return
+					end
+					if dmhub.Time() > deadline then
+						Failed("Linking timed out. Try again after finishing in your browser.")
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+			}
+		end
+
+		Progress("Waiting for you to finish linking Patreon in your browser...")
+		Tick()
+	end
+
+	Progress("Opening Patreon in your browser...")
+
+	net.Post{
+		url = dmhub.cloudFunctionsBaseUrl .. "/patreonAuthStart",
+		data = {},
+		success = function(data)
+			if Expired() then
+				return
+			end
+
+			if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
+				dmhub.OpenURL(data.authorizeUrl)
+				StartPoll()
+			else
+				local err = "Could not start the link. Please try again."
+				if type(data) == "table" and type(data.error) == "string" then
+					err = data.error
+				end
+				Failed(err)
+			end
+		end,
+		error = function(msg)
+			if Expired() then
+				return
+			end
+			Failed("Could not contact the server. Please try again.")
+		end,
+	}
+
+	return handle
+end
+
+--The Patreon campaign a Codex user is being asked to support. Only MCDM's own
+--modules are surfaced this way (see Module.cs MCDMOrgId), so this is one fixed
+--campaign, not a per-organization link: the publicly readable ModuleAuthor
+--record carries the included-module list but not a campaign URL.
+PatreonAccount.mcdmCampaignUrl = "https://www.patreon.com/cw/mcdm"
+
 --Patreon PATRON account linking, for the logged-in user's own Patreon account.
 --Distinct from PatreonOrgSection, which links a CREATOR's campaign to an
 --organization. This one grants the user their own patron tier.
@@ -4092,15 +4219,14 @@ end
 local CreatePatreonAccountPanel = function()
 	local panel
 
-	--bumped to retire in-flight poll timers; each scheduled tick compares its
-	--captured generation against this before touching anything.
-	local m_pollGeneration = 0
+	--the in-flight PatreonAccount.BeginLink handle, if any. Cancelled whenever we
+	--re-render the section, which is what retires a poll the user walked away from.
+	local m_link = nil
 
 	local ShowUnlinked
 	local ShowLinked
 	local ShowConfirmDisconnect
 	local RefreshStatus
-	local StartLinkPoll
 
 	local function Heading()
 		return gui.Label{
@@ -4437,107 +4563,34 @@ local CreatePatreonAccountPanel = function()
 			vmargin = 4,
 			text = "Link Patreon Account",
 			click = function(element)
-				panel.children = StatusChildren("Opening Patreon in your browser...")
-				net.Post{
-					url = dmhub.cloudFunctionsBaseUrl .. "/patreonAuthStart",
-					data = {},
-					success = function(data)
-						if not panel.valid then
-							return
-						end
-						if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
-							dmhub.OpenURL(data.authorizeUrl)
-							StartLinkPoll()
-						else
-							local err = "Could not start the link. Please try again."
-							if type(data) == "table" and type(data.error) == "string" then
-								err = data.error
-							end
-							ShowUnlinked(err)
-						end
+				m_link = PatreonAccount.BeginLink{
+					alive = function() return panel.valid end,
+					progress = function(text)
+						local children = StatusChildren(text)
+						children[#children+1] = gui.Button{
+							width = 120,
+							height = 30,
+							fontSize = 14,
+							halign = "left",
+							vmargin = 4,
+							text = "Cancel",
+							click = function(element)
+								RefreshStatus()
+							end,
+						}
+						panel.children = children
 					end,
-					error = function(msg)
-						if not panel.valid then
-							return
-						end
-						ShowUnlinked("Could not contact the server. Please try again.")
+					linked = function(data)
+						ShowLinked(data)
+					end,
+					failed = function(msg)
+						ShowUnlinked(msg)
 					end,
 				}
 			end,
 		}
 
 		panel.children = children
-	end
-
-	--4s tick, 180s deadline, Cancel available; transient errors do not end the
-	--wait, since the user is off in a browser and the network may blip.
-	StartLinkPoll = function()
-		m_pollGeneration = m_pollGeneration + 1
-		local generation = m_pollGeneration
-		local deadline = dmhub.Time() + 180
-
-		local children = StatusChildren("Waiting for you to finish linking Patreon in your browser...")
-		children[#children+1] = gui.Button{
-			width = 120,
-			height = 30,
-			fontSize = 14,
-			halign = "left",
-			vmargin = 4,
-			text = "Cancel",
-			click = function(element)
-				RefreshStatus()
-			end,
-		}
-		panel.children = children
-
-		local function PollExpired()
-			--the settings sheet may have been destroyed while a tick was
-			--scheduled; a dead panel is not safe to touch at all.
-			return mod.unloaded or generation ~= m_pollGeneration or (not panel.valid)
-		end
-
-		local function FinishTimedOut()
-			m_pollGeneration = m_pollGeneration + 1
-			ShowUnlinked("Linking timed out. Try again after finishing in your browser.")
-		end
-
-		local Tick
-		Tick = function()
-			if PollExpired() then
-				return
-			end
-			net.Post{
-				url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
-				data = {},
-				success = function(data)
-					if PollExpired() then
-						return
-					end
-					if type(data) == "table" and data.ok and data.linked then
-						m_pollGeneration = m_pollGeneration + 1
-						ShowLinked(data)
-						return
-					end
-					if dmhub.Time() > deadline then
-						FinishTimedOut()
-						return
-					end
-					dmhub.Schedule(4, Tick)
-				end,
-				error = function(msg)
-					if PollExpired() then
-						return
-					end
-					if dmhub.Time() > deadline then
-						FinishTimedOut()
-						return
-					end
-					dmhub.Schedule(4, Tick)
-				end,
-			}
-		end
-
-		Tick()
 	end
 
 	--/Patrons/{uid} carries a token-free mirror of the link, and the engine
@@ -4562,7 +4615,10 @@ local CreatePatreonAccountPanel = function()
 	end
 
 	RefreshStatus = function()
-		m_pollGeneration = m_pollGeneration + 1
+		if m_link ~= nil then
+			m_link:Cancel()
+			m_link = nil
+		end
 
 		local local_ = LocalStatus()
 		if local_ ~= nil then
@@ -5544,6 +5600,30 @@ function CreateSettingsScreen(dialog, args)
 								end,
 							}
 
+							--The Patreon account link and the email confirmation are part
+							--of the in-development Patreon feature, gated behind the
+							--hidden "patreonsub" preference. Built only when it is on, so
+							--the panels' cloud-function status polling never runs for
+							--users who cannot see them.
+							local patreonSectionChildren = {}
+							if dmhub.GetSettingValue("patreonsub") then
+								patreonSectionChildren = {
+									CreatePatreonAccountPanel(),
+
+									gui.Panel{
+										width = 16,
+										height = 16,
+									},
+
+									CreateEmailConfirmationPanel(),
+
+									gui.Panel{
+										width = 16,
+										height = 16,
+									},
+								}
+							end
+
 							local children = {
 
 						gui.Panel{
@@ -5561,18 +5641,11 @@ function CreateSettingsScreen(dialog, args)
 								height = 16,
 							},
 
-							CreatePatreonAccountPanel(),
-
 							gui.Panel{
-								width = 16,
-								height = 16,
-							},
-
-							CreateEmailConfirmationPanel(),
-
-							gui.Panel{
-								width = 16,
-								height = 16,
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+								children = patreonSectionChildren,
 							},
 
 							gui.Label{

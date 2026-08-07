@@ -23,6 +23,17 @@ setting{
     default = 0,
 }
 
+--Gates the in-development Patreon feature: the Patreon tab in the module
+--browser and the Patreon/email sections of the account settings. No editor
+--field, so it never appears in the settings menus; flip it on with
+--/set patreonsub true. Remove this setting once the feature ships.
+setting{
+    id = "patreonsub",
+    description = "Show the in-development Patreon features.",
+    storage = "preference",
+    default = false,
+}
+
 setting{
     id = "disableparallax",
     description = "Disable Parallax",

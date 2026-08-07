@@ -2949,25 +2949,43 @@ if devmode() then
 
     Commands.RegisterMacro{
         name = "localassets",
-        summary = "use a local directory for this game's assets",
-        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Dev only.",
+        summary = "use local directories for this game's assets",
+        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Multiple layered directories can be configured in Settings > Editing > Local Assets; this macro sets a single directory (replacing any configured list). Dev only.",
         command = function(str)
             str = str:match("^%s*(.-)%s*$")
             if str == "" then
                 local status = dmhub.LocalAssetsStatus()
-                local pref = dmhub.GetSettingValue("localassets:dir")
+                local pref = dmhub.GetSettingValue("localassets:dirs")
+                if pref == nil or pref == "" then
+                    pref = dmhub.GetSettingValue("localassets:dir")
+                end
                 if status.active then
-                    print(string.format("localassets: ACTIVE, using %s", status.directory))
+                    if status.directories ~= nil and #status.directories > 1 then
+                        print(string.format("localassets: ACTIVE, %d directories (top first):", #status.directories))
+                        for i,dir in ipairs(status.directories) do
+                            print(string.format("  %d. %s", i, dir))
+                        end
+                        if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+                            print(string.format("  %d item(s) present in multiple directories; the higher directory wins.", status.shadowedCount))
+                        end
+                    else
+                        print(string.format("localassets: ACTIVE, using %s", status.directory))
+                    end
+                    if status.reloadRequired then
+                        print("localassets: the configured directory list has changed; reload the game to apply.")
+                    end
                 elseif pref ~= nil and pref ~= "" then
-                    print(string.format("localassets: set to %s (takes effect on next game load)", pref))
+                    print(string.format("localassets: set to %s (takes effect on next game load)", (pref:gsub("\n", " ; "))))
                 else
                     print("localassets: not set for this game. Usage: /localassets <path> | off")
                 end
             elseif str == "off" then
+                dmhub.SetSettingValue("localassets:dirs", "")
                 dmhub.SetSettingValue("localassets:dir", "")
                 print("localassets: disabled. Reload the game to return to cloud assets.")
             else
-                dmhub.SetSettingValue("localassets:dir", str)
+                dmhub.SetSettingValue("localassets:dirs", str)
+                dmhub.SetSettingValue("localassets:dir", "")
                 print(string.format("localassets: set to %s. Reload the game to activate.", str))
             end
         end,

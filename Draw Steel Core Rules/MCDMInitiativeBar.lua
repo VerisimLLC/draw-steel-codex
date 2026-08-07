@@ -5075,7 +5075,11 @@ function GameHud.CreateRespiteBar(self, info)
 	                            combine = true,
 	                            groupid = groupid,
 	                            execute = function()
-							        token.properties:Rest("long")
+									--Keep ongoing effects: BeginRespiteMode already ended the
+									--"until rest" ones when the respite started. Clearing them
+									--again here would wipe anything gained during this respite,
+									--like a respite activity's bonus.
+							        token.properties:Rest("long", true)
 	                            end,
 	                        }
 							local newXp = token.properties:try_get("xp", 0)
@@ -5090,14 +5094,53 @@ function GameHud.CreateRespiteBar(self, info)
 	}
 end
 
+local g_betweenTurnHandlers = {}
+local g_betweenTurnTransitionInProgress = false
+
+-- Register work that must happen after EndTurn events but before the initiative
+-- queue marks the finished entry as moved. Handlers are keyed so hot reloads
+-- replace an existing registration instead of adding a duplicate.
+function GameHud.RegisterBetweenTurnHandler(args)
+	if args == nil or type(args.id) ~= "string" or type(args.run) ~= "function" then
+		return
+	end
+	g_betweenTurnHandlers[args.id] = args
+end
+
+function GameHud.BetweenTurnTransitionInProgress()
+	return g_betweenTurnTransitionInProgress
+end
+
+local function RunBetweenTurnHandler(handler, context)
+	-- Isolate each handler in its own coroutine. This lets handlers yield while
+	-- abilities resolve without allowing an error to strand initiative forever.
+	local handlerThread = coroutine.create(function()
+		handler.run(context)
+	end)
+
+	while coroutine.status(handlerThread) ~= "dead" do
+		local ok, delay = coroutine.resume(handlerThread)
+		if not ok then
+			print(string.format("BetweenTurnHandler[%s] error: %s", handler.id, tostring(delay)))
+			return
+		end
+
+		if coroutine.status(handlerThread) ~= "dead" then
+			coroutine.yield(type(delay) == "number" and delay or 0.1)
+		end
+	end
+end
+
 function GameHud:NextInitiative(oncomplete)
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.choiceInitiativeBar
 
 	--End the turn in initiative queue data and upload the changes.
-	if self:has_key('currentInitiativeId') then
+	if self:has_key('currentInitiativeId') and not g_betweenTurnTransitionInProgress then
 		local currentInitiativeId = self.currentInitiativeId
 		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
+		local initiativeQueue = info.initiativeQueue
+		g_betweenTurnTransitionInProgress = true
         
 
         --we have to dispatch end turn BEFORE we change to the next turn,
@@ -5114,22 +5157,48 @@ function GameHud:NextInitiative(oncomplete)
 			end
 		end
 
-        --wait a small delay until next round to give a chance for events to proc.
-        --TODO: maybe a mechanism for counting in process abilities/coroutines and
-        --waiting for them to finish before we start the next turn?
-        dmhub.Schedule(0.1, function()
-            local newRound = info.initiativeQueue:NextTurn(currentInitiativeId)
+		-- Give end-turn events a frame to start, then run ordered asynchronous
+		-- handlers while the old round and current-turn state are still intact.
+		dmhub.Coroutine(function()
+			local delayUntil = dmhub.Time() + 0.1
+			while dmhub.Time() < delayUntil do
+				coroutine.yield(0.05)
+			end
 
-            if newRound then
-                self:NewRound()
-            end
+			local handlers = {}
+			for _,handler in pairs(g_betweenTurnHandlers) do
+				handlers[#handlers+1] = handler
+			end
+			table.sort(handlers, function(a, b)
+				return (a.priority or 0) < (b.priority or 0)
+			end)
 
-            --recalculate self.currentInitiativeId
-            mainInitiativeBar:FireEvent("refresh")
-            if oncomplete ~= nil then
-                oncomplete()
-            end
-        end)
+			local context = {
+				initiativeQueue = initiativeQueue,
+				round = initiativeQueue.round,
+				endedInitiativeId = currentInitiativeId,
+				endedTokens = tokens,
+			}
+			for _,handler in ipairs(handlers) do
+				RunBetweenTurnHandler(handler, context)
+			end
+
+			local newRound = false
+			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
+				newRound = initiativeQueue:NextTurn(currentInitiativeId)
+			end
+
+			g_betweenTurnTransitionInProgress = false
+			if newRound then
+				self:NewRound()
+			end
+
+			--recalculate self.currentInitiativeId
+			mainInitiativeBar:FireEvent("refresh")
+			if oncomplete ~= nil then
+				oncomplete()
+			end
+		end)
 
 	end
 end

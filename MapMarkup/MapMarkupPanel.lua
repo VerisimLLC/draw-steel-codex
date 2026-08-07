@@ -1272,6 +1272,172 @@ local function ZoneLocKey(x, y)
     return string.format("%d,%d", x, y)
 end
 
+--Dynamic-light zone types: a zone type can be set to only apply where the map's
+--light level is below a per-type threshold (the flagship use: Darkness that is
+--dynamically calculated from the light on the map). The engine samples light
+--deterministically (dmhub.GetDarkTiles: ambient day/night + token/object lights
+--with wall shadowing, animation-free), and the sampled dark sets carve the
+--type's footprints -- painted zones AND its Entire Map blanket -- exactly like
+--the dispel machinery carves them: records are untouched, the auras and overlay
+--stripes just skip lit tiles.
+--
+--Per-map setting "kwid:pct;kwid:pct" (pct = light threshold percent; below it a
+--tile counts as dark), sorted for a stable cache key. Sampled state lives here
+--too: [floorid.."@"..pct] = {state=<engine hash>, dark={[lockey]=true}}, with
+--`serial` bumped on every change so EnsureZoneCache rebuilds. All of it on ONE
+--table: this chunk runs close to Lua's 200-locals-per-function cap (see
+--m_entireMap).
+local m_dynamicLight = {
+    setting = setting{
+        id = "markup:zonedynamiclight",
+        description = "Map Markup Dynamic-Light Zone Types",
+        storage = "map",
+        default = "",
+    },
+
+    --nil = not probed yet; the engine API is new, so the UI hides on old builds.
+    supported = nil,
+
+    states = {},
+    serial = 0,
+
+    --the CacheKey value the current zone cache was built from (EnsureZoneCache).
+    cacheKey = false,
+}
+
+function m_dynamicLight.Supported()
+    if m_dynamicLight.supported == nil then
+        local ok, value = pcall(function()
+            return dmhub.supportsDynamicLightZones
+        end)
+        m_dynamicLight.supported = (ok and value == true)
+    end
+    return m_dynamicLight.supported
+end
+
+--pcall-guarded like m_entireMap.Serialized: read on aura polls that can land
+--before there is a map to scope a map-storage setting to.
+function m_dynamicLight.Serialized()
+    local str = nil
+    pcall(function()
+        str = m_dynamicLight.setting:Get()
+    end)
+    if type(str) ~= "string" then
+        return ""
+    end
+    return str
+end
+
+--{ keywordid -> threshold percent (integer 1..100) }. Only keywords whose
+--compendium entry has "Can Use Dynamic Light" checked count: unchecking the
+--flag disables an already-configured threshold everywhere (carve, sampling,
+--chip UI) without deleting it -- re-checking restores it. The flag lives on
+--the keyword so the palette only offers Dynamic Light where it makes sense
+--(Darkness), not on every chip. refreshTables bumps m_zoneTablesGen, which
+--is already part of the zone cache key, so a flag flip rebuilds promptly.
+function m_dynamicLight.Thresholds()
+    local result = {}
+    for _,item in ipairs(string.split(m_dynamicLight.Serialized(), ";")) do
+        if item ~= "" then
+            local kwid, pct = string.match(item, "^(.-):(%d+)$")
+            pct = tonumber(pct)
+            if kwid ~= nil and kwid ~= "" and pct ~= nil and pct > 0 then
+                local allowed = false
+                local kw = GetKeyword(kwid)
+                if kw ~= nil then
+                    --pcall: this file loads before EnvironmentalKeyword, so
+                    --keyword instances are only known well-typed at runtime.
+                    pcall(function()
+                        allowed = kw:try_get("dynamicLight", false) == true
+                    end)
+                end
+                if allowed then
+                    result[kwid] = pct
+                end
+            end
+        end
+    end
+    return result
+end
+
+function m_dynamicLight.GetThreshold(keywordid)
+    if keywordid == nil then
+        return nil
+    end
+    return m_dynamicLight.Thresholds()[keywordid]
+end
+
+--Sets or clears (pct = nil) the threshold for a keyword. Stored sorted so the
+--serialized value is stable: it is part of the zone cache's validity key.
+function m_dynamicLight.Set(keywordid, pct)
+    if keywordid == nil then
+        return
+    end
+
+    local thresholds = m_dynamicLight.Thresholds()
+    if thresholds[keywordid] == pct then
+        return
+    end
+    thresholds[keywordid] = pct
+
+    local sorted = {}
+    for id,value in pairs(thresholds) do
+        sorted[#sorted+1] = string.format("%s:%d", id, value)
+    end
+    table.sort(sorted)
+    m_dynamicLight.setting:Set(table.concat(sorted, ";"))
+end
+
+--The zone cache's validity key for dynamic light: the configuration plus the
+--sampling serial (a sample changing what is dark must rebuild the footprints).
+--Empty string when the feature is off -- the common case.
+function m_dynamicLight.CacheKey()
+    local str = m_dynamicLight.Serialized()
+    if str == "" then
+        return ""
+    end
+    return string.format("%s#%d", str, m_dynamicLight.serial)
+end
+
+function m_dynamicLight.StateKey(floorid, pct)
+    return string.format("%s@%d", floorid, pct)
+end
+
+--entry.locs filtered to the currently-dark tiles when the entry's keyword is
+--light-gated; entry.locs itself otherwise. NEVER mutates entry.locs -- the
+--record locs also drive painting/splitting, and a filtered list written back
+--would drop lit tiles from the record on its next write. An unsampled
+--(floor, threshold) applies the zone unfiltered: painted zones stay in force
+--until the first sample lands (<1s), rather than flashing off.
+function m_dynamicLight.ApplyFilter(thresholds, entry)
+    local pct = nil
+    if entry.keywordid ~= nil then
+        pct = thresholds[entry.keywordid]
+    end
+    if pct == nil then
+        return entry.locs
+    end
+
+    local darkState = m_dynamicLight.states[m_dynamicLight.StateKey(entry.floorid, pct)]
+    if darkState == nil then
+        return entry.locs
+    end
+
+    local filtered = {}
+    for _,l in ipairs(entry.locs) do
+        local key = ZoneLocKey(l.x, l.y)
+        --a tile the sampler has never seen (just painted; next sample is
+        --<1s away) defaults to applying, like an unsampled floor does --
+        --absent from `sampled` means unknown, not lit. Rect-mode samples
+        --(blankets) have sampled == nil: the rect covers the whole map.
+        if darkState.dark[key] ~= nil
+            or (darkState.sampled ~= nil and darkState.sampled[key] == nil) then
+            filtered[#filtered+1] = l
+        end
+    end
+    return filtered
+end
+
 --The keyword's stripe/chip color: its icon background color when it has a
 --real one, otherwise a fallback picked stably from the keyword id.
 local function KeywordColor(keywordid, kw)
@@ -1957,11 +2123,14 @@ function m_entireMap.Rebuild(floors)
         return
     end
 
+    local dynThresholds = m_dynamicLight.Thresholds()
+
     for keywordid,_ in pairs(ids) do
         local kw = GetKeyword(keywordid)
         if kw ~= nil then
             local dispels = KeywordDispels(kw)
             local kwName = kw.name or "Zone"
+            local dynPct = dynThresholds[keywordid]
 
             for _,floorInfo in ipairs(floors) do
                 --tiles the blanket yields to. Same keyword: a painted zone
@@ -1981,11 +2150,24 @@ function m_entireMap.Rebuild(floors)
                     end
                 end
 
+                --a dynamic-light blanket covers only the tiles the light
+                --sampler currently reports dark. No sample yet = covers
+                --nothing: on a lit map that avoids a flash of whole-map
+                --darkness in the second before the first sample lands.
+                local darkState = nil
+                if dynPct ~= nil then
+                    darkState = m_dynamicLight.states[m_dynamicLight.StateKey(floorInfo.floorid, dynPct)]
+                end
+
                 local locs = {}
-                for y = y0, y1 do
-                    for x = x0, x1 do
-                        if blocked[ZoneLocKey(x, y)] == nil then
-                            locs[#locs+1] = { x = x, y = y }
+                if dynPct == nil or darkState ~= nil then
+                    for y = y0, y1 do
+                        for x = x0, x1 do
+                            local key = ZoneLocKey(x, y)
+                            if blocked[key] == nil
+                                and (dynPct == nil or darkState.dark[key] ~= nil) then
+                                locs[#locs+1] = { x = x, y = y }
+                            end
                         end
                     end
                 end
@@ -2221,10 +2403,15 @@ local function RebuildZoneCache()
         return a.zoneid < b.zoneid
     end)
 
+    --dynamic-light types register/stripe only their currently-dark tiles; the
+    --record locs (entry.locs) stay pristine -- they drive painting/splitting.
+    local dynThresholds = m_dynamicLight.Thresholds()
+
     for _,entry in ipairs(m_zoneCache) do
-        if #entry.locs > 0 and entry.floorIndex >= 0 then
+        local paintLocs = m_dynamicLight.ApplyFilter(dynThresholds, entry)
+        if #paintLocs > 0 and entry.floorIndex >= 0 then
             local locsUserdata = {}
-            for _,l in ipairs(entry.locs) do
+            for _,l in ipairs(paintLocs) do
                 locsUserdata[#locsUserdata+1] = core.Loc{
                     x = l.x,
                     y = l.y,
@@ -2410,10 +2597,13 @@ local function EnsureZoneCache()
     local mapid = game.currentMapId
     --blankets live in a per-map setting, not in the zone records, so no
     --record write (and no seq bump) accompanies a change to them -- here or
-    --on another client. Compare the value itself.
+    --on another client. Compare the value itself. Dynamic light is the same
+    --shape: a per-map setting plus the sampling serial.
     local blanketKey = m_entireMap.CacheKey()
+    local dynamicKey = m_dynamicLight.CacheKey()
     if m_zoneCache ~= nil and seq == m_zoneCacheSeq and mapid == m_zoneCacheMapid
-        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey then
+        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey
+        and dynamicKey == m_dynamicLight.cacheKey then
         return
     end
 
@@ -2421,6 +2611,7 @@ local function EnsureZoneCache()
     m_zoneCacheMapid = mapid
     m_zoneCacheTablesGen = m_zoneTablesGen
     m_entireMap.cacheKey = blanketKey
+    m_dynamicLight.cacheKey = dynamicKey
     m_zoneRevision = m_zoneRevision + 1
     RebuildZoneCache()
 end
@@ -2797,6 +2988,176 @@ dmhub.RegisterEventHandler("refreshTables", function()
         end)
     end
 end)
+
+--============================================================================
+--Dynamic-light sampling. A slow poll (below) asks the engine which candidate
+--tiles are currently dark; when the answer changes (a torch moved, a door
+--closed, night fell), the sampling serial bumps -- which invalidates the zone
+--cache -- and the aura index is asked to re-poll dmhub.GetMapAuras. The
+--engine hashes the dark set and returns nil while it matches knownState, so
+--an unchanged poll marshals nothing and rebuilds nothing.
+--============================================================================
+
+--One engine call per (floor, distinct threshold): candidates are the whole
+--map extent when any keyword at that threshold blankets the map, else the
+--union of that threshold's painted zone tiles on the floor (built in stable
+--cache order -- the candidate order is part of the engine's state hash).
+function m_dynamicLight.Sample()
+    if not m_dynamicLight.Supported() or not ZonesSupported() then
+        return
+    end
+
+    local thresholds = m_dynamicLight.Thresholds()
+    if next(thresholds) == nil then
+        if next(m_dynamicLight.states) ~= nil then
+            m_dynamicLight.states = {}
+            m_dynamicLight.serial = m_dynamicLight.serial + 1
+            --without this the carve lingers until some unrelated aura
+            --rebuild happens to re-poll the zone cache.
+            pcall(function()
+                dmhub.RefreshMapAuras()
+            end)
+        end
+        return
+    end
+
+    local map = game.currentMap
+    if map == nil then
+        return
+    end
+
+    EnsureZoneCache()
+
+    local floors = {}
+    for _,floor in ipairs(map.floors or {}) do
+        pcall(function()
+            local floorIndex = floor.floorIndex
+            if floorIndex ~= nil and floorIndex >= 0 then
+                floors[#floors+1] = { floorid = floor.floorid, floorIndex = floorIndex }
+            end
+        end)
+    end
+
+    local dims = nil
+    pcall(function()
+        dims = map.dimensions
+    end)
+
+    local blankets = m_entireMap.Keywords()
+
+    --pct -> { kwids = set, blanket = bool }
+    local groups = {}
+    for kwid,pct in pairs(thresholds) do
+        local group = groups[pct]
+        if group == nil then
+            group = { kwids = {}, blanket = false }
+            groups[pct] = group
+        end
+        group.kwids[kwid] = true
+        if blankets[kwid] == true then
+            group.blanket = true
+        end
+    end
+
+    local live = {}
+    local changed = false
+
+    for pct,group in pairs(groups) do
+        for _,floorInfo in ipairs(floors) do
+            local args = {
+                floorIndex = floorInfo.floorIndex,
+                threshold = pct / 100,
+            }
+
+            local haveCandidates = false
+            if group.blanket and dims ~= nil then
+                args.x1 = math.floor(dims.x)
+                args.y1 = math.floor(dims.y)
+                args.x2 = math.floor(dims.z) - 1
+                args.y2 = math.floor(dims.w) - 1
+                haveCandidates = args.x2 >= args.x1 and args.y2 >= args.y1
+            else
+                local locs = {}
+                for _,entry in ipairs(m_zoneCache) do
+                    if entry.floorid == floorInfo.floorid and entry.keywordid ~= nil
+                        and group.kwids[entry.keywordid] == true then
+                        for _,l in ipairs(entry.locs) do
+                            locs[#locs+1] = l.x
+                            locs[#locs+1] = l.y
+                        end
+                    end
+                end
+                if #locs > 0 then
+                    args.locs = locs
+                    haveCandidates = true
+                end
+            end
+
+            if haveCandidates then
+                local key = m_dynamicLight.StateKey(floorInfo.floorid, pct)
+                live[key] = true
+
+                local prev = m_dynamicLight.states[key]
+                if prev ~= nil then
+                    args.knownState = prev.state
+                end
+
+                local ok, result = pcall(function()
+                    return dmhub.GetDarkTiles(args)
+                end)
+                if ok and result ~= nil then
+                    local dark = {}
+                    local resultLocs = result.locs or {}
+                    for i = 1, #resultLocs - 1, 2 do
+                        dark[ZoneLocKey(resultLocs[i], resultLocs[i+1])] = true
+                    end
+
+                    --locs mode also records WHICH tiles were sampled, so
+                    --ApplyFilter can tell "sampled and lit" (drop) from
+                    --"never sampled" (keep until the next sample). Rect mode
+                    --covers the whole map, so nothing is ever unknown there.
+                    local sampled = nil
+                    if args.locs ~= nil then
+                        sampled = {}
+                        for i = 1, #args.locs - 1, 2 do
+                            sampled[ZoneLocKey(args.locs[i], args.locs[i+1])] = true
+                        end
+                    end
+
+                    m_dynamicLight.states[key] = { state = result.state, dark = dark, sampled = sampled }
+                    changed = true
+                end
+            end
+        end
+    end
+
+    --configuration/zones that stopped being sampled must not keep carving.
+    for key,_ in pairs(m_dynamicLight.states) do
+        if live[key] ~= true then
+            m_dynamicLight.states[key] = nil
+            changed = true
+        end
+    end
+
+    if changed then
+        m_dynamicLight.serial = m_dynamicLight.serial + 1
+        pcall(function()
+            dmhub.RefreshMapAuras()
+        end)
+    end
+end
+
+--reschedule-first so a Sample error can't kill the loop; cheap when the
+--feature is unconfigured (one setting read).
+function m_dynamicLight.Tick()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(0.7, m_dynamicLight.Tick)
+    pcall(m_dynamicLight.Sample)
+end
+
+dmhub.Schedule(0.7, m_dynamicLight.Tick)
 
 --============================================================================
 --Zone editing operations (paint / erase / create / update / delete).
@@ -6377,6 +6738,113 @@ CreateMarkupEditor = function()
             },
         }
 
+        --"Dynamic Light": the zone type only applies where the map's light
+        --level is below the slider's threshold, recomputed live as lights
+        --move and the time of day changes. Double-gated: the engine must
+        --support the sampling API (new), and the KEYWORD must have "Can Use
+        --Dynamic Light" checked in its editor -- most zone types (Water,
+        --Difficult Terrain) have no use for it, so only opted-in types
+        --(Darkness) grow the second row. Preset chips have no keyword yet
+        --and so never show it; materialize the keyword and check the flag.
+        local dynEligible = false
+        if kw ~= nil then
+            pcall(function()
+                dynEligible = kw:try_get("dynamicLight", false) == true
+            end)
+        end
+
+        local dynRow = nil
+        if dynEligible and m_dynamicLight.Supported() then
+            local dynPct = m_dynamicLight.GetThreshold(entry.keywordid)
+
+            local dynSlider
+            dynSlider = gui.PercentSlider{
+                --the args table REPLACES PercentSlider's own classes list, so
+                --"percentSlider" must ride along or the control loses its look.
+                classes = {"percentSlider", cond(dynPct == nil, "hidden")},
+                width = 100,
+                height = 14,
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+                value = (dynPct or 30) / 100,
+                hover = SideTooltip("Light threshold: tiles where the light level is below this count as dark, and this zone type applies only there."),
+                confirm = function(element)
+                    local keywordid = entry.keywordid
+                    if keywordid == nil then
+                        return
+                    end
+                    local pct = round(element.value * 100)
+                    if pct < 1 then
+                        pct = 1
+                    end
+                    m_dynamicLight.Set(keywordid, pct)
+                    --sample the new threshold NOW: waiting for the ticker
+                    --leaves a visible blink where the zone rebuilds unfiltered
+                    --(new threshold = no sample yet) and then snaps back a
+                    --poll later.
+                    pcall(m_dynamicLight.Sample)
+                end,
+            }
+
+            local dynButton
+            dynButton = gui.Panel{
+                classes = {"markupEntireMap", cond(dynPct ~= nil, "lit")},
+                width = 78,
+                height = 16,
+                halign = "left",
+                valign = "center",
+                bgimage = "panels/square.png",
+                hover = SideTooltip("Calculate this zone type dynamically from the light on the map: it only applies where the light level is below the threshold. Updates as lights move, doors close and night falls. Painted zones and the Entire Map blanket are both filtered."),
+
+                click = function(element)
+                    --the row only shows for a resolved keyword (the
+                    --dynamicLight flag lives on it), so this is just the
+                    --dead-id healing path, same as the Entire Map pill.
+                    local keywordid = EnsureZoneTypeKeyword(index)
+                    if keywordid == nil then
+                        return
+                    end
+
+                    local lit = m_dynamicLight.GetThreshold(keywordid) == nil
+                    if lit then
+                        local pct = round(dynSlider.value * 100)
+                        if pct < 1 then
+                            pct = 30
+                        end
+                        m_dynamicLight.Set(keywordid, pct)
+                    else
+                        m_dynamicLight.Set(keywordid, nil)
+                    end
+                    element:SetClass("lit", lit)
+                    dynSlider:SetClass("hidden", not lit)
+                    --sample immediately: enabling carves in the same tick
+                    --(no unfiltered blink), disabling clears the stored dark
+                    --sets and refreshes the auras without waiting a poll.
+                    pcall(m_dynamicLight.Sample)
+                end,
+
+                gui.Label{
+                    classes = {"markupEntireMapLabel", "sizeXs"},
+                    text = "Dynamic Light",
+                    fontSize = 10,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                },
+            }
+
+            dynRow = gui.Panel{
+                width = "100%",
+                height = 24,
+                flow = "horizontal",
+
+                dynButton,
+                dynSlider,
+            }
+        end
+
         --A wider version of m_zoneStripes.Swatch for the row's right-side
         --visual, mirroring the wall rows' line-preview column: the stripe
         --pattern at the angle the map will actually paint.
@@ -6386,72 +6854,12 @@ CreateMarkupEditor = function()
             swatchColor = "white"
         end
 
-        return gui.Panel{
-            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+        --the classic chip content; on engines with light sampling the chip
+        --grows a second row holding the Dynamic Light controls.
+        local topRow = gui.Panel{
             width = "100%",
-            height = 36,
-            halign = "center",
+            height = 24,
             flow = "horizontal",
-            bgimage = true,
-            pad = 6,
-            borderBox = true,
-            vmargin = 1,
-
-            data = {
-                index = index,
-            },
-
-            press = function(element)
-                m_zoneSelectedType = element.data.index
-                --a fresh type selection paints into that type's existing zone
-                --(or a new one), not whatever zone was last targeted.
-                m_zoneTargetId = nil
-                zonePalettePanel:FireEvent("refreshchips")
-                RefreshZoneUI()
-                --picking a zone type must arm the paint tool by itself: without
-                --this the next click on the map lands with no custom map tool
-                --registered and silently does nothing.
-                TakeMarkupFocus()
-            end,
-
-            rightClick = function(element)
-                element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Edit Zone Type...",
-                            click = function()
-                                element.popup = nil
-                                EditZoneTypeKeyword(element.data.index)
-                            end,
-                        },
-                        {
-                            text = "Remove from Palette",
-                            click = function()
-                                element.popup = nil
-                                --drop the blanket with the chip: otherwise it
-                                --keeps applying to the map with no UI left to
-                                --turn it off.
-                                local removed = m_zonePaletteEntries[element.data.index]
-                                if removed ~= nil and removed.keywordid ~= nil
-                                    and m_entireMap.IsSet(removed.keywordid) then
-                                    m_entireMap.Set(removed.keywordid, false)
-                                    pcall(function()
-                                        dmhub.RefreshMapAuras()
-                                    end)
-                                end
-                                table.remove(m_zonePaletteEntries, element.data.index)
-                                if m_zoneSelectedType > #m_zonePaletteEntries then
-                                    m_zoneSelectedType = #m_zonePaletteEntries
-                                end
-                                if m_zoneSelectedType < 1 then
-                                    m_zoneSelectedType = 1
-                                end
-                                SaveZonePalette(m_zonePaletteEntries)
-                            end,
-                        },
-                    },
-                }
-            end,
 
             gui.Panel{
                 width = "100%-104",
@@ -6493,6 +6901,80 @@ CreateMarkupEditor = function()
                 borderColor = "@border",
             },
         }
+
+        return gui.Panel{
+            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+            width = "100%",
+            height = cond(dynRow ~= nil, 60, 36),
+            halign = "center",
+            flow = "vertical",
+            bgimage = true,
+            pad = 6,
+            borderBox = true,
+            vmargin = 1,
+
+            data = {
+                index = index,
+            },
+
+            press = function(element)
+                m_zoneSelectedType = element.data.index
+                --a fresh type selection paints into that type's existing zone
+                --(or a new one), not whatever zone was last targeted.
+                m_zoneTargetId = nil
+                zonePalettePanel:FireEvent("refreshchips")
+                RefreshZoneUI()
+                --picking a zone type must arm the paint tool by itself: without
+                --this the next click on the map lands with no custom map tool
+                --registered and silently does nothing.
+                TakeMarkupFocus()
+            end,
+
+            rightClick = function(element)
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Edit Zone Type...",
+                            click = function()
+                                element.popup = nil
+                                EditZoneTypeKeyword(element.data.index)
+                            end,
+                        },
+                        {
+                            text = "Remove from Palette",
+                            click = function()
+                                element.popup = nil
+                                --drop the blanket (and the dynamic-light
+                                --config) with the chip: otherwise they keep
+                                --applying to the map with no UI left to turn
+                                --them off.
+                                local removed = m_zonePaletteEntries[element.data.index]
+                                if removed ~= nil and removed.keywordid ~= nil then
+                                    if m_entireMap.IsSet(removed.keywordid) then
+                                        m_entireMap.Set(removed.keywordid, false)
+                                        pcall(function()
+                                            dmhub.RefreshMapAuras()
+                                        end)
+                                    end
+                                    m_dynamicLight.Set(removed.keywordid, nil)
+                                end
+                                table.remove(m_zonePaletteEntries, element.data.index)
+                                if m_zoneSelectedType > #m_zonePaletteEntries then
+                                    m_zoneSelectedType = #m_zonePaletteEntries
+                                end
+                                if m_zoneSelectedType < 1 then
+                                    m_zoneSelectedType = 1
+                                end
+                                SaveZonePalette(m_zonePaletteEntries)
+                            end,
+                        },
+                    },
+                }
+            end,
+
+            topRow,
+            dynRow,
+        }
     end
 
     zonePalettePanel = gui.Panel{
@@ -6503,9 +6985,10 @@ CreateMarkupEditor = function()
 
         --monitorAssets: keyword table edits change chip names/colors/summaries.
         monitorAssets = true,
-        --zoneentiremap as well as the palette: the "Entire Map" pills read it,
-        --and it can change from another client (or from an undo).
-        multimonitor = {"markup:zonepalette", "markup:zoneentiremap"},
+        --zoneentiremap and zonedynamiclight as well as the palette: the
+        --"Entire Map" and "Dynamic Light" pills read them, and they can
+        --change from another client (or from an undo).
+        multimonitor = {"markup:zonepalette", "markup:zoneentiremap", "markup:zonedynamiclight"},
 
         events = {
             monitor = function(element)

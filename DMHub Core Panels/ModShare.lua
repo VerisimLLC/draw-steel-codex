@@ -3354,7 +3354,607 @@ mod.shared.ShowShareDialog = function()
 end
 
 
-mod.shared.ShowDownloadShareDialog = function()
+--Which modules a creator includes with their Patreon, per publishing
+--organization. This is deliberately NOT ModuleLua.hasAccessThroughPatreon:
+--that answers "did MY membership unlock this", which is false for everyone who
+--is not already a patron -- i.e. exactly the audience the livery is for. The
+--org's ModuleAuthor record is publicly readable, so anyone who can see the card
+--can see whether it comes with a membership.
+--
+--Memoized because it is one fetch per organization and a grid renders dozens of
+--cards from a handful of authors. Cached for the session: a creator adding a
+--module to their Patreon list mid-session will not show until the next launch,
+--which is fine for a browse grid and is the price of not refetching per card.
+local g_patreonModulesByOrg = {}   --orgid (lower) -> set of fullid (lower), once loaded
+local g_patreonOrgWaiting = {}     --orgid (lower) -> list of callbacks, while in flight
+
+--callback receives the set. Called synchronously when already cached, which is
+--the common case and keeps the card from flickering into its livery.
+local function QueryPatreonModulesForOrg(orgid, callback)
+	if orgid == nil or orgid == "" then
+		callback({})
+		return
+	end
+
+	local key = string.lower(orgid)
+
+	local cached = g_patreonModulesByOrg[key]
+	if cached ~= nil then
+		callback(cached)
+		return
+	end
+
+	local waiting = g_patreonOrgWaiting[key]
+	if waiting ~= nil then
+		waiting[#waiting+1] = callback
+		return
+	end
+
+	g_patreonOrgWaiting[key] = {callback}
+
+	local finish = function(result)
+		g_patreonModulesByOrg[key] = result
+		local queue = g_patreonOrgWaiting[key]
+		g_patreonOrgWaiting[key] = nil
+		for _,fn in ipairs(queue or {}) do
+			fn(result)
+		end
+	end
+
+	module.GetOrganizationInfo{
+		orgid = orgid,
+		success = function(info)
+			local result = {}
+			for _,id in ipairs(info.patreonModules or {}) do
+				result[string.lower(id)] = true
+			end
+			finish(result)
+		end,
+		failure = function(msg)
+			--the overwhelmingly common failure is "this module was published by
+			--a person, not an organization", which has no ModuleAuthor record.
+			--An empty set is the right answer, and caching it is what stops us
+			--asking again for every other card by the same author.
+			finish({})
+		end,
+	}
+end
+
+--Builds one module card. Hoisted to file scope so the settings screen can
+--render the same widget for the modules a Patreon membership unlocks; it used
+--to be a local of ShowDownloadShareDialog. The only thing it took from that
+--closure was what a click does, which is now options.press(moduleInfo).
+local CreateModuleDisplaySlot = function(options)
+	local resultPanel
+	local moduleHeading = gui.Label{
+		classes = {"moduleHeading"},
+	}
+
+	local newBadge = gui.Panel{
+		bgimage = "ui-icons/newbadge.png",
+		bgcolor = "white",
+		x = -8,
+		y = -8,
+		width = 32,
+		height = 32,
+		floating = true,
+		halign = "left",
+		valign = "top",
+	}
+
+	--modules an administrator has deprecated are still listed in the
+	--Installed/Published/Purchased tabs (they are filtered out of browse),
+	--so mark them clearly.
+	local deprecatedBadge = gui.Label{
+		text = "DEPRECATED",
+		bgimage = "panels/square.png",
+		bgcolor = "#661111",
+		color = "#ffaaaa",
+		bold = true,
+		fontSize = 12,
+		width = "auto",
+		height = "auto",
+		hpad = 6,
+		vpad = 2,
+		borderBox = true,
+		floating = true,
+		halign = "center",
+		valign = "top",
+		y = 4,
+		hover = function(element)
+			gui.Tooltip(element.data.message)(element)
+		end,
+		data = {
+			message = "",
+		},
+	}
+
+	local installCheck = gui.Panel{
+		classes = {"installCheck"},
+	}
+
+	local headingAndInstall = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		valign = "top",
+		moduleHeading,
+		installCheck,
+	}
+
+	local headingPanel = gui.Panel{
+		flow = "vertical",
+		halign = "left",
+		valign = "top",
+		width = "auto",
+		height = "auto",
+		hmargin = 4,
+		headingAndInstall,
+		gui.Panel{
+			classes = {"moduleHeadingDivider"},
+		}
+	}
+
+	local authorLabel = gui.Label{
+		classes = {"moduleAuthor"},
+		valign = "bottom",
+	}
+
+	local iconContainer = gui.Panel{
+		classes = {"framedPanel"},
+		width = 96,
+		height = 96,
+		hmargin = 4,
+		vmargin = 8,
+		data = {
+			imageid = nil,
+		},
+		setimage = function(element, imageid)
+			if element.data.imageid == imageid then
+				return
+			end
+			element.data.imageid = imageid
+			element.children = {
+				gui.Panel{
+					classes = {"moduleIcon"},
+					autosizeimage = true,
+					bgimageStreamed = imageid,
+				}
+			}
+		end,
+	}
+
+	local detailsLabel = gui.Label{
+		classes = {"moduleDetails"},
+	}
+
+	local detailsPanel = gui.Panel{
+		flow = "horizontal",
+		halign = "left",
+		valign = "top",
+		width = "auto",
+		height = "auto",
+		iconContainer,
+		detailsLabel,
+	}
+
+	local publishedLabel = gui.Label{
+		classes = {"publishedLabel"},
+		floating = true,
+		text = "Published",
+	}
+
+	local installCountLabel = gui.Label{
+		classes = {"installCountLabel"},
+		text = "0",
+	}
+
+	local installCountIcon = gui.Panel{
+		classes = {"installCountIcon"},
+		hover = function(element)
+			gui.Tooltip(string.format("This module has been installed by %s users.", installCountLabel.text))(element)
+		end,
+	}
+
+	local installCountPanel = gui.Panel{
+		classes = {"installCountPanel"},
+		valign = "bottom",
+		halign = "right",
+		installCountLabel,
+		installCountIcon,
+	}
+
+
+	local upvoteCountLabel = gui.Label{
+		classes = {"installCountLabel"},
+		text = "0",
+	}
+
+	local upvoteCountIcon = gui.Panel{
+		classes = {"upvoteCountIcon"},
+		valign = "center",
+		halign = "right",
+		bgimage = "icons/icon_arrow/icon_arrow_29.png",
+	}
+
+	local upvoteCountPanel = gui.Panel{
+		flow = "horizontal",
+		width = "auto",
+		height = "auto",
+		valign = "top",
+		halign = "right",
+		upvoteCountLabel,
+		upvoteCountIcon,
+	}
+
+	local statsPanel = gui.Panel{
+		flow = "vertical",
+		floating = true,
+		halign = "right",
+		valign = "center",
+		width = "auto",
+		height = "100%",
+
+		upvoteCountPanel,
+
+		installCountPanel,
+		authorLabel,
+	}
+
+	resultPanel = gui.Panel{
+		classes = {"framedPanel", "moduleItem", "collapsed"},
+		headingPanel,
+		detailsPanel,
+		publishedLabel,
+
+		statsPanel,
+
+		newBadge,
+		deprecatedBadge,
+
+		data = {
+			moduleInfo = nil,
+		},
+
+		press = function(element)
+			--the owner of the slot decides what a click means: the browser
+			--swaps to its detail pane, the account panel opens the browser.
+			if options ~= nil and options.press ~= nil and element.data.moduleInfo ~= nil then
+				options.press(element.data.moduleInfo)
+			end
+		end,
+
+		setmodule = function(element, moduleInfo)
+			element.data.moduleInfo = moduleInfo
+
+			if moduleInfo == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			if moduleInfo.coverart ~= nil then
+				iconContainer:FireEvent("setimage", moduleInfo.coverart)
+			else
+				iconContainer:FireEvent("setimage", "panels/logo/DMHubLogo.png")
+			end
+
+			element:SetClass("collapsed", false)
+			moduleHeading.text = moduleInfo.name or moduleInfo.fullid
+			authorLabel.text = string.format("by %s", moduleInfo.authorid)
+			detailsLabel.text = moduleInfo.details
+
+			element:SetClassTree("published", cond(moduleInfo.publishedFromThisGame, true, false))
+			element:SetClassTree("installed", cond(moduleInfo.installedVersion, true, false))
+			element:SetClassTree("loaded", cond(moduleInfo.loadedVersion, true, false))
+
+			--a module the publishing organization includes with their Patreon
+			--gets the patron livery -- blue interior, orange frame -- for
+			--everyone who can see the card, patron or not. The lookup is async
+			--the first time we see an author, so clear the class up front
+			--rather than leave the previous module's livery on a recycled slot.
+			local fullid = moduleInfo.fullid
+			element:SetClass("patreonModule", false)
+			QueryPatreonModulesForOrg(moduleInfo.authorid, function(patreonModules)
+				--the slot is reused as the grid scrolls and re-searches, so a
+				--late answer must be checked against what the card shows NOW,
+				--not against the module that asked for it.
+				if element.valid and element.data.moduleInfo ~= nil and element.data.moduleInfo.fullid == fullid then
+					element:SetClass("patreonModule", patreonModules[string.lower(fullid)] == true)
+				end
+			end)
+
+			installCountPanel:SetClass("hidden", true)
+
+			newBadge:SetClass("hidden", true)
+
+			deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
+			if moduleInfo.deprecated then
+				local state = "It is disabled in your games unless you enable it again."
+				if moduleInfo.deprecationOverridden then
+					state = "You have chosen to enable it in this game anyway."
+				end
+				deprecatedBadge.data.message = string.format("%s\n\n%s", moduleInfo.deprecationMessage, state)
+			end
+
+			moduleInfo:QueryStats(function(modid, stats)
+				if element.valid and modid == moduleInfo.fullid then
+					local versions = moduleInfo.versions
+
+					local moduleAge = math.max(1, TimestampAgeInSeconds(versions[1].createTimestamp))
+
+					if moduleAge < 24*60*60*3 then
+						--modules less than 3 days old get a new badge.
+						newBadge:SetClass("hidden", false)
+					end
+
+					installCountPanel:SetClass("hidden", false)
+					installCountLabel.text = string.format("%d", stats.installs)
+					upvoteCountLabel.text = string.format("%d", stats.votes+1)
+					upvoteCountIcon:SetClass("upvoted", moduleInfo.vote > 0)
+				end
+			end)
+		end,
+
+		refreshModule = function(element)
+			element:FireEvent("setmodule", element.data.moduleInfo)
+		end,
+	}
+
+	return resultPanel
+end
+
+--Cross-mod entry points, populated at the end of this file once the dialog
+--exists. mod.shared is scoped to ONE mod, and the account screen that renders
+--these cards lives in DMHub_Titlescreen while this file is DMHub_Core_Panels,
+--so sharing has to go through a global -- the same convention ThemeEngine and
+--CharacterPanel use.
+ModuleBrowser = {}
+
+--options.focusModule (a ModuleLua) opens straight onto that module's detail
+--page instead of the browse grid. Used by the account screen, so clicking a
+--module a Patreon membership unlocks lands on the real page with its Install
+--button rather than on a second, half-built copy of it.
+--Card styling for the module grid. Hoisted alongside CreateModuleDisplaySlot so
+--anything rendering those cards outside this dialog can apply the same rules --
+--without them a slot has no size and its details text runs off the panel.
+--
+--Deliberately NOT dialogCustomStyles, which also defines framedPanel but sizes
+--it to the whole 1080-based dialog frame.
+local moduleDisplayCustomStyles = {
+
+		{
+			selectors = {"moduleItem"},
+			width = 312,
+			height = 138,
+			pad = 6,
+			halign = "left",
+			valign = "top",
+			margin = 8,
+			flow = "vertical",
+		},
+		{
+			selectors = {"moduleItem", "loaded"},
+		},
+		{
+			selectors = {"moduleItem", "installed"},
+		},
+		{
+			selectors = {"moduleItem", "published"},
+		},
+		{
+			selectors = {"moduleItem", "hover"},
+			brightness = 1.8,
+			transitionTime = 0.1,
+		},
+
+		--Patron livery: the card for a module our Patreon membership unlocks
+		--wears the MCDM d20 logo's colors -- a blue sheen inside an orange
+		--frame -- so it reads as "this one came with your membership" at a
+		--glance in a grid of otherwise identical grey cards.
+		--
+		--Literal hex rather than theme tokens on purpose: these are the logo's
+		--brand colors, and they must stay the logo's colors when the user
+		--switches theme. Overrides framedPanel's @surfaceLinear/@fg pair, which
+		--is a single-selector rule, so this two-selector rule wins.
+		{
+			selectors = {"moduleItem", "patreonModule"},
+			borderWidth = 3,
+			borderColor = "#e8701c",
+			gradient = {
+				point_a = {x = 0, y = 1},
+				point_b = {x = 1, y = 0},
+				stops = {
+					{position = 0,    color = "#0a1a2c"},
+					{position = 0.55, color = "#173c5c"},
+					{position = 1,    color = "#2a678f"},
+				},
+			},
+		},
+		{
+			--the shared hover rule's 1.8 blows the blue out to white; the
+			--livery is already bright, so it needs a gentler lift.
+			selectors = {"moduleItem", "patreonModule", "hover"},
+			brightness = 1.35,
+			borderColor = "#ff9440",
+			transitionTime = 0.1,
+		},
+		{
+			selectors = {"moduleHeading"},
+			color = "@fgStrong",
+			fontFace = "@heading",
+			fontSize = 18,
+			minFontSize = 14,
+			fontWeight = "light",
+			maxWidth = 230,
+			width = "auto",
+			halign = "left",
+			valign = "top",
+			height = 24,
+			wrap = false,
+			textOverflow = "truncate",
+		},
+		{
+			selectors = {"moduleHeadingDivider"},
+			bgimage = "panels/square.png",
+			bgcolor = "@border",
+			width = 240,
+			height = 1,
+			vmargin = 1,
+			halign = "left",
+		},
+		{
+			selectors = {"installCheck"},
+			hidden = 1,
+			bgcolor = "white",
+			width = 20,
+			height = 20,
+			hmargin = 6,
+			valign = "center",
+			bgimage = "ui-icons/module-checkmark.png",
+		},
+		{
+			selectors = {"installCheck", "installed"},
+			hidden = 0,
+		},
+		{
+			selectors = {"moduleAuthor"},
+			color = "@fgMuted",
+			fontSize = 12,
+			width = "auto",
+			maxWidth = 160,
+			height = 14,
+			halign = "right",
+			valign = "bottom",
+			italics = true,
+			wrap = false,
+			textOverflow = "ellipsis",
+		},
+		{
+			selectors = {"moduleIcon"},
+			bgcolor = "white",
+			width = "auto",
+			height = "auto",
+			maxWidth = 92,
+			maxHeight = 92,
+			cornerRadius = 2,
+			valign = "center",
+			halign = "center",
+		},
+		{
+			selectors = {"moduleDetails"},
+			color = "@fg",
+			fontFace = "@label",
+			fontSize = 12,
+			width = "auto",
+			height = "auto",
+			vmargin = 4,
+			maxWidth = 160,
+			maxHeight = 90,
+			halign = "left",
+			valign = "top",
+			textOverflow = "ellipsis",
+		},
+
+		{
+			selectors = {"publishedLabel"},
+			hidden = 1,
+		},
+		{
+			selectors = {"publishedLabel", "published"},
+		--	hidden = 0,
+			color = "@fgStrong",
+			fontSize = 12,
+			halign = "right",
+			valign = "bottom",
+			width = "auto",
+			height = "auto",
+		},
+		{
+			selectors = {"installCountLabel"},
+			fontSize = 16,
+			minFontSize = 12,
+			color = "@fg",
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			hmargin = 2,
+		},
+
+		{
+			selectors = {"installCountIcon"},
+			width = 16,
+			height = 16,
+			bgcolor = "white",
+			bgimage = "ui-icons/downloadicon.png",
+
+		},
+
+		{
+			selectors = {"upvoteCountIcon"},
+			width = 16,
+			height = 16,
+			bgcolor = "white",
+			bgimage = "ui-icons/heartunclicked.png",
+
+		},
+
+		{
+			selectors = {"upvoteCountIcon", "upvoted"},
+			bgimage = "ui-icons/heartclicked.png",
+		},
+
+		{
+			selectors = {"installCountPanel"},
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+		},
+
+		{
+			selectors = {"pagingArrow"},
+			bgimage = "panels/InventoryArrow.png",
+			bgcolor = "white",
+			height = 40,
+			width = 20,
+			hmargin = 4,
+			halign = "center",
+		},
+
+		{
+			selectors = {"pagingArrow", "hover"},
+			brightness = 1.5,
+		},
+
+		-- Pill-bar styling for the tab strip: only the end options get
+		-- rounded corners, and middle options drop their left/right borders
+		-- so the strip reads as one continuous control. cornerRadius pairs
+		-- the corners by diagonal: x1 = top-left, x2 = bottom-right (TL-BR
+		-- diagonal); y1 = top-right, y2 = bottom-left (TR-BL diagonal).
+		-- border keys are (x1, x2, y1, y2) = (left, right, bottom, top).
+		-- The two-selector specificity beats the rounded theme variant's
+		-- flat `enumSliderOption` cornerRadius rule.
+		{
+			selectors = {"enumSliderOption", "firstOption"},
+			cornerRadius = {x1 = 5, x2 = 0, y1 = 0, y2 = 5},
+			border = {x1 = 2, x2 = 0, y1 = 2, y2 = 2},
+		},
+		{
+			selectors = {"enumSliderOption", "middleOption"},
+			cornerRadius = 0,
+			border = {x1 = 0, x2 = 0, y1 = 2, y2 = 2},
+		},
+		{
+			selectors = {"enumSliderOption", "lastOption"},
+			cornerRadius = {x1 = 0, x2 = 5, y1 = 5, y2 = 0},
+			border = {x1 = 0, x2 = 2, y1 = 2, y2 = 2},
+		},
+
+}
+
+mod.shared.ShowDownloadShareDialog = function(options)
+	options = options or {}
+
 	local m_moduleIndex
 	local m_displayedItemIds = {}
 
@@ -3373,267 +3973,6 @@ mod.shared.ShowDownloadShareDialog = function()
 	}
 
 
-	local CreateModuleDisplaySlot = function()
-		local resultPanel
-		local moduleHeading = gui.Label{
-			classes = {"moduleHeading"},
-		}
-
-		local newBadge = gui.Panel{
-			bgimage = "ui-icons/newbadge.png",
-			bgcolor = "white",
-			x = -8,
-			y = -8,
-			width = 32,
-			height = 32,
-			floating = true,
-			halign = "left",
-			valign = "top",
-		}
-
-		--modules an administrator has deprecated are still listed in the
-		--Installed/Published/Purchased tabs (they are filtered out of browse),
-		--so mark them clearly.
-		local deprecatedBadge = gui.Label{
-			text = "DEPRECATED",
-			bgimage = "panels/square.png",
-			bgcolor = "#661111",
-			color = "#ffaaaa",
-			bold = true,
-			fontSize = 12,
-			width = "auto",
-			height = "auto",
-			hpad = 6,
-			vpad = 2,
-			borderBox = true,
-			floating = true,
-			halign = "center",
-			valign = "top",
-			y = 4,
-			hover = function(element)
-				gui.Tooltip(element.data.message)(element)
-			end,
-			data = {
-				message = "",
-			},
-		}
-
-		local installCheck = gui.Panel{
-			classes = {"installCheck"},
-		}
-
-		local headingAndInstall = gui.Panel{
-			flow = "horizontal",
-			width = "auto",
-			height = "auto",
-			halign = "left",
-			valign = "top",
-			moduleHeading,
-			installCheck,
-		}
-
-		local headingPanel = gui.Panel{
-			flow = "vertical",
-			halign = "left",
-			valign = "top",
-			width = "auto",
-			height = "auto",
-			hmargin = 4,
-			headingAndInstall,
-			gui.Panel{
-				classes = {"moduleHeadingDivider"},
-			}
-		}
-
-		local authorLabel = gui.Label{
-			classes = {"moduleAuthor"},
-			valign = "bottom",
-		}
-
-		local iconContainer = gui.Panel{
-			classes = {"framedPanel"},
-			width = 96,
-			height = 96,
-			hmargin = 4,
-			vmargin = 8,
-			data = {
-				imageid = nil,
-			},
-			setimage = function(element, imageid)
-				if element.data.imageid == imageid then
-					return
-				end
-				element.data.imageid = imageid
-				element.children = {
-					gui.Panel{
-						classes = {"moduleIcon"},
-						autosizeimage = true,
-						bgimageStreamed = imageid,
-					}
-				}
-			end,
-		}
-
-		local detailsLabel = gui.Label{
-			classes = {"moduleDetails"},
-		}
-
-		local detailsPanel = gui.Panel{
-			flow = "horizontal",
-			halign = "left",
-			valign = "top",
-			width = "auto",
-			height = "auto",
-			iconContainer,
-			detailsLabel,
-		}
-
-		local publishedLabel = gui.Label{
-			classes = {"publishedLabel"},
-			floating = true,
-			text = "Published",
-		}
-
-		local installCountLabel = gui.Label{
-			classes = {"installCountLabel"},
-			text = "0",
-		}
-
-		local installCountIcon = gui.Panel{
-			classes = {"installCountIcon"},
-			hover = function(element)
-				gui.Tooltip(string.format("This module has been installed by %s users.", installCountLabel.text))(element)
-			end,
-		}
-
-		local installCountPanel = gui.Panel{
-			classes = {"installCountPanel"},
-			valign = "bottom",
-			halign = "right",
-			installCountLabel,
-			installCountIcon,
-		}
-
-
-		local upvoteCountLabel = gui.Label{
-			classes = {"installCountLabel"},
-			text = "0",
-		}
-
-		local upvoteCountIcon = gui.Panel{
-			classes = {"upvoteCountIcon"},
-			valign = "center",
-			halign = "right",
-			bgimage = "icons/icon_arrow/icon_arrow_29.png",
-		}
-
-		local upvoteCountPanel = gui.Panel{
-			flow = "horizontal",
-			width = "auto",
-			height = "auto",
-			valign = "top",
-			halign = "right",
-			upvoteCountLabel,
-			upvoteCountIcon,
-		}
-
-		local statsPanel = gui.Panel{
-			flow = "vertical",
-			floating = true,
-			halign = "right",
-			valign = "center",
-			width = "auto",
-			height = "100%",
-
-			upvoteCountPanel,
-
-			installCountPanel,
-			authorLabel,
-		}
-
-		resultPanel = gui.Panel{
-			classes = {"framedPanel", "moduleItem", "collapsed"},
-			headingPanel,
-			detailsPanel,
-			publishedLabel,
-
-			statsPanel,
-
-			newBadge,
-			deprecatedBadge,
-
-			data = {
-				moduleInfo = nil,
-			},
-
-			press = function(element)
-				moduleGridContainer:SetClass("collapsed", true)
-				moduleDetailedDisplay:SetClass("collapsed", false)
-				moduleDetailedDisplay:FireEvent("displayModule", element.data.moduleInfo)
-			end,
-
-			setmodule = function(element, moduleInfo)
-				element.data.moduleInfo = moduleInfo
-
-				if moduleInfo == nil then
-					element:SetClass("collapsed", true)
-					return
-				end
-
-				if moduleInfo.coverart ~= nil then
-					iconContainer:FireEvent("setimage", moduleInfo.coverart)
-				else
-					iconContainer:FireEvent("setimage", "panels/logo/DMHubLogo.png")
-				end
-
-				element:SetClass("collapsed", false)
-				moduleHeading.text = moduleInfo.name or moduleInfo.fullid
-				authorLabel.text = string.format("by %s", moduleInfo.authorid)
-				detailsLabel.text = moduleInfo.details
-
-				element:SetClassTree("published", cond(moduleInfo.publishedFromThisGame, true, false))
-				element:SetClassTree("installed", cond(moduleInfo.installedVersion, true, false))
-				element:SetClassTree("loaded", cond(moduleInfo.loadedVersion, true, false))
-
-				installCountPanel:SetClass("hidden", true)
-
-				newBadge:SetClass("hidden", true)
-
-				deprecatedBadge:SetClass("hidden", not moduleInfo.deprecated)
-				if moduleInfo.deprecated then
-					local state = "It is disabled in your games unless you enable it again."
-					if moduleInfo.deprecationOverridden then
-						state = "You have chosen to enable it in this game anyway."
-					end
-					deprecatedBadge.data.message = string.format("%s\n\n%s", moduleInfo.deprecationMessage, state)
-				end
-
-				moduleInfo:QueryStats(function(modid, stats)
-					if element.valid and modid == moduleInfo.fullid then
-						local versions = moduleInfo.versions
-
-						local moduleAge = math.max(1, TimestampAgeInSeconds(versions[1].createTimestamp))
-
-						if moduleAge < 24*60*60*3 then
-							--modules less than 3 days old get a new badge.
-							newBadge:SetClass("hidden", false)
-						end
-
-						installCountPanel:SetClass("hidden", false)
-						installCountLabel.text = string.format("%d", stats.installs)
-						upvoteCountLabel.text = string.format("%d", stats.votes+1)
-						upvoteCountIcon:SetClass("upvoted", moduleInfo.vote > 0)
-					end
-				end)
-			end,
-
-			refreshModule = function(element)
-				element:FireEvent("setmodule", element.data.moduleInfo)
-			end,
-		}
-
-		return resultPanel
-	end
 
 	local pageLeft
 	local pageRight
@@ -3647,7 +3986,15 @@ mod.shared.ShowDownloadShareDialog = function()
 
 	local gridItems = {}
 	for i=1,nrows*ncols do
-		gridItems[#gridItems+1] = CreateModuleDisplaySlot()
+		gridItems[#gridItems+1] = CreateModuleDisplaySlot{
+			--what a click meant before the factory was hoisted: hide the grid,
+			--show the detail pane for this module.
+			press = function(moduleInfo)
+				moduleGridContainer:SetClass("collapsed", true)
+				moduleDetailedDisplay:SetClass("collapsed", false)
+				moduleDetailedDisplay:FireEvent("displayModule", moduleInfo)
+			end,
+		}
 	end
 
 	local SetDisplayedModules = function(items)
@@ -3737,7 +4084,16 @@ mod.shared.ShowDownloadShareDialog = function()
 				searchFailedLabel:SetClass("collapsed", true)
 
 				if #result.items == 0 then
-					
+
+					--the Patreon tab is shown to anyone with a linked account, so
+					--"no matching modules found" is misleading when nothing is
+					--wrong: their creators simply have not included anything yet.
+					if m_tabSelected == "patreon" then
+						searchFailedLabel.text = "None of the creators you support on Patreon have included modules with their membership yet."
+					else
+						searchFailedLabel.text = "No matching modules found"
+					end
+
 					searchFailedLabel:SetClass("collapsed", false)
 					moduleGridContainer:SetClass("collapsed", true)
 					moduleDetailedDisplay:SetClass("collapsed", true)
@@ -4018,6 +4374,165 @@ mod.shared.ShowDownloadShareDialog = function()
 		end,
 	}
 
+	--"Get this with a membership" for a premium module MCDM includes with their
+	--Patreon. Those modules are listed for everyone, patron or not (see
+	--Module.offeredWithMCDMPatreon), so their page has to answer "how do I get
+	--this?" -- pointing at a store this build does not have would not.
+	local patreonOfferPanel
+	local patreonOfferLabel
+	local patreonConnectButton
+	local patreonOfferStatus
+	local m_patreonLink = nil
+
+	--pcall: an older engine build has no such property on ModuleLua, and on one
+	--of those nothing is offered this way in the first place.
+	local function OfferedWithMCDMPatreon(moduleInfo)
+		local result = false
+		pcall(function()
+			result = moduleInfo.offeredWithMCDMPatreon == true
+		end)
+		return result
+	end
+
+	--whether a Patreon account is linked at all, which is a different question
+	--from whether it is entitled to anything. A linked non-patron needs the
+	--campaign link; the Connect button would only re-link the same account.
+	local function HasPatreonLinked()
+		local result = false
+		pcall(function()
+			result = dmhub.patreonUserId ~= nil and dmhub.patreonUserId ~= ""
+		end)
+		return result
+	end
+
+	--the link flow lives in SettingsScreen (a different mod), published as a
+	--global the way ModuleBrowser is. rawget so a partial load degrades to "no
+	--Connect button" instead of erroring on an unset global.
+	local function PatreonAccountGlobal()
+		return rawget(_G, "PatreonAccount")
+	end
+
+	patreonOfferLabel = gui.Label{
+		width = 340,
+		height = "auto",
+		fontSize = 16,
+		halign = "right",
+		textAlignment = "right",
+		text = "",
+	}
+
+	patreonOfferStatus = gui.Label{
+		classes = {"collapsed"},
+		width = 340,
+		height = "auto",
+		fontSize = 14,
+		italics = true,
+		halign = "right",
+		textAlignment = "right",
+		text = "",
+	}
+
+	patreonConnectButton = gui.Button{
+		classes = {"collapsed"},
+		width = 240,
+		height = 40,
+		fontSize = 18,
+		halign = "right",
+		vmargin = 4,
+		text = "Connect Patreon Account",
+		click = function(element)
+			local patreon = PatreonAccountGlobal()
+			if patreon == nil or patreon.BeginLink == nil then
+				return
+			end
+
+			element:SetClass("collapsed", true)
+			patreonOfferStatus:SetClass("collapsed", false)
+
+			m_patreonLink = patreon.BeginLink{
+				alive = function() return patreonOfferPanel.valid end,
+				progress = function(text)
+					patreonOfferStatus.text = text
+				end,
+				linked = function(data)
+					m_patreonLink = nil
+					--the entitlement itself lands on /Patrons a moment later;
+					--the think tick above notices and swaps in Install by
+					--itself once the engine sees it.
+					patreonOfferStatus.text = "Patreon account connected."
+				end,
+				failed = function(msg)
+					m_patreonLink = nil
+					patreonOfferStatus.text = msg
+					patreonConnectButton:SetClass("collapsed", HasPatreonLinked())
+				end,
+			}
+		end,
+	}
+
+	patreonOfferPanel = gui.Panel{
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "auto",
+		height = "auto",
+		halign = "right",
+		valign = "bottom",
+
+		refreshOffer = function(element)
+			local linked = HasPatreonLinked()
+
+			patreonOfferStatus:SetClass("collapsed", true)
+			patreonConnectButton:SetClass("collapsed", linked or PatreonAccountGlobal() == nil)
+
+			if linked then
+				patreonOfferLabel.text = "This module is included with the MCDM Patreon. Your Patreon account is connected, but your membership does not include it yet."
+			else
+				patreonOfferLabel.text = "This module is included with the MCDM Patreon. Connect your Patreon account, or become a patron, to get it."
+			end
+		end,
+
+		patreonOfferLabel,
+		patreonOfferStatus,
+		patreonConnectButton,
+
+		gui.Button{
+			width = 240,
+			height = 40,
+			fontSize = 18,
+			halign = "right",
+			vmargin = 4,
+			text = "Become an MCDM Patron",
+			click = function(element)
+				local patreon = PatreonAccountGlobal()
+				if patreon ~= nil and patreon.mcdmCampaignUrl ~= nil then
+					dmhub.OpenURL(patreon.mcdmCampaignUrl)
+				end
+			end,
+		},
+	}
+
+	--think below runs ten times a second, so only touch the panel when the
+	--answer actually changes; re-setting the same text every tick dirties
+	--layout for nothing.
+	local m_patreonOfferState = nil
+	local function ShowPatreonOffer(show)
+		local state = "hidden"
+		if show then
+			state = cond(HasPatreonLinked(), "linked", "unlinked")
+		end
+
+		if state == m_patreonOfferState then
+			return
+		end
+		m_patreonOfferState = state
+
+		patreonOfferPanel:SetClass("collapsed", state == "hidden")
+
+		if state ~= "hidden" then
+			patreonOfferPanel:FireEvent("refreshOffer")
+		end
+	end
+
 	installLabel =
 		gui.Label{
 			text = "",
@@ -4030,6 +4545,14 @@ mod.shared.ShowDownloadShareDialog = function()
 			end,
 			think = function(element)
 				local mod = moduleDetailedDisplay.data.moduleInfo
+
+				--decided up front, not inside the premium branch below, so the
+				--earlier returns cannot leave the offer stranded on screen
+				--behind a deprecation or install message.
+				ShowPatreonOffer(mod.premium and (not mod.owned) and OfferedWithMCDMPatreon(mod)
+					and (not (mod.deprecated and not mod.deprecationOverridden))
+					and mod.fullid ~= m_installing
+					and (not mod.publishedFromThisGame))
 
 				--a deprecated module is disabled by default in every game, so
 				--there is nothing to gain by newly installing it. A game which
@@ -4061,8 +4584,15 @@ mod.shared.ShowDownloadShareDialog = function()
 
 				if mod.premium and (not mod.owned) then
 					installButton:SetClass("collapsed", true)
-					element.text = "This module is a premium module and must be purchased in the store"
 					uninstallButton:SetClass("collapsed", true)
+
+					--the offer panel says how to get it; a store message would
+					--be wrong, since these builds have no store.
+					if m_patreonOfferState ~= nil and m_patreonOfferState ~= "hidden" then
+						element.text = ""
+					else
+						element.text = "This module is a premium module and must be purchased in the store"
+					end
 					return
 				end
 
@@ -4104,6 +4634,7 @@ mod.shared.ShowDownloadShareDialog = function()
 		halign = "right",
 		valign = "bottom",
 		margin = 8,
+		patreonOfferPanel,
 		gui.Panel{
 			width = "auto",
 			height = "auto",
@@ -4291,6 +4822,15 @@ mod.shared.ShowDownloadShareDialog = function()
 
 				ShowSearch("")
 
+				--jump straight to a module if we were opened for one. Done after
+				--ShowSearch so the grid behind it is still populated and the
+				--detail pane's back button has something to return to.
+				if options.focusModule ~= nil then
+					moduleGridContainer:SetClass("collapsed", true)
+					moduleDetailedDisplay:SetClass("collapsed", false)
+					moduleDetailedDisplay:FireEvent("displayModule", options.focusModule)
+				end
+
 			end,
 
 			failure = function(msg)
@@ -4363,204 +4903,6 @@ mod.shared.ShowDownloadShareDialog = function()
 		pagingSection,
 	}
 
-	local moduleDisplayCustomStyles = {
-
-			{
-				selectors = {"moduleItem"},
-				width = 312,
-				height = 138,
-				pad = 6,
-				halign = "left",
-				valign = "top",
-				margin = 8,
-				flow = "vertical",
-			},
-			{
-				selectors = {"moduleItem", "loaded"},
-			},
-			{
-				selectors = {"moduleItem", "installed"},
-			},
-			{
-				selectors = {"moduleItem", "published"},
-			},
-			{
-				selectors = {"moduleItem", "hover"},
-				brightness = 1.8,
-				transitionTime = 0.1,
-			},
-			{
-				selectors = {"moduleHeading"},
-				color = "@fgStrong",
-				fontFace = "@heading",
-				fontSize = 18,
-				minFontSize = 14,
-				fontWeight = "light",
-				maxWidth = 230,
-				width = "auto",
-				halign = "left",
-				valign = "top",
-				height = 24,
-				wrap = false,
-				textOverflow = "truncate",
-			},
-			{
-				selectors = {"moduleHeadingDivider"},
-				bgimage = "panels/square.png",
-				bgcolor = "@border",
-				width = 240,
-				height = 1,
-				vmargin = 1,
-				halign = "left",
-			},
-			{
-				selectors = {"installCheck"},
-				hidden = 1,
-				bgcolor = "white",
-				width = 20,
-				height = 20,
-				hmargin = 6,
-				valign = "center",
-				bgimage = "ui-icons/module-checkmark.png",
-			},
-			{
-				selectors = {"installCheck", "installed"},
-				hidden = 0,
-			},
-			{
-				selectors = {"moduleAuthor"},
-				color = "@fgMuted",
-				fontSize = 12,
-				width = "auto",
-				maxWidth = 160,
-				height = 14,
-				halign = "right",
-				valign = "bottom",
-				italics = true,
-				wrap = false,
-				textOverflow = "ellipsis",
-			},
-			{
-				selectors = {"moduleIcon"},
-				bgcolor = "white",
-				width = "auto",
-				height = "auto",
-				maxWidth = 92,
-				maxHeight = 92,
-				cornerRadius = 2,
-				valign = "center",
-				halign = "center",
-			},
-			{
-				selectors = {"moduleDetails"},
-				color = "@fg",
-				fontFace = "@label",
-				fontSize = 12,
-				width = "auto",
-				height = "auto",
-				vmargin = 4,
-				maxWidth = 160,
-				maxHeight = 90,
-				halign = "left",
-				valign = "top",
-				textOverflow = "ellipsis",
-			},
-
-			{
-				selectors = {"publishedLabel"},
-				hidden = 1,
-			},
-			{
-				selectors = {"publishedLabel", "published"},
-			--	hidden = 0,
-				color = "@fgStrong",
-				fontSize = 12,
-				halign = "right",
-				valign = "bottom",
-				width = "auto",
-				height = "auto",
-			},
-			{
-				selectors = {"installCountLabel"},
-				fontSize = 16,
-				minFontSize = 12,
-				color = "@fg",
-				width = "auto",
-				height = "auto",
-				valign = "center",
-				hmargin = 2,
-			},
-
-			{
-				selectors = {"installCountIcon"},
-				width = 16,
-				height = 16,
-				bgcolor = "white",
-				bgimage = "ui-icons/downloadicon.png",
-
-			},
-
-			{
-				selectors = {"upvoteCountIcon"},
-				width = 16,
-				height = 16,
-				bgcolor = "white",
-				bgimage = "ui-icons/heartunclicked.png",
-
-			},
-
-			{
-				selectors = {"upvoteCountIcon", "upvoted"},
-				bgimage = "ui-icons/heartclicked.png",
-			},
-
-			{
-				selectors = {"installCountPanel"},
-				width = "auto",
-				height = "auto",
-				flow = "horizontal",
-			},
-
-			{
-				selectors = {"pagingArrow"},
-				bgimage = "panels/InventoryArrow.png",
-				bgcolor = "white",
-				height = 40,
-				width = 20,
-				hmargin = 4,
-				halign = "center",
-			},
-
-			{
-				selectors = {"pagingArrow", "hover"},
-				brightness = 1.5,
-			},
-
-			-- Pill-bar styling for the tab strip: only the end options get
-			-- rounded corners, and middle options drop their left/right borders
-			-- so the strip reads as one continuous control. cornerRadius pairs
-			-- the corners by diagonal: x1 = top-left, x2 = bottom-right (TL-BR
-			-- diagonal); y1 = top-right, y2 = bottom-left (TR-BL diagonal).
-			-- border keys are (x1, x2, y1, y2) = (left, right, bottom, top).
-			-- The two-selector specificity beats the rounded theme variant's
-			-- flat `enumSliderOption` cornerRadius rule.
-			{
-				selectors = {"enumSliderOption", "firstOption"},
-				cornerRadius = {x1 = 5, x2 = 0, y1 = 0, y2 = 5},
-				border = {x1 = 2, x2 = 0, y1 = 2, y2 = 2},
-			},
-			{
-				selectors = {"enumSliderOption", "middleOption"},
-				cornerRadius = 0,
-				border = {x1 = 0, x2 = 0, y1 = 2, y2 = 2},
-			},
-			{
-				selectors = {"enumSliderOption", "lastOption"},
-				cornerRadius = {x1 = 0, x2 = 5, y1 = 5, y2 = 0},
-				border = {x1 = 0, x2 = 2, y1 = 2, y2 = 2},
-			},
-
-	}
 
 	-- Positional classes drive asymmetric corner rounding + adjacent-border
 	-- removal so the strip reads as a single pill bar rather than a row of
@@ -4568,9 +4910,25 @@ mod.shared.ShowDownloadShareDialog = function()
 	-- so the visibly-last tab is computed from their visibility.
 	local hasPurchased = #module.GetOurPurchasedModules() > 0
 	local hasPublished = #module.GetOurPublishedModules() > 0
+
+	--Patreon tab: shown to anyone with a linked Patreon account, not merely to
+	--those who currently have modules through it. A patron whose creators have
+	--not included anything yet should still see where it will appear, and the
+	--tab's own empty state says so. pcall because an older engine build has no
+	--such property. The hidden "patreonsub" preference gates the whole
+	--in-development feature, so the tab stays hidden until it is turned on.
+	local hasPatreon = false
+	if dmhub.GetSettingValue("patreonsub") then
+		pcall(function()
+			hasPatreon = dmhub.patreonUserId ~= nil and dmhub.patreonUserId ~= ""
+		end)
+	end
+
 	local lastVisibleTab
 	if hasPublished then
 		lastVisibleTab = "published"
+	elseif hasPatreon then
+		lastVisibleTab = "patreon"
 	elseif hasPurchased then
 		lastVisibleTab = "purchased"
 	else
@@ -4695,6 +5053,19 @@ mod.shared.ShowDownloadShareDialog = function()
 				hpad = 14,
 				data = {
 					tab = "purchased",
+				},
+
+				press = function(element)
+					element.parent:FireEvent("select", element)
+				end,
+			},
+			gui.Label{
+				classes = {"enumSliderOption", TabPosition("patreon"), cond(not hasPatreon, "collapsed")},
+				text = "Patreon",
+				width = "auto",
+				hpad = 14,
+				data = {
+					tab = "patreon",
 				},
 
 				press = function(element)
@@ -5343,3 +5714,12 @@ Commands.Register{
 	ord = 2,
 	dmonly = true,
 }
+
+--Populated here, at the bottom, because ShowDownloadShareDialog is assigned
+--partway down the file and both entry points must exist before anything in
+--another mod reaches for them.
+ModuleBrowser.CreateModuleSlot = CreateModuleDisplaySlot
+ModuleBrowser.ShowDialog = mod.shared.ShowDownloadShareDialog
+--the card rules a slot needs; apply with ThemeEngine.MergeTokens on whatever
+--panel is hosting the slots.
+ModuleBrowser.moduleStyles = moduleDisplayCustomStyles

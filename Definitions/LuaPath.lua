@@ -12,7 +12,7 @@
 --- @field forcedMovementTotalDistance number 
 --- @field collisionSpeed number 
 --- @field hasClimbing boolean 
---- @field fallDistance number Number of tiles of altitude the token would fall when executing this path. Zero when there's no fall (or when shift-held descent has converted the move into a climb-down).
+--- @field fallDistance number Number of tiles of altitude the token would fall when executing this path. Zero when there's no fall (or when shift-held descent has converted the move into a climb-down). Floor-aware: a fall that carries onto a lower floor (walking or being pushed off a ledge above a chasm) reports the full drop from where the fall starts down to the landing floor's ground.
 --- @field landsInWater boolean True if the tile this path ends on has the water rule -- a fall that lands in water is safer (larger safe-fall distance). False when there is no destination or no water.
 --- @field mount any 
 --- @field waterSteps any 

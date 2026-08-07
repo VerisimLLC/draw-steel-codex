@@ -30,39 +30,66 @@ local g_thread = nil
 local g_terminate = false
 local g_status = nil
 
+MonsterAI:RegisterTrigger{
+    id = "Opportunity Attack",
+    triggers = {"Opportunity Attack"},
+    description = "Automatically use opportunity attacks offered to non-player creatures.",
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+
+GameHud.RegisterBetweenTurnHandler{
+    id = "Monster AI Villain Actions",
+    priority = 50,
+    run = function(context)
+        if MonsterAI.active then
+            local ai = MonsterAI.new{}
+            ai:HandleVillainActionWindow(context)
+        end
+    end,
+}
+
 local function MonsterAIThread()
+    MonsterAI.active = true
     g_status = nil
     while true do
         g_thread = coroutine.running()
         coroutine.yield(0.1)
         if mod.unloaded or g_terminate then
+            MonsterAI.active = false
             return
         end
 
         local queue = dmhub.initiativeQueue
 
 
-        --check for opportunity attacks.
+        --check for registered triggered abilities.
+        local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
                 if not token.playerControlled then
                     local triggers = token.properties:GetAvailableTriggers()
                     if triggers ~= nil then
+                        local ai = MonsterAI.new{token = token}
                         for _,trigger in pairs(triggers) do
-                            if trigger.text == "Opportunity Attack" and (not trigger.triggered) then
-                                print("AI:: DISPATCH OPPORTUNITY ATTACK")
-                                trigger.triggered = true
-                                token.properties:DispatchAvailableTrigger(trigger)
+                            if ai:HandleAvailableTrigger(token, trigger) then
+                                handledTrigger = true
                                 break
                             end
                         end
                     end
                 end
+
+                if handledTrigger then
+                    break
+                end
             end
         end
 
 
-        if queue ~= nil and (not queue.hidden) and (not queue:IsPlayersTurn()) then
+        if (not handledTrigger) and queue ~= nil and (not queue.hidden)
+            and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
 
             if initiativeid == nil then
@@ -183,6 +210,7 @@ MonsterAIPanel = function()
                     end
                 else
                     m_running = false
+                    MonsterAI.active = false
                     element.text = "Not Running"
                 end
                 resultPanel:FireEventTree("refreshai")
@@ -207,8 +235,10 @@ MonsterAIPanel = function()
             click = function()
                 if m_running then
                     g_terminate = true
+                    MonsterAI.active = false
                 else
                     g_terminate = false
+                    MonsterAI.active = true
                     dmhub.Coroutine(MonsterAIThread)
                 end
             end,

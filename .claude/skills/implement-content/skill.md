@@ -465,9 +465,64 @@ envelope has many required fields, and copying guarantees you get them all. Key 
 - `info.properties.characterFeatures` -- traits (passive features using CharacterModifier)
 - `info.properties.attributes` -- characteristic scores
 - `info.properties.keywords` -- creature keywords
+- `info.properties.innateLanguages` -- the languages the creature speaks (see
+  "Languages Are Not Optional" below -- do NOT leave this out)
 - `parentFolder` -- UUID of the containing folder under `data/monsterFolders/` (carry over
   the template's value, or set to an existing monster folder's id)
 - `id` -- unique UUID for this monster (also used as the filename when UUID-named)
+
+### Languages Are Not Optional
+
+**Every creature you implement must end up with `innateLanguages` set.** This has been the
+single most consistently forgotten field -- most hand-authored monster groups in `data/`
+have no languages at all, because only the JSON importer ever filled it in. Do not add to
+that pile.
+
+**Where the rules text puts languages.** Draw Steel monster *stat blocks* do NOT carry a
+Languages line. Languages are stated **once per monster group**, in the group's opening
+section, immediately **before the group's Malice features**. That's the sentence to go
+find. Named/unique creatures (villains, solos) additionally get their own languages in
+their write-up, which takes precedence over the group line for that creature.
+
+**Read the group sentence carefully -- it usually encodes two tiers.** A typical line
+reads: *"Most shadow elves speak Illyvric, though platoon leaders might speak some Caelian
+or Hyrallic."* That means:
+
+- **All** members of the group get the baseline language (Illyvric).
+- Only the **Leader / Solo / boss**-role members additionally get the hedged ones
+  (Caelian, Hyrallic). Minions, platoon rank-and-file, and retainers do not.
+
+Check `info.properties.role` to decide which tier a given creature falls into. "might
+speak some X" is permission for the leaders, not a fact about the whole group.
+
+**How to get the value:**
+
+1. **Try the rules text first.** Look for the group's opening section in
+   `monster-reference.md` (repo root) or the relevant `data/pdfDocuments/*.yaml`. If the
+   sentence is there, use it.
+2. **Cross-check the languages table.** `data/objectTables/languages/*.yaml` entries carry
+   a `speakers:` field (e.g. `illyvric.yaml` -> `speakers: Shadow elves`). This is a good
+   confirmation, and a usable fallback for an ancestry whose group text you can't locate.
+3. **If it isn't easily findable, ASK THE USER.** Say which group you're implementing and
+   that you need the "Most X speak ..." line from the book. Do NOT guess a language, do
+   NOT invent one, and do NOT quietly ship the monster with the field missing.
+
+**Format** -- a map of language UUID to `true`, under `info.properties`, conventionally
+placed right after `creatureSize`:
+
+```yaml
+    creatureSize: 1M
+    innateLanguages:
+      10b7a97c-65d7-4778-a007-9a1664119201: true # Illyvric
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true # Caelian
+```
+
+**Looking up the UUID -- watch for dead duplicates.** Several languages have two entries in
+`data/objectTables/languages/` (a live one and a legacy one). The **live** entry is the one
+WITHOUT `hidden: true`; it also has `group:` and `speakers:` fields. The legacy entry has
+`hidden: true` and little else. Always grep the folder and pick the non-hidden id -- e.g.
+Hyrallic is `f3951673-4de6-42ad-be86-d3158c40365c` (live), not
+`8137aba8-bec9-468d-b10c-df3c26dc897b` (hidden).
 
 ### Table Entry YAML Format
 Table entries (ongoing effects, conditions, items, etc.) must include a `_table:` metadata field.

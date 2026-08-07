@@ -814,6 +814,66 @@ local g_rulePatterns = {
         end,
     },
     {
+        --"uses their move action": the creature has now spent their move action for
+        --the turn, so none of their movement is left. The Disengage move action uses
+        --this -- it only shifts a square or two, but it costs the whole move action
+        --(see the Disengage feature in the Move Actions global rule mod).
+        --
+        --Movement is modelled purely as distance-moved-this-turn; there is no
+        --separate "move action used" flag. So spending the move action means
+        --setting Moved This Turn to the creature's full movement speed. That also
+        --re-arms the existing "Moved This Turn > 0" suppression on Disengage, so it
+        --can't be taken twice in a turn.
+        pattern = {
+            "^(uses?|using) (their|your|its|his|her) move action",
+            "^(uses?|using) up (their|your|its|his|her) (entire |remaining )?(move action|movement)",
+            "^spends? (all )?((their|your|its|his|her) )?(remaining )?movement",
+        },
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            ability:CommitToPaying(casterToken, options)
+
+            if targetToken == nil or not targetToken.valid then
+                return
+            end
+
+            --An ability invoked by another ability is not the creature's own move
+            --action. Free/triggered Disengages (the Shadow's Dancer, the Null's
+            --Shared Momentum) and the "Use Move Action" main-action conversion all
+            --reach Disengage through InvokeAbility, and none of them spend the move
+            --action the creature would otherwise take on their turn.
+            if ability:try_get("invoker") ~= nil then
+                print("Rule:: use move action: invoked ability, movement not spent")
+                return
+            end
+
+            if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+                return
+            end
+
+            if not targetToken.properties:IsOurTurn() then
+                print("Rule:: use move action: not this creature's turn, movement not spent")
+                return
+            end
+
+            local speed = math.max(0, targetToken.properties:CurrentMovementSpeed())
+            local moved = targetToken.properties:DistanceMovedThisTurn()
+            if moved >= speed then
+                return
+            end
+
+            print("Rule:: use move action: spending remaining movement:", speed - moved)
+
+            targetToken:ModifyProperties{
+                description = "Use Move Action",
+                undoable = false,
+                execute = function()
+                    targetToken.properties.moveDistance = speed
+                    targetToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+                end,
+            }
+        end,
+    },
+    {
         pattern = "^(?<condition>bleeding|dazed|frightened( of you)?|restrained|slowed|taunted|taunt|weakened)(?<additionalConditions>( and |,)[a-z ]+)? \\((?<duration>eot|EoT|save ends)?\\)",
         knownConditions = {"bleeding", "dazed", "frightened", "frightened of you", "grabbed", "restrained", "slowed", "taunted", "taunt", "weakened"},
         validate = function(entry, match)

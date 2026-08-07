@@ -215,6 +215,97 @@ DrawSteelMinion.DeleteMinions = function(tokens)
     game.UpdateCharacterTokens()
 end
 
+--- Manually links (or unlinks, pass nil) a monster to a summoner. Maintains both
+--- halves of the summon relationship: token.summonerid (drives modifier sharing,
+--- potency, overflow, and the GoblinScript "summoner" symbol) and, for minions,
+--- the summonedMinions roster on the summoner creature (drives the Summoner
+--- panel's squad list and the squad manager). Reassignment prunes the previous
+--- summoner's roster so the monster doesn't show in two panels.
+--- @param monsterToken CharacterToken The monster being assigned.
+--- @param summonerToken CharacterToken|nil The new summoner, or nil to clear.
+DrawSteelMinion.SetSummoner = function(monsterToken, summonerToken)
+    if monsterToken == nil or not monsterToken.valid or monsterToken.properties == nil then
+        return
+    end
+
+    local prevSummonerId = monsterToken.summonerid
+    local newSummonerId = nil
+    if summonerToken ~= nil and summonerToken.valid then
+        newSummonerId = summonerToken.charid
+    end
+
+    if prevSummonerId == newSummonerId then
+        return
+    end
+
+    --remove this monster from the previous summoner's roster, if it was on one.
+    if prevSummonerId ~= nil then
+        local prevToken = dmhub.GetTokenById(prevSummonerId)
+        if prevToken ~= nil and prevToken.valid and prevToken.properties ~= nil then
+            local entries = prevToken.properties:try_get("summonedMinions")
+            if entries ~= nil then
+                local pruned = {}
+                for _,entry in ipairs(entries) do
+                    if entry == nil or entry.charid ~= monsterToken.charid then
+                        pruned[#pruned+1] = entry
+                    end
+                end
+                if #pruned ~= #entries then
+                    prevToken:ModifyProperties{
+                        description = "Unassign Summoner",
+                        undoable = false,
+                        execute = function()
+                            prevToken.properties.summonedMinions = pruned
+                        end,
+                    }
+                end
+            end
+        end
+    end
+
+    monsterToken.summonerid = newSummonerId
+    monsterToken:UploadToken("Assign Summoner")
+
+    if newSummonerId ~= nil then
+        if monsterToken.properties.minion then
+            --minions join the summoner's roster (so they appear in the Summoner
+            --panel and squad manager) and group into the summoner's initiative
+            --slot, mirroring what AbilitySummon does at cast time.
+            local squadName = monsterToken.properties:MinionSquad()
+            local monsterType = monsterToken.properties:try_get("monster_type", "")
+            summonerToken:ModifyProperties{
+                description = "Assign Summoner",
+                undoable = false,
+                execute = function()
+                    summonerToken.properties:RegisterSummonedMinion(monsterToken.charid, squadName, monsterType)
+                end,
+            }
+
+            local grouping = InitiativeQueue.GetInitiativeId(summonerToken)
+            if grouping ~= nil then
+                monsterToken:ModifyProperties{
+                    description = "Assign Summoner",
+                    undoable = false,
+                    execute = function()
+                        monsterToken.properties.initiativeGrouping = grouping
+                    end,
+                }
+            end
+        end
+    elseif monsterToken.properties.minion then
+        --cleared: drop the initiative link back to its own group.
+        monsterToken:ModifyProperties{
+            description = "Unassign Summoner",
+            undoable = false,
+            execute = function()
+                monsterToken.properties.initiativeGrouping = false
+            end,
+        }
+    end
+
+    game.UpdateCharacterTokens()
+end
+
 --- Opens the drag-and-drop squad manager, applying changes live. Drag a minion
 --- to another squad (reassign), New Squad (split), or Trash (delete); drag a
 --- squad's grip to another squad (combine) or Trash (delete, with confirm).
@@ -286,7 +377,22 @@ DrawSteelMinion.ShowSquadManager = function(token)
                     end
                 end,
                 hover = function(element)
+                    --show the player which map token this portrait is: pulse the
+                    --engine highlight and keep the token's nameplate lit while hovered.
+                    local mtok = dmhub.GetTokenById(element.data.charid)
+                    if mtok ~= nil and mtok.valid then
+                        dmhub.PulseHighlightToken(mtok.charid)
+                        if mtok.bottomsheet ~= nil then
+                            mtok.bottomsheet:SetClassTree("highlighted", true)
+                        end
+                    end
                     gui.Tooltip("Drag to another squad to reassign, to New Squad to split, or to Trash to delete.")(element)
+                end,
+                dehover = function(element)
+                    local mtok = dmhub.GetTokenById(element.data.charid)
+                    if mtok ~= nil and mtok.valid and mtok.bottomsheet ~= nil then
+                        mtok.bottomsheet:SetClassTree("highlighted", false)
+                    end
                 end,
                 gui.CreateTokenImage(tok, {
                     width = 34,
@@ -324,7 +430,23 @@ DrawSteelMinion.ShowSquadManager = function(token)
                 end
             end,
             hover = function(element)
+                --highlight every live member of the squad on the map.
+                for _, t in ipairs(liveTokens) do
+                    if t.valid then
+                        dmhub.PulseHighlightToken(t.charid)
+                        if t.bottomsheet ~= nil then
+                            t.bottomsheet:SetClassTree("highlighted", true)
+                        end
+                    end
+                end
                 gui.Tooltip("Drag the whole squad onto another to combine, or onto Trash to delete it.")(element)
+            end,
+            dehover = function(element)
+                for _, t in ipairs(liveTokens) do
+                    if t.valid and t.bottomsheet ~= nil then
+                        t.bottomsheet:SetClassTree("highlighted", false)
+                    end
+                end
             end,
             gui.Label{
                 classes = {"sizeL", "bold"},

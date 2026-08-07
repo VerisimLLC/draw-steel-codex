@@ -4615,6 +4615,424 @@ local function MakeHeroPanel(heroIndex)
     return resultPanel
 end
 
+----------------------------------------------------------------------------
+--"A little infernal contract for you to sign..." -- the first-run offer for
+--the two things we want from a new player: a linked Patreon account and a
+--confirmed email address. Shown once, the first time the selection screen
+--comes up, and gated on the hidden "patreonsub" preference because the whole
+--Patreon feature is still in development.
+--
+--It is an offer, not a nag: whichever way they leave it, it does not come back
+--until the next launch. Either half is dropped if they have already done it,
+--and if they have done both the dialog never opens at all.
+----------------------------------------------------------------------------
+
+local g_infernalContractOffered = false
+
+--pcall: an older engine build has no such property.
+local function PatreonAccountLinked()
+	local result = false
+	pcall(function()
+		result = dmhub.patreonUserId ~= nil and dmhub.patreonUserId ~= ""
+	end)
+	return result
+end
+
+--the OAuth link flow is published as a global by SettingsScreen, which is a
+--different mod (mod.shared is per-mod). rawget so a partial load degrades to
+--"no Patreon button" rather than erroring on an unset global.
+local function PatreonAccountGlobal()
+	return rawget(_G, "PatreonAccount")
+end
+
+--basic sanity check, same rule the settings screen uses.
+local function LooksLikeEmail(email)
+	email = email or ""
+	return string.len(email) >= 4 and string.find(email, "@") ~= nil and string.find(email, "%.") ~= nil
+end
+
+local CreateInfernalContractDialog = function(titlescreen, args)
+	local dialog = titlescreen.data.dialog
+
+	local m_link = nil          --in-flight PatreonAccount.BeginLink handle.
+	local m_monitor = nil       --realtime listener on our email status.
+	local m_emailSending = false
+	local m_emailWaiting = false
+
+	local contractDialog
+	local patreonSection
+	local patreonButton
+	local patreonStatus
+	local emailSection
+	local emailInput
+	local emailButton
+	local emailStatus
+
+	local function SetPatreonStatus(text, isError)
+		patreonStatus.text = text or ""
+		patreonStatus:SetClass("collapsed", text == nil or text == "")
+		patreonStatus.selfStyle.color = cond(isError, "#ff6666", "#88ff88")
+	end
+
+	local function SetEmailStatus(text, isError)
+		emailStatus.text = text or ""
+		emailStatus:SetClass("collapsed", text == nil or text == "")
+		emailStatus.selfStyle.color = cond(isError, "#ff6666", "#88ff88")
+	end
+
+	local SectionHeading = function(text)
+		return gui.Label{
+			color = Styles.textColor,
+			fontSize = 22,
+			bold = true,
+			width = "100%",
+			height = "auto",
+			halign = "left",
+			vmargin = 4,
+			text = text,
+		}
+	end
+
+	local BodyLabel = function(text)
+		return gui.Label{
+			color = Styles.textColor,
+			fontSize = 17,
+			width = "100%",
+			height = "auto",
+			halign = "left",
+			text = text,
+		}
+	end
+
+	patreonStatus = gui.Label{
+		classes = {"collapsed"},
+		fontSize = 15,
+		italics = true,
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 2,
+		text = "",
+	}
+
+	patreonButton = gui.Button{
+		text = "Link Patreon Account",
+		width = 280,
+		height = 40,
+		fontSize = 18,
+		halign = "left",
+		vmargin = 6,
+		click = function(element)
+			local patreon = PatreonAccountGlobal()
+			if patreon == nil or patreon.BeginLink == nil then
+				return
+			end
+
+			element:SetClass("collapsed", true)
+
+			m_link = patreon.BeginLink{
+				alive = function() return contractDialog.valid end,
+				progress = function(text)
+					SetPatreonStatus(text, false)
+				end,
+				linked = function(data)
+					m_link = nil
+					SetPatreonStatus("Your Patreon account is linked. Thank you!", false)
+				end,
+				failed = function(msg)
+					m_link = nil
+					SetPatreonStatus(msg, true)
+					patreonButton:SetClass("collapsed", PatreonAccountLinked())
+				end,
+			}
+		end,
+	}
+
+	patreonSection = gui.Panel{
+		classes = {cond(args.patreonLinked, "collapsed")},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 8,
+
+		SectionHeading("Link your Patreon"),
+		BodyLabel("Get access to in-development adventures, character options and more by linking your MCDM Patreon account."),
+		patreonButton,
+		patreonStatus,
+	}
+
+	emailStatus = gui.Label{
+		classes = {"collapsed"},
+		fontSize = 15,
+		italics = true,
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 2,
+		text = "",
+	}
+
+	local RefreshEmailButton = function()
+		emailButton:SetClass("collapsed", m_emailWaiting or LooksLikeEmail(emailInput.text) == false)
+	end
+
+	local SubmitEmail = function()
+		if m_emailSending then
+			return
+		end
+
+		if LooksLikeEmail(emailInput.text) == false then
+			SetEmailStatus("Please enter a valid email address.", true)
+			return
+		end
+
+		local address = emailInput.text
+		m_emailSending = true
+		emailButton.interactable = false
+		SetEmailStatus("Sending...", false)
+
+		emailConfirmation.RequestEmail{
+			email = address,
+			complete = function(result)
+				if not contractDialog.valid then
+					return
+				end
+
+				m_emailSending = false
+				emailButton.interactable = true
+
+				if result ~= nil and result.ok and result.status == "sent" then
+					m_emailWaiting = true
+					emailInput:SetClass("collapsed", true)
+					RefreshEmailButton()
+					SetEmailStatus(string.format("We've emailed a confirmation link to %s. Click the link in that email to finish.", address), false)
+				elseif result ~= nil and (result.httpStatus == 429 or result.error == "rate_limited") then
+					local secs = result.retryAfterSeconds or 60
+					SetEmailStatus(string.format("Too many attempts. Please try again in %d seconds.", math.floor(secs)), true)
+				elseif result ~= nil and (result.httpStatus == 400 or result.error == "invalid_email") then
+					SetEmailStatus("That doesn't look like a valid email address.", true)
+				elseif result ~= nil and (result.httpStatus == 401 or result.error == "invalid_token") then
+					SetEmailStatus("Your session has expired. Please try again.", true)
+				else
+					SetEmailStatus("Something went wrong. Please try again.", true)
+				end
+			end,
+		}
+	end
+
+	emailInput = gui.Input{
+		placeholderText = "Enter your email address...",
+		characterLimit = 64,
+		width = 320,
+		height = 30,
+		fontSize = 17,
+		bgimage = "panels/square.png",
+		borderWidth = 2,
+		borderColor = "#c8a45a",
+		halign = "left",
+		vmargin = 6,
+		--`edit` (per keystroke), not `change`: change also fires on focus loss,
+		--which would fire off a confirmation mail to a half-typed address when
+		--the user clicks Close. The button is the only way to send.
+		edit = function(element)
+			RefreshEmailButton()
+		end,
+	}
+
+	emailButton = gui.Button{
+		classes = {"collapsed"},
+		text = "Send Confirmation Email",
+		width = 280,
+		height = 40,
+		fontSize = 18,
+		halign = "left",
+		vmargin = 4,
+		click = function(element)
+			SubmitEmail()
+		end,
+	}
+
+	emailSection = gui.Panel{
+		classes = {cond(args.emailConfirmed, "collapsed")},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 8,
+
+		SectionHeading("Sign up for news"),
+		BodyLabel("Enter your email to receive news, updates, and special offers. We won't share your email with third parties"),
+		emailInput,
+		emailButton,
+		emailStatus,
+	}
+
+	contractDialog = gui.Panel{
+		id = "infernalContract",
+		floating = true,
+		halign = "center",
+		valign = "center",
+		width = dialog.width,
+		height = dialog.height,
+		bgimage = "panels/square.png",
+		bgcolor = "#000000d0",
+
+		styles = {
+			Styles.Default,
+			Styles.Panel,
+		},
+
+		captureEscape = true,
+		escape = function(element)
+			element:FireEvent("closeContract")
+		end,
+
+		closeContract = function(element)
+			element:DestroySelf()
+		end,
+
+		create = function(element)
+			--live status: the confirmation link is clicked in a browser, so the
+			--only way this dialog learns it succeeded is the cloud document.
+			m_monitor = emailConfirmation.MonitorStatus(function(state)
+				if not element.valid then
+					return
+				end
+
+				if state ~= nil and state.emailConfirmed == true then
+					m_emailWaiting = false
+					emailInput:SetClass("collapsed", true)
+					emailButton:SetClass("collapsed", true)
+					SetEmailStatus("Your email address is confirmed. Thank you!", false)
+				end
+			end)
+		end,
+
+		destroy = function(element)
+			if m_link ~= nil then
+				m_link:Cancel()
+				m_link = nil
+			end
+
+			if m_monitor ~= nil then
+				m_monitor:Stop()
+				m_monitor = nil
+			end
+		end,
+
+		gui.Panel{
+			classes = {"framedPanel"},
+			width = 1180,
+			height = 780,
+			halign = "center",
+			valign = "center",
+			flow = "horizontal",
+
+			--the art bleeds the full height of the card on the left; the offer
+			--reads down the column on the right.
+			gui.Panel{
+				bgimage = "panels/titlescreen/infernal-contract.png",
+				bgcolor = "white",
+				width = 546,
+				height = 720,
+				halign = "left",
+				valign = "center",
+				hmargin = 16,
+			},
+
+			gui.Panel{
+				flow = "vertical",
+				width = 570,
+				height = "100%",
+				halign = "left",
+				valign = "center",
+				hmargin = 12,
+				vpad = 40,
+				borderBox = true,
+
+				gui.Label{
+					color = Styles.textColor,
+					fontSize = 32,
+					bold = true,
+					width = "100%",
+					height = "auto",
+					halign = "left",
+					vmargin = 12,
+					text = "An infernal contract for you to sign...",
+				},
+
+				patreonSection,
+				emailSection,
+
+				gui.Button{
+					text = "Close",
+					width = 200,
+					height = 36,
+					fontSize = 20,
+					halign = "left",
+					valign = "bottom",
+					vmargin = 24,
+					click = function(element)
+						contractDialog:FireEvent("closeContract")
+					end,
+				},
+			},
+		},
+	}
+
+	return contractDialog
+end
+
+--Called when the selection screen first appears. Answers "is there anything
+--left to ask for?" before building anything: the Patreon half is a local read,
+--but the email half only exists in the cloud, so a short-lived listener has to
+--answer it first.
+local OfferInfernalContract = function(titlescreen)
+	if g_infernalContractOffered then
+		return
+	end
+
+	if dmhub.GetSettingValue("patreonsub") ~= true then
+		return
+	end
+
+	g_infernalContractOffered = true
+
+	local probe = {done = false, handle = nil}
+
+	probe.handle = emailConfirmation.MonitorStatus(function(state)
+		if probe.done then
+			return
+		end
+		probe.done = true
+
+		--deferred a frame: MonitorStatus can call back synchronously, before
+		--probe.handle has been assigned, and we need the handle to stop it.
+		dmhub.Schedule(0, function()
+			if probe.handle ~= nil then
+				probe.handle:Stop()
+				probe.handle = nil
+			end
+
+			if mod.unloaded or (not titlescreen.valid) then
+				return
+			end
+
+			local patreonLinked = PatreonAccountLinked()
+			local emailConfirmed = state ~= nil and state.emailConfirmed == true
+
+			--nothing left to ask for.
+			if patreonLinked and emailConfirmed then
+				return
+			end
+
+			titlescreen:AddChild(CreateInfernalContractDialog(titlescreen, {
+				patreonLinked = patreonLinked,
+				emailConfirmed = emailConfirmed,
+			}))
+		end)
+	end)
+end
+
 function CreateTitlescreen(dialog, options)
     local titlescreen
 
@@ -4635,6 +5053,12 @@ function CreateTitlescreen(dialog, options)
         titlescreen:FireEventTree("titlescreenStateChanged", state)
 
         m_currentSearch = nil
+
+        --first arrival at the Director/Player cards is where we make the
+        --Patreon/email offer, if there is anything left to offer.
+        if state == "selection-screen" then
+            OfferInfernalContract(titlescreen)
+        end
 
         TopBar.UninstallSearchHandler(titlescreen.data.searchHandler)
         titlescreen.data.searchHandler = nil

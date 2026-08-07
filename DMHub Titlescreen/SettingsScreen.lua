@@ -450,28 +450,85 @@ local function CreateImageEditorChooser()
 end
 
 --Local assets: a per-game developer feature where the game's cloud assets are
---replaced by a local directory tree of YAML files (see LocalAssetDirectory in
---the engine and the /localassets macro). Returns a list of panels for the
---Editing settings tab, or an empty list when the feature does not apply
---(not in dev mode, or not in a real game).
+--replaced by one or more local directory trees of YAML files (see
+--LocalAssetDirectory in the engine and the /localassets macro). Multiple
+--directories form an ordered overlay: the FIRST is the "top" directory --
+--highest precedence, and the home for newly created entries. Returns a list
+--of panels for the Editing settings tab, or an empty list when the feature
+--does not apply (not in dev mode, or not in a real game).
 local function CreateLocalAssetsSection()
 	if dmhub.isLobbyGame or (not dmhub.GetSettingValue("dev")) then
 		return {}
 	end
 
-	local function CurrentDir()
-		local dir = dmhub.GetSettingValue("localassets:dir")
-		if dir == nil then
+	--The directory list is stored newline-delimited in localassets:dirs, top
+	--directory first; the legacy single-path localassets:dir is honored as a
+	--fallback so games configured before the multi-directory feature keep
+	--working until the list is first edited here.
+	local function GetDirs()
+		local result = {}
+		local str = dmhub.GetSettingValue("localassets:dirs")
+		if str ~= nil and str ~= "" then
+			for line in string.gmatch(str, "[^\n]+") do
+				line = line:match("^%s*(.-)%s*$")
+				if line ~= "" then
+					result[#result+1] = line
+				end
+			end
+		end
+		if #result == 0 then
+			local legacy = dmhub.GetSettingValue("localassets:dir")
+			if legacy ~= nil and legacy ~= "" then
+				result[1] = legacy
+			end
+		end
+		return result
+	end
+
+	local function SetDirs(dirs)
+		dmhub.SetSettingValue("localassets:dirs", table.concat(dirs, "\n"))
+		if #dirs == 0 then
+			--clear the legacy single-dir setting too, or GetDirs would fall
+			--back to it and the feature would not actually turn off.
+			dmhub.SetSettingValue("localassets:dir", "")
+		end
+		--a pure reordering may apply live; other changes require a game
+		--reload. The status label reflects which via LocalAssetsStatus.
+		if dmhub.LocalAssetsApplyDirs ~= nil then
+			dmhub.LocalAssetsApplyDirs()
+		end
+	end
+
+	local function TopDir()
+		local dirs = GetDirs()
+		if dirs[1] == nil then
 			return ""
 		end
-		return dir
+		return dirs[1]
 	end
 
 	local function StatusText()
 		local status = dmhub.LocalAssetsStatus()
-		if status ~= nil and status.active and status.directory ~= nil then
-			return string.format("Active: this game's assets are loading from %s.", status.directory)
-		elseif CurrentDir() ~= "" then
+		local dirs = GetDirs()
+		if status ~= nil and status.active then
+			local ndirs = 1
+			if status.directories ~= nil and #status.directories > 0 then
+				ndirs = #status.directories
+			end
+			local text
+			if ndirs > 1 then
+				text = string.format("Active: assets load from %d directories; new entries are created in %s.", ndirs, status.directories[1])
+			else
+				text = string.format("Active: this game's assets are loading from %s.", status.directory or "?")
+			end
+			if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+				text = text .. string.format(" %d item(s) exist in multiple directories; the higher directory's copy wins.", status.shadowedCount)
+			end
+			if status.reloadRequired then
+				text = text .. " Directory changes are PENDING: reload the game to apply them."
+			end
+			return text
+		elseif #dirs > 0 then
 			return "Set, but not active yet: reload the game to activate."
 		else
 			return "Not set: this game uses cloud assets."
@@ -486,7 +543,7 @@ local function CreateLocalAssetsSection()
 		vmargin = 2,
 		italics = true,
 		text = StatusText(),
-		multimonitor = {"localassets:dir"},
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
 			monitor = function(element)
 				element.text = StatusText()
@@ -494,44 +551,159 @@ local function CreateLocalAssetsSection()
 		},
 	}
 
-	local dirInput = gui.Input{
-		classes = {"form"},
-		width = 300,
-		halign = "right",
-		valign = "center",
-		text = CurrentDir(),
-		multimonitor = {"localassets:dir"},
+	local function SmallButton(text, w, disabled, fn)
+		return gui.Button{
+			width = w,
+			height = 24,
+			fontSize = 12,
+			halign = "left",
+			valign = "center",
+			hmargin = 2,
+			text = text,
+			classes = {cond(disabled, "disabled")},
+			interactable = not disabled,
+			click = fn,
+		}
+	end
+
+	--One row per configured directory: position, editable path, Browse, and
+	--reordering controls. Rows are rebuilt whenever the setting changes, so
+	--the captured indexes are always fresh.
+	local function MakeDirRow(index, dir, count)
+		return gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = 30,
+			vmargin = 2,
+
+			gui.Label{
+				classes = {"form"},
+				width = 26,
+				minWidth = 26,
+				halign = "left",
+				valign = "center",
+				fontSize = 14,
+				text = string.format("%d.", index),
+			},
+
+			gui.Input{
+				classes = {"form"},
+				width = 250,
+				valign = "center",
+				fontSize = 14,
+				text = dir,
+				change = function(element)
+					local dirs = GetDirs()
+					local text = element.text:match("^%s*(.-)%s*$")
+					if text == "" then
+						table.remove(dirs, index)
+					else
+						dirs[index] = text
+					end
+					SetDirs(dirs)
+				end,
+			},
+
+			SmallButton("Browse...", 64, false, function(element)
+				dmhub.OpenFolderDialog{
+					id = "localassets",
+					extensions = {"yaml"},
+					prompt = "Select Local Assets Directory",
+					open = function(folderPath, filePaths)
+						local dirs = GetDirs()
+						dirs[index] = folderPath
+						SetDirs(dirs)
+					end,
+				}
+			end),
+
+			SmallButton("Top", 40, index == 1, function(element)
+				local dirs = GetDirs()
+				local d = table.remove(dirs, index)
+				table.insert(dirs, 1, d)
+				SetDirs(dirs)
+			end),
+
+			SmallButton("Up", 36, index == 1, function(element)
+				local dirs = GetDirs()
+				dirs[index], dirs[index-1] = dirs[index-1], dirs[index]
+				SetDirs(dirs)
+			end),
+
+			SmallButton("Down", 52, index == count, function(element)
+				local dirs = GetDirs()
+				dirs[index], dirs[index+1] = dirs[index+1], dirs[index]
+				SetDirs(dirs)
+			end),
+
+			SmallButton("X", 26, false, function(element)
+				local dirs = GetDirs()
+				table.remove(dirs, index)
+				SetDirs(dirs)
+			end),
+		}
+	end
+
+	local function BuildDirRows()
+		local dirs = GetDirs()
+		local rows = {}
+		for i,dir in ipairs(dirs) do
+			rows[#rows+1] = MakeDirRow(i, dir, #dirs)
+		end
+		if #rows == 0 then
+			rows[1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				italics = true,
+				text = "No directories configured.",
+			}
+		end
+		return rows
+	end
+
+	local dirsListArgs = {
+		width = "90%",
+		height = "auto",
+		flow = "vertical",
+		halign = "center",
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
-			change = function(element)
-				dmhub.SetSettingValue("localassets:dir", element.text)
-			end,
 			monitor = function(element)
-				element.text = CurrentDir()
+				element.children = BuildDirRows()
 			end,
 		},
 	}
+	for _,row in ipairs(BuildDirRows()) do
+		dirsListArgs[#dirsListArgs+1] = row
+	end
+	local dirsListPanel = gui.Panel(dirsListArgs)
 
-	local browseButton = gui.Button{
-		width = 110,
+	local addButton = gui.Button{
+		width = 150,
 		height = 32,
 		fontSize = 16,
 		halign = "left",
 		valign = "center",
-		text = "Browse...",
+		text = "Add Directory...",
 		click = function(element)
 			dmhub.OpenFolderDialog{
 				id = "localassets",
 				extensions = {"yaml"},
 				prompt = "Select Local Assets Directory",
 				open = function(folderPath, filePaths)
-					dmhub.SetSettingValue("localassets:dir", folderPath)
+					local dirs = GetDirs()
+					--the new directory goes on TOP: highest precedence and
+					--the home for new entries. Use Down to lower it.
+					table.insert(dirs, 1, folderPath)
+					SetDirs(dirs)
 				end,
 			}
 		end,
 	}
 
 	local function DoExport()
-		local dir = CurrentDir()
+		local dir = TopDir()
 		local result = dmhub.ExportAllAssets{directory = dir}
 		if result == nil then
 			gui.ModalMessage{
@@ -560,7 +732,7 @@ local function CreateLocalAssetsSection()
 		if status == nil or not status.active then
 			return false
 		end
-		local dir = CurrentDir()
+		local dir = TopDir()
 		if dir == "" or dmhub.GetDirectoryInfo == nil then
 			return false
 		end
@@ -570,15 +742,15 @@ local function CreateLocalAssetsSection()
 
 	local populateDisabled = PopulateDisabled()
 	local populateButton = gui.Button{
-		width = 200,
+		width = 210,
 		height = 32,
 		fontSize = 16,
 		halign = "left",
 		valign = "center",
-		text = "Populate Directory",
+		text = "Populate Top Directory",
 		classes = {cond(populateDisabled, "disabled")},
 		interactable = not populateDisabled,
-		multimonitor = {"localassets:dir"},
+		multimonitor = {"localassets:dirs", "localassets:dir"},
 		events = {
 			monitor = function(element)
 				local disabled = PopulateDisabled()
@@ -587,11 +759,11 @@ local function CreateLocalAssetsSection()
 			end,
 		},
 		click = function(element)
-			local dir = CurrentDir()
+			local dir = TopDir()
 			if dir == "" then
 				gui.ModalMessage{
 					title = "Local Assets",
-					message = "Choose a directory first.",
+					message = "Add a directory first.",
 				}
 				return
 			end
@@ -617,7 +789,997 @@ local function CreateLocalAssetsSection()
 		end,
 	}
 
-	return {
+	--------------------------------------------------------------------
+	--File browser (multi-dir Phase 2): a collapsible, lazily-built tree per
+	--configured directory driven by the engine's live index via
+	--dmhub.LocalAssetsFileTree, plus a search box over ids, display names
+	--and filenames via dmhub.LocalAssetsSearch. Children are built only when
+	--a node expands, and a directory node re-fetches its tree on every
+	--expand, so the view stays fresh without polling. Clicking a row reveals
+	--the file in the OS file browser. Only shown when local assets mode is
+	--actually active (the index lives in the running LocalAssetDirectory)
+	--and the engine has the browser bridges.
+	--------------------------------------------------------------------
+
+	local function CreateFileBrowser()
+		if dmhub.LocalAssetsFileTree == nil then
+			return nil --engine build predates the browser bridges.
+		end
+
+		local status = dmhub.LocalAssetsStatus()
+		if status == nil or (not status.active) or status.directories == nil then
+			return nil
+		end
+
+		local browserStyles = {
+			gui.Style{
+				selectors = {"latree-row"},
+				bgcolor = "clear",
+			},
+			gui.Style{
+				selectors = {"latree-row", "hover"},
+				bgcolor = "#ffffff22",
+			},
+			--directory headers light up as drop targets while a file row is
+			--being dragged (engine-applied drag state classes).
+			gui.Style{
+				selectors = {"latree-row", "drag-target"},
+				bgcolor = "#33663377",
+			},
+			gui.Style{
+				selectors = {"latree-row", "drag-target-hover"},
+				bgcolor = "#55aa5599",
+			},
+		}
+
+		--attached DIRECTLY to each triangle panel, with a selector-less base
+		--rule, matching every working triangle in the codebase (gui.TreeNode,
+		--ModShare, ClassEditor). Cascading these rules down from an ancestor
+		--styles list left the rotate unapplied -- the triangles rendered but
+		--always pointed down.
+		local triangleStyles = {
+			gui.Style{
+				width = 10,
+				height = 10,
+				hmargin = 4,
+				valign = "center",
+				rotate = 90,
+			},
+			gui.Style{
+				selectors = {"expanded"},
+				rotate = 0,
+				transitionTime = 0.2,
+			},
+		}
+
+		------------------------------------------------------------------
+		--Git awareness (Phase 3): read-only status badges from the engine's
+		--GitStatusService via dmhub.LocalAssetsGitRefresh/GitStatus. The
+		--last completed status per directory is cached in m_gitStatus and
+		--broadcast down the browser with FireEventTree("gitstatus", dirIndex,
+		--st); rows/labels also pull the cache from their create event so
+		--nodes built after a refresh start out correct. All keyed by the
+		--normPath the bridges attach to every item -- normalization happens
+		--in ONE place, the engine's LocalAssetDirectory.NormalizePath.
+		------------------------------------------------------------------
+
+		local browserRoot = nil
+		local m_gitStatus = {} --dirIndex -> last completed status snapshot
+		local m_byNorm = {}    --dirIndex -> normPath -> tree item entry
+		local m_polling = {}
+
+		--"Show Only Git Changes": when on (the default), tree items filter
+		--to files git reports as changed. Directories without git info (not
+		--a repo, git missing, status not loaded yet) always show all files.
+		local m_showOnlyChanges = true
+		local m_builtSig = {} --dirIndex -> filter signature the tree was last built with
+
+		local gitStateInfo = {
+			untracked = { letter = "?", color = "#77cc77" },
+			added = { letter = "A", color = "#77cc77" },
+			modified = { letter = "M", color = "#ddbb55" },
+			deleted = { letter = "D", color = "#cc6666" },
+			renamed = { letter = "R", color = "#77aacc" },
+		}
+
+		local function RefreshGitFor(dirIndex)
+			if dmhub.LocalAssetsGitRefresh == nil then
+				return --engine build predates the git integration.
+			end
+
+			dmhub.LocalAssetsGitRefresh(dirIndex)
+			if m_polling[dirIndex] then
+				return
+			end
+			m_polling[dirIndex] = true
+
+			local attempts = 0
+			local function Poll()
+				if browserRoot == nil or (not browserRoot.valid) then
+					m_polling[dirIndex] = nil
+					return
+				end
+				local st = dmhub.LocalAssetsGitStatus(dirIndex)
+				attempts = attempts + 1
+				if st ~= nil and st.refreshing and attempts < 120 then
+					dmhub.Schedule(0.25, Poll)
+					return
+				end
+				m_polling[dirIndex] = nil
+				if st ~= nil then
+					m_gitStatus[dirIndex] = st
+					browserRoot:FireEventTree("gitstatus", dirIndex, st)
+				end
+			end
+			dmhub.Schedule(0.25, Poll)
+		end
+
+		--true when the changes-only filter actually applies to a directory:
+		--the checkbox is on AND git produced a usable status for it.
+		local function GitFilterActive(dirIndex)
+			if not m_showOnlyChanges then
+				return false
+			end
+			if dmhub.LocalAssetsGitStatus == nil then
+				return false
+			end
+			local st = m_gitStatus[dirIndex]
+			if st == nil or (not st.hasResult) or st.error ~= nil or (not st.isRepo) then
+				return false
+			end
+			return true
+		end
+
+		local function FilterItems(items, dirIndex)
+			if not GitFilterActive(dirIndex) then
+				return items
+			end
+			local states = m_gitStatus[dirIndex].states or {}
+			local result = {}
+			for _,entry in ipairs(items) do
+				if entry.normPath ~= nil and states[entry.normPath] ~= nil then
+					result[#result+1] = entry
+				end
+			end
+			return result
+		end
+
+		--identity of the changed-file set a tree build was based on; used to
+		--skip pointless (and sub-node-collapsing) rebuilds when a refresh
+		--reports the same changes again.
+		local function FilterSignature(st)
+			if st == nil or (not st.hasResult) or st.error ~= nil or (not st.isRepo) then
+				return "nogit"
+			end
+			local parts = {}
+			for _,c in ipairs(st.changes) do
+				parts[#parts+1] = c.normPath .. "=" .. c.state
+			end
+			return table.concat(parts, ";")
+		end
+
+		------------------------------------------------------------------
+		--Git operations (Phase 4): move a file to another directory (drag
+		--onto a directory header, or the right-click Move to... menu) and
+		--per-file reverts. Both confirm destructive steps with a modal.
+		------------------------------------------------------------------
+
+		--after a mutating operation: refresh git promptly, then again once
+		--the watcher/sweep and debounces have settled, with a tree rebuild
+		--so rows appear/vanish even when the changes-only filter is off.
+		local function AfterGitOp(dirIndexes)
+			for _,i in ipairs(dirIndexes) do
+				RefreshGitFor(i)
+			end
+			dmhub.Schedule(3, function()
+				if browserRoot ~= nil and browserRoot.valid then
+					for _,i in ipairs(dirIndexes) do
+						RefreshGitFor(i)
+					end
+					browserRoot:FireEventTree("latreeRebuild")
+				end
+			end)
+		end
+
+		local DoMove
+		DoMove = function(entry, fromDirIndex, toDirIndex, overwrite)
+			local result = dmhub.LocalAssetsMoveFile(entry.path, toDirIndex, overwrite == true)
+			if result == nil then
+				return
+			end
+
+			if result.collision and (not (overwrite == true)) then
+				gui.ModalMessage{
+					title = "Overwrite File?",
+					message = string.format("Directory %d already has a file for this item:\n%s\n\nMoving will overwrite that copy with the file being moved. Continue?", toDirIndex, result.collisionPath or "?"),
+					options = {
+						{ text = "Cancel" },
+						{ text = "Overwrite", execute = function()
+							DoMove(entry, fromDirIndex, toDirIndex, true)
+						end },
+					},
+				}
+				return
+			end
+
+			if not result.success then
+				gui.ModalMessage{
+					title = "Move Failed",
+					message = result.error or "Unknown error.",
+				}
+				return
+			end
+
+			--the index updated synchronously, so rebuild right away; the
+			--delayed AfterGitOp pass catches the staged git states.
+			if browserRoot ~= nil and browserRoot.valid then
+				browserRoot:FireEventTree("latreeRebuild")
+			end
+			AfterGitOp({fromDirIndex, toDirIndex})
+		end
+
+		local revertLabels = {
+			modified = { menu = "Revert Changes", confirm = "Discard the local changes to %s and restore the last committed version?" },
+			deleted = { menu = "Restore Deleted File", confirm = "Restore %s from the last committed version?" },
+			renamed = { menu = "Revert Rename", confirm = "Attempt to revert the rename of %s? Renames may need manual git use if this fails." },
+			added = { menu = "Revert Added File", confirm = "Un-stage %s and DELETE it from disk?" },
+			untracked = { menu = "Delete Untracked File", confirm = "DELETE %s from disk? It is not tracked by git, so this cannot be undone." },
+		}
+
+		local function DoRevert(entry, dirIndex, state)
+			local info = revertLabels[state]
+			if info == nil then
+				return
+			end
+			gui.ModalMessage{
+				title = "Confirm Git Revert",
+				message = string.format(info.confirm, entry.fileName),
+				options = {
+					{ text = "Cancel" },
+					{ text = info.menu, execute = function()
+						local err = dmhub.LocalAssetsRevertFile(dirIndex, entry.path, state)
+						if err ~= nil then
+							gui.ModalMessage{
+								title = "Revert Failed",
+								message = err,
+							}
+							return
+						end
+						AfterGitOp({dirIndex})
+					end },
+				},
+			}
+		end
+
+		--one clickable row for an item file. entry comes from
+		--LocalAssetsFileTree or LocalAssetsSearch (or is synthesized by the
+		--Changes view; entry.revealPath overrides the click target there);
+		--detail is optional extra dim text appended after the filename
+		--(search attribution). dirIndex drives the git badge.
+		local function FileRow(entry, detail, dirIndex)
+			local nameText = entry.displayName or entry.id or entry.fileName
+			local fileText = entry.fileName
+			if entry.shadowed then
+				fileText = fileText .. " (shadowed)"
+			end
+			if detail ~= nil then
+				fileText = fileText .. "  " .. detail
+			end
+
+			local badge = gui.Label{
+				width = 12,
+				height = "auto",
+				fontSize = 12,
+				bold = true,
+				valign = "center",
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex ~= dirIndex then
+						return
+					end
+					local state = nil
+					if st ~= nil and st.states ~= nil and entry.normPath ~= nil then
+						state = st.states[entry.normPath]
+					end
+					local info = gitStateInfo[state]
+					if info == nil then
+						element.text = ""
+					else
+						element.text = info.letter
+						element.selfStyle.color = info.color
+					end
+				end,
+			}
+
+			local canMove = dmhub.LocalAssetsMoveFile ~= nil and dirIndex ~= nil
+
+			return gui.Panel{
+				classes = {"latree-row"},
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				bgimage = "panels/square.png",
+				click = function(element)
+					dmhub.RevealInFileBrowser(entry.revealPath or entry.path)
+				end,
+
+				--drag a row onto another directory's header to move it.
+				draggable = canMove,
+				canDragOnto = function(element, target)
+					return target:HasClass("latree-dirtarget") and target.data ~= nil and target.data.dirIndex ~= dirIndex
+				end,
+				drag = function(element, target)
+					if target ~= nil and target.data ~= nil and target.data.dirIndex ~= nil then
+						DoMove(entry, dirIndex, target.data.dirIndex)
+					end
+				end,
+
+				rightClick = function(element)
+					local entries = {}
+					entries[#entries+1] = {
+						text = "Reveal in File Browser",
+						click = function()
+							element.popup = nil
+							dmhub.RevealInFileBrowser(entry.revealPath or entry.path)
+						end,
+					}
+
+					local state = nil
+					local st = m_gitStatus[dirIndex]
+					if st ~= nil and st.states ~= nil and entry.normPath ~= nil then
+						state = st.states[entry.normPath]
+					end
+
+					--a deleted file has nothing on disk to move.
+					if canMove and state ~= "deleted" then
+						local liveStatus = dmhub.LocalAssetsStatus()
+						local dirs = (liveStatus ~= nil and liveStatus.directories) or {}
+						if #dirs > 1 then
+							for k,dirPath in ipairs(dirs) do
+								if k ~= dirIndex then
+									entries[#entries+1] = {
+										text = string.format("Move to %d. %s", k, dirPath),
+										click = function()
+											element.popup = nil
+											DoMove(entry, dirIndex, k)
+										end,
+									}
+								end
+							end
+						end
+					end
+
+					if dmhub.LocalAssetsRevertFile ~= nil and state ~= nil and revertLabels[state] ~= nil then
+						entries[#entries+1] = {
+							text = revertLabels[state].menu .. "...",
+							click = function()
+								element.popup = nil
+								DoRevert(entry, dirIndex, state)
+							end,
+						}
+					end
+
+					element.popup = gui.ContextMenu{
+						entries = entries,
+					}
+				end,
+
+				badge,
+				gui.Label{
+					width = "42%",
+					height = "auto",
+					fontSize = 13,
+					valign = "center",
+					italics = entry.shadowed,
+					opacity = cond(entry.shadowed, 0.6, 1),
+					text = nameText,
+				},
+				gui.Label{
+					width = "52%",
+					height = "auto",
+					fontSize = 12,
+					valign = "center",
+					opacity = 0.6,
+					italics = entry.shadowed,
+					text = fileText,
+				},
+			}
+		end
+
+		--a collapsible node: a header row with a triangle. buildChildren()
+		--runs fresh on every expand; collapse clears the children so large
+		--trees never linger in the hierarchy. extraHeader (optional) is an
+		--extra panel appended to the header row (git summary / live counts).
+		--rebuildEvents (optional) maps event name -> predicate(...); when
+		--the event fires on the node and the predicate passes, an EXPANDED
+		--node rebuilds its children in place (used by the changes-only
+		--filter; collapsed nodes rebuild naturally on their next expand).
+		--dropTargetDirIndex (optional) makes the header a drag target for
+		--file rows (moving files into that directory).
+		local function TreeNode(labelText, countText, buildChildren, extraHeader, rebuildEvents, dropTargetDirIndex)
+			local expanded = false
+			local triangle = gui.Panel{
+				bgimage = "panels/triangle.png",
+				--inline, not in triangleStyles: something in the settings
+				--sheet's style cascade was overriding the style-rule bgcolor
+				--to black; inline properties win.
+				bgcolor = "white",
+				styles = triangleStyles,
+			}
+			local childrenPanel = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				lmargin = 16,
+			}
+			local headerClasses = {"latree-row"}
+			if dropTargetDirIndex ~= nil then
+				headerClasses[#headerClasses+1] = "latree-dirtarget"
+			end
+
+			local header = gui.Panel{
+				classes = headerClasses,
+				dragTarget = dropTargetDirIndex ~= nil,
+				data = { dirIndex = dropTargetDirIndex },
+				flow = "horizontal",
+				width = "100%",
+				height = 22,
+				bgimage = "panels/square.png",
+				click = function(element)
+					expanded = not expanded
+					triangle:SetClass("expanded", expanded)
+					if expanded then
+						childrenPanel.children = buildChildren()
+					else
+						childrenPanel.children = {}
+					end
+				end,
+				triangle,
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 14,
+					valign = "center",
+					text = labelText,
+				},
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 12,
+					valign = "center",
+					hmargin = 6,
+					opacity = 0.6,
+					text = countText or "",
+				},
+				extraHeader,
+			}
+
+			local nodeArgs = {
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				header,
+				childrenPanel,
+			}
+			if rebuildEvents ~= nil then
+				--the rebuild is deferred a tick: these events arrive via
+				--FireEventTree, and swapping the children out mid-traversal
+				--would let the same event reach just-destroyed row panels.
+				local rebuildPending = false
+				for eventName,predicate in pairs(rebuildEvents) do
+					nodeArgs[eventName] = function(element, ...)
+						if expanded and (not rebuildPending) and predicate(...) then
+							rebuildPending = true
+							dmhub.Schedule(0.05, function()
+								rebuildPending = false
+								if element.valid and expanded then
+									childrenPanel.children = buildChildren()
+								end
+							end)
+						end
+					end
+				end
+			end
+			return gui.Panel(nodeArgs)
+		end
+
+		local function NoteLabel(text)
+			return gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				italics = true,
+				opacity = 0.6,
+				text = text,
+			}
+		end
+
+		--item rows are capped per node; anything bigger is what search is for.
+		local MaxRowsPerNode = 500
+
+		local function BuildItemRows(items, dirIndex)
+			local rows = {}
+			for i,entry in ipairs(items) do
+				if i > MaxRowsPerNode then
+					rows[#rows+1] = NoteLabel(string.format("... and %d more; use search to narrow down.", #items - MaxRowsPerNode))
+					break
+				end
+				rows[#rows+1] = FileRow(entry, nil, dirIndex)
+			end
+			return rows
+		end
+
+		--category data is captured when the directory node fetches its tree;
+		--expanding the directory again re-fetches everything beneath it.
+		--With the changes-only filter active the item lists are filtered up
+		--front (so header counts match), containers with no changed items
+		--are dropped, and a fully-unchanged category returns nil.
+		local function CategoryNode(cat, dirIndex)
+			local filtering = GitFilterActive(dirIndex)
+			local flatItems = FilterItems(cat.items, dirIndex)
+			local containers = {}
+			local total = #flatItems
+			for _,c in ipairs(cat.containers) do
+				local citems = FilterItems(c.items, dirIndex)
+				if (#citems > 0) or (not filtering) then
+					containers[#containers+1] = { data = c, items = citems }
+					total = total + #citems
+				end
+			end
+
+			if filtering and total == 0 then
+				return nil
+			end
+
+			return TreeNode(cat.name, string.format("(%d)", total), function()
+				local children = {}
+				for _,c in ipairs(containers) do
+					children[#children+1] = TreeNode(c.data.displayName or c.data.id, string.format("(%d)", #c.items), function()
+						return BuildItemRows(c.items, dirIndex)
+					end)
+				end
+				for _,row in ipairs(BuildItemRows(flatItems, dirIndex)) do
+					children[#children+1] = row
+				end
+				return children
+			end)
+		end
+
+		--compact per-directory git summary shown on the directory header,
+		--e.g. "git: 3M 1D 4?"; empty until a refresh has completed.
+		local function GitSummaryText(st)
+			if st == nil or (not st.hasResult) then
+				return ""
+			end
+			if st.error ~= nil then
+				return "git: error"
+			end
+			if not st.isRepo then
+				return "no git"
+			end
+			local c = st.counts
+			if c == nil or c.total == 0 then
+				return "git: clean"
+			end
+			local parts = {}
+			if c.modified > 0 then parts[#parts+1] = c.modified .. "M" end
+			if c.added > 0 then parts[#parts+1] = c.added .. "A" end
+			if c.renamed > 0 then parts[#parts+1] = c.renamed .. "R" end
+			if c.deleted > 0 then parts[#parts+1] = c.deleted .. "D" end
+			if c.untracked > 0 then parts[#parts+1] = c.untracked .. "?" end
+			return "git: " .. table.concat(parts, " ")
+		end
+
+		local function GitSummaryLabel(dirIndex)
+			return gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				valign = "center",
+				hmargin = 6,
+				opacity = 0.75,
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex == dirIndex then
+						element.text = GitSummaryText(st)
+					end
+				end,
+			}
+		end
+
+		--the per-directory Changes view: every file git reports as changed,
+		--INCLUDING deleted files, which have no live tree row (a deleted
+		--row's click reveals the containing folder instead). Built from the
+		--cached status at expand time; the header count stays live.
+		local function ChangesNode(dirIndex)
+			local countLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				valign = "center",
+				hmargin = 6,
+				opacity = 0.6,
+				text = "",
+				create = function(element)
+					element:FireEvent("gitstatus", dirIndex, m_gitStatus[dirIndex])
+				end,
+				gitstatus = function(element, evDirIndex, st)
+					if evDirIndex ~= dirIndex then
+						return
+					end
+					if st == nil or st.counts == nil then
+						element.text = ""
+					else
+						element.text = string.format("(%d)", st.counts.total)
+					end
+				end,
+			}
+
+			return TreeNode("Changes", nil, function()
+				local st = m_gitStatus[dirIndex]
+				if st == nil or (not st.hasResult) then
+					return { NoteLabel("Git status not loaded yet; try again in a moment.") }
+				end
+				if st.error ~= nil then
+					return { NoteLabel("Git error: " .. st.error) }
+				end
+				if not st.isRepo then
+					return { NoteLabel("Not inside a git repository.") }
+				end
+
+				local rows = {}
+				local byNorm = m_byNorm[dirIndex] or {}
+				for i,c in ipairs(st.changes) do
+					if i > MaxRowsPerNode then
+						rows[#rows+1] = NoteLabel(string.format("... and %d more.", #st.changes - MaxRowsPerNode))
+						break
+					end
+					local treeEntry = byNorm[c.normPath]
+					local entry = {
+						path = c.path,
+						normPath = c.normPath,
+						fileName = c.fileName,
+					}
+					if treeEntry ~= nil then
+						entry.displayName = treeEntry.displayName
+					end
+					if c.state == "deleted" then
+						entry.revealPath = c.path:match("^(.*)/[^/]*$")
+					end
+					rows[#rows+1] = FileRow(entry, nil, dirIndex)
+				end
+				if #rows == 0 then
+					rows[1] = NoteLabel("No changes -- working tree clean.")
+				end
+				return rows
+			end, countLabel)
+		end
+
+		local function DirectoryNode(dirIndex, dirPath)
+			return TreeNode(string.format("%d. %s", dirIndex, dirPath), nil, function()
+				RefreshGitFor(dirIndex)
+				m_builtSig[dirIndex] = FilterSignature(m_gitStatus[dirIndex])
+
+				local tree = dmhub.LocalAssetsFileTree(dirIndex)
+				if tree == nil then
+					return { NoteLabel("Could not read the directory index.") }
+				end
+
+				--index the tree by normPath so the Changes view can show
+				--display names for files that still exist. (normPath is
+				--absent on engine builds that predate the git integration.)
+				local byNorm = {}
+				for _,cat in ipairs(tree.categories) do
+					for _,item in ipairs(cat.items) do
+						if item.normPath ~= nil then
+							byNorm[item.normPath] = item
+						end
+					end
+					for _,c in ipairs(cat.containers) do
+						for _,item in ipairs(c.items) do
+							if item.normPath ~= nil then
+								byNorm[item.normPath] = item
+							end
+						end
+					end
+				end
+				m_byNorm[dirIndex] = byNorm
+
+				local children = {}
+				if dmhub.LocalAssetsGitStatus ~= nil then
+					children[#children+1] = ChangesNode(dirIndex)
+				end
+				local nCategories = 0
+				for _,cat in ipairs(tree.categories) do
+					local node = CategoryNode(cat, dirIndex)
+					if node ~= nil then
+						children[#children+1] = node
+						nCategories = nCategories + 1
+					end
+				end
+				if #children == 0 then
+					children[1] = NoteLabel("No indexed files in this directory.")
+				elseif nCategories == 0 and GitFilterActive(dirIndex) then
+					children[#children+1] = NoteLabel("No git changes; uncheck Show Only Git Changes to see all files.")
+				end
+				return children
+			end, GitSummaryLabel(dirIndex), {
+				--re-filter in place when a git refresh changes the set of
+				--changed files (only relevant while the filter is on; badge
+				--labels update themselves otherwise), and on checkbox toggle.
+				gitstatus = function(evDirIndex, st)
+					if evDirIndex ~= dirIndex or (not m_showOnlyChanges) then
+						return false
+					end
+					return FilterSignature(st) ~= m_builtSig[dirIndex]
+				end,
+				latreeRebuild = function()
+					return true
+				end,
+			}, dirIndex)
+		end
+
+		local function BuildDirectoryNodes()
+			local nodes = {}
+			local liveStatus = dmhub.LocalAssetsStatus()
+			if liveStatus ~= nil and liveStatus.active and liveStatus.directories ~= nil then
+				for i,dir in ipairs(liveStatus.directories) do
+					nodes[#nodes+1] = DirectoryNode(i, dir)
+				end
+			end
+			return nodes
+		end
+
+		--the trees rebuild when the directory settings change (e.g. a live
+		--reorder renumbers the directories).
+		local treesArgs = {
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			multimonitor = {"localassets:dirs", "localassets:dir"},
+			events = {
+				monitor = function(element)
+					element.children = BuildDirectoryNodes()
+				end,
+			},
+		}
+		for _,node in ipairs(BuildDirectoryNodes()) do
+			treesArgs[#treesArgs+1] = node
+		end
+		local treesPanel = gui.Panel(treesArgs)
+
+		local searchResultsPanel = gui.Panel{
+			classes = {"collapsed"},
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+		}
+
+		local MaxSearchRows = 100
+
+		local searchInput = gui.Input{
+			width = 180,
+			height = 24,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			placeholderText = "Search ids, names, filenames...",
+			editlag = 0.25,
+			edit = function(element)
+				local text = element.text
+				if text == nil or #text < 2 then
+					searchResultsPanel.children = {}
+					searchResultsPanel:SetClass("collapsed", true)
+					treesPanel:SetClass("collapsed", false)
+					return
+				end
+
+				local results = dmhub.LocalAssetsSearch(text) or {}
+				local rows = {}
+				for i,entry in ipairs(results) do
+					if i > MaxSearchRows then
+						break
+					end
+					local loc = entry.category
+					if entry.tableid ~= nil then
+						loc = loc .. "/" .. entry.tableid
+					end
+					rows[#rows+1] = FileRow(entry, string.format("[%s]  (dir %d)", loc, entry.dirIndex), entry.dirIndex)
+				end
+				if #rows == 0 then
+					rows[1] = NoteLabel("No matches.")
+				elseif #results > MaxSearchRows then
+					rows[#rows+1] = NoteLabel(string.format("Showing the first %d of %d matches.", MaxSearchRows, #results))
+				end
+				searchResultsPanel.children = rows
+				searchResultsPanel:SetClass("collapsed", false)
+				treesPanel:SetClass("collapsed", true)
+			end,
+		}
+
+		--refreshes git status for every configured directory. Sits next to
+		--the search box rather than on the tree headers so a click can never
+		--double as an expand toggle.
+		local refreshGitButton = nil
+		if dmhub.LocalAssetsGitStatus ~= nil then
+			refreshGitButton = gui.Button{
+				width = 110,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 8,
+				text = "Refresh Git",
+				click = function(element)
+					local liveStatus = dmhub.LocalAssetsStatus()
+					if liveStatus ~= nil and liveStatus.directories ~= nil then
+						for i,_ in ipairs(liveStatus.directories) do
+							RefreshGitFor(i)
+						end
+					end
+				end,
+			}
+		end
+
+		--"Show Only Git Changes" (default ON): filters the trees to files
+		--git reports as changed; directories without git info always show
+		--everything. Toggling rebuilds any expanded directory in place via
+		--the latreeRebuild event.
+		local changesOnlyCheck = nil
+		if dmhub.LocalAssetsGitStatus ~= nil then
+			changesOnlyCheck = gui.Check{
+				text = "Show Only Git Changes",
+				value = m_showOnlyChanges,
+				halign = "left",
+				valign = "center",
+				hmargin = 8,
+				change = function(element)
+					m_showOnlyChanges = element.value
+					if browserRoot ~= nil and browserRoot.valid then
+						browserRoot:FireEventTree("latreeRebuild")
+					end
+				end,
+			}
+		end
+
+		local toolbarArgs = {
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			searchInput,
+		}
+		if changesOnlyCheck ~= nil then
+			toolbarArgs[#toolbarArgs+1] = changesOnlyCheck
+		end
+		if refreshGitButton ~= nil then
+			toolbarArgs[#toolbarArgs+1] = refreshGitButton
+		end
+		local toolbar = gui.Panel(toolbarArgs)
+
+		--which git executable the integration uses: the resolved path and
+		--version, a Locate browse fallback (stores localassets:gitpath, a
+		--GLOBAL setting), and Auto to return to auto-detection.
+		local function GitPathRow()
+			if dmhub.LocalAssetsGitInfo == nil then
+				return nil
+			end
+
+			local function InfoText()
+				local info = dmhub.LocalAssetsGitInfo()
+				if info == nil then
+					return ""
+				end
+				if info.path ~= nil then
+					local src = ""
+					if info.source == "setting" then
+						src = " (configured)"
+					end
+					return string.format("Git: %s -- %s%s", info.path, info.version or "?", src)
+				end
+				return "Git: not found -- status badges disabled. Use Locate to point at a git executable."
+			end
+
+			local infoLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 13,
+				valign = "center",
+				opacity = 0.8,
+				text = InfoText(),
+			}
+
+			local locateButton = gui.Button{
+				width = 100,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 8,
+				text = "Locate Git...",
+				click = function(element)
+					dmhub.OpenFileDialog{
+						id = "localassetsgit",
+						--Windows filter; on Mac auto-detection covers the
+						--standard install locations so Locate is rarely needed.
+						extensions = {"exe"},
+						prompt = "Locate the git executable",
+						open = function(path)
+							local version = dmhub.LocalAssetsValidateGit(path)
+							if version == nil then
+								gui.ModalMessage{
+									title = "Not a Git Executable",
+									message = string.format("%s did not answer --version like git does.", path),
+								}
+								return
+							end
+							dmhub.SetSettingValue("localassets:gitpath", path)
+							infoLabel.text = InfoText()
+						end,
+					}
+				end,
+			}
+
+			local autoButton = gui.Button{
+				width = 60,
+				height = 24,
+				fontSize = 13,
+				valign = "center",
+				hmargin = 4,
+				text = "Auto",
+				click = function(element)
+					dmhub.SetSettingValue("localassets:gitpath", "")
+					infoLabel.text = InfoText()
+				end,
+			}
+
+			return gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 2,
+				infoLabel,
+				locateButton,
+				autoButton,
+			}
+		end
+
+		--assembled programmatically: GitPathRow() is nil on engine builds
+		--without the git bridges, and a nil hole in the positional children
+		--would truncate everything after it.
+		local rootArgs = {
+			flow = "vertical",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 6,
+			styles = browserStyles,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 16,
+				bold = true,
+				vmargin = 4,
+				text = "Browse Files",
+			},
+		}
+		local gitRow = GitPathRow()
+		if gitRow ~= nil then
+			rootArgs[#rootArgs+1] = gitRow
+		end
+		rootArgs[#rootArgs+1] = toolbar
+		rootArgs[#rootArgs+1] = searchResultsPanel
+		rootArgs[#rootArgs+1] = treesPanel
+
+		browserRoot = gui.Panel(rootArgs)
+		return browserRoot
+	end
+
+	local resultPanels = {
 		gui.Label{
 			width = "100%",
 			height = 40,
@@ -633,20 +1795,10 @@ local function CreateLocalAssetsSection()
 			halign = "center",
 			fontSize = 14,
 			vmargin = 4,
-			text = "Point this game at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits you make in-game are written back to it as YAML, and external changes to the files hot-reload into the game. Takes effect when the game loads. If the directory does not exist, it is created and populated from the game's assets automatically on next load. Use Populate Directory to fill it immediately.",
+			text = "Point this game at one or more local directories of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directories, edits you make in-game are written back to the file each item lives in, and external changes to the files hot-reload into the game. Directory 1 is the TOP directory: when an item exists in several directories the top-most copy wins, and newly created entries are written to it. Use Top/Up/Down to reorder; sending a directory to the top makes it the home for new entries. Takes effect when the game loads (pure reordering usually applies immediately). If the directories are all empty or missing, the top one is populated from the game's assets automatically on next load; use Populate Top Directory to fill it immediately.",
 		},
 
-		gui.Panel{
-			classes = {"formRow"},
-			width = "90%",
-			halign = "center",
-			gui.Label{
-				classes = {"form"},
-				width = "40%",
-				text = "Directory:",
-			},
-			dirInput,
-		},
+		dirsListPanel,
 
 		gui.Panel{
 			flow = "horizontal",
@@ -654,13 +1806,20 @@ local function CreateLocalAssetsSection()
 			height = "auto",
 			halign = "center",
 			vmargin = 4,
-			browseButton,
+			addButton,
 			gui.Panel{ width = 16, height = 1 },
 			populateButton,
 		},
 
 		statusLabel,
 	}
+
+	local browserPanel = CreateFileBrowser()
+	if browserPanel ~= nil then
+		resultPanels[#resultPanels+1] = browserPanel
+	end
+
+	return resultPanels
 end
 
 --Creator Organizations: create an organization (or convert your personal
@@ -1060,8 +2219,127 @@ local function CreateCreatorOrganizationsSection()
 				fontSize = 12,
 				italics = true,
 				vmargin = 2,
-				text = "When unchecked, access is removed if a patron cancels. This takes effect once module rewards are configured.",
+				text = "When unchecked, access is removed if a patron cancels.",
 			}
+
+			--Which of this organization's published modules come with a Patreon
+			--membership. Saved to ModuleAuthor/{orgid}/patreonModules, which is
+			--publicly readable - patrons are not members of the organization, so
+			--anything gated on membership would be invisible to exactly the people
+			--who need to see it.
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 8,
+				text = "Modules included with membership",
+			}
+
+			local orgModules = data.orgModules or {}
+			if #orgModules == 0 then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "This organization has not published any modules yet. Publish one and it will appear here.",
+				}
+			else
+				--current selection, mutated by the checkboxes and posted whole:
+				--the endpoint takes the complete list, so there is no partial
+				--state to reconcile if one save fails.
+				local included = {}
+				for _,id in ipairs(data.patreonModules or {}) do
+					included[id] = true
+				end
+
+				local moduleError = gui.Label{
+					classes = {"collapsed"},
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					color = "#ff6666",
+					vmargin = 2,
+					text = "",
+				}
+
+				local function SelectedList()
+					local out = {}
+					for _,id in ipairs(orgModules) do
+						if included[id] then
+							out[#out+1] = id
+						end
+					end
+					return out
+				end
+
+				for _,moduleId in ipairs(orgModules) do
+					local id = moduleId
+					local suppress = false
+					children[#children+1] = gui.Check{
+						text = id,
+						value = included[id] == true,
+						halign = "left",
+						vmargin = 1,
+						change = function(element)
+							if suppress then
+								return
+							end
+							local newValue = element.value
+							included[id] = newValue or nil
+							moduleError:SetClass("collapsed", true)
+							net.Post{
+								url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgSetModules",
+								data = {
+									orgid = org.id,
+									modules = SelectedList(),
+								},
+								success = function(response)
+									if not element.valid then
+										return
+									end
+									if type(response) ~= "table" or not response.ok then
+										--roll the local model back so the next save is not
+										--built on a selection the server rejected.
+										included[id] = (not newValue) or nil
+										suppress = true
+										element.value = not newValue
+										suppress = false
+										moduleError.text = "Could not save. Please try again."
+										moduleError:SetClass("collapsed", false)
+									end
+								end,
+								error = function(msg)
+									if not element.valid then
+										return
+									end
+									included[id] = (not newValue) or nil
+									suppress = true
+									element.value = not newValue
+									suppress = false
+									moduleError.text = "Could not contact the server. Please try again."
+									moduleError:SetClass("collapsed", false)
+								end,
+							}
+						end,
+					}
+				end
+
+				children[#children+1] = moduleError
+
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 12,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "Patrons of your campaign can see and install these from their account settings.",
+				}
+			end
 
 			children[#children+1] = gui.Button{
 				width = 190,
@@ -2732,11 +4010,6 @@ local CreateEmailConfirmationPanel = function()
 	}
 
 	local resultPanel = gui.Panel{
-		-- Gate the email-update interface behind the same dev:storepreview
-		-- preference that controls whether the shop is available (the
-		-- Shop/Inventory title-bar menu and the MCDM Shop section
-		-- below). When the store isn't live, the email section stays hidden.
-		classes = { cond(not g_devStorePreviewSetting:Get(), "collapsed") },
 		flow = "vertical",
 		width = "100%",
 		height = "auto",
@@ -2795,6 +4068,601 @@ local CreateEmailConfirmationPanel = function()
 	}
 
 	return resultPanel
+end
+
+--The Patreon OAuth link flow, hoisted out of the account panel below so more
+--than one place can offer it. A global table rather than mod.shared, which is
+--per-mod: the module browser lives in another mod and offers the same one-click
+--connect on the page of a module a membership unlocks. Same pattern as the
+--ModuleBrowser global that browser exports.
+--rawget: reading a never-assigned global raises in this runtime.
+PatreonAccount = rawget(_G, "PatreonAccount") or {}
+
+--Begins linking a Patreon account: ask patreonAuthStart for an authorize URL,
+--open it in the system browser, then poll patreonStatus until the OAuth
+--callback records the link.
+--
+--options:
+--  alive     function -> boolean. Return false once the caller's UI is gone.
+--            Every callback and every scheduled tick from then on is dropped -
+--            a dead panel is not safe to touch at all.
+--  progress  function(text)  status text as the flow advances.
+--  linked    function(data)  the link completed; data is the patreonStatus reply.
+--  failed    function(msg)   could not start, or the user never finished.
+--
+--Returns a handle with :Cancel(), which retires the flow without calling back.
+function PatreonAccount.BeginLink(options)
+	local m_finished = false
+
+	local handle = {}
+	function handle:Cancel()
+		m_finished = true
+	end
+
+	local function Expired()
+		return m_finished or mod.unloaded or (options.alive ~= nil and options.alive() ~= true)
+	end
+
+	local function Progress(text)
+		if options.progress ~= nil then
+			options.progress(text)
+		end
+	end
+
+	local function Failed(msg)
+		m_finished = true
+		if options.failed ~= nil then
+			options.failed(msg)
+		end
+	end
+
+	--4s tick, 180s deadline; transient errors do not end the wait, since the
+	--user is off in a browser and the network may blip.
+	local function StartPoll()
+		local deadline = dmhub.Time() + 180
+
+		local Tick
+		Tick = function()
+			if Expired() then
+				return
+			end
+
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
+				data = {},
+				success = function(data)
+					if Expired() then
+						return
+					end
+					if type(data) == "table" and data.ok and data.linked then
+						m_finished = true
+						if options.linked ~= nil then
+							options.linked(data)
+						end
+						return
+					end
+					if dmhub.Time() > deadline then
+						Failed("Linking timed out. Try again after finishing in your browser.")
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+				error = function(msg)
+					if Expired() then
+						return
+					end
+					if dmhub.Time() > deadline then
+						Failed("Linking timed out. Try again after finishing in your browser.")
+						return
+					end
+					dmhub.Schedule(4, Tick)
+				end,
+			}
+		end
+
+		Progress("Waiting for you to finish linking Patreon in your browser...")
+		Tick()
+	end
+
+	Progress("Opening Patreon in your browser...")
+
+	net.Post{
+		url = dmhub.cloudFunctionsBaseUrl .. "/patreonAuthStart",
+		data = {},
+		success = function(data)
+			if Expired() then
+				return
+			end
+
+			if type(data) == "table" and data.ok and type(data.authorizeUrl) == "string" then
+				dmhub.OpenURL(data.authorizeUrl)
+				StartPoll()
+			else
+				local err = "Could not start the link. Please try again."
+				if type(data) == "table" and type(data.error) == "string" then
+					err = data.error
+				end
+				Failed(err)
+			end
+		end,
+		error = function(msg)
+			if Expired() then
+				return
+			end
+			Failed("Could not contact the server. Please try again.")
+		end,
+	}
+
+	return handle
+end
+
+--The Patreon campaign a Codex user is being asked to support. Only MCDM's own
+--modules are surfaced this way (see Module.cs MCDMOrgId), so this is one fixed
+--campaign, not a per-organization link: the publicly readable ModuleAuthor
+--record carries the included-module list but not a campaign URL.
+PatreonAccount.mcdmCampaignUrl = "https://www.patreon.com/cw/mcdm"
+
+--Patreon PATRON account linking, for the logged-in user's own Patreon account.
+--Distinct from PatreonOrgSection, which links a CREATOR's campaign to an
+--organization. This one grants the user their own patron tier.
+--
+--Flow mirrors the MCDM Shop link and the org link: ask patreonAuthStart for an
+--authorize URL, open it in the system browser, then poll patreonStatus until the
+--callback records the link. Both functions accept the desktop {userid, secretid}
+--that net.Post injects, so no Firebase idToken is needed here.
+--
+--Status comes from patreonStatus rather than dmhub.patronTier because the tier
+--alone cannot tell "not linked" from "linked but on a free/lapsed tier" - both
+--are 0, and offering "Connect" to someone already connected would rewrite their
+--binding. dmhub.patronTier still updates live off /Patrons and is what the rest
+--of the app gates on.
+local CreatePatreonAccountPanel = function()
+	local panel
+
+	--the in-flight PatreonAccount.BeginLink handle, if any. Cancelled whenever we
+	--re-render the section, which is what retires a poll the user walked away from.
+	local m_link = nil
+
+	local ShowUnlinked
+	local ShowLinked
+	local ShowConfirmDisconnect
+	local RefreshStatus
+
+	local function Heading()
+		return gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 14,
+			bold = true,
+			vmargin = 2,
+			text = "Patreon",
+		}
+	end
+
+	local function StatusChildren(text)
+		return {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				italics = true,
+				text = text,
+			},
+		}
+	end
+
+	local function ErrorLabel(message)
+		return gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			color = "#ff6666",
+			vmargin = 2,
+			text = message,
+		}
+	end
+
+	--tier 0 with a link is a real state: a free-tier or lapsed patron. Say so
+	--rather than implying nothing is connected.
+	local function ConnectedText(data)
+		local tier = data.tier or 0
+		local text
+		if tier > 0 then
+			text = string.format("Connected to Patreon   (patron tier %d)", tier)
+		else
+			text = "Connected to Patreon   (no active pledge)"
+		end
+		if (data.linkedAt or 0) > 0 then
+			text = string.format("%s   linked %s", text, os.date("%d %b %Y", math.floor(data.linkedAt / 1000)))
+		end
+		return text
+	end
+
+	--The creator organizations this Patreon pledge unlocks. Read straight from
+	--dmhub.patreonOrgEntitlements, which the engine mirrors live off /Patrons -
+	--so when the user subscribes, the campaign webhook writes the entitlement
+	--and this list gains a row within seconds, no refresh needed.
+	--
+	--Gate on `entitled`, not `active`: a creator can choose to let entitlements
+	--persist after a pledge lapses, and those users must keep their access.
+	local function EntitledOrgRows()
+		local rows = {}
+		local list = dmhub.patreonOrgEntitlements or {}
+
+		for _,entry in ipairs(list) do
+			if entry.entitled then
+				local label = entry.orgid
+				local suffix
+				if entry.active then
+					if (entry.cents or 0) > 0 then
+						suffix = string.format("$%.2f/month", entry.cents / 100)
+					else
+						suffix = "active"
+					end
+				else
+					--entitled but not active: kept by the creator's persist-on-lapse choice.
+					suffix = "access retained after your pledge ended"
+				end
+
+				local orgid = entry.orgid
+
+				--Which modules the membership includes lives on the org's public
+				--ModuleAuthor record, not in our entitlement, so it is one source
+				--of truth the creator can edit without a fan-out to every patron.
+				--Cost is this lookup; it is a settings panel, so that is fine.
+				--
+				--The cards are the module browser's own widget
+				--(mod.shared.CreateModuleSlot), so they look and behave exactly
+				--like the ones in Browse Modules, and clicking one opens the real
+				--module page with its Install button rather than a second copy of
+				--it built here.
+				local modulesContainer = gui.Panel{
+					classes = {"collapsed"},
+					flow = "horizontal",
+					wrap = true,
+					width = "100%",
+					height = "auto",
+					vmargin = 2,
+					--the cards carry the browser's classes, so they need the
+					--browser's rules too. Without these a slot has no size and its
+					--details text spills across the whole settings column.
+					styles = ThemeEngine.MergeTokens(ModuleBrowser.moduleStyles),
+					create = function(element)
+						module.GetOrganizationInfo{
+							orgid = orgid,
+							success = function(info)
+								if not element.valid then
+									return
+								end
+								local ids = info.patreonModules or {}
+								if #ids == 0 then
+									return
+								end
+
+								--one lookup per module: Search matches a bare module
+								--id directly, which is also the path that now honours
+								--a Patreon entitlement past the premium/store gate.
+								module.QueryModuleIndex{
+									index = "Hot",
+									success = function(moduleIndex)
+										if not element.valid then
+											return
+										end
+										local slots = {}
+										for _,fullid in ipairs(ids) do
+											moduleIndex:Search{
+												text = fullid,
+												success = function(result)
+													if not element.valid then
+														return
+													end
+													for _,moduleInfo in ipairs(result.items or {}) do
+														--ModuleBrowser, not mod.shared: that table is per-mod
+														--and ModShare lives in a different one.
+														local slot = ModuleBrowser.CreateModuleSlot{
+															press = function(info)
+																ModuleBrowser.ShowDialog{focusModule = info}
+															end,
+														}
+														slots[#slots+1] = slot
+														element.children = slots
+														slot:FireEvent("setmodule", moduleInfo)
+														element:SetClass("collapsed", false)
+													end
+												end,
+											}
+										end
+									end,
+								}
+							end,
+							failure = function(msg)
+								--silent: the entitlement itself is what matters, and a
+								--failed lookup should not make it look revoked.
+							end,
+						}
+					end,
+				}
+
+				rows[#rows+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					vmargin = 1,
+					text = string.format("%s   <color=#999999>(%s)</color>", label, suffix),
+					markdown = true,
+				}
+				rows[#rows+1] = modulesContainer
+			end
+		end
+
+		if #rows == 0 then
+			return {
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					italics = true,
+					color = "#999999",
+					vmargin = 2,
+					text = "No creator content unlocked yet. Supporting a creator on Patreon unlocks their content here automatically.",
+				},
+			}
+		end
+
+		table.insert(rows, 1, gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			bold = true,
+			vmargin = 2,
+			text = "Creator content you have access to",
+		})
+		return rows
+	end
+
+	ShowLinked = function(data)
+		local children = {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				vmargin = 2,
+				text = ConnectedText(data),
+			},
+		}
+
+		for _,row in ipairs(EntitledOrgRows()) do
+			children[#children+1] = row
+		end
+
+		children[#children+1] = gui.Button{
+			width = 190,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			text = "Disconnect Patreon",
+			click = function(element)
+				ShowConfirmDisconnect(data)
+			end,
+		}
+
+		panel.children = children
+	end
+
+	--inline confirm. ShowMessage/ErrorModal are locals of
+	--CreateCreatorOrganizationsSection and are not in scope here, so this
+	--follows the MCDM Shop section's two-step button instead of a modal.
+	ShowConfirmDisconnect = function(data)
+		local children = {
+			Heading(),
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				maxWidth = 600,
+				vmargin = 2,
+				text = "Disconnect your Patreon account? You will lose any benefits your patron tier unlocks until you link it again.",
+			},
+		}
+
+		local errorLabel = gui.Label{
+			classes = {"collapsed"},
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			color = "#ff6666",
+			vmargin = 2,
+			text = "",
+		}
+
+		children[#children+1] = gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			gui.Button{
+				width = 180,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Confirm Disconnect",
+				click = function(element)
+					element.text = "Disconnecting..."
+					element.interactable = false
+					errorLabel:SetClass("collapsed", true)
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/patreonUnlink",
+						data = {},
+						success = function(response)
+							if not panel.valid then
+								return
+							end
+							if type(response) == "table" and response.ok then
+								RefreshStatus()
+							else
+								element.text = "Confirm Disconnect"
+								element.interactable = true
+								errorLabel.text = "Could not disconnect. Please try again."
+								errorLabel:SetClass("collapsed", false)
+							end
+						end,
+						error = function(msg)
+							if not panel.valid then
+								return
+							end
+							element.text = "Confirm Disconnect"
+							element.interactable = true
+							errorLabel.text = "Could not contact the server. Please try again."
+							errorLabel:SetClass("collapsed", false)
+						end,
+					}
+				end,
+			},
+			gui.Button{
+				width = 120,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				hmargin = 8,
+				text = "Cancel",
+				click = function(element)
+					ShowLinked(data)
+				end,
+			},
+		}
+
+		children[#children+1] = errorLabel
+		panel.children = children
+	end
+
+	ShowUnlinked = function(message)
+		local children = { Heading() }
+
+		children[#children+1] = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 13,
+			maxWidth = 600,
+			vmargin = 2,
+			text = "Link your Patreon account to unlock what your patron tier includes. We only read which tier you are on - never payment details.",
+		}
+
+		if message ~= nil then
+			children[#children+1] = ErrorLabel(message)
+		end
+
+		children[#children+1] = gui.Button{
+			width = 200,
+			height = 30,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 4,
+			text = "Link Patreon Account",
+			click = function(element)
+				m_link = PatreonAccount.BeginLink{
+					alive = function() return panel.valid end,
+					progress = function(text)
+						local children = StatusChildren(text)
+						children[#children+1] = gui.Button{
+							width = 120,
+							height = 30,
+							fontSize = 14,
+							halign = "left",
+							vmargin = 4,
+							text = "Cancel",
+							click = function(element)
+								RefreshStatus()
+							end,
+						}
+						panel.children = children
+					end,
+					linked = function(data)
+						ShowLinked(data)
+					end,
+					failed = function(msg)
+						ShowUnlinked(msg)
+					end,
+				}
+			end,
+		}
+
+		panel.children = children
+	end
+
+	--/Patrons/{uid} carries a token-free mirror of the link, and the engine
+	--already monitors it, so the linked state is in memory with no round trip.
+	--Render from that first and let the patreonStatus call confirm behind it -
+	--otherwise every visit to this tab eats a Cloud Function cold start (warm is
+	--~100ms, cold is seconds) before showing anything.
+	--
+	--dmhub.patreonUserId, NOT dmhub.patronTier: patronTier is a hardcoded 3 on
+	--MCDM white-label builds and says nothing about whether a Patreon is linked.
+	local function LocalStatus()
+		local id = dmhub.patreonUserId
+		if id == nil or id == "" then
+			return nil
+		end
+		return {
+			linked = true,
+			tier = dmhub.patreonPledgeTier,
+			patreonUserId = id,
+			linkedAt = dmhub.patreonLinkedAt,
+		}
+	end
+
+	RefreshStatus = function()
+		if m_link ~= nil then
+			m_link:Cancel()
+			m_link = nil
+		end
+
+		local local_ = LocalStatus()
+		if local_ ~= nil then
+			ShowLinked(local_)
+		else
+			--absent could mean "not linked" or "mirror not populated yet" (a link
+			--made before the mirror existed), so still ask the server before
+			--claiming unlinked.
+			panel.children = StatusChildren("Checking Patreon...")
+		end
+
+		net.Post{
+			url = dmhub.cloudFunctionsBaseUrl .. "/patreonStatus",
+			data = {},
+			success = function(data)
+				if not panel.valid then
+					return
+				end
+				if type(data) == "table" and data.ok and data.linked then
+					ShowLinked(data)
+				else
+					ShowUnlinked(nil)
+				end
+			end,
+			error = function(msg)
+				if not panel.valid then
+					return
+				end
+				ShowUnlinked("Could not check Patreon status.")
+			end,
+		}
+	end
+
+	panel = gui.Panel{
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		vmargin = 4,
+		create = function(element)
+			RefreshStatus()
+		end,
+	}
+
+	return panel
 end
 
 function CreateSettingsScreen(dialog, args)
@@ -3732,6 +5600,30 @@ function CreateSettingsScreen(dialog, args)
 								end,
 							}
 
+							--The Patreon account link and the email confirmation are part
+							--of the in-development Patreon feature, gated behind the
+							--hidden "patreonsub" preference. Built only when it is on, so
+							--the panels' cloud-function status polling never runs for
+							--users who cannot see them.
+							local patreonSectionChildren = {}
+							if dmhub.GetSettingValue("patreonsub") then
+								patreonSectionChildren = {
+									CreatePatreonAccountPanel(),
+
+									gui.Panel{
+										width = 16,
+										height = 16,
+									},
+
+									CreateEmailConfirmationPanel(),
+
+									gui.Panel{
+										width = 16,
+										height = 16,
+									},
+								}
+							end
+
 							local children = {
 
 						gui.Panel{
@@ -3749,11 +5641,11 @@ function CreateSettingsScreen(dialog, args)
 								height = 16,
 							},
 
-							CreateEmailConfirmationPanel(),
-
 							gui.Panel{
-								width = 16,
-								height = 16,
+								flow = "vertical",
+								width = "100%",
+								height = "auto",
+								children = patreonSectionChildren,
 							},
 
 							gui.Label{

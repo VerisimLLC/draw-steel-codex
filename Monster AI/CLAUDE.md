@@ -10,7 +10,8 @@ This module provides an automated combat AI for monsters in DMHub. When active, 
 | `MonsterAIMonsters.lua` | Registered **moves** -- one per monster ability or combo. This is where specific monster AI behaviors live |
 | `MonsterAIPrompts.lua` | Registered **prompts** -- handlers for abilities that require a secondary choice (shift destination, push/pull direction, invoked sub-ability targets) |
 | `MonsterAITactics.lua` | Registered **tactics** -- passive scoring modifiers that bias target/position selection (flanking, aid attack, high ground) |
-| `MonsterAIPanel.lua` | DM-only dockable panel UI: start/stop AI, view analysis of available moves per monster type, enable/disable individual moves |
+| `MonsterAIPanel.lua` | DM-only dockable panel UI and AI thread: start/stop AI, dispatch registered triggered abilities, view analysis of available moves per monster type, enable/disable individual moves |
+| `shadow-elves.lua` | Shadow Elf band AI, including darkness-aware positioning and Eclipse villain actions |
 
 ## Load Order
 
@@ -21,6 +22,7 @@ MonsterAIPanel.lua
 MonsterAIMonsters.lua
 MonsterAIPrompts.lua
 MonsterAITactics.lua
+shadow-elves.lua
 ```
 
 ## Architecture
@@ -29,14 +31,15 @@ MonsterAITactics.lua
 
 1. `MonsterAIPanel.lua` runs a coroutine (`MonsterAIThread`) that polls the initiative queue.
 2. When it is a non-player turn, it creates a `MonsterAI` instance and calls `PlayTurnCoroutine(initiativeid)`.
-3. For each token in that initiative entry:
+3. Score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
+4. For each token in that initiative entry:
    - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`).
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. The loop breaks when no move scores above 0.
-4. After all tokens act, initiative advances automatically.
+5. After all tokens act, initiative advances automatically.
 
-### Three Registration Systems
+### Six Registration Systems
 
-The AI's behavior is defined by three registries on the `MonsterAI` singleton:
+The AI's behavior is defined by six registries on the `MonsterAI` singleton:
 
 #### 1. Moves (`MonsterAI:RegisterMove{}`)
 
@@ -47,17 +50,102 @@ A **move** is a scoreable, executable action the AI can take on its turn. Each m
 - Has a `score(self, ai, token, ability1, ability2, ...)` function that returns `{score = N, loc = destLoc, ...}` or `nil`
 - Has an `execute(self, ai, token, scoringInfo, ability1, ability2, ...)` function that performs the move
 
-#### 2. Prompts (`MonsterAI:RegisterPrompt{}`)
+#### 2. Malice abilities (`MonsterAI:RegisterMaliceAbility{}`)
+
+A **Malice ability** is evaluated exactly once at the start of a non-player
+initiative, after start-of-turn triggers resolve and before any normal or minion
+actions. The scheduler finds the registered group ability on an acting monster,
+checks `ability:CanAfford()`, scores every matching registration from 0-1, and
+executes only the highest-scoring candidate that meets its `minimumScore`. The
+default threshold is 0.65, the normal cast pipeline spends Malice, and at most
+one registered Malice ability is used per turn.
+
+Registrations can use `monsterGroups` with exact group names or IDs, or the
+usual `monsters` list. The scoring and execution callbacks receive
+`(self, ai, caster, ability, context)`, with execution also receiving the
+scoring info. The context includes all acting tokens, matching group tokens,
+allies, enemies, the initiative queue and ID, round, and current Malice. If
+`execute` is omitted, the framework casts the ability normally.
+
+```lua
+MonsterAI:RegisterMaliceAbility{
+    id = "Example Group: Battle Blessing",
+    monsterGroups = {"Example Group"},
+    abilities = {"Battle Blessing"},
+    description = "Use Battle Blessing when several acting monsters benefit.",
+    minimumScore = 0.65,
+    score = function(self, ai, token, ability, context)
+        if #context.groupTokens >= 2 then
+            return {score = 0.8}
+        end
+    end,
+}
+```
+
+#### 3. Prompts (`MonsterAI:RegisterPrompt{}`)
 
 A **prompt** handles abilities that require a secondary targeting choice during resolution (e.g., a Shift destination after a hit, or a Push/Pull direction). Registered with:
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
 
-#### 3. Tactics (`MonsterAI:RegisterTactic{}`)
+#### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 
 A **tactic** is a passive scoring modifier that adjusts the edge count when evaluating strike targets. Tactics don't execute anything -- they bias which target/position the AI prefers.
 - `id`, `description`
 - `score(self, token, tokenLoc, enemy, ability)` -- returns a number (typically 0 or 1) added to the target's edge score, or `nil`
+
+#### 5. Trigger handlers (`MonsterAI:RegisterTrigger{}`)
+
+A **trigger handler** decides whether the AI accepts or dismisses a specific optional triggered ability. Registrations can match `abilityGuids`, `abilities`, or the displayed trigger name in `triggers`. Adding `monsters` makes an ability-name or trigger-name registration monster-specific. Matching priority is GUID, monster-qualified ability name, generic ability name, monster-qualified trigger name, then generic trigger name. Trigger names are read through `ActiveTrigger:GetText()`, which also supports power-roll triggers.
+
+The handler receives `(ai, token, triggerInfo)` and returns one of:
+
+- `{activate = true}` -- accept using the default mode.
+- `{activate = true, mode = N}` -- accept using the one-based ability mode.
+- `{dismiss = true}` -- dismiss the trigger.
+- `nil` -- leave the trigger for the Director.
+
+It can also return `expectedPrompt = {targets = ..., casterid = ..., sleep = ...}` to pre-seed one nested targeting prompt. Registered prompt handlers remain available while the out-of-turn triggered cast resolves.
+
+```lua
+MonsterAI:RegisterTrigger{
+    id = "Retaliatory Strike",
+    monsters = {"Example Monster"},
+    abilities = {"Retaliatory Strike"},
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+```
+
+#### 6. Villain actions (`MonsterAI:RegisterVillainAction{}`)
+
+A **villain action** is scored after a turn's `EndTurn` events finish and before
+the initiative queue advances. The scheduler enforces the shared one-per-round
+budget and the per-encounter used state. Round 1 uses `Villain Action 1`, round 2
+uses `Villain Action 2`, and round 3 uses `Villain Action 3`; later rounds do not
+automatically use a villain action.
+
+Scores are normalized to 0-1. At a window with `N` legal opportunities remaining
+including the current one, the use chance is `1 - (1 - score)^(1/N)`. If no later
+legal window remains, the highest-scoring valid action is forced so the round's
+budget is not wasted. The normal ability cast pipeline marks a successful action
+used and spends the shared budget.
+
+```lua
+MonsterAI:RegisterVillainAction{
+    id = "Example Villain: Dark Arrival",
+    monsters = {"Example Villain"},
+    abilities = {"Dark Arrival"},
+    description = "Use Dark Arrival when it has useful targets.",
+    score = function(self, ai, token, ability, context)
+        return {score = 0.75}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability)
+    end,
+}
+```
 
 ### Scoring Model
 
@@ -264,6 +352,7 @@ Currently implemented in `MonsterAIMonsters.lua`:
 | Ghoul | Razor Claws, Leap and Claw |
 | Zombie | Clobber and Clutch, Zombie Dust |
 | Skeleton | Bone Shards, Bone Spur |
+| War Spider | Trigger: Skitter |
 
 ## Tips
 

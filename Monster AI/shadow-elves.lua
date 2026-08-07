@@ -192,6 +192,21 @@ local shadowElfCinematicSpeech = {
         "Let the umbra feed.",
         "Night, devour them.",
     },
+    ["Shadow Elf Malice: Watch Me Disappear"] = {
+        "Disappear, children of shadow.",
+        "Let the darkness hide us.",
+        "Now you see us. Now you do not.",
+    },
+    ["Shadow Elf Malice: Extra Dimension"] = {
+        "Bleed between worlds.",
+        "The manifold cuts deeper.",
+        "One wound, two dimensions.",
+    },
+    ["Shadow Elf Malice: Home Is Where the Hurt Is"] = {
+        "Let Equinox consume this battlefield.",
+        "Two worlds become one.",
+        "Behold the manifold of our home.",
+    },
 }
 
 local shadowElfCinematicPause = 1.0
@@ -247,6 +262,14 @@ end
 local function FindAbility(token, name)
     for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
         if ability.name == name then
+            return ability
+        end
+    end
+end
+
+local function FindAbilityByGuid(token, guid)
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.guid == guid then
             return ability
         end
     end
@@ -538,6 +561,200 @@ local function FindPromptTargets(casterToken, ability, symbols, filter)
     table.resize_array(result, ability:GetNumTargets(casterToken, symbols))
     return result
 end
+
+--------------------------------------------------------------------------------
+-- Start-of-turn Malice abilities.
+--------------------------------------------------------------------------------
+
+local watchMeDisappearEffectId = "df02bea3-fe93-4377-b839-fe7fef78164b"
+local watchMeDisappearFreeHideGuid = "f08403cd-f185-4d02-8cae-3153e37f6aff"
+local extraDimensionEffectId = "a3b002ad-b9fc-4974-8dd8-c5bf5313adde"
+local homeIsWhereTheHurtIsEffectId = "2c6af670-18b3-4708-994f-c52b994e74c2"
+
+local function HasOngoingEffect(token, ongoingEffectId)
+    if token == nil or not token.valid or token.properties == nil then
+        return false
+    end
+
+    for _,effect in ipairs(token.properties:ActiveOngoingEffects()) do
+        if effect.ongoingEffectid == ongoingEffectId then
+            return true
+        end
+    end
+    return false
+end
+
+local function AnyGroupTokenHasEffect(tokens, ongoingEffectId)
+    for _,token in ipairs(tokens) do
+        if HasOngoingEffect(token, ongoingEffectId) then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsShadowElfGroupToken(token)
+    if token == nil or not token.valid or token.properties == nil or token.properties:IsDead() then
+        return false
+    end
+
+    local group = token.properties:MonsterGroup()
+    return group ~= nil and group.name == "Shadow Elf"
+end
+
+local function HasAffordableStrike(token)
+    for _,ability in ipairs(token.properties:GetActivatedAbilities()) do
+        if ability.categorization ~= "Malice" and ability:HasKeyword("Strike") and ability:CanAfford(token) then
+            return true
+        end
+    end
+    return false
+end
+
+local function HasLowIntuition(token)
+    local ok, intuition = pcall(function()
+        return token.properties:GetAttribute("inu"):Value()
+    end)
+    return ok and type(intuition) == "number" and intuition < 2
+end
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Shadow Elf Malice: Watch Me Disappear",
+    monsterGroups = {"Shadow Elf"},
+    abilities = {"Watch Me Disappear"},
+    description = "At the start of a Shadow Elf turn, spend 3 Malice when concealed actors can immediately attempt to hide for free.",
+    score = function(self, ai, token, ability, context)
+        if AnyGroupTokenHasEffect(context.groupTokens, watchMeDisappearEffectId) then
+            return nil
+        end
+
+        local beneficiaries = {}
+        for _,actor in ipairs(context.groupTokens) do
+            if not actor.properties:HasNamedCondition("Hidden")
+                and LocationProfile(actor, actor.loc).concealed then
+                beneficiaries[#beneficiaries+1] = actor
+            end
+        end
+
+        if #beneficiaries == 0 then
+            return nil
+        end
+
+        return {
+            score = math.min(1, 0.55 + #beneficiaries*0.15),
+            beneficiaries = beneficiaries,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ShadowElfCinematicSpeech(ai, token, self.id)
+        ai:ExecuteAbility(token, ability, nil, {sleep = shadowElfCinematicPause})
+
+        for _,actor in ipairs(scoringInfo.beneficiaries) do
+            if actor.valid and actor.properties ~= nil and not actor.properties:IsDead()
+                and not actor.properties:HasNamedCondition("Hidden")
+                and LocationProfile(actor, actor.loc).concealed then
+                local freeHide = FindAbilityByGuid(actor, watchMeDisappearFreeHideGuid)
+                if freeHide ~= nil and freeHide:CanAfford(actor) then
+                    local ok, err = ai:RunWithTokenControl(actor, function()
+                        ai:ExecuteAbility(actor, freeHide, {}, {sleep = shadowElfCinematicPause})
+                    end)
+                    if not ok then
+                        print("AI:: Watch Me Disappear free Hide failed:", err)
+                    end
+                end
+            end
+        end
+    end,
+}
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Shadow Elf Malice: Extra Dimension",
+    monsterGroups = {"Shadow Elf"},
+    abilities = {"Extra Dimension"},
+    description = "At the start of a Shadow Elf turn, spend 5 Malice when acting strikers can exploit enemies with Intuition lower than 2.",
+    score = function(self, ai, token, ability, context)
+        if AnyGroupTokenHasEffect(context.groupTokens, extraDimensionEffectId) then
+            return nil
+        end
+
+        local numStrikers = 0
+        for _,actor in ipairs(context.groupTokens) do
+            if HasAffordableStrike(actor) then
+                numStrikers = numStrikers + 1
+            end
+        end
+
+        local numLowIntuitionTargets = 0
+        for _,enemy in ipairs(context.enemyTokens) do
+            if enemy.valid and enemy.properties ~= nil and not enemy.properties:IsDead()
+                and HasLowIntuition(enemy) then
+                numLowIntuitionTargets = numLowIntuitionTargets + 1
+            end
+        end
+
+        if numStrikers == 0 or numLowIntuitionTargets == 0 then
+            return nil
+        end
+
+        return {
+            score = math.min(1, 0.35 + math.min(3, numStrikers)*0.15
+                + math.min(2, numLowIntuitionTargets)*0.15),
+            numLowIntuitionTargets = numLowIntuitionTargets,
+            numStrikers = numStrikers,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ShadowElfCinematicSpeech(ai, token, self.id)
+        ai:ExecuteAbility(token, ability, nil, {sleep = shadowElfCinematicPause})
+    end,
+}
+
+MonsterAI:RegisterMaliceAbility{
+    id = "Shadow Elf Malice: Home Is Where the Hurt Is",
+    monsterGroups = {"Shadow Elf"},
+    abilities = {"Home Is Where the Hurt Is"},
+    description = "At the start of an early Shadow Elf turn, spend 10 Malice when the encounter-long potency benefit outweighs losing Of the Umbra.",
+    minimumScore = 0.7,
+    score = function(self, ai, token, ability, context)
+        if context.round ~= nil and context.round > 3 then
+            return nil
+        end
+
+        local liveShadowElves = {}
+        local numInDarkness = 0
+        for _,ally in ipairs(context.allyTokens) do
+            if IsShadowElfGroupToken(ally) then
+                liveShadowElves[#liveShadowElves+1] = ally
+                if LocationProfile(ally, ally.loc).darkness then
+                    numInDarkness = numInDarkness + 1
+                end
+            end
+        end
+
+        if #liveShadowElves < 3 or #context.enemyTokens < 2
+            or AnyGroupTokenHasEffect(liveShadowElves, homeIsWhereTheHurtIsEffectId) then
+            return nil
+        end
+
+        local nonDarknessRatio = (#liveShadowElves - numInDarkness) / #liveShadowElves
+        local roundPenalty = math.max(0, (context.round or 1) - 1)*0.1
+        local score = 0.25
+            + math.min(5, #liveShadowElves)*0.08
+            + math.min(5, #context.enemyTokens)*0.04
+            + (nonDarknessRatio - 0.5)*0.4
+            - roundPenalty
+
+        return {
+            score = math.max(0, math.min(1, score)),
+            liveShadowElves = #liveShadowElves,
+            numInDarkness = numInDarkness,
+        }
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ShadowElfCinematicSpeech(ai, token, self.id)
+        ai:ExecuteAbility(token, ability, nil, {sleep = shadowElfCinematicPause})
+    end,
+}
 
 --------------------------------------------------------------------------------
 -- Shared shadow elf positioning.

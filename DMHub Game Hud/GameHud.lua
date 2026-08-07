@@ -941,6 +941,14 @@ local function CreateLobbyHud(dialog, tokenInfo)
 
 	GameHud.instance = gamehud
 
+	--The lobby hud has no present-to-players machinery, but callers such as
+	--DocumentSystem's present button poll this on every think. Reading an
+	--undefined field on a Hud userdata raises a Lua error, so define the
+	--accessor here; nothing is ever presented in the lobby.
+	gamehud.GetCurrentlyPresentedDialog = function()
+		return nil
+	end
+
 	local mainDialogPanel = gamehud:MainDialogPanel()
 
     local m_recordedPopup = nil

@@ -1503,16 +1503,61 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
     abilityDisplayPanel.children = {resultPanel, remoteDisplayPanel}
 end
 
-if GameHud.instance and rawget(GameHud.instance, "abilityDisplayPanel") ~= nil then
-    GameHud.instance:InitAbilityDisplayPanel(GameHud.instance.abilityDisplayPanel)
+--Hot-reload re-init. The `.valid` term is load-bearing, not defensive noise: the
+--hud subtree can be gone while GameHud.instance (and its cached panel handles)
+--live on, and a destroyed panel is still a truthy userdata. Re-initializing
+--against a dead abilityDisplayPanel builds resultPanel/remoteDisplayPanel, then
+--drops them -- `children =` is dead-panel guarded on the C# side and silently
+--no-ops -- so the pair is left unparented for SheetManager's leak sweep to
+--destroy, while `self.abilityDisplay = resultPanel` installs a permanently
+--DESTROYED handle. Every later FindEmbeddedRollDialog / DisplayAbility then
+--dereferences a null SheetPanel (NullReferenceException out of
+--LuaSheetPanel.FindChildRecursive), and every EmbedDialogInAbility builds a roll
+--dialog that nothing can mount. Skipping the re-init leaves the previous handle
+--in place; the next CreateAbilityDisplayPanel (hud rebuild) sets up a live one.
+local abilityDisplayPanelForReload = GameHud.instance and rawget(GameHud.instance, "abilityDisplayPanel")
+if abilityDisplayPanelForReload and abilityDisplayPanelForReload.valid then
+    GameHud.instance:InitAbilityDisplayPanel(abilityDisplayPanelForReload)
 end
 
-function CharacterPanel.FindEmbeddedRollDialog()
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+--The ability display / standalone roll hosts are cached panel references on the
+--GameHud instance (see InitAbilityDisplayPanel / InitStandaloneRollHost). Nothing
+--clears them when the panel behind them is destroyed -- the hud subtree can be torn
+--down while GameHud.instance lives on -- and a destroyed panel handle is still a
+--userdata, so it is TRUTHY in Lua. A plain `if not GameHud.instance.abilityDisplay`
+--check therefore passes for a dead panel, and the code proceeds to use it. That is
+--not harmless: the C# LuaSheetPanel accessors dereference a null SheetPanel, so
+--FindChildRecursive / SetClassTree / canFocus throw NullReferenceException out
+--through the Lua VM, while the handful of accessors that ARE dead-panel guarded
+--(FireEvent, FireEventTree, `children =`) silently no-op -- which is how a freshly
+--built roll dialog ends up parented to nothing and gets destroyed by SheetManager's
+--end-of-frame leak sweep ("was created but not attached to a parent").
+--
+--`.valid` is the only reliable liveness test. Note the `not panel` term must come
+--first: GameHud.abilityDisplay defaults to `false`, and indexing a boolean errors.
+local function LiveHostPanel(name)
+    local hud = rawget(GameHud, "instance")
+    if not hud then
         return nil
     end
 
-    local panel = GameHud.instance.abilityDisplay
+    --rawget: standaloneRollHost has no declared default, and reading an
+    --undeclared field off a game-typed instance raises. Matches the existing
+    --rawget guards in HideAbility / StandaloneRollShown.
+    local panel = rawget(hud, name)
+    if (not panel) or (not panel.valid) then
+        return nil
+    end
+
+    return panel
+end
+
+function CharacterPanel.FindEmbeddedRollDialog()
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
+        return nil
+    end
+
     local embedded = panel:FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
     end)
@@ -1607,28 +1652,59 @@ function CharacterPanel.AnyRollDialogShown()
     return CharacterPanel.StandaloneRollShown()
 end
 
+--Both embed entry points hand the freshly built dialog to a fire-and-forget
+--event and trust that something in the tree mounted it. Nothing verifies that,
+--and an unmounted panel is not merely useless -- SheetManager's end-of-frame
+--leak sweep destroys any panel still sitting on its birth root, logging
+--"Panel ... was created but not attached to a parent". Returning that doomed
+--handle is what strands the callers: ShowDialog silently bails on the now
+--invalid panel (roll never happens), or -- when ShowDialog runs synchronously
+--in the same frame, as the table-roll path does -- the roll starts and then its
+--complete callback fires against destroyed widgets (SetClassTree / gui.SetFocus
+---> NullReferenceException out of LuaSheetPanel).
+--
+--So: assert the handoff. If nothing took ownership, tear the orphan down here
+--and report failure, which every caller already handles by falling back to the
+--legacy roll dialog. A mounted dialog always has a parent by the time the
+--synchronous FireEventTree returns -- every embedRollDialog handler mounts via
+--`element.children = { dialog }`, which reparents immediately.
+local function ClaimEmbeddedDialog(dialog, where)
+    if dialog == nil then
+        return nil
+    end
+
+    if dialog.valid and dialog.parent ~= nil then
+        return dialog
+    end
+
+    print(string.format("RollDialog:: EMBED FAILED (%s) -- nothing mounted the dialog; destroying orphan", where))
+    dialog:DestroySelf()
+    return nil
+end
+
 function CharacterPanel.EmbedDialogInAbility()
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
         return nil
     end
 
     local dialog = GameHud.CreateEmbeddedRollDialog()
 
-    local panel = GameHud.instance.abilityDisplay
     panel:FireEventTree("embedRollDialog", dialog)
-    return dialog
+    return ClaimEmbeddedDialog(dialog, "ability")
 end
 
 --Mount the embedded roll dialog in the standalone host (for roll-table and
 --other non-ability rolls). Returns the dialog so the caller can ShowDialog.
 function CharacterPanel.EmbedDialogStandalone()
-    if (not GameHud.instance) or (not GameHud.instance.standaloneRollHost) then
+    local host = LiveHostPanel("standaloneRollHost")
+    if host == nil then
         return nil
     end
 
     local dialog = GameHud.CreateEmbeddedRollDialog()
-    GameHud.instance.standaloneRollHost:FireEvent("embedRollDialog", dialog)
-    return dialog
+    host:FireEvent("embedRollDialog", dialog)
+    return ClaimEmbeddedDialog(dialog, "standalone")
 end
 
 --Built as an inner panel because gui.Panel only registers event handlers
@@ -1684,8 +1760,12 @@ function GameHud:InitStandaloneRollHost(hostPanel)
     self.standaloneRollHost = innerPanel
 end
 
-if GameHud.instance and rawget(GameHud.instance, "standaloneRollHostPanel") ~= nil then
-    GameHud.instance:InitStandaloneRollHost(GameHud.instance.standaloneRollHostPanel)
+--See the abilityDisplayPanel re-init above: re-initializing against a destroyed
+--host panel silently orphans innerPanel and installs a dead standaloneRollHost,
+--after which every EmbedDialogStandalone leaks an unmountable roll dialog.
+local standaloneRollHostPanelForReload = GameHud.instance and rawget(GameHud.instance, "standaloneRollHostPanel")
+if standaloneRollHostPanelForReload and standaloneRollHostPanelForReload.valid then
+    GameHud.instance:InitStandaloneRollHost(standaloneRollHostPanelForReload)
 end
 
 local g_abilityLocked = false
@@ -1695,7 +1775,8 @@ function CharacterPanel.UnlockDisplayAbility()
 end
 
 function CharacterPanel.DisplayAbility(token, ability, symbols, options)
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
         return false
     end
 
@@ -1715,8 +1796,6 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         end
         return true
     end
-
-    local panel = GameHud.instance.abilityDisplay
 
     local embeddedRoll = panel:FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
@@ -1877,7 +1956,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             coroutine.yield(0.01)
         end
     elseif GameHud.instance then
-        dialog = GameHud.instance.rollDialog
+        --rawget: the lobby hud (CreateLobbyHud) never sets rollDialog, and a plain
+        --index of an unset field on a game-typed instance raises. Matches the
+        --rawget guard in AnyRollDialogShown above. nil falls through to the
+        --caller's own nil/valid check.
+        dialog = rawget(GameHud.instance, "rollDialog")
     else
         --No live HUD (e.g. a cast driven headlessly / off a real turn). Fall back
         --to the global hud's roll dialog so the roll can still resolve instead of
@@ -1908,11 +1991,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
 end
 
 function CharacterPanel.HighlightAbilitySection(options)
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
         return
     end
 
-    local panel = GameHud.instance.abilityDisplay
     panel:FireEventTree("showAbilitySection", options)
 
     -- Begin sharing if we haven't already. HighlightAbilitySection is

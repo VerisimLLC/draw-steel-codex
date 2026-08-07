@@ -6282,6 +6282,15 @@ function creature:OnMove(path)
         }
     })
 
+    --Aura triggers marked "Forced Movement Only" ("force moved into or within the area").
+    --Hooked here rather than on the forced-movement ability path because this is the one
+    --place EVERY kind of movement arrives: a Director ALT-dragging a token is forced
+    --movement that casts no ability at all. path.forced is the engine's own verdict
+    --(an ALT-drag reports forced=true, movementType="pushed").
+    if path.forced then
+        Aura.FireForcedMovementTriggersForPath(self, ourToken, path)
+    end
+
     --floorAltitude
 
     -- Forced movement no longer short-circuits the per-step processing -- we
@@ -10247,7 +10256,11 @@ function creature:EnterAura(info)
 	end
 
 	for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
-		if triggerInfo.trigger == "onenter" then
+		--"Forced Movement Only" triggers are NOT resolved here. This runs identically for a
+		--shove and a walk-in, it runs during path PLANNING rather than during the move, and
+		--it is gated to once per aura per turn -- all three are wrong for "force moved into
+		--the area". Aura.FireForcedMovementTriggersForPath owns them instead.
+		if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter ~= "forced" then
             local auraCasterToken = info.token
             if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
                 auraCasterToken = dmhub.LookupToken(self)

@@ -1315,7 +1315,7 @@ end
 --  targetingFormula string (optional). GoblinScript for targeting "formula".
 --  hostile          boolean (optional). Styles the card as a hostile prompt
 --                   and makes it persist until resolved instead of aging out
---                   after ~60 seconds.
+--                   after ~600 seconds.
 --  free             boolean (optional, default true). false uses the non-free
 --                   (gold) trigger styling instead of the free (blue) one.
 --

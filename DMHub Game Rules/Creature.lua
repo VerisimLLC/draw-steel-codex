@@ -9837,8 +9837,14 @@ ActiveTrigger.invocation = false
 --existed have 0 here and fall back to timestamp.
 ActiveTrigger.expiryTimestamp = 0
 
---How long a trigger prompt stays available before it ages out.
-local g_triggerExpirySeconds = 60
+--How long a trigger prompt stays available before it ages out. This is a
+--garbage-collection backstop, not a gameplay timer: in combat the sustain
+--coroutine in TriggeredAbility.lua ends a prompt ~6s after the owner's turn
+--refresh id changes, long before this fires. The cases that actually reach this
+--clock are orphaned entries whose watcher coroutine died (with a reload or a
+--previous session), invocation prompt cards (which have no coroutine at all),
+--and prompts raised out of combat where the turn id never advances.
+local g_triggerExpirySeconds = 600
 
 --Once a trigger has fewer than this many seconds left, the prompt shows a thin
 --bar across its top that drains away as the trigger dies.

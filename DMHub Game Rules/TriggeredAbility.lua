@@ -1546,7 +1546,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
 			--path (triggered, dismissed, sustain lost, caster invalid, transient
 			--nil read). The panel renders straight from availableTriggers, so if
-			--we exit without clearing, the entry lingers (until the 60s age-out)
+			--we exit without clearing, the entry lingers (until the 600s age-out)
 			--with no coroutine watching it -- clickable but unresponsive. Clear by
 			--guid rather than by the (possibly nil) trigger reference, since some
 			--exits leave trigger nil while the entry is still present.

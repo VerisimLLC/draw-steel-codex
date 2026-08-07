@@ -2589,6 +2589,7 @@ creature.RegisterSymbol {
 }
 
 CustomAttribute.RegisterAttribute { id = "reach", text = "Reach", attributeType = "number", category = "Combat" }
+CustomAttribute.RegisterAttribute { id = "lightbenderloeblocked", text = "Lightbender LoE Blocked", attributeType = "number", category = "Combat" }
 function creature:GetReach()
     return self:CalculateAttribute("reach", self:BaseReach())
 end

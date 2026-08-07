@@ -303,6 +303,34 @@ GameSystem.RegisterApplyToTargets{
 	text = "All Creatures in Combat",
 }
 
+--apply the behavior to the caster's mentor (for retainer abilities).
+--Resolves to an empty target list if the caster has no mentor on the map.
+GameSystem.RegisterApplyToTargets{
+	id = "caster_mentor",
+	text = "Caster's Mentor",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+			return result
+		end
+
+		--GetMentor returns the mentor's creature properties. Guard with pcall
+		--since not every creature type is guaranteed to have the method.
+		local mentor = nil
+		pcall(function() mentor = casterToken.properties:GetMentor() end)
+		if mentor == nil then
+			return result
+		end
+
+		local mentorToken = dmhub.LookupToken(mentor)
+		if mentorToken ~= nil and mentorToken.valid then
+			result[#result+1] = { token = mentorToken }
+		end
+
+		return result
+	end,
+}
+
 --when casting a spell, this is our set of 'target lists' who have different outcomes to what has happened in the spell so far.
 --it might include lists of creatures who have been hit, made a save, failed a save, been critically hit, etc.
 GameSystem.RegisterApplyToTargets{

@@ -676,6 +676,12 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
                 chatMessagePanel:SetClassTree("adopted", true)
             end,
 
+            --The custom power roll panel is a sibling of rollContentPanel, so its
+            --FireEventOnParents("forceShowResult") only reaches this common ancestor.
+            forceShowResult = function(element)
+                rollContentPanel:FireEventTree("showresult")
+            end,
+
             adoptedRollContent,
             customPanelWrapper,
         }
@@ -723,6 +729,12 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
                 else
                     rollNameLabel.text = message.playerName or ""
                 end
+            end,
+
+            --The custom power roll panel is a sibling of rollContentPanel, so its
+            --FireEventOnParents("forceShowResult") only reaches this common ancestor.
+            forceShowResult = function(element)
+                rollContentPanel:FireEventTree("showresult")
             end,
 
             gui.Panel{

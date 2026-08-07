@@ -1642,6 +1642,44 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				},
 			}
 
+			--prerequisites gating this whole choice. Until they are met the
+			--choice is hidden from the builder and grants nothing.
+			children[#children+1] = gui.Dropdown{
+				height = 30,
+				width = 220,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+
+				idChosen = "none",
+				options = CharacterPrerequisite.options,
+				change = function(element)
+					if element.idChosen ~= 'none' then
+						self:get_or_add("prerequisites", {})
+						self.prerequisites[#self.prerequisites+1] = CharacterPrerequisite.Create{
+							type = element.idChosen,
+						}
+						element.idChosen = 'none'
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end
+				end,
+			}
+
+			for i,pre in ipairs(self:try_get("prerequisites", {})) do
+				local index = i
+				children[#children+1] = pre:Editor{
+					change = function(element)
+						resultPanel:FireEvent('change')
+					end,
+					delete = function(element)
+						table.remove(self.prerequisites, index)
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end,
+				}
+			end
+
 			for i,feature in ipairs(self.options) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then

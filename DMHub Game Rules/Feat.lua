@@ -93,14 +93,37 @@ function CharacterFeat:FeatureSourceName()
 	return "Feat"
 end
 
-function CharacterFeat:FillClassFeatures(choices, result)
+--true if the creature meets all of the feature's prerequisites. A nil
+--creature means no filtering is wanted, so everything passes.
+local function PrerequisitesMet(feature, creature)
+	if creature == nil then
+		return true
+	end
+
+	for _,prerequisite in ipairs(feature:try_get("prerequisites") or {}) do
+		if not prerequisite:Met(creature) then
+			return false
+		end
+	end
+
+	return true
+end
+
+--creature is optional: when given, features (including choices) whose
+--prerequisites the creature doesn't meet are skipped entirely.
+function CharacterFeat:FillClassFeatures(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
-		if feature.typeName == 'CharacterFeature' then
+		if not PrerequisitesMet(feature, creature) then
+			--skip this feature entirely; a choice grants nothing even if
+			--a stale selection for it exists in choices.
+		elseif feature.typeName == 'CharacterFeature' then
 			result[#result+1] = feature
 		elseif feature.typeName == 'CharacterFeatureList' then
 			for _,child in ipairs(feature.features) do
-				if child.typeName == 'CharacterFeature' then
+				if not PrerequisitesMet(child, creature) then
+					--skip.
+				elseif child.typeName == 'CharacterFeature' then
 					result[#result+1] = child
 				else
 					child:FillChoice(choices, result)
@@ -115,16 +138,22 @@ function CharacterFeat:FillClassFeatures(choices, result)
 end
 
 --result is filled with a list of { feat = CharacterFeat object, feature = CharacterFeature or CharacterChoice }
-function CharacterFeat:FillFeatureDetails(choices, result)
+--creature is optional: when given, features whose prerequisites the creature
+--doesn't meet are omitted (so e.g. a level-gated choice isn't offered).
+function CharacterFeat:FillFeatureDetails(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
-		local resultFeatures = {}
-		feature:FillFeaturesRecursive(choices, resultFeatures)
+		if PrerequisitesMet(feature, creature) then
+			local resultFeatures = {}
+			feature:FillFeaturesRecursive(choices, resultFeatures)
 
-		for i,resultFeature in ipairs(resultFeatures) do
-			result[#result+1] = {
-				feat = self,
-				feature = resultFeature,
-			}
+			for i,resultFeature in ipairs(resultFeatures) do
+				if PrerequisitesMet(resultFeature, creature) then
+					result[#result+1] = {
+						feat = self,
+						feature = resultFeature,
+					}
+				end
+			end
 		end
 	end
 end

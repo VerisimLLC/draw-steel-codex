@@ -5337,10 +5337,11 @@ function creature:FillBaseActiveModifiers(result)
 		end
 	end
 
-	--add features from templates.
+	--add features from templates. Pass ourselves so template features with
+	--prerequisites (e.g. a minimum level) we don't meet are not applied.
 	for i,feat in ipairs(self:GetActiveTemplates()) do
 		local features = {}
-		feat:FillClassFeatures(self:GetLevelChoices(), features)
+		feat:FillClassFeatures(self:GetLevelChoices(), features, self)
 		for i,feature in ipairs(features) do
             feature:FillModifiers(self, result)
 		end

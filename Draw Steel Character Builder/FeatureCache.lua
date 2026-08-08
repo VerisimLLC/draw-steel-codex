@@ -194,8 +194,29 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         return true
     end
 
+    -- Features from templates and feats don't come tagged with the level they
+    -- are gained at, so fall back to their minimum-level prerequisite. Without
+    -- this they all sort as level 0 and end up in alphabetical order.
+    local function levelFromPrereq(feature)
+        local prereq = feature:try_get("prerequisites")
+        if prereq == nil then return nil end
+        local result = nil
+        for _,pre in ipairs(prereq) do
+            if pre:try_get("type") == "levelRequirement" then
+                local requirement = tonumber(pre:try_get("skill"))
+                if requirement ~= nil and (result == nil or requirement > result) then
+                    result = requirement
+                end
+            end
+        end
+        return result
+    end
+
     local function addFeature(feature, level)
         if not passesPrereq(feature) then return end
+        if level == nil or level == 0 then
+            level = levelFromPrereq(feature) or level
+        end
         local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()

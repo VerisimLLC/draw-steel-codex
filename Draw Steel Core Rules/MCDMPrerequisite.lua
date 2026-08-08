@@ -151,6 +151,28 @@ CharacterPrerequisite.Register{
 	end,
 }
 
+--minimum level gate. Works for heroes and monsters alike: a monster's
+--CharacterLevel is its level stat, so retainer advancement features can
+--use this to unlock at levels 4/7/10.
+CharacterPrerequisite.Register{
+	id = "levelRequirement",
+	text = "Minimum Level",
+	met = function(self, creature)
+		local requirement = tonumber(self.skill)
+		return requirement == nil or creature:CharacterLevel() >= requirement
+	end,
+	options = function()
+		local result = {}
+		for i=1,GameSystem.numLevels do
+			result[#result+1] = {
+				id = tostring(i),
+				text = string.format("Level %d", i),
+			}
+		end
+		return result
+	end
+}
+
 function CharacterFeatureList:CharacterUniqueID()
 	--a repeated feature is an upgrade.
 	return self.name

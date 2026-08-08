@@ -189,7 +189,9 @@ function ExecuteGoblinScript(formula, symbols, defaultValue, contextMessage)
             error = result
             result = defaultValue
             if g_errors[formula] == nil then
-                print("GoblinScript: Runtime error in formula", formula, "error:", result)
+                --Print the caught error, not result -- result has already been replaced
+                --by defaultValue on the line above, so this used to log the default.
+                print("GoblinScript: Runtime error in formula", formula, "error:", error)
                 g_errors[formula] = true
             end
         elseif result == nil then

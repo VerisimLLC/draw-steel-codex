@@ -20,6 +20,10 @@ DockablePanel.Register{
 	dmonly = true,
 	folder = "Map Editing",
 	stickyFocus = true,
+	--a press anywhere on the panel -- including its title bar, which is
+	--the host's chrome and so outside the content's own press handler --
+	--claims focus for it.
+	focusOnClick = true,
 	content = function()
 		track("panel_open", {
 			panel = "Objects",

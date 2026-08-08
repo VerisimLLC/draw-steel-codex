@@ -13,6 +13,82 @@ end
 
 local CreateChatPanel
 
+--Unread tracking, mirroring ChatPanel.lua: the rail's Action Log button
+--shows a new-content marker (with a count) for log entries that arrived
+--since the panel was last on screen, excluding the local user's own
+--actions. "Last viewed" is a per-game high-water server timestamp
+--persisted as a preference; the rail calls markContentSeen while the
+--panel is shown.
+setting{
+	id = "actionlog:lastviewed",
+	default = {},
+	storage = "preference",
+}
+
+--the exact complement of ChatPanel.lua's IsChatMessage: everything that
+--is not plain chat / data / object / custom-on-the-chat-channel renders
+--in the action log (rolls and custom action messages).
+local function IsActionLogMessage(message)
+	return message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat")
+end
+
+local function ActionLogLastViewed()
+	local t = dmhub.GetSettingValue("actionlog:lastviewed")
+	if type(t) ~= "table" then
+		return nil
+	end
+	return t[dmhub.gameid]
+end
+
+local function ActionLogUnreadCount()
+	local lastViewed = ActionLogLastViewed()
+	if lastViewed == nil then
+		return 0
+	end
+	local count = 0
+	for _,message in ipairs(chat.messages) do
+		if IsActionLogMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" and ts > lastViewed then
+				local uid = nil
+				pcall(function() uid = message.userid end)
+				if uid ~= dmhub.userid then
+					count = count + 1
+				end
+			end
+		end
+	end
+	return count
+end
+
+local function ActionLogMarkViewed()
+	local t = dmhub.GetSettingValue("actionlog:lastviewed")
+	if type(t) ~= "table" then
+		t = {}
+	end
+	local lastViewed = t[dmhub.gameid]
+	local target = os.time() * 1000
+	local anyNew = false
+	for _,message in ipairs(chat.messages) do
+		if IsActionLogMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" then
+				if ts > target then
+					target = ts
+				end
+				if lastViewed ~= nil and ts > lastViewed then
+					anyNew = true
+				end
+			end
+		end
+	end
+	if lastViewed ~= nil and not anyNew then
+		return
+	end
+	t[dmhub.gameid] = target
+	dmhub.SetSettingValue("actionlog:lastviewed", t)
+end
+
 DockablePanel.Register{
 	name = "Action Log",
 	icon = "icons/standard/Icon_App_ActivityLog.png",
@@ -24,6 +100,20 @@ DockablePanel.Register{
 			dailyLimit = 30,
 		})
 		return CreateChatPanel()
+	end,
+	hasNewContent = function()
+		--first evaluation for a game baselines "viewed" at now, so
+		--pre-existing history never flags as unread.
+		if ActionLogLastViewed() == nil then
+			ActionLogMarkViewed()
+		end
+		return ActionLogUnreadCount() > 0
+	end,
+	newContentCount = function()
+		return ActionLogUnreadCount()
+	end,
+	markContentSeen = function()
+		ActionLogMarkViewed()
 	end,
 }
 

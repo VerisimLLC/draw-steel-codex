@@ -165,6 +165,35 @@ dmhub.RegisterEventHandler("ticketAlert", function()
     FetchTickets()
 end)
 
+--The title bar's Codex / Game / Tools menus list "windows": panels the
+--user summons by name rather than docks alongside other panels. BOTH
+--registries feed them now that panels like Maps, the Measuring Tool and
+--the Compendium are ordinary dockable panels.
+--
+--A dockable panel opts in by declaring `menu` in its registration
+--("codex", "game" or "tools"), which is also what sorts it into the right
+--one -- without that it belongs to the Panels menu only, which is what
+--the ~40 regular dock panels want. The launchable panels that remain (the
+--transient dialogs) keep their original contract, where no `menu` at all
+--meant the Codex menu.
+local function WindowMenuItems(menuName)
+    local result = {}
+
+    for _,item in ipairs(DockablePanel.GetMenuItems()) do
+        if item.menu == menuName then
+            result[#result+1] = item
+        end
+    end
+
+    for _,item in ipairs(LaunchablePanel.GetMenuItems()) do
+        if (item.menu or "codex") == menuName and item.text ~= "Development Tools" then
+            result[#result+1] = item
+        end
+    end
+
+    return result
+end
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -4264,7 +4293,7 @@ local function CreateTopBar()
             name = "Codex",
             icon = "ui-icons/codex-logo.png",
             menuItems = function()
-			    local items = table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == nil and item.text ~= "Development Tools" end)
+			    local items = WindowMenuItems("codex")
                 local storeItems = GetStoreMenuItems()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
@@ -4276,14 +4305,14 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Game",
             menuItems = function()
-			    return table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == "game" end)
+			    return WindowMenuItems("game")
             end,
         },
 
         CreateCodexMenuItem{
             name = "Tools",
             menuItems = function()
-			    return table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == "tools" end)
+			    return WindowMenuItems("tools")
             end,
         },
 

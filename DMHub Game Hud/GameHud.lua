@@ -648,6 +648,22 @@ function GameHud:CreateToolbarPanel()
 
 	local buttons = {}
 
+	--Everything the toolbar can hold. Both registries: most of what used to
+	--be a launchable panel (Maps, the Compendium, the Measuring Tool, the
+	--dev tools) is an ordinary dockable panel now, and a toolbar the user
+	--had already configured must keep finding those by name.
+	local ToolbarCandidates = function()
+		local result = {}
+		for _,items in ipairs({LaunchablePanel.GetMenuItems(), DockablePanel.GetMenuItems()}) do
+			for _,item in ipairs(items) do
+				if item.name ~= nil then
+					result[#result+1] = item
+				end
+			end
+		end
+		return result
+	end
+
 	local CreateToolbarButton = function(item)
 		
 		local monitorEventGuid = nil
@@ -773,7 +789,7 @@ function GameHud:CreateToolbarPanel()
 
 	local DeserializeToolbar = function()
 		buttons = {}
-		local menuItems = LaunchablePanel.GetMenuItems()
+		local menuItems = ToolbarCandidates()
 		local doc = dmhub.GetSettingValue(settingName)
 		for _,itemName in ipairs(doc) do
 			for _,item in ipairs(menuItems) do
@@ -809,7 +825,7 @@ function GameHud:CreateToolbarPanel()
 					return
 				end
 
-				local menuItems = LaunchablePanel.GetMenuItems()
+				local menuItems = ToolbarCandidates()
 				local items = {}
 				for _,item in ipairs(menuItems) do
 					if item.icon then
@@ -1251,6 +1267,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then
 						m_presentedDialog = gui.GetFocus()
+					else
+						--panels that used to be launchable are dockable now;
+						--a remote request to present one by name still has to
+						--find them.
+						DockablePanel.ShowPanelByName(data.dialog.dialog)
 					end
 				end
 

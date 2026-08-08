@@ -74,7 +74,7 @@
 --- @field trailHazeWisp number Haze wispiness: 0 = smooth round puffs, 1 = fully ragged swirling smoke tendrils.
 --- @field trailHazeLifetime number Haze puff lifetime, as a multiple of the trail lifetime.
 --- @field trailHazeDrift number How fast the haze drifts away from where it was laid down.
---- @field trailIdle number Trail emission multiplier while the die is at rest: 0 = trails only while moving; higher lets a "gas" set seep vapor while it sits on the table.
+--- @field trailIdle number Trail emission multiplier while the die is at rest: 0 = trails only while moving; higher lets a 'gas' set seep vapor while it sits on the table.
 --- @field trailBurstCount number Number of haze puffs that billow outward in a ring the moment the die settles (0 = no landing burst).
 --- @field trailBurstSpeed number Outward speed of the landing-burst puffs (they bloom fast, then damping makes the cloud hang and dissipate).
 --- @field constellationEnabled boolean Whether this set's dice form a CONSTELLATION: once every one of them has settled (2+ dice on the table), glowing lines trace between them link by link -- a star-chart spanning tree -- shimmer while the dice linger, and fade out with the dice. See constellationColor/constellationWidth/constellationBrightness/constellationDrawTime/constellationPulse.

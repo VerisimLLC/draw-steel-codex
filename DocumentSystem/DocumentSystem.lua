@@ -3532,6 +3532,17 @@ function CustomDocument.GetOrCreateTabbedViewer()
     return viewer
 end
 
+--Resize behavior for this document's standalone window (PresentDocument):
+--the options table handed to gui.WindowResizePanel. Subtypes refine it --
+--panel windows derive their bounds and axis locks from the dockable
+--panel registration.
+function CustomDocument:WindowResizeOptions()
+    return {
+        minWidth = 400,
+        minHeight = 300,
+    }
+end
+
 --args may carry placement overrides for the window:
 --  width/height: initial size (defaults to the full document dialog size;
 --      a location remembered from a drag/resize this session still wins).
@@ -3571,6 +3582,23 @@ function CustomDocument:PresentDocument(args)
 
     local dialog
 
+    --A PINNED window is locked in place: no drag, no resize, no close.
+    --The caller supplies the live predicate (PanelDocument does; journal
+    --documents don't pin, so it is absent and this reads false).
+    local function DialogPinned()
+        return args.IsPinned ~= nil and args.IsPinned() == true
+    end
+
+    --a resize that drags the left/top edges moves the window; callers
+    --tracking window position (the icon rail's open-window record) observe
+    --it the same way they observe a window drag.
+    local resizeOptions = self:WindowResizeOptions()
+    resizeOptions.onResized = function(element, moved)
+        if moved and args.onMoved ~= nil then
+            args.onMoved(element)
+        end
+    end
+
     local dialogStyles = ThemeEngine.GetStyles()
     dialogStyles[#dialogStyles + 1] = gui.Style {
         classes = { "framedPanel" },
@@ -3583,6 +3611,20 @@ function CustomDocument:PresentDocument(args)
         classes = { "framedPanel", "~uiblur" },
         priority = 5,
         opacity = 1,
+    }
+    --while a drag holds the window inside the icon-rail band, the window
+    --disappears entirely -- the rail's live card preview IS the panel now
+    --(see CharacterWindowDragging); dragging back out of the band grows it
+    --back mid-drag. SCALE, not opacity or hidden: opacity is per-panel
+    --(it fades only this root's own background, never the children), and
+    --a hidden panel stops processing, which would kill the very drag this
+    --rides on. Scale is a transform, so it collapses the whole subtree.
+    dialogStyles[#dialogStyles + 1] = gui.Style {
+        classes = { "framedPanel", "dockingIntoRail" },
+        priority = 10,
+        scale = 0.01,
+        opacity = 0,
+        transitionTime = 0.15,
     }
 
     dialog = gui.Panel {
@@ -3603,6 +3645,12 @@ function CustomDocument:PresentDocument(args)
         swallowPress = true,
         draggable = true,
         drag = function(element)
+            --pinned windows still receive drag events (they only clear
+            --dragMove -- see refreshPanelPinned); dropping the event here
+            --is what keeps the remembered location untouched too.
+            if DialogPinned() then
+                return
+            end
             element.x = element.xdrag
             element.y = element.ydrag
             element:SetAsLastSibling()
@@ -3622,8 +3670,29 @@ function CustomDocument:PresentDocument(args)
                 args.onMoved(element)
             end
         end,
+        --live drag observation (fires every frame of the drag, with the
+        --in-flight position in xdrag/ydrag): the icon rail uses it to
+        --dock a character window into the rail as a card WHILE dragging.
+        dragging = function(element)
+            if DialogPinned() then
+                return
+            end
+            if args.onDragging ~= nil then
+                args.onDragging(element)
+            end
+        end,
         click = function(element)
             element:SetAsLastSibling()
+        end,
+
+        --A press on EMPTY space inside the window -- the pane below a
+        --short panel's content, the gap beside it -- lands here, on the
+        --window's own surface: the content wrappers carry no bgimage, so
+        --they are not raycast targets at all. This dialog is their
+        --PARENT, and events travel up, so the interface panel that wants
+        --to claim focus would never see it. Send it back down.
+        press = function(element)
+            element:FireEventTree("hostPanelPressed")
         end,
 
         data = {
@@ -3642,15 +3711,19 @@ function CustomDocument:PresentDocument(args)
             element.data.forwardHistory = {}
             element.data.currentDocId = docId
 
-            -- Replace the content panel (child index 2, after resize panel)
-            if element.children[2] then
-                element.children[2]:DestroySelf()
+            -- Replace the content panel (child index 1; the resize overlay
+            -- is the last child and must stay last, so re-raise it).
+            if element.children[1] then
+                element.children[1]:DestroySelf()
             end
             local navArgs = DeepCopy(args) or {}
             navArgs.dialog = dialog
             navArgs.dialogPanel = dialog
             local newPanel = newDoc:CreateInterface(navArgs)
             dialog:AddChild(newPanel)
+            if dialog.data.resizePanel ~= nil and dialog.data.resizePanel.valid then
+                dialog.data.resizePanel:SetAsLastSibling()
+            end
 
             dialog:FireEventTree("refreshNavButtons")
         end,
@@ -3669,14 +3742,17 @@ function CustomDocument:PresentDocument(args)
             local prevDoc = docs[prevDocId]
             if prevDoc == nil then return end
 
-            if element.children[2] then
-                element.children[2]:DestroySelf()
+            if element.children[1] then
+                element.children[1]:DestroySelf()
             end
             local navArgs = DeepCopy(args) or {}
             navArgs.dialog = dialog
             navArgs.dialogPanel = dialog
             local newPanel = prevDoc:CreateInterface(navArgs)
             dialog:AddChild(newPanel)
+            if dialog.data.resizePanel ~= nil and dialog.data.resizePanel.valid then
+                dialog.data.resizePanel:SetAsLastSibling()
+            end
 
             dialog:FireEventTree("refreshNavButtons")
         end,
@@ -3695,19 +3771,40 @@ function CustomDocument:PresentDocument(args)
             local nextDoc = docs[nextDocId]
             if nextDoc == nil then return end
 
-            if element.children[2] then
-                element.children[2]:DestroySelf()
+            if element.children[1] then
+                element.children[1]:DestroySelf()
             end
             local navArgs = DeepCopy(args) or {}
             navArgs.dialog = dialog
             navArgs.dialogPanel = dialog
             local newPanel = nextDoc:CreateInterface(navArgs)
             dialog:AddChild(newPanel)
+            if dialog.data.resizePanel ~= nil and dialog.data.resizePanel.valid then
+                dialog.data.resizePanel:SetAsLastSibling()
+            end
 
             dialog:FireEventTree("refreshNavButtons")
         end,
 
-        gui.DialogResizePanel(self, dialogWidth, dialogHeight),
+        --pin state changed.
+        --A pinned window clears dragMove, NOT draggable. The engine moves
+        --a dragging panel itself every frame and only fires "drag" on
+        --release, so merely declining the drag below let the window be
+        --hauled around and snap back; dragMove = false means it is never
+        --moved at all. Clearing `draggable` instead would stop the drag
+        --earlier but also stop the press being consumed, and the drag
+        --would fall through to the map and pan it.
+        --The resize overlay is floating, so collapsing it costs nothing in
+        --layout and stops its handles processing events. The window's
+        --other pinned chrome lives in CreateInterface, which handles this
+        --same event.
+        refreshPanelPinned = function(element)
+            element.dragMove = not DialogPinned()
+            local resize = element.data.resizePanel
+            if resize ~= nil and resize.valid then
+                resize:SetClass("collapsed", DialogPinned())
+            end
+        end,
 
     }
 
@@ -3715,6 +3812,18 @@ function CustomDocument:PresentDocument(args)
     args.dialogPanel = dialog
     local mainPanel = self:CreateInterface(args)
     dialog:AddChild(mainPanel)
+
+    --the resize overlay must be the LAST child so its handles sit above
+    --window content in z-order (sibling order is z-order): content that
+    --reaches or overhangs the border -- the header bar, the Dice tray --
+    --would otherwise shadow the handles and turn resize drags into window
+    --drags. Anything replacing the content must keep it last (the
+    --navigate* handlers above re-raise it); external size changes reach
+    --it through dialog.data.resizePanel.
+    local resizePanel = gui.WindowResizePanel(self, dialogWidth, dialogHeight, resizeOptions)
+    dialog:AddChild(resizePanel)
+    dialog.data.resizePanel = resizePanel
+    dialog:FireEvent("refreshPanelPinned")
 
     return dialog
 end
@@ -3806,6 +3915,42 @@ function PanelDocument.ClampHeight(panelName, height)
     return content + g_panelDocumentHeaderHeight
 end
 
+--Resize constraints for a panel window, from the panel's dock
+--registration: minWidth/maxWidth/minHeight/maxHeight bound the CONTENT
+--(the window adds its header on top, the same accounting as ClampHeight),
+--and registering resizableWidth/resizableHeight = false locks that axis
+--outright. A panel registering a FIXED height (minHeight == maxHeight,
+--e.g. Dice) locks the vertical axis automatically. Everything else is
+--freely resizable on both axes.
+function PanelDocument:WindowResizeOptions()
+    local options = {
+        minWidth = 300,
+        minHeight = 140,
+    }
+    local reg = self:GetHostRegistration()
+    if reg == nil then
+        return options
+    end
+    if type(reg.minWidth) == "number" then
+        options.minWidth = reg.minWidth
+    end
+    if type(reg.maxWidth) == "number" then
+        options.maxWidth = reg.maxWidth
+    end
+    if type(reg.minHeight) == "number" then
+        options.minHeight = reg.minHeight + g_panelDocumentHeaderHeight
+    end
+    if type(reg.maxHeight) == "number" then
+        options.maxHeight = reg.maxHeight + g_panelDocumentHeaderHeight
+    end
+    options.resizeWidth = reg.resizableWidth ~= false
+    options.resizeHeight = reg.resizableHeight ~= false
+    if type(reg.minHeight) == "number" and reg.maxHeight == reg.minHeight then
+        options.resizeHeight = false
+    end
+    return options
+end
+
 local g_panelDocuments = {}
 
 --Get (or create) the session-cached PanelDocument for a registered
@@ -3836,8 +3981,202 @@ function PanelDocument.Get(panelName)
     return doc
 end
 
+--PINNED panel windows for this game: { [panelKey] = true }. A pinned
+--window is LOCKED IN PLACE -- no close button, no drag, no resize, and
+--its rail button no longer toggles it shut -- and it is restored with
+--the rails. Not to be confused with the rail's "iconrailpins" setting,
+--which is the (legacy-named) record of which windows are open and where;
+--see RailRestoreWindows.
+setting{
+    id = "iconrailpanelpinned",
+    storage = "pergamepreference",
+    default = {},
+}
+
+--The tabs each panel window carries: { [panelKey] = {"chat", "dice"} }.
+--Stored independently of whether the window is open, so closing a window
+--and reopening it brings its tab arrangement back.
+setting{
+    id = "iconrailtabs",
+    storage = "pergamepreference",
+    default = {},
+}
+
+--Forward-declared: the icon-rail section assigns this so a pin toggled
+--from a window's own title bar also enters the rail's restore record and
+--relights the rail buttons. Left nil when the rail code is not loaded.
+local g_onPanelPinnedChanged
+
+--Forward-declared likewise: fired when a window's tab set changes, i.e.
+--when a GROUP forms or breaks up. The rails rebuild, because grouping
+--adds a badge to one button and takes another off the rail entirely.
+local g_onPanelGroupChanged
+
+function PanelDocument.IsPinned(key)
+    if key == nil then
+        return false
+    end
+    return (dmhub.GetSettingValue("iconrailpanelpinned") or {})[string.lower(key)] == true
+end
+
+function PanelDocument.SetPinned(key, on)
+    if key == nil then
+        return
+    end
+    key = string.lower(key)
+    local pinned = dmhub.GetSettingValue("iconrailpanelpinned") or {}
+    if on then
+        pinned[key] = true
+    else
+        pinned[key] = nil
+    end
+    dmhub.SetSettingValue("iconrailpanelpinned", pinned)
+
+    --a live window changes its chrome without being rebuilt.
+    local doc = g_panelDocuments[key]
+    if doc ~= nil then
+        local dlg = doc:try_get("_tmp_dialog")
+        if dlg ~= nil and dlg.valid then
+            dlg:FireEventTree("refreshPanelPinned")
+        end
+    end
+
+    if g_onPanelPinnedChanged ~= nil then
+        g_onPanelPinnedChanged(key, on == true)
+    end
+end
+
+--The stored tab list for a panel window, or nil when it has none beyond
+--its own panel.
+function PanelDocument.StoredTabs(key)
+    if key == nil then
+        return nil
+    end
+    local tabs = (dmhub.GetSettingValue("iconrailtabs") or {})[string.lower(key)]
+    if type(tabs) ~= "table" or #tabs <= 1 then
+        return nil
+    end
+    return tabs
+end
+
+local function TabsSignature(tabs)
+    if type(tabs) ~= "table" then
+        return ""
+    end
+    return table.concat(tabs, "|")
+end
+
+function PanelDocument.SetStoredTabs(key, keys)
+    if key == nil then
+        return
+    end
+    key = string.lower(key)
+    local stored = dmhub.GetSettingValue("iconrailtabs") or {}
+    local changed = false
+
+    if type(keys) ~= "table" or #keys <= 1 then
+        if stored[key] ~= nil then
+            stored[key] = nil
+            changed = true
+        end
+    else
+        if TabsSignature(keys) ~= TabsSignature(stored[key]) then
+            stored[key] = keys
+            changed = true
+        end
+
+        --A panel lives in exactly ONE window, so everything now grouped
+        --here -- this window's own panel included -- is released from
+        --every other group. Both directions matter: a member that also
+        --owned a group would have no rail button to reach that group
+        --from, and an owner that was also somebody else's member would
+        --be hidden behind two badges at once.
+        local claimed = {}
+        for _, k in ipairs(keys) do
+            claimed[string.lower(k)] = true
+        end
+        for owner, tabs in pairs(stored) do
+            if owner ~= key and type(tabs) == "table" then
+                if claimed[owner] then
+                    --this owner is now a member here; its own group goes.
+                    stored[owner] = nil
+                    changed = true
+                else
+                    local kept = {}
+                    for _, k in ipairs(tabs) do
+                        if not claimed[string.lower(k)] then
+                            kept[#kept + 1] = k
+                        end
+                    end
+                    if #kept ~= #tabs then
+                        changed = true
+                        --a group down to just its owner is no group.
+                        stored[owner] = cond(#kept > 1, kept, nil)
+                    end
+                end
+            end
+        end
+    end
+
+    --Restoring a window re-adds exactly the tabs it already had, so
+    --without this guard every restore would fire a rail rebuild.
+    if not changed then
+        return
+    end
+
+    dmhub.SetSettingValue("iconrailtabs", stored)
+    if g_onPanelGroupChanged ~= nil then
+        g_onPanelGroupChanged()
+    end
+end
+
+--GROUPS. A window hosting several panels as tabs is a group: the panel
+--whose window it is owns it, the rest are members. A member has no rail
+--button of its own -- the owner's button carries a badge and a hover
+--flyout that opens the group straight to that member's tab.
+
+--{ [memberKey] = ownerKey } across every stored group. Owners never
+--appear as members (SetStoredTabs enforces it), so this cannot chain.
+function PanelDocument.GroupOwners()
+    local result = {}
+    for owner, tabs in pairs(dmhub.GetSettingValue("iconrailtabs") or {}) do
+        if type(tabs) == "table" and #tabs > 1 then
+            for _, k in ipairs(tabs) do
+                if k ~= owner then
+                    result[k] = owner
+                end
+            end
+        end
+    end
+    return result
+end
+
+--The other panels grouped into this panel's window, in tab order, or nil
+--when it hosts only itself.
+function PanelDocument.GroupMembers(key)
+    if key == nil then
+        return nil
+    end
+    key = string.lower(key)
+    local tabs = PanelDocument.StoredTabs(key)
+    if tabs == nil then
+        return nil
+    end
+    local result = {}
+    for _, k in ipairs(tabs) do
+        if k ~= key then
+            result[#result + 1] = k
+        end
+    end
+    if #result == 0 then
+        return nil
+    end
+    return result
+end
+
 --Open this panel's standalone window, or raise the existing one.
---Placement args (x, y, width, height) pass through to PresentDocument.
+--Placement args (x, y, width, height) pass through to PresentDocument;
+--args.tabs overrides the stored tab list.
 --Returns the window panel.
 function PanelDocument:PresentPanel(args)
     args = args or {}
@@ -3853,10 +4192,47 @@ function PanelDocument:PresentPanel(args)
         self:try_get("panelName"),
         args.height or PanelDocument.DefaultHeight)
 
+    --the live pin predicate the window's chrome (drag, resize, close,
+    --tab closes) consults. Read fresh every time so unpinning takes
+    --effect without rebuilding the window.
+    local pinKey = string.lower(self:try_get("panelName") or "")
+    args.IsPinned = function()
+        return PanelDocument.IsPinned(pinKey)
+    end
+
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
     GameHud.instance.documentsPanel:AddChild(dialog)
+    self:RestoreTabs(dialog, args.tabs)
     return dialog
+end
+
+--Re-add the tabs this window was carrying when it was last closed (or an
+--explicit list). Panels already visible in another window are skipped, so
+--restoring never produces two copies of the same panel.
+function PanelDocument:RestoreTabs(dialog, tabs)
+    if dialog == nil or not dialog.valid then
+        return
+    end
+    local key = string.lower(self:try_get("panelName") or "")
+    if tabs == nil then
+        tabs = PanelDocument.StoredTabs(key)
+    end
+    if tabs == nil then
+        return
+    end
+    local added = false
+    for _, k in ipairs(tabs) do
+        k = string.lower(k)
+        if k ~= key and PanelDocument.FindHostDialog(k) == nil then
+            dialog:FireEventTree("addPanelTab", k)
+            added = true
+        end
+    end
+    --land on the window's own tab rather than the last one added.
+    if added then
+        dialog:FireEventTree("activatePanelTab", key)
+    end
 end
 
 --Close this panel's standalone window if it is open.
@@ -3943,7 +4319,10 @@ function CharacterPanelDocument:GetHostRegistration()
         vscroll = true,
         hideObjectsOutOfScroll = false,
         content = function()
-            return CharacterPanel.CreatePinnedCharacterPanel(charid)
+            --deferBuild: the window frame appears the instant it is
+            --requested; the (expensive) character content populates on
+            --the next frame, which reads much snappier.
+            return CharacterPanel.CreatePinnedCharacterPanel(charid, { deferBuild = true })
         end,
     }
 end
@@ -4086,7 +4465,21 @@ function PanelDocument:CreateInterface(args)
     --plain single panel.
     local tabbed = not args.suppressCloseButton
 
-    --pinned to the top-right so it stays put when the tab strip wraps to
+    --This window's panel key, and whether it is currently PINNED (locked
+    --in place). Only standalone windows pin -- a panel hosted inside the
+    --journal viewer is the host's to close.
+    local panelKey = string.lower(self:try_get("panelName") or "")
+    local function Pinned()
+        return tabbed and PanelDocument.IsPinned(panelKey)
+    end
+
+    --forward-declared: SyncPinnedState is built from all three, and the
+    --pin button's own click handler calls it.
+    local pinButton
+    local SyncChipCloseButtons
+    local SyncPinnedState
+
+    --anchored to the top-right so it stays put when the tab strip wraps to
     --extra rows and the header grows.
     local closeButton = gui.Button{
         classes = {"closeButton", "sizeXs"},
@@ -4095,6 +4488,9 @@ function PanelDocument:CreateInterface(args)
         rmargin = 6,
         tmargin = 8,
         click = function(element)
+            if Pinned() then
+                return
+            end
             if args.close ~= nil then
                 args.close()
             elseif dialog ~= nil and dialog.valid then
@@ -4104,6 +4500,34 @@ function PanelDocument:CreateInterface(args)
     }
     if args.suppressCloseButton then
         closeButton:SetClass("collapsed", true)
+    end
+
+    --The pin toggle: locks the window in place (no close, no drag, no
+    --resize) and marks it to be restored with the rails. Quiet until
+    --hovered or pinned, so an unpinned window's header stays clean. Built
+    --unconditionally and collapsed in non-tabbed hosts -- a nil in the
+    --header's child array would truncate it and drop the close button.
+    pinButton = gui.Panel{
+        classes = {"panelDocumentPinButton"},
+        bgimage = "phosphor/push-pin-simple-light.png",
+        width = 14,
+        height = 14,
+        --FLOATING, not a flow child: in the header's horizontal flow it
+        --stacked against the close button and so jumped sideways every
+        --time that button appeared or hid (which pinning itself does).
+        --Anchored, it stays put. x is measured leftward from the right
+        --edge, clear of the 16px close button and its 6px inset.
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = -28,
+        y = 11,
+        click = function(element)
+            PanelDocument.SetPinned(panelKey, not Pinned())
+        end,
+    }
+    if not tabbed then
+        pinButton:SetClass("collapsed", true)
     end
 
     --===== tab model =====
@@ -4138,15 +4562,16 @@ function PanelDocument:CreateInterface(args)
 
     --Set the window height and keep the floating resize handles in sync:
     --they only track size changes via "resize" delta events (the same
-    --contract as the tabbed viewer's SetViewerHeight). The resize panel
-    --is the dialog's first child, built by PresentDocument.
+    --contract as the tabbed viewer's SetViewerHeight). PresentDocument
+    --publishes the resize overlay at dialog.data.resizePanel (it is the
+    --dialog's LAST child, so its handles sit above window content).
     local function SetWindowHeight(newHeight)
         local old = dialog.selfStyle.height
         if type(old) ~= "number" then
             old = dialog.renderedHeight
         end
         dialog.selfStyle.height = newHeight
-        local resizePanel = dialog.children[1]
+        local resizePanel = dialog.data.resizePanel
         if type(old) == "number" and resizePanel ~= nil and resizePanel.valid and math.abs(newHeight - old) > 0.5 then
             resizePanel:FireEventTree("resize", nil, {deltay = newHeight - old})
         end
@@ -4207,35 +4632,70 @@ function PanelDocument:CreateInterface(args)
     --Content anchors to the top of the window: the dock sizes its slots
     --to hug content, but our window height is fixed, and a short panel
     --left to the default centering floats in a void.
-    local function BuildContentWrapper(reg)
-        local content = reg.content()
-        content.selfStyle.valign = "top"
-        --anchor the hosted content left as well: without an alignment
-        --from an ancestor, panel content centers in the window host
-        --(never in the dock, which supplies one). This is the correct
-        --level for the fix -- forcing halign inside content styles (the
-        --old approach) overrides flow positioning row by row and
-        --scrambles layouts like the journal tree's folder headers.
-        content.selfStyle.halign = "left"
+    --
+    --DEFERRED BUILD: the wrapper (and the window chrome around it)
+    --renders on the frame the window opens; reg.content() -- the
+    --expensive part -- runs one tick later via "buildPanelContent"
+    --(scheduled by SwitchTab). The window therefore appears instantly
+    --and its contents pop in a moment later, which reads much snappier
+    --than blocking the click on the full build.
+    --tab.contentRoot is set once the content exists -- click-to-focus
+    --has to focus that exact element (focus-gated panels test
+    --gui.ChildHasFocus on their own root, which does not count
+    --ancestors). Anything that wants focus before the content exists
+    --records the intent as tab.focusWhenBuilt and the build completes
+    --the grab (see FocusActiveTab).
+    local function BuildContentWrapper(tab)
+        local reg = tab.reg
 
-        --panels that follow map selection (Character, Triggers) fill
-        --themselves in from the hud-wide 'refresh' event, which the
-        --engine only fires when something CHANGES (SheetHud marks it
-        --dirty on selection/initiative changes). A panel mounted after
-        --the fact therefore starts empty and stays that way until the
-        --next change -- which is why opening the Character panel with a
-        --token already selected showed nothing until you reselected it.
-        --Prime it once as soon as it is parented: 'create' fires from
-        --Start(), so the content is live and its parents are reachable
-        --(refresh handlers that talk to the host, e.g. FireEventOnParents
-        --for the window title, need that).
-        --
-        --This runs inline, NOT deferred a tick: deferring only moves the
-        --cost one frame and makes the panel visibly build the wrong
-        --thing first (the full character list) and then swap to the
-        --selection. The build itself is what needs to be cheap.
-        local primeRefresh = function(element)
+        local buildContent = function(element)
+            if mod.unloaded or not element.valid or tab.contentRoot ~= nil then
+                return
+            end
+            --LAZY: only the tab being shown builds. Building a hidden tab
+            --(restored as part of the window's stored tab set) is wasted
+            --work on open, and content can carry mount side-effects --
+            --polled setting monitors, focus grabs -- that must not fire
+            --for a tab nobody is looking at. SwitchTab re-arms the build
+            --when the tab is first shown.
+            if m_activeKey ~= tab.key then
+                return
+            end
+            local content = reg.content()
+            tab.contentRoot = content
+            content.selfStyle.valign = "top"
+            --anchor the hosted content left as well: without an alignment
+            --from an ancestor, panel content centers in the window host
+            --(never in the dock, which supplies one). This is the correct
+            --level for the fix -- forcing halign inside content styles (the
+            --old approach) overrides flow positioning row by row and
+            --scrambles layouts like the journal tree's folder headers.
+            content.selfStyle.halign = "left"
+            element:AddChild(content)
+
+            --panels that follow map selection (Character, Triggers) fill
+            --themselves in from the hud-wide 'refresh' event, which the
+            --engine only fires when something CHANGES (SheetHud marks it
+            --dirty on selection/initiative changes). A panel mounted after
+            --the fact therefore starts empty and stays that way until the
+            --next change -- which is why opening the Character panel with a
+            --token already selected showed nothing until you reselected it.
+            --Prime it in the same tick it is built, so the content never
+            --renders a frame of the wrong (unprimed) state and then
+            --visibly swaps.
             element:FireEventTree("refresh")
+
+            --a user-initiated open of a map-mode panel recorded its focus
+            --grab here because the content did not exist yet; complete it
+            --now that it does -- unless the user already moved on to
+            --another tab.
+            if tab.focusWhenBuilt then
+                tab.focusWhenBuilt = nil
+                if m_activeKey == tab.key and content.valid then
+                    gui.SetFocus(content)
+                    content:FireEventTree("panelFocused")
+                end
+            end
         end
 
         if reg.vscroll ~= false then
@@ -4250,20 +4710,14 @@ function PanelDocument:CreateInterface(args)
                 pad = 2,
                 vscroll = true,
                 hideObjectsOutOfScroll = hideObjectsOutOfScroll,
-                create = primeRefresh,
-                children = {
-                    content,
-                },
+                buildPanelContent = buildContent,
             }
         end
         return gui.Panel{
             idprefix = "panelDocumentNoScrollParent",
             width = "100%",
             height = "100%",
-            create = primeRefresh,
-            children = {
-                content,
-            },
+            buildPanelContent = buildContent,
         }
     end
 
@@ -4279,8 +4733,15 @@ function PanelDocument:CreateInterface(args)
                 keys[#keys + 1] = t.key
             end
             dialog.data.panelTabs = keys
-            if args.onTabsChanged ~= nil and not m_constructing then
-                args.onTabsChanged(keys)
+            --Remember the arrangement so closing and reopening the window
+            --brings its tabs back. Skipped while constructing: the window
+            --is still only its own tab at that point, and storing that
+            --would wipe the list before RestoreTabs reads it.
+            if not m_constructing then
+                PanelDocument.SetStoredTabs(panelKey, keys)
+                if args.onTabsChanged ~= nil then
+                    args.onTabsChanged(keys)
+                end
             end
         end
     end
@@ -4291,9 +4752,19 @@ function PanelDocument:CreateInterface(args)
             return
         end
         if tab.wrapper == nil then
-            tab.wrapper = BuildContentWrapper(tab.reg)
+            tab.wrapper = BuildContentWrapper(tab)
             tab.wrapper:SetClass("collapsed", true)
             contentArea:AddChild(tab.wrapper)
+            --the shell mounts this frame; the content itself builds a
+            --tick later (see BuildContentWrapper).
+            tab.wrapper:ScheduleEvent("buildPanelContent", 0.01)
+        elseif tab.contentRoot == nil then
+            --the wrapper exists but its deferred build has not landed --
+            --a tab that was collapsed away before ever activating (e.g.
+            --restored in the background) can miss its scheduled event
+            --entirely. Re-arm it; the build no-ops once content exists,
+            --so a double fire is harmless.
+            tab.wrapper:ScheduleEvent("buildPanelContent", 0.01)
         end
         m_activeKey = key
         for _, t in ipairs(m_tabs) do
@@ -4303,6 +4774,29 @@ function PanelDocument:CreateInterface(args)
             if t.chip ~= nil and t.chip.valid then
                 t.chip:SetClass("selected", t.key == key)
             end
+        end
+    end
+
+    --Claim GUI focus for the active tab's panel, when that panel asked
+    --for it (reg.focusOnClick -- the map-mode panels: Map Markup, the
+    --Measuring Tool, Objects, Building, Terrain). Focus is what arms
+    --their map mode, so this IS "put the app into that panel's mode".
+    --The content may still be a tick away from existing (deferred
+    --build); recording focusWhenBuilt makes the build finish the grab,
+    --so a user-initiated open still enters the mode immediately.
+    local function FocusActiveTab()
+        if not tabbed or m_activeKey == nil then
+            return
+        end
+        local tab = FindTab(m_activeKey)
+        if tab == nil or tab.reg == nil or not tab.reg.focusOnClick then
+            return
+        end
+        if tab.contentRoot ~= nil and tab.contentRoot.valid then
+            gui.SetFocus(tab.contentRoot)
+            tab.contentRoot:FireEventTree("panelFocused")
+        else
+            tab.focusWhenBuilt = true
         end
     end
 
@@ -4342,14 +4836,29 @@ function PanelDocument:CreateInterface(args)
 
     --each chip carries its own close x, shown even when it is the only
     --tab (Lisa+David review 2026-07-19: closing the last tab closes the
-    --whole window). Hidden only in non-tabbed hosts (e.g. the journal
-    --viewer), where the host owns closing.
-    local function SyncChipCloseButtons()
+    --whole window). Hidden in non-tabbed hosts (e.g. the journal viewer),
+    --where the host owns closing, and on a PINNED window's last tab --
+    --that x would close the locked window.
+    SyncChipCloseButtons = function()
+        local pinned = Pinned()
         for _, t in ipairs(m_tabs) do
             if t.chipClose ~= nil and t.chipClose.valid then
-                t.chipClose:SetClass("collapsed", not tabbed)
+                t.chipClose:SetClass("collapsed", (not tabbed) or (pinned and #m_tabs <= 1))
             end
         end
+    end
+
+    --Keep every piece of pin-sensitive chrome in step with the current
+    --pin state. Fired on construction and whenever the pin toggles.
+    SyncPinnedState = function()
+        local pinned = Pinned()
+        if closeButton ~= nil and closeButton.valid then
+            closeButton:SetClass("collapsed", args.suppressCloseButton == true or pinned)
+        end
+        if pinButton ~= nil and pinButton.valid then
+            pinButton:SetClass("pinned", pinned)
+        end
+        SyncChipCloseButtons()
     end
 
     local function RemoveTab(key)
@@ -4358,8 +4867,12 @@ function PanelDocument:CreateInterface(args)
             return
         end
         --closing the ONLY tab closes the whole window: same path as the
-        --header close button (Lisa+David review 2026-07-19).
+        --header close button (Lisa+David review 2026-07-19). A pinned
+        --window cannot be closed, so its last tab stays put.
         if #m_tabs <= 1 then
+            if Pinned() then
+                return
+            end
             if args.close ~= nil then
                 args.close()
             elseif dialog ~= nil and dialog.valid then
@@ -4399,6 +4912,10 @@ function PanelDocument:CreateInterface(args)
 
             click = function(element)
                 SwitchTab(tab.key)
+                --switching TO a map-mode tab arms it. The dialog's own
+                --press already fired hostPanelPressed, but that ran
+                --before this click and so focused the PREVIOUS tab.
+                FocusActiveTab()
             end,
             doubleclick = function(element)
                 ToggleShade()
@@ -4531,7 +5048,9 @@ function PanelDocument:CreateInterface(args)
     --engine reserves a phantom row when a line fills to within a few
     --pixels, so leave real slack before the close button).
     tabStrip = gui.Panel{
-        width = "100%-50",
+        --leaves room for the pin toggle and the close button, plus the
+        --slack the wrap heuristic needs (see above).
+        width = "100%-70",
         height = "auto",
         flow = "horizontal",
         wrap = true,
@@ -4572,6 +5091,7 @@ function PanelDocument:CreateInterface(args)
         end,
 
         tabStrip,
+        pinButton,
         closeButton,
     }
 
@@ -4588,10 +5108,57 @@ function PanelDocument:CreateInterface(args)
         flow = "none",
     }
 
+    --The FOCUS ring, the same one the docks carry. A panel is just as
+    --likely to be driving a map mode from a rail window as from a dock,
+    --so the window needs the indicator too -- in rail mode it is the ONLY
+    --place a panel ever appears.
+    --
+    --Two signals, matching the dock's: this window's content tree holding
+    --GUI focus (Map Markup's drawing tools and friends gate on it), or the
+    --panel declaring itself active by other means (the Measuring Tool
+    --arms on existing, never on focus). Polled for the same reason -- no
+    --focus-changed event exists to hang it on.
+    local focusOutline = gui.Panel{
+        classes = {"dockPanelFocusOutline"},
+        bgimage = true,
+        floating = true,
+        interactable = false,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+    }
+
     local resultPanel = gui.Panel{
         width = "100%",
         height = "100%",
         flow = "vertical",
+
+        --Press anywhere on the window -- its title bar, an empty stretch of
+        --content -- claims focus for the active tab's panel, when that
+        --panel asked for it. Driven by the dialog rather than by our own
+        --`press`: presses on the header propagate UP to us, but presses on
+        --empty pane space never reach us at all (see the dialog's press
+        --handler), so the dialog catches both and fires this downward.
+        hostPanelPressed = function(element)
+            FocusActiveTab()
+        end,
+
+        thinkTime = 0.25,
+        think = function(element)
+            if not tabbed then
+                return
+            end
+            --GUI focus, and nothing else -- singular by construction, so
+            --exactly one panel can be the active tool. See the dock's copy.
+            local active = gui.ChildHasFocus(element)
+            if element.data.hasPanelFocus ~= active then
+                element.data.hasPanelFocus = active
+                if focusOutline.valid then
+                    focusOutline:SetClass("panelActive", active)
+                end
+            end
+        end,
 
         --Dockable panel content is written against the dock contract: it
         --finds its ancestor with class "dock" and asks data.TooltipAlignment()
@@ -4677,9 +5244,57 @@ function PanelDocument:CreateInterface(args)
                 color = "@fgStrong",
                 bold = true,
             },
+            --The focus ring. Repeated here rather than inherited from
+            --DefaultStyles (where the docks' copy lives): panels on the
+            --documents layer do NOT get that global cascade, which is
+            --exactly why everything here carries its own `styles`. Without
+            --these two rules the outline panel exists, sits in the right
+            --place, and draws nothing at all.
+            --The state class sits on the RING ITSELF here ("panelActive"),
+            --where the dock's copy puts it on the ring's parent and keys
+            --off "parent:focused". Both work; this one is simply the
+            --fewer moving parts of the two. Worth knowing if you ever
+            --unify them.
+            {
+                selectors = {"dockPanelFocusOutline"},
+                bgcolor = "clear",
+                borderColor = "@accent",
+                --heavier than the dock's 2px: a floating window sits over
+                --the map rather than against a dock column, so a thin
+                --muted-gold line on a dark frame over bright terrain
+                --disappears.
+                border = 3,
+                opacity = 0,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"dockPanelFocusOutline", "panelActive"},
+                opacity = 1,
+            },
+            --the pin toggle: nearly invisible at rest so it does not
+            --compete with the tabs, lifting on hover and staying lit
+            --(and upright rather than tilted) while the window is pinned.
+            {
+                selectors = {"panelDocumentPinButton"},
+                bgcolor = "@fgMuted",
+                opacity = 0.35,
+                rotate = 45,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panelDocumentPinButton", "hover"},
+                opacity = 1,
+                bgcolor = "@fgStrong",
+            },
+            {
+                selectors = {"panelDocumentPinButton", "pinned"},
+                opacity = 1,
+                bgcolor = "@fgStrong",
+                rotate = 0,
+            },
         }),
 
-        --tab plumbing for outside callers (the rail, pin restore):
+        --tab plumbing for outside callers (the rail, tab restore):
         --fired via dialog:FireEventTree.
         addPanelTab = function(element, key)
             AddTab(string.lower(key))
@@ -4687,15 +5302,42 @@ function PanelDocument:CreateInterface(args)
         activatePanelTab = function(element, key)
             SwitchTab(string.lower(key))
         end,
+        --a user gesture that SHOWS a panel (rail icon, group flyout, the
+        --panel-open handler) wants a map-mode panel ARMED, not just
+        --visible: fired after activatePanelTab, this claims focus for
+        --the active tab when it is a focusOnClick panel. Session
+        --restores never fire it -- a pinned Map Markup window coming
+        --back at load must not silently put the app into markup mode.
+        focusPanelTab = function(element, key)
+            if key ~= nil and string.lower(key) ~= m_activeKey then
+                return
+            end
+            FocusActiveTab()
+        end,
+        --the window's pin state changed (from its own toggle or from the
+        --rail's context menu): re-sync the chrome it governs.
+        refreshPanelPinned = function(element)
+            SyncPinnedState()
+        end,
 
         header,
         hairline,
         contentArea,
+        focusOutline,
     }
 
     --the window opens with its own panel as the first tab.
     AddTab(string.lower(self.panelName))
     m_constructing = false
+    SyncPinnedState()
+
+    --a USER-initiated open (rail icon press, context menu, panel-open
+    --handler) of a map-mode panel arms it the moment it is constructed.
+    --The content is still a tick away (deferred build), so this records
+    --the grab and the build completes it. Restores never pass autoFocus.
+    if args.autoFocus then
+        FocusActiveTab()
+    end
 
     return resultPanel
 end
@@ -4703,14 +5345,21 @@ end
 ----------------------------------------------------------------------
 -- Panel icon rail
 -- ---------------
--- Experimental alternative host for the dockable panels: a translucent
--- icon rail on the left edge of the screen. Clicking an icon opens the
--- panel in a document window beside the rail (one such "transient"
--- window at a time); dragging a window pins it where it lands, and any
--- number of pinned windows can stay open. Pins persist per game.
+-- Experimental alternative host for the dockable panels: translucent
+-- icon rails down the left and right edges of the screen. Clicking an
+-- icon opens the panel in a document window beside the rail (one such
+-- "transient" window at a time); dragging a window makes it stick where
+-- it lands, and any number of stuck windows can stay open. Which windows
+-- are open, where, and with which tabs persists per game.
+--
+-- A window can also be PINNED (the push-pin in its title bar, or the
+-- rail button's context menu): a pinned window is locked in place -- no
+-- close, no drag, no resize -- and always comes back with the rails.
 --
 -- Off by default; per-user trial mode via /toggle iconrail. The dock
--- system is untouched while the rail is off.
+-- system is untouched while the rail is off; while it is on, each side's
+-- dock is slid away and its handle tab hidden, so the rails are the way
+-- panels are reached (the Panels menu still toggles the docks).
 ----------------------------------------------------------------------
 
 setting{
@@ -4727,7 +5376,12 @@ setting{
     end,
 }
 
---Pinned rail windows for this game: { [panelKey] = {x = ..., y = ..., tabs = {...}} }.
+--Which rail windows are open and where, for this game:
+--{ [panelKey] = {x = ..., y = ..., tabs = {...}} }. Restored when the
+--rails come up.
+--NOTE the setting id is a legacy name: these are NOT the user-facing
+--"pinned" windows (that is PanelDocument.IsPinned -- locked in place).
+--The id is kept so existing arrangements and saved Views still load.
 setting{
     id = "iconrailpins",
     storage = "pergamepreference",
@@ -4751,18 +5405,15 @@ local ICON_RAIL_BUTTON = 40
 local ICON_RAIL_GAP = 8
 local ICON_RAIL_LEFT = 12
 local ICON_RAIL_TOP = 64
---vertical space the dock/tray button and its separator occupy above the
---panel buttons (button + 12px separator strip). Both rails carry a tray.
-local ICON_RAIL_TRAY_OFFSET = ICON_RAIL_BUTTON + 12
 --the rearrange-mode trash zone: larger than a button so it reads as a
 --zone rather than another slot, floated at the very bottom of the column.
 local ICON_RAIL_TRASH = 60
 
 --the two rails, keyed "left"/"right".
 local g_iconRails = {}
---the panel key of the current click-opened (un-pinned) window. Shared
---across both rails: there is one transient window, whichever side it
---was summoned from.
+--the panel key of the current click-opened window -- the one that closes
+--when the next icon is clicked. Shared across both rails: there is one
+--transient window, whichever side it was summoned from.
 local g_railTransientKey = nil
 --set when a button drag ends, so the click the engine may deliver on
 --release does not also toggle a window.
@@ -4770,13 +5421,42 @@ local g_railDragTime = nil
 --the layout key that just landed from a drop: the rebuild marks that
 --button "justDropped" so it settles in with a scale-down animation.
 local g_railJustDropped = nil
+--forward-declared: button drag handlers, and anything that changes which
+--buttons exist (grouping), rebuild the rails.
+local RebuildIconRails
 
-local function IconRailPins()
+--The open-window record (see the "iconrailpins" setting above): which
+--panel windows to restore, where, and with which tabs. Named for what it
+--does, not for the legacy setting id -- "pinned" now means locked in
+--place, which is PanelDocument.IsPinned.
+local function RailRestoreWindows()
     return dmhub.GetSettingValue("iconrailpins") or {}
 end
 
-local function SetIconRailPins(pins)
-    dmhub.SetSettingValue("iconrailpins", pins)
+local function SetRailRestoreWindows(windows)
+    dmhub.SetSettingValue("iconrailpins", windows)
+end
+
+--Record (or forget) an open window's placement, so it comes back next
+--time the rails are built.
+local function RailRememberWindow(key, x, y, tabs)
+    local windows = RailRestoreWindows()
+    windows[key] = { x = x, y = y, tabs = tabs }
+    SetRailRestoreWindows(windows)
+    if g_railTransientKey == key then
+        g_railTransientKey = nil
+    end
+end
+
+local function RailForgetWindow(key)
+    local windows = RailRestoreWindows()
+    if windows[key] ~= nil then
+        windows[key] = nil
+        SetRailRestoreWindows(windows)
+    end
+    if g_railTransientKey == key then
+        g_railTransientKey = nil
+    end
 end
 
 --the width of the rail's coordinate space. MEASURED from the documents
@@ -4893,7 +5573,15 @@ local function RailLayout()
             return
         end
         local list = sides[side]
-        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid }
+        --character entries render as a CARD spanning two slots (portrait +
+        --stamina + hero resources) rather than a one-slot icon button.
+        --span is derived here, never persisted: the stored layout stays
+        --{side, slot} for every entry.
+        local span = 1
+        if charid ~= nil then
+            span = 2
+        end
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, span = span }
     end
 
     --curated panels first: they carry the first-run default ordering.
@@ -4925,17 +5613,33 @@ local function RailLayout()
         --blank spots are part of the layout again). Slot collisions bump
         --downward to the next free slot; legacy/default entries (ord, no
         --slot) fill the lowest free slots in order.
+        --Multi-slot entries (character cards) reserve EVERY slot they
+        --span, and bump downward until their whole span is free. The
+        --simpler single-slot bump logic in the drop paths can briefly
+        --store overlapping slots; this pass is the final authority that
+        --resolves them, since every rebuild renders through it.
         local used = {}
         local nextFree = 0
         for _, e in ipairs(sideList) do
+            local span = e.span or 1
             local s = e.slot
             if s == nil then
                 s = nextFree
             end
-            while used[s] do
+            local function SpanFree(s0)
+                for i = 0, span - 1 do
+                    if used[s0 + i] then
+                        return false
+                    end
+                end
+                return true
+            end
+            while not SpanFree(s) do
                 s = s + 1
             end
-            used[s] = true
+            for i = 0, span - 1 do
+                used[s + i] = true
+            end
             e.slot = s
             while used[nextFree] do
                 nextFree = nextFree + 1
@@ -4946,6 +5650,35 @@ local function RailLayout()
         --the list in final-slot order.
         table.sort(sideList, function(a, b) return a.slot < b.slot end)
     end
+
+    --GROUPED panels lose their own button: the owner's button carries
+    --them. Only when that owner actually has a button here -- otherwise
+    --the member would have no way in at all. Done AFTER slot assignment
+    --and routed through `inert`, so the member keeps its stored slot and
+    --drops straight back into it when the group breaks up (its spot is
+    --left empty meanwhile, which the sparse column already allows for).
+    local owners = PanelDocument.GroupOwners()
+    if next(owners) ~= nil then
+        local onRail = {}
+        for _, sideList in pairs(sides) do
+            for _, e in ipairs(sideList) do
+                onRail[e.key] = true
+            end
+        end
+        for sideName, sideList in pairs(sides) do
+            local kept = {}
+            for _, e in ipairs(sideList) do
+                local owner = owners[e.key]
+                if owner ~= nil and onRail[owner] then
+                    inert[#inert + 1] = { key = e.key, side = sideName, slot = e.slot }
+                else
+                    kept[#kept + 1] = e
+                end
+            end
+            sides[sideName] = kept
+        end
+    end
+
     return sides, inert
 end
 
@@ -4968,7 +5701,7 @@ end
 --level with the icon, clamped on screen. Computed at click time so it
 --tracks the live screen width.
 local function RailAnchor(side, index)
-    local anchorY = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local anchorY = ICON_RAIL_TOP + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
     local maxY = 1080 - PanelDocument.DefaultHeight - 40
     if anchorY > maxY then
         anchorY = maxY
@@ -4990,17 +5723,435 @@ local function RefreshRails()
     end
 end
 
+--A window pinned from its own title bar is one to bring back, so fold it
+--into the restore record (which also stops it being the transient
+--window). Unpinning leaves the record alone -- the window is still open,
+--and closing it is what forgets it.
+g_onPanelPinnedChanged = function(key, pinned)
+    if pinned then
+        local doc = RailPanelDocument(key)
+        local dlg = nil
+        if doc ~= nil then
+            dlg = doc:try_get("_tmp_dialog")
+        end
+        if dlg ~= nil and dlg.valid then
+            RailRememberWindow(key, dlg.x, dlg.y, dlg.data.panelTabs)
+        end
+    end
+    RefreshRails()
+end
+
+--forward-declared: the live drag-preview card ghost. Defined below with
+--the rail styling (it needs IconRailStyles); callers here run at event
+--time, when the assignments have long since happened.
+local ShowRailCardGhost
+local HideRailCardGhost
+
+--How far past the screen edge the window must be pushed before it docks.
+--Deliberately demanding: merely nearing the rail must not grab the window
+--(field feedback: an edge-adjacent band docked far too eagerly). Breaking
+--OUT of the screen is an unambiguous gesture -- you cannot leave a window
+--usefully parked 60 units off-screen, so nothing legitimate is stolen.
+local RAIL_DOCK_OVERSHOOT = 60
+--...and the companion signal for drags that grabbed the title bar near a
+--corner: there the window's edge can never overshoot (it stops with the
+--cursor at the screen edge), but the CURSOR pressed against the edge is
+--the same shove-it-into-the-side gesture.
+local RAIL_DOCK_CURSOR_EDGE = 6
+
+--The cursor's x in the document layer's units, or nil if it cannot be
+--determined. There is no screen-space mouse API in Lua; the world-space
+--point mapped through the camera's visible bounds covers the full
+--screen, the same mapping TokenWindowPlacement uses.
+local function CursorUIX()
+    local b = dmhub.cameraBounds
+    if b == nil or b.x2 <= b.x1 then
+        return nil
+    end
+    local p = dmhub.GetMouseWorldPoint()
+    if p == nil then
+        return nil
+    end
+    return (p.x - b.x1) / (b.x2 - b.x1) * IconRailUIWidth()
+end
+
+--Which rail band (if any) a dragged character window position is in,
+--and the slot nearest that height. lx/ly is the window's in-flight
+--top-left (xdrag/ydrag during a drag, x/y at the drop). The window only
+--counts as in a band once it has broken OUT of the screen: its edge
+--pushed RAIL_DOCK_OVERSHOOT past the screen edge, or the cursor itself
+--pinned against that edge. Returns side, desiredSlot or nil.
+local function RailBandTarget(dialog, lx, ly)
+    local uiW = IconRailUIWidth()
+    local cursorX = CursorUIX()
+    local side = nil
+    if lx <= -RAIL_DOCK_OVERSHOOT or (cursorX ~= nil and cursorX <= RAIL_DOCK_CURSOR_EDGE) then
+        side = "left"
+    else
+        local w = dialog.renderedWidth
+        if type(w) ~= "number" or w <= 0 then
+            w = PanelDocument.DefaultWidth
+        end
+        if lx + w >= uiW + RAIL_DOCK_OVERSHOOT or (cursorX ~= nil and cursorX >= uiW - RAIL_DOCK_CURSOR_EDGE) then
+            side = "right"
+        end
+    end
+    if side == nil then
+        return nil
+    end
+
+    local span = 2
+    local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+    local desired = math.floor((ly - ICON_RAIL_TOP) / pitch + 0.5)
+    local maxTop = ICON_RAIL_MAX_SLOT - (span - 1)
+    if desired < 0 then
+        desired = 0
+    elseif desired > maxTop then
+        desired = maxTop
+    end
+    return side, desired
+end
+
+--The nearest slot to desiredSlot on `side` where a card's full span is
+--free, searching outward; entries for excludeKey do not block (a card
+--being re-docked should be able to land back on its own spot). Shared
+--by the live drag preview and the actual dock so they always agree.
+local function RailNearestFreeCardSlot(sides, side, desiredSlot, excludeKey)
+    local span = 2
+    local maxTop = ICON_RAIL_MAX_SLOT - (span - 1)
+
+    local used = {}
+    local maxUsed = -1
+    for _, e in ipairs(sides[side]) do
+        if e.key ~= excludeKey then
+            for i = 0, (e.span or 1) - 1 do
+                used[e.slot + i] = true
+            end
+            if e.slot + (e.span or 1) - 1 > maxUsed then
+                maxUsed = e.slot + (e.span or 1) - 1
+            end
+        end
+    end
+    local function Fits(s)
+        if s < 0 then
+            return false
+        end
+        for i = 0, span - 1 do
+            if used[s + i] then
+                return false
+            end
+        end
+        return true
+    end
+
+    for delta = 0, math.max(maxTop, desiredSlot) + span do
+        if Fits(desiredSlot + delta) then
+            return desiredSlot + delta
+        end
+        if delta > 0 and Fits(desiredSlot - delta) then
+            return desiredSlot - delta
+        end
+    end
+    return maxUsed + 1
+end
+
+--Dock a character card onto a rail at (or as near as possible to) the
+--desired slot: removes any existing entry for the key, then lands on
+--the nearest position where the card's full span is free.
+local function RailDockCharacterCard(key, side, desiredSlot)
+    local sides, inert = RailLayout()
+    for _, l in pairs(sides) do
+        for i, e in ipairs(l) do
+            if e.key == key then
+                table.remove(l, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+
+    local slot = RailNearestFreeCardSlot(sides, side, desiredSlot, key)
+
+    g_railJustDropped = key
+    table.insert(sides[side], { key = key, slot = slot })
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
+--Dragging a character panel window into the rail band at the left or
+--right screen edge MINIMIZES it: the window closes and the character
+--docks into that side's rail as a card, at the slot nearest the drop
+--height. Returns true when it consumed the drop (callers skip their
+--normal window-stuck bookkeeping). Fired from the window's onMoved,
+--which the dialog raises on drag release.
+local function MaybeMinimizeCharacterWindow(key, dialog)
+    --the drop always retires the live drag preview, docked or not.
+    if HideRailCardGhost ~= nil then
+        HideRailCardGhost()
+    end
+    if dialog ~= nil and dialog.valid then
+        dialog:SetClass("dockingIntoRail", false)
+    end
+
+    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
+        return false
+    end
+    local charid = string.match(key, "^character:(.+)$")
+    if charid == nil then
+        return false
+    end
+    if dialog == nil or not dialog.valid then
+        return false
+    end
+
+    local side, desired = RailBandTarget(dialog, dialog.x, dialog.y)
+    if side == nil then
+        return false
+    end
+
+    RailDockCharacterCard(key, side, desired)
+
+    RailForgetWindow(key)
+    local doc = RailPanelDocument(key)
+    if doc ~= nil then
+        doc:ClosePanel()
+    end
+    RefreshRails()
+    return true
+end
+
+--The live half of the gesture: fires every frame of a character window
+--drag. Inside a rail band the window fades to a wisp and a card-shaped
+--preview docks into the rail at the slot the drop would use, sliding
+--up and down as the drag moves; leaving the band restores the window
+--mid-drag, so dragging back out re-emerges the full panel.
+local function CharacterWindowDragging(key, dialog)
+    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
+        return
+    end
+    local charid = string.match(key, "^character:(.+)$")
+    if charid == nil then
+        return
+    end
+    if dialog == nil or not dialog.valid then
+        return
+    end
+
+    local lx = dialog.xdrag
+    local ly = dialog.ydrag
+    if type(lx) ~= "number" or type(ly) ~= "number" then
+        lx = dialog.x
+        ly = dialog.y
+    end
+
+    local side, desired = RailBandTarget(dialog, lx, ly)
+    if side == nil then
+        if HideRailCardGhost ~= nil then
+            HideRailCardGhost()
+        end
+        dialog:SetClass("dockingIntoRail", false)
+        return
+    end
+
+    --preview the SLOT the drop will actually use, not the raw nearest:
+    --occupied slots deflect the card exactly as RailDockCharacterCard
+    --will on release.
+    local slot = RailNearestFreeCardSlot(RailLayout(), side, desired, key)
+    if ShowRailCardGhost ~= nil then
+        ShowRailCardGhost(side, slot, charid)
+    end
+    dialog:SetClass("dockingIntoRail", true)
+end
+
+--Where to put a window of the given size so it sits BESIDE a token
+--rather than covering it: on the token's roomier horizontal side when
+--the window fits there, else above/below, else clamped to the screen.
+--Returns {x, y} in the document layer's coordinate space (origin top
+--left, y down -- the same space PresentDocument's args.x/y use), or nil
+--when the token cannot be located (no camera bounds, invalid token).
+local function TokenWindowPlacement(token, width, height)
+    local b = dmhub.cameraBounds
+    if token == nil or (not token.valid) or b == nil or b.x2 <= b.x1 or b.y2 <= b.y1 then
+        return nil
+    end
+
+    local uiW = IconRailUIWidth()
+    local uiH = IconRailUIHeight()
+
+    --the token's center, mapped from world space through the camera's
+    --visible bounds into the layer's units. cameraBounds has y up;
+    --the layer has y down.
+    local pos = token.pos
+    local tokenX = (pos.x - b.x1) / (b.x2 - b.x1) * uiW
+    local tokenY = (1 - (pos.y - b.y1) / (b.y2 - b.y1)) * uiH
+
+    --the token's half-extent in layer units, from the tiles it occupies.
+    local unitsPerWorld = uiW / (b.x2 - b.x1)
+    local across = 1
+    local locs = token.locsOccupying
+    if locs ~= nil and #locs > 1 then
+        across = math.sqrt(#locs)
+    end
+    local half = across * 0.5 * unitsPerWorld
+    local gap = 24
+    local margin = 8
+
+    local ClampX = function(x)
+        return math.max(margin, math.min(x, uiW - width - margin))
+    end
+    local ClampY = function(y)
+        return math.max(margin, math.min(y, uiH - height - margin))
+    end
+
+    --beside the token, on whichever side has more room first.
+    local horiz = {
+        { x = tokenX + half + gap, fits = function(x) return x + width <= uiW - margin end },
+        { x = tokenX - half - gap - width, fits = function(x) return x >= margin end },
+    }
+    if tokenX >= uiW / 2 then
+        horiz[1], horiz[2] = horiz[2], horiz[1]
+    end
+    for _, h in ipairs(horiz) do
+        if h.fits(h.x) then
+            return { x = h.x, y = ClampY(tokenY - height / 2) }
+        end
+    end
+
+    --no horizontal room (zoomed way in): above or below instead.
+    local vert = {
+        { y = tokenY + half + gap, fits = function(y) return y + height <= uiH - margin end },
+        { y = tokenY - half - gap - height, fits = function(y) return y >= margin end },
+    }
+    if tokenY >= uiH / 2 then
+        vert[1], vert[2] = vert[2], vert[1]
+    end
+    for _, v in ipairs(vert) do
+        if v.fits(v.y) then
+            return { x = ClampX(tokenX - width / 2), y = v.y }
+        end
+    end
+
+    --the token effectively fills the screen; covering it is unavoidable.
+    return { x = ClampX(horiz[1].x), y = ClampY(tokenY - height / 2) }
+end
+
+--Toggle a character's panel window: open it if closed, close it if
+--open. The token-corner launcher's entry point. Mirrors the rail icons'
+--click semantics -- a PINNED window is raised rather than closed, a
+--panel living as a tab in another window raises that window and
+--switches to its tab, and closing forgets the window's restore record
+--so it does not come back on the next session. Defined down here (not
+--next to ShowCharacterPanelDocument) so RailForgetWindow and
+--RefreshRails are in scope to capture.
+--anchorToken (optional): open the window beside that token rather than
+--at its default/remembered position.
+function ToggleCharacterPanelDocument(charid, anchorToken)
+    local doc = CharacterPanelDocument.Get(charid)
+    if doc == nil then
+        return
+    end
+    local key = string.lower(doc.panelName)
+
+    if doc:PresentDocumentOpen() then
+        if PanelDocument.IsPinned(key) then
+            local d = doc:try_get("_tmp_dialog")
+            if d ~= nil and d.valid then
+                d:SetAsLastSibling()
+            end
+        else
+            RailForgetWindow(key)
+            doc:ClosePanel()
+        end
+        RefreshRails()
+        return
+    end
+
+    local host = PanelDocument.FindHostDialog(key)
+    if host ~= nil then
+        host:SetAsLastSibling()
+        host:FireEventTree("activatePanelTab", key)
+        return
+    end
+
+    local presentArgs = {}
+    if anchorToken ~= nil then
+        --mirror PresentPanel/PresentDocument's size resolution so the
+        --placement math uses the size the window will actually open at:
+        --the defaults, unless a drag/resize this session is remembered
+        --for this screen size.
+        local width = PanelDocument.DefaultWidth
+        local height = PanelDocument.ClampHeight(doc.panelName, PanelDocument.DefaultHeight)
+        local tmploc = doc:try_get("_tmp_location")
+        if tmploc ~= nil and tmploc.screenx == dmhub.screenDimensionsBelowTitlebar.x and tmploc.screeny == dmhub.screenDimensionsBelowTitlebar.y then
+            width = tmploc.width or width
+            height = tmploc.height or height
+        end
+        local placement = TokenWindowPlacement(anchorToken, width, height)
+        if placement ~= nil then
+            presentArgs.x = placement.x
+            presentArgs.y = placement.y
+        end
+    end
+
+    if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+        --while the rail hosts windows, character windows opened from the
+        --token launcher behave like rail windows: dragging one makes it
+        --stick where it lands (or docks it as a rail card at the screen
+        --edge), and closing it forgets the stuck record.
+        presentArgs.onMoved = function(element)
+            if MaybeMinimizeCharacterWindow(key, element) then
+                return
+            end
+            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
+        end
+        presentArgs.onDragging = function(element)
+            CharacterWindowDragging(key, element)
+        end
+        presentArgs.close = function()
+            RailForgetWindow(key)
+            doc:ClosePanel()
+            RefreshRails()
+        end
+        presentArgs.onTabsChanged = function(keys)
+            local d = doc:try_get("_tmp_dialog")
+            if d == nil or not d.valid then
+                return
+            end
+            RailRememberWindow(key, d.x, d.y, keys)
+            RefreshRails()
+        end
+    end
+
+    doc:PresentPanel(presentArgs)
+    RefreshRails()
+end
+
+--A group formed or broke up: which buttons exist has changed (the owner
+--gains a badge and a flyout, each member loses its own button), so this
+--needs a full rebuild rather than a refresh. SetStoredTabs only fires it
+--on a real change, so restoring windows does not churn the rails.
+g_onPanelGroupChanged = function()
+    if RebuildIconRails ~= nil then
+        RebuildIconRails()
+    end
+end
+
 --Where a button being dragged from (side, slot) would land right now:
 --which rail (screen half) and which slot. Shared by the live ghost and
 --the drop itself so they can never disagree.
 local function RailDropTarget(side, slot, element)
     local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    local baseY = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
     local dropX = baseX + (element.xdrag or 0) + ICON_RAIL_BUTTON / 2
     local dropY = baseY + (element.ydrag or 0)
 
     local targetSide = cond(dropX > IconRailUIWidth() / 2, "right", "left")
-    local targetSlot = math.floor((dropY - ICON_RAIL_TOP - ICON_RAIL_TRAY_OFFSET) / (ICON_RAIL_BUTTON + ICON_RAIL_GAP) + 0.5)
+    local targetSlot = math.floor((dropY - ICON_RAIL_TOP) / (ICON_RAIL_BUTTON + ICON_RAIL_GAP) + 0.5)
     if targetSlot < 0 then
         targetSlot = 0
     end
@@ -5052,18 +6203,20 @@ local g_railTrashZones = {}
 local function RailSlotOccupied(side, slot, excludeKey)
     local sides = RailLayout()
     for _, e in ipairs(sides[side]) do
-        if e.slot == slot and e.key ~= excludeKey then
+        --a multi-slot card occupies every slot it spans.
+        if e.key ~= excludeKey and slot >= e.slot and slot < e.slot + (e.span or 1) then
             return true
         end
     end
     return false
 end
 
---While the rail is on, the docks' own slide-away handle tabs are
---redundant (each rail's tray button owns its dock's visibility), so we
---hide them; they come back the moment the mode is turned off. Docks are
---rebuilt by reloads and theme changes, so the rail's think re-applies
---this continuously rather than relying on a one-shot.
+--While the rail is on, the rails ARE how panels are reached, so the
+--docks' own slide-away handle tabs are hidden; they come back the moment
+--the mode is turned off. (Dock visibility itself is still toggleable
+--from the Panels menu and by Views.) Docks are rebuilt by reloads and
+--theme changes, so the rail's think re-applies this continuously rather
+--than relying on a one-shot.
 local function SyncDockHandles()
     if gamehud == nil or rawget(gamehud, "leftDock") == nil then
         return
@@ -5081,8 +6234,11 @@ local function SyncDockHandles()
 end
 
 --Open a rail window for the named panel. placement = {x=,y=,tabs=} anchors
---it (and restores added tabs); nil lets PresentDocument use the
---session-remembered location.
+--it (and overrides the stored tab list); nil lets PresentDocument use the
+--session-remembered location and PresentPanel restore the stored tabs.
+--placement.autoFocus marks a USER-initiated open: a focusOnClick panel
+--(Map Markup and the other map-mode tools) grabs focus -- and so arms its
+--mode -- the moment the window is constructed. Restores omit it.
 local function OpenIconRailWindow(panelName, placement)
     --accepts a registered panel name OR a layout key (character
     --shortcuts pass "character:<charid>", which is not a panel name).
@@ -5093,67 +6249,52 @@ local function OpenIconRailWindow(panelName, placement)
     local key = string.lower(panelName)
 
     local args = {
-        --dragging a rail window pins it where it lands, tabs and all.
+        --dragging a rail window makes it stick where it lands, tabs and
+        --all: it stops being the transient window and comes back next
+        --time the rails are built. A character window dragged into the
+        --rail band at either screen edge minimizes into a rail card
+        --instead.
         onMoved = function(element)
-            local pins = IconRailPins()
-            pins[key] = { x = element.x, y = element.y, tabs = element.data.panelTabs }
-            SetIconRailPins(pins)
-            if g_railTransientKey == key then
-                g_railTransientKey = nil
+            if MaybeMinimizeCharacterWindow(key, element) then
+                return
             end
+            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
         end,
 
-        --the header close button: closing forgets the pin.
+        --the live half of the same gesture: while the drag is inside the
+        --band, the rail previews the docked card and the window fades.
+        onDragging = function(element)
+            CharacterWindowDragging(key, element)
+        end,
+
+        --the header close button: closing forgets the window. The tab
+        --arrangement is NOT forgotten -- it comes back on reopen.
         close = function()
-            local pins = IconRailPins()
-            if pins[key] ~= nil then
-                pins[key] = nil
-                SetIconRailPins(pins)
-            end
-            if g_railTransientKey == key then
-                g_railTransientKey = nil
-            end
+            RailForgetWindow(key)
             doc:ClosePanel()
             RefreshRails()
         end,
 
-        --adding or removing a tab pins the window: a multi-panel window
-        --is an arrangement worth keeping.
+        --adding or removing a tab makes the window stick: a multi-panel
+        --window is an arrangement worth keeping. (The tab list itself is
+        --stored by the window; this only records that it is open here.)
         onTabsChanged = function(keys)
             local d = doc:try_get("_tmp_dialog")
             if d == nil or not d.valid then
                 return
             end
-            local pins = IconRailPins()
-            pins[key] = { x = d.x, y = d.y, tabs = keys }
-            SetIconRailPins(pins)
-            if g_railTransientKey == key then
-                g_railTransientKey = nil
-            end
+            RailRememberWindow(key, d.x, d.y, keys)
             RefreshRails()
         end,
     }
     if placement ~= nil then
         args.x = placement.x
         args.y = placement.y
+        args.tabs = placement.tabs
+        args.autoFocus = placement.autoFocus
     end
 
-    local dlg = doc:PresentPanel(args)
-
-    --restore this pin's added tabs (beyond the window's own panel), then
-    --land on the window's own tab rather than the last one added.
-    if placement ~= nil and placement.tabs ~= nil and dlg ~= nil and dlg.valid then
-        local added = false
-        for _, k in ipairs(placement.tabs) do
-            if k ~= key then
-                dlg:FireEventTree("addPanelTab", k)
-                added = true
-            end
-        end
-        if added then
-            dlg:FireEventTree("activatePanelTab", key)
-        end
-    end
+    doc:PresentPanel(args)
 end
 
 --Rail styling: the over-map scrim ladder from the B&W design system --
@@ -5212,62 +6353,37 @@ local function IconRailStyles()
             selectors = {"iconRailActiveMark", "parent:active"},
             opacity = 1,
         },
-        --the dock-handle art is coloured; desaturate + brighten it into
-        --the rail's language (same treatment the dock handle itself
-        --gets), tinted to the panels' font color like the other icons.
-        --Mirrored on the left to match the left dock's handle; the
-        --right keeps the art's native facing.
+        --the group badge: a small stacked-cards glyph in the corner of a
+        --button whose window hosts other panels as tabs. Quiet enough not
+        --to fight the panel icon, brightening with the button.
         {
-            selectors = {"iconRailTrayIcon"},
+            selectors = {"iconRailGroupBadge"},
             bgcolor = "@fg",
-            saturation = 0,
-            brightness = 2,
-            scale = {x = -1},
+            opacity = 0.75,
             transitionTime = 0.15,
         },
         {
-            selectors = {"iconRailTrayIcon", "rightSide"},
-            scale = {x = 1},
-        },
-        {
-            selectors = {"iconRailTrayIcon", "parent:hover"},
+            selectors = {"iconRailGroupBadge", "parent:hover"},
             bgcolor = "@fgStrong",
+            opacity = 1,
+        },
+        --the hover flyout: the grouped panels' own buttons, opening
+        --toward the screen centre beside the owner. The strip itself is
+        --just a hover bridge (see CreateIconRail) and carries no fill.
+        {
+            selectors = {"iconRailGroupFlyout"},
+            bgcolor = "clear",
         },
         {
-            selectors = {"iconRailTrayIcon", "parent:active"},
-            bgcolor = "@fgStrong",
-        },
-        --The RAIL's tray glyph: a phosphor sidebar icon reading as a panel
-        --sliding out from the screen edge. Kept separate from
-        --iconRailTrayIcon above, which the dock-mounted tray button still
-        --uses with the coloured dock-handle art. Phosphor art is already a
-        --monochrome white mask, so it takes the @fg tint but NOT the
-        --saturation/brightness treatment that exists to tame the handle art
-        --(brightness 2 on a white mask just clips it). Facing is the
-        --OPPOSITE of the handle's: native on the left, where the glyph's bar
-        --already sits on its left edge and matches the left dock, and
-        --mirrored on the right so the bar sits on that side instead.
-        {
-            selectors = {"iconRailTrayGlyph"},
-            bgcolor = "@fg",
-            scale = {x = 1},
+            selectors = {"iconRailGroupMember"},
+            bgcolor = "#000000cc",
+            border = 0,
+            cornerRadius = 8,
             transitionTime = 0.15,
         },
         {
-            selectors = {"iconRailTrayGlyph", "rightSide"},
-            scale = {x = -1},
-        },
-        {
-            selectors = {"iconRailTrayGlyph", "parent:hover"},
-            bgcolor = "@fgStrong",
-        },
-        {
-            selectors = {"iconRailTrayGlyph", "parent:active"},
-            bgcolor = "@fgStrong",
-        },
-        {
-            selectors = {"iconRailHairline"},
-            bgcolor = "#ffffff26",
+            selectors = {"iconRailGroupMember", "hover"},
+            bgcolor = "#000000ee",
         },
         --the drop placeholder: a dotted-outline box marking the slot a
         --dragged button/document will land in (the buttons below shift
@@ -5494,7 +6610,7 @@ ShowRailGhost = function(side, slot, excludeKey)
     end
 
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    local slotTop = ICON_RAIL_TOP + ICON_RAIL_TRAY_OFFSET + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local slotTop = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
 
     --An OCCUPIED slot gets the insertion LINE in the gap above it ("slots
     --in between these two"); an EMPTY slot gets the dotted BOX ("lands in
@@ -5551,108 +6667,278 @@ ShowRailGhost = function(side, slot, excludeKey)
     g_railDragGhost:SetClass("hidden", false)
 end
 
-local ICON_RAIL_DOCK_HEADER_HEIGHT = 30
-
---The dock's own header bar: a dock-LEVEL strip across the top of each dock,
---which is where dock-level controls belong. The sidebar toggle used to be a
---tenant of the topmost panel's title bar, which meant it rode whichever panel
---happened to be on top and had to shove that panel's minimize/collapse arrows
---sideways to fit. A header of its own removes both problems and leaves room
---for further dock-level controls later.
---
---Safe to add as a dock child: the dock's own layout and save paths
---(fitChildren, layoutChanged, Serialize) all go through class-filtered
---lookups for "dockablePanelContainer", so an extra child is ignored by them.
---It is NOT floating -- it sits in the dock's flow so the panels below start
---underneath it rather than behind it.
-local function CreateDockHeader(side)
-    local dockSettingId = side .. "dockoffscreen"
-
-    local iconClasses = {"iconRailTrayGlyph"}
-    if side == "right" then
-        iconClasses[#iconClasses + 1] = "rightSide"
+--The card face a character rail entry shows: portrait on top, stamina
+--below, and (for heroes) heroic resource + surges. Shared by the docked
+--cards themselves (CreateIconRail) and the live drag-preview ghost.
+--Values populate at create and follow the creature on refreshRail
+--events; the ghost never receives those, but a drag preview's snapshot
+--values are fine.
+local function CreateCharacterCardVisual(charid)
+    --portrait resolution: same rules as the rail's button icons.
+    local portraitIcon = "icons/standard/Icon_App_Character.png"
+    local portraitTint = nil
+    local portraitRect = nil
+    local charToken = dmhub.GetCharacterById(charid)
+    if charToken ~= nil then
+        local portrait = nil
+        pcall(function() portrait = charToken.offTokenPortrait end)
+        if portrait ~= nil and portrait ~= "" then
+            portraitIcon = portrait
+            portraitTint = "white"
+            pcall(function()
+                portraitRect = charToken:GetPortraitRectForAspect(1, portrait)
+            end)
+        end
     end
 
-    local button = gui.Panel{
-        classes = {"iconRailDockButton"},
-        bgimage = true,
-        width = 20,
-        height = 20,
-        flow = "none",
-        --hard against the edge nearest screen centre: the left dock's inner
-        --edge is its RIGHT, the right dock's is its LEFT.
-        valign = "center",
-        halign = cond(side == "left", "right", "left"),
-        hmargin = 8,
+    local staminaFill
+    local staminaLabel
+    local heroRow
+    local resourceLabel
+    local surgeLabel
 
-        gui.Panel{
-            classes = iconClasses,
-            bgimage = "phosphor/sidebar-simple-light.png",
-            width = 18,
-            height = 18,
-            halign = "center",
-            valign = "center",
-        },
-
-        click = function(element)
-            dmhub.SetSettingValue(dockSettingId, true)
-            for _, rail in pairs(g_iconRails) do
-                if rail ~= nil and rail.valid then
-                    rail:FireEvent("syncDockMode")
-                end
+    local UpdateCard = function()
+        local token = dmhub.GetCharacterById(charid)
+        if token == nil or token.properties == nil then
+            return
+        end
+        local c = token.properties
+        local cur, max = 0, 0
+        pcall(function()
+            cur = c:CurrentHitpoints()
+            max = c:MaxHitpoints()
+        end)
+        if staminaLabel ~= nil and staminaLabel.valid then
+            staminaLabel.text = string.format("%d/%d", cur, max)
+        end
+        if staminaFill ~= nil and staminaFill.valid then
+            local ratio = 0
+            if max > 0 then
+                ratio = math.max(0, math.min(1, cur / max))
             end
-        end,
+            staminaFill.selfStyle.width = string.format("%d%%", math.floor(ratio * 100 + 0.5))
+            local color = "#3f9d4b"
+            if cur <= 0 then
+                color = "#8c1d2b"
+            elseif cur < max / 2 then
+                --winded.
+                color = "#c1731f"
+            end
+            staminaFill.selfStyle.bgcolor = color
+        end
+
+        local isHero = false
+        pcall(function() isHero = c:IsHero() end)
+        if heroRow ~= nil and heroRow.valid then
+            heroRow:SetClass("collapsed", not isHero)
+        end
+        if isHero then
+            local hr = 0
+            pcall(function() hr = c:GetHeroicOrMaliceResources() or 0 end)
+            if resourceLabel ~= nil and resourceLabel.valid then
+                resourceLabel.text = tostring(hr)
+            end
+            if surgeLabel ~= nil and surgeLabel.valid then
+                surgeLabel.text = tostring(c:try_get("surges", 0))
+            end
+        end
+    end
+
+    staminaFill = gui.Panel{
+        bgimage = true,
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        cornerRadius = 3,
+        interactable = false,
+    }
+    staminaLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = 9,
+        bold = true,
+        color = "#ffffff",
+        interactable = false,
+        text = "",
+    }
+
+    resourceLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 11,
+        bold = true,
+        --the heroic resource's conventional gold.
+        color = "#e8c56a",
+        interactable = false,
+        text = "",
+    }
+    surgeLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 11,
+        bold = true,
+        color = "#ffffff",
+        interactable = false,
+        text = "",
+    }
+    heroRow = gui.Panel{
+        classes = {"collapsed"},
+        width = "auto",
+        height = 14,
+        flow = "horizontal",
+        halign = "center",
+        tmargin = 2,
+        interactable = false,
+
+        resourceLabel,
+        gui.Panel{
+            bgimage = "game-icons/surge.png",
+            bgcolor = "#ffffff",
+            width = 11,
+            height = 11,
+            valign = "center",
+            lmargin = 5,
+            rmargin = 1,
+            interactable = false,
+        },
+        surgeLabel,
     }
 
     return gui.Panel{
-        classes = {"iconRailDockHeader"},
-        styles = IconRailStyles(),
-        bgimage = "panels/square.png",
-        bgcolor = "@bgAlt",
         width = "100%",
-        height = ICON_RAIL_DOCK_HEADER_HEIGHT,
-        flow = "none",
-        valign = "top",
+        height = "100%",
+        flow = "vertical",
+        interactable = false,
 
-        button,
-
-        --hairline along the bottom edge, matching the dock's other seams.
         gui.Panel{
-            bgimage = "panels/square.png",
-            bgcolor = "@border",
-            width = "100%",
-            height = 1,
+            classes = {"iconRailCardPortrait"},
+            bgimage = portraitIcon,
+            width = 30,
+            height = 30,
             halign = "center",
-            valign = "bottom",
+            tmargin = 5,
+            cornerRadius = 15,
+            interactable = false,
+            create = function(element)
+                --portraits are full-colour art: opt them out of the
+                --icon tinting, and crop them square.
+                if portraitTint ~= nil then
+                    element.selfStyle.bgcolor = portraitTint
+                end
+                if portraitRect ~= nil then
+                    element.selfStyle.imageRect = portraitRect
+                end
+            end,
         },
+
+        gui.Panel{
+            width = 32,
+            height = 12,
+            halign = "center",
+            tmargin = 4,
+            flow = "none",
+            bgimage = true,
+            bgcolor = "#000000b0",
+            borderWidth = 1,
+            borderColor = "#ffffff2e",
+            cornerRadius = 3,
+            interactable = false,
+
+            staminaFill,
+            staminaLabel,
+        },
+
+        heroRow,
+
+        refreshRail = function(element)
+            UpdateCard()
+        end,
+        create = function(element)
+            UpdateCard()
+        end,
     }
 end
 
---Keep a header bar mounted on each dock while the rail mode is on, and remove
---it when the mode is off. Docks rebuild their child lists on layout changes,
---so this is re-applied from the rail's think.
-local function EnsureDockTrayButtons()
+--The live drag-preview ghost: a card-shaped preview showing a dragged
+--character window already docked into the rail, at the slot the drop
+--will use. Assigns the forward-declared locals CharacterWindowDragging
+--and MaybeMinimizeCharacterWindow call.
+local g_railCardGhost = nil
+local g_railCardGhostCharid = nil
+
+ShowRailCardGhost = function(side, slot, charid)
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return
+    end
+
+    if g_railCardGhost ~= nil and g_railCardGhost.valid and g_railCardGhostCharid ~= charid then
+        g_railCardGhost:DestroySelf()
+        g_railCardGhost = nil
+    end
+
+    if g_railCardGhost == nil or not g_railCardGhost.valid then
+        local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+        g_railCardGhost = gui.Panel{
+            classes = {"iconRailCardGhost"},
+            styles = {
+                gui.Style{
+                    selectors = {"iconRailCardGhost", "hidden"},
+                    hidden = 1,
+                },
+            },
+            bgimage = true,
+            bgcolor = "#000000cc",
+            cornerRadius = 8,
+            borderWidth = 1,
+            borderColor = "#ffffff47",
+            width = ICON_RAIL_BUTTON,
+            height = 2 * pitch - ICON_RAIL_GAP,
+            halign = "left",
+            valign = "top",
+            flow = "none",
+            interactable = false,
+
+            CreateCharacterCardVisual(charid),
+        }
+        g_railCardGhostCharid = charid
+        layer:AddChild(g_railCardGhost)
+    end
+
+    g_railCardGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
+    g_railCardGhost.y = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    g_railCardGhost:SetClass("hidden", false)
+end
+
+HideRailCardGhost = function()
+    if g_railCardGhost ~= nil and g_railCardGhost.valid then
+        g_railCardGhost:SetClass("hidden", true)
+    end
+end
+
+--Remove any dock header bar left mounted on a dock by an older build:
+--the rail no longer hands panels over to the docks, so its dock-side
+--chrome is gone. Docks outlive a Lua reload, so this sweeps rather than
+--assuming a fresh dock.
+local function RemoveDockTrayButtons()
     if gamehud == nil or rawget(gamehud, "leftDock") == nil then
         return
     end
-    local railOn = dmhub.GetSettingValue("iconrail") == true and devmode()
-    for _, info in ipairs({ { dock = gamehud.leftDock, side = "left" }, { dock = gamehud.rightDock, side = "right" } }) do
-        local dock = info.dock
+    for _, dock in ipairs({gamehud.leftDock, gamehud.rightDock}) do
         if dock ~= nil and dock.valid then
-            local header = nil
             for _, child in ipairs(dock.children) do
                 if child.valid and child:HasClass("iconRailDockHeader") then
-                    if railOn and header == nil then
-                        header = child
-                    else
-                        --mode off, or a duplicate from a rebuild.
-                        child:DestroySelf()
-                    end
+                    child:DestroySelf()
                 end
             end
-
-            --Sweep any button left inside a panel's title bar by the previous
-            --arrangement, so upgrading mid-session does not strand one there.
+            --...and any button an even older build left inside a panel's
+            --own title bar.
             for _, child in ipairs(dock.children) do
                 if child.valid and child:HasClass("dockablePanelContainer") then
                     local wrapper = child.children[1]
@@ -5665,26 +6951,10 @@ local function EnsureDockTrayButtons()
                     end
                 end
             end
-
-            if railOn and header == nil then
-                dock:AddChild(CreateDockHeader(info.side))
-                --AddChild appends, which would put the header BELOW the panels
-                --in the dock's flow. Push every container after it instead --
-                --SetAsLastSibling preserves their relative order, so walking
-                --them in order leaves the header first and the panels intact.
-                for _, child in ipairs(dock.children) do
-                    if child.valid and child:HasClass("dockablePanelContainer") then
-                        child:SetAsLastSibling()
-                    end
-                end
-                dock:FireEvent("fitChildren")
-            end
         end
     end
 end
 
---forward-declared: button drag handlers rebuild the rails.
-local RebuildIconRails
 
 --Rearrange mode (context menu > Rearrange...): the only time rail
 --buttons can be dragged. While on, buttons wiggle, the tray button
@@ -6007,6 +7277,141 @@ if rawget(_G, "RegisterDockablePanelClosedHandler") ~= nil then
     end)
 end
 
+--Which rail a panel's button sits on, and in which slot, or nil when it
+--has no button (never added, parked "off", or grouped under another
+--panel).
+local function RailFindButton(key)
+    local sides = RailLayout()
+    for sideName, list in pairs(sides) do
+        for _, e in ipairs(list) do
+            if e.key == key then
+                return sideName, e.slot
+            end
+        end
+    end
+    return nil
+end
+
+--While the rail is on, the RAIL hosts panels -- not the docks. Opening a
+--panel from a menu, a keybind or a by-name request used to build a dock
+--container regardless, and because the docks are slid away in rail mode
+--the dock path pulled one back on screen to show it. Take ownership
+--instead and do exactly what pressing the panel's rail button does.
+if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
+    RegisterDockablePanelOpenHandler("iconrail", function(panelName, operation)
+        if not (dmhub.GetSettingValue("iconrail") and devmode()) then
+            return false
+        end
+        if DocumentsLayer() == nil then
+            return false
+        end
+
+        local key = string.lower(panelName)
+        local doc = RailPanelDocument(key)
+        if doc == nil then
+            --not something the rail can host; let the dock have it.
+            return false
+        end
+
+        local function Raise()
+            local d = doc:try_get("_tmp_dialog")
+            if d ~= nil and d.valid then
+                d:SetAsLastSibling()
+                --raising via an explicit user request re-arms a map-mode
+                --panel's tool, same as pressing its rail icon.
+                d:FireEventTree("focusPanelTab", key)
+            end
+        end
+
+        local function Close()
+            --a pinned window is locked open; the icon only raises it.
+            if PanelDocument.IsPinned(key) then
+                Raise()
+                return
+            end
+            RailForgetWindow(key)
+            doc:ClosePanel()
+        end
+
+        if doc:PresentDocumentOpen() then
+            if operation == "show" then
+                Raise()
+            else
+                Close()
+            end
+            RefreshRails()
+            return true
+        end
+
+        if operation == "hide" then
+            --already closed.
+            return true
+        end
+
+        --showing as a tab of another window (its group owner's, or one it
+        --was dragged into): raise that window and switch to the tab.
+        local host = PanelDocument.FindHostDialog(key)
+        if host ~= nil then
+            host:SetAsLastSibling()
+            host:FireEventTree("activatePanelTab", key)
+            host:FireEventTree("focusPanelTab", key)
+            RefreshRails()
+            return true
+        end
+
+        --grouped under a panel whose window is closed: open the owner
+        --there and land on this tab, the same as the group flyout does.
+        local owner = PanelDocument.GroupOwners()[key]
+        if owner ~= nil then
+            local ownerDoc = RailPanelDocument(owner)
+            if ownerDoc ~= nil then
+                local side, slot = RailFindButton(owner)
+                local placement = nil
+                if side ~= nil then
+                    local x, y = RailAnchor(side, slot)
+                    placement = { x = x, y = y }
+                end
+                OpenIconRailWindow(owner, placement)
+                local d = ownerDoc:try_get("_tmp_dialog")
+                if d ~= nil and d.valid then
+                    d:SetAsLastSibling()
+                    d:FireEventTree("activatePanelTab", key)
+                    d:FireEventTree("focusPanelTab", key)
+                end
+                RefreshRails()
+                return true
+            end
+        end
+
+        --give it a button if it has none, so it stays reachable once this
+        --window is closed again.
+        local side, slot = RailFindButton(key)
+        if side == nil then
+            RailAddPanel(panelName, "left")
+            side, slot = RailFindButton(key)
+        end
+
+        --one transient window at a time, as the rail buttons enforce.
+        if g_railTransientKey ~= nil and g_railTransientKey ~= key then
+            local prev = RailPanelDocument(g_railTransientKey)
+            if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
+                prev:ClosePanel()
+            end
+        end
+        g_railTransientKey = key
+
+        local placement = { autoFocus = true }
+        if side ~= nil then
+            local x, y = RailAnchor(side, slot)
+            placement.x = x
+            placement.y = y
+        end
+        OpenIconRailWindow(key, placement)
+        RefreshRails()
+        return true
+    end)
+end
+
 --The "/" hotkey (ChatPanel.cs fires a "slash" chat event when the key is
 --pressed with no UI element focused) exists to focus the chat input and
 --start typing a command. It only ever reached a chat panel that was
@@ -6072,48 +7477,70 @@ local function RailSlashOpensChat()
     end
 end
 
+--Entries for "add a panel to this rail": every available registered
+--panel not already on a rail, alphabetical. Lives on the rail
+--background's context menu (it used to hang off the dock/tray button,
+--which is gone) and is the door to the ~40 registered panels beyond the
+--curated defaults.
+local function RailAddPanelEntries(element, side)
+    local onRail = {}
+    local sides = RailLayout()
+    for _, l in pairs(sides) do
+        for _, e in ipairs(l) do
+            onRail[e.key] = true
+        end
+    end
+    local entries = {}
+    local items = DockablePanel.GetMenuItems(true)
+    table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
+    for _, item in ipairs(items) do
+        local name = item.text
+        if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
+            entries[#entries + 1] = {
+                text = "Add: " .. name,
+                click = function()
+                    element.popup = nil
+                    RailAddPanel(name, side)
+                end,
+            }
+        end
+    end
+    return entries
+end
+
 local function CreateIconRail(side, entries)
     local buttons = {}
-
-    --This side's dock-visibility setting: each rail's tray button drives
-    --its own dock independently.
-    local dockSettingId = side .. "dockoffscreen"
-
-    --The dock/tray button: sits above the panel icons and toggles this
-    --side's classic dock back on screen. Lit while that dock is visible.
-    --Carries the phosphor sidebar glyph (a panel sliding out from the edge)
-    --rather than the docks' own slide-handle art; the dock-MOUNTED tray
-    --button still uses the handle, hence the separate glyph class.
-    local trayIconClasses = {"iconRailTrayGlyph"}
-    if side == "right" then
-        trayIconClasses[#trayIconClasses + 1] = "rightSide"
-    end
 
     --halign is EXPLICIT on both sides. Without it the label defaults to
     --centred on its x anchor and grows in BOTH directions, so a long title
     --spills back across the button it belongs to; anchoring the near edge
     --makes it grow away from the rail whatever its length.
-    local trayLabelArgs
+    local nearSideLabel
     if side == "left" then
-        trayLabelArgs = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
+        nearSideLabel = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
     else
-        trayLabelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
+        nearSideLabel = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
     end
 
-    --Rearrange mode replaces the dock/tray button with the STOP button:
-    --a red X -- the one deliberately coloured control on the monochrome
-    --rail, so "exit this mode" cannot be read as another wiggling icon.
-    --Same footprint as the tray, so the buttons below do not move and
-    --the slot geometry (RailDropTarget) stays valid. Escape exits the
-    --mode too: escapeActivates fires this panel's click handler.
+    --Rearrange mode grows a STOP button: a red X -- the one deliberately
+    --coloured control on the monochrome rail, so "exit this mode" cannot
+    --be read as another wiggling icon. It FLOATS above the column rather
+    --than sitting in the flow: slot 0 is the top of the rail now that
+    --nothing else lives up there, and a button in the flow would push
+    --every icon down and invalidate the slot geometry (RailDropTarget).
+    --Escape exits the mode too: escapeActivates fires the click handler.
     if g_railRearranging then
         buttons[#buttons + 1] = gui.Panel{
             classes = {"iconRailButton", "iconRailStopButton"},
             bgimage = true,
             blurBackground = true,
+            floating = true,
+            y = -(ICON_RAIL_BUTTON + 12),
             width = ICON_RAIL_BUTTON,
             height = ICON_RAIL_BUTTON,
             flow = "none",
+            halign = "center",
+            valign = "top",
             swallowPress = true,
             escapeActivates = true,
             escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
@@ -6132,8 +7559,8 @@ local function CreateIconRail(side, entries)
                 classes = {"iconRailLabel"},
                 floating = true,
                 renderOnTop = true,
-                x = trayLabelArgs.x,
-                halign = trayLabelArgs.halign,
+                x = nearSideLabel.x,
+                halign = nearSideLabel.halign,
                 valign = "center",
                 interactable = false,
                 bgimage = true,
@@ -6150,145 +7577,9 @@ local function CreateIconRail(side, entries)
                 RailSetRearranging(false)
             end,
         }
-    else
-        buttons[#buttons + 1] = gui.Panel{
-            classes = {"iconRailButton"},
-            bgimage = true,
-            blurBackground = true,
-            width = ICON_RAIL_BUTTON,
-            height = ICON_RAIL_BUTTON,
-            flow = "none",
-            swallowPress = true,
-            --empty data so the drag-reflow sweeps can read .data on every
-            --rail child without the engine logging index errors.
-            data = {},
-
-            gui.Panel{
-                classes = trayIconClasses,
-                --square: phosphor glyphs are square art, unlike the 14x28 handle.
-                bgimage = "phosphor/sidebar-simple-light.png",
-                width = 20,
-                height = 20,
-                halign = "center",
-                valign = "center",
-            },
-
-            gui.Label{
-                classes = {"iconRailLabel"},
-                floating = true,
-                --the label opens over whatever the rail sits next to, and rail
-                --windows left open sit between it and the viewer -- so it drew
-                --BEHIND them and was unreadable. renderOnTop puts it on the
-                --top-most sorting canvas.
-                renderOnTop = true,
-                x = trayLabelArgs.x,
-                halign = trayLabelArgs.halign,
-                valign = "center",
-                interactable = false,
-                bgimage = true,
-                text = "DOCK",
-                width = "auto",
-                height = "auto",
-                hpad = 8,
-                vpad = 4,
-                borderBox = true,
-                textWrap = false,
-            },
-
-            click = function(element)
-                local restoring = dmhub.GetSettingValue(dockSettingId) == true
-                if restoring then
-                    --the dock mirrors this rail: same panels, same order --
-                    --and it takes over hosting them, so this side's open
-                    --rail windows close (pins stay saved in the setting).
-                    local entries = RailLayout()[side]
-                    local names = {}
-                    for _, e in ipairs(entries) do
-                        --only registered panels can live in a dock; document
-                        --and character shortcuts stay rail-only.
-                        if e.docid == nil and e.charid == nil then
-                            names[#names + 1] = e.name
-                        end
-                    end
-                    DockablePanel.SetDockPanels(side, names)
-                    for _, e in ipairs(entries) do
-                        local doc = RailPanelDocument(e.key)
-                        if doc ~= nil and doc:PresentDocumentOpen() then
-                            if g_railTransientKey == e.key then
-                                g_railTransientKey = nil
-                            end
-                            doc:ClosePanel()
-                        end
-                    end
-                end
-                dmhub.SetSettingValue(dockSettingId, not dmhub.GetSettingValue(dockSettingId))
-                element:FireEvent("refreshRail")
-                for _, rail in pairs(g_iconRails) do
-                    if rail ~= nil and rail.valid then
-                        rail:FireEvent("syncDockMode")
-                    end
-                end
-            end,
-
-            refreshRail = function(element)
-                element:SetClass("active", not dmhub.GetSettingValue(dockSettingId))
-            end,
-
-            --right-click the tray: add any available panel to this rail
-            --(the inverse of "Remove from rail", and the door for the ~40
-            --registered panels beyond the curated defaults).
-            rightClick = function(element)
-                local onRail = {}
-                local sides = RailLayout()
-                for _, l in pairs(sides) do
-                    for _, e in ipairs(l) do
-                        onRail[e.key] = true
-                    end
-                end
-                local entries = {}
-                local items = DockablePanel.GetMenuItems(true)
-                table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
-                for _, item in ipairs(items) do
-                    local name = item.text
-                    if name ~= nil and not onRail[string.lower(name)] and PanelDocument.Get(name) ~= nil then
-                        entries[#entries + 1] = {
-                            text = "Add: " .. name,
-                            click = function()
-                                element.popup = nil
-                                RailAddPanel(name, side)
-                            end,
-                        }
-                    end
-                end
-                if #entries > 0 then
-                    element.popup = gui.ContextMenu{
-                        entries = entries,
-                    }
-                end
-            end,
-        }
     end
 
-    --separator between the tray button and the panel icons; pointless on
-    --a rail with no panel buttons (a fresh right rail is just the tray).
-    if #entries > 0 then
-        buttons[#buttons + 1] = gui.Panel{
-            width = "100%",
-            height = 12,
-            flow = "none",
-            data = {},
-            gui.Panel{
-                classes = {"iconRailHairline"},
-                bgimage = true,
-                width = 24,
-                height = 1,
-                halign = "center",
-                valign = "center",
-            },
-        }
-    end
-
-    local prevSlot = -1
+    local prevBottom = nil
     for i, entry in ipairs(entries) do
         local panelName = entry.name
         local key = entry.key
@@ -6332,16 +7623,22 @@ local function CreateIconRail(side, entries)
         --buttons sit at their SLOT: gaps between occupied slots render
         --as blank space. A button's top edge is slot * pitch from the
         --start of the panel area, so its margin is the distance from the
-        --previous button's bottom edge (or the area start).
+        --previous button's bottom edge (or the area start). A multi-slot
+        --card is taller than one button (it swallows the gaps inside its
+        --span), so the chain tracks the previous entry's actual bottom
+        --edge rather than assuming button-sized entries.
         local index = entry.slot
         local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+        local span = entry.span or 1
+        local buttonHeight = span * pitch - ICON_RAIL_GAP
+        local buttonTop = index * pitch
         local buttonMargin
-        if prevSlot < 0 then
-            buttonMargin = index * pitch
+        if prevBottom == nil then
+            buttonMargin = buttonTop
         else
-            buttonMargin = (index - prevSlot) * pitch - ICON_RAIL_BUTTON
+            buttonMargin = buttonTop - prevBottom
         end
-        prevSlot = index
+        prevBottom = buttonTop + buttonHeight
 
         --hover labels open toward the screen centre: right of the button
         --on the left rail, left of the button on the right rail. halign is
@@ -6354,6 +7651,222 @@ local function CreateIconRail(side, entries)
             labelArgs = { halign = "left", x = ICON_RAIL_BUTTON + 10 }
         else
             labelArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 10) }
+        end
+
+        --GROUP: the panels sharing this button's window as tabs. They have
+        --no rail button of their own (RailLayout parks them), so this
+        --button represents the whole group: a badge in the corner, and a
+        --flyout of their buttons on hover.
+        local groupMembers = PanelDocument.GroupMembers(key)
+        --forward-declared: ShowGroupTab below closes the strip, and a
+        --local declared after it would not be in that closure's scope.
+        local groupFlyout
+        --the owner's own button, captured on create so the members can
+        --schedule the close on it.
+        local ownerButton
+        --Every panel that counts as "the pointer is still in the group
+        --UI". The engine sets the "hover" class ONLY on the panel directly
+        --under the pointer -- ancestors do not get it (parent:hover
+        --selectors are resolved by walking up at style time instead). So
+        --hovering a member button left both the owner and the strip
+        --reading un-hovered, and the flyout closed the moment you reached
+        --for it. Every hoverable piece has to be listed here.
+        local groupHoverPanels = {}
+        local function GroupHovered()
+            for _, p in ipairs(groupHoverPanels) do
+                if p ~= nil and p.valid and p:HasClass("hover") then
+                    return true
+                end
+            end
+            return false
+        end
+
+        --Ensure this button's window is up, raise it, and switch it to the
+        --given tab. Used by the flyout, so a member opens the group and
+        --lands directly on itself.
+        local function ShowGroupTab(tabKey)
+            local doc = RailPanelDocument(key)
+            if doc == nil then
+                return
+            end
+            if not doc:PresentDocumentOpen() then
+                --the same one-transient-window rule the icon's own click
+                --follows.
+                if g_railTransientKey ~= nil and g_railTransientKey ~= key then
+                    local prev = RailPanelDocument(g_railTransientKey)
+                    if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
+                        prev:ClosePanel()
+                    end
+                end
+                g_railTransientKey = key
+                local anchorX, anchorY = RailAnchor(side, index)
+                OpenIconRailWindow(key, { x = anchorX, y = anchorY })
+            end
+            local dlg = doc:try_get("_tmp_dialog")
+            if dlg ~= nil and dlg.valid then
+                dlg:SetAsLastSibling()
+                dlg:FireEventTree("activatePanelTab", tabKey)
+                dlg:FireEventTree("focusPanelTab", tabKey)
+            end
+            --the strip has done its job, and the window it just opened
+            --lands on top of it.
+            if groupFlyout ~= nil and groupFlyout.valid then
+                groupFlyout:SetClass("collapsed", true)
+            end
+            RefreshRails()
+        end
+
+        --The flyout itself: the members' own buttons in a strip beside the
+        --owner, opening toward the screen centre like the hover labels do.
+        --Hidden with "collapsed" rather than opacity: an opacity-0 panel
+        --still renders AND still hit-tests, which would leave an invisible
+        --strip swallowing clicks over the map.
+        --Built even when there is no group (empty and collapsed): a nil in
+        --the button's children array would truncate it and drop the label
+        --after it.
+        local memberButtons = {}
+        if groupMembers ~= nil then
+            for _, memberKey in ipairs(groupMembers) do
+                local memberReg = DockablePanel.GetRegistration(memberKey)
+                local memberName = (memberReg ~= nil and memberReg.name) or memberKey
+                local memberIcon = "icons/icon_app/icon_app_107.png"
+                if memberReg ~= nil and memberReg.icon ~= nil then
+                    memberIcon = memberReg.icon
+                end
+
+                local memberButton
+                memberButton = gui.Panel{
+                    classes = {"iconRailButton", "iconRailGroupMember"},
+                    bgimage = true,
+                    blurBackground = true,
+                    width = ICON_RAIL_BUTTON,
+                    height = ICON_RAIL_BUTTON,
+                    flow = "none",
+                    hmargin = 4,
+                    swallowPress = true,
+                    data = {},
+
+                    --leaving a member re-arms the close; the handler
+                    --re-checks the whole group, so moving to a sibling
+                    --member or back to the owner keeps the strip open.
+                    dehover = function(element)
+                        if ownerButton ~= nil and ownerButton.valid then
+                            ownerButton:ScheduleEvent("closeGroupFlyout", 0.2)
+                        end
+                    end,
+
+                    gui.Panel{
+                        classes = {"iconRailIcon"},
+                        bgimage = memberIcon,
+                        width = 20,
+                        height = 20,
+                        halign = "center",
+                        valign = "center",
+                        interactable = false,
+                    },
+
+                    --the member's name, BELOW its button rather than beside
+                    --it: the strip already occupies the space the rail's
+                    --own hover labels use.
+                    gui.Label{
+                        classes = {"iconRailLabel"},
+                        floating = true,
+                        renderOnTop = true,
+                        halign = "center",
+                        valign = "top",
+                        y = ICON_RAIL_BUTTON + 4,
+                        interactable = false,
+                        bgimage = true,
+                        text = string.upper(memberName),
+                        width = "auto",
+                        height = "auto",
+                        hpad = 8,
+                        vpad = 4,
+                        borderBox = true,
+                        textWrap = false,
+                    },
+
+                    --click, NOT press like the rail's own buttons: the
+                    --group window opens beside the rail, i.e. exactly
+                    --where this strip is, so on press the mouse-up landed
+                    --on the window's own tab chip that had just appeared
+                    --under the cursor -- and switched the tab straight
+                    --back. On click the selection is already complete.
+                    click = function(element)
+                        ShowGroupTab(memberKey)
+                    end,
+                }
+                memberButtons[#memberButtons + 1] = memberButton
+                groupHoverPanels[#groupHoverPanels + 1] = memberButton
+            end
+        end
+
+        do
+            local flyoutArgs
+            if side == "left" then
+                flyoutArgs = { halign = "left", x = ICON_RAIL_BUTTON }
+            else
+                flyoutArgs = { halign = "right", x = -ICON_RAIL_BUTTON }
+            end
+
+            groupFlyout = gui.Panel{
+                classes = {"iconRailGroupFlyout", "collapsed"},
+                floating = true,
+                --NO renderOnTop here, unlike the hover labels: it puts the
+                --panel on the top-most sorting canvas, which the raycaster
+                --does not reach -- the strip drew but could not be clicked.
+                --Rail windows are what would otherwise cover it, so the
+                --owner's hover raises the whole rail instead.
+                flow = "horizontal",
+                width = "auto",
+                height = ICON_RAIL_BUTTON,
+                halign = flyoutArgs.halign,
+                valign = "center",
+                x = flyoutArgs.x,
+                --Anchored FLUSH against the owner button (no gap) and given
+                --a hit surface of its own: the pointer must be able to
+                --travel from the button into the strip without crossing
+                --dead space that would dehover the owner and close it.
+                bgimage = true,
+                bgcolor = "#00000001",
+
+                dehover = function(element)
+                    if ownerButton ~= nil and ownerButton.valid then
+                        ownerButton:ScheduleEvent("closeGroupFlyout", 0.2)
+                    end
+                end,
+
+                children = memberButtons,
+            }
+            groupHoverPanels[#groupHoverPanels + 1] = groupFlyout
+        end
+
+        --Character entries render as a CARD spanning two slots: portrait
+        --on top, stamina below it, and -- for heroes -- heroic resource +
+        --surges. Values track the live creature via refreshRail, which
+        --the rail root fires on its think cadence, so the card stays
+        --current without its own polling. The face itself is shared with
+        --the drag-preview ghost (CreateCharacterCardVisual).
+        local buttonContent
+        if charid ~= nil then
+            buttonContent = CreateCharacterCardVisual(charid)
+        else
+            buttonContent = gui.Panel{
+                classes = {"iconRailIcon"},
+                bgimage = buttonIcon,
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+                create = function(element)
+                    if buttonIconTint ~= nil then
+                        element.selfStyle.bgcolor = buttonIconTint
+                    end
+                    if buttonIconRect ~= nil then
+                        element.selfStyle.imageRect = buttonIconRect
+                    end
+                end,
+            }
         end
 
         --a button rebuilt right after landing from a drop settles in with
@@ -6377,12 +7890,89 @@ local function CreateIconRail(side, entries)
             end
         end
 
+        --new-content marker: a registered panel that declares hasNewContent
+        --(e.g. Bestiary -> module.HasNovelContent("monsters") after a
+        --module install adds or updates monsters; Chat -> unread messages)
+        --shows the standard alert marker in the button's top-left corner --
+        --top-right belongs to the group badge. The optional registration
+        --fields extend it: newContentCount() supplies a number (2+ renders
+        --inside the marker as a badge; 1 stays a plain dot), and
+        --markContentSeen() is called while the panel is on screen so the
+        --registration can retire its "new" state (how Chat absorbs unread
+        --messages). Everything re-checks on the rail's refreshRail cadence,
+        --and the marker hides while the panel itself is shown.
+        local novelMarker = nil
+        if reg ~= nil and reg.hasNewContent ~= nil then
+            local hasNewContent = reg.hasNewContent
+            local newContentCount = reg.newContentCount
+            local markContentSeen = reg.markContentSeen
+            local m_shownCount = nil --count the marker currently displays; nil = hidden.
+            --the container is a 1x1 anchor sitting ON the button's
+            --top-right corner; the badge centers on it, so it pops out
+            --of the button bounds like an iOS app badge. Anchored from
+            --the left edge plus the button width so the corner position
+            --is explicit rather than relying on halign mirroring.
+            novelMarker = gui.Panel{
+                floating = true,
+                halign = "left",
+                valign = "top",
+                --nudged 2px in from the corner so the badge does not
+                --crowd the button edge.
+                x = ICON_RAIL_BUTTON - 3,
+                y = 2,
+                width = 1,
+                height = 1,
+                flow = "none",
+                interactable = false,
+                create = function(element)
+                    element:FireEvent("refreshRail")
+                end,
+                refreshRail = function(element)
+                    local panelShown = PanelDocument.IsPanelShown(key)
+                    if panelShown and markContentSeen ~= nil then
+                        markContentSeen()
+                    end
+                    local count = nil
+                    if (not panelShown) and hasNewContent() then
+                        count = 1
+                        if newContentCount ~= nil then
+                            count = newContentCount() or 1
+                        end
+                        if count < 1 then
+                            count = 1
+                        end
+                    end
+                    if count == m_shownCount then
+                        return
+                    end
+                    m_shownCount = count
+                    if count == nil then
+                        element.children = {}
+                    else
+                        element.children = {
+                            gui.NewContentAlert{
+                                count = count,
+                                size = 16,
+                                halign = "center",
+                                valign = "center",
+                                x = 0,
+                                y = 0,
+                                interactable = false,
+                            },
+                        }
+                    end
+                end,
+            }
+        end
+
         buttons[#buttons + 1] = gui.Panel{
             classes = buttonClasses,
             bgimage = true,
             blurBackground = true,
             width = ICON_RAIL_BUTTON,
-            height = ICON_RAIL_BUTTON,
+            --a character card spans several slots; ordinary buttons are
+            --one slot tall.
+            height = buttonHeight,
             flow = "none",
             tmargin = buttonMargin,
             --without this, a real right-click ALSO reaches the map and
@@ -6394,7 +7984,41 @@ local function CreateIconRail(side, entries)
             dragTarget = true,
             data = { slot = index, key = key, baseMargin = buttonMargin },
 
+            --the group flyout opens on hover and closes when the pointer
+            --leaves BOTH the button and the strip. The close is deferred a
+            --moment and re-checks the live hover classes, so travelling
+            --from the button into the strip never shuts it mid-reach.
+            hover = function(element)
+                if groupMembers == nil or groupFlyout == nil or not groupFlyout.valid then
+                    return
+                end
+                --the strip opens into the band rail windows are anchored
+                --in, and z-order is sibling order, so raise the rail over
+                --them. Clicking a window raises it back.
+                local rail = element:FindParentWithClass("iconRail")
+                if rail ~= nil and rail.valid then
+                    rail:SetAsLastSibling()
+                end
+                groupFlyout:SetClass("collapsed", false)
+            end,
+            dehover = function(element)
+                if groupMembers == nil then
+                    return
+                end
+                element:ScheduleEvent("closeGroupFlyout", 0.2)
+            end,
+            closeGroupFlyout = function(element)
+                if groupFlyout == nil or not groupFlyout.valid or not element.valid then
+                    return
+                end
+                if element:HasClass("hover") or GroupHovered() then
+                    return
+                end
+                groupFlyout:SetClass("collapsed", true)
+            end,
+
             create = function(element)
+                ownerButton = element
                 if element:HasClass("justDropped") then
                     element:ScheduleEvent("settleDrop", 0.05)
                 end
@@ -6428,25 +8052,7 @@ local function CreateIconRail(side, entries)
                 element:ScheduleEvent("wigglePulse", 0.17)
             end,
 
-            gui.Panel{
-                classes = {"iconRailIcon"},
-                bgimage = buttonIcon,
-                width = 20,
-                height = 20,
-                halign = "center",
-                valign = "center",
-                cornerRadius = cond(charid ~= nil, 10, 0),
-                create = function(element)
-                    --portraits are full-colour art: opt them out of the
-                    --icon tinting, and crop them square.
-                    if buttonIconTint ~= nil then
-                        element.selfStyle.bgcolor = buttonIconTint
-                    end
-                    if buttonIconRect ~= nil then
-                        element.selfStyle.imageRect = buttonIconRect
-                    end
-                end,
-            },
+            buttonContent,
 
             --the active underline (chromeless buttons: the open state is
             --a full-white icon plus this small bar, not a box).
@@ -6461,6 +8067,27 @@ local function CreateIconRail(side, entries)
                 interactable = false,
             },
 
+            --group badge: stacked cards in the bottom-right corner, marking a
+            --button whose window hosts other panels as tabs. (Bottom rather
+            --than top: the top-right corner belongs to the new-content
+            --notification badge.)
+            gui.Panel{
+                classes = {"iconRailGroupBadge"},
+                bgimage = "phosphor/cards-three-fill.png",
+                width = 11,
+                height = 11,
+                halign = "right",
+                valign = "bottom",
+                x = -3,
+                y = -3,
+                interactable = false,
+                create = function(element)
+                    element:SetClass("collapsed", groupMembers == nil)
+                end,
+            },
+
+            groupFlyout,
+
             gui.Label{
                 classes = {"iconRailLabel"},
                 floating = true,
@@ -6473,6 +8100,11 @@ local function CreateIconRail(side, entries)
                 interactable = false,
                 bgimage = true,
                 text = string.upper(panelName),
+                --a grouped button opens its flyout into exactly this space,
+                --so it does without the name label.
+                create = function(element)
+                    element:SetClass("collapsed", groupMembers ~= nil)
+                end,
                 width = "auto",
                 height = "auto",
                 hpad = 8,
@@ -6480,6 +8112,8 @@ local function CreateIconRail(side, entries)
                 borderBox = true,
                 textWrap = false,
             },
+
+            novelMarker,
 
             --Buttons can only be dragged in rearrange mode (context
             --menu > Rearrange...). Drop position decides which rail it
@@ -6679,17 +8313,40 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                if doc:PresentDocumentOpen() then
-                    --clicking the icon of an open window closes it,
-                    --pinned or not.
-                    local pins = IconRailPins()
-                    if pins[key] ~= nil then
-                        pins[key] = nil
-                        SetIconRailPins(pins)
+                --character card: any click that SHOWS the panel also
+                --brings the camera to the token when it is off-screen
+                --(FocusToken no-ops for tokens not on the loaded map).
+                local function CenterOnCharacter()
+                    if charid == nil then
+                        return
                     end
-                    doc:ClosePanel()
-                    if g_railTransientKey == key then
-                        g_railTransientKey = nil
+                    local tok = dmhub.GetTokenById(charid)
+                    if tok == nil or not tok.valid then
+                        return
+                    end
+                    local b = dmhub.cameraBounds
+                    local p = tok.pos
+                    if b ~= nil and p ~= nil and p.x >= b.x1 and p.x <= b.x2 and p.y >= b.y1 and p.y <= b.y2 then
+                        return
+                    end
+                    dmhub.FocusToken(charid)
+                end
+
+                if doc:PresentDocumentOpen() then
+                    --a PINNED window cannot be closed by its icon either;
+                    --the icon just raises it (and re-arms a map-mode
+                    --panel's tool -- you clicked it, you mean to use it).
+                    if PanelDocument.IsPinned(key) then
+                        local d = doc:try_get("_tmp_dialog")
+                        if d ~= nil and d.valid then
+                            d:SetAsLastSibling()
+                            d:FireEventTree("focusPanelTab", key)
+                        end
+                        CenterOnCharacter()
+                    else
+                        --clicking the icon of an open window closes it.
+                        RailForgetWindow(key)
+                        doc:ClosePanel()
                     end
                 elseif PanelDocument.FindHostDialog(key) ~= nil then
                     --the panel lives as a tab in another window: raise
@@ -6697,6 +8354,8 @@ local function CreateIconRail(side, entries)
                     local host = PanelDocument.FindHostDialog(key)
                     host:SetAsLastSibling()
                     host:FireEventTree("activatePanelTab", key)
+                    host:FireEventTree("focusPanelTab", key)
+                    CenterOnCharacter()
                 else
                     --one transient window at a time: opening a panel
                     --closes the previous un-pinned one.
@@ -6712,7 +8371,9 @@ local function CreateIconRail(side, entries)
                     OpenIconRailWindow(key, {
                         x = anchorX,
                         y = anchorY,
+                        autoFocus = true,
                     })
+                    CenterOnCharacter()
                 end
 
                 RefreshRails()
@@ -6744,109 +8405,25 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
-                --shortcuts (documents, characters) get the reduced menu:
-                --open + moves. They are not part of the curated panel
-                --set, so "open pinned" has nothing to pin against.
-                if docid ~= nil or charid ~= nil then
-                    element.popup = gui.ContextMenu{
-                        entries = {
-                            {
-                                text = "Open",
-                                click = function()
-                                    element.popup = nil
-                                    element:FireEvent("activateRailButton")
-                                end,
-                            },
-                            {
-                                text = "Rearrange...",
-                                click = function()
-                                    element.popup = nil
-                                    RailSetRearranging(true)
-                                end,
-                            },
-                            {
-                                text = "Move up",
-                                click = function()
-                                    element.popup = nil
-                                    RailMovePanel(key, "up")
-                                end,
-                            },
-                            {
-                                text = "Move down",
-                                click = function()
-                                    element.popup = nil
-                                    RailMovePanel(key, "down")
-                                end,
-                            },
-                            {
-                                text = "Move to other side",
-                                click = function()
-                                    element.popup = nil
-                                    RailMovePanel(key, "side")
-                                end,
-                            },
-                            {
-                                text = "Remove from rail",
-                                click = function()
-                                    element.popup = nil
-                                    RailMovePanel(key, "remove")
-                                end,
-                            },
-                        },
-                    }
-                    return
-                end
-
-                local function openPinned()
+                --Open the window if it is not already up, then lock it in
+                --place (or release it). SetPinned's hook records it and
+                --refreshes the rails.
+                local function togglePin()
                     local doc = RailPanelDocument(key)
                     if doc == nil then
                         return
                     end
-                    if doc:PresentDocumentOpen() then
-                        local pins = IconRailPins()
-                        if pins[key] == nil then
-                            local d = doc:try_get("_tmp_dialog")
-                            if d ~= nil and d.valid then
-                                pins[key] = { x = d.x, y = d.y, tabs = d.data.panelTabs }
-                                SetIconRailPins(pins)
-                                if g_railTransientKey == key then
-                                    g_railTransientKey = nil
-                                end
-                            end
-                        end
-                    elseif PanelDocument.FindHostDialog(key) ~= nil then
-                        local host = PanelDocument.FindHostDialog(key)
-                        host:SetAsLastSibling()
-                        host:FireEventTree("activatePanelTab", key)
-                    else
+                    local pinning = not PanelDocument.IsPinned(key)
+                    if pinning and not doc:PresentDocumentOpen() then
                         local anchorX, anchorY = RailAnchor(side, index)
-                        local pins = IconRailPins()
-                        pins[key] = { x = anchorX, y = anchorY }
-                        SetIconRailPins(pins)
-                        OpenIconRailWindow(key, {
-                            x = anchorX,
-                            y = anchorY,
-                        })
+                        OpenIconRailWindow(key, { x = anchorX, y = anchorY, autoFocus = true })
                     end
-                    RefreshRails()
+                    PanelDocument.SetPinned(key, pinning)
                 end
 
-                element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Open",
-                            click = function()
-                                element.popup = nil
-                                element:FireEvent("activateRailButton")
-                            end,
-                        },
-                        {
-                            text = "Open pinned",
-                            click = function()
-                                element.popup = nil
-                                openPinned()
-                            end,
-                        },
+                --the move/remove entries every rail button carries.
+                local function moveEntries()
+                    return {
                         {
                             text = "Rearrange...",
                             click = function()
@@ -6882,7 +8459,92 @@ local function CreateIconRail(side, entries)
                                 RailMovePanel(key, "remove")
                             end,
                         },
-                    },
+                    }
+                end
+
+                --shortcuts (documents, characters) get the reduced menu:
+                --open + moves, plus pinning for characters (they are real
+                --panel windows; journal documents open in the viewer and
+                --have no window of their own to pin).
+                if docid ~= nil or charid ~= nil then
+                    local entries = moveEntries()
+                    if charid ~= nil then
+                        table.insert(entries, 1, {
+                            text = cond(PanelDocument.IsPinned(key), "Unpin", "Pin in place"),
+                            click = function()
+                                element.popup = nil
+                                togglePin()
+                            end,
+                        })
+                    end
+                    table.insert(entries, 1, {
+                        text = "Open",
+                        click = function()
+                            element.popup = nil
+                            element:FireEvent("activateRailButton")
+                        end,
+                    })
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
+                    }
+                    return
+                end
+
+                --"Keep open": open the window (or adopt the open one) and
+                --record it, so it survives the next click on another icon
+                --and comes back with the rails. This is the non-locking
+                --half of what "pinned" used to mean here.
+                local function keepOpen()
+                    local doc = RailPanelDocument(key)
+                    if doc == nil then
+                        return
+                    end
+                    if doc:PresentDocumentOpen() then
+                        local d = doc:try_get("_tmp_dialog")
+                        if d ~= nil and d.valid then
+                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                        end
+                    elseif PanelDocument.FindHostDialog(key) ~= nil then
+                        local host = PanelDocument.FindHostDialog(key)
+                        host:SetAsLastSibling()
+                        host:FireEventTree("activatePanelTab", key)
+                        host:FireEventTree("focusPanelTab", key)
+                    else
+                        local anchorX, anchorY = RailAnchor(side, index)
+                        RailRememberWindow(key, anchorX, anchorY, nil)
+                        OpenIconRailWindow(key, {
+                            x = anchorX,
+                            y = anchorY,
+                            autoFocus = true,
+                        })
+                    end
+                    RefreshRails()
+                end
+
+                local entries = moveEntries()
+                table.insert(entries, 1, {
+                    text = cond(PanelDocument.IsPinned(key), "Unpin", "Pin in place"),
+                    click = function()
+                        element.popup = nil
+                        togglePin()
+                    end,
+                })
+                table.insert(entries, 1, {
+                    text = "Keep open",
+                    click = function()
+                        element.popup = nil
+                        keepOpen()
+                    end,
+                })
+                table.insert(entries, 1, {
+                    text = "Open",
+                    click = function()
+                        element.popup = nil
+                        element:FireEvent("activateRailButton")
+                    end,
+                })
+                element.popup = gui.ContextMenu{
+                    entries = entries,
                 }
             end,
 
@@ -6931,16 +8593,40 @@ local function CreateIconRail(side, entries)
         dragTarget = true,
         bgimage = true,
         bgcolor = "#00000001",
+        --without this the right-click below ALSO reaches the map, and the
+        --map's context menu replaces ours (popups are exclusive) -- the
+        --same reason the buttons swallow their presses.
+        swallowPress = true,
 
         data = {
             side = side,
         },
 
+        --right-click the rail background: add a panel to this rail. This
+        --menu used to hang off the dock/tray button at the top of the
+        --column, which no longer exists.
+        rightClick = function(element)
+            if g_railRearranging then
+                return
+            end
+            local menuEntries = RailAddPanelEntries(element, side)
+            table.insert(menuEntries, 1, {
+                text = "Rearrange...",
+                click = function()
+                    element.popup = nil
+                    RailSetRearranging(true)
+                end,
+            })
+            element.popup = gui.ContextMenu{
+                entries = menuEntries,
+            }
+        end,
+
         --each rail and its own side's dock are mutually exclusive: while
         --this side's dock is on screen the whole rail collapses (the
-        --dock-mounted tray button is the way back); the other side is
-        --unaffected. Children collapse individually rather than the rail
-        --root so the root's think keeps running to un-collapse later.
+        --Panels menu is the way back); the other side is unaffected.
+        --Children collapse individually rather than the rail root so the
+        --root's think keeps running to un-collapse later.
         --The map's drawable area must be recalculated when dock
         --visibility changes: the dock handles used to do this from their
         --monitor events, but the rail collapses those handles and
@@ -6994,7 +8680,7 @@ local function CreateIconRail(side, entries)
             element:FireEvent("syncDockMode")
             if side == "left" then
                 SyncDockHandles()
-                EnsureDockTrayButtons()
+                RemoveDockTrayButtons()
             end
             --NOTE: the dock is only mirrored from the rail ONCE, when the
             --tray opens it. No continuous enforcement here: a running
@@ -7123,6 +8809,11 @@ local function DestroyIconRails()
         g_railDragGhostLine:DestroySelf()
     end
     g_railDragGhostLine = nil
+    if g_railCardGhost ~= nil and g_railCardGhost.valid then
+        g_railCardGhost:DestroySelf()
+    end
+    g_railCardGhost = nil
+    g_railCardGhostCharid = nil
 end
 
 --Tear down and rebuild both rails from the saved layout (after a button
@@ -7151,7 +8842,7 @@ function EnsureIconRail()
         --restore the docks' own handles and remove the dock-mounted
         --tray buttons.
         SyncDockHandles()
-        EnsureDockTrayButtons()
+        RemoveDockTrayButtons()
         dmhub.UpdateScreenHudArea(1)
         return
     end
@@ -7172,7 +8863,7 @@ function EnsureIconRail()
     --stacked under the new one, and its clicks open windows the new
     --generation cannot see).
     for _, child in ipairs(layer.children) do
-        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailGhostLine") or child:HasClass("iconRailTrash") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
+        if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailGhostLine") or child:HasClass("iconRailCardGhost") or child:HasClass("iconRailTrash") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast")) then
             child:DestroySelf()
         end
     end
@@ -7211,13 +8902,25 @@ function EnsureIconRail()
 
     BuildIconRails()
     SyncDockHandles()
-    EnsureDockTrayButtons()
+    RemoveDockTrayButtons()
     --recalculate the map's drawable area (see syncDockMode): fixes a
     --stale squeeze left from before the rail owned this.
     dmhub.UpdateScreenHudArea(1)
 
-    for key, p in pairs(IconRailPins()) do
-        OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })
+    --restore the recorded windows, plus any pinned panel that is not in
+    --the record (a pinned window is always meant to be up).
+    local restore = DeepCopy(RailRestoreWindows())
+    for key in pairs(dmhub.GetSettingValue("iconrailpanelpinned") or {}) do
+        if restore[key] == nil then
+            restore[key] = {}
+        end
+    end
+    for key, p in pairs(restore) do
+        --a panel already showing as a TAB of another restored window must
+        --not also get a window of its own.
+        if PanelDocument.FindHostDialog(key) == nil then
+            OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })
+        end
     end
 end
 
@@ -7515,7 +9218,13 @@ end
 function ViewsCaptureLayout()
     return {
         rail = DeepCopy(dmhub.GetSettingValue("iconraillayout") or {}),
+        --"pins" is the legacy key for the open-window record; "pinned" is
+        --the newer locked-in-place set, and "tabs" the per-window tab
+        --arrangements. Views written before those existed simply omit
+        --them, and apply treats a missing table as empty.
         pins = DeepCopy(dmhub.GetSettingValue("iconrailpins") or {}),
+        pinned = DeepCopy(dmhub.GetSettingValue("iconrailpanelpinned") or {}),
+        tabs = DeepCopy(dmhub.GetSettingValue("iconrailtabs") or {}),
         docks = {
             left = DockablePanel.GetDockPanels("left"),
             right = DockablePanel.GetDockPanels("right"),
@@ -7597,6 +9306,9 @@ function ViewsUnavailableForLayout(layout)
     for key in pairs(layout.pins or {}) do
         check(key)
     end
+    for key in pairs(layout.pinned or {}) do
+        check(key)
+    end
     local docks = layout.docks or {}
     for _, side in ipairs({"left", "right"}) do
         for _, name in ipairs(docks[side] or {}) do
@@ -7636,8 +9348,21 @@ function ViewsApplyLayout(layout)
     end
     dmhub.SetSettingValue("iconrailpins", pins)
 
-    --windows: close what the incoming layout doesn't pin; reposition
-    --survivors in place (A4); open what's newly pinned.
+    --locked-in-place windows and per-window tab arrangements travel with
+    --the view. Applied BEFORE the windows are opened below so restored
+    --windows come up already pinned and already tabbed.
+    dmhub.SetSettingValue("iconrailpanelpinned", DeepCopy(layout.pinned or {}))
+    dmhub.SetSettingValue("iconrailtabs", DeepCopy(layout.tabs or {}))
+    --a pinned window is always meant to be up: fold any pin the record
+    --doesn't already carry into it.
+    for key in pairs(layout.pinned or {}) do
+        if pins[key] == nil then
+            pins[key] = {}
+        end
+    end
+
+    --windows: close what the incoming layout doesn't record; reposition
+    --survivors in place (A4); open what's newly recorded.
     g_railTransientKey = nil
     for key, doc in pairs(g_panelDocuments) do
         local dlg = doc:try_get("_tmp_dialog")
@@ -7653,13 +9378,14 @@ function ViewsApplyLayout(layout)
                         dlg:FireEventTree("addPanelTab", k)
                     end
                 end
+                dlg:FireEventTree("refreshPanelPinned")
             end
         end
     end
     for key, pin in pairs(pins) do
         if type(pin) == "table" then
             local doc = RailPanelDocument(key)
-            if doc ~= nil and not doc:PresentDocumentOpen() then
+            if doc ~= nil and not doc:PresentDocumentOpen() and PanelDocument.FindHostDialog(key) == nil then
                 OpenIconRailWindow(key, { x = pin.x, y = pin.y, tabs = pin.tabs })
             end
         end

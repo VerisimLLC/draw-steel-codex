@@ -1359,6 +1359,7 @@ CreateHeroesPanel = function()
             width = "100%",
             height = "auto",
             flow = "vertical",
+            valign = "top",
 
 
             monitorGame = '/usersToSessions',

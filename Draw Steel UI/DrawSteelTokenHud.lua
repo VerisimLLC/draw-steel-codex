@@ -1181,6 +1181,132 @@ TokenHud.RegisterPanel{
     end
 }
 
+--Hovering a token you control shows a small character-panel icon in the
+--token's top-right corner; clicking it opens that character's ad-hoc
+--panel window (ShowCharacterPanelDocument -- the same per-character
+--window the journal's Characters section opens).
+local g_characterPanelLauncherStyles = {
+    gui.Style{
+        selectors = {"characterPanelLauncher"},
+        bgcolor = "#000000cc",
+        borderWidth = 1,
+        borderColor = "#ffffff77",
+        hidden = 1,
+        opacity = 0,
+        scale = 0.7,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown"},
+        hidden = 0,
+        opacity = 0.9,
+        scale = 1,
+        transitionTime = 0.15,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown", "hover"},
+        opacity = 1,
+        scale = 1.15,
+        transitionTime = 0.1,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown", "press"},
+        scale = 1.05,
+        brightness = 0.7,
+    },
+}
+
+TokenHud.RegisterPanel{
+    id = "characterPanelLauncher",
+    ord = 100, --late in sibling order so it draws over other hud chrome.
+    create = function(token, sharedInfo)
+        if token.isObject then
+            return nil
+        end
+
+        local HideLauncher = function(element)
+            element:SetClass("shown", false)
+            element.interactable = false
+        end
+
+        return gui.Panel{
+            classes = {"characterPanelLauncher"},
+            floating = true,
+            interactable = false, --interactable only while shown.
+            halign = "right",
+            valign = "top",
+            hmargin = 4,
+            vmargin = 4,
+            width = 30,
+            height = 30,
+            bgimage = "panels/square.png",
+            cornerRadius = 15,
+
+            styles = g_characterPanelLauncherStyles,
+
+            gui.Panel{
+                --the glyph; hit-testing stays on the backing panel.
+                interactable = false,
+                bgimage = "icons/standard/Icon_App_Character.png",
+                bgcolor = "white",
+                width = "72%",
+                height = "72%",
+                halign = "center",
+                valign = "center",
+            },
+
+            tokenHoverTree = function(element, targeting)
+                --while the token is a targeting candidate the corner click
+                --belongs to targeting, not to us.
+                if targeting or (not token.canControl) then
+                    return
+                end
+                element:SetClass("shown", true)
+                element.interactable = true
+            end,
+
+            tokenDehoverTree = function(element)
+                element:ScheduleEvent("checkHide", 0.2)
+            end,
+
+            --the icon sits over the token so the world raycast usually keeps
+            --the token hovered while mousing to it, but its corner can poke
+            --past the collider: keep it alive while the icon itself is
+            --hovered, and re-check shortly rather than hiding instantly.
+            checkHide = function(element)
+                if element:HasClass("hover") then
+                    element:ScheduleEvent("checkHide", 0.2)
+                    return
+                end
+                if dmhub.tokenHovered == token then
+                    return
+                end
+                HideLauncher(element)
+            end,
+
+            refresh = function(element)
+                --hide if control of the token has been taken away.
+                if element:HasClass("shown") and ((not token.valid) or (not token.canControl)) then
+                    HideLauncher(element)
+                end
+            end,
+
+            press = function(element)
+                if not token.canControl then
+                    return
+                end
+                --toggles: a second click while the window is open closes it.
+                local toggle = rawget(_G, "ToggleCharacterPanelDocument")
+                if toggle == nil then
+                    return
+                end
+                audio.FireSoundEvent("Mouse.Click")
+                --the token anchors the window beside itself on screen.
+                toggle(token.charid, token)
+            end,
+        }
+    end,
+}
+
 --Draw Steel version of lifebars.
 TokenUI.RegisterStatusBar{
     id = "lifebar",

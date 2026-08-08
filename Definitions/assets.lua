@@ -149,7 +149,7 @@ function assets:UploadNewDocumentFolder(tableArgs)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadAudioAsset: Uploads an audio file. Automatically converts FLAC files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- UploadAudioAsset: Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded audio asset, or nil on failure.
 function assets:UploadAudioAsset(options)

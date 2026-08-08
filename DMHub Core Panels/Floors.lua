@@ -1222,7 +1222,8 @@ local CreateBottomSeamAnchor = function(elevationInTiles)
 		width = "92%",
 		height = 0,
 		hmargin = 8,
-		halign = "left",
+		halign = "center",
+		valign = "top",
 		flow = "none",
 		interactable = false,
 		monitor = "useparallax",
@@ -1259,6 +1260,7 @@ CreateLayersPanel = function()
 		width = "100%",
 		height = "auto",
 		halign = "left",
+		valign = "top",
 		gui.Button{
 			classes = {"addButton", "sizeS"},
 			halign = 'center',
@@ -1299,7 +1301,13 @@ CreateLayersPanel = function()
 	local floorsList
 
 	floorsList = gui.Panel{
-		width = '100%',
+		--hmargin adds OUTSIDE a percent width, so '100%' + hmargin 12 made the
+		--list 24px wider than its host and shifted right -- the full-width seam
+		--lines and drag targets then poked out past the popped-out panel
+		--window's frame (the dock's frame padding absorbed the overhang, hiding
+		--it there). 100%-24 keeps the 12px gutters real: the list spans
+		--symmetrically inset from both edges.
+		width = "100%-24",
 		height = "100%",
 		hmargin = 12,
 		halign = 'left',
@@ -1342,6 +1350,7 @@ CreateLayersPanel = function()
 					flow = 'none',
 					height = 12,
 					width = '100%',
+					valign = 'top',
 
 					draggable = true,
 					canDragOnto = function(element, target)
@@ -1383,7 +1392,11 @@ CreateLayersPanel = function()
 					--The ground line is elevation 0; showing it here anchors the seam
 					--chips displayed between the floor rows. Styled like the chips,
 					--sized down slightly to hug the 12px line panel. rmargin lines it
-					--up with the row chips (rows are 92% wide with an 8px margin).
+					--up with the row chips (rows are 92% wide, CENTERED in the list,
+					--and carry their chips at rmargin 20 -- so the row chips' right
+					--edge sits at 4% of the list width plus 20px from the list's
+					--right edge; 34 splits the difference across the dock and
+					--panel-window widths).
 					gui.Label{
 						classes = {"floorSeamChip", cond(not dmhub.useParallax, "collapsed")},
 						monitor = "useparallax",
@@ -1396,7 +1409,7 @@ CreateLayersPanel = function()
 						vpad = 0,
 						halign = 'right',
 						valign = 'center',
-						rmargin = 39,
+						rmargin = 34,
 						text = FormatRelativeElevation(0),
 					},
 				}
@@ -1442,6 +1455,7 @@ CreateLayersPanel = function()
 					classes = {cond(not dmhub.useParallax, "collapsed")},
 					width = "100%",
 					height = 10,
+					valign = "top",
 					interactable = false,
 					monitor = "useparallax",
 					events = {
@@ -1700,6 +1714,7 @@ CreateLayersPanel = function()
 						local layersPanel = gui.Panel{
 							width = "90%",
 							height = "auto",
+							valign = "top",
 							flow = "vertical",
 							expanded = function(element, expanded)
 								if not expanded then
@@ -2131,6 +2146,13 @@ CreateLayersPanel = function()
 				bgcolor = '@bgAlt',
 				height = 2,
 				width = '100%',
+				--every in-flow child of the floors list must be valign top: in a
+				--vertical flow the engine distributes leftover height between
+				--children that are NOT top-aligned, and while the dock slot hugs
+				--content (no leftover), the popped-out panel window gives the list
+				--the full window height -- default-centered children then spread
+				--out across it with big gaps.
+				valign = 'top',
 			},
 			{
 				selectors = {"floorOrLayerDragTarget", "drag-target-hover"},
@@ -2141,7 +2163,11 @@ CreateLayersPanel = function()
 				flow = "horizontal",
 				bgimage = true,
 				bgcolor = '@bgAlt',
-				halign = "left",
+				--rows sit centered between the seam lines, which span the full
+				--list width; the bottom seam anchor and the ground-line chip
+				--margin below are calibrated against this centering.
+				halign = "center",
+				valign = "top",
 				hmargin = 8,
 				height = 40,
 				width = '92%',

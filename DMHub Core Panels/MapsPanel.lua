@@ -7,15 +7,15 @@ local CreateMapDialog
 --"Player Viewable". For the DM this is unused (they see every map).
 local GetPlayerAccessibleMaps
 
-LaunchablePanel.Register{
+DockablePanel.Register{
 	name = "Maps",
     menu = "game",
 	icon = "panels/hud/56_map.png",
-	halign = "left",
-	valign = "top",
-	vmargin = 1,
-	hmargin = 4,
-	draggable = false,
+	--the map list scrolls itself (it is a tree with its own scroll
+	--region), so no wrapper scroll here.
+	vscroll = false,
+	minHeight = 200,
+	maxHeight = 900,
 	filtered = function()
 		if dmhub.isDM then
 			return false
@@ -30,6 +30,9 @@ LaunchablePanel.Register{
 	end,
 	hasNewContent = function()
 		return module.HasNovelContent("map")
+	end,
+	newContentCount = function()
+		return gui.NovelContentCount("map")
 	end,
 }
 

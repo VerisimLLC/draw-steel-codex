@@ -3209,10 +3209,9 @@ function TacPanel.StaminaBox()
 end
 
 --- Display-only recovery pips, split into rows of 10
---- @param recoveryid string
---- @param recoveryInfo table
+--- @param resolveRecovery fun(): string|nil, table|nil
 --- @return Panel
-function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
+function TacPanel.RecoveryPips(resolveRecovery)
     return gui.Panel{
         classes = {"container"},
         halign = "center",
@@ -3255,6 +3254,8 @@ function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
         },
 
         refreshCharacter = function(element, token)
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
             local maxRec = token.properties:GetResources()[recoveryid] or 0
             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
             local current = max(0, maxRec - usage)
@@ -3266,15 +3267,28 @@ end
 --- Draw the recoveries box
 --- @return Panel
 function TacPanel.RecoveriesBox()
+    -- The Recovery resource is found by name in characterResources, which is a live,
+    -- user-editable table: the row can be absent because the table has not finished
+    -- loading when this panel is built, or because it was soft-deleted or renamed in
+    -- the compendium. Resolving it once at construction time left every handler below
+    -- dereferencing a permanently-nil upvalue, and collapsing the box does not help --
+    -- FireEventTree delivers to hidden and collapsed descendants alike. So resolve on
+    -- demand, memoize only once found, and let each handler bail out when it is not.
     local recoveryid = nil
     local recoveryInfo = nil
-    local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
-    for k,v in pairs(resourcesTable) do
-        if v.name == "Recovery" then
-            recoveryid = k
-            recoveryInfo = v
-            break
+    local function resolveRecovery()
+        if recoveryInfo == nil then
+            local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
+            for k,v in pairs(resourcesTable) do
+                if v.name == "Recovery" then
+                    recoveryid = k
+                    recoveryInfo = v
+                    break
+                end
+            end
         end
+
+        return recoveryid, recoveryInfo
     end
 
     -- Build and show the "spend an ally's shared recovery" context menu on the
@@ -3282,6 +3296,9 @@ function TacPanel.RecoveriesBox()
     -- one bonded ally with a spendable recovery), false otherwise.
     local function ShowSharingMenu(element, token)
         if token == nil or not token.valid or token.properties == nil then return false end
+
+        local recoveryid, recoveryInfo = resolveRecovery()
+        if recoveryInfo == nil then return false end
 
         local recoverySharing = token.properties:ShareRecoveriesWith()
         if recoverySharing == nil then return false end
@@ -3339,7 +3356,8 @@ function TacPanel.RecoveriesBox()
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
-            local showRecovery = recoveryid ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
+            local id = resolveRecovery()
+            local showRecovery = id ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
             element:SetClass("collapsed", not showRecovery)
         end,
         refreshToken = function(element, token)
@@ -3351,6 +3369,8 @@ function TacPanel.RecoveriesBox()
         linger = function(element)
             local token = element.data.token
             if token == nil or not token.valid or token.properties == nil then return end
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
             local maxRec = token.properties:GetResources()[recoveryid] or 0
             local quantity = maxRec - usage
@@ -3410,6 +3430,9 @@ function TacPanel.RecoveriesBox()
         press = function(element)
             local token = element.data.token
             if token == nil then return end
+
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
 
             local useHeroTokens = false
             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
@@ -3524,6 +3547,8 @@ function TacPanel.RecoveriesBox()
                         data = { token = nil },
                         refreshCharacter = function(element, token)
                             element.data.token = token
+                            local recoveryid, recoveryInfo = resolveRecovery()
+                            if recoveryInfo == nil then return end
                             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
                             element.textNoNotify = string.format("%d", quantity)
                         end,
@@ -3533,6 +3558,8 @@ function TacPanel.RecoveriesBox()
                         change = function(element)
                             local token = element.data.token
                             if token == nil then return end
+                            local recoveryid, recoveryInfo = resolveRecovery()
+                            if recoveryInfo == nil then return end
                             local n = tonum(element.text, -1)
                             if n < 0 then
                                 element.textNoNotify = "0"
@@ -3562,12 +3589,14 @@ function TacPanel.RecoveriesBox()
                         classes = {"recovery-max"},
                         text = "/ 0",
                         refreshCharacter = function(element, token)
+                            local recoveryid = resolveRecovery()
+                            if recoveryid == nil then return end
                             local maxRec = token.properties:GetResources()[recoveryid] or 0
                             element.text = string.format("/ %d", maxRec)
                         end,
                     }
                 },
-                TacPanel.RecoveryPips(recoveryid, recoveryInfo),
+                TacPanel.RecoveryPips(resolveRecovery),
             }
         },
     }

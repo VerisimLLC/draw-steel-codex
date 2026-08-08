@@ -4655,7 +4655,6 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 	local dialog = titlescreen.data.dialog
 
 	local m_link = nil          --in-flight PatreonAccount.BeginLink handle.
-	local m_monitor = nil       --realtime listener on our email status.
 	local m_emailSending = false
 	local m_emailWaiting = false
 
@@ -5129,20 +5128,18 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 			element:DestroySelf()
 		end,
 
-		create = function(element)
-			--live status: the confirmation link is clicked in a browser, so the
-			--only way this dialog learns it succeeded is the cloud document.
-			m_monitor = emailConfirmation.MonitorStatus(function(state)
-				if not element.valid then
-					return
-				end
-
-				if state ~= nil and state.emailConfirmed == true then
-					m_emailWaiting = false
-					m_emailDone = true
-					RefreshSections()
-				end
-			end)
+		--live status: the confirmation link is clicked in a browser, so the
+		--only way this dialog learns it succeeded is the cloud document. We do
+		--NOT open our own listener for it: OfferInfernalContract already has
+		--one open on that document, and a second monitor of the same path
+		--opened moments after the first is silently dropped by the engine's
+		--per-path connect throttle -- it never connects and never retries, so
+		--the dialog would sit on "we emailed you" forever. The offer keeps its
+		--listener alive for us and fires this event instead.
+		emailConfirmedFromCloud = function(element)
+			m_emailWaiting = false
+			m_emailDone = true
+			RefreshSections()
 		end,
 
 		destroy = function(element)
@@ -5151,9 +5148,9 @@ local CreateInfernalContractDialog = function(titlescreen, args)
 				m_link = nil
 			end
 
-			if m_monitor ~= nil then
-				m_monitor:Stop()
-				m_monitor = nil
+			--hand the shared listener back so it can be shut down.
+			if args.releaseMonitor ~= nil then
+				args.releaseMonitor()
 			end
 		end,
 
@@ -5280,38 +5277,56 @@ local OfferInfernalContract = function(titlescreen)
 
 	g_infernalContractOffered = true
 
-	local probe = {done = false, handle = nil}
+	--ONE listener does both jobs: it answers the opening question, and then --
+	--if a dialog opens -- stays alive to tell it when the confirmation link is
+	--clicked in the browser. The dialog must not open its own: two monitors on
+	--the same path in the same frame collide with the engine's per-path connect
+	--throttle and the second one never connects.
+	local probe = {answered = false, handle = nil, dialog = nil}
+
+	local Release = function()
+		probe.dialog = nil
+		if probe.handle ~= nil then
+			probe.handle:Stop()
+			probe.handle = nil
+		end
+	end
 
 	probe.handle = emailConfirmation.MonitorStatus(function(state)
-		if probe.done then
+		local emailConfirmed = state ~= nil and state.emailConfirmed == true
+
+		if probe.answered then
+			--a later update on the open dialog: the browser confirmation landed.
+			if emailConfirmed and probe.dialog ~= nil and probe.dialog.valid then
+				probe.dialog:FireEvent("emailConfirmedFromCloud")
+			end
 			return
 		end
-		probe.done = true
+		probe.answered = true
 
 		--deferred a frame: MonitorStatus can call back synchronously, before
 		--probe.handle has been assigned, and we need the handle to stop it.
 		dmhub.Schedule(0, function()
-			if probe.handle ~= nil then
-				probe.handle:Stop()
-				probe.handle = nil
-			end
-
 			if mod.unloaded or (not titlescreen.valid) then
+				Release()
 				return
 			end
 
 			local patreonLinked = PatreonAccountLinked()
-			local emailConfirmed = state ~= nil and state.emailConfirmed == true
 
 			--nothing left to ask for.
 			if patreonLinked and emailConfirmed then
+				Release()
 				return
 			end
 
-			titlescreen:AddChild(CreateInfernalContractDialog(titlescreen, {
+			probe.dialog = CreateInfernalContractDialog(titlescreen, {
 				patreonLinked = patreonLinked,
 				emailConfirmed = emailConfirmed,
-			}))
+				releaseMonitor = Release,
+			})
+
+			titlescreen:AddChild(probe.dialog)
 		end)
 	end)
 end

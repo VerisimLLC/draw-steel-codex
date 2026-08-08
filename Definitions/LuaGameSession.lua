@@ -5,8 +5,8 @@
 --- @field displayName string The player's display name.
 --- @field displayColor Color The player's display color.
 --- @field richStatus nil|string The player's rich status text, or nil if none is set.
---- @field timeSinceLastContact number Time in seconds since the last contact from this player. When lastContactKnown is false this is not a real age -- it is measured from the epoch, so it comes out as tens of thousands of days. It still compares correctly against any "are they offline?" threshold; only use it to render a "last seen" time when lastContactKnown is true.
---- @field lastContactKnown boolean True if we actually know when this player was last in contact. False when the session record carries no timestamp, in which case timeSinceLastContact is meaningless (see the note there). Reads nil on engine builds that predate this field, so test it with `== false` rather than `not`.
+--- @field timeSinceLastContact number Time in seconds since the last contact from this player. When @see lastContactKnown is false this is not a real age -- it is measured from the epoch, so it comes out as tens of thousands of days. It still compares correctly against any 'are they offline?' threshold; only use it to render a 'last seen' time when lastContactKnown is true.
+--- @field lastContactKnown boolean True if we actually know when this player was last in contact. False when the session record carries no timestamp, in which case @see timeSinceLastContact is meaningless (see the note there).
 --- @field dm boolean True if this player is the Dungeon Master.
 --- @field primaryCharacter string The identifier of this player's primary character.
 LuaGameSession = {}

@@ -8606,7 +8606,7 @@ creature.lookupSymbols = {
 	conditions = function(c)
 
 		local result = {}
-		local conditions = {}
+		local ongoingEffectConditions = {}
 		local ongoingEffects = c:ActiveOngoingEffects()
 		if #ongoingEffects > 0 then
 			local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
@@ -8614,7 +8614,7 @@ creature.lookupSymbols = {
 				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
 				--if this ongoing effect has an underlying condition then record us having that condition since conditions can also have modifiers.
 				if ongoingEffectInfo.condition ~= 'none' then
-					conditions[ongoingEffectInfo.condition] = true
+					ongoingEffectConditions[ongoingEffectInfo.condition] = true
 				end
 			end
 		end
@@ -8643,18 +8643,35 @@ creature.lookupSymbols = {
         end
 
 		--we have a table of conditions based on ongoing effects, add any of their modifiers.
-		for k,_ in pairs(conditions) do
+		for k,_ in pairs(ongoingEffectConditions) do
 			local conditionInfo = conditionsTable[k]
-			result[#result+1] = conditionInfo.name
+			if conditionInfo ~= nil then
+				result[#result+1] = conditionInfo.name
+			end
 		end
 
 		local inflictedConditions = c:get_or_add("inflictedConditions", {})
 		for condid,_ in pairs(inflictedConditions) do
-			result[#result+1] = conditionsTable[condid].name
+			local conditionInfo = conditionsTable[condid]
+			if conditionInfo ~= nil then
+				result[#result+1] = conditionInfo.name
+			end
+		end
+
+		--the same condition can be reached by several of the paths above, so de-duplicate
+		--while preserving the order we first saw each name in.
+		local seen = {}
+		local uniqueResult = {}
+		for _,name in ipairs(result) do
+			local key = string.lower(name)
+			if seen[key] == nil then
+				seen[key] = true
+				uniqueResult[#uniqueResult+1] = name
+			end
 		end
 
 		return StringSet.new{
-			strings = result,
+			strings = uniqueResult,
 		}
 
 	end,

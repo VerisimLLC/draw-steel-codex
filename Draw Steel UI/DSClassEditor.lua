@@ -821,6 +821,20 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	return resultPanel
 end
 
+--A feature added from a prefab or pasted from the clipboard is a clone, so it
+--misses the canHavePrerequisites flag that the plain "Feature" option sets,
+--and its editor then hides the prerequisite dropdown. Creature templates gate
+--features by level (retainer advancement), so the flag is restored there.
+--Everywhere else keeps the previous behavior: only the plain "Feature" option
+--offers prerequisites.
+local function AllowPrerequisites(feature, container)
+	if feature ~= nil and feature.typeName == "CharacterFeature"
+		and container ~= nil and container.typeName == "CharacterTemplate" then
+		feature.canHavePrerequisites = true
+	end
+	return feature
+end
+
 function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	local classid = nil
 	local raceid = nil
@@ -1063,7 +1077,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.features[#self.features+1] = clone
+						self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -1072,7 +1086,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.features[#self.features+1] = clone
+							self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end
@@ -1782,7 +1796,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.options[#self.options+1] = clone
+						self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -1791,7 +1805,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.options[#self.options+1] = clone
+							self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end

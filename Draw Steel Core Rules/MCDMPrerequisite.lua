@@ -151,6 +151,18 @@ CharacterPrerequisite.Register{
 	end,
 }
 
+--Dropdown of every level in the game system, shared by the level gates below.
+local function LevelOptions()
+	local result = {}
+	for i=1,GameSystem.numLevels do
+		result[#result+1] = {
+			id = tostring(i),
+			text = string.format("Level %d", i),
+		}
+	end
+	return result
+end
+
 --minimum level gate. Works for heroes and monsters alike: a monster's
 --CharacterLevel is its level stat, so retainer advancement features can
 --use this to unlock at levels 4/7/10.
@@ -161,16 +173,31 @@ CharacterPrerequisite.Register{
 		local requirement = tonumber(self.skill)
 		return requirement == nil or creature:CharacterLevel() >= requirement
 	end,
-	options = function()
-		local result = {}
-		for i=1,GameSystem.numLevels do
-			result[#result+1] = {
-				id = tostring(i),
-				text = string.format("Level %d", i),
-			}
+	options = LevelOptions,
+}
+
+--gate on a level the creature actually GAINED, rather than one they have.
+--The creature must have reached the level AND have started below it. A
+--retainer whose stat block is written at level 4 already has the level 2-4
+--benefits baked into their stats, so those advancement features must not be
+--granted a second time; only levels past their starting level count.
+--Creatures with no authored starting level (heroes) have nothing to exclude,
+--so this behaves as a plain minimum level for them.
+CharacterPrerequisite.Register{
+	id = "levelGained",
+	text = "Level Gained",
+	met = function(self, creature)
+		local requirement = tonumber(self.skill)
+		if requirement == nil then
+			return true
 		end
-		return result
-	end
+		if creature:CharacterLevel() < requirement then
+			return false
+		end
+		local baseLevel = creature:GetScalingBaseLevel()
+		return baseLevel == nil or baseLevel < requirement
+	end,
+	options = LevelOptions,
 }
 
 function CharacterFeatureList:CharacterUniqueID()

@@ -2749,6 +2749,11 @@ local function ShowAdjustLevelDialog(token)
     local isLeaderSolo = (org == "leader" or org == "solo")
     local dtype = MCDMMonsterScaling.DamageType(org, role)
 
+    --Retainers use the same adjustment machinery but advance on their own
+    --track (stamina, free strikes, signature ability damage), cap at level 10,
+    --and have no org/role table, echelon, or potency scaling.
+    local isRetainer = props:IsRetainer()
+
     -- Strikes add the highest characteristic on top of the table damage and so
     -- scale differently from non-strike power rolls (table delta + characteristic
     -- delta vs table delta alone). Only surface a Strike damage row when this
@@ -2763,6 +2768,9 @@ local function ShowAdjustLevelDialog(token)
 
     local minLevel = MCDMMonsterScaling.minLevel
     local maxLevel = MCDMMonsterScaling.maxLevel
+    if isRetainer then
+        maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    end
     local baseLevel = props:GetScalingBaseLevel()
     local currentLevel = round(tonumber(props:CharacterLevel()) or baseLevel)
     currentLevel = math.max(minLevel, math.min(maxLevel, currentLevel))
@@ -2889,6 +2897,41 @@ local function ShowAdjustLevelDialog(token)
             rows[#rows+1] = CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
         end
 
+        -- Retainers: their own advancement track (see ComputeRetainerDeltas).
+        -- Stamina and free strike are per-creature values; the signature
+        -- damage rows show the creature's current bonus attributes + delta.
+        if isRetainer then
+            local rDeltas = MCDMMonsterScaling.ComputeRetainerDeltas(currentLevel, targetLevel) or {}
+
+            add("Stamina",
+                string.format("%d", nowStamina),
+                string.format("%d", nowStamina + (rDeltas.stamina or 0)),
+                adjStr(rDeltas.stamina or 0), signum(rDeltas.stamina or 0), false)
+
+            add("Free strike",
+                string.format("%d", nowFreeStrike),
+                string.format("%d", nowFreeStrike + (rDeltas.freeStrike or 0)),
+                adjStr(rDeltas.freeStrike or 0), signum(rDeltas.freeStrike or 0), false)
+
+            -- Current signature bonuses: the retainer "Tier 1 Damage" and
+            -- "Tier 2 and 3 Damage" custom attributes.
+            local sig1Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 1 Damage")) or 0)
+            local sig23Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 2 and 3 Damage")) or 0)
+            local d1 = rDeltas.sig1 or 0
+            local d23 = rDeltas.sig23 or 0
+            local sigChanged = d1 ~= 0 or d23 ~= 0
+            local sigStr = ""
+            if sigChanged then
+                sigStr = string.format("%s / %s", ScalingSignedString(d1), ScalingSignedString(d23))
+            end
+            add("Signature damage bonus (T1 / T2 & 3)",
+                string.format("%s / %s", ScalingSignedString(sig1Now), ScalingSignedString(sig23Now)),
+                string.format("%s / %s", ScalingSignedString(sig1Now + d1), ScalingSignedString(sig23Now + d23)),
+                sigStr, cond(sigChanged, signum(targetLevel - currentLevel), 0), false)
+
+            return rows
+        end
+
         -- Encounter value (per-creature)
         add("Encounter value",
             string.format("%d", nowEV),
@@ -2988,7 +3031,45 @@ local function ShowAdjustLevelDialog(token)
         local curEch = MCDMMonsterScaling.Echelon(currentLevel)
         local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
         local crossing = (tgtEch ~= curEch)
-        if echelonBanner ~= nil and echelonBanner.valid then
+        if echelonBanner ~= nil and echelonBanner.valid and isRetainer then
+            -- Retainers have no echelons. Repurpose the banner to flag the
+            -- advancement milestones this change spans: characteristic
+            -- increases (levels 2/5/8) and advancement abilities (levels
+            -- 4/7/10), which are granted through the creature template.
+            local lo = math.min(currentLevel, targetLevel)
+            local hi = math.max(currentLevel, targetLevel)
+            local function milestonesIn(levels)
+                local hits = {}
+                for _,l in ipairs(levels) do
+                    if l > lo and l <= hi then
+                        hits[#hits+1] = l
+                    end
+                end
+                return hits
+            end
+            local function levelPhrase(list)
+                if #list == 1 then
+                    return "level " .. table.concat(list, ", ")
+                end
+                return "levels " .. table.concat(list, ", ")
+            end
+            local charLevels = milestonesIn({2, 5, 8})
+            local abilityLevels = milestonesIn({4, 7, 10})
+            local parts = {}
+            if #charLevels > 0 then
+                parts[#parts+1] = string.format("characteristic increases (%s)", levelPhrase(charLevels))
+            end
+            if #abilityLevels > 0 then
+                parts[#parts+1] = string.format("advancement abilities (%s)", levelPhrase(abilityLevels))
+            end
+            local show = #parts > 0
+            echelonBanner:SetClass("collapsed", not show)
+            if show then
+                echelonBanner.text = string.format(
+                    "This change also spans %s, granted through the retainer's creature template.",
+                    table.concat(parts, " and "))
+            end
+        elseif echelonBanner ~= nil and echelonBanner.valid then
             -- Report the ACTUAL characteristic and potency deltas, not the echelon
             -- difference: they diverge at the echelon-4 leader/solo boundary, where
             -- the characteristic is capped at +5 while potency reaches 6, so

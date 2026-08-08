@@ -1374,6 +1374,71 @@ function MCDMMonsterScaling.ComputeDeltas(org, role, baseLevel, targetLevel)
     }
 end
 
+--==============================================================
+-- Retainer level advancement (Draw Steel: Monsters, "Retainers").
+--
+-- Retainers share the monster level-adjustment machinery (scalingBaseLevel +
+-- cr + the generated Level Adjustment feature) but advance on their own track
+-- instead of the org/role scale table:
+--   * Stamina: +9 at each level.
+--   * Free strikes: +2 damage at levels 3, 6, and 9.
+--   * Signature ability damage: +1 to the tier-1 outcome every second level,
+--     and +1 to the tier-2 and tier-3 outcomes at every level.
+-- Characteristic increases (levels 2/5/8) and advancement abilities (levels
+-- 4/7/10) are granted through the retainer's creature template as level-gated
+-- features and choices, not by this math.
+--==============================================================
+
+--Retainers cap at level 10 (the last row of the Retainer Advancement table);
+--monsters go to 11.
+MCDMMonsterScaling.retainerMaxLevel = 10
+
+--Cumulative retainer advancement bonuses gained from level 1 up to `level`.
+--Working from cumulative totals makes the base->target delta symmetric, so
+--scaling back down removes exactly what scaling up granted.
+local function RetainerCumulative(level)
+    local freeStrike = 0
+    for _,milestone in ipairs({3, 6, 9}) do
+        if level >= milestone then
+            freeStrike = freeStrike + 2
+        end
+    end
+    return {
+        stamina = 9 * (level - 1),
+        freeStrike = freeStrike,
+        sig1 = math.floor(level / 2),
+        sig23 = level - 1,
+    }
+end
+
+--Per-stat deltas for a retainer moving from baseLevel to targetLevel. A
+--retainer whose stat block starts above level 1 already has the earlier
+--bonuses baked into its authored stats, which the delta-from-base model
+--handles naturally: only levels after the base grant anything.
+--Returns nil when either level is outside the retainer's 1-10 range.
+--Fields:
+--  stamina    Stamina delta (creature 'hitpoints')
+--  freeStrike Free-strike damage delta (Free Strike Bonus)
+--  sig1       Signature ability tier-1 damage delta
+--  sig23      Signature ability tier-2 and tier-3 damage delta
+function MCDMMonsterScaling.ComputeRetainerDeltas(baseLevel, targetLevel)
+    local minLevel = MCDMMonsterScaling.minLevel
+    local maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    if baseLevel < minLevel or baseLevel > maxLevel
+        or targetLevel < minLevel or targetLevel > maxLevel then
+        return nil
+    end
+
+    local b = RetainerCumulative(baseLevel)
+    local t = RetainerCumulative(targetLevel)
+    return {
+        stamina = t.stamina - b.stamina,
+        freeStrike = t.freeStrike - b.freeStrike,
+        sig1 = t.sig1 - b.sig1,
+        sig23 = t.sig23 - b.sig23,
+    }
+end
+
 --Convenience: parse this monster's organization and role from its data.
 function monster:ScalingOrgRole()
     return MCDMMonsterScaling.ParseOrgRole(self:try_get("role", ""), self.minion)
@@ -1419,6 +1484,12 @@ function monster:ScaledPotencyGateBonus()
     if not self:HasLevelAdjustment() then
         return 0
     end
+    --Retainer potency follows the characteristic increases granted by their
+    --creature template, not the monster org/role scale table, so leveling a
+    --retainer never shifts literal potency gates.
+    if self:IsRetainer() then
+        return 0
+    end
     local org, role = self:ScalingOrgRole()
     local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, self:GetScalingBaseLevel(), round(tonumber(self.cr) or 0))
     if deltas == nil then
@@ -1453,6 +1524,8 @@ local g_adjustModGuids = {
     t3         = "c79b4266-f7c8-49f4-ac52-0a4def6b63b8",
     strike     = "ea86292d-b78d-47ce-9081-14533f341598",
     characteristic = "1f7c4d6e-2b9a-4f08-bb51-6e0a9d2c8b34",
+    sig1       = "b3f8a2c1-6d47-4e95-8a30-1c7e94d5f261",
+    sig23      = "5e21c7d9-8b04-4f6a-9d58-3a6f10b8e472",
 }
 
 --Resolve a custom attribute's GUID (the key an attribute modifier targets) by
@@ -1464,6 +1537,48 @@ local function ScalingCustomAttrId(name)
         return nil
     end
     return attr.id
+end
+
+--Build the "Level Adjustment" CharacterFeature from a spec list. Each spec is
+--{ key, attribute, value, custom } -- key indexes the stable modifier guid,
+--custom marks a named custom attribute (resolved to its guid). Every entry is
+--a plain add-operation Modify Attribute modifier; zero deltas are skipped.
+--Returns nil if there is nothing to add.
+local function BuildAdjustmentFeatureFromSpecs(specs)
+    local modifiers = {}
+    for _,spec in ipairs(specs) do
+        local value = spec.value or 0
+        if value ~= 0 then
+            local attribute = spec.attribute
+            if spec.custom then
+                attribute = ScalingCustomAttrId(spec.attribute)
+            end
+            if attribute ~= nil then
+                modifiers[#modifiers+1] = CharacterModifier.new{
+                    guid = g_adjustModGuids[spec.key],
+                    sourceguid = g_adjustFeatureGuid,
+                    name = g_adjustFeatureName,
+                    source = g_adjustFeatureName,
+                    description = "",
+                    behavior = "attribute",
+                    operation = "add",
+                    attribute = attribute,
+                    value = value,
+                }
+            end
+        end
+    end
+
+    if #modifiers == 0 then
+        return nil
+    end
+
+    return CharacterFeature.Create{
+        guid = g_adjustFeatureGuid,
+        name = g_adjustFeatureName,
+        source = g_adjustFeatureName,
+        modifiers = modifiers,
+    }
 end
 
 --Build the generated "Level Adjustment" CharacterFeature from a deltas table
@@ -1510,40 +1625,33 @@ function MCDMMonsterScaling.BuildAdjustmentFeature(deltas, charScale)
         specs[#specs+1] = { key = "characteristic", attribute = charScale.attr, value = charBump }
     end
 
-    local modifiers = {}
-    for _,spec in ipairs(specs) do
-        local value = spec.value or 0
-        if value ~= 0 then
-            local attribute = spec.attribute
-            if spec.custom then
-                attribute = ScalingCustomAttrId(spec.attribute)
-            end
-            if attribute ~= nil then
-                modifiers[#modifiers+1] = CharacterModifier.new{
-                    guid = g_adjustModGuids[spec.key],
-                    sourceguid = g_adjustFeatureGuid,
-                    name = g_adjustFeatureName,
-                    source = g_adjustFeatureName,
-                    description = "",
-                    behavior = "attribute",
-                    operation = "add",
-                    attribute = attribute,
-                    value = value,
-                }
-            end
-        end
-    end
+    return BuildAdjustmentFeatureFromSpecs(specs)
+end
 
-    if #modifiers == 0 then
+--Build the generated "Level Adjustment" feature for a retainer from a
+--ComputeRetainerDeltas table. The signature-ability bonuses land on the
+--retainer "Tier 1 Damage" / "Tier 2 and 3 Damage" custom attributes, which
+--RollPropertiesPowerTable:ApplyCreatureTierDamage reads at roll time and
+--applies only to the creature's signature ability.
+function MCDMMonsterScaling.BuildRetainerAdjustmentFeature(deltas)
+    if deltas == nil then
         return nil
     end
 
-    return CharacterFeature.Create{
-        guid = g_adjustFeatureGuid,
-        name = g_adjustFeatureName,
-        source = g_adjustFeatureName,
-        modifiers = modifiers,
+    local specs = {
+        { key = "hitpoints",  attribute = "hitpoints",           value = deltas.stamina },
+        { key = "freeStrike", attribute = "Free Strike Bonus",   value = deltas.freeStrike, custom = true },
+        { key = "sig1",       attribute = "Tier 1 Damage",       value = deltas.sig1,       custom = true },
+        { key = "sig23",      attribute = "Tier 2 and 3 Damage", value = deltas.sig23,      custom = true },
     }
+
+    return BuildAdjustmentFeatureFromSpecs(specs)
+end
+
+--Creatures with no authored base level (heroes) report nil, so callers can
+--tell "started at this level" apart from "is this level right now".
+function creature:GetScalingBaseLevel()
+    return nil
 end
 
 --The authored (base) level: the stored value if scaled, else the current cr.
@@ -1563,7 +1671,11 @@ end
 --this in token:ModifyProperties.
 function monster:SetLevelAdjustment(targetLevel)
     targetLevel = round(tonumber(targetLevel) or 0)
-    targetLevel = math.max(MCDMMonsterScaling.minLevel, math.min(MCDMMonsterScaling.maxLevel, targetLevel))
+    local maxLevel = MCDMMonsterScaling.maxLevel
+    if self:IsRetainer() then
+        maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    end
+    targetLevel = math.max(MCDMMonsterScaling.minLevel, math.min(maxLevel, targetLevel))
 
     local base = self:GetScalingBaseLevel()
     if targetLevel == base then
@@ -1708,6 +1820,19 @@ creature.RegisterFeatureCalculation{
         base = round(tonumber(base) or 0)
         local target = round(tonumber(c.cr) or base)
         if target == base then
+            return
+        end
+
+        --Retainers advance on their own track (see the retainer advancement
+        --section above). Characteristic increases and advancement abilities
+        --come from the retainer's creature template, so only the flat stat
+        --bonuses are generated here.
+        if c:IsRetainer() then
+            local feature = MCDMMonsterScaling.BuildRetainerAdjustmentFeature(
+                MCDMMonsterScaling.ComputeRetainerDeltas(base, target))
+            if feature ~= nil then
+                result[#result+1] = feature
+            end
             return
         end
 

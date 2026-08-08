@@ -202,7 +202,8 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         if prereq == nil then return nil end
         local result = nil
         for _,pre in ipairs(prereq) do
-            if pre:try_get("type") == "levelRequirement" then
+            local preType = pre:try_get("type")
+            if preType == "levelRequirement" or preType == "levelGained" then
                 local requirement = tonumber(pre:try_get("skill"))
                 if requirement ~= nil and (result == nil or requirement > result) then
                     result = requirement

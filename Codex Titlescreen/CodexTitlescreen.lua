@@ -4622,12 +4622,24 @@ end
 --comes up, and gated on the hidden "patreonsub" preference because the whole
 --Patreon feature is still in development.
 --
---It is an offer, not a nag: whichever way they leave it, it does not come back
---until the next launch. Either half is dropped if they have already done it,
---and if they have done both the dialog never opens at all.
+--It is an offer, not a nag: it is shown AT MOST ONCE per user, ever. The
+--session flag stops a second offer within one launch; the preference below
+--stops it on every launch after the one that showed it. Either half is
+--dropped if they have already done it, and if they have done both the dialog
+--never opens at all (and the preference is left alone, so a user who has
+--nothing to be asked for is still offered it if that ever changes).
 ----------------------------------------------------------------------------
 
 local g_infernalContractOffered = false
+
+--Hidden (no editor/section, so it never appears in the Settings panel): set
+--the moment the dialog is actually put on screen, and checked before we go to
+--the trouble of asking the cloud whether their email is confirmed.
+local g_infernalContractShownSetting = setting{
+	id = "titlescreen:infernalcontractshown",
+	storage = "preference",
+	default = false,
+}
 
 --pcall: an older engine build has no such property.
 local function PatreonAccountLinked()
@@ -5275,6 +5287,11 @@ local OfferInfernalContract = function(titlescreen)
 		return
 	end
 
+	--already had their one look at it on a previous launch.
+	if g_infernalContractShownSetting:Get() then
+		return
+	end
+
 	g_infernalContractOffered = true
 
 	--ONE listener does both jobs: it answers the opening question, and then --
@@ -5319,6 +5336,10 @@ local OfferInfernalContract = function(titlescreen)
 				Release()
 				return
 			end
+
+			--recorded here, not at the top: a launch where there was nothing
+			--to ask for has not spent their one showing.
+			g_infernalContractShownSetting:Set(true)
 
 			probe.dialog = CreateInfernalContractDialog(titlescreen, {
 				patreonLinked = patreonLinked,

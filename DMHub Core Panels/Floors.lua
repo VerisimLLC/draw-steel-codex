@@ -2199,6 +2199,12 @@ CreateLayersPanel = function()
 			--a drag hovers the gap. priority 10: the global {drag-target}
 			--rule paints these @accent at priority 5, which is what drew the
 			--permanent lines between rows.
+			--2px at rest, invisible (bgcolor clear), growing to a 10px accent bar
+			--while a drag is over them. Zero height would reclaim those 2px, but
+			--a zero-area panel cannot be hovered, so the drop zones -- and with
+			--them floor reordering -- would very likely stop working entirely.
+			--Not worth 2px, and synthetic drags do not reproduce the engine's
+			--drag system well enough to prove otherwise.
 			{
 				selectors = {'floorOrLayerDragTarget'},
 				bgimage = true,

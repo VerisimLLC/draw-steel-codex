@@ -1252,6 +1252,20 @@ local CreateSeamLine = function()
 	}
 end
 
+--The in-flow counterpart to CreateSeamLine, for boundaries that are not the
+--top of a row: under the row sitting above the GROUND LEVEL rule, and under
+--the lowest row in the list.
+local CreateFlowSeamLine = function()
+	return gui.Panel{
+		classes = {"floorSeamLine"},
+		interactable = false,
+		bgimage = "panels/square.png",
+		halign = "center",
+		width = "100%",
+		height = 1,
+	}
+end
+
 --The elevation span a floor occupies, shown inside the row under its name
 --("0 to +3"). Replaces the floating seam chips: those put an unlabelled
 --number in the same right-hand column as the editable height pill, where
@@ -1409,7 +1423,10 @@ CreateLayersPanel = function()
 					--knockout background.
 					flow = 'horizontal',
 					height = 22,
-					vmargin = 4,
+					--No vertical margin: the neighboring rows' 6px padding plus the
+					--2px drag targets already give the rule its breathing room, and
+					--the extra 4px each side read as the rows drifting apart from it.
+					vmargin = 0,
 					width = '100%',
 					valign = 'top',
 
@@ -1494,7 +1511,8 @@ CreateLayersPanel = function()
 
 			--Tracks whether the ground line rendered directly above the next floor
 			--row; that seam is already labelled, so the row below suppresses its
-			--own separator.
+			--own separator. Also skips the bottom-of-list hairline when the ground
+			--rule itself rendered at the very bottom.
 			local groundLineAbove = false
 
 			--The first row rendered has nothing above it but the panel header, so
@@ -2176,6 +2194,15 @@ CreateLayersPanel = function()
 			--(The bottom-of-map seam used to carry its own floating chip here.
 			--The lowest floor's row now states that value as the bottom of its
 			--own span, so the anchor is gone.)
+
+			--Close the list with a hairline under the lowest row: when the
+			--ground rule sits directly above that row, its own top seam is
+			--suppressed and it otherwise reads as having no dividers at all.
+			--Skipped when the ground rule itself rendered at the very bottom,
+			--where it already draws this boundary.
+			if anyRowRendered and not groundLineAbove then
+				children[#children+1] = CreateFlowSeamLine()
+			end
 
 			children[#children+1] = addFloorButton
 

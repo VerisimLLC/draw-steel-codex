@@ -321,7 +321,10 @@ local function FindFreeStrikePlan(ai, token)
     for _,ability in ipairs(ai.abilities) do
         if (ability.name == "Melee Free Strike" or ability.name == "Ranged Free Strike")
             and ability:CanAfford(token) then
-            local scoringAbility = ability:MakeTemporaryClone()
+            --DeepCopy, not MakeTemporaryClone: the list entries are already
+            --temporary clones, so MakeTemporaryClone returns the same object
+            --and the Charge strip would corrupt the ability being scored.
+            local scoringAbility = DeepCopy(ability)
             if scoringAbility.keywords ~= nil then
                 scoringAbility.keywords.Charge = nil
             end
@@ -756,33 +759,125 @@ RegisterStrike{
     end,
 }
 
-RegisterStrike{
-    id = "Devil Legate: Writ of Execution",
-    monsters = {"Devil Legate"},
-    ability = "Writ of Execution",
-    description = "Use Writ of Execution when its Charge keyword can close the distance and knock enemies down.",
-    score = function(token, ability, plan)
-        for _,target in ipairs(plan.targets) do
-            if target.charge ~= nil then
-                return 1.2
+local function WritStrikeScoringAbility(ability)
+    --Abilities from GetActivatedAbilities are already temporary clones, and
+    --MakeTemporaryClone returns the SAME object for those -- stripping Charge
+    --on it would strip it from the ability instance the AI run holds and later
+    --casts. DeepCopy to get a genuinely private copy before editing.
+    local result = DeepCopy(ability)
+    if result.keywords ~= nil then
+        result.keywords.Charge = nil
+    end
+    return result
+end
+
+local function FindBestWritChargePlan(ai, token, ability)
+    local remainingMovement = math.max(0,
+        token.properties:CurrentMovementSpeed()
+            - token.properties:DistanceMovedThisTurn())
+    if remainingMovement <= 0 then
+        return nil
+    end
+
+    -- Writ's charge destination is an unoccupied space chosen before its
+    -- nested two-target strike. The generic charge planner instead returns
+    -- the struck creature's occupied space, so enumerate legal endpoints.
+    local chargeAbility = ability:SwitchModes(2)
+    local symbols = {mode = 2}
+    local filterTargetPredicate =
+        chargeAbility:TargetLocPassesFilterPredicate(token, symbols)
+            or function() return true end
+    local shape = dmhub.CalculateShape{
+        shape = "RadiusFromCreature",
+        token = token,
+        radius = remainingMovement,
+        checklos = false,
+    }
+    local strikeScoringAbility = WritStrikeScoringAbility(ability)
+    local strikeRange = strikeScoringAbility:GetRange(token.properties)
+    local numTargets = ability:GetNumTargets(token)
+    local best = nil
+
+    for _,chargeLoc in ipairs(shape.locations) do
+        if chargeLoc.str ~= token.loc.str and EmptyLoc(chargeLoc)
+            and filterTargetPredicate(chargeLoc) then
+            -- The real cast temporarily ignores difficult terrain and lets the
+            -- Legate move through creatures. Mirror the latter while checking
+            -- that walls, elevation, and the straight-line endpoint are legal.
+            local movementInfo = token:MarkMovementArrow(chargeLoc, {
+                straightline = true,
+                ignorecreatures = true,
+                moveThroughFriends = true,
+            })
+            local path = movementInfo ~= nil and movementInfo.path or nil
+            local chargeDistance = path ~= nil
+                and path.destination:DistanceInTiles(path.origin) or nil
+            local legal = path ~= nil
+                and path.destination:DistanceInTiles(chargeLoc) == 0
+                and chargeDistance > 0 and chargeDistance <= remainingMovement
+            if legal then
+                local originAltitude = game.currentFloor:GetAltitudeAtLoc(path.origin)
+                for _,step in ipairs(path.steps) do
+                    local fallDistance = originAltitude
+                        - game.currentFloor:GetAltitudeAtLoc(step)
+                    if fallDistance > 1 then
+                        legal = false
+                        break
+                    end
+                end
+            end
+
+            if legal then
+                local targets = ai:FindValidTargetsOfStrike(
+                    token, strikeScoringAbility, chargeLoc, strikeRange)
+                table.resize_array(targets, numTargets)
+                if #targets > 0 then
+                    local utility = #targets - chargeDistance*0.01
+                    for _,target in ipairs(targets) do
+                        utility = utility + (target.edges or 0)*0.1
+                    end
+                    if best == nil or utility > best.utility then
+                        best = {
+                            chargeLoc = path.destination,
+                            targets = targets,
+                            utility = utility,
+                            score = cond(#targets >= 2, 1.3, 1.2),
+                        }
+                    end
+                end
             end
         end
-        return 0.9
+    end
+
+    token:ClearMovementArrow()
+    return best
+end
+
+MonsterAI:RegisterMove{
+    id = "Devil Legate: Writ of Execution",
+    category = "Main Actions",
+    monsters = {"Devil Legate"},
+    abilities = {"Writ of Execution"},
+    description = "Use Writ of Execution when its Charge keyword can close the distance and knock enemies down.",
+    score = function(self, ai, token, ability)
+        local chargePlan = FindBestWritChargePlan(ai, token, ability)
+        if chargePlan ~= nil then
+            return chargePlan
+        end
+
+        local strikePlan = FindBestStrikePlan(
+            ai, token, WritStrikeScoringAbility(ability))
+        if strikePlan ~= nil then
+            strikePlan.score = 0.9
+            return strikePlan
+        end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local chargeTarget = nil
-        for _,target in ipairs(scoringInfo.targets) do
-            if target.charge ~= nil then
-                chargeTarget = target
-                break
-            end
-        end
-        if chargeTarget == nil then
+        if scoringInfo.chargeLoc == nil then
             ExecuteStrikePlan(ai, token, scoringInfo, ability, self.id)
             return
         end
 
-        MoveCinematically(ai, token, scoringInfo.loc)
         Speak(ai, token, self.id)
         local strikeTargets = {}
         for _,target in ipairs(scoringInfo.targets) do
@@ -794,7 +889,7 @@ RegisterStrike{
             sleep = stationaryPause,
         }
         local chargeAbility = ability:SwitchModes(2)
-        ai:ExecuteAbility(token, chargeAbility, {{loc = chargeTarget.charge}}, {
+        ai:ExecuteAbility(token, chargeAbility, {{loc = scoringInfo.chargeLoc}}, {
             sleep = abilityPause,
             symbols = {mode = 2},
         })
@@ -1179,14 +1274,36 @@ MonsterAI:RegisterVillainAction{
 --------------------------------------------------------------------------------
 
 MonsterAI:RegisterPrompt{
-    prompts = {"Devil Notary:Importunity"},
+    -- Also register the unique unqualified name so this nested minion-squad
+    -- prompt does not depend on the invoker's monster metadata.
+    prompts = {"Importunity", "Devil Notary:Importunity"},
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local notaryToken = invokerToken
+        if MonsterType(notaryToken) ~= "Devil Notary"
+            and MonsterType(casterToken) == "Devil Notary" then
+            notaryToken = casterToken
+        end
+
+        if not LiveToken(notaryToken) then
+            return nil
+        end
+
+        local range = 5
+        local rangeOkay, promptRange = pcall(function()
+            return abilityClone:GetRange(notaryToken.properties, symbols)
+        end)
+        if rangeOkay and type(promptRange) == "number" then
+            range = promptRange
+        end
+
         local best = nil
         for _,target in ipairs(dmhub.allTokens) do
-            if LiveToken(target) and target.charid ~= casterToken.charid
-                and casterToken:Distance(target) <= abilityClone:GetRange(casterToken.properties, symbols)
-                and abilityClone:TargetPassesFilter(casterToken, target, symbols)
-                and not HasOngoingEffect(target, notaryEdgeEffectId) then
+            if LiveToken(target)
+                and target.charid ~= notaryToken.charid
+                and IsDevil(target)
+                and not target.properties.minion
+                and dmhub.TokensAreFriendly(notaryToken, target)
+                and notaryToken:Distance(target) <= range then
                 local signature = false
                 for _,ability in ipairs(target.properties:GetActivatedAbilities()) do
                     if ability.categorization == "Signature Ability" and ability:CanAfford(target) then
@@ -1194,7 +1311,8 @@ MonsterAI:RegisterPrompt{
                         break
                     end
                 end
-                local score = cond(signature, 2, 0)
+                local score = cond(HasOngoingEffect(target, notaryEdgeEffectId), 0, 4)
+                    + cond(signature, 2, 0)
                     + target.properties:CurrentHitpoints()
                         / math.max(1, target.properties.max_hitpoints)
                 if best == nil or score > best.score then
@@ -1214,6 +1332,19 @@ MonsterAI:RegisterPrompt{
         "Devil Jurist:Dismissal with Prejudice",
     },
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local targets = FindBestPromptTargets(casterToken, abilityClone, symbols)
+        if #targets > 0 then
+            return {targets = targets}
+        end
+    end,
+}
+
+MonsterAI:RegisterPrompt{
+    prompts = {"Devil Legate:Writ of Execution"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        if abilityClone.targetType ~= "target" then
+            return nil
+        end
         local targets = FindBestPromptTargets(casterToken, abilityClone, symbols)
         if #targets > 0 then
             return {targets = targets}

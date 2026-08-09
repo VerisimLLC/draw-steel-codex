@@ -819,13 +819,66 @@ local function CreateConnectivityPanel()
     return resultPanel
 end
 
+----------------------------------------------------------------------
+-- Initiative / game-mode status ("Exploration", "Round 3", ...).
+--
+-- The panel itself is built by the initiative bar (MCDMInitiativeBar) --
+-- its click menu and the combat-settings gear beside it need that file's
+-- helpers -- but it is DISPLAYED here, in the status bar left of the map
+-- name, instead of floating over the top of the map. The title bar is
+-- created once at Lua load and outlives any single GameHud, so each new
+-- hud re-mounts a fresh panel through MountInitiativeStatusPanel().
+----------------------------------------------------------------------
+
+local g_initiativeStatusContainer = nil
+
+--rawget: reading a never-assigned global raises in this runtime, so the usual
+--`X = X or {}` idiom cannot be used here.
+if rawget(_G, "CodexTitleBar") == nil then
+    CodexTitleBar = {}
+end
+
+local function CreateInitiativeStatusHost()
+    g_initiativeStatusContainer = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        rmargin = 16,
+        multimonitor = {"showstatusbar"},
+        create = function(element)
+            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+        monitor = function(element)
+            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+    }
+    return g_initiativeStatusContainer
+end
+
+--Called by GameHud.CreateInitiativeBar. Pass nil to clear.
+function CodexTitleBar.MountInitiativeStatusPanel(panel)
+    if g_initiativeStatusContainer == nil or (not g_initiativeStatusContainer.valid) then
+        return
+    end
+
+    if panel == nil then
+        g_initiativeStatusContainer.children = {}
+    else
+        g_initiativeStatusContainer.children = {panel}
+    end
+end
+
 local function CreateStatusBar()
     local resultPanel
 
     resultPanel = gui.Panel{
         flow = "horizontal",
         height = "100%",
-        width = 600,
+        -- Was a fixed 600. The initiative/game-mode readout now shares this
+        -- cluster, so the bar sizes to whatever its labels actually need
+        -- instead of overrunning a hardcoded budget.
+        width = "auto",
         halign = "right",
 
         rightClick = function(element)
@@ -901,6 +954,13 @@ local function CreateStatusBar()
         },
 
         CreateConnectivityPanel(),
+
+        -- Host for the initiative/game-mode panel; empty (and therefore
+        -- zero-width) until a game hud mounts one. Collapsing on the
+        -- showstatusbar preference is done here rather than in the mounted
+        -- panel so the initiative bar does not have to know about this
+        -- setting.
+        CreateInitiativeStatusHost(),
 
         -- Map name + engine status. Long map descriptions used to eat the bar,
         -- so the box is capped (narrower than the old 420) and the text
@@ -4679,8 +4739,13 @@ local function CreateTopBar()
                 end
 
                 local locked = dmhub.GetSettingValue("uilocked")
+                local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
 
-                if locked then
+                --rail mode has no Lock Panels row (see below), so it must not
+                --honour the lock either -- a user who locked in dock mode and
+                --then switched would find every row disabled with nothing left
+                --to unlock it. Locking is a dock concept; the rail ignores it.
+                if locked and not railMode then
                     for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
                         p.disabled = true
                     end
@@ -4695,7 +4760,7 @@ local function CreateTopBar()
                 --overriding: the default tracks the DOCK instance, which is
                 --slid away in rail mode, so light the row while the panel
                 --is shown anywhere on the rail surface instead.
-                if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+                if railMode then
                     for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
                         local panelName = p.text
                         if panelName ~= nil and p.submenu == nil then
@@ -4704,61 +4769,69 @@ local function CreateTopBar()
                     end
                 end
 
-                --icons so the dock rows align with the panel rows below,
-                --which all carry check gutter + icon + text.
-                table.insert(dockablePanels, 1, {
-                    text = "Left Dock",
-                    icon = "phosphor/sidebar-simple.png",
-                    check = not dmhub.GetSettingValue("leftdockoffscreen"),
-                    group = "panel",
+                --Dock/lock rows are dock-mode only: in rail mode the docks are
+                --slid off screen and the rail owns placement, so toggling a
+                --dock or resetting the dock layout does nothing visible, and
+                --the lock has no meaning (David, 2026-08-08).
+                if not railMode then
+                    --icons so the dock rows align with the panel rows below,
+                    --which all carry check gutter + icon + text.
+                    table.insert(dockablePanels, 1, {
+                        text = "Left Dock",
+                        icon = "phosphor/sidebar-simple.png",
+                        check = not dmhub.GetSettingValue("leftdockoffscreen"),
+                        group = "panel",
 
-                    click = function()
-                        dmhub.SetSettingValue("leftdockoffscreen", not dmhub.GetSettingValue("leftdockoffscreen"))
-                    end,
-                })
+                        click = function()
+                            dmhub.SetSettingValue("leftdockoffscreen", not dmhub.GetSettingValue("leftdockoffscreen"))
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = "Right Dock",
-                    icon = "phosphor/sidebar-simple.png",
-                    check = not dmhub.GetSettingValue("rightdockoffscreen"),
-                    group = "panel",
+                    table.insert(dockablePanels, 1, {
+                        text = "Right Dock",
+                        icon = "phosphor/sidebar-simple.png",
+                        check = not dmhub.GetSettingValue("rightdockoffscreen"),
+                        group = "panel",
 
-                    click = function()
-                        dmhub.SetSettingValue("rightdockoffscreen", not dmhub.GetSettingValue("rightdockoffscreen"))
-                    end,
-                })
+                        click = function()
+                            dmhub.SetSettingValue("rightdockoffscreen", not dmhub.GetSettingValue("rightdockoffscreen"))
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = "Reset Panels",
-                    icon = "icons/icon_tool/icon_power.png",
-                    group = "panel",
+                    table.insert(dockablePanels, 1, {
+                        text = "Reset Panels",
+                        icon = "icons/icon_tool/icon_power.png",
+                        group = "panel",
 
-                    click = function()
-                        dmhub.ResetSetting(GetDockablePanelsSetting())
-                        InitDockablePanels()
-                    end,
-                })
+                        click = function()
+                            dmhub.ResetSetting(GetDockablePanelsSetting())
+                            InitDockablePanels()
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = cond(locked, "Unlock Panels", "Lock Panels"),
-                    icon = cond(locked, "icons/icon_tool/icon_tool_30.png", "icons/icon_tool/icon_tool_30_unlocked.png"),
-                    check = locked,
-                    group = "panel",
-                    click = function()
-                        dmhub.SetSettingValue("uilocked", not locked)
-                    end,
-                })
+                    table.insert(dockablePanels, 1, {
+                        text = cond(locked, "Unlock Panels", "Lock Panels"),
+                        icon = cond(locked, "icons/icon_tool/icon_tool_30.png", "icons/icon_tool/icon_tool_30_unlocked.png"),
+                        check = locked,
+                        group = "panel",
+                        click = function()
+                            dmhub.SetSettingValue("uilocked", not locked)
+                        end,
+                    })
+                end
 
                 --Workspace Views: the Panels menu is the ONLY switcher
                 --UI (Lisa+David review 2026-07-19 removed the rail chip),
                 --so it carries the full verb set: switch, save, save-as,
                 --reset, manage. Only in rail mode (A6).
-                if rawget(_G, "ViewsListForUser") ~= nil and rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+                if rawget(_G, "ViewsListForUser") ~= nil and railMode then
                     local active = ViewsActiveId()
                     local drift = ViewsIsDrifted()
                     local viewItems = {}
+                    --no "View: " prefix on the rows now that the submenu row
+                    --above them already says Views.
                     viewItems[#viewItems + 1] = {
-                        text = "View: Custom",
+                        text = "Custom",
                         check = active == nil,
                         group = "views",
                         click = function()
@@ -4767,7 +4840,7 @@ local function CreateTopBar()
                     }
                     for _, v in ipairs(ViewsListForUser()) do
                         local vid = v.id
-                        local text = "View: " .. v.name
+                        local text = v.name
                         if vid == active and drift then
                             text = text .. "  (unsaved changes)"
                         end
@@ -4829,9 +4902,15 @@ local function CreateTopBar()
                             end
                         end,
                     }
-                    for i = #viewItems, 1, -1 do
-                        table.insert(dockablePanels, 1, viewItems[i])
-                    end
+                    --one "Views" folder row rather than five-plus rows inline:
+                    --the switcher is the least-used half of this menu and was
+                    --pushing the panel toggles off the top.
+                    table.insert(dockablePanels, 1, {
+                        id = "FolderViews",
+                        text = "Views",
+                        group = "views",
+                        submenu = viewItems,
+                    })
                 end
 
                 return dockablePanels

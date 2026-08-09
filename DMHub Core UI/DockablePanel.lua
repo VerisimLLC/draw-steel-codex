@@ -2690,6 +2690,149 @@ DockablePanel = {
 	end,
 }
 
+--=============================================================================
+--Panel background processes.
+--
+--A dockable panel can register a "process": a coroutine that keeps running
+--after the panel itself is closed. The canonical example is the Monster AI --
+--pressing Start AI registers a process, and closing the Monster AI panel does
+--not stop the AI from taking turns. While any process for a panel is running,
+--the panel's icon-rail button shows a small spinning gear in its bottom-left
+--corner (see the iconRailProcessGear panel in DocumentSystem.lua), so the user
+--always knows background work is going on and where to go to stop it.
+--
+--Usage:
+--
+--    local process = DockablePanel.StartProcess{
+--        panel = "Monster AI",          --the DockablePanel.Register name
+--        id = "monster-ai",             --unique within the panel; restarting
+--                                       --an id replaces the old process
+--        coroutine = function(process)  --runs as a dmhub.Coroutine
+--            while true do
+--                coroutine.yield(0.1)
+--                if mod.unloaded or process.stopRequested then
+--                    return
+--                end
+--                --do work
+--            end
+--        end,
+--    }
+--
+--Stopping is COOPERATIVE: StopProcess / process:Stop() only set
+--process.stopRequested; the coroutine must poll it (and its own module's
+--mod.unloaded, since a Lua reload abandons this registry) and return. The
+--registry entry clears when the coroutine actually returns, so the rail gear
+--keeps spinning through a graceful wind-down ("Stopping...") and stops when
+--the work truly ends.
+--=============================================================================
+
+--lowercase panel name -> { [id] = process }
+local panelProcesses = {}
+
+local function ProcessPanelKey(name)
+	return string.lower(tostring(name or ""))
+end
+
+--- Start (or restart) a background process for a registered dockable panel.
+--- args: panel (string, the registered panel name), id (string, defaults to
+--- "main"), coroutine (function(process), run as a dmhub.Coroutine).
+--- Returns the process handle, which is also passed to the coroutine:
+--- { panel, id, stopRequested, finished, Stop() }.
+DockablePanel.StartProcess = function(args)
+	local panelName = args.panel
+	local id = args.id or "main"
+	local fn = args.coroutine
+	if panelName == nil or fn == nil then
+		printf("DockablePanel.StartProcess: 'panel' and 'coroutine' fields are required")
+		return nil
+	end
+
+	--restarting an id replaces the old process: ask it to stop first.
+	DockablePanel.StopProcess(panelName, id)
+
+	local process = {
+		panel = panelName,
+		id = id,
+		stopRequested = false,
+		finished = false,
+	}
+
+	function process:Stop()
+		self.stopRequested = true
+	end
+
+	local key = ProcessPanelKey(panelName)
+	local procs = panelProcesses[key]
+	if procs == nil then
+		procs = {}
+		panelProcesses[key] = procs
+	end
+	procs[id] = process
+
+	dmhub.Coroutine(function()
+		process.thread = coroutine.running()
+		local ok, err = pcall(fn, process)
+		process.finished = true
+		if procs[id] == process then
+			procs[id] = nil
+		end
+		if not ok then
+			printf("DockablePanel process '%s' for panel '%s' error: %s", id, panelName, tostring(err))
+		end
+	end)
+
+	return process
+end
+
+--- Request that a panel's background process stop. With an id, stops that
+--- process; with no id, stops every process the panel has. Cooperative -- the
+--- coroutine keeps running until it polls process.stopRequested and returns.
+DockablePanel.StopProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return
+	end
+	if id ~= nil then
+		local p = procs[id]
+		if p ~= nil then
+			p:Stop()
+		end
+	else
+		for _, p in pairs(procs) do
+			p:Stop()
+		end
+	end
+end
+
+--- The process handle for a panel's process (id defaults to "main"), or nil
+--- if it is not running.
+DockablePanel.GetProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return nil
+	end
+	return procs[id or "main"]
+end
+
+--- True while the panel has any background process whose coroutine has not
+--- finished. This is what the icon rail's spinning gear indicator reads.
+DockablePanel.HasActiveProcess = function(panelName)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return false
+	end
+	for _, p in pairs(procs) do
+		if not p.finished then
+			--belt-and-suspenders: if the thread died without the wrapper
+			--marking it finished, do not report (and spin the gear) forever.
+			if p.thread == nil or coroutine.status(p.thread) ~= "dead" then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 --Apply the dockscale setting to the docks. Must run on docks that are attached
 --to the screen and laid out (not at construction), or the uiscale pivot races
 --with layout and the scaled dock drifts off its edge. See the setScale dock

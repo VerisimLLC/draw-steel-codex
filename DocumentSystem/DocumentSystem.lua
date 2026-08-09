@@ -3605,7 +3605,15 @@ function CustomDocument:PresentDocument(args)
         end
     end
 
-    local dialogStyles = ThemeEngine.GetStyles()
+    --COPY the theme styles before appending: ThemeEngine.GetStyles() returns
+    --its shared cached table, and appending to it directly injects these
+    --window-chrome rules (borderless framedPanel, dockingIntoRail shrink)
+    --into the global theme cascade for every later GetStyles/MergeStyles
+    --caller -- which is how every framedPanel in the app lost its border.
+    local dialogStyles = {}
+    for _, rule in ipairs(ThemeEngine.GetStyles()) do
+        dialogStyles[#dialogStyles + 1] = rule
+    end
     dialogStyles[#dialogStyles + 1] = gui.Style {
         classes = { "framedPanel" },
         priority = 5,
@@ -7153,6 +7161,17 @@ local function IconRailStyles()
             selectors = {"iconRailActiveMark", "parent:active"},
             opacity = 1,
         },
+        --the background-process gear: a small spinning cog on the button's
+        --bottom-left corner while the panel has a registered background
+        --process running (DockablePanel.StartProcess) -- the panel's work
+        --carries on even when the panel is closed, and the gear is the
+        --always-on sign of it. The one scheme-colored element on the
+        --monochrome rail (the scheme's accent/trim color), so it reads as
+        --live status rather than part of the icon.
+        {
+            selectors = {"iconRailProcessGear"},
+            bgcolor = "@accent",
+        },
         --the group shadow: a second button-shaped card peeking out from
         --behind a button whose window hosts other panels as tabs -- the
         --"stack of cards" read, replacing an unreadably small corner
@@ -7925,6 +7944,39 @@ end
 --trial.
 function RailModeActive()
     return dmhub.GetSettingValue("iconrail") == true
+end
+
+--How deeply floating rail panel windows currently intrude into the
+--right edge of the screen, in UI units, clamped to [0, maxDepth].
+--A window counts only when it actually reaches into the rightmost
+--maxDepth band; the answer is how far the leftmost such window's left
+--edge sits from the right screen edge. 0 means the band is clear.
+--Exported for the right-side ability sidebar / roll host (GameHud),
+--which in rail mode sit near the right edge unless windows float there.
+function RailWindowsRightIntrusion(maxDepth)
+    local uiW = IconRailUIWidth()
+    local result = 0
+    for _, doc in pairs(g_panelDocuments) do
+        local d = doc:try_get("_tmp_dialog")
+        if d ~= nil and d.valid then
+            local w = d.renderedWidth
+            if type(w) ~= "number" or w <= 0 then
+                w = PanelDocument.DefaultWidth
+            end
+            if d.x + w > uiW - maxDepth then
+                local intrusion = uiW - d.x
+                if intrusion > result then
+                    result = intrusion
+                end
+            end
+        end
+    end
+    if result > maxDepth then
+        result = maxDepth
+    elseif result < 0 then
+        result = 0
+    end
+    return result
 end
 
 --Whether a registered panel currently has a rail button.
@@ -9455,6 +9507,71 @@ local function CreateIconRail(side, entries)
             }
         end
 
+        --background-process gear: a registered panel with a running
+        --background process (DockablePanel.StartProcess -- e.g. the Monster
+        --AI while the AI is playing turns) wears a small spinning cog on the
+        --button's bottom-left corner. The process outlives the panel, so the
+        --gear shows whether the panel is open or closed: it marks "this
+        --panel has live work going on" and where to go to stop it. Same
+        --anchor pattern as the new-content marker (a 1x1 floating point the
+        --cog centers on); liveness re-checks on the rail's refreshRail
+        --cadence, and the cog child only exists -- and only pays its spin
+        --think -- while a process is actually running.
+        local processGear = nil
+        if reg ~= nil then
+            local m_gearShown = false
+            processGear = gui.Panel{
+                floating = true,
+                halign = "left",
+                valign = "top",
+                --nudged 2px in from the corner, mirroring the new-content
+                --badge's inset on the opposite corner.
+                x = 3,
+                y = buttonHeight - 3,
+                width = 1,
+                height = 1,
+                flow = "none",
+                interactable = false,
+                create = function(element)
+                    element:FireEvent("refreshRail")
+                end,
+                refreshRail = function(element)
+                    local active = DockablePanel.HasActiveProcess(panelName)
+                    if active == m_gearShown then
+                        return
+                    end
+                    m_gearShown = active
+                    if not active then
+                        element.children = {}
+                    else
+                        element.children = {
+                            gui.Panel{
+                                classes = {"iconRailProcessGear"},
+                                bgimage = "phosphor/gear-fine-fill.png",
+                                width = 26,
+                                height = 26,
+                                halign = "center",
+                                valign = "center",
+                                interactable = false,
+                                data = { angle = 0 },
+                                --the constant spin: ~1 revolution every 3
+                                --seconds, stepped at 20Hz. Driven by think
+                                --rather than a style transition because the
+                                --rotation never settles; the angle stays
+                                --wrapped so a long session cannot grow it
+                                --unbounded.
+                                thinkTime = 0.05,
+                                think = function(element)
+                                    element.data.angle = (element.data.angle + 6) % 360
+                                    element.selfStyle.rotate = element.data.angle
+                                end,
+                            },
+                        }
+                    end
+                end,
+            }
+        end
+
         --The hover label doubles as the hotkey reminder: append the
         --keystroke bound to this panel's "togglepanel" command (the same
         --command the settings screen's User Interface section binds).
@@ -9678,6 +9795,13 @@ local function CreateIconRail(side, entries)
                 borderBox = true,
                 textWrap = false,
             },
+
+            --before novelMarker: novelMarker can be nil and must stay the
+            --LAST positional entry (a nil mid-constructor would hole the
+            --array and drop everything after it). processGear is non-nil
+            --whenever novelMarker is (both require reg), so this order can
+            --never create a hole.
+            processGear,
 
             novelMarker,
 
@@ -10837,7 +10961,7 @@ setting{
 local g_viewBuiltins = {
     --One button per subject on the left rail, and every one of them a
     --GROUP: the owner wears the badge and its flyout reaches the rest,
-    --so eight slots cover twenty-one panels. The right rail is left
+    --so ten slots cover twenty-five panels. The right rail is left
     --deliberately empty (David 2026-08-08). Heroes has no entry: it is
     --not a registered panel any more (v3) -- the title bar's
     --connectivity panel hosts it as a popout. Group members need no
@@ -10845,21 +10969,30 @@ local g_viewBuiltins = {
     {
         id = "builtin:director",
         name = "Director",
-        version = 5,
+        version = 6,
         dmonly = true,
         layout = {
             rail = {
                 ["character"] = { side = "left", slot = 0 },
-                ["bestiary"] = { side = "left", slot = 1 },
-                ["journal"] = { side = "left", slot = 2 },
-                ["dice"] = { side = "left", slot = 3 },
-                ["measuring tool"] = { side = "left", slot = 4 },
-                ["chat"] = { side = "left", slot = 5 },
-                ["audio"] = { side = "left", slot = 6 },
-                ["map markup"] = { side = "left", slot = 7 },
+                --the two map-level groups sit directly under Character
+                --(David 2026-08-08): what map you are on, then how it is
+                --stacked and lit. Map *editing* stays down at "map
+                --markup" -- these are about picking and framing a map,
+                --not painting one.
+                ["maps"] = { side = "left", slot = 1 },
+                ["floors & layers"] = { side = "left", slot = 2 },
+                ["bestiary"] = { side = "left", slot = 3 },
+                ["journal"] = { side = "left", slot = 4 },
+                ["dice"] = { side = "left", slot = 5 },
+                ["measuring tool"] = { side = "left", slot = 6 },
+                ["chat"] = { side = "left", slot = 7 },
+                ["audio"] = { side = "left", slot = 8 },
+                ["map markup"] = { side = "left", slot = 9 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },
+                ["maps"] = { "maps", "map settings" },
+                ["floors & layers"] = { "floors & layers", "time of day/lighting" },
                 ["bestiary"] = { "bestiary", "encounters" },
                 ["journal"] = { "journal", "campaign tracker" },
                 ["dice"] = { "dice", "physical dice" },
@@ -10889,26 +11022,29 @@ local g_viewBuiltins = {
         },
     },
     --The Director rail with the Director-only panels taken out, same
-    --items in the same order (David 2026-08-08). Two slots change:
-    --Bestiary is dmonly, so slot 1 is left to Encounters alone, and
-    --every panel in the map-editing group is dmonly, so the group goes
-    --entirely and the rail ends at Audio. Heroes has no entry -- not a
-    --registered panel any more (v3), hosted by the title bar's
+    --items in the same order (David 2026-08-08). Three slots change:
+    --Bestiary is dmonly, so its slot is left to Encounters alone; Map
+    --Settings is dmonly so Maps keeps its slot but loses its group and
+    --rides alone; and Floors & Layers, Time of Day/Lighting and every
+    --panel in the map-editing group are all dmonly, so those two groups
+    --go entirely and the rail ends at Audio. Heroes has no entry -- not
+    --a registered panel any more (v3), hosted by the title bar's
     --connectivity popout instead.
     {
         id = "builtin:player",
         name = "Player",
-        version = 5,
+        version = 6,
         dmonly = false,
         layout = {
             rail = {
                 ["character"] = { side = "left", slot = 0 },
-                ["encounters"] = { side = "left", slot = 1 },
-                ["journal"] = { side = "left", slot = 2 },
-                ["dice"] = { side = "left", slot = 3 },
-                ["measuring tool"] = { side = "left", slot = 4 },
-                ["chat"] = { side = "left", slot = 5 },
-                ["audio"] = { side = "left", slot = 6 },
+                ["maps"] = { side = "left", slot = 1 },
+                ["encounters"] = { side = "left", slot = 2 },
+                ["journal"] = { side = "left", slot = 3 },
+                ["dice"] = { side = "left", slot = 4 },
+                ["measuring tool"] = { side = "left", slot = 5 },
+                ["chat"] = { side = "left", slot = 6 },
+                ["audio"] = { side = "left", slot = 7 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },

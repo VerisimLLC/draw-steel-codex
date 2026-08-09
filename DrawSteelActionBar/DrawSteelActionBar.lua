@@ -4784,13 +4784,31 @@ CreateAbilityController = function()
                 borderColor = "#99999955",
                 bgcolor = "#99999922",
             },
+            --Levels that would take the resource below zero. Selectable (the
+            --creature has the Negative Heroic Resource attribute), but tinted
+            --light red so it is clear you are going into the red.
+            {
+                selectors = { "levelPanel", "negative" },
+                color = "#ff9999",
+                borderColor = "#ff999955",
+                bgcolor = "#ff999922",
+            },
             {
                 selectors = { "levelPanel", "~invalid", "hover" },
                 borderColor = "#ffffffaa",
             },
             {
+                selectors = { "levelPanel", "negative", "~invalid", "hover" },
+                borderColor = "#ff9999aa",
+            },
+            {
                 selectors = { "levelPanel", "selected" },
                 borderColor = "#ffffffff",
+                borderWidth = 2,
+            },
+            {
+                selectors = { "levelPanel", "negative", "selected" },
+                borderColor = "#ff9999ff",
                 borderWidth = 2,
             },
         },
@@ -4818,7 +4836,14 @@ CreateAbilityController = function()
                 baseCost = ExecuteGoblinScript(g_currentAbility.resourceNumber, g_token.properties:LookupSymbol(g_currentSymbols), 0, "Determine resource number for " .. g_currentAbility.name)
             end
 
-            if resourcesAvailable <= 0 then
+            --A creature with the "Negative Heroic Resource" attribute may drive the
+            --resource below zero. resourcesAvailable is what they have in hand;
+            --resourcesSpendable includes the amount they may go into the red for.
+            --Levels between the two are offered but shown in light red.
+            local negativeAllowance = resource:AllowResourceBelowZero(g_token.properties)
+            local resourcesSpendable = resourcesAvailable + negativeAllowance
+
+            if resourcesSpendable <= 0 then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -4830,7 +4855,7 @@ CreateAbilityController = function()
 
             local added = false
             local children = element.data.children
-            while #children * channelIncrement <= resourcesAvailable and #children * channelIncrement <= maxChannel do
+            while #children * channelIncrement <= resourcesSpendable and #children * channelIncrement <= maxChannel do
                 local ncharges = #children
                 local nresources = ncharges * channelIncrement
                 local panel = gui.Label {
@@ -4859,7 +4884,8 @@ CreateAbilityController = function()
                 --because the add-children loop above only runs once (the while
                 --grows children, never shrinks); when mode changes drop the
                 --max, those previously-added chips need to hide here.
-                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesAvailable or (i - 1) * channelIncrement > maxChannel)
+                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesSpendable or (i - 1) * channelIncrement > maxChannel)
+                children[i]:SetClass("negative", (i - 1) * channelIncrement > resourcesAvailable)
                 children[i]:SetClass("selected", (i - 1) == g_currentSymbols.charges)
             end
 

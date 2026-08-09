@@ -743,6 +743,91 @@ local g_minionHealthGradient = gui.Gradient{
 
 local g_haveFormSquadButton = false
 
+--- Vertical distance between two stacked world-space selection buttons: the button
+--- height plus a small gap.
+local g_selectionButtonStride = 28
+
+--- Works out where a floating button for the current selection should sit: the average
+--- position of the selected tokens, nudged aside if a token is standing there. Returns
+--- tile coordinates, or nil when nothing is selected. Shared by the Form Squad button
+--- and the buttons stacked underneath it so they all line up in the same column.
+--- @param selectedTokens CharacterToken[]
+--- @return number|nil x
+--- @return number|nil y
+local function ComputeSelectionAnchor(selectedTokens)
+    local xpos = 0
+    local ypos = 0
+
+    local count = 0
+    for _,tok in ipairs(selectedTokens) do
+        local pos = tok.pos
+        xpos = xpos + pos.x
+        ypos = ypos + pos.y
+        count = count + 1
+    end
+
+    if count == 0 then
+        return nil
+    end
+
+    xpos = xpos / count
+    ypos = ypos / count
+
+    local tokensBlocking = {}
+    local nearbyTokens = dmhub.GetTokens{
+        position = {
+            x = xpos,
+            y = ypos,
+            radius = 6,
+        },
+    }
+
+    for _,tok in ipairs(nearbyTokens) do
+        if tok.valid and tok.properties ~= nil then
+            tokensBlocking[#tokensBlocking+1] = {
+                x = tok.pos.x,
+                y = tok.pos.y,
+                radius = tok.radiusInTiles,
+            }
+        end
+    end
+
+    local blocked = false
+    for _,tok in ipairs(tokensBlocking) do
+        if math.abs(xpos - tok.x) < (tok.radius + 0.6) and math.abs(ypos - tok.y) < (tok.radius + 0.1) then
+            blocked = true
+        end
+    end
+
+    if blocked then
+        local directions = {{1,0},{-1,0},{0,1},{0,-1}}
+        for i=0,5 do
+            local xx = xpos
+            local yy = ypos
+
+            for _,dir in ipairs(directions) do
+                xpos = xx + dir[1]*i
+                ypos = yy + dir[2]*i
+                blocked = false
+                for _,tok in ipairs(tokensBlocking) do
+                    if math.abs(xpos - tok.x) < (tok.radius + 0.6) and math.abs(ypos - tok.y) < (tok.radius + 0.1) then
+                        blocked = true
+                    end
+                end
+            end
+
+            if blocked == false then
+                break
+            end
+
+            xpos = xx
+            ypos = yy
+        end
+    end
+
+    return xpos, ypos
+end
+
 --- Shows a button to form a new squad.
 --- @param floorid string
 --- @param squad SquadInfo
@@ -804,81 +889,10 @@ DrawSteelMinion.NewSquadButton = function(floorid, squad)
                     end
                 end
 
-                local m_tokensBlocking = {}
-                local m_tokensBlockingLastThink = 0
-
-                local xpos = 0
-                local ypos = 0
-
-                local count = 0
-                for _,tok in ipairs(selectedTokens) do
-                    local pos = tok.pos
-                    xpos = xpos + pos.x
-                    ypos = ypos + pos.y
-                    count = count + 1
-                end
-
-                if count == 0 then
+                local xpos, ypos = ComputeSelectionAnchor(selectedTokens)
+                if xpos == nil then
                     sheetParent:Destroy()
                     return
-                end
-
-                xpos = xpos / count
-                ypos = ypos / count
-
-                if m_tokensBlockingLastThink < dmhub.Time() - 0.5 then
-                    m_tokensBlocking = {}
-                    m_tokensBlockingLastThink = dmhub.Time()
-                    local tokensBlocking = dmhub.GetTokens{
-                        position = {
-                            x = xpos,
-                            y = ypos,
-                            radius = 6,
-                        },
-                    }
-
-                    for _,tok in ipairs(tokensBlocking) do
-                        if tok.valid and tok.properties ~= nil then
-                            m_tokensBlocking[#m_tokensBlocking+1] = {
-                                x = tok.pos.x,
-                                y = tok.pos.y,
-                                radius = tok.radiusInTiles,
-                            }
-                        end
-                    end
-                end
-
-                local blocked = false
-                for _,tok in ipairs(m_tokensBlocking) do
-                    if math.abs(xpos - tok.x) < (tok.radius + 0.6) and math.abs(ypos - tok.y) < (tok.radius + 0.1) then
-                        blocked = true
-                    end
-                end
-
-                if blocked then
-                    local directions = {{1,0},{-1,0},{0,1},{0,-1}}
-                    for i=0,5 do
-                        local xx = xpos
-                        local yy = ypos
-
-                        for _,dir in ipairs(directions) do
-                            xpos = xx + dir[1]*i
-                            ypos = yy + dir[2]*i
-                            blocked = false
-                            for _,tok in ipairs(m_tokensBlocking) do
-                                if math.abs(xpos - tok.x) < (tok.radius + 0.6) and math.abs(ypos - tok.y) < (tok.radius + 0.1) then
-                                    blocked = true
-                                end
-                            end
-                        end
-
-                        if blocked == false then
-                            break
-                        end
-
-                        xpos = xx
-                        ypos = yy
-                    end
                 end
 
                 element.x = xpos*g_tileSize
@@ -897,6 +911,345 @@ DrawSteelMinion.NewSquadButton = function(floorid, squad)
 
         panel:FireEvent("think")
     end
+end
+
+--- Works out whether a multi-token selection is a squad of minions plus a single
+--- non-minion creature, and so whether the "Make Captain" / "Remove Captain" action
+--- applies to it. This is the single source of truth for that button's visibility:
+--- both the tactical panel's icon button and the world-space button stacked under
+--- "Form Squad" ask this.
+---
+--- nminions is returned because the tactical panel's squad row keys off it too, and
+--- the "Remove Captain" case counts the captain as part of the squad.
+--- @param tokens CharacterToken[]
+--- @return {show: boolean, mode: string, squadid: string|false|nil, nminions: number}
+DrawSteelMinion.EvaluateCaptainSelection = function(tokens)
+    local nminions = 0
+    local monsterType = nil
+    local squadid = nil
+    local minionParty = nil
+    local potentialCaptain = nil
+    for _,tok in ipairs(tokens) do
+        if (not tok.properties.minion) then
+            potentialCaptain = tok
+        end
+        if tok.properties.minion and tok.properties:has_key("monster_type") and (monsterType == nil or tok.properties.monster_type == monsterType) then
+            nminions = nminions + 1
+            monsterType = tok.properties.monster_type
+            if squadid == nil then
+                squadid = tok.properties:MinionSquad()
+            elseif squadid ~= tok.properties:MinionSquad() then
+                squadid = false
+            end
+
+            if minionParty == nil then
+                minionParty = tok.ownerId
+            elseif minionParty ~= tok.ownerId then
+                minionParty = false
+            end
+        end
+    end
+
+    local result = {
+        show = false,
+        mode = "Make Captain",
+        squadid = squadid,
+        nminions = nminions,
+    }
+
+    if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
+        result.show = true
+        if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
+            result.nminions = nminions + 1
+            result.mode = "Remove Captain"
+        end
+    end
+
+    return result
+end
+
+--- Applies the "Make Captain" / "Remove Captain" action: the one non-minion in the
+--- selection becomes (or stops being) the captain of the squad, and the selection is
+--- pulled into a single initiative group. Any other creature that was captaining the
+--- same squad is dropped, since a squad has one captain.
+--- @param tokens CharacterToken[] The selection the action was invoked on.
+--- @param squadid string|false|nil The squad the captain is being attached to.
+--- @param isMakeCaptain boolean False to remove the captain instead of making one.
+DrawSteelMinion.SetSquadCaptain = function(tokens, squadid, isMakeCaptain)
+    local initiativeGrouping = nil
+    local allTokens = dmhub.allTokens
+
+    local charids = {}
+    for _,tok in ipairs(tokens) do
+        charids[tok.charid] = true
+    end
+    local initiativeGroupingsSeen = {}
+
+    for _,tok in ipairs(tokens) do
+        if tok.properties.initiativeGrouping and not initiativeGroupingsSeen[tok.properties.initiativeGrouping] then
+            local grouping = tok.properties.initiativeGrouping
+            local used = false
+            for _,otherTok in ipairs(allTokens) do
+                if otherTok.properties.initiativeGrouping == grouping and (not charids[otherTok.charid]) then
+                    used = true
+                    break
+                end
+            end
+
+            if not used then
+                initiativeGrouping = grouping
+                break
+            end
+        end
+    end
+
+    if initiativeGrouping == false or not isMakeCaptain then
+        initiativeGrouping = dmhub.GenerateGuid()
+    end
+
+    local groupid = dmhub.GenerateGuid()
+    local captainid = nil
+    for _,tok in ipairs(tokens) do
+        if (not tok.properties.minion) then
+            captainid = tok.id
+            tok:ModifyProperties{
+                groupid = groupid,
+                description = "Set Squad",
+                execute = function()
+                    tok.properties.initiativeGrouping = initiativeGrouping
+                    if isMakeCaptain then
+                        tok.properties.minionSquad = squadid
+                    else
+                        tok.properties.minionSquad = nil
+                    end
+                end,
+            }
+        elseif tok.properties.initiativeGrouping ~= initiativeGrouping and isMakeCaptain then
+            tok:ModifyProperties{
+                groupid = groupid,
+                description = "Set Squad",
+                execute = function()
+                    tok.properties.initiativeGrouping = initiativeGrouping
+                end,
+            }
+        end
+    end
+
+    if captainid ~= nil then
+        local monsterTokens = dmhub.GetTokens{}
+        for _,tok in ipairs(monsterTokens) do
+            if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == squadid then
+                tok:ModifyProperties{
+                    description = "Set Squad",
+                    execute = function()
+                        tok.properties.minionSquad = nil
+                    end,
+                }
+            end
+        end
+    end
+end
+
+--- True when the selection spans more than one initiative group -- or contains
+--- something with no group at all -- and so has something to merge.
+--- @param tokens CharacterToken[]
+--- @return boolean
+DrawSteelMinion.CanGroupInitiative = function(tokens)
+    local initiativeid = false
+    for _,tok in ipairs(tokens) do
+        if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
+            return true
+        end
+        initiativeid = tok.properties.initiativeGrouping
+    end
+
+    return false
+end
+
+--- Merges everything in the selection (plus the rest of any squad it touches) into one
+--- initiative group, and collapses their existing entries in the initiative queue into
+--- a single entry for the new group.
+--- @param tokens CharacterToken[]
+DrawSteelMinion.GroupInitiativeForTokens = function(tokens)
+    local guid = dmhub.GenerateGuid()
+
+    local hasPlayers = false
+    local existingInitiative = {}
+    local info = gamehud.initiativeInterface
+
+    for _,tok in ipairs(tokens) do
+        if tok.playerControlled then
+            hasPlayers = true
+        end
+    end
+
+    if hasPlayers then
+        guid = "PLAYERS-" .. guid
+    end
+
+    local grownTokens = DrawSteelMinion.GrowTokensToIncludeSquads(tokens)
+
+    for _,tok in ipairs(grownTokens) do
+        local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+        existingInitiative[initiativeid] = true
+        tok:ModifyProperties{
+            description = "Set Initiative",
+            execute = function()
+                tok.properties.initiativeGrouping = guid
+            end,
+        }
+    end
+
+    if info.initiativeQueue ~= nil and not info.initiativeQueue.hidden then
+        for initiativeid,_ in pairs(existingInitiative) do
+            info.initiativeQueue:RemoveInitiative(initiativeid)
+        end
+
+        info.initiativeQueue:SetInitiative(guid, 0, 0)
+        if hasPlayers then
+            local entry = info.initiativeQueue.entries[guid]
+            if entry ~= nil and entry:try_get("player") ~= true then
+                entry.player = true
+            end
+        end
+
+        info.UploadInitiative()
+    end
+end
+
+--- The world-space buttons that stack underneath the "Form Squad" button: "Make
+--- Captain" (or "Remove Captain") and "Group Initiative". They mirror the icon buttons
+--- of the same name in the tactical panel, sharing their conditions and their actions.
+---
+--- Unlike Form Squad -- which is created by the squad health bar's think loop, and so
+--- only exists while a squad is on the map -- Group Initiative applies to selections
+--- with no minions in them at all. So this panel is persistent for the current floor
+--- and polls the selection itself; GameHud:Think calls it at its 0.1s cadence to keep
+--- it alive across floor changes.
+DrawSteelMinion.SelectionActionsHud = function()
+    if dmhub.isDM == false then
+        return
+    end
+
+    local floorid = dmhub.floorid
+    if floorid == nil then
+        return
+    end
+
+    local sheetParent = dmhub.GetWorldSpacePanel(floorid, "selection-actions")
+    if sheetParent == nil or sheetParent.sheet ~= nil then
+        return
+    end
+
+    --the state the buttons were last laid out with, so the press handlers act on the
+    --same thing the label is describing.
+    local m_captainMode = "Make Captain"
+    local m_captainSquadId = nil
+
+    --collapsed is driven through selfStyle rather than a class: a world-space sheet is
+    --its own styling island, so nothing guarantees a "collapsed" rule reaches here.
+    local m_captainButton = gui.Button{
+        styles = Styles.Default,
+        collapsed = 1,
+        halign = "center",
+        valign = "center",
+        fontSize = 16,
+        text = "Make Captain",
+        height = 24,
+        width = 140,
+
+        press = function(element)
+            DrawSteelMinion.SetSquadCaptain(dmhub.selectedOrPrimaryTokens, m_captainSquadId, m_captainMode == "Make Captain")
+        end,
+    }
+
+    local m_groupInitiativeButton = gui.Button{
+        styles = Styles.Default,
+        collapsed = 1,
+        halign = "center",
+        valign = "center",
+        fontSize = 16,
+        text = "Group Initiative",
+        height = 24,
+        width = 140,
+
+        press = function(element)
+            DrawSteelMinion.GroupInitiativeForTokens(dmhub.selectedOrPrimaryTokens)
+        end,
+    }
+
+    sheetParent.sheet = gui.Panel{
+        width = 1,
+        height = 1,
+        halign = "center",
+        valign = "center",
+        --same 1px anchor nudge the Form Squad sheet uses, so the stack lines up with it.
+        x = 1,
+        y = 1,
+
+        thinkTime = 0.1,
+        think = function(element)
+            if dmhub.floorid ~= floorid or dmhub.isDM == false then
+                sheetParent:Destroy()
+                return
+            end
+
+            local selectedTokens = dmhub.selectedOrPrimaryTokens
+
+            local captainInfo = nil
+            local canGroupInitiative = false
+
+            --both actions are multi-selection actions; the tactical panel they mirror
+            --is only shown for more than one token.
+            if #selectedTokens > 1 then
+                local info = DrawSteelMinion.EvaluateCaptainSelection(selectedTokens)
+                if info.show then
+                    captainInfo = info
+                end
+
+                canGroupInitiative = DrawSteelMinion.CanGroupInitiative(selectedTokens)
+            end
+
+            local xpos, ypos = nil, nil
+            if captainInfo ~= nil or canGroupInitiative then
+                xpos, ypos = ComputeSelectionAnchor(selectedTokens)
+            end
+
+            if xpos == nil then
+                m_captainButton.selfStyle.collapsed = 1
+                m_groupInitiativeButton.selfStyle.collapsed = 1
+                return
+            end
+
+            --slot 0 is where the Form Squad button sits when it is up, so start below
+            --it and never overlap.
+            local slot = 0
+            if g_haveFormSquadButton then
+                slot = 1
+            end
+
+            m_captainButton.selfStyle.collapsed = cond(captainInfo == nil, 1, 0)
+            if captainInfo ~= nil then
+                m_captainMode = captainInfo.mode
+                m_captainSquadId = captainInfo.squadid
+                m_captainButton.text = captainInfo.mode
+                m_captainButton.x = xpos*g_tileSize
+                m_captainButton.y = -ypos*g_tileSize + slot*g_selectionButtonStride
+                slot = slot + 1
+            end
+
+            m_groupInitiativeButton.selfStyle.collapsed = cond(canGroupInitiative, 0, 1)
+            if canGroupInitiative then
+                m_groupInitiativeButton.x = xpos*g_tileSize
+                m_groupInitiativeButton.y = -ypos*g_tileSize + slot*g_selectionButtonStride
+            end
+        end,
+
+        m_captainButton,
+        m_groupInitiativeButton,
+    }
+
+    sheetParent.sheet:FireEvent("think")
 end
 
 local g_squadPanelMovementLag = 0.5

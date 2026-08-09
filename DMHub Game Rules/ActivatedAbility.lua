@@ -1946,7 +1946,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 		if resourceInfo ~= nil then
 			local max = resourcesAvailable[self.channeledResource] or 0
 			local usage = creature:GetResourceUsage(self.channeledResource, resourceInfo.usageLimit)
-			local available = max - usage
+			local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
             if self.resourceCost == self.channeledResource then
 				local mode = options.mode or 1
                 local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)

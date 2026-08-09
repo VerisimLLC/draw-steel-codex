@@ -422,52 +422,88 @@ function Encounter.PartyStrength(args)
     }
 end
 
---Compute a party's encounter strength from a list of hero/ally tokens (each
---contributing 4 + 2 x their level; victories are averaged across the tokens).
+--Compute a party's encounter strength from a list of hero/ally tokens.
+--
+--Hero-side tokens that are NOT monsters (heroes and hero-like allies, e.g. NPCs
+--built on a character sheet) each contribute 4 + 2 x their level, and Victories
+--are averaged across just those tokens.
+--
+--Hero-side MONSTER tokens (allied creatures, companions, retainers) are NOT
+--heroes and are not worth 4 + 2 x cr; they are counted exactly the way the
+--monster side is counted -- by EV, with minions worth 1/minionsPerSquad of a
+--squad's EV. This is the same rule as the monster-selection EV chip in
+--MCDMCharacterPanel.lua, so an allied monster reads the same whichever side of
+--the fight it is on.
+--
 --Returns nil when the list is empty; otherwise a strength table as in
 --PartyStrength, plus:
---  numTokens        : how many tokens contributed (heroes + allies)
+--  numTokens        : how many tokens contributed (heroes + allies of all kinds)
+--  numHeroTokens    : how many non-monster tokens fed the hero-strength maths
 --  averageVictories : the averaged Victories used for the bonus
---  minLevel/maxLevel: the level range across the tokens
+--  minLevel/maxLevel: the level range across the non-monster tokens (nil if none)
+--  allyEV           : the EV total of the allied monster tokens
+--  numAllyMonsters  : how many allied monster tokens contributed that EV
 function Encounter.PartyStrengthFromTokens(tokens)
     local base = 0
-    local numTokens = 0
+    local numHeroTokens = 0
     local totalVictories = 0
     local numHeroes = 0
     local minLevel = nil
     local maxLevel = nil
+    local allyEV = 0
+    local numAllyMonsters = 0
     for _, tok in ipairs(tokens or {}) do
-        local level = tok.properties:CharacterLevel()
-        if minLevel == nil or level < minLevel then
-            minLevel = level
+        if tok.properties:IsMonster() then
+            if tok.properties.minion then
+                allyEV = allyEV + tok.properties:EV()/GameSystem.minionsPerSquad
+            else
+                allyEV = allyEV + tok.properties:EV()
+            end
+            numAllyMonsters = numAllyMonsters + 1
+        else
+            local level = tok.properties:CharacterLevel()
+            if minLevel == nil or level < minLevel then
+                minLevel = level
+            end
+            if maxLevel == nil or level > maxLevel then
+                maxLevel = level
+            end
+            base = base + Encounter.HeroStrength(level)
+            totalVictories = totalVictories + tok.properties:GetVictories()
+            if tok.properties:IsHero() then
+                numHeroes = numHeroes + 1
+            end
+            numHeroTokens = numHeroTokens + 1
         end
-        if maxLevel == nil or level > maxLevel then
-            maxLevel = level
-        end
-        base = base + Encounter.HeroStrength(level)
-        totalVictories = totalVictories + tok.properties:GetVictories()
-        if tok.properties:IsHero() then
-            numHeroes = numHeroes + 1
-        end
-        numTokens = numTokens + 1
     end
 
-    if numTokens == 0 then
+    if numHeroTokens == 0 and numAllyMonsters == 0 then
         return nil
     end
 
-    local averageVictories = math.floor(totalVictories / numTokens)
-    local singleHero = math.floor(base / numTokens)
+    allyEV = round(allyEV)
+
+    --A pool of nothing but allied monsters has no hero to average, so the
+    --victories bonus is simply zero rather than a divide by zero.
+    local averageVictories = 0
+    local singleHero = 0
+    if numHeroTokens > 0 then
+        averageVictories = math.floor(totalVictories / numHeroTokens)
+        singleHero = math.floor(base / numHeroTokens)
+    end
     local victoryHeroes = math.floor(averageVictories / 2)
     local victoryBonus = math.floor(victoryHeroes * singleHero)
     return {
-        total = base + victoryBonus,
+        total = base + victoryBonus + allyEV,
         base = base,
         singleHero = singleHero,
         victoryBonus = victoryBonus,
         victoryHeroes = victoryHeroes,
         numHeroes = numHeroes,
-        numTokens = numTokens,
+        numTokens = numHeroTokens + numAllyMonsters,
+        numHeroTokens = numHeroTokens,
+        allyEV = allyEV,
+        numAllyMonsters = numAllyMonsters,
         averageVictories = averageVictories,
         minLevel = minLevel,
         maxLevel = maxLevel,

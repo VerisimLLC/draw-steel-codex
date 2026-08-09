@@ -900,6 +900,12 @@ end
 --- Results are memoized per resolved (theme, scheme) pair. Registrations are
 --- immutable (duplicate ids are rejected), so cached entries remain valid across
 --- SetActive* calls.
+---
+--- The returned array is the SHARED CACHED TABLE -- do NOT mutate it. Appending
+--- panel-local rules to it injects them into the global theme cascade for every
+--- later GetStyles/MergeStyles caller (this once stripped the borders off every
+--- framedPanel in the app). To add local rules, copy the array first or use
+--- ThemeEngine.MergeStyles.
 --- @param themeIdOverride? string|nil
 --- @param schemeIdOverride? string|nil
 --- @return table[] styles

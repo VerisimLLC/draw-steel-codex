@@ -6941,15 +6941,7 @@ function TacPanel.MultiEdit()
     local groupInitBtn = gui.Panel{
         classes = {"me-icon-wrap", "collapsed"},
         tokens = function(element)
-            local initiativeid = false
-            for _,tok in ipairs(m_tokens) do
-                if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
-                    element:SetClass("collapsed", false)
-                    return
-                end
-                initiativeid = tok.properties.initiativeGrouping
-            end
-            element:SetClass("collapsed", true)
+            element:SetClass("collapsed", not DrawSteelMinion.CanGroupInitiative(m_tokens))
         end,
         gui.Button{
             classes = {"toggle-btn"},
@@ -6957,50 +6949,7 @@ function TacPanel.MultiEdit()
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
             press = function(element)
-                local guid = dmhub.GenerateGuid()
-
-                local hasPlayers = false
-                local existingInitiative = {}
-                local info = gamehud.initiativeInterface
-
-                for _,tok in ipairs(m_tokens) do
-                    if tok.playerControlled then
-                        hasPlayers = true
-                    end
-                end
-
-                if hasPlayers then
-                    guid = "PLAYERS-" .. guid
-                end
-
-                local tokens = DrawSteelMinion.GrowTokensToIncludeSquads(m_tokens)
-
-                for _,tok in ipairs(tokens) do
-                    local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-                    existingInitiative[initiativeid] = true
-                    tok:ModifyProperties{
-                        description = "Set Initiative",
-                        execute = function()
-                            tok.properties.initiativeGrouping = guid
-                        end,
-                    }
-                end
-
-                if info.initiativeQueue ~= nil and not info.initiativeQueue.hidden then
-                    for initiativeid,_ in pairs(existingInitiative) do
-                        info.initiativeQueue:RemoveInitiative(initiativeid)
-                    end
-
-                    info.initiativeQueue:SetInitiative(guid, 0, 0)
-                    if hasPlayers then
-                        local entry = info.initiativeQueue.entries[guid]
-                        if entry ~= nil and entry:try_get("player") ~= true then
-                            entry.player = true
-                        end
-                    end
-
-                    info.UploadInitiative()
-                end
+                DrawSteelMinion.GroupInitiativeForTokens(m_tokens)
             end,
             linger = function(element)
                 gui.Tooltip("Group Initiative")(element)
@@ -7079,79 +7028,7 @@ function TacPanel.MultiEdit()
             height = TacPanelSizes.VisionBtn.size,
             press = function(element)
                 local outer = element.parent
-                local isMakeCaptain = outer.data.mode == "Make Captain"
-                local initiativeGrouping = nil
-                local allTokens = dmhub.allTokens
-
-                local charids = {}
-                for _,tok in ipairs(m_tokens) do
-                    charids[tok.charid] = true
-                end
-                local initiativeGroupingsSeen = {}
-
-                for _,tok in ipairs(m_tokens) do
-                    if tok.properties.initiativeGrouping and not initiativeGroupingsSeen[tok.properties.initiativeGrouping] then
-                        local grouping = tok.properties.initiativeGrouping
-                        local used = false
-                        for _,otherTok in ipairs(allTokens) do
-                            if otherTok.properties.initiativeGrouping == grouping and (not charids[otherTok.charid]) then
-                                used = true
-                                break
-                            end
-                        end
-
-                        if not used then
-                            initiativeGrouping = grouping
-                            break
-                        end
-                    end
-                end
-
-                if initiativeGrouping == false or not isMakeCaptain then
-                    initiativeGrouping = dmhub.GenerateGuid()
-                end
-
-                local groupid = dmhub.GenerateGuid()
-                local captainid = nil
-                for _,tok in ipairs(m_tokens) do
-                    if (not tok.properties.minion) then
-                        captainid = tok.id
-                        tok:ModifyProperties{
-                            groupid = groupid,
-                            description = "Set Squad",
-                            execute = function()
-                                tok.properties.initiativeGrouping = initiativeGrouping
-                                if isMakeCaptain then
-                                    tok.properties.minionSquad = m_selectedSquadId
-                                else
-                                    tok.properties.minionSquad = nil
-                                end
-                            end,
-                        }
-                    elseif tok.properties.initiativeGrouping ~= initiativeGrouping and isMakeCaptain then
-                        tok:ModifyProperties{
-                            groupid = groupid,
-                            description = "Set Squad",
-                            execute = function()
-                                tok.properties.initiativeGrouping = initiativeGrouping
-                            end,
-                        }
-                    end
-                end
-
-                if captainid ~= nil then
-                    local monsterTokens = dmhub.GetTokens{}
-                    for _,tok in ipairs(monsterTokens) do
-                        if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == m_selectedSquadId then
-                            tok:ModifyProperties{
-                                description = "Set Squad",
-                                execute = function()
-                                    tok.properties.minionSquad = nil
-                                end,
-                            }
-                        end
-                    end
-                end
+                DrawSteelMinion.SetSquadCaptain(m_tokens, m_selectedSquadId, outer.data.mode == "Make Captain")
             end,
             linger = function(element)
                 gui.Tooltip(element.parent.data.mode)(element)
@@ -7180,46 +7057,19 @@ function TacPanel.MultiEdit()
     local monsterSquadPanel = gui.Panel{
         classes = {"me-squad-row", "collapsed"},
         tokens = function(element, tokens)
-            local nminions = 0
-            local monsterType = nil
-            local squadid = nil
-            local minionParty = nil
-            local potentialCaptain = nil
-            for _,tok in ipairs(tokens) do
-                if (not tok.properties.minion) then
-                    potentialCaptain = tok
-                end
-                if tok.properties.minion and tok.properties:has_key("monster_type") and (monsterType == nil or tok.properties.monster_type == monsterType) then
-                    nminions = nminions + 1
-                    monsterType = tok.properties.monster_type
-                    if squadid == nil then
-                        squadid = tok.properties:MinionSquad()
-                    elseif squadid ~= tok.properties:MinionSquad() then
-                        squadid = false
-                    end
+            --shared with the world-space "Make Captain" button so the two cannot drift.
+            local captainInfo = DrawSteelMinion.EvaluateCaptainSelection(tokens)
+            local nminions = captainInfo.nminions
+            local squadid = captainInfo.squadid
 
-                    if minionParty == nil then
-                        minionParty = tok.ownerId
-                    elseif minionParty ~= tok.ownerId then
-                        minionParty = false
-                    end
-                end
-            end
-
-            local showCaptainButton = false
-
-            if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
-                showCaptainButton = true
-                if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
-                    nminions = nminions + 1
-                    makeCaptainBtn.data.mode = "Remove Captain"
-                else
-                    makeCaptainBtn.data.mode = "Make Captain"
+            if captainInfo.show then
+                makeCaptainBtn.data.mode = captainInfo.mode
+                if captainInfo.mode == "Make Captain" then
                     m_selectedSquadId = squadid
                 end
             end
 
-            makeCaptainBtn:SetClass("collapsed", not showCaptainButton)
+            makeCaptainBtn:SetClass("collapsed", not captainInfo.show)
 
             local shouldCollapse = nminions < #tokens
             local haveFormSquad = false

@@ -1358,9 +1358,11 @@ CreateLayersPanel = function()
 		--list 24px wider than its host and shifted right -- the full-width seam
 		--lines and drag targets then poked out past the popped-out panel
 		--window's frame (the dock's frame padding absorbed the overhang, hiding
-		--it there). 100%-24 keeps the 12px gutters real: the list spans
-		--symmetrically inset from both edges.
-		width = "100%-24",
+		--it there). The gutters are gone entirely now: rows run flush to both
+		--edges, so width is a plain 100% with no margin and nothing overflows.
+		--Do NOT pair '100%-24' with hmargin 0 -- that subtracts gutters that no
+		--longer exist and leaves the list short on the right.
+		width = "100%",
 		height = "100%",
 		hmargin = 0,
 		halign = 'left',
@@ -1491,9 +1493,14 @@ CreateLayersPanel = function()
 			children[#children+1] = CreateDragTarget(#floors+1)
 
 			--Tracks whether the ground line rendered directly above the next floor
-			--row; its 0 marker labels that seam, so the row below suppresses its
-			--own chip.
+			--row; that seam is already labelled, so the row below suppresses its
+			--own separator.
 			local groundLineAbove = false
+
+			--The first row rendered has nothing above it but the panel header, so
+			--it draws no seam line: a separator there is a rule against the top of
+			--the panel, which reads as a gap rather than a division.
+			local anyRowRendered = false
 
 			if currentMap.groundLevel == #floors+1 then
 				children[#children+1] = groundLevelPanel
@@ -2110,12 +2117,14 @@ CreateLayersPanel = function()
 					floorPanel.data.index = i
 
 					--Suppress this row's seam line when the ground rule sits directly
-					--above it, so the two do not double up.
+					--above it (the two would double up), and on the very first row
+					--(nothing above it to divide from).
 					local topElevation = false
-					if not groundLineAbove then
+					if not groundLineAbove and anyRowRendered then
 						topElevation = floorTopAltitudes[floor.floorid] - groundAltitude
 					end
 					floorPanel:FireEventTree("seamElevations", topElevation)
+					anyRowRendered = true
 
 					--The elevation span this floor occupies, shown in the row: its
 					--top relative to ground, and that minus its own thickness.

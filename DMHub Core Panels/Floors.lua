@@ -1395,6 +1395,46 @@ CreateLayersPanel = function()
 			if currentFloorId ~= game.currentFloorId then
 				element:FireEvent("refreshGame")
 			end
+			element:FireEvent("fitDock")
+		end,
+
+		--Pin the hosting dock panel to the list's content: the panel claims
+		--exactly its rows plus the add button, no dead space below, and
+		--re-fits as floors are added or removed or layers expand. Works by
+		--setting the dock instance's min/max height bounds to the measured
+		--content and asking the dock to redistribute; the polling tick above
+		--catches anything that changes the content height, with refreshGame
+		--scheduling a faster pass so add/remove responds promptly.
+		fitDock = function(element)
+			local contentHeight = 0
+			for _,child in ipairs(element.children) do
+				contentHeight = contentHeight + child.renderedHeight
+			end
+
+			--Not laid out yet (renderedHeight 0s): keep the registered bounds.
+			if contentHeight < 40 then
+				return
+			end
+
+			local instance = element:FindParentWithClass("dockablePanel")
+			if instance == nil then
+				return
+			end
+
+			if math.abs((instance.data.minHeight or 0) - contentHeight) < 1 and math.abs((instance.data.maxHeight or 0) - contentHeight) < 1 then
+				return
+			end
+
+			instance.data.minHeight = contentHeight
+			instance.data.maxHeight = contentHeight
+
+			local container = instance:FindParentWithClass("dockablePanelContainer")
+			if container ~= nil then
+				--updatetabs recomputes the container's height bounds from its
+				--panel instances; fitChildren makes the dock redistribute.
+				container:FireEventTree("updatetabs")
+				container:FireEventOnParents("fitChildren")
+			end
 		end,
 
 		monitorGame = '/mapManifests',
@@ -2208,6 +2248,10 @@ CreateLayersPanel = function()
 
 			element.children = children
 			floorItems = newFloorItems
+
+			--The rebuilt children have no rendered size until a layout pass
+			--runs, so measure for the dock fit on a short delay.
+			element:ScheduleEvent("fitDock", 0.1)
 		end,
 	}
 

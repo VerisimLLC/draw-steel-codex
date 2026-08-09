@@ -2353,6 +2353,11 @@ local g_tipBlockingClasses = {
 
 --Returns true if any tip-blocking dialog is currently in the panel tree.
 function GameHud:_TipIsBlockedByDialog()
+	--The character sheet is hosted by the engine in its own SheetPanel root
+	--(CharacterSheetHarness), not under the HUD's parentPanel, so the class
+	--walk below cannot see it. Ask the engine directly.
+	if dmhub.inCharacterSheet then return true end
+
 	local root = self:try_get("parentPanel")
 	if root == nil or not root.valid then return false end
 	for _, cls in ipairs(g_tipBlockingClasses) do

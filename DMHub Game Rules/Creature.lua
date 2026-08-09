@@ -7380,6 +7380,10 @@ function IsFriendForTargeting(casterToken, targetToken)
     return true
 end
 
+--Derived states like "winded" that aren't conditions, but which we still want to be
+--usable as criteria strings. Game systems fill this in via creature.RegisterMatchString.
+creature.matchStringPredicates = {}
+
 --- @param viewingToken nil|CharacterToken
 --- @param token nil|CharacterToken
 --- @param str string
@@ -7465,6 +7469,13 @@ function creature:MatchesString(viewingToken, token, str)
     local condition = CharacterCondition.conditionsByName[str]
     if condition ~= nil and self:HasCondition(condition.id) then
         return true
+    end
+
+    --Last resort: a derived state such as "winded", which isn't a condition and so
+    --has to be tested by asking the creature directly.
+    local predicate = creature.matchStringPredicates[string.gsub(str, "%s+", "")]
+    if predicate ~= nil then
+        return predicate(self) == true
     end
 
     return false
@@ -7786,22 +7797,22 @@ creature.helpSymbols = {
 	countnearbyenemies = {
 		name = "Count Nearby Enemies",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")", "OBJ.Count Nearby Enemies(1, \"Winded\")", "OBJ.Count Nearby Enemies(1, \"~Winded\")"},
 	},
 
 	countnearbyfriends = {
 		name = "Count Nearby Friends",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)"},
+		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)", "OBJ.Count Nearby Friends(5, \"Winded\")"},
 	},
 
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")"},
 	},
 
 	countriders = {
@@ -8945,6 +8956,16 @@ for _,movementType in ipairs(creature.movementTypeInfo) do
 		desc = string.format("The %s of the creature, in squares per round. 0 if the creature does not have a %s.", name, name),
 		seealso = seealso,
 	}
+end
+
+--mod tool for making a derived state usable as a criteria string in
+--Count Nearby Creatures / Count Nearby Enemies / Count Riders / the "is" operator.
+--Use the following fields:
+-- name: the criteria string, e.g. "winded"
+-- match: function(creature) that returns true if the creature is in that state
+function creature.RegisterMatchString(entry)
+	local key = string.lower(string.gsub(entry.name, "%s+", ""))
+	creature.matchStringPredicates[key] = entry.match
 end
 
 --mod tool for adding new Goblin Script symbols

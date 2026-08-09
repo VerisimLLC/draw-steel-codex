@@ -1463,6 +1463,15 @@ creature.RegisterSymbol {
     },
 }
 
+--Winded isn't a condition, so register it separately to make "Winded" usable as a
+--criteria string in Count Nearby Creatures and friends.
+creature.RegisterMatchString{
+    name = "winded",
+    match = function(c)
+        return c:IsWinded()
+    end,
+}
+
 creature.RegisterSymbol{
     symbol = "herotokens",
     lookup = function(c)

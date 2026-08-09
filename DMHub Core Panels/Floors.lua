@@ -1252,6 +1252,20 @@ local CreateSeamLine = function()
 	}
 end
 
+--The in-flow counterpart to CreateSeamLine, for boundaries that are not the
+--top of a row: under the row sitting above the GROUND LEVEL rule, and under
+--the lowest row in the list.
+local CreateFlowSeamLine = function()
+	return gui.Panel{
+		classes = {"floorSeamLine"},
+		interactable = false,
+		bgimage = "panels/square.png",
+		halign = "center",
+		width = "100%",
+		height = 1,
+	}
+end
+
 --The elevation span a floor occupies, shown inside the row under its name
 --("0 to +3"). Replaces the floating seam chips: those put an unlabelled
 --number in the same right-hand column as the editable height pill, where
@@ -1381,6 +1395,46 @@ CreateLayersPanel = function()
 			if currentFloorId ~= game.currentFloorId then
 				element:FireEvent("refreshGame")
 			end
+			element:FireEvent("fitDock")
+		end,
+
+		--Pin the hosting dock panel to the list's content: the panel claims
+		--exactly its rows plus the add button, no dead space below, and
+		--re-fits as floors are added or removed or layers expand. Works by
+		--setting the dock instance's min/max height bounds to the measured
+		--content and asking the dock to redistribute; the polling tick above
+		--catches anything that changes the content height, with refreshGame
+		--scheduling a faster pass so add/remove responds promptly.
+		fitDock = function(element)
+			local contentHeight = 0
+			for _,child in ipairs(element.children) do
+				contentHeight = contentHeight + child.renderedHeight
+			end
+
+			--Not laid out yet (renderedHeight 0s): keep the registered bounds.
+			if contentHeight < 40 then
+				return
+			end
+
+			local instance = element:FindParentWithClass("dockablePanel")
+			if instance == nil then
+				return
+			end
+
+			if math.abs((instance.data.minHeight or 0) - contentHeight) < 1 and math.abs((instance.data.maxHeight or 0) - contentHeight) < 1 then
+				return
+			end
+
+			instance.data.minHeight = contentHeight
+			instance.data.maxHeight = contentHeight
+
+			local container = instance:FindParentWithClass("dockablePanelContainer")
+			if container ~= nil then
+				--updatetabs recomputes the container's height bounds from its
+				--panel instances; fitChildren makes the dock redistribute.
+				container:FireEventTree("updatetabs")
+				container:FireEventOnParents("fitChildren")
+			end
 		end,
 
 		monitorGame = '/mapManifests',
@@ -1409,7 +1463,10 @@ CreateLayersPanel = function()
 					--knockout background.
 					flow = 'horizontal',
 					height = 22,
-					vmargin = 4,
+					--No vertical margin: the neighboring rows' 6px padding plus the
+					--2px drag targets already give the rule its breathing room, and
+					--the extra 4px each side read as the rows drifting apart from it.
+					vmargin = 0,
 					width = '100%',
 					valign = 'top',
 
@@ -1494,7 +1551,8 @@ CreateLayersPanel = function()
 
 			--Tracks whether the ground line rendered directly above the next floor
 			--row; that seam is already labelled, so the row below suppresses its
-			--own separator.
+			--own separator. Also skips the bottom-of-list hairline when the ground
+			--rule itself rendered at the very bottom.
 			local groundLineAbove = false
 
 			--The first row rendered has nothing above it but the panel header, so
@@ -2177,10 +2235,23 @@ CreateLayersPanel = function()
 			--The lowest floor's row now states that value as the bottom of its
 			--own span, so the anchor is gone.)
 
+			--Close the list with a hairline under the lowest row: when the
+			--ground rule sits directly above that row, its own top seam is
+			--suppressed and it otherwise reads as having no dividers at all.
+			--Skipped when the ground rule itself rendered at the very bottom,
+			--where it already draws this boundary.
+			if anyRowRendered and not groundLineAbove then
+				children[#children+1] = CreateFlowSeamLine()
+			end
+
 			children[#children+1] = addFloorButton
 
 			element.children = children
 			floorItems = newFloorItems
+
+			--The rebuilt children have no rendered size until a layout pass
+			--runs, so measure for the dock fit on a short delay.
+			element:ScheduleEvent("fitDock", 0.1)
 		end,
 	}
 

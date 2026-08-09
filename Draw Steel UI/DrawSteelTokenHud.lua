@@ -1182,7 +1182,7 @@ TokenHud.RegisterPanel{
 }
 
 --Hovering a token you control shows a small character-panel icon in the
---token's top-right corner; clicking it opens that character's ad-hoc
+--token's bottom-left corner; clicking it opens that character's ad-hoc
 --panel window (ShowCharacterPanelDocument -- the same per-character
 --window the journal's Characters section opens).
 local g_characterPanelLauncherStyles = {
@@ -1232,8 +1232,8 @@ TokenHud.RegisterPanel{
             classes = {"characterPanelLauncher"},
             floating = true,
             interactable = false, --interactable only while shown.
-            halign = "right",
-            valign = "top",
+            halign = "left",
+            valign = "bottom",
             hmargin = 4,
             vmargin = 4,
             width = 30,

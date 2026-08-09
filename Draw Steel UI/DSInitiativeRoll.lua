@@ -1,5 +1,45 @@
 local mod = dmhub.GetModLoading()
 
+-- Optional modules can contribute controls and attach data to the LiveEncounter
+-- without this module knowing which extensions are installed.
+DrawSteelCombatSetup = {}
+DrawSteelCombatSetup.extensions = {}
+
+function DrawSteelCombatSetup.RegisterExtension(extension)
+    if extension == nil or extension.id == nil then
+        return
+    end
+
+    DrawSteelCombatSetup.extensions[extension.id] = extension
+end
+
+local function CreateCombatSetupExtensionsPanel()
+    local children = {}
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.createPanel ~= nil then
+            local panel = extension.createPanel()
+            if panel ~= nil then
+                children[#children + 1] = panel
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        children = children,
+    }
+end
+
+local function ConfigureCombatSetupExtensions(liveEncounter)
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.configureLiveEncounter ~= nil then
+            extension.configureLiveEncounter(liveEncounter)
+        end
+    end
+end
+
 local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
@@ -235,6 +275,7 @@ local function createDrawSteelBanner(options)
                             live.onsetMonsterCount = onsetMonsters
                             info.initiativeQueue.liveEncounter = live
                         end
+                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
                         --Snapshot the heroes' Recoveries at the onset of combat so the
                         --victory screen can show how they changed over the fight.
                         info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
@@ -2231,6 +2272,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         element.root:FireEventTree("refreshSurprise")
                     end,
                 },
+                CreateCombatSetupExtensionsPanel(),
             },
 
             gui.Panel{

@@ -1,4 +1,5 @@
 --- @class MonsterAsset:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
+--- @field monsterTypeName string 
 MonsterAsset = {}
 
 --- RecordFork
@@ -13,6 +14,13 @@ end
 --- @param mine any
 --- @return boolean
 function MonsterAsset.TryMergeFork(upstream, mine)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMonsterTypeName
+--- @param newName string
+--- @return boolean
+function MonsterAsset:SetMonsterTypeName(newName)
 	-- dummy implementation for documentation purposes only
 end
 

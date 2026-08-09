@@ -3772,6 +3772,12 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 				end
 			end
 		end
+	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil and GameSystem.ApplyToTargetsByID[self.applyto].resolve ~= nil then
+
+		--registered applyto options may supply their own resolve function which
+		--computes the target list directly (e.g. Draw Steel's caster_mentor).
+		result = GameSystem.ApplyToTargetsByID[self.applyto].resolve(ability, casterToken, targets, options) or {}
+
 	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil then
 
 		--these are custom roll groups. When calling RegisterRollType in the GameSystem we define applyto in the outcomes

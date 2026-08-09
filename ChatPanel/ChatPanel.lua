@@ -23,17 +23,116 @@ end
 
 local CreateChatPanel
 
+--Unread tracking: the rail's Chat button shows a new-content marker (with
+--a count) for chat messages that arrived since the panel was last on
+--screen. "Last viewed" is a per-game high-water server timestamp
+--persisted as a preference; while the panel is shown the rail calls
+--markContentSeen on its refresh cadence, riding the mark past the newest
+--message. Messages the local user sent themselves never count as unread.
+setting{
+	id = "chat:lastviewed",
+	default = {},
+	storage = "preference",
+}
+
+--the same message filter the panel itself renders with: plain chat plus
+--the shared-object/data messages and custom messages on the chat channel.
+--Everything else belongs to the Action Log (see ActionLogPanel.lua, which
+--tracks its unreads with the exact complement of this predicate).
+local function IsChatMessage(message)
+	return message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat")
+end
+
+local function ChatLastViewed()
+	local t = dmhub.GetSettingValue("chat:lastviewed")
+	if type(t) ~= "table" then
+		return nil
+	end
+	return t[dmhub.gameid]
+end
+
+local function ChatUnreadCount()
+	local lastViewed = ChatLastViewed()
+	if lastViewed == nil then
+		return 0
+	end
+	local count = 0
+	for _,message in ipairs(chat.messages) do
+		if IsChatMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" and ts > lastViewed then
+				local uid = nil
+				pcall(function() uid = message.userid end)
+				if uid ~= dmhub.userid then
+					count = count + 1
+				end
+			end
+		end
+	end
+	return count
+end
+
+--Absorb everything current as seen: the high-water mark becomes the newer
+--of "now" and the newest chat message. Writes only when something actually
+--changed state (first baseline for this game, or unread messages being
+--absorbed), so an idle open panel does not churn the preference store.
+local function ChatMarkViewed()
+	local t = dmhub.GetSettingValue("chat:lastviewed")
+	if type(t) ~= "table" then
+		t = {}
+	end
+	local lastViewed = t[dmhub.gameid]
+	local target = os.time() * 1000
+	local anyNew = false
+	for _,message in ipairs(chat.messages) do
+		if IsChatMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" then
+				if ts > target then
+					target = ts
+				end
+				if lastViewed ~= nil and ts > lastViewed then
+					anyNew = true
+				end
+			end
+		end
+	end
+	if lastViewed ~= nil and not anyNew then
+		return
+	end
+	t[dmhub.gameid] = target
+	dmhub.SetSettingValue("chat:lastviewed", t)
+end
+
 DockablePanel.Register{
 	name = "Chat",
 	icon = "icons/standard/Icon_App_Chat.png",
 	minHeight = 200,
 	vscroll = false,
+	--when the icon rail opens this panel as a window, put the caret in
+	--the chat input right away (the content tree handles the
+	--"focusPanelInput" event) so the user can just start typing.
+	autoFocusInput = true,
 	content = function()
 		track("panel_open", {
 			panel = "Chat",
 			dailyLimit = 30,
 		})
 		return CreateChatPanel()
+	end,
+	hasNewContent = function()
+		--first evaluation for a game baselines "viewed" at now, so
+		--pre-existing history never flags as unread.
+		if ChatLastViewed() == nil then
+			ChatMarkViewed()
+		end
+		return ChatUnreadCount() > 0
+	end,
+	newContentCount = function()
+		return ChatUnreadCount()
+	end,
+	markContentSeen = function()
+		ChatMarkViewed()
 	end,
 }
 
@@ -541,7 +640,7 @@ CreateChatPanel = function()
 		},
 
 		style = {
-			width = "auto",
+			width = "100%",
 			height = "auto",
 			flow = "vertical",
 		},
@@ -601,6 +700,7 @@ CreateChatPanel = function()
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
 				styles = ThemeEngine.MergeTokens({
 					{
@@ -622,6 +722,7 @@ CreateChatPanel = function()
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
 				lmargin = 8,
 				styles = ThemeEngine.MergeTokens({
@@ -677,6 +778,7 @@ CreateChatPanel = function()
 				text = arg,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				lmargin = 4,
 				bold = isActive,
@@ -689,6 +791,7 @@ CreateChatPanel = function()
 				text = "/" .. macroName,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				bold = true,
 			},
@@ -713,7 +816,7 @@ CreateChatPanel = function()
 		return gui.Panel{
 			classes = {"bg", "border"},
 			bgimage = true,
-			width = 400,
+			width = "100%",
 			height = "auto",
 			border = 2,
 			flow = "vertical",
@@ -837,9 +940,10 @@ CreateChatPanel = function()
 										allChildren[#allChildren+1] = gui.Label{
 											classes = {"sizeXs", "fgMuted"},
 											text = string.format("... and %d more", #filtered - maxCompletions),
-											width = "100%",
+											width = "100%-20",
 											height = "auto",
-											textAlignment = "center",
+											halign = "center",
+											textAlignment = "left",
 											vpad = 4,
 										}
 									end
@@ -847,7 +951,7 @@ CreateChatPanel = function()
 									argCompletionPanel = gui.Panel{
 										classes = {"bg", "border"},
 										bgimage = true,
-										width = 400,
+										width = "100%",
 										height = "auto",
 										maxHeight = 300,
 										border = 2,
@@ -921,9 +1025,10 @@ CreateChatPanel = function()
 			allChildren[#allChildren + 1] = gui.Label{
 				classes = {"sizeXs", "fgMuted"},
 				text = string.format("... and %d more", #items - maxCompletions),
-				width = "100%",
+				width = "100%-20",
 				height = "auto",
-				textAlignment = "center",
+				halign = "center",
+				textAlignment = "left",
 				vpad = 4,
 			}
 		end
@@ -932,7 +1037,7 @@ CreateChatPanel = function()
 			gui.Panel{
 				classes = {"bg", "border"},
 				bgimage = true,
-				width = 400,
+				width = "100%",
 				height = "auto",
 				maxHeight = 300,
 				border = 2,
@@ -1391,6 +1496,12 @@ CreateChatPanel = function()
 				chat.PreviewChat("/")
 
 				UpdateCompletions()
+			end,
+			--the rail window hosting this panel was opened or raised by a
+			--user gesture (see autoFocusInput in the registration): focus
+			--the input so typing starts a message immediately.
+			focusPanelInput = function(element)
+				element.hasFocus = true
 			end,
 		},
 	}

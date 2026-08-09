@@ -2525,7 +2525,7 @@ local function CreateEncounterActionButton(info, button)
             --unaffordable malice buttons, but malice can change between
             --refreshes).
             local cost = tonumber(current.malice) or 0
-            if cost > 0 and CharacterResource.GetMalice() < cost then
+            if cost > 0 and not CharacterResource.CanSpendMalice(cost) then
                 return
             end
 
@@ -2535,7 +2535,7 @@ local function CreateEncounterActionButton(info, button)
             end
 
             if cost > 0 then
-                CharacterResource.SetMalice(CharacterResource.GetMalice() - cost, current.name or "Encounter action")
+                CharacterResource.SpendMalice(cost, current.name or "Encounter action")
             end
 
             if current.command ~= nil and current.command ~= "" then
@@ -2622,7 +2622,7 @@ local function CreateEncounterActionsStrip(self, info)
             local buttons = {}
             for _, button in ipairs(liveEncounter:GetCustomButtons()) do
                 local cost = tonumber(button.malice) or 0
-                if cost <= 0 or CharacterResource.GetMalice() >= cost then
+                if cost <= 0 or CharacterResource.CanSpendMalice(cost) then
                     buttons[#buttons + 1] = button
                 end
             end

@@ -40,6 +40,10 @@
 --- @field pad number The padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
 --- @field hpad number The horizontal padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
 --- @field vpad number The vertical padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
+--- @field tpad number The vertical (top) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the top side.
+--- @field bpad number The vertical (bottom) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the bottom side.
+--- @field lpad number The horizontal (left) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the left side.
+--- @field rpad number The horizontal (right) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the right side.
 --- @field margin number The margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal or vertical.
 --- @field hmargin number The horizontal margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
 --- @field vmargin number The vertical margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
@@ -141,6 +145,10 @@ Style = {}
 --- @field pad nil|number The padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
 --- @field hpad nil|number The horizontal padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
 --- @field vpad nil|number The vertical padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
+--- @field tpad nil|number The vertical (top) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the top side.
+--- @field bpad nil|number The vertical (bottom) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the bottom side.
+--- @field lpad nil|number The horizontal (left) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the left side.
+--- @field rpad nil|number The horizontal (right) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the right side.
 --- @field margin nil|number The margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal or vertical.
 --- @field hmargin nil|number The horizontal margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
 --- @field vmargin nil|number The vertical margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.

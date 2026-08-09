@@ -2758,6 +2758,17 @@ function RollPropertiesPowerTable:ApplyCreatureTierDamage(caster, ability)
         end
     end
 
+    --Signature-only damage bonuses (retainer level advancement grants these:
+    --a retainer's signature ability grows with level while their other
+    --abilities do not).
+    if ability ~= nil and ability:try_get("categorization") == "Signature Ability" then
+        local sig1 = caster:CalculateNamedCustomAttribute("Tier 1 Damage") or 0
+        local sig23 = caster:CalculateNamedCustomAttribute("Tier 2 and 3 Damage") or 0
+        perTier[1] = perTier[1] + sig1
+        perTier[2] = perTier[2] + sig23
+        perTier[3] = perTier[3] + sig23
+    end
+
     for i=1,math.min(#self.tiers, 3) do
         if perTier[i] ~= 0 then
             self.tiers[i] = AddDamageToTierText(self.tiers[i], perTier[i])

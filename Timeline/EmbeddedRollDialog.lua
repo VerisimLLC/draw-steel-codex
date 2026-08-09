@@ -555,18 +555,31 @@ function GameHud.CreateEmbeddedRollDialog()
         g_holdingRollOpen = false
     end
 
-    --Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
-    --shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
-    --dice (see the diceslotsequipped setting and the Dice Studio Slots section). While
-    --this dialog is preparing a roll that matches one of the player's activations, the
-    --whole roll (preview cage included) is skinned with the activated set via the
-    --dice.SetRollSlotDice engine bridge. Set when the dialog shows; cleared when the
-    --roll completes or is cancelled (and on dialog destroy as a backstop).
-    --pcall: the bridge needs an engine build that has it.
-    local SetRollSlotDice = function(assetid)
-        pcall(function() dice.SetRollSlotDice(assetid) end)
+    --Dice overrides: while this dialog is preparing a roll, the whole roll (preview
+    --cage included) can be skinned with dice other than the ones the rolling player
+    --has equipped. Set when the dialog shows; cleared when the roll completes or is
+    --cancelled (and on dialog destroy as a backstop). Takes a resolved three-part
+    --loadout ({model, model2, modelD6} -- see creature:ResolveDiceLoadout), or nil to
+    --leave the player's equipped loadout alone.
+    --pcall: the bridges need an engine build that has them, and SetRollLoadout (the
+    --general form -- SetRollSlotDice is just a loadout with one set for every die) is
+    --the newer of the two, so fall back to it on an older engine.
+    local SetRollDiceOverride = function(loadout)
+        if loadout == nil then
+            pcall(function() dice.SetRollLoadout(nil, nil, nil) end)
+            pcall(function() dice.SetRollSlotDice(nil) end)
+            return
+        end
+
+        local ok = pcall(function() dice.SetRollLoadout(loadout.model, loadout.model2, loadout.modelD6) end)
+        if not ok then
+            pcall(function() dice.SetRollSlotDice(loadout.model) end)
+        end
     end
 
+    --Slot-activated dice: dice sets can be activated for a purpose ("slot") from the
+    --shop inventory's equip panel -- e.g. fire-damage dice, Shadow dice, Undead-monster
+    --dice (see the diceslotsequipped setting and the Dice Studio Slots section).
     --Resolves which activated slot set (if any) should skin the roll this dialog is
     --showing. Builds candidate slot keys in most-specific-first order and returns the
     --first one the player has an activation for:
@@ -653,6 +666,34 @@ function GameHud.CreateEmbeddedRollDialog()
             if assetid ~= nil and assetid ~= "" then
                 return assetid
             end
+        end
+
+        return nil
+    end
+
+    --The dice loadout this dialog's roll should be skinned with, or nil to leave the
+    --rolling player's own equipped dice alone. Two sources, most specific first:
+    --  1. an activated dice slot matching this roll (ComputeSlotDiceForRoll). That is a
+    --     choice about THIS roll -- "when I deal fire damage, use my fire dice" -- so it
+    --     beats the standing per-token preference below. It skins every die with the
+    --     one activated set (model2/modelD6 empty = "same as model").
+    --  2. the rolled token's own customized dice (creature:ResolveDiceLoadout), which
+    --     can differ per die and has already dropped any set this player does not own.
+    local ComputeRollDiceOverride = function(creatureArg, rollProps)
+        local slotSet = ComputeSlotDiceForRoll(creatureArg, rollProps)
+        if slotSet ~= nil and slotSet ~= "" then
+            return { model = slotSet, model2 = "", modelD6 = "" }
+        end
+
+        if creatureArg == nil then
+            return nil
+        end
+
+        --pcall: creature:ResolveDiceLoadout is codex Lua, but the roll dialog can be
+        --shown for objects that are not full creatures.
+        local ok, loadout = pcall(function() return creatureArg:ResolveDiceLoadout() end)
+        if ok then
+            return loadout
         end
 
         return nil
@@ -1710,7 +1751,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                 creature:LookupSymbol {}, 0)
                             local available, resourceName
                             if costType == "cost" then
-                                available = tok.properties:GetHeroicOrMaliceResources()
+                                available = tok.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
                                 resourceName = tok.properties:GetHeroicResourceName()
                             elseif costType == "epic" then
                                 available = tok.properties:GetEpicResources()
@@ -3672,7 +3713,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if not cleared then
             dmhub.CancelCurrentRoll()
         end
-        SetRollSlotDice(nil)
+        SetRollDiceOverride(nil)
         OnHide()
         RelinquishPanel()
     end
@@ -5366,12 +5407,12 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 m_boons = 0
 
-                --Slot-activated dice: if one of the player's activated dice slots
-                --matches this roll, skin the whole roll with that set. Always called --
-                --a nil result clears any override left over from an earlier roll --
-                --and before CalculateRollText below so the dialog's preview cage
-                --already spawns with the slot set.
-                SetRollSlotDice(ComputeSlotDiceForRoll(creature, rollProperties))
+                --Dice override: an activated dice slot matching this roll, or the
+                --rolled token's own customized dice. Always called -- a nil result
+                --clears any override left over from an earlier roll -- and before
+                --CalculateRollText below so the dialog's preview cage already spawns
+                --with the right dice.
+                SetRollDiceOverride(ComputeRollDiceOverride(creature, rollProperties))
 
                 resultPanel:FireEventTree('prepare', options)
 
@@ -5433,9 +5474,9 @@ function GameHud.CreateEmbeddedRollDialog()
             destroy = function(element)
                 --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
 
-                --Backstop: never let a slot-activated dice override outlive the
-                --dialog that set it (the complete/cancel paths normally clear it).
-                SetRollSlotDice(nil)
+                --Backstop: never let a dice override outlive the dialog that set it
+                --(the complete/cancel paths normally clear it).
+                SetRollDiceOverride(nil)
 
                 --DIAG: the embedded roll dialog has been seen to vanish mid-roll,
                 --leaving orphaned, unresponsive preview dice. Log the Lua call
@@ -5626,10 +5667,10 @@ function GameHud.CreateEmbeddedRollDialog()
                 rollProperties = rollProperties or RollProperties.new {}
 
                 completeFunction = function(rollInfo)
-                    --The roll is accepted and done with the dice: release any
-                    --slot-activated dice override. (Re-rolls and triggers happen
-                    --before this; a follow-up roll re-resolves in ShowDialog.)
-                    SetRollSlotDice(nil)
+                    --The roll is accepted and done with the dice: release any dice
+                    --override. (Re-rolls and triggers happen before this; a follow-up
+                    --roll re-resolves in ShowDialog.)
+                    SetRollDiceOverride(nil)
 
                     local resourceConsumed = false
 

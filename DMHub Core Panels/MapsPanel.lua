@@ -7,15 +7,19 @@ local CreateMapDialog
 --"Player Viewable". For the DM this is unused (they see every map).
 local GetPlayerAccessibleMaps
 
-LaunchablePanel.Register{
+DockablePanel.Register{
 	name = "Maps",
-    menu = "game",
+    menu = "tools",
 	icon = "panels/hud/56_map.png",
-	halign = "left",
-	valign = "top",
-	vmargin = 1,
-	hmargin = 4,
-	draggable = false,
+	--summoned from the Tools menu it opens as a floating window over the
+	--map (like the launchable dialog it used to be), not docked. It can
+	--still be dragged into a dock.
+	preferFloating = true,
+	--the map list scrolls itself (it is a tree with its own scroll
+	--region), so no wrapper scroll here.
+	vscroll = false,
+	minHeight = 200,
+	maxHeight = 900,
 	filtered = function()
 		if dmhub.isDM then
 			return false
@@ -30,6 +34,9 @@ LaunchablePanel.Register{
 	end,
 	hasNewContent = function()
 		return module.HasNovelContent("map")
+	end,
+	newContentCount = function()
+		return gui.NovelContentCount("map")
 	end,
 }
 
@@ -859,7 +866,9 @@ local CreatePlayerMapDialog = function()
 	local treeScrollPanel = gui.Panel{
 		idprefix = "player-map-scroll-panel",
 		width = "96%",
-		height = "85%",
+		--fill whatever height the host gives us, minus the search input row
+		--(24 tall + 8/8 vmargins).
+		height = "100%-48",
 		halign = "center",
 		valign = "top",
 		vscroll = true,
@@ -883,8 +892,10 @@ local CreatePlayerMapDialog = function()
 
 		halign = "left",
 		valign = "top",
-		width = 400,
-		height = 700,
+		--fill the hosting window/dock slot so the panel stays inside it and
+		--stretches when the window is resized.
+		width = "100%",
+		height = "100%",
 		hpad = 12,
 		vpad = 12,
 		borderBox = true,
@@ -903,12 +914,6 @@ local CreatePlayerMapDialog = function()
 			if g_mapDialog == element then
 				g_mapDialog = nil
 			end
-		end,
-
-		draggable = true,
-		drag = function(element)
-			element.x = element.xdrag
-			element.y = element.ydrag
 		end,
 
 		monitorGame = {"/mapManifests", "/characters"},
@@ -957,7 +962,10 @@ CreateMapDialog = function()
 	treeScrollPanel = gui.Panel{
 		idprefix = "map-tree-scroll-panel",
 		width = "96%",
-		height = "85%",
+		--fill the host height minus the search input row (24 + 8/8 vmargins)
+		--and the floating create-folder/create-map buttons at the bottom
+		--(36 + margins).
+		height = "100%-88",
 		halign = "center",
 		valign = "top",
 		vscroll = true,
@@ -984,13 +992,15 @@ CreateMapDialog = function()
 
 		halign = "left",
 		valign = "top",
-		width = 400,
-		height = 700,
+		--fill the hosting window/dock slot so the panel stays inside it and
+		--stretches when the window is resized.
+		width = "100%",
+		height = "100%",
 		hpad = 12,
 		vpad = 12,
 		borderBox = true,
 		flow = "vertical",
-		
+
 		data = {
 			tokensPerMap = {},
 			focusMap = nil,
@@ -1005,12 +1015,6 @@ CreateMapDialog = function()
 			if g_mapDialog == element then
 				g_mapDialog = nil
 			end
-		end,
-
-		draggable = true,
-		drag = function(element)
-			element.x = element.xdrag
-			element.y = element.ydrag
 		end,
 
 		monitorGame = {"/mapManifests", "/mapFolders"},
@@ -1058,7 +1062,7 @@ CreateMapDialog = function()
 				height = 36,
 				valign = "center",
 				hmargin = 4,
-				icon = "game-icons/open-folder.png",
+				icon = "phosphor/folder-plus-duotone.png",
 				click = function(element)
 					game.CreateMapFolder()
 				end,
@@ -1066,11 +1070,11 @@ CreateMapDialog = function()
 			},
 			gui.Button{
 				id = "map-dialog-button-create-map",
+				classes = {"addButton"},
 				width = 36,
 				height = 36,
 				valign = "center",
 				hmargin = 2,
-				icon = "game-icons/treasure-map.png",
 				click = function(element)
 					mod.shared.CompleteTutorial("Create a Map")
                     mod.shared.ShowCreateMapDialog()

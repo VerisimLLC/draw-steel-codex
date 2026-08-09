@@ -817,16 +817,44 @@ end
 --@param args table: Configuration options for the popup.
 --@field args.command string: the command being bound.
 --@field args.name string: the name of the command being bound.
+--@field args.halign nil|string: which way the popup extends from its anchor
+--       panel (popup placement semantics, like gui.ContextMenu: "right"
+--       opens rightward of it). Default "center" -- centered on the
+--       anchor, which suits mid-screen hosts but overlaps hosts at a
+--       screen edge (the icon rail passes "right"/"left" instead).
+--@field args.valign nil|string: vertical counterpart. Default "center".
+--@field args.close nil|fun(): when provided, the dialog gets an explicit
+--       Close button that invokes it -- the host clearing its popup.
+--       Click-away dismissal works regardless; the button makes it
+--       discoverable.
 function Keybinds.ShowBindPopup(args)
     local resultPanel
+
+    local closeButton = nil
+    if args.close ~= nil then
+        closeButton = gui.Button{
+            classes = {"sizeL"},
+            --floating: the dialog's children place themselves with
+            --alignment rather than flow, and this must not disturb them.
+            floating = true,
+            halign = "right",
+            valign = "bottom",
+            margin = 12,
+            text = "Close",
+            click = function(element)
+                args.close()
+            end,
+        }
+    end
 
     resultPanel = gui.Panel{
         styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_KeybindStyles)},
         classes = {"framedPanel"},
         width = 600,
         height = 300,
-        halign = "center",
-        valign = "center",
+        halign = args.halign or "center",
+        valign = args.valign or "center",
+        constrainToScreen = true,
         destroy = args.destroy,
         gui.Label{
             classes = {"sizeXl", "bold"},
@@ -921,7 +949,7 @@ function Keybinds.ShowBindPopup(args)
             },
         },
 
-
+        closeButton,
     }
 
     return resultPanel

@@ -58,6 +58,10 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 200,
 	folder = "Map Editing",
+	--a press anywhere on the panel -- background or title bar -- claims
+	--focus. dmhub.GetSelectedTerrain gates on this panel's content root
+	--holding it, so this is what arms terrain painting.
+	focusOnClick = true,
 	content = function()
 		track("panel_open", {
 			panel = "Terrain Editor",
@@ -99,6 +103,9 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 200,
 	folder = "Map Editing",
+	--as Terrain Editor: dmhub.GetSelectedFloor/GetSelectedWall gate on
+	--this panel's content root holding focus.
+	focusOnClick = true,
 	content = function()
 		track("panel_open", {
 			panel = "Building Editor",
@@ -1010,7 +1017,16 @@ CreateBuildingEditor = function()
         events = {
             monitor = function(element)
                 if floorsOn then
-                    if selectedFloorPanel ~= nil then
+                    --Re-press only while the building editor itself holds
+                    --focus. Setting monitors are POLLED, so this fires a
+                    --frame after ANY buildingtool write -- including the
+                    --Map Markup panel arming itself (it seeds buildingtool
+                    --for its thin-wall tools) -- and the press's
+                    --gui.SetFocus stole the mode from the panel the user
+                    --actually opened. Focused-only, the re-press keeps
+                    --doing its job: re-arming floor drawing when the user
+                    --switches the shape/brush tool inside this editor.
+                    if selectedFloorPanel ~= nil and gui.ChildHasFocus(contentPanel) then
                         selectedFloorPanel:FireEvent('press')
                     end
                 end
@@ -1229,7 +1245,10 @@ CreateBuildingEditor = function()
         events = {
             monitor = function(element)
                 if wallsOn and not floorsOn then
-                    if selectedWallPanel ~= nil then
+                    --focused-only, same as the floor palette's monitor:
+                    --a POLLED monitor re-press must never steal focus
+                    --from whichever panel the user actually armed.
+                    if selectedWallPanel ~= nil and gui.ChildHasFocus(contentPanel) then
                         selectedWallPanel:FireEvent('press')
                     end
                 end
@@ -1246,7 +1265,24 @@ CreateBuildingEditor = function()
                 local children = {}
                 local newWallItems = {}
                 local firstTimeItems = {} --items being added for the very first time.
+
+                --wall types the Map Markup panel created private to another
+                --map (WallAsset.markupMapId; engine-gated, hence the pcall)
+                --stay out of the palette; on their own map they show as
+                --normal. Mirrors the markup panel's own library picker.
+                local visibleWalls = {}
                 for key,wall in pairs(walls) do
+                    local scopedElsewhere = false
+                    pcall(function()
+                        local mapid = wall.markupMapId
+                        scopedElsewhere = type(mapid) == "string" and mapid ~= "" and mapid ~= game.currentMapId
+                    end)
+                    if not scopedElsewhere then
+                        visibleWalls[key] = wall
+                    end
+                end
+
+                for key,wall in pairs(visibleWalls) do
 
                     newWallItems[key] = wallItems[key] or gui.Panel{
                         bgimage = 'panels/square.png',
@@ -1794,19 +1830,32 @@ CreateBuildingEditor = function()
     return contentPanel
 end
 
-dmhub.GetSelectedTerrain = function()
-    if m_terrainHud == nil or m_terrainHud:FindParentWithClass("dockablePanel") == nil then
-        return
+--Is this editor's hud armed -- live, mounted, and holding GUI focus?
+--
+--These four getters used to require a "dockablePanel" ANCESTOR, which
+--doubles as the liveness check and as the thing carrying the legacy
+--highlight class. That ancestor only exists in a DOCK, so hosted
+--anywhere else -- notably an icon-rail panel window -- terrain painting
+--and building drawing never armed at all, however the panel was clicked.
+--Liveness is now checked directly and the dock ancestor is only used for
+--the highlight class, when there is one.
+local function HudArmed(hud)
+    if hud == nil or not hud.valid or hud.parent == nil then
+        return false
     end
-    
-	if gui.ChildHasFocus(m_terrainHud) then
-        m_terrainHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_terrainHud.data.GetSelectedTerrain()
+    local focused = gui.ChildHasFocus(hud)
+    local dockPanel = hud:FindParentWithClass("dockablePanel")
+    if dockPanel ~= nil then
+        dockPanel:SetClass("highlightPanel", focused)
+    end
+    return focused
+end
+
+dmhub.GetSelectedTerrain = function()
+	if not HudArmed(m_terrainHud) then
+		return nil
 	end
-
-    m_terrainHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+	return m_terrainHud.data.GetSelectedTerrain()
 end
 
 dmhub.SelectTerrain = function(terrainid)
@@ -1818,18 +1867,10 @@ dmhub.SelectTerrain = function(terrainid)
 end
 
 dmhub.GetSelectedEffect = function()
-    if m_effectsHud == nil or m_effectsHud:FindParentWithClass("dockablePanel") == nil then
-        return
-    end
-
-	if gui.ChildHasFocus(m_effectsHud) then
-        m_effectsHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_effectsHud.data.GetSelectedTerrain()
+	if not HudArmed(m_effectsHud) then
+		return nil
 	end
-
-    m_effectsHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+	return m_effectsHud.data.GetSelectedTerrain()
 end
 
 dmhub.SelectEffect = function(effectid)
@@ -1841,18 +1882,10 @@ dmhub.SelectEffect = function(effectid)
 end
 
 dmhub.GetSelectedFloor = function()
-    if m_buildingHud == nil or m_buildingHud:FindParentWithClass("dockablePanel") == nil then
-        return
-    end
-
-	if gui.ChildHasFocus(m_buildingHud) then
-        m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_buildingHud.data.GetSelectedFloor()
+	if not HudArmed(m_buildingHud) then
+		return nil
 	end
-
-    m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+	return m_buildingHud.data.GetSelectedFloor()
 end
 
 dmhub.SelectFloor = function(floorid)
@@ -1880,17 +1913,10 @@ dmhub.GetBuildingSolid = function()
 end
 
 dmhub.GetSelectedWall = function()
-    if m_buildingHud == nil or m_buildingHud:FindParentWithClass("dockablePanel") == nil then
-        return
-    end
-
-	if gui.ChildHasFocus(m_buildingHud) then
-        m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_buildingHud.data.GetSelectedWall()
+	if not HudArmed(m_buildingHud) then
+		return nil
 	end
-
-    m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-	return nil
+	return m_buildingHud.data.GetSelectedWall()
 end
 
 dmhub.SelectWall = function(wallid)

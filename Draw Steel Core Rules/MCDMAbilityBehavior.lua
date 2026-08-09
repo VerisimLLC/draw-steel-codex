@@ -53,13 +53,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
     --that actually perform/receive the caster-benefit effect: plain "caster"
     --resolves to the main attacker of each struck creature in a squad-
     --coordinated strike (NOT the squad instigator), and the companion/
-    --summoner/riders variants resolve to a different creature entirely. The
+    --summoner/riders/mentor variants resolve to a different creature entirely. The
     --command must execute with that resolved creature as its caster so
     --self-movement rules (shift/jump/teleport) move the right token --
     --mirroring the main-attacker substitution the tier-text path does in
     --MCDMAbilityRollBehavior. Rule interpolation below follows the actor for
     --plain "caster" (a squad minion's {Movement Speed} reads that minion), but
-    --for the companion/summoner/riders variants it stays bound to the
+    --for the companion/summoner/riders/mentor variants it stays bound to the
     --ability's caster: formulas like {Intuition} in a companion shift refer
     --to the hero, not the companion.
     local casterBenefitApplyTo = {
@@ -67,6 +67,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
         caster_companion = true,
         caster_summoner = true,
         caster_riders = true,
+        caster_mentor = true,
         caster_including_squad = true,
     }
     local commandActorIsTarget = casterBenefitApplyTo[self:try_get("applyto", "targets")] == true
@@ -131,7 +132,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 end
                 local rule = StringInterpolateGoblinScript(self.rule, commandCaster.properties:LookupSymbol(ruleSymbols))
                 --print("INTERPOLATE::", self.rule, "->", rule)
-                --The companion/summoner/riders applyto variants also execute
+                --The companion/summoner/riders/mentor applyto variants also execute
                 --with the resolved target as the acting token (so self-movement
                 --rules move the companion, not the hero), but unlike plain
                 --"caster" their rule interpolation above stays bound to the

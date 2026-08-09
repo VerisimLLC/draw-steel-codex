@@ -163,6 +163,9 @@ DockablePanel.Register {
     hasNewContent = function()
         return module.HasNovelContent("character")
     end,
+    newContentCount = function()
+        return gui.NovelContentCount("character")
+    end,
 }
 
 DockablePanel.Register {
@@ -181,6 +184,9 @@ DockablePanel.Register {
     end,
     hasNewContent = function()
         return module.HasNovelContent("monsters")
+    end,
+    newContentCount = function()
+        return gui.NovelContentCount("monsters")
     end,
 }
 
@@ -579,6 +585,22 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
     local resultPanel = nil
 
+    --novel-content pip: lit while this monster is recorded as novel
+    --(added or updated by a module install). Viewing the monster --
+    --focusing its row or lingering for the stat block -- dismisses the
+    --record, which in turn lets the Bestiary rail/tab marker go out
+    --once every novel monster has been seen.
+    local novelContentAlert = gui.NewContentAlertConditional("monsters", nodeid)
+    local function ClearNovelContent()
+        if module.HasNovelContent("monsters", nodeid) then
+            module.RemoveNovelContent("monsters", nodeid)
+        end
+        if novelContentAlert ~= nil and novelContentAlert.valid then
+            novelContentAlert:DestroySelf()
+        end
+        novelContentAlert = nil
+    end
+
     resultPanel = gui.Panel({
         classes = { cond(startHidden, "collapsed"), "monsterEntry" },
         id = nodeid,
@@ -633,6 +655,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
                             interactable = true,
                         }
                     )
+
+                    --the stat block is showing: this monster has been seen.
+                    ClearNovelContent()
                 end
             end,
 
@@ -708,6 +733,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     gui.SetFocus(element)
                 end
                 element.popup = nil
+                ClearNovelContent()
             end,
 
             rightClick = function(element)
@@ -927,8 +953,22 @@ local function CreateMonsterEntry(nodeid, startHidden)
             gui.Label({
                 classes = { "bestiaryLabel" },
                 text = creature.GetTokenDescription(monster),
-                gui.NewContentAlertConditional("monsters", nodeid),
+                novelContentAlert,
                 refreshAssets = function(element)
+                    --a module install updates assets and fires this, so
+                    --an already-built row gains its pip when the monster
+                    --it shows is re-delivered (updated) by a module.
+                    if module.HasNovelContent("monsters", nodeid) then
+                        if novelContentAlert == nil then
+                            novelContentAlert = gui.NewContentAlert{}
+                            element:AddChild(novelContentAlert)
+                        end
+                    elseif novelContentAlert ~= nil then
+                        if novelContentAlert.valid then
+                            novelContentAlert:DestroySelf()
+                        end
+                        novelContentAlert = nil
+                    end
                     local desc = creature.GetTokenDescription(monster)
                     local showImportStatus = false --disabled for now.
                     if showImportStatus and devmode() then
@@ -3001,10 +3041,17 @@ end
 --framed rather than recreated: any change to the sidebar panel flows
 --here automatically. Live updates ride the details panel's own
 --monitorGame wiring (dirtyToken sets it to the token's monitorPath).
-CharacterPanel.CreatePinnedCharacterPanel = function(charid)
+CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
+    options = options or {}
     local summaryPanel = nil
     local detailsPanel = nil
     local missingLabel = nil
+
+    --options.deferBuild: the first refresh only schedules the real build
+    --for the next frame, so a window hosting this content can render its
+    --chrome immediately instead of blocking the click on the full
+    --summary + details build.
+    local m_deferred = options.deferBuild == true
 
     local resultPanel
     resultPanel = gui.Panel {
@@ -3014,7 +3061,16 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
         width = "100%",
         height = "auto",
 
+        deferredBuild = function(element)
+            element:FireEvent("refresh")
+        end,
+
         refresh = function(element)
+            if m_deferred then
+                m_deferred = false
+                element:ScheduleEvent("deferredBuild", 0.01)
+                return
+            end
             local token = dmhub.GetCharacterById(charid)
             if token == nil or not token.valid or token.properties == nil then
                 --the character is gone (deleted or unloaded); leave a
@@ -3043,10 +3099,12 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
                 missingLabel = nil
             end
 
+            local createdDetailsPanel = false
             if summaryPanel == nil then
                 summaryPanel = CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 detailsPanel = CharacterDetailsPanel(token)
                 element.children = { summaryPanel, detailsPanel }
+                createdDetailsPanel = true
             end
 
             summaryPanel:SetClass("collapsed", false)
@@ -3059,7 +3117,16 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
             --keeps its own monitorGame wiring via dirtyToken.
             summaryPanel:FireEvent("setToken", token)
             summaryPanel:FireEvent("refresh")
-            detailsPanel:FireEvent("dirtyToken", token)
+            if createdDetailsPanel then
+                --a details panel built THIS pass is still showing its
+                --placeholder zeroes; populate it now that it is parented
+                --rather than letting dirtyToken's ScheduleEvent do it a
+                --frame later and flash zeroed stats. Steady-state updates
+                --keep the debounce.
+                detailsPanel:FireEvent("refreshTokenNow", token)
+            else
+                detailsPanel:FireEvent("dirtyToken", token)
+            end
 
             --outside the dock nothing refreshes us on its own: follow the
             --character's own data so stamina, conditions and resources
@@ -3078,7 +3145,11 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
         end
     end)
 
-    resultPanel:FireEvent("refresh")
+    --deferred content builds from the host's create-time refresh instead
+    --(see deferBuild above); an immediate refresh here would defeat it.
+    if not options.deferBuild then
+        resultPanel:FireEvent("refresh")
+    end
 
     return resultPanel
 end

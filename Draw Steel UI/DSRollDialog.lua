@@ -783,7 +783,7 @@ function GameHud.CreateRollDialog(self)
                                 creature:LookupSymbol {}, 0)
                             local available, resourceName
                             if costType == "cost" then
-                                available = tok.properties:GetHeroicOrMaliceResources()
+                                available = tok.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
                                 resourceName = tok.properties:GetHeroicResourceName()
                             elseif costType == "epic" then
                                 available = tok.properties:GetEpicResources()

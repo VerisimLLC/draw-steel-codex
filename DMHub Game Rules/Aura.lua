@@ -168,8 +168,13 @@ function Aura:CreaturePassesFilter(c, auraInstance)
         end
     end
 
+    --The default is the 3rd argument and the context message the 4th. This used to pass
+    --the context in the default's slot, which made a filter that failed to compile or
+    --threw default to the truthy string "Aura Creature Filter" -- and swallowed the real
+    --error text in the log. Default to true deliberately: an unevaluable filter should
+    --leave the aura working as if unfiltered rather than make it silently affect nobody.
     local result = ExecuteGoblinScript(self.creatureFilter, c:LookupSymbol { caster = caster, target = c, aura = auraInstance },
-        "Aura Creature Filter")
+        true, "Aura Creature Filter")
     return GoblinScriptTrue(result)
 end
 

@@ -1311,6 +1311,7 @@ CreateLayersPanel = function()
 		width = "100%",
 		height = "auto",
 		halign = "left",
+		valign = "top",
 		gui.Button{
 			classes = {"addButton", "sizeS"},
 			halign = 'center',
@@ -1353,7 +1354,13 @@ CreateLayersPanel = function()
 	--Rows span this list edge to edge (width 100%, no row margin), and the
 	--list itself sits flush in the dock: no inset anywhere in the chain.
 	floorsList = gui.Panel{
-		width = '100%',
+		--hmargin adds OUTSIDE a percent width, so '100%' + hmargin 12 made the
+		--list 24px wider than its host and shifted right -- the full-width seam
+		--lines and drag targets then poked out past the popped-out panel
+		--window's frame (the dock's frame padding absorbed the overhang, hiding
+		--it there). 100%-24 keeps the 12px gutters real: the list spans
+		--symmetrically inset from both edges.
+		width = "100%-24",
 		height = "100%",
 		hmargin = 0,
 		halign = 'left',
@@ -1402,6 +1409,7 @@ CreateLayersPanel = function()
 					height = 22,
 					vmargin = 4,
 					width = '100%',
+					valign = 'top',
 
 					draggable = true,
 					canDragOnto = function(element, target)
@@ -1730,6 +1738,7 @@ CreateLayersPanel = function()
 						local layersPanel = gui.Panel{
 							width = "100%",
 							height = "auto",
+							valign = "top",
 							flow = "vertical",
 							expanded = function(element, expanded)
 								if not expanded then
@@ -2188,6 +2197,13 @@ CreateLayersPanel = function()
 				height = 2,
 				width = '100%',
 				priority = 10,
+				--every in-flow child of the floors list must be valign top: in a
+				--vertical flow the engine distributes leftover height between
+				--children that are NOT top-aligned, and while the dock slot hugs
+				--content (no leftover), the popped-out panel window gives the list
+				--the full window height -- default-centered children then spread
+				--out across it with big gaps.
+				valign = 'top',
 			},
 			{
 				selectors = {"floorOrLayerDragTarget", "drag-target-hover"},
@@ -2207,6 +2223,11 @@ CreateLayersPanel = function()
 				bgcolor = 'clear',
 				halign = "left",
 				hmargin = 0,
+				--valign top for the same reason as the drag targets above: an
+				--in-flow child that is not top-aligned gets leftover height
+				--distributed to it, which spreads the rows apart when the panel
+				--is popped out into its own window rather than docked.
+				valign = "top",
 				--The seam gap is PADDING, not margin: rows sit edge to edge and
 				--own the space around their content, so a selected row's fill
 				--(and its accent edge) runs the full pitch and meets the divider

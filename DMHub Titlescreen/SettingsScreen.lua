@@ -3690,6 +3690,15 @@ local CreateEmailConfirmationPanel = function()
 	local m_monitor = nil       --realtime listener handle.
 	local m_sending = false     --guards against overlapping/duplicate requests.
 	local m_changingEmail = false --true while the user is re-registering a different address over an already-confirmed one.
+	local m_confirmingRemove = false --true while the "are you sure you want to remove it" prompt is up.
+	local m_removing = false    --true while the delete request is in flight.
+
+	--removal needs the DeleteEmail bridge. Lua reloads independently of engine
+	--builds, and an absent member on this bridge reads as nil, so gate the entry
+	--points on the engine's own capability probe rather than offering a button
+	--that would error.
+	local m_canRemove = false
+	pcall(function() m_canRemove = emailConfirmation.supportsDeleteEmail == true end)
 
 	local emailInput
 	local submitButton
@@ -3701,23 +3710,41 @@ local CreateEmailConfirmationPanel = function()
 	local waitingLabel
 	local confirmedRow
 	local confirmedLabel
+	local removeRow
+	local removeLabel
 	local allowEmailsCheck
 
 	local IsConfirmed = function()
 		return m_state ~= nil and m_state.emailConfirmed == true
 	end
 
+	--true when we hold an address for this user at all: confirmed, or entered and
+	--awaiting the link. Either way it is a record of their email that they are
+	--entitled to erase.
+	local HasStoredAddress = function()
+		return m_state ~= nil and m_state.email ~= nil and m_state.email ~= ""
+	end
+
 	local RefreshState = function()
 		local confirmed = IsConfirmed()
+
+		--the removal prompt takes over the whole section while it is up, so the
+		--choice in front of the user is unambiguous.
+		local removing = m_confirmingRemove and HasStoredAddress()
 
 		--"registering" means the enter-email/confirm flow is active: either the
 		--user has no confirmed address yet, or they've chosen to change the one
 		--they have (m_changingEmail).
-		local registering = (confirmed == false) or m_changingEmail
+		local registering = ((confirmed == false) or m_changingEmail) and (removing == false)
 
 		inputRow:SetClass("collapsed", (registering == false) or m_waiting)
 		waitingRow:SetClass("collapsed", (registering == false) or (m_waiting == false))
-		confirmedRow:SetClass("collapsed", (confirmed == false) or m_changingEmail)
+		confirmedRow:SetClass("collapsed", (confirmed == false) or m_changingEmail or removing)
+		removeRow:SetClass("collapsed", removing == false)
+
+		if removing then
+			removeLabel.text = string.format("Remove %s? We'll delete the address from your account and stop sending you email. You can add one again at any time. Your sign-in account is not affected.", m_state.email)
+		end
 
 		--the Cancel button only appears when backing out of a change to an
 		--already-confirmed address.
@@ -3733,7 +3760,7 @@ local CreateEmailConfirmationPanel = function()
 		--the opt-in checkbox only appears once the user has a confirmed email
 		--on file (and isn't mid-change); until then there's no registered
 		--address to send updates to.
-		allowEmailsCheck:SetClass("collapsed", (confirmed == false) or m_changingEmail)
+		allowEmailsCheck:SetClass("collapsed", (confirmed == false) or m_changingEmail or removing)
 		allowEmailsCheck.interactable = confirmed
 		if m_state ~= nil then
 			allowEmailsCheck.value = (m_state.allowEmails == true)
@@ -3801,6 +3828,53 @@ local CreateEmailConfirmationPanel = function()
 				end
 			end,
 		}
+	end
+
+	--erase the address we hold for this user. The worker deletes both the fields on
+	--our account record and any outstanding confirmation link, so nothing of the
+	--address is left behind.
+	local SendRemoveRequest = function()
+		if m_removing then
+			return
+		end
+
+		m_removing = true
+		SetStatus("Removing...", false)
+
+		emailConfirmation.DeleteEmail{
+			complete = function(result)
+				m_removing = false
+
+				if result ~= nil and result.ok then
+					--the record is gone: drop our local copy of it too and fall
+					--back to the "enter an address" state. The cloud monitor will
+					--also fire with the cleared state.
+					m_confirmingRemove = false
+					m_changingEmail = false
+					m_waiting = false
+					m_pendingEmail = nil
+					m_state = nil
+					emailInput.text = ""
+					SetStatus("Your email address has been removed.", false)
+					RefreshState()
+				elseif result ~= nil and (result.httpStatus == 401 or result.error == "invalid_token") then
+					SetStatus("Your session has expired. Please try again.", true)
+				else
+					local msg = "Couldn't remove your email address. Please try again."
+					if result ~= nil and result.error ~= nil then
+						msg = string.format("Error: %s", tostring(result.error))
+					end
+					SetStatus(msg, true)
+				end
+			end,
+		}
+	end
+
+	--put the "are you sure" prompt up. Deleting is one click away from here.
+	local BeginRemove = function()
+		m_confirmingRemove = true
+		SetStatus(nil, false)
+		RefreshState()
 	end
 
 	--basic sanity check for a plausible email address (has length, an '@', and a '.').
@@ -3937,6 +4011,22 @@ local CreateEmailConfirmationPanel = function()
 					RefreshState()
 				end,
 			},
+			--an unconfirmed address is still stored on the account, so it has to
+			--be removable from here too.
+			gui.Label{
+				classes = cond(m_canRemove, {}, {"collapsed"}),
+				text = "Remove my email",
+				color = "#00FFFF",
+				fontSize = 14,
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+				hmargin = 16,
+				press = function(element)
+					BeginRemove()
+				end,
+			},
 		},
 	}
 
@@ -3954,30 +4044,95 @@ local CreateEmailConfirmationPanel = function()
 		width = "100%",
 		height = "auto",
 		confirmedLabel,
-		gui.Button{
-			text = "Change Email",
-			width = 180,
-			height = 36,
-			fontSize = 16,
-			halign = "left",
-			vmargin = 4,
-			click = function(element)
-				--reopen the registration form so the user can register a
-				--different address. The cloud record isn't touched until they
-				--submit a new address (the Worker overwrites it and the
-				--confirmed flag only becomes true again once the new link is
-				--clicked); Cancel backs out with no change.
-				m_changingEmail = true
-				m_waiting = false
-				m_pendingEmail = nil
-				SetStatus(nil, false)
-				if m_state ~= nil and m_state.email ~= nil then
-					emailInput.text = m_state.email
-				else
-					emailInput.text = ""
-				end
-				RefreshState()
-			end,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			gui.Button{
+				text = "Change Email",
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "left",
+				vmargin = 4,
+				click = function(element)
+					--reopen the registration form so the user can register a
+					--different address. The cloud record isn't touched until they
+					--submit a new address (the Worker overwrites it and the
+					--confirmed flag only becomes true again once the new link is
+					--clicked); Cancel backs out with no change.
+					m_changingEmail = true
+					m_waiting = false
+					m_pendingEmail = nil
+					SetStatus(nil, false)
+					if m_state ~= nil and m_state.email ~= nil then
+						emailInput.text = m_state.email
+					else
+						emailInput.text = ""
+					end
+					RefreshState()
+				end,
+			},
+			gui.Button{
+				classes = cond(m_canRemove, {}, {"collapsed"}),
+				text = "Remove Email",
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "left",
+				hmargin = 8,
+				vmargin = 4,
+				click = function(element)
+					BeginRemove()
+				end,
+			},
+		},
+	}
+
+	removeLabel = gui.Label{
+		width = "100%",
+		maxWidth = 600,
+		height = "auto",
+		fontSize = 14,
+		text = "",
+	}
+
+	removeRow = gui.Panel{
+		id = "emailRemoveRow",
+		classes = {"collapsed"},
+		flow = "vertical",
+		width = "100%",
+		height = "auto",
+		removeLabel,
+		gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			gui.Button{
+				text = "Remove Email",
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "left",
+				vmargin = 4,
+				click = function(element)
+					SendRemoveRequest()
+				end,
+			},
+			gui.Button{
+				text = "Cancel",
+				width = 180,
+				height = 36,
+				fontSize = 16,
+				halign = "left",
+				hmargin = 8,
+				vmargin = 4,
+				click = function(element)
+					m_confirmingRemove = false
+					SetStatus(nil, false)
+					RefreshState()
+				end,
+			},
 		},
 	}
 
@@ -4063,6 +4218,7 @@ local CreateEmailConfirmationPanel = function()
 		inputRow,
 		waitingRow,
 		confirmedRow,
+		removeRow,
 		statusLabel,
 		allowEmailsCheck,
 	}
@@ -4826,6 +4982,126 @@ function CreateSettingsScreen(dialog, args)
 		}
 	end
 
+	--Some settings only take effect at startup (dmhub.settingsChangesRequireRestart).
+	--Closing this dialog after changing one used to quit the app instantly, with no
+	--warning beyond the small caption at the bottom of the screen - from the user's
+	--side the app simply vanished. Confirm first, and let them defer.
+	--
+	--Hosted as an overlay panel on m_screenRoot rather than through gui.ModalMessage:
+	--the game hud - and with it the modal layer - does not exist on the titlescreen,
+	--where this screen also runs (the same reason CreateCreatorOrganizationsSection
+	--carries its own ShowMessage fallback). Added to m_screenRoot it is a LATER
+	--SIBLING of settingsDialog, so it renders above the settings UI in both places.
+	local m_restartPrompt = nil
+	local ShowRestartRequiredPrompt = function(onQuit, onDefer)
+		--Escape re-fires the Close button (escapeActivates), which lands back
+		--here; without this guard it would stack a second copy of the prompt.
+		if m_restartPrompt ~= nil and m_restartPrompt.valid then
+			return
+		end
+
+		if m_screenRoot == nil or not m_screenRoot.valid then
+			--nothing to host the prompt on: keep the old behavior rather than
+			--silently leaving the changed settings unapplied.
+			onQuit()
+			return
+		end
+
+		local appName = dmhub.whiteLabelAppName
+
+		local Dismiss = function(fn)
+			if m_restartPrompt ~= nil and m_restartPrompt.valid then
+				m_restartPrompt:DestroySelf()
+			end
+			m_restartPrompt = nil
+			if fn ~= nil then
+				fn()
+			end
+		end
+
+		m_restartPrompt = gui.Panel{
+			floating = true,
+			width = "100%",
+			height = "100%",
+			halign = "center",
+			valign = "center",
+			bgimage = "panels/square.png",
+			bgcolor = "#000000cc",
+
+			gui.Panel{
+				width = 600,
+				height = "auto",
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				bgimage = "panels/square.png",
+				bgcolor = "#111111f8",
+				border = 2,
+				borderColor = "#999999ff",
+				pad = 20,
+				borderBox = true,
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 22,
+					bold = true,
+					halign = "center",
+					textAlignment = "center",
+					text = tr("Restart Required"),
+				},
+
+				gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 16,
+					halign = "center",
+					textAlignment = "center",
+					vmargin = 8,
+					--There is no relaunch API - only dmhub.QuitApplication - so
+					--the user restarts by hand; say so plainly.
+					text = string.format(tr("Some of the settings you changed only take effect when %s starts up.\n\n%s needs to close now. Start it again to continue with your new settings."), appName, appName),
+				},
+
+				gui.Panel{
+					flow = "horizontal",
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					vmargin = 4,
+
+					gui.Button{
+						width = 180,
+						height = 36,
+						fontSize = 16,
+						hmargin = 6,
+						halign = "center",
+						valign = "center",
+						text = tr("Quit Now"),
+						click = function(element)
+							Dismiss(onQuit)
+						end,
+					},
+
+					gui.Button{
+						width = 180,
+						height = 36,
+						fontSize = 16,
+						hmargin = 6,
+						halign = "center",
+						valign = "center",
+						text = tr("Not Yet"),
+						click = function(element)
+							Dismiss(onDefer)
+						end,
+					},
+				},
+			},
+		}
+
+		m_screenRoot:AddChild(m_restartPrompt)
+	end
+
 	local settingsDialog = gui.Panel{
 		id = "settingsDialog",
 		classes = {"dialog"},
@@ -4862,11 +5138,21 @@ function CreateSettingsScreen(dialog, args)
 				hmargin = 20,
 				vmargin = 20,
 				click = function()
-					dialog.sheet = nil
-
+					--Restart-required settings: explain why the app is about to
+					--disappear before it does, and let the user put it off. The
+					--settings screen stays up behind the prompt so "Not Yet"
+					--closes it exactly like an ordinary Close.
 					if dmhub.settingsChangesRequireRestart then
-						dmhub.QuitApplication()
+						ShowRestartRequiredPrompt(function()
+							dialog.sheet = nil
+							dmhub.QuitApplication()
+						end, function()
+							dialog.sheet = nil
+						end)
+						return
 					end
+
+					dialog.sheet = nil
 				end,
 			},
 
@@ -5009,6 +5295,7 @@ function CreateSettingsScreen(dialog, args)
 						Setting('camerafollow'),
 						Setting('edgepan'),
 						Setting('dockscale'),
+						Setting('iconrail'),
 
 						SettingsSection("General"),
 

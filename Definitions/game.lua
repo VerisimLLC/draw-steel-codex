@@ -133,9 +133,9 @@ function game.UnsummonTokens(tokenidList)
 	-- dummy implementation for documentation purposes only
 end
 
---- SpawnTokenFromBestiaryLocally: Spawns a token from a bestiary entry at the given location locally without uploading. Returns the created token, or nil if the bestiary entry is not found.
+--- SpawnTokenFromBestiaryLocally: Spawns a token from a bestiary entry at the given location locally without uploading. Pass a nil loc to create the character without putting it on a map -- it exists in the game and can be placed later, like any character that hasn't been dropped on the map yet. Returns the created token, or nil if the bestiary entry is not found.
 --- @param id string The bestiary entry ID.
---- @param loc LuaLoc The location to spawn at.
+--- @param loc nil|LuaLoc The location to spawn at, or nil to create the character unplaced.
 --- @param options nil|table Optional settings; fitLocation (boolean) controls whether the location is adjusted for token size.
 --- @return nil|LuaCharacterToken
 function game.SpawnTokenFromBestiaryLocally(id, loc, options)

@@ -5337,10 +5337,11 @@ function creature:FillBaseActiveModifiers(result)
 		end
 	end
 
-	--add features from templates.
+	--add features from templates. Pass ourselves so template features with
+	--prerequisites (e.g. a minimum level) we don't meet are not applied.
 	for i,feat in ipairs(self:GetActiveTemplates()) do
 		local features = {}
-		feat:FillClassFeatures(self:GetLevelChoices(), features)
+		feat:FillClassFeatures(self:GetLevelChoices(), features, self)
 		for i,feature in ipairs(features) do
             feature:FillModifiers(self, result)
 		end
@@ -9116,6 +9117,25 @@ function creature:BeginTurn()
 	end
 end
 
+--Re-entrancy guard for aura creature filters. A filter is GoblinScript, and it is
+--completely reasonable for one to ask about the auras on the creature it is testing --
+--e.g. 'not (Target.Auras Affecting has "Basic Halo")' to stop an aura stacking with
+--itself. Evaluating that symbol calls back into GetAurasAffecting, which evaluates the
+--filters again, with no base case. Worse, the recursion FANS OUT by the number of
+--filtered auras touching the creature, so four adjacent minions sharing one such aura is
+--4^depth work and the app locks up hard (bug report SJG43VRQ).
+--
+--So: while we are filtering a creature's auras, a nested query for that same creature
+--answers from the auras accepted so far instead of recursing. That makes the example
+--above resolve greedily -- the first halo passes, the rest see it and fail, exactly one
+--applies -- which is what such a filter is written to mean. g_aurasAffectingDepth is the
+--backstop for filters that reach a DIFFERENT creature (caster.Auras Affecting, Squad
+--Captain.Auras Affecting), where the per-creature key alone cannot see the cycle; past
+--the cap a nested query just gets the unfiltered touching list.
+local g_aurasAffectingInProgress = {}
+local g_aurasAffectingDepth = 0
+local g_maxAurasAffectingDepth = 4
+
 function creature:GetAurasAffecting(token)
     token = token or dmhub.LookupToken(self)
     if token == nil then
@@ -9127,29 +9147,52 @@ function creature:GetAurasAffecting(token)
         return nil
     end
 
-    local numPass = nil
-
+    --Fast path: with no filters to run there is nothing to recurse through, so skip the
+    --bookkeeping entirely and hand back the engine's list. This is the common case.
+    local anyFilter = false
     for i,aura in ipairs(auras) do
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) == false then
-            numPass = i-1
+        if aura.auraInstance.aura:try_get("creatureFilter", "") ~= "" then
+            anyFilter = true
             break
         end
     end
 
-    if numPass == nil then
+    if not anyFilter then
+        return auras
+    end
+
+    --charid is always set on a real token, but a nil key would throw right here and take
+    --aura filtering down with it, so fall back to the creature table's identity.
+    local key = token.charid or self
+
+    local inProgress = g_aurasAffectingInProgress[key]
+    if inProgress ~= nil then
+        return inProgress
+    end
+
+    if g_aurasAffectingDepth >= g_maxAurasAffectingDepth then
         return auras
     end
 
     local result = {}
-    for i=1,numPass do
-        result[#result+1] = auras[i]
-    end
+    g_aurasAffectingInProgress[key] = result
+    g_aurasAffectingDepth = g_aurasAffectingDepth + 1
 
-    for i=numPass+2,#auras do
-        local aura = auras[i]
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
-            result[#result+1] = aura
+    --pcall so a filter that throws cannot leave the guard latched on, which would
+    --silently disable aura filtering for the rest of the session.
+    local ok, err = pcall(function()
+        for i,aura in ipairs(auras) do
+            if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
+                result[#result+1] = aura
+            end
         end
+    end)
+
+    g_aurasAffectingDepth = g_aurasAffectingDepth - 1
+    g_aurasAffectingInProgress[key] = nil
+
+    if not ok then
+        error(err)
     end
 
     return result
@@ -10854,6 +10897,163 @@ end
 
 function creature:SetInitiativeNotes(notes)
 	self.initiativeNotes = notes
+end
+
+----------------------------------------------
+-- Per-token dice preference.
+--
+-- A token can carry its own dice loadout rather than simply rolling with whatever
+-- the rolling player has equipped in their own inventory (the diceequipped /
+-- diceequipped2 / diceequippedd6 account settings). Edited from the character
+-- sheet's Appearance > Effects tab; consumed by the embedded roll dialog, which
+-- hands the resolved loadout to the engine via dice.SetRollLoadout.
+--
+-- Stored on the creature as 'diceLoadout'. The property is ABSENT for a token that
+-- has not been customized -- which is the default, and means "use the roller's own
+-- dice" -- so an uncustomized token costs nothing. When present it is a table with
+-- the same three-part shape as the account loadout, and the same rules for reading
+-- it (see GameConfig.ResolveDiceModelForDie engine-side):
+--   model    -- required. The token's dice: the first power d10, and every die
+--               another field does not override.
+--   model2   -- optional. A DIFFERENT second d10, so a Draw Steel 2d10 power roll
+--               shows a mixed pair. Absent = both power dice are 'model'.
+--   modelD6  -- optional. A different set for d3- and d6-shaped dice.
+--               Absent = they use 'model' too.
+--
+-- Entitlement: resolution happens on the ROLLING player's client, and a set that
+-- player does not own is dropped -- an unowned 'model' falls the whole token back
+-- to that player's own dice, an unowned model2/modelD6 falls that die back to
+-- 'model'. So a DM can never push dice onto a player who has not bought them.
+----------------------------------------------
+
+--The three slots of a dice loadout, in display order. Keys into a diceLoadout
+--table and, deliberately, the same names DiceMaterialInfo uses engine-side.
+--'model' is the primary; the other two are optional overrides of it.
+creature.diceLoadoutSlots = { "model", "model2", "modelD6" }
+
+--- The dice-set asset ids this client's account may roll with, as a set keyed by
+--- asset id. "Default" (the stock dice) is always available.
+--- dice.GetAvailableDice walks the account's shop inventory and is the same
+--- authority the diceequipped setting's dropdown uses, so this is exactly the
+--- ownership test the rest of the app applies.
+--- @return table<string, boolean>
+function creature.OwnedDiceSets()
+	local result = { Default = true }
+	--pcall: an engine build without the bridge just leaves everyone on Default.
+	local ok, list = pcall(function() return dice.GetAvailableDice() end)
+	if ok and type(list) == "table" then
+		for _,entry in ipairs(list) do
+			if entry ~= nil and entry.value ~= nil and entry.value ~= "" then
+				result[entry.value] = true
+			end
+		end
+	end
+	return result
+end
+
+--- This creature's dice loadout as a plain copy safe to read from UI (mutating it
+--- does not change the creature -- go through SetDiceLoadoutSlot inside a
+--- token:ModifyProperties block for that). An empty table means the token is not
+--- customized and rolls with the rolling player's own dice.
+--- @return table<string, string>
+function creature:GetDiceLoadout()
+	local result = {}
+	local loadout = self:try_get("diceLoadout")
+	if type(loadout) ~= "table" then
+		return result
+	end
+
+	for _,key in ipairs(creature.diceLoadoutSlots) do
+		local id = loadout[key]
+		if type(id) == "string" and id ~= "" then
+			result[key] = id
+		end
+	end
+
+	--model2/modelD6 only mean anything as overrides OF a primary set, so a table
+	--that somehow lost its primary is no customization at all.
+	if result.model == nil then
+		return {}
+	end
+
+	return result
+end
+
+--- True if this creature carries its own dice rather than using the roller's.
+--- @return boolean
+function creature:HasCustomDice()
+	return self:GetDiceLoadout().model ~= nil
+end
+
+--- Sets one slot of this creature's dice loadout. key is one of
+--- creature.diceLoadoutSlots; assetid is a cloud dice id, or nil/"" to clear that
+--- slot -- clearing "model" drops the whole loadout (the token goes back to using
+--- the roller's own dice), clearing "model2"/"modelD6" makes those dice use
+--- "model". Must be called inside a token:ModifyProperties block.
+--- @param key string
+--- @param assetid string|nil
+function creature:SetDiceLoadoutSlot(key, assetid)
+	if key == "model" and (assetid == nil or assetid == "") then
+		self:ClearDiceLoadout()
+		return
+	end
+
+	local loadout = self:GetDiceLoadout()
+
+	if assetid == nil or assetid == "" then
+		loadout[key] = nil
+	else
+		loadout[key] = assetid
+	end
+
+	if loadout.model == nil then
+		self:ClearDiceLoadout()
+	else
+		self.diceLoadout = loadout
+	end
+end
+
+--- Drops this creature's dice loadout, so its rolls use the rolling player's own
+--- equipped dice again. Must be called inside a token:ModifyProperties block.
+function creature:ClearDiceLoadout()
+	self.diceLoadout = nil
+end
+
+--- The loadout to actually roll for this creature, or nil when it carries no dice
+--- the local player may use and the roller's own equipped loadout should apply
+--- unchanged.
+---
+--- Ready to hand straight to dice.SetRollLoadout: model2/modelD6 come back as ""
+--- when this token does not override them, which the engine reads as "same as
+--- model" exactly as it does for the account loadout. Any slot naming a set the
+--- LOCAL player does not own is dropped as though it had never been set.
+--- @return {model: string, model2: string, modelD6: string}|nil
+function creature:ResolveDiceLoadout()
+	local loadout = self:GetDiceLoadout()
+	if loadout.model == nil then
+		return nil
+	end
+
+	--Entitlement: the player about to roll must own the set. An unowned primary
+	--means this token gives them nothing and they roll their own dice.
+	local owned = creature.OwnedDiceSets()
+	if not owned[loadout.model] then
+		return nil
+	end
+
+	local function Override(key)
+		local id = loadout[key]
+		if id == nil or not owned[id] then
+			return ""
+		end
+		return id
+	end
+
+	return {
+		model = loadout.model,
+		model2 = Override("model2"),
+		modelD6 = Override("modelD6"),
+	}
 end
 
 ----------------------------------------------

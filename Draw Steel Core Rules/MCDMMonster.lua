@@ -1867,3 +1867,410 @@ creature.RegisterFeatureCalculation{
         end
     end,
 }
+
+--==============================================================
+-- Custom retainer conversion: the "Make Custom Retainer" button.
+--
+-- Draw Steel: Monsters, "Retainers": most stat blocks can become retainers,
+-- provided the creature is not a minion, a leader, or a solo. Converting:
+--   * Stamina: the stat-block value is replaced by the retainer baseline
+--     (max_hitpoints = 10, matching how the premade retainers are authored;
+--     retainer advancement supplies the per-level bonuses on top).
+--   * The signature ability now affects only ONE target within distance if
+--     it affected an area or multiple targets.
+--   * No creature-specific advancement abilities: the "<Role> Abilities"
+--     creature template supplies the role advancement abilities instead.
+--   * Can't use abilities that require Malice. Group malice features are
+--     already suppressed by the `retainer` flag (see
+--     FillMonsterActivatedAbilities); the creature's own malice-cost innate
+--     abilities are suppressed at fill time in GetActivatedAbilities, so
+--     nothing authored is deleted.
+--
+-- Mutates creature properties -- callers outside the character sheet must
+-- wrap these in token:ModifyProperties.
+--==============================================================
+
+--The generic "Retainer" creature template (characteristic increases).
+local RETAINER_TEMPLATE_ID = "25263715-cef4-4e25-b4bd-ddedc3a87dea"
+
+--A custom retainer has 21 Stamina at level 1; RetainerCumulative adds the
+--+9 per level on top.
+local CUSTOM_RETAINER_BASE_STAMINA = 21
+
+--Non-monsters (heroes etc.) can never convert.
+function creature:CanBecomeCustomRetainer()
+    return false, "Only monsters can become retainers."
+end
+
+--True if this monster can become a custom retainer, plus a reason string
+--when it cannot. Minions, leaders, and solos are excluded by the book;
+--followers and existing retainers have nothing to convert.
+function monster:CanBecomeCustomRetainer()
+    if self:IsFollower() then
+        return false, "Already a follower or retainer."
+    end
+    if self.minion then
+        return false, "Minions can't become retainers."
+    end
+    local org = self:ScalingOrgRole()
+    if org == "leader" or org == "solo" then
+        return false, "Leaders and solos can't become retainers."
+    end
+    return true
+end
+
+--Find the "<Role> Abilities" creature template for a role word (e.g.
+--"Harrier Abilities" for a Platoon Harrier). Returns the template id, or
+--nil when the role has no matching template.
+local function RoleAbilitiesTemplateId(roleWord)
+    if roleWord == nil or roleWord == "" then
+        return nil
+    end
+    local want = string.lower(roleWord) .. " abilities"
+    for id, template in unhidden_pairs(GetTableCached("creatureTemplates") or {}) do
+        if string.lower(template:try_get("name", "")) == want then
+            return id
+        end
+    end
+    return nil
+end
+
+--Attach a creature template unless it is already on the creature.
+local function AddTemplateOnce(self, templateid)
+    if templateid == nil then
+        return
+    end
+    for _, id in ipairs(self:try_get("creatureTemplates", {})) do
+        if id == templateid then
+            return
+        end
+    end
+    self:AddTemplate(templateid)
+end
+
+--True when an ability affects an area or more than one creature.
+local function AbilityHitsMultiple(ability)
+    local isArea = ability:IsTargetTypeAOE() or ability.targetType == "map"
+    local num = tonumber(ability:try_get("numTargets", "1"))
+    --A formula target count (non-numeric) counts as multi-target.
+    return isArea or (num == nil) or num > 1
+end
+
+--Short human description of what an ability currently targets, e.g.
+--"3 Cube", "All Creatures in Encounter", "2 creatures".
+local function DescribeTargeting(ability)
+    local targetType = ability.targetType
+    local typeInfo = ActivatedAbility.TargetTypesById[targetType]
+    local typeText = targetType
+    if typeInfo ~= nil and typeInfo.text ~= nil then
+        typeText = typeInfo.text
+    end
+
+    if ability:IsTargetTypeAOE() then
+        local radius = ability:try_get("radius")
+        if radius ~= nil and tostring(radius) ~= "" then
+            return string.format("%s %s", tostring(radius), typeText)
+        end
+        return tostring(typeText)
+    end
+    if targetType == "map" then
+        return tostring(typeText)
+    end
+
+    local num = tostring(ability:try_get("numTargets", "1"))
+    if num == "1" then
+        return "1 creature"
+    end
+    return string.format("%s creatures", num)
+end
+
+--Bring the keywords back in line with an ability that has just been made
+--single-target. "Area" is not just cosmetic: while it stays, the ability keeps
+--the area icon and keeps ignoring the Hidden condition (see
+--GameSystem.AllowTargeting), so a retainer could still hit a creature hidden
+--from it. An ability that used to be an area also has no Melee/Ranged keyword
+--to fall back on, so its range line would render as a bare number; give it the
+--one its remaining distance implies. Abilities that merely hit several targets
+--were already authored Melee or Ranged, so those are left alone.
+--Returns a short summary of the keyword changes, or nil if none were needed.
+local function FixSingleTargetKeywords(ability, wasArea)
+    local changes = {}
+
+    if ability:HasKeyword("Area") then
+        ability:RemoveKeyword("Area")
+        changes[#changes + 1] = "-Area"
+    end
+
+    if wasArea and not (ability:HasKeyword("Melee") or ability:HasKeyword("Ranged")) then
+        --Only a reach of one square reads as Melee; a formula range (nil here)
+        --falls through to Ranged, which is right for every area in the bestiary.
+        local range = tonumber(ability:try_get("range"))
+        local keyword = "Ranged"
+        if range ~= nil and range <= dmhub.unitsPerSquare then
+            keyword = "Melee"
+        end
+        ability:AddKeyword(keyword)
+        changes[#changes + 1] = "+" .. keyword
+    end
+
+    if #changes == 0 then
+        return nil
+    end
+    return table.concat(changes, " ")
+end
+
+--Rewrite an area or multi-target signature ability to affect a single
+--target within distance: range is kept, the area shape and target count
+--are replaced, and the keywords are corrected to match. Single-target
+--signatures are left untouched. Returns a "before -> after" description
+--when it changed anything, else nil.
+local function MakeSignatureSingleTarget(ability)
+    if not AbilityHitsMultiple(ability) then
+        return nil
+    end
+    local before = DescribeTargeting(ability)
+    local wasArea = ability:IsTargetTypeAOE() or ability.targetType == "map"
+    ability.targetType = "target"
+    ability.numTargets = "1"
+    ability.radius = nil
+
+    local result = string.format("%s -> 1 creature", before)
+    local keywordChanges = FixSingleTargetKeywords(ability, wasArea)
+    if keywordChanges ~= nil then
+        result = string.format("%s (%s)", result, keywordChanges)
+    end
+    return result
+end
+
+--The malice abilities this creature's monster group hands it. Free strikes
+--are filled first and the group's malice comes after, so everything past
+--the free-strike count is group malice. Must be called before the retainer
+--flag is set (the flag is what suppresses them).
+local function CollectGroupMaliceAbilities(self)
+    local result = {}
+    pcall(function()
+        local strikes = {}
+        self:FillFreeStrikes({}, strikes)
+        local all = {}
+        self:FillMonsterActivatedAbilities({}, all)
+        for i = #strikes + 1, #all do
+            result[#result + 1] = all[i]
+        end
+    end)
+    return result
+end
+
+--All of an ability's rules text, lowercased: its own description plus the
+--power roll tiers and command rules on its behaviors.
+local function AbilityRulesText(ability)
+    local parts = {}
+    local function push(value)
+        if type(value) == "string" then
+            parts[#parts + 1] = value
+        end
+    end
+
+    push(ability:try_get("description"))
+    push(ability:try_get("flavor"))
+    for _, behavior in ipairs(ability:try_get("behaviors", {})) do
+        push(behavior:try_get("rule"))
+        local tiers = behavior:try_get("tiers")
+        if type(tiers) == "table" then
+            for _, tier in ipairs(tiers) do
+                push(tier)
+            end
+        end
+    end
+
+    return string.lower(table.concat(parts, " "))
+end
+
+--Comma-joined ability names, for the review lines.
+local function JoinAbilityNames(abilities)
+    local names = {}
+    for _, a in ipairs(abilities) do
+        names[#names + 1] = tostring(a:try_get("name", "(unnamed)"))
+    end
+    return table.concat(names, ", ")
+end
+
+--Convert this monster into a custom retainer. No-op returning nil when
+--ineligible. Otherwise returns a report of what the conversion did:
+--  stats     -- {label, before, after, dir} rows, dir being -1/0/1
+--  abilities -- {name, change, detail, ability} for every ability that was
+--               retargeted ("retargeted") or now needs Malice it can't spend
+--               ("malice"); ability is the live object, for previews
+--  review    -- plain-language lines a Director should check by hand
+function monster:ConvertToCustomRetainer()
+    if not self:CanBecomeCustomRetainer() then
+        return nil
+    end
+
+    local report = { stats = {}, abilities = {}, review = {} }
+
+    --Snapshot everything the mutation below overwrites or hides.
+    local beforeStamina = 0
+    pcall(function() beforeStamina = round(tonumber(self:MaxHitpoints()) or 0) end)
+    local beforeLevel = round(tonumber(self.cr) or 0)
+    local beforeDamage = round(tonumber(self:try_get("damage_taken", 0)) or 0)
+    local groupMalice = CollectGroupMaliceAbilities(self)
+
+    --Walk the innate abilities once: villain actions the retainer shouldn't
+    --keep, abilities that will stop working for want of Malice, abilities
+    --that only mention Malice in their text (suppression won't catch those),
+    --and non-signature abilities that still hit more than one creature.
+    local villainActions = {}
+    local maliceCost = {}
+    local maliceTextOnly = {}
+    local stillMultiTarget = {}
+    for _, ability in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        local isMaliceCost = ability.resourceCost == CharacterResource.maliceResourceId
+        if ability.categorization == "Villain Action" then
+            villainActions[#villainActions + 1] = ability
+        end
+        if isMaliceCost then
+            maliceCost[#maliceCost + 1] = ability
+        elseif string.find(AbilityRulesText(ability), "malice", 1, true) ~= nil then
+            maliceTextOnly[#maliceTextOnly + 1] = ability
+        end
+        if ability.categorization ~= "Signature Ability" and AbilityHitsMultiple(ability) then
+            stillMultiTarget[#stillMultiTarget + 1] = ability
+        end
+    end
+
+    --No matching "<Role> Abilities" template means no role advancement
+    --abilities at all, so check before anything is written.
+    local _, roleWord = self:ScalingOrgRole()
+    local roleTemplateId = RoleAbilitiesTemplateId(roleWord)
+
+    --Follower typing, matching the premade retainer convention (see the
+    --Angulotl Hopper premade). The role is kept as-is: it drives the role
+    --ability template and the retainer advancement track.
+    self.__typeName = "follower"
+    self.followerType = "retainer"
+    self.retainer = true
+    self.customRetainer = true
+    self.availableRolls = 0
+
+    --Retainers cap at level 10, so clamp before the stamina math. Any monster
+    --level adjustment is dropped: the retainer's stat block is now authored at
+    --its current level, which is also the starting level the level-gained
+    --advancement prerequisites compare against.
+    local maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    local levelClamped = false
+    if round(tonumber(self.cr) or 0) > maxLevel then
+        self.cr = maxLevel
+        levelClamped = true
+    end
+    if self:has_key("scalingBaseLevel") then
+        self.scalingBaseLevel = nil
+    end
+
+    --Retainer stamina: 21 at level 1, +9 per level after that. Taken from the
+    --same advancement table the leveler uses, so leveling up from here adds
+    --exactly the remaining difference. Wipe damage so the new maximum applies.
+    local level = round(tonumber(self.cr) or 1)
+    self.max_hitpoints = CUSTOM_RETAINER_BASE_STAMINA + RetainerCumulative(level).stamina
+    self.damage_taken = 0
+
+    --Attach the retainer advancement templates: the generic Retainer template
+    --and this role's "<Role> Abilities" template (its level 4/7/10 choices are
+    --level-gained gated, so a retainer starting above level 1 only gets the
+    --levels it actually gains). Premade retainers author their own template
+    --wiring and never come through here.
+    AddTemplateOnce(self, RETAINER_TEMPLATE_ID)
+    AddTemplateOnce(self, roleTemplateId)
+
+    --A retainer's signature ability affects only one target within distance.
+    for _, ability in ipairs(self:try_get("innateActivatedAbilities", {})) do
+        if ability.categorization == "Signature Ability" then
+            local detail = MakeSignatureSingleTarget(ability)
+            if detail ~= nil then
+                report.abilities[#report.abilities + 1] = {
+                    name = tostring(ability:try_get("name", "(unnamed)")),
+                    change = "retargeted",
+                    detail = detail,
+                    ability = ability,
+                }
+            end
+        end
+    end
+
+    --Malice-cost abilities survive on the stat block but can never be used.
+    for _, ability in ipairs(maliceCost) do
+        report.abilities[#report.abilities + 1] = {
+            name = tostring(ability:try_get("name", "(unnamed)")),
+            change = "malice",
+            detail = "Requires Malice - retainers can't spend it",
+            ability = ability,
+        }
+    end
+
+    --Stat rows. Stamina is the headline change; the others only appear when
+    --the conversion actually moved them.
+    local function addStat(label, before, after, dir)
+        report.stats[#report.stats + 1] = { label = label, before = before, after = after, dir = dir }
+    end
+
+    local afterStamina = round(tonumber(self.max_hitpoints) or 0)
+    local staminaDir = 0
+    if beforeStamina > afterStamina then
+        staminaDir = -1
+    elseif beforeStamina < afterStamina then
+        staminaDir = 1
+    end
+    addStat("Stamina", string.format("%d", beforeStamina), string.format("%d", afterStamina), staminaDir)
+
+    if levelClamped then
+        addStat("Level", string.format("%d", beforeLevel), string.format("%d", maxLevel), -1)
+    end
+    if beforeDamage > 0 then
+        addStat("Damage taken", string.format("%d", beforeDamage), "0", -1)
+    end
+
+    --Things the conversion can't decide for the Director.
+    local function addReview(text)
+        report.review[#report.review + 1] = text
+    end
+
+    if roleTemplateId == nil then
+        local shownRole = roleWord
+        if shownRole == nil or shownRole == "" then
+            shownRole = self:try_get("role", "(no role)")
+        end
+        addReview(string.format(
+            "No \"%s Abilities\" template matched this creature's role, so it gains NO role advancement abilities. Pick a role with a template, or author one.",
+            tostring(shownRole)))
+    end
+
+    if #villainActions > 0 then
+        addReview(string.format(
+            "Retainers don't take villain actions, but this stat block still has %d: %s.",
+            #villainActions, JoinAbilityNames(villainActions)))
+    end
+
+    if #maliceTextOnly > 0 then
+        addReview(string.format(
+            "These abilities mention Malice in their text but carry no Malice cost, so nothing suppresses them: %s.",
+            JoinAbilityNames(maliceTextOnly)))
+    end
+
+    if #groupMalice > 0 then
+        addReview(string.format(
+            "The monster group contributed %d malice feature(s), now suppressed: %s.",
+            #groupMalice, JoinAbilityNames(groupMalice)))
+    end
+
+    if #stillMultiTarget > 0 then
+        addReview(string.format(
+            "Only the signature ability is single-targeted by the rules. These still affect several creatures: %s.",
+            JoinAbilityNames(stillMultiTarget)))
+    end
+
+    if levelClamped then
+        addReview(string.format(
+            "Level was reduced from %d to %d, the retainer maximum.", beforeLevel, maxLevel))
+    end
+
+    return report
+end

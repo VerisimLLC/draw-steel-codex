@@ -2736,6 +2736,10 @@ local function ScalingSignedString(n)
     return string.format("%d", n)
 end
 
+-- Forward-declared: the leveler launches the post-conversion summary, and the
+-- summary reopens the leveler when it closes. Defined below the leveler.
+local ShowCustomRetainerSummary
+
 local function ShowAdjustLevelDialog(token)
     if token == nil or token.properties == nil then
         return
@@ -2753,6 +2757,11 @@ local function ShowAdjustLevelDialog(token)
     --track (stamina, free strikes, signature ability damage), cap at level 10,
     --and have no org/role table, echelon, or potency scaling.
     local isRetainer = props:IsRetainer()
+
+    --Whether this monster can convert into a custom retainer (not a minion,
+    --leader, solo, or existing follower). Drives the Make Custom Retainer
+    --footer button.
+    local canBecomeRetainer = props:CanBecomeCustomRetainer()
 
     -- Strikes add the highest characteristic on top of the table damage and so
     -- scale differently from non-strike power rolls (table delta + characteristic
@@ -3298,6 +3307,58 @@ local function ShowAdjustLevelDialog(token)
         squadCheck,
         footerLabel,
 
+        --Make Custom Retainer (Draw Steel: Monsters, "Retainers"): most stat
+        --blocks can become retainers, provided the creature is not a minion,
+        --a leader, or a solo. Converts in place (retainer typing, stamina
+        --baseline, single-target signature, retainer + role ability
+        --templates) behind a confirm prompt, then shows a summary of what
+        --changed and rebuilds this dialog so the retainer track shows.
+        gui.Button{
+            classes = cond(canBecomeRetainer, nil, { "collapsed" }),
+            text = "Make Custom Retainer",
+            width = 200,
+            height = 30,
+            halign = "center",
+            tmargin = 12,
+            click = function(element)
+                gui.ModalMessage{
+                    title = "Make Custom Retainer",
+                    message = string.format(
+                        "Convert %s into a custom retainer?\n\nThis rewrites the monster's stat block and CANNOT BE UNDONE. \n\nStamina is reset to the retainer baseline, the signature ability affects a single target, role advancement abilities replace creature-specific ones, and abilities that require Malice can no longer be used.",
+                        token.name or "this creature"),
+                    options = {
+                        {
+                            text = "Cancel",
+                        },
+                        {
+                            text = "Convert Permanently",
+                            execute = function()
+                                --The message dialog has already popped itself,
+                                --so this CloseModal pops the leveler. The
+                                --summary then takes its place, and reopens the
+                                --leveler on Close so the retainer advancement
+                                --track replaces the org/role one.
+                                local report = nil
+                                token:ModifyProperties{
+                                    description = "Convert to custom retainer",
+                                    execute = function()
+                                        report = token.properties:ConvertToCustomRetainer()
+                                    end,
+                                }
+                                if CharacterSheet.instance ~= nil then
+                                    CharacterSheet.instance:FireEvent("refreshAll")
+                                end
+                                gui.CloseModal()
+                                if not ShowCustomRetainerSummary(token, report) then
+                                    ShowAdjustLevelDialog(token)
+                                end
+                            end,
+                        },
+                    },
+                }
+            end,
+        },
+
         -- Cancel / Reset / Apply
         gui.Panel{
             width = "100%",
@@ -3360,6 +3421,278 @@ local function ShowAdjustLevelDialog(token)
 
     Refresh()
     gui.ShowModal(dialog)
+end
+
+--==============================================================
+-- Make Custom Retainer: the post-conversion summary.
+--
+-- ConvertToCustomRetainer overwrites the stat block in place with no way
+-- back, so the Director gets a receipt: what the stats were and are, which
+-- abilities were retargeted or can no longer be paid for, and the things
+-- the conversion could not decide on its own.
+--
+-- Sequencing: the leveler is closed before this opens, so the modal stack
+-- never goes two deep; Close pops this and reopens the leveler, which now
+-- shows the retainer advancement track. Returns false (showing nothing)
+-- when there is no report, so the caller can fall back to the old flow.
+--==============================================================
+ShowCustomRetainerSummary = function(token, report)
+    if token == nil or report == nil then
+        return false
+    end
+    local stats = report.stats or {}
+    local abilities = report.abilities or {}
+    local review = report.review or {}
+    if #stats == 0 and #abilities == 0 and #review == 0 then
+        return false
+    end
+
+    -- Close pops this dialog and brings the leveler back.
+    local function CloseSummary()
+        gui.CloseModal()
+        ShowAdjustLevelDialog(token)
+    end
+
+    -- Same four-column compare row as the leveler's preview table.
+    local function SummaryRow(idx, labelText, beforeText, afterText, changeText, dir)
+        local changeClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            changeClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            changeClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = beforeText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = changeClass, text = changeText, width = "30%", height = "auto", textAlignment = "center" },
+        }
+    end
+
+    local statRows = {}
+    statRows[#statRows + 1] = gui.Panel{
+        classes = { "row", "headerRow" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        borderBox = true,
+        hpad = 10,
+        vpad = 8,
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Before", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Change", width = "30%", height = "auto", textAlignment = "center" },
+    }
+    statRows[#statRows + 1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+    for i, stat in ipairs(stats) do
+        -- Show a signed delta only when both sides are plain numbers.
+        local changeText = ""
+        local a = tonumber(stat.before)
+        local b = tonumber(stat.after)
+        if a ~= nil and b ~= nil and b - a ~= 0 then
+            changeText = ScalingSignedString(b - a)
+        end
+        statRows[#statRows + 1] = SummaryRow(i, tostring(stat.label), tostring(stat.before), tostring(stat.after), changeText, stat.dir or 0)
+    end
+
+    -- One row per changed ability. Hovering shows the real ability card
+    -- rather than a hand-rolled re-render of it.
+    local abilityRows = {}
+    for i, entry in ipairs(abilities) do
+        local abilityObject = entry.ability
+        local detailClass = { "tableLabel", "changeRetarget" }
+        if entry.change == "malice" then
+            detailClass = { "tableLabel", "changeMalice" }
+        end
+        abilityRows[#abilityRows + 1] = gui.Panel{
+            classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            linger = function(element)
+                element.tooltip = CreateAbilityTooltip(abilityObject, {
+                    token = token,
+                    width = 380,
+                    pad = 8,
+                })
+            end,
+
+            gui.Label{ classes = { "tableLabel", "bold" }, text = tostring(entry.name or ""), width = "40%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = detailClass, text = tostring(entry.detail or ""), width = "60%", height = "auto", halign = "left", textWrap = true },
+        }
+    end
+
+    local reviewLines = {}
+    for _, line in ipairs(review) do
+        reviewLines[#reviewLines + 1] = gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = string.format("- %s", tostring(line)),
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textAlignment = "left",
+            textWrap = true,
+            vmargin = 2,
+        }
+    end
+
+    local dialog = gui.Panel{
+        classes = { "dialog" },
+        -- tableLabel sets @fg, so the tinted columns need to outrank it (same
+        -- shape as the leveler's Adjustment column rules).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeMalice" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeRetarget" }, color = "@warning", priority = 100 },
+            { selectors = { "reviewLine" }, color = "@warning", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Custom Retainer Created",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                CloseSummary()
+            end,
+        },
+
+        --Same identity line as the leveler, then the permanence note.
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster",
+                token.properties:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = "Now a custom retainer. This change is permanent.",
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 2,
+            bmargin = 8,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = statRows,
+        },
+
+        -- Abilities section. Collapsed away entirely when nothing changed.
+        gui.Panel{
+            classes = cond(#abilityRows > 0, nil, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold" },
+                text = "Abilities changed (hover for the full card)",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = abilityRows,
+            },
+        },
+
+        -- For your review. Omitted when the conversion flagged nothing.
+        gui.Panel{
+            classes = cond(#reviewLines > 0, { "bordered", "borderWarning" }, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderBox = true,
+            pad = 10,
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold", "reviewLine" },
+                text = "For your review",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = reviewLines,
+            },
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Close",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    CloseSummary()
+                end,
+            },
+        },
+    }
+
+    gui.ShowModal(dialog)
+    return true
 end
 
 -- Maps an implementation-status value (gui.ImplementationStatus) to the status
@@ -7609,6 +7942,34 @@ local function CommitCustomFeature(feature)
     c.characterFeatures = items
 end
 
+--Options for an "Add Creature Template..." dropdown, for this creature.
+--A template's prerequisite is a GoblinScript expression (e.g. "Retainer",
+--"minion"); templates the creature does not qualify for are left out.
+local function CreatureTemplateDropdownOptions(creature)
+    local choices = {
+        { id = "none", text = "Add Creature Template..." },
+    }
+
+    for k,entry in pairs(dmhub.GetTable("creatureTemplates") or {}) do
+        if not entry:try_get("hidden", false) then
+            local passes = true
+            local prerequisite = entry:try_get("prerequisite", "")
+            if creature ~= nil and trim(prerequisite) ~= "" then
+                pcall(function()
+                    passes = GoblinScriptTrue(ExecuteGoblinScript(prerequisite, creature:LookupSymbol(), 0,
+                        string.format("Creature template %s prerequisite", entry.name)))
+                end)
+            end
+
+            if passes then
+                choices[#choices+1] = { id = k, text = entry.name }
+            end
+        end
+    end
+
+    return choices
+end
+
 local function FeaturesIndexPanel()
     local resultPanel
 
@@ -8469,16 +8830,7 @@ local function FeaturesIndexPanel()
             vmargin = 4,
             idChosen = "none",
             create = function(dropdown)
-                local choices = {
-                    { id = "none", text = "Add Creature Template..." },
-                }
-                local templateTable = dmhub.GetTable("creatureTemplates") or {}
-                for k,entry in pairs(templateTable) do
-                    if not entry:try_get("hidden", false) then
-                        choices[#choices+1] = { id = k, text = entry.name }
-                    end
-                end
-                dropdown.options = choices
+                dropdown.options = CreatureTemplateDropdownOptions(creature)
             end,
             change = function(dropdown)
                 local c = CharacterSheet.instance.data.info.token.properties
@@ -8744,25 +9096,16 @@ function CharSheet.InnerFeaturesPanel()
                         element:FireEvent("refreshAssets")
                     end,
 
+                    --Rebuild on token change too: the options depend on the
+                    --creature, not just on the template table.
+                    refreshToken = function(element, info)
+                        element.options = CreatureTemplateDropdownOptions(info.token.properties)
+                    end,
+
                     refreshAssets = function(element)
-                        local choices = {
-                            {
-                                id = "none",
-                                text = "Add Creature Template...",
-                            },
-                        }
-
-                        local templateTable = dmhub.GetTable("creatureTemplates") or {}
-                        for k, entry in pairs(templateTable) do
-                            if not entry:try_get("hidden", false) then
-                                choices[#choices + 1] = {
-                                    id = k,
-                                    text = entry.name,
-                                }
-                            end
-                        end
-
-                        element.options = choices
+                        local creature = nil
+                        pcall(function() creature = CharacterSheet.instance.data.info.token.properties end)
+                        element.options = CreatureTemplateDropdownOptions(creature)
                     end,
 
                     change = function(element)

@@ -3085,12 +3085,18 @@ function creature:GetActivatedAbilities(options)
         end
     end
 
+    --Retainers can't use abilities or effects that require Malice, so their
+    --malice-cost innate abilities are suppressed here rather than deleted
+    --from the creature (converting back restores them).
+    local suppressMalice = self:IsRetainer()
     for i, a in ipairs(self.innateActivatedAbilities) do
-        local ability = a:MakeTemporaryClone()
-        if options.bindCaster and (not options.characterSheet) then
-            ability._tmp_boundCaster = self
+        if not (suppressMalice and a.resourceCost == CharacterResource.maliceResourceId) then
+            local ability = a:MakeTemporaryClone()
+            if options.bindCaster and (not options.characterSheet) then
+                ability._tmp_boundCaster = self
+            end
+            result[#result + 1] = ability
         end
-        result[#result + 1] = ability
     end
 
     local modifiers = self:GetActiveModifiers()

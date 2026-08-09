@@ -296,6 +296,14 @@ local appearanceTileStyles = {
 		borderColor = "@accent",
 		priority = 5,
 	},
+	--Pulsed on the floor-settings height input when an edit is rejected;
+	--lives here (the dialog's merged rule set) so @danger resolves.
+	{
+		selectors = {"input", "invalid"},
+		color = "@danger",
+		borderColor = "@danger",
+		transitionTime = 0.6,
+	},
 }
 
 local function ShowFloorSettings(floor, onHeightChanged)
@@ -903,11 +911,9 @@ local function ShowFloorSettings(floor, onHeightChanged)
 
 		local liveEditButton = nil
 		if dmhub.patronTier > 0 then
-			liveEditButton = gui.PrettyButton{
+			liveEditButton = gui.Button{
+				classes = {"sizeM"},
 				text = "Live Edit Image",
-				width = 170,
-				height = 30,
-				fontSize = 14,
 				halign = "left",
 				vmargin = 4,
 				click = function(element)
@@ -952,14 +958,6 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			gui.Input{
 				classes = {"formStacked"},
 				text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
-				styles = {
-					{
-						selectors = {"invalid"},
-						color = "#ff5555",
-						borderColor = "#ff5555",
-						transitionTime = 0.6,
-					},
-				},
 				hover = gui.Tooltip(string.format("The height of this floor from its base to its ceiling: %s to %s.", MeasurementSystem.NativeToDisplayStringWithUnits(dmhub.unitsPerSquare), MeasurementSystem.NativeToDisplayStringWithUnits(20*dmhub.unitsPerSquare))),
 				change = function(element)
 					local n = MeasurementSystem.DisplayToNative(tonumber(element.text))
@@ -1163,89 +1161,142 @@ end
 
 --Format a seam elevation (in tiles, relative to ground level) for display in the floors
 --list. Positive elevations get an explicit + so above/below ground is unambiguous;
---MeasurementSystem supplies the - for negatives.
+--MeasurementSystem supplies the - for negatives, and the unit abbreviation says what
+--the number IS (the bare figures used to read as mystery badges).
 local FormatRelativeElevation = function(tiles)
 	local text = MeasurementSystem.NativeToDisplayString(tiles*dmhub.unitsPerSquare)
 	if tiles > 0 then
 		text = "+" .. text
 	end
+	local abbrev = MeasurementSystem.Abbrev()
+	if abbrev ~= "" then
+		text = text .. " " .. abbrev
+	end
 	return text
 end
 
---Apply a seam elevation value to a floating seam chip. val is the elevation in
---tiles relative to ground level, or false to hide the chip. Chips also hide when
---parallax rendering is off, matching the rest of the elevation UI.
-local ApplySeamElevation = function(element, val)
-	element.data.elevation = val
-	if val ~= false and val ~= nil then
-		element.text = FormatRelativeElevation(val)
-	end
-	element:SetClass("collapsed", val == false or val == nil or (not dmhub.useParallax))
+--Muted, compact styling for the per-row opacity sliders. Passed at the
+--PercentSlider call sites: the control attaches its OWN styles list, which
+--outranks the panel's cascade rules, so cascade-level muting is a no-op.
+--Resolved via MergeTokens at build time (rows do not restyle on a live theme
+--switch until rebuilt; the panel rebuilds on reopen).
+local function MutedPercentSliderStyles()
+	return ThemeEngine.MergeTokens{
+		{
+			selectors = {"percentSlider"},
+			borderWidth = 1,
+			borderColor = "@border",
+			cornerRadius = 2,
+			bgimage = "panels/square.png",
+			bgcolor = "@bg",
+			height = 12,
+			flow = "none",
+		},
+		--Readable, but still quieter than the row name. The earlier @fgMuted /
+		--9px pairing was over-corrected: on the muted fill bar it came out as
+		--grey-on-grey.
+		{
+			selectors = {"percentSliderLabel"},
+			color = "@fg",
+			fontSize = 10,
+			bold = true,
+			halign = "left",
+			valign = "center",
+			width = 40,
+			textAlignment = "center",
+			height = "auto",
+		},
+		--The clipped duplicate that shows over the filled portion needs the
+		--inverse treatment to stay legible against the fill.
+		{
+			selectors = {"percentSliderLabel", "fill"},
+			color = "@bg",
+		},
+		{
+			selectors = {"percentFill"},
+			bgcolor = "@fgMuted",
+			height = "100%",
+			width = "0%",
+			halign = "left",
+			cornerRadius = 2,
+		},
+	}
 end
 
---A floating chip straddling the seam line at the top edge of a floor row, showing
---that boundary's elevation. A static child of the row so it renders above the row
---it overlaps; the row below never paints over it because rows below are later
---siblings of the row itself, not of the chip's half above. Value arrives via the
---"seamElevations" event fired on the floor panel each refresh.
-local CreateSeamChip = function()
-	return gui.Label{
-		classes = {"floorSeamChip", "collapsed"},
+--A hairline sitting in the gap above a row, separating rows that otherwise
+--blend into one another. Deliberately faint: a hint of structure, not a table
+--grid. Collapses directly beneath the GROUND LEVEL rule so the two do not
+--double up. (Elevations used to ride these lines as floating chips; each row
+--now states its own span instead -- see the span label below.)
+local CreateSeamLine = function()
+	return gui.Panel{
+		classes = {"floorSeamLine"},
 		floating = true,
 		interactable = false,
-		halign = "right",
-		valign = "top",
-		rmargin = 20,
-		y = -10,
-		data = {
-			elevation = false,
-		},
-		monitor = "useparallax",
-		events = {
-			monitor = function(element)
-				ApplySeamElevation(element, element.data.elevation)
-			end,
-			seamElevations = function(element, topVal)
-				ApplySeamElevation(element, topVal)
-			end,
-		},
-	}
-end
-
---The bottom-of-map seam has no row below to host a chip, so it gets a zero-height
---in-flow anchor carrying a floating chip centered on it. Recreated each refresh
---with its value baked in. Sized/aligned like a floor row so the chip lines up
---with the row chips.
-local CreateBottomSeamAnchor = function(elevationInTiles)
-	return gui.Panel{
-		classes = {cond(not dmhub.useParallax, "collapsed")},
-		width = "92%",
-		height = 0,
-		hmargin = 8,
+		bgimage = "panels/square.png",
 		halign = "center",
 		valign = "top",
-		flow = "none",
-		interactable = false,
-		monitor = "useparallax",
+		width = "100%",
+		height = 1,
+		--Rows now sit edge to edge, so the boundary IS the row's border-box
+		--top. Floating children anchor to the CONTENT box (inside the 6px
+		--vpad), so -6 is the nominal edge; -7 is the measured one (the
+		--nominal value left a 1px sliver of background between a selected
+		--row's fill and this line). Calibrated at 12x, not derived.
+		y = -7,
 		events = {
-			monitor = function(element)
-				element:SetClass("collapsed", not dmhub.useParallax)
+			seamElevations = function(element, topVal)
+				element:SetClass("collapsed", topVal == false)
 			end,
-		},
-		gui.Label{
-			classes = {"floorSeamChip"},
-			floating = true,
-			interactable = false,
-			halign = "right",
-			valign = "top",
-			rmargin = 20,
-			y = -10,
-			text = FormatRelativeElevation(elevationInTiles),
 		},
 	}
 end
 
-
+--The elevation span a floor occupies, shown inside the row under its name
+--("0 to +3"). Replaces the floating seam chips: those put an unlabelled
+--number in the same right-hand column as the editable height pill, where
+--the two read as one confusing stack. Here the number sits with the floor
+--it describes and reads as a range. Hidden when parallax rendering is off,
+--like the rest of the elevation UI.
+local CreateFloorSpanLabel = function()
+	return gui.Label{
+		classes = {"floorSpanLabel"},
+		text = "",
+		data = {
+			span = false,
+			base = "",
+		},
+		monitor = "useparallax",
+		--The span renders as bare numbers, so the tooltip names what they
+		--measure and calls out this floor's own base value in italics.
+		--Built per-hover rather than once, because the values change whenever
+		--a floor's height or the ground level is edited.
+		hover = function(element)
+			if element.data.span == false then
+				return
+			end
+			return gui.Tooltip(string.format(
+				"Elevation relative to ground level, in %s. *(base %s)*",
+				string.lower(MeasurementSystem.UnitName()),
+				element.data.base))(element)
+		end,
+		events = {
+			monitor = function(element)
+				element:SetClass("collapsed", element.data.span == false or (not dmhub.useParallax))
+			end,
+			floorSpan = function(element, bottomVal, topVal)
+				if bottomVal == nil or topVal == nil then
+					element.data.span = false
+				else
+					element.data.span = true
+					element.data.base = FormatRelativeElevation(bottomVal)
+					element.text = string.format("%s to %s", FormatRelativeElevation(bottomVal), FormatRelativeElevation(topVal))
+				end
+				element:SetClass("collapsed", element.data.span == false or (not dmhub.useParallax))
+			end,
+		},
+	}
+end
 
 local CreateLayersList
 
@@ -1300,16 +1351,20 @@ CreateLayersPanel = function()
 
 	local floorsList
 
+	--Rows span this list edge to edge (width 100%, no row margin), and the
+	--list itself sits flush in the dock: no inset anywhere in the chain.
 	floorsList = gui.Panel{
 		--hmargin adds OUTSIDE a percent width, so '100%' + hmargin 12 made the
 		--list 24px wider than its host and shifted right -- the full-width seam
 		--lines and drag targets then poked out past the popped-out panel
 		--window's frame (the dock's frame padding absorbed the overhang, hiding
-		--it there). 100%-24 keeps the 12px gutters real: the list spans
-		--symmetrically inset from both edges.
-		width = "100%-24",
+		--it there). The gutters are gone entirely now: rows run flush to both
+		--edges, so width is a plain 100% with no margin and nothing overflows.
+		--Do NOT pair '100%-24' with hmargin 0 -- that subtracts gutters that no
+		--longer exist and leaves the list short on the right.
+		width = "100%",
 		height = "100%",
-		hmargin = 12,
+		hmargin = 0,
 		halign = 'left',
 		valign = 'top',
 		flow = 'vertical',
@@ -1347,8 +1402,14 @@ CreateLayersPanel = function()
 			if groundLevelPanel == nil then
 				groundLevelPanel = gui.Panel{
 					classes = {"groundLevel"},
-					flow = 'none',
-					height = 12,
+					--Section-header grammar: label | rule | elevation chip, laid
+					--out side by side. The old version stacked a full-width rule
+					--behind centred text and knocked a hole in it, which read as
+					--strikethrough; here nothing overlaps, so nothing needs a
+					--knockout background.
+					flow = 'horizontal',
+					height = 22,
+					vmargin = 4,
 					width = '100%',
 					valign = 'top',
 
@@ -1368,49 +1429,25 @@ CreateLayersPanel = function()
 						element:FireEvent("refreshGame")
 					end,
 
+					hover = gui.Tooltip("Drag onto a floor boundary to set which floor sits at ground level."),
+
+					gui.Label{
+						classes = {"groundLevelLabel"},
+						text = "GROUND LEVEL",
+					},
+
+					--The rule runs from the label to the panel's right edge. This
+					--line IS elevation 0, so it carries no seam chip of its own:
+					--"GROUND LEVEL" already says zero, and a bare "0" badge beside
+					--those words read as a mystery counter. The rows above and
+					--below still show their own seam elevations (+3, -10, ...), so
+					--the elevation ladder stays unbroken.
+					--The subtracted width covers the label (~86px at this size)
+					--plus its margins.
 					gui.Panel{
-						halign = 'center',
-						valign = 'center',
+						classes = {"groundLevelLine"},
 						bgimage = 'panels/square.png',
-						width = '100%',
-						height = 1,
-						bgcolor = Styles.textColor,
-					},
-
-					gui.Label{
-						bgimage = 'panels/square.png',
-						bgcolor = 'black',
-						width = 'auto',
-						height = 'auto',
-						fontSize = 10,
-						halign = 'center',
-						valign = 'center',
-						color = Styles.textColor,
-						text = "Ground Level",
-					},
-
-					--The ground line is elevation 0; showing it here anchors the seam
-					--chips displayed between the floor rows. Styled like the chips,
-					--sized down slightly to hug the 12px line panel. rmargin lines it
-					--up with the row chips (rows are 92% wide, CENTERED in the list,
-					--and carry their chips at rmargin 20 -- so the row chips' right
-					--edge sits at 4% of the list width plus 20px from the list's
-					--right edge; 34 splits the difference across the dock and
-					--panel-window widths).
-					gui.Label{
-						classes = {"floorSeamChip", cond(not dmhub.useParallax, "collapsed")},
-						monitor = "useparallax",
-						events = {
-							monitor = function(element)
-								element:SetClass("collapsed", not dmhub.useParallax)
-							end,
-						},
-						fontSize = 11,
-						vpad = 0,
-						halign = 'right',
-						valign = 'center',
-						rmargin = 34,
-						text = FormatRelativeElevation(0),
+						width = '100%-110',
 					},
 				}
 			end
@@ -1448,29 +1485,22 @@ CreateLayersPanel = function()
 				end
 			end
 
-			--Headroom so the topmost row's floating seam chip isn't clipped by the
-			--scroll region.
-			local children = {
-				gui.Panel{
-					classes = {cond(not dmhub.useParallax, "collapsed")},
-					width = "100%",
-					height = 10,
-					valign = "top",
-					interactable = false,
-					monitor = "useparallax",
-					events = {
-						monitor = function(element)
-							element:SetClass("collapsed", not dmhub.useParallax)
-						end,
-					},
-				},
-			}
+			--(A 10px headroom spacer used to sit here so the topmost row's
+			--floating seam chip was not clipped by the scroll region. The chips
+			--are gone -- each row states its own span now -- so the spacer was
+			--just a gap under the panel header.)
+			local children = {}
 			children[#children+1] = CreateDragTarget(#floors+1)
 
 			--Tracks whether the ground line rendered directly above the next floor
-			--row; its 0 marker labels that seam, so the row below suppresses its
-			--own chip.
+			--row; that seam is already labelled, so the row below suppresses its
+			--own separator.
 			local groundLineAbove = false
+
+			--The first row rendered has nothing above it but the panel header, so
+			--it draws no seam line: a separator there is a rule against the top of
+			--the panel, which reads as a gap rather than a division.
+			local anyRowRendered = false
 
 			if currentMap.groundLevel == #floors+1 then
 				children[#children+1] = groundLevelPanel
@@ -1502,10 +1532,10 @@ CreateLayersPanel = function()
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(not floor.floorInvisible, 'enabled')},
-									bgimage = cond(floor.floorInvisible, Styles.icons.hidden, Styles.icons.visible),
+									bgimage = cond(floor.floorInvisible, "phosphor/eye-slash.png", "phosphor/eye.png"),
 
 									refreshGame = function(element)
-										element.bgimage = cond(floor.floorInvisible, Styles.icons.hidden, Styles.icons.visible)
+										element.bgimage = cond(floor.floorInvisible, "phosphor/eye-slash.png", "phosphor/eye.png")
 										element:SetClass('enabled', not floor.floorInvisible)
 									end,
 
@@ -1519,9 +1549,9 @@ CreateLayersPanel = function()
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(floor.locked, 'enabled')},
-									bgimage = cond(floor.locked, Styles.icons.locked, Styles.icons.unlocked),
+									bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png"),
 									refreshGame = function(element)
-										element.bgimage = cond(floor.locked, Styles.icons.locked, Styles.icons.unlocked)
+										element.bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png")
 										element:SetClass('enabled', floor.locked)
 									end,
 								},
@@ -1584,8 +1614,8 @@ CreateLayersPanel = function()
 
 						--Per-floor height editor: shows and edits this floor's own thickness
 						--(floorHeightInTiles), the value actually stored on the floor. The
-						--derived elevations relative to ground level are shown on the seams
-						--between the rows instead (see CreateSeamChip).
+						--derived elevations relative to ground level are shown in the row's
+						--span label instead (see CreateFloorSpanLabel).
 						local heightEditor =
 						gui.Panel{
 							classes = {cond(not dmhub.useParallax, "collapsed")},
@@ -1596,18 +1626,10 @@ CreateLayersPanel = function()
 								end,
 							},
 							flow = "horizontal",
-							width = 80,
+							width = "auto",
 							height = 20,
-							gui.Label{
-								classes = {"floorLabel"},
-								text = "Height",
-								width = 44,
-								height = 20,
-								halign = "left",
-								valign = "center",
-								fontSize = 11,
-								minFontSize = 8,
-							},
+							halign = "right",
+							valign = "center",
 							gui.Label{
 								classes = {"floorHeightValue"},
 								text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
@@ -1639,6 +1661,10 @@ CreateLayersPanel = function()
 									end
 									element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
 								end,
+							},
+							gui.Label{
+								classes = {"floorHeightUnit", cond(MeasurementSystem.Abbrev() == "", "collapsed")},
+								text = MeasurementSystem.Abbrev(),
 							},
 						}
 
@@ -1690,6 +1716,8 @@ CreateLayersPanel = function()
 						}
 
 						local opacitySlider = gui.PercentSlider{
+							width = 88,
+							styles = MutedPercentSliderStyles(),
 							halign = "left",
 							valign = "bottom",
 							hmargin = 6,
@@ -1704,15 +1732,18 @@ CreateLayersPanel = function()
 							end,
 						}
 
+						--name, then the floor's elevation span, then opacity: the
+						--span fills what was dead space between the two.
 						local floorDetailsPanel = gui.Panel{
 							classes = {'floorDetailsPanel'},
 
 							floorLabel,
+							CreateFloorSpanLabel(),
 							opacitySlider,
 						}
 
 						local layersPanel = gui.Panel{
-							width = "90%",
+							width = "100%",
 							height = "auto",
 							valign = "top",
 							flow = "vertical",
@@ -1726,17 +1757,12 @@ CreateLayersPanel = function()
 							end,
 						}
 
-						local triangle = gui.Panel{
-							styles = {
-								Styles.Triangle,
-								{
-									selectors = {"triangle", "~expanded"},
-									transitionTime = 0.2,
-									rotate = 90,
-								}
-							},
-							classes = {"triangle"},
-							bgimage = "panels/triangle.png",
+						--A Phosphor mask rather than the default panels/triangle.png:
+						--that is a 64x64 bitmap being downscaled to row size, which
+						--is why it read fuzzy next to the eye/lock/gear (all Phosphor
+						--masks, which take the dedicated icon sampler).
+						local triangle = gui.ExpandoArrow{
+							bgimage = "phosphor/caret-down-fill.png",
 							press = function(element)
 								element:SetClass("expanded", not element:HasClass("expanded"))
 								layersPanel:FireEvent("expanded", element:HasClass("expanded"))
@@ -1765,21 +1791,43 @@ CreateLayersPanel = function()
 
 							floorDetailsPanel,
 
+							--Right-aligned readout column: the height sits on the row's
+							--center line with player tokens beneath. The gear is NOT
+							--here -- it floats in the corner (below), so the row's one
+							--editable number is not sharing a line with a button.
 							gui.Panel{
 								flow = "vertical",
 								width = "auto",
 								height = "100%",
-								heightEditor,
+								halign = "right",
+								--Bottom, not centre: the gear now occupies the top-right
+								--corner and a 16px gear plus an 18px readout do not both
+								--fit on a 44px row's centre line without overlapping.
+								gui.Panel{
+									flow = "horizontal",
+									width = "auto",
+									height = 22,
+									halign = "right",
+									valign = "bottom",
+									rmargin = 8,
+									heightEditor,
+								},
 								floorTokensPanel,
 							},
 
+							--Settings floats in the row's top-right corner, out of the
+							--reading path. It was inline for a while because the old
+							--floating 12px target was too small and collided with the
+							--seam chips; the chips are gone now and it is 16px, so the
+							--corner is free again.
 							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
 								halign = "right",
 								valign = "top",
-								width = 12,
-								height = 12,
+								width = 16,
+								height = 16,
+								hmargin = 6,
 								click = function(element)
 									ShowFloorSettings(floor, function()
 										floorsList:FireEventTree("refreshGame")
@@ -1787,9 +1835,8 @@ CreateLayersPanel = function()
 								end,
 							},
 
-							--Seam elevation chip straddling this row's top edge (the boundary
-							--with the floor above).
-							CreateSeamChip(),
+							--The boundary with the floor above.
+							CreateSeamLine(),
 
 							data = {
 								floorLabel = floorLabel,
@@ -2069,16 +2116,26 @@ CreateLayersPanel = function()
 
 					floorPanel.data.index = i
 
-					--Update this row's floating seam chip: the elevation of this floor's
-					--top, suppressed when the ground line (which carries its own 0
-					--marker) sits directly above this row.
+					--Suppress this row's seam line when the ground rule sits directly
+					--above it (the two would double up), and on the very first row
+					--(nothing above it to divide from).
 					local topElevation = false
-					if not groundLineAbove then
+					if not groundLineAbove and anyRowRendered then
 						topElevation = floorTopAltitudes[floor.floorid] - groundAltitude
 					end
 					floorPanel:FireEventTree("seamElevations", topElevation)
+					anyRowRendered = true
+
+					--The elevation span this floor occupies, shown in the row: its
+					--top relative to ground, and that minus its own thickness.
+					local spanTop = floorTopAltitudes[floor.floorid] - groundAltitude
+					floorPanel:FireEventTree("floorSpan", spanTop - floor.floorHeightInTiles, spanTop)
 
 					floorPanel:SetClassTree('selected', currentFloor.actualFloor == floor.actualFloor)
+
+					--Hidden floors read as hidden at a glance: the eye icon alone
+					--is a 13px signal on a panel whose whole job is visibility.
+					floorPanel:SetClassTree('floorHidden', floor.floorInvisible == true)
 
 					floorPanel.data.floorLabel.text = floor.description
 					if floorPanel.data.floorLabel.text == '' then
@@ -2116,12 +2173,9 @@ CreateLayersPanel = function()
 				end
 			end
 
-			--Bottom-of-map seam: the lowest floor's base. No row below to host a
-			--chip, so it rides an in-flow anchor. Suppressed when the ground line
-			--just rendered there.
-			if totalAltitude > 0 and not groundLineAbove then
-				children[#children+1] = CreateBottomSeamAnchor(-groundAltitude)
-			end
+			--(The bottom-of-map seam used to carry its own floating chip here.
+			--The lowest floor's row now states that value as the bottom of its
+			--own span, so the anchor is gone.)
 
 			children[#children+1] = addFloorButton
 
@@ -2140,12 +2194,24 @@ CreateLayersPanel = function()
 	-- assignment so the panel recolors live when the user switches theme/scheme.
 	local function buildLocalStyles()
 		return {
+			--Drop indicators between rows: invisible at rest (always-on 2px
+			--lines read as clutter against transparent rows), accent bar when
+			--a drag hovers the gap. priority 10: the global {drag-target}
+			--rule paints these @accent at priority 5, which is what drew the
+			--permanent lines between rows.
+			--2px at rest, invisible (bgcolor clear), growing to a 10px accent bar
+			--while a drag is over them. Zero height would reclaim those 2px, but
+			--a zero-area panel cannot be hovered, so the drop zones -- and with
+			--them floor reordering -- would very likely stop working entirely.
+			--Not worth 2px, and synthetic drags do not reproduce the engine's
+			--drag system well enough to prove otherwise.
 			{
 				selectors = {'floorOrLayerDragTarget'},
 				bgimage = true,
-				bgcolor = '@bgAlt',
+				bgcolor = 'clear',
 				height = 2,
 				width = '100%',
+				priority = 10,
 				--every in-flow child of the floors list must be valign top: in a
 				--vertical flow the engine distributes leftover height between
 				--children that are NOT top-aligned, and while the dock slot hugs
@@ -2156,40 +2222,82 @@ CreateLayersPanel = function()
 			},
 			{
 				selectors = {"floorOrLayerDragTarget", "drag-target-hover"},
+				bgcolor = '@accent',
 				height = 10,
+				priority = 15,
 			},
+			--"Quiet dark" row grammar: rows are transparent at rest, surface
+			--on hover, and the selected row (floor or layer alike) carries an
+			--@bgAlt fill with a 3px accent edge. The old accent-wash gradient
+			--is gone: it inverted the panel's hierarchy (the state was louder
+			--than the identity) and forced inverse text.
 			{
 				selectors = {'floorPanel'},
 				flow = "horizontal",
 				bgimage = true,
-				bgcolor = '@bgAlt',
-				--rows sit centered between the seam lines, which span the full
-				--list width; the bottom seam anchor and the ground-line chip
-				--margin below are calibrated against this centering.
-				halign = "center",
+				bgcolor = 'clear',
+				halign = "left",
+				hmargin = 0,
+				--valign top for the same reason as the drag targets above: an
+				--in-flow child that is not top-aligned gets leftover height
+				--distributed to it, which spreads the rows apart when the panel
+				--is popped out into its own window rather than docked.
 				valign = "top",
-				hmargin = 8,
-				height = 40,
-				width = '92%',
+				--The seam gap is PADDING, not margin: rows sit edge to edge and
+				--own the space around their content, so a selected row's fill
+				--(and its accent edge) runs the full pitch and meets the divider
+				--lines instead of stopping 6px short of them. borderBox keeps the
+				--declared height inclusive of that padding.
+				vmargin = 0,
+				vpad = 6,
+				borderBox = true,
+				height = 56,
+				width = '100%',
 				fontSize = 16,
 				color = '@fg',
 			},
+			--Layer rows: same 6px padding on each side, shorter content band.
+			{
+				selectors = {'floorPanel', 'layerPanel'},
+				height = 46,
+			},
+			{
+				selectors = {'floorPanel', 'hover'},
+				bgcolor = "@bgAlt",
+			},
 			{
 				selectors = {'floorPanel', 'selected'},
-				bgcolor = "@accent",
-				gradient = "@maskHorizontal",
+				bgcolor = "@bgAlt",
+				border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+				borderColor = "@accent",
+				priority = 5,
 			},
 			{
 				selectors = {'floorPanel', 'dragging'},
 				opacity = 0.2,
 			},
+			--Hidden floors/layers: the thumbnail fades and the name goes muted,
+			--so "this floor is not shown" is legible from across the room. The
+			--eye icon deliberately keeps its normal treatment -- it is the
+			--control that undoes this state, so it must stay clearly clickable.
+			{
+				selectors = {'floorPanelMinimap', 'floorHidden'},
+				opacity = 0.3,
+			},
+			{
+				selectors = {'floorLabel', 'floorHidden'},
+				color = '@fgMuted',
+			},
+			--lmargin clears the selected row's 3px accent edge so the eye/lock
+			--column never crowds it; rmargin keeps them off the thumbnail.
 			{
 				selectors = {'floorPanelLeftIconsPanel'},
 				height = "90%",
 				width = "50% height",
 				valign = "center",
 				halign = "left",
-				hmargin = 2,
+				lmargin = 8,
+				rmargin = 4,
 				flow = "vertical",
 			},
 			{
@@ -2201,8 +2309,8 @@ CreateLayersPanel = function()
 			},
 			{
 				selectors = {'floorOptionIcon'},
-				width = "80%",
-				height = "80%",
+				width = "90%",
+				height = "90%",
 				halign = "center",
 				valign = "center",
 				bgcolor = "@fgMuted",
@@ -2234,13 +2342,19 @@ CreateLayersPanel = function()
 				maxWidth = 100,
 				hmargin = 10,
 			},
+			--Matches the thumbnail's box exactly (both are 100% of the row's
+			--content height, vertically centred), so the name's top edge and
+			--the opacity bar's bottom edge line up with the thumbnail's.
+			--flow "none", NOT "vertical": the three children pin themselves to
+			--top / centre / bottom, which is what spreads them to the full
+			--height and gives the span label the space between.
 			{
 				selectors = {'floorDetailsPanel'},
-				flow = "vertical",
+				flow = "none",
 				halign = "left",
-				valign = "top",
+				valign = "center",
 				width = 100,
-				height = "90%",
+				height = "100%",
 			},
 			{
 				selectors = {'floorLabel'},
@@ -2252,26 +2366,104 @@ CreateLayersPanel = function()
 				height = "auto",
 				width = "auto",
 			},
+			--Identity leads: the selected row's NAME is the strongest text in
+			--the panel, on the quiet @bgAlt fill.
 			{
 				selectors = {'floorLabel', 'selected'},
-				color = "@fgInverse",
+				color = "@fgStrong",
+				bold = true,
 			},
 			--Floating elevation chips straddling the seam lines between floor rows
 			--(relative to ground level = 0).
+			--The ground divider reads as a section header. The rule is @border,
+			--NOT @fg: as a bright hairline it was the loudest element in the
+			--panel, competing with the floor names it divides.
 			{
-				selectors = {'floorSeamChip'},
-				bgimage = 'panels/square.png',
-				bgcolor = 'black',
-				border = 1,
-				borderColor = '@border',
-				cornerRadius = 4,
-				fontSize = 12,
-				color = '@fg',
+				selectors = {'groundLevelLine'},
+				bgcolor = '@border',
+				height = 2,
+				valign = 'center',
+				hmargin = 8,
+			},
+			{
+				selectors = {'groundLevelLabel'},
+				color = '@fgMuted',
+				fontSize = 10,
+				bold = true,
 				width = 'auto',
 				height = 'auto',
-				hpad = 5,
-				vpad = 1,
-				textAlignment = 'center',
+				halign = 'left',
+				valign = 'center',
+				lmargin = 8,
+				textAlignment = 'left',
+			},
+			--The divider is draggable (drop it on a floor seam to set which
+			--floor is ground level) but nothing said so. Brightening both
+			--parts on hover marks it as a live control.
+			{
+				selectors = {'groundLevelLabel', 'parent:hover'},
+				color = '@fg',
+				transitionTime = 0.1,
+			},
+			{
+				selectors = {'groundLevelLine', 'parent:hover'},
+				bgcolor = '@fgMuted',
+				transitionTime = 0.1,
+			},
+			--The add buttons take the Phosphor plus instead of the shared
+			--ui-icons/Plus.png: it matches the eye/lock/gear/caret masks used
+			--everywhere else in this panel, and renders cleaner at button size.
+			--Scoped here so the app-wide addButton icon is untouched.
+			{
+				selectors = {"panel", "buttonIcon", "parent:addButton"},
+				bgimage = "phosphor/plus-bold.png",
+				priority = 10,
+			},
+			--The expander, local to this panel (the shared {triangle} default is
+			--a 12px square). A wider BASE than length gives a blunt, broad
+			--arrow at row scale. The base is the panel's width because the
+			--collapsed state is the rotated one: rotate 90 swaps the axes, so
+			--width becomes the on-screen vertical extent.
+			--Sized for the PHOSPHOR caret, whose glyph sits inside padding in its
+			--own canvas, so the panel runs bigger than the arrow you see.
+			--Remember the axes swap: the collapsed state is rotated 90, so
+			--HEIGHT is the arrow's on-screen width (its length) and WIDTH is its
+			--vertical extent (its base). Raising height blunts the point.
+			{
+				selectors = {'triangle'},
+				width = 27,
+				height = 29,
+				priority = 10,
+			},
+			--Open state reads from weight as well as direction: an expanded
+			--arrow steps back so the collapsed ones carry the "there is more
+			--in here" signal.
+			{
+				selectors = {'triangle', 'expanded'},
+				opacity = 0.4,
+				priority = 10,
+			},
+			--Row separator: @border already sits close to the background, and
+			--the opacity takes it further down so it reads as a hint of
+			--structure rather than a table grid line.
+			{
+				selectors = {'floorSeamLine'},
+				bgcolor = '@border',
+				opacity = 0.2,
+			},
+			--The floor's elevation span, under its name. Muted and small: it is
+			--reference information about the row, not a control, and must stay
+			--quieter than the name above it.
+			{
+				selectors = {'floorSpanLabel'},
+				fontSize = 10,
+				color = '@fgMuted',
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				hmargin = 6,
+				textAlignment = 'left',
 			},
 			--The editable per-floor height value. Bordered so it reads as editable
 			--without needing to discover a hidden double-click.
@@ -2294,18 +2486,24 @@ CreateLayersPanel = function()
 				selectors = {'floorHeightValue', 'hover'},
 				borderColor = '@accent',
 			},
+			--The muted unit suffix after the editable height value.
 			{
-				selectors = {'floorHeightValue', 'selected'},
-				color = '@fgInverse',
-				borderColor = '@fgInverse',
+				selectors = {'floorHeightUnit'},
+				fontSize = 10,
+				color = '@fgMuted',
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				lmargin = 3,
 			},
 			--Pulsed when an edit is rejected (non-numeric, fractional tiles, or
 			--outside the 1-20 tile range); fades back out over transitionTime.
 			{
 				selectors = {'floorHeightValue', 'invalid'},
 				priority = 20,
-				color = '#ff5555',
-				borderColor = '#ff5555',
+				color = '@danger',
+				borderColor = '@danger',
 				transitionTime = 0.6,
 			},
 		}
@@ -2335,10 +2533,14 @@ CreateLayersList = function(parentFloor)
 
 	local floorItems = {}
 
+	--Layers indent from the LEFT only (hierarchy) and stay flush with the
+	--floor rows on the right, so every row in the panel shares one right
+	--edge and one control column.
 	local listPanel = gui.Panel{
-		width = "100%",
+		width = "100%-18",
 		height = "auto",
-		hmargin = 32,
+		hmargin = 0,
+		halign = "right",
 		flow = "vertical",
 
 		create = function(element)
@@ -2372,10 +2574,10 @@ CreateLayersList = function(parentFloor)
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(not floor.invisible, 'enabled')},
-									bgimage = cond(floor.invisible, 'icons/icon_tool/icon_tool_60.png', 'icons/icon_tool/icon_tool_59.png'),
+									bgimage = cond(floor.invisible, "phosphor/eye-slash.png", "phosphor/eye.png"),
 
 									refreshGame = function(element)
-										element.bgimage = cond(floor.invisible, 'icons/icon_tool/icon_tool_60.png', 'icons/icon_tool/icon_tool_59.png')
+										element.bgimage = cond(floor.invisible, "phosphor/eye-slash.png", "phosphor/eye.png")
 										element:SetClass('enabled', not floor.invisible)
 									end,
 
@@ -2389,9 +2591,9 @@ CreateLayersList = function(parentFloor)
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(floor.locked, 'enabled')},
-									bgimage = cond(floor.locked, 'icons/icon_tool/icon_tool_30.png', 'icons/icon_tool/icon_tool_30_unlocked.png'),
+									bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png"),
 									refreshGame = function(element)
-										element.bgimage = cond(floor.locked, 'icons/icon_tool/icon_tool_30.png', 'icons/icon_tool/icon_tool_30_unlocked.png')
+										element.bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png")
 										element:SetClass('enabled', floor.locked)
 									end,
 								},
@@ -2479,6 +2681,8 @@ CreateLayersList = function(parentFloor)
 						}
 
 						local opacitySlider = gui.PercentSlider{
+							width = 88,
+							styles = MutedPercentSliderStyles(),
 							halign = "left",
 							valign = "bottom",
 							hmargin = 6,
@@ -2502,7 +2706,7 @@ CreateLayersList = function(parentFloor)
 
 						floorPanel = gui.Panel{
 							bgimage = 'panels/square.png',
-							classes = {'floorPanel'},
+							classes = {'floorPanel', 'layerPanel'},
 							monitorGame = '/mapFloors/' .. floor.floorid .. '/layerDescription',
 							draggable = true,
 							dragBounds = { x1 = 0, x2 = 0, y1 = -1000, y2 = 1000},
@@ -2516,20 +2720,28 @@ CreateLayersList = function(parentFloor)
 								flow = "vertical",
 								width = "auto",
 								height = "100%",
+								halign = "right",
 								floorTokensPanel,
 							},
 
+							--Same corner placement as the floor rows.
 							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
 								halign = "right",
 								valign = "top",
-								width = 12,
-								height = 12,
+								width = 16,
+								height = 16,
+								hmargin = 6,
 								click = function(element)
 									ShowFloorSettings(floor)
 								end,
 							},
+
+							--Layer rows get the same faint separator. They carry no
+							--span label (layers share their parent floor's elevation),
+							--so this one never receives the collapse signal.
+							CreateSeamLine(),
 
 							data = {
 								floor = floor,
@@ -2742,6 +2954,7 @@ CreateLayersList = function(parentFloor)
 					floorPanel.data.index = i
 
 					floorPanel:SetClassTree('selected', game.currentFloor.floorid == floor.floorid)
+					floorPanel:SetClassTree('floorHidden', floor.invisible == true)
 
 					floorPanel.data.floorLabel.text = floor.layerDescription
 					if floorPanel.data.floorLabel.text == '' then

@@ -3099,10 +3099,12 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
                 missingLabel = nil
             end
 
+            local createdDetailsPanel = false
             if summaryPanel == nil then
                 summaryPanel = CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 detailsPanel = CharacterDetailsPanel(token)
                 element.children = { summaryPanel, detailsPanel }
+                createdDetailsPanel = true
             end
 
             summaryPanel:SetClass("collapsed", false)
@@ -3115,7 +3117,16 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
             --keeps its own monitorGame wiring via dirtyToken.
             summaryPanel:FireEvent("setToken", token)
             summaryPanel:FireEvent("refresh")
-            detailsPanel:FireEvent("dirtyToken", token)
+            if createdDetailsPanel then
+                --a details panel built THIS pass is still showing its
+                --placeholder zeroes; populate it now that it is parented
+                --rather than letting dirtyToken's ScheduleEvent do it a
+                --frame later and flash zeroed stats. Steady-state updates
+                --keep the debounce.
+                detailsPanel:FireEvent("refreshTokenNow", token)
+            else
+                detailsPanel:FireEvent("dirtyToken", token)
+            end
 
             --outside the dock nothing refreshes us on its own: follow the
             --character's own data so stamina, conditions and resources

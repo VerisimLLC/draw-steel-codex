@@ -4613,6 +4613,8 @@ CreateAbilityController = function()
         width = "auto",
         maxWidth = 800,
         height = "auto",
+        halign = "center",
+        vmargin = 4,
         bgimage = "panels/square.png",
         bgcolor = Styles.Ability.blurColor,
         flow = "horizontal",
@@ -4656,6 +4658,21 @@ CreateAbilityController = function()
                 children[#children + 1] = gui.Label {
                     classes = { "enumSliderOption", cond(moveType == g_currentSymbols.forcedmovement, "selected") },
                     text = moveType,
+
+                    --the enumSliderOption class is height = "100%" with no width, which
+                    --in this auto-sized container renders as tall, text-width slivers.
+                    --Give the options explicit compact chip sizing instead.
+                    fontSize = 14,
+                    width = "auto",
+                    minWidth = 80,
+                    maxWidth = 160,
+                    height = 24,
+                    hpad = 8,
+                    vpad = 1,
+                    borderBox = true,
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
 
                     press = function(element)
                         g_preferredForcedMovementType:Set(moveType)

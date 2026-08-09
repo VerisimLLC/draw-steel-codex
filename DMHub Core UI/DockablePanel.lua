@@ -2138,6 +2138,11 @@ DockablePanel = {
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
 	--minWidth/maxWidth bound the window's width.
+	--preferFloating = true opens the panel on the floating (center) dock
+	--as a window over the map instead of claiming a side dock;
+	--floatingHalign = "right" places that window on the right.
+	--menu = "codex"|"game"|"tools" lists the panel in that title-bar menu
+	--INSTEAD of the Panels menu.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -2415,13 +2420,36 @@ DockablePanel = {
 
 							local targetDock = gamehud.leftDock
 
-							if dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
+							--A panel that declares preferFloating opens on the
+							--floating (center) dock -- a window over the map --
+							--rather than claiming a side dock. It can still be
+							--dragged into a dock afterwards, and that placement
+							--persists via Serialize like any other.
+							if p.preferFloating and gamehud.floatingDock ~= nil and gamehud.floatingDock.valid then
+								targetDock = gamehud.floatingDock
+							elseif dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
 								targetDock = gamehud.rightDock
 							elseif dmhub.GetSettingValue("leftdockoffscreen") then
 								dmhub.SetSettingValue("leftdockoffscreen", false)
 							end
 
 							targetDock:FireEvent("addPanel", newPanel)
+
+							if targetDock == gamehud.floatingDock then
+								--the floating dock does not size or place its
+								--children (sizeChild/fitChildren no-op there),
+								--so give the fresh window its own geometry:
+								--dock width, content-bounded height, near the
+								--top of the map on the panel's preferred side.
+								newPanel.selfStyle.width = DockablePanel.DockWidth
+								newPanel.selfStyle.height = math.min(newPanel.data.maxHeight, 700)
+								local x = 16
+								if p.floatingHalign == "right" then
+									x = math.max(0, targetDock.renderedWidth - DockablePanel.DockWidth - 16)
+								end
+								newPanel.x = x
+								newPanel.y = 40
+							end
 						end
 
 						DockablePanel.Serialize()

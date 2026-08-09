@@ -5295,6 +5295,7 @@ function CreateSettingsScreen(dialog, args)
 						Setting('camerafollow'),
 						Setting('edgepan'),
 						Setting('dockscale'),
+						Setting('iconrail'),
 
 						SettingsSection("General"),
 

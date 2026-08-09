@@ -269,20 +269,29 @@ function CreateActionLogCard(options)
     }
 end
 
-local CreateRollCategoryPanel = function(cat, catInfo)
+--alreadyComplete: true when this panel is built for a roll that finished in
+--the past (e.g. the log being opened over history). The total label is then
+--created directly in its settled 'complete' state so it does not play the
+--live-roll scale-down animation (base scale 3 -> complete scale 1).
+local CreateRollCategoryPanel = function(cat, catInfo, alreadyComplete)
 
 	local headingLabel = nil
 	if cat ~= 'default' then
 		local text = cat
-	
+
 		headingLabel = gui.Label{
 			classes = {'roll-category-label'},
 			text = text,
 		}
 	end
 
+	local resultClasses = {'roll-category-total'}
+	if alreadyComplete then
+		resultClasses[#resultClasses+1] = 'complete'
+	end
+
 	local resultLabel = gui.Label{
-		classes = {'roll-category-total'},
+		classes = resultClasses,
 		text = tostring(catInfo.total),
 		events = {
 			showresult = function(element)
@@ -556,8 +565,16 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 	local outcomePanelAdded = false
 
 	if message.forcedResult or (message.properties ~= nil and message.properties.typeName == "RollProperties" and message.properties:HasOutcomes()) then
+		--for a roll that already finished (log opened over history), skip the
+		--hidden/appear pair so the outcome does not play its pop-in animation;
+		--refreshMessage's SetClass('hidden'/'appear', false) are then no-ops.
+		local outcomeClasses = {'roll-message-outcome'}
+		if not message.isComplete then
+			outcomeClasses[#outcomeClasses+1] = 'hidden'
+			outcomeClasses[#outcomeClasses+1] = 'appear'
+		end
 		outcomePanel = gui.Label{
-			classes = {'roll-message-outcome', 'hidden', 'appear'},
+			classes = outcomeClasses,
 			text = ' ',
 		}
 	end
@@ -646,7 +663,7 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 
 			for cat,catInfo in pairs(info) do
 
-				local catPanel = catPanels[cat] or CreateRollCategoryPanel(cat, catInfo)
+				local catPanel = catPanels[cat] or CreateRollCategoryPanel(cat, catInfo, complete)
 				catPanel:FireEvent('refreshInfo', catInfo, diceStyle, complete, message)
 
 				if customPanel ~= nil then
@@ -901,6 +918,72 @@ end
 --any chat panels that have errors we don't re-try.
 local g_errorPanels = {}
 
+--Set the scroll position so `target` (a top-level entry panel, possibly since
+--adopted deeper into the tree) sits at the top of the viewport. Used after
+--prepending older entries so the entry the user was looking at stays put
+--instead of the view jumping. There is no engine ScrollIntoView; offsets are
+--summed from rendered sibling heights (the same technique as
+--DrawSteelChararcterSheet's ScrollCapabilityIntoView). Returns the content
+--height it measured, or nil if layout has not produced usable numbers yet;
+--the caller retries until the value is stable across calls (layout settled).
+--Engine reads are pcall-guarded -- panel property reads raise rather than
+--return nil.
+local function AnchorScrollToPanel(scrollPanel, target)
+	if target == nil or (not target.valid) or (not scrollPanel.valid) then
+		return nil
+	end
+
+	local windowH = 0
+	pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+	if windowH <= 0 then
+		return nil
+	end
+
+	local contentH = 0
+	pcall(function()
+		for _,c in ipairs(scrollPanel.children) do
+			contentH = contentH + (c.renderedHeight or 0)
+		end
+	end)
+	if contentH <= 0 then
+		return nil
+	end
+
+	local range = contentH - windowH
+	if range <= 0 then
+		--everything fits; nothing to anchor.
+		return contentH
+	end
+
+	local offset = 0
+	local node = target
+	while node ~= nil and node ~= scrollPanel do
+		local parent = node.parent
+		if parent == nil then
+			return contentH
+		end
+		pcall(function()
+			for _,s in ipairs(parent.children) do
+				if s == node then
+					break
+				end
+				offset = offset + (s.renderedHeight or 0)
+			end
+		end)
+		node = parent
+	end
+
+	local desiredTop = offset
+	if desiredTop < 0 then
+		desiredTop = 0
+	elseif desiredTop > range then
+		desiredTop = range
+	end
+	--vscrollPosition: 1 = top, 0 = bottom.
+	scrollPanel.vscrollPosition = 1 - desiredTop / range
+	return contentH
+end
+
 CreateChatPanel = function()
 
 	local children = {}
@@ -909,6 +992,50 @@ CreateChatPanel = function()
     --true once refreshChat has completed at least one FULL pass; the incremental path
     --can only patch an existing build.
     local m_fullRefreshDone = false
+
+    --LAZY HISTORY: only the newest LOAD_CHUNK action-log messages get panels
+    --when the log is first built; scrolling to the top reveals LOAD_CHUNK
+    --more at a time (see the scroll/loadOlderEntries events below).
+    local LOAD_CHUNK = 12
+    local m_visibleLimit = LOAD_CHUNK
+    --true when the last full pass left older eligible messages unbuilt.
+    local m_hasOlder = false
+    --timestamp at the cutoff of the last full pass; the incremental path
+    --skips creating panels for changed messages older than this -- they have
+    --no panel by design, and its append-only creation would place one out
+    --of order. They are built in order by the full pass when revealed.
+    local m_cutoffTimestamp = nil
+    --guards against re-entrant loads while one is pending or anchoring.
+    local m_loadingOlder = false
+    --set around the synchronous rebuild inside loadOlderEntries so the full
+    --pass does not treat the newly built OLDER panels as new messages and
+    --yank the scroll to the bottom.
+    local m_suppressScrollToBottom = false
+    local m_anchorPanel = nil
+    local m_anchorRetries = 0
+    local m_lastAnchorContentH = nil
+    local m_loadOlderPanel = nil
+
+    --the "Loading older entries..." row shown as the first child while
+    --unbuilt history remains. Recreated if a children assignment that
+    --excluded it (all history loaded) destroyed it.
+    local GetLoadOlderPanel = function()
+        if m_loadOlderPanel == nil or (not m_loadOlderPanel.valid) then
+            m_loadOlderPanel = gui.Label{
+                classes = {"load-older-label"},
+                text = "Loading older entries...",
+            }
+        end
+        return m_loadOlderPanel
+    end
+
+    local MessageBeforeCutoff = function(message)
+        if m_cutoffTimestamp == nil then
+            return false
+        end
+        local ts = message.timestamp
+        return type(ts) == "number" and ts < m_cutoffTimestamp
+    end
 
 	local chatPanelStyles = {
 			{
@@ -927,6 +1054,17 @@ CreateChatPanel = function()
 				vmargin = 4,
 				bgcolor = Styles.textColor,
 				gradient = Styles.horizontalGradient,
+			},
+
+			{
+				selectors = {'load-older-label'},
+				width = '100%',
+				height = 'auto',
+				tmargin = 4,
+				bmargin = 6,
+				fontSize = 14,
+				textAlignment = 'center',
+				color = '@fgStrong',
 			},
 
             -- Action log card styles
@@ -1331,7 +1469,7 @@ CreateChatPanel = function()
 										adoptiveParentPanel:AddChild(child)
 										adoptedPanels[key] = child
 									end
-								elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
+								elseif (not MessageBeforeCutoff(message)) and message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
 									local adoptCastid = nil
 									if message.messageType == "roll" and message.properties ~= nil then
 										adoptCastid = message.properties:try_get("castid")
@@ -1397,10 +1535,42 @@ CreateChatPanel = function()
 					return
 				end
 
+				--LAZY HISTORY cutoff: walk backwards counting action-log-eligible
+				--messages; everything before the m_visibleLimit'th newest is left
+				--unbuilt (no panel creation, no further bridge reads) until the
+				--user scrolls to the top and loadOlderEntries raises the limit.
+				local messages = chat.messages
+				local startIndex = 1
+				local hasOlder = false
+				local eligibleCount = 0
+				for i = #messages, 1, -1 do
+					if IsActionLogMessage(messages[i]) then
+						eligibleCount = eligibleCount + 1
+						if eligibleCount > m_visibleLimit then
+							hasOlder = true
+							startIndex = i + 1
+							break
+						end
+					end
+				end
+				m_hasOlder = hasOlder
+				m_cutoffTimestamp = nil
+				if hasOlder then
+					local ts = nil
+					pcall(function() ts = messages[startIndex].timestamp end)
+					if type(ts) == "number" then
+						m_cutoffTimestamp = ts
+					end
+				end
+
 				local newMessagePanels = {}
 				local children = {}
+				if hasOlder then
+					children[#children+1] = GetLoadOlderPanel()
+				end
 				local newMessage = false
-				for i,message in ipairs(chat.messages) do
+				for i = startIndex, #messages do
+					local message = messages[i]
                     --This handler runs on EVERY refreshChat (a dice roll fires it several
                     --times: send, server echo patches, roll completion) over every message,
                     --so per-message bridge reads (message.key/.messageType/.properties are
@@ -1523,10 +1693,103 @@ CreateChatPanel = function()
 						(os.clock() - perfStart) * 1000, #chat.messages, perfCreates, perfCreateMs, perfRefreshes, perfRefreshMs, (os.clock() - perfT2) * 1000))
 				end
 
-				--go to the bottom if we have new messages
-				if newMessage then
+				--go to the bottom if we have new messages (but not when the
+				--"new" panels are older history revealed by loadOlderEntries)
+				if newMessage and not m_suppressScrollToBottom then
 					element.vscrollPosition = 0
 					element:ScheduleEvent("moveToBottom", 0.05)
+				end
+
+				--if the log is so short it does not fill the viewport there is
+				--no scrollbar to reach the top with, so top up from history.
+				if m_hasOlder then
+					element:ScheduleEvent("maybeFillViewport", 0.1)
+				end
+			end,
+
+			--the panel is at (or was scrolled to) the top: give the
+			--"Loading older entries..." label a beat on screen, then load.
+			scroll = function(element)
+				if m_hasOlder and (not m_loadingOlder) and element.vscrollPosition >= 0.98 then
+					m_loadingOlder = true
+					element:ScheduleEvent("loadOlderEntries", 0.35)
+				end
+			end,
+
+			loadOlderEntries = function(element)
+				if not m_hasOlder then
+					m_loadingOlder = false
+					return
+				end
+
+				--anchor target: the topmost entry currently built (the first
+				--child that is not the loading label). After the rebuild it is
+				--repositioned at the top of the viewport so the view does not
+				--jump; the revealed older entries sit above it.
+				local anchorPanel = nil
+				pcall(function()
+					for _,c in ipairs(element.children) do
+						if c ~= m_loadOlderPanel then
+							anchorPanel = c
+							break
+						end
+					end
+				end)
+
+				m_visibleLimit = m_visibleLimit + LOAD_CHUNK
+				m_suppressScrollToBottom = true
+				element:FireEvent("refreshChat")
+				m_suppressScrollToBottom = false
+
+				if anchorPanel ~= nil and anchorPanel.valid then
+					m_anchorPanel = anchorPanel
+					m_anchorRetries = 0
+					m_lastAnchorContentH = nil
+					element:ScheduleEvent("anchorOlderEntries", 0.05)
+				else
+					m_loadingOlder = false
+					if m_hasOlder then
+						element:ScheduleEvent("maybeFillViewport", 0.1)
+					end
+				end
+			end,
+
+			--re-anchor until the measured content height is stable across two
+			--attempts (layout of the freshly built panels has settled), then
+			--allow the next load.
+			anchorOlderEntries = function(element)
+				local contentH = AnchorScrollToPanel(element, m_anchorPanel)
+				m_anchorRetries = m_anchorRetries + 1
+				if contentH ~= nil and contentH == m_lastAnchorContentH then
+					m_anchorPanel = nil
+					m_loadingOlder = false
+					if m_hasOlder then
+						element:ScheduleEvent("maybeFillViewport", 0.1)
+					end
+				elseif m_anchorRetries >= 8 then
+					m_anchorPanel = nil
+					m_loadingOlder = false
+				else
+					m_lastAnchorContentH = contentH
+					element:ScheduleEvent("anchorOlderEntries", 0.06)
+				end
+			end,
+
+			maybeFillViewport = function(element)
+				if (not m_hasOlder) or m_loadingOlder then
+					return
+				end
+				local windowH = 0
+				local contentH = 0
+				pcall(function()
+					windowH = element.renderedHeight or 0
+					for _,c in ipairs(element.children) do
+						contentH = contentH + (c.renderedHeight or 0)
+					end
+				end)
+				if windowH > 0 and contentH > 0 and contentH < windowH then
+					m_loadingOlder = true
+					element:FireEvent("loadOlderEntries")
 				end
 			end,
 

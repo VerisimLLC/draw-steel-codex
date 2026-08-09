@@ -410,6 +410,415 @@ local g_showStatusBarSetting = setting{
     section = "General",
 }
 
+----------------------------------------------------------------------
+-- Connectivity status panel
+-- Replaces the old "Synced seq:N" label and its "DO Message History"
+-- modal (retired 2026-08-08): a wifi glyph shows OUR connection to the
+-- game server, then one portrait per player shows THEIR connectivity.
+-- Clicking the panel opens the Heroes panel -- which is deliberately
+-- hidden from the Panels/rail menus now; this is the way in. Player
+-- portraits click to ping instead.
+----------------------------------------------------------------------
+
+local STATUS_COLOR_ONLINE = "#58b060"
+local STATUS_COLOR_LAGGING = "#d8b23a"
+local STATUS_COLOR_OFFLINE = "#7a7a7a"
+
+--the syncing animation, in display order.
+local g_syncFrames = {
+    "phosphor/wifi-none.png",
+    "phosphor/wifi-low.png",
+    "phosphor/wifi-medium.png",
+    "phosphor/wifi-high.png",
+}
+
+--Session-info classification, matching the Heroes panel's thresholds:
+--pings write ~12s apart, so >60s since last contact means several
+--misses (connection trouble), >=140s or loggedOut means gone.
+local function ClassifyUserStatus(info)
+    if info == nil or info.loggedOut or info.timeSinceLastContact >= 140 then
+        return "offline"
+    end
+    if info.timeSinceLastContact > 60 then
+        return "lagging"
+    end
+    return "online"
+end
+
+--All the character ids this player controls directly (ownerId ==
+--userid). Party-shared tokens (ownerId == 'PARTY') are deliberately
+--not counted as anyone's.
+local function CharacterIdsOwnedBy(userid)
+    local result = {}
+    local partyType = rawget(_G, "Party")
+    if partyType == nil then
+        return result
+    end
+    local parties = dmhub.GetTable(partyType.tableName) or {}
+    for partyid, _ in unhidden_pairs(parties) do
+        for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            if tok ~= nil and tok.ownerId == userid then
+                result[#result + 1] = charid
+            end
+        end
+    end
+    return result
+end
+
+--One player's entry: their main character's portrait (grouping card
+--behind it when they control more than one), a connectivity dot in the
+--corner, a status tooltip, click to ping.
+local function CreatePlayerStatusIcon(userid, charid, extraCount)
+    local token = nil
+    if charid ~= nil then
+        token = dmhub.GetCharacterById(charid)
+    end
+
+    local children = {}
+
+    --multiple characters: a card behind the portrait reads as a stack.
+    if extraCount > 0 then
+        children[#children + 1] = gui.Panel{
+            floating = true,
+            halign = "center",
+            valign = "center",
+            x = 4,
+            y = -4,
+            width = 22,
+            height = 22,
+            bgimage = "panels/square.png",
+            bgcolor = "#3a3a3a",
+            borderWidth = 1,
+            borderColor = "#9a9a9a",
+            cornerRadius = 3,
+        }
+    end
+
+    if token ~= nil then
+        children[#children + 1] = gui.CreateTokenImage(token, {
+            width = 26,
+            height = 26,
+            halign = "center",
+            valign = "center",
+            --portrait greys out when the player is gone, the same cue
+            --the Heroes panel uses.
+            updateStatus = function(element, info)
+                element.selfStyle.saturation = cond(ClassifyUserStatus(info) == "offline", 0, 1)
+            end,
+        })
+    else
+        --a player with no character yet still shows, as a plain user
+        --glyph, so their connectivity is visible.
+        children[#children + 1] = gui.Panel{
+            width = 20,
+            height = 20,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/user-fill.png",
+            bgcolor = "#c0c0c0",
+            updateStatus = function(element, info)
+                element.selfStyle.saturation = cond(ClassifyUserStatus(info) == "offline", 0, 1)
+            end,
+        }
+    end
+
+    --connectivity dot: a dark backing circle so the color reads on any
+    --portrait, then the status color.
+    children[#children + 1] = gui.Panel{
+        floating = true,
+        width = 11,
+        height = 11,
+        halign = "right",
+        valign = "bottom",
+        x = 2,
+        y = 0,
+        bgimage = "game-icons/plain-circle.png",
+        bgcolor = "#202020",
+        gui.Panel{
+            width = 8,
+            height = 8,
+            halign = "center",
+            valign = "center",
+            bgimage = "game-icons/plain-circle.png",
+            bgcolor = STATUS_COLOR_OFFLINE,
+            updateStatus = function(element, info)
+                local status = ClassifyUserStatus(info)
+                local color = STATUS_COLOR_OFFLINE
+                if status == "online" then
+                    color = STATUS_COLOR_ONLINE
+                elseif status == "lagging" then
+                    color = STATUS_COLOR_LAGGING
+                end
+                element.selfStyle.bgcolor = color
+            end,
+        },
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        width = 30,
+        height = 30,
+        halign = "left",
+        valign = "center",
+        rmargin = 2,
+        bgimage = true,
+        bgcolor = "clear",
+        data = { userid = userid, info = nil, pingTime = nil },
+
+        updateStatus = function(element, info)
+            element.data.info = info
+        end,
+
+        linger = function(element)
+            local info = element.data.info or dmhub.GetSessionInfo(userid)
+            local lines = {}
+            lines[#lines + 1] = (info ~= nil and info.displayName) or "Player"
+            if token ~= nil then
+                if extraCount > 0 then
+                    lines[#lines + 1] = string.format("Playing %s (+%d more)", token.name or "a character", extraCount)
+                else
+                    lines[#lines + 1] = string.format("Playing %s", token.name or "a character")
+                end
+            end
+            local status = ClassifyUserStatus(info)
+            if status == "offline" then
+                lines[#lines + 1] = "Offline"
+            elseif status == "lagging" then
+                lines[#lines + 1] = string.format("Connection trouble -- last seen %d seconds ago", math.floor(info.timeSinceLastContact))
+            elseif info ~= nil and info.ping ~= nil then
+                lines[#lines + 1] = string.format("Online -- ping %dms", math.floor(info.ping * 1000))
+            else
+                lines[#lines + 1] = "Online"
+            end
+            --no ping invitation for someone who is not there.
+            if status ~= "offline" then
+                lines[#lines + 1] = "Click to ping"
+            end
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+
+        click = function(element)
+            --pinging an offline player would just time out; do nothing.
+            local info = element.data.info or dmhub.GetSessionInfo(userid)
+            if ClassifyUserStatus(info) == "offline" then
+                return
+            end
+            local t = dmhub.Time()
+            if element.data.pingTime ~= nil and (t - element.data.pingTime) < 10 then
+                return
+            end
+            element.data.pingTime = t
+            gui.Tooltip("Pinging...")(element)
+            dmhub.PingUser(userid, function()
+                if not element.valid then
+                    return
+                end
+                local started = element.data.pingTime
+                if started == nil then
+                    return
+                end
+                element.data.pingTime = nil
+                local info = element.data.info
+                local name = (info ~= nil and info.displayName) or "Player"
+                gui.Tooltip(string.format("%s responded in %dms", name, math.floor((dmhub.Time() - started) * 1000)))(element)
+            end)
+        end,
+
+        children = children,
+    }
+    return resultPanel
+end
+
+local function CreateConnectivityPanel()
+    local m_wifiIcon
+
+    m_wifiIcon = gui.Panel{
+        width = 22,
+        height = 22,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        bgimage = "phosphor/wifi-high-fill.png",
+        bgcolor = "#c8c8c8",
+        data = { frame = 0 },
+        linger = function(element)
+            local lines = {}
+            if dmhub.gameServerConnected == false then
+                lines[#lines + 1] = "Disconnected from the game server -- reconnecting..."
+            elseif dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0 then
+                lines[#lines + 1] = string.format("Syncing (%d writes pending)", dmhub.pendingWriteCount)
+            else
+                lines[#lines + 1] = "Synced with the game server"
+            end
+            local seq = dmhub.durableObjectSeq
+            if seq ~= nil and seq > 0 then
+                lines[#lines + 1] = string.format("Server message seq: %d", seq)
+            end
+            lines[#lines + 1] = "Click to open the Heroes panel"
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+    }
+
+    local playersRow = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        data = { cache = {} },
+
+        monitorGame = "/usersToSessions",
+
+        --the session doc only changes while users are alive and pinging;
+        --a user going SILENT changes nothing, so poll too or the dot
+        --stays green forever after a drop.
+        thinkTime = 5,
+        think = function(element)
+            element:FireEvent("refreshGame")
+        end,
+        create = function(element)
+            element:FireEvent("refreshGame")
+        end,
+
+        refreshGame = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                return
+            end
+            local newCache = {}
+            local children = {}
+            for _, userid in ipairs(dmhub.users or {}) do
+                local info = dmhub.GetSessionInfo(userid)
+                if info ~= nil and not info.dm then
+                    local owned = CharacterIdsOwnedBy(userid)
+                    local mainid = info.primaryCharacter or owned[1]
+                    local extraCount = 0
+                    for _, cid in ipairs(owned) do
+                        if cid ~= mainid then
+                            extraCount = extraCount + 1
+                        end
+                    end
+                    --icons are cached per (user, main character, count):
+                    --any of those changing rebuilds that one icon.
+                    local key = string.format("%s|%s|%d", userid, tostring(mainid), extraCount)
+                    local icon = element.data.cache[key]
+                    if icon == nil or not icon.valid then
+                        icon = CreatePlayerStatusIcon(userid, mainid, extraCount)
+                    end
+                    newCache[key] = icon
+                    children[#children + 1] = icon
+                    icon:FireEventTree("updateStatus", info)
+                end
+            end
+            element.data.cache = newCache
+            element.children = children
+        end,
+    }
+
+    --The COLLAPSING wrapper is separate from the thinking root, and the
+    --root must never collapse itself: a collapsed panel's think does not
+    --run, so the first collapse would be permanent -- nothing would be
+    --left alive to un-collapse it. (Hit live 2026-08-08: the panel
+    --collapsed during a reload window where inGame read false and never
+    --came back. Same trap the icon rail documents; same fix.)
+    local contentPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        m_wifiIcon,
+        playersRow,
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        rmargin = 12,
+        bgimage = true,
+        bgcolor = "clear",
+
+        --the panel is the door to the Heroes panel, which is not a
+        --dockable panel any more: it lives in a temporary popout hung
+        --beneath this panel, dismissed like any popup (click away).
+        --Player icons eat their own clicks to ping. Same popup rig as
+        --the audio indicator's popover.
+        click = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            local factory = rawget(_G, "CreateHeroesPanelPopoutContent")
+            if factory == nil then
+                return
+            end
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                --heroesPopout: content inside reaches this wrapper by
+                --class to dismiss the popout (the local-game promote
+                --flow closes it before showing its modal).
+                classes = {"bordered", "bg", "heroesPopout"},
+                width = 440,
+                height = 480,
+                pad = 8,
+                borderBox = true,
+                halign = "left",
+                valign = "bottom",
+                closePopout = function()
+                    if element ~= nil and element.valid then
+                        element.popup = nil
+                    end
+                end,
+                factory(),
+            }
+        end,
+
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+        thinkTime = 0.5,
+        think = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                contentPanel:SetClass("collapsed", true)
+                return
+            end
+            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
+
+            --nil = engine build without the bridge; treat as connected.
+            local connected = dmhub.gameServerConnected ~= false
+            local syncing = dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0
+
+            if not connected then
+                m_wifiIcon.data.frame = 0
+                m_wifiIcon.bgimage = "phosphor/wifi-x-duotone.png"
+                m_wifiIcon.selfStyle.bgcolor = "#e04545"
+                element.thinkTime = 0.5
+            elseif syncing then
+                --quick alternation through the bar heights while writes
+                --are in flight.
+                local frame = (m_wifiIcon.data.frame % #g_syncFrames) + 1
+                m_wifiIcon.data.frame = frame
+                m_wifiIcon.bgimage = g_syncFrames[frame]
+                m_wifiIcon.selfStyle.bgcolor = "#c8c8c8"
+                element.thinkTime = 0.12
+            else
+                m_wifiIcon.data.frame = 0
+                m_wifiIcon.bgimage = "phosphor/wifi-high-fill.png"
+                m_wifiIcon.selfStyle.bgcolor = "#c8c8c8"
+                element.thinkTime = 0.5
+            end
+        end,
+
+        contentPanel,
+    }
+    return resultPanel
+end
+
 local function CreateStatusBar()
     local resultPanel
 
@@ -491,119 +900,43 @@ local function CreateStatusBar()
             end,
         },
 
+        CreateConnectivityPanel(),
+
+        -- Map name + engine status. Long map descriptions used to eat the bar,
+        -- so the box is capped (narrower than the old 420) and the text
+        -- ellipsizes rather than wrapping or shrinking away to nothing;
+        -- hovering shows the untruncated string.
         gui.Label{
             minFontSize = 10,
-            width = 160,
+            width = 380,
             height = "100%",
-            text = "Ready",
-            multimonitor = {"showstatusbar"},
-            monitor = function(element)
-                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil)
-                element.text = ""
-            end,
-            thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil),
-            think = function(element)
-                if (not dmhub.inGame) or dmhub.isLobbyGame then
-                    element.text = ""
+            textWrap = false,
+            textOverflow = "ellipsis",
+            text = "",
+            data = { fullText = "" },
+            linger = function(element)
+                local text = element.data.fullText
+                if text == nil or text == "" then
                     return
                 end
-                local writeCount = dmhub.pendingWriteCount
-                local undoState = dmhub.undoState
-                local text
-                if undoState.undoPending then
-                    text = "Syncing..."
-                else
-                    text = "Synced"
-                end
-
-                if writeCount > 0 then
-                    text = string.format("%s (%d)", text, writeCount)
-                end
-
-                local seq = dmhub.durableObjectSeq
-                if seq and seq > 0 then
-                    element.text = string.format("%s  seq:%d", text, seq)
-                else
-                    element.text = text
-                end
+                gui.Tooltip(text)(element)
             end,
-            click = function(element)
-                local history = dmhub:GetDurableObjectSeqHistory() or {}
-                local lines = {}
-                if #history == 0 then
-                    lines[1] = "(no seq-tagged messages received yet)"
-                else
-                    for i = #history, 1, -1 do
-                        lines[#lines+1] = history[i]
-                    end
-                end
-
-                gamehud:ModalDialog{
-                    title = string.format("DO Message History (latest seq: %d)", dmhub.durableObjectSeq or 0),
-                    width = 600,
-                    height = 500,
-                    flow = "vertical",
-                    halign = "center",
-                    valign = "top",
-                    gui.Label{
-                        width = "95%",
-                        height = "auto",
-                        halign = "center",
-                        valign = "top",
-                        fontSize = 14,
-                        color = "white",
-                        text = "Most recent at top. Inbound lines start with a seq number;\noutbound lines to the game store start with '>>'. Acks include\nthe round-trip time in milliseconds.",
-                        vmargin = 4,
-                    },
-                    gui.Panel{
-                        width = "95%",
-                        height = "100%-80",
-                        halign = "center",
-                        flow = "vertical",
-                        vscroll = true,
-                        styles = {
-                            {
-                                selectors = {"label"},
-                                width = "100%",
-                                height = "auto",
-                                fontSize = 14,
-                                color = "#dddddd",
-                                halign = "left",
-                                vmargin = 1,
-                            },
-                        },
-                        children = (function()
-                            local result = {}
-                            for _, line in ipairs(lines) do
-                                result[#result+1] = gui.Label{ text = line }
-                            end
-                            return result
-                        end)(),
-                    },
-                    buttons = {
-                        { text = "Close", escapeActivates = true },
-                    },
-                }
-            end,
-        },
-
-        gui.Label{
-            minFontSize = 10,
-            width = 420,
-            height = "100%",
-            text = "",
             multimonitor = {"showstatusbar"},
             monitor = function(element)
                 element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+                element.data.fullText = ""
                 element.text = ""
             end,
             thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame then
+                    element.data.fullText = ""
                     element.text = ""
                     return
                 end
-                element.text = string.format("%s %s", game.currentMap.description, dmhub.status)
+                local text = string.format("%s %s", game.currentMap.description, dmhub.status)
+                element.data.fullText = text
+                element.text = text
             end,
         }
     }
@@ -674,6 +1007,16 @@ Search.RegisterProvider{
         return results
     end,
 }
+
+-- The search box used to be exactly as wide as the right dock below it
+-- (364 * dockscale). It is now deliberately narrower by this fraction so the
+-- status labels sharing the bar (map name, initiative mode) get the space back;
+-- the box still tracks the dock scale, it just sits inset from the dock edge.
+local g_searchWidthFraction = 0.9
+
+local function SearchBoxWidth()
+    return math.floor(364 * g_searchWidthFraction * (dmhub.GetSettingValue("dockscale") or 1))
+end
 
 local function CreateSearchBar()
     local resultPanel
@@ -1425,13 +1768,14 @@ local function CreateSearchBar()
     resultPanel = gui.SearchInput{
         bgimage = true,
         -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
-        -- so the box lines up with the dock below it at any scale (HB1). Kept
-        -- live by the think handler below. borderBox is load-bearing:
-        -- gui.SearchInput ships hpad=24 WITHOUT borderBox, so the rendered box
-        -- would otherwise be 48px wider than the declared width and overhang
-        -- the dock (James field report, 2026-07-03).
+        -- so the box lines up with the dock below it at any scale (HB1), less
+        -- the 10% narrowing (g_searchWidthFraction) that buys back bar space for
+        -- the status labels to its left. Kept live by the think handler below.
+        -- borderBox is load-bearing: gui.SearchInput ships hpad=24 WITHOUT
+        -- borderBox, so the rendered box would otherwise be 48px wider than the
+        -- declared width and overhang the dock (James field report, 2026-07-03).
         borderBox = true,
-        width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
+        width = SearchBoxWidth(),
         height = 20,
         halign = "right",
         valign = "center",
@@ -1468,7 +1812,7 @@ local function CreateSearchBar()
             -- change to the slider is reflected without a reload. Cheap
             -- setting read on a 0.2s tick; only touches .width when it
             -- actually changed.
-            local w = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))
+            local w = SearchBoxWidth()
             if element.data.appliedSearchWidth ~= w then
                 element.data.appliedSearchWidth = w
                 element.selfStyle.width = w
@@ -2039,7 +2383,7 @@ local function CreateTopBar()
                 thanks = "Your bug report has been submitted. Thank you!",
                 --shown alongside thanks when the ticket bridge exists: a bug
                 --report also opens a ticket the user can follow up on.
-                ticketInfo = "A ticket has been opened for your report. You can find it under Report Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
+                ticketInfo = "A ticket has been opened for your report. You can find it under Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
             },
             feature = {
                 title = "Request a Feature",
@@ -2763,7 +3107,7 @@ local function CreateTopBar()
 
         local function BuildListPage()
             if #m_tickets == 0 then
-                return BuildMessagePage("You have not filed any bug reports yet.\n\nWhen you report a bug from the Report Feedback menu, a ticket is opened here where the developers can follow up with you.")
+                return BuildMessagePage("You have not filed any bug reports yet.\n\nWhen you report a bug from the Feedback menu, a ticket is opened here where the developers can follow up with you.")
             end
 
             local rows = {}
@@ -4320,7 +4664,10 @@ local function CreateTopBar()
             name = "Panels",
             menuItems = function()
                 local dockablePanels = DockablePanel.GetMenuItems()
-                dockablePanels = table.filter(dockablePanels, function(item) return item.text ~= "Development Tools" end)
+                --a dockable panel that declared `menu` is listed in that
+                --title-bar menu (Codex/Game/Tools) instead of here --
+                --listing it in both would just be clutter.
+                dockablePanels = table.filter(dockablePanels, function(item) return item.text ~= "Development Tools" and item.menu == nil end)
 
                 --folder submenus (Map Editing) are a different kind of row
                 --than the panel toggles; giving them their own group makes
@@ -4339,21 +4686,20 @@ local function CreateTopBar()
                     end
                 end
 
-                --In rail mode this menu manages rail SHORTCUTS: picking a
-                --panel adds or removes its rail button instead of opening
-                --the panel (Lisa, 2026-07-20). The check mark tracks rail
-                --membership, and the togglepanel keybinding is dropped from
-                --the row because it still opens the panel -- a different
-                --action from the one the row now performs.
+                --In rail mode the rows keep their DEFAULT click: it routes
+                --through the rail's open handler, which toggles the panel's
+                --rail window and adds a rail shortcut on first open. A
+                --shortcut already on the rail is never removed from here
+                --(David, 2026-08-08) -- removal lives on the rail's own
+                --context menu and rearrange trash. Only the check needs
+                --overriding: the default tracks the DOCK instance, which is
+                --slid away in rail mode, so light the row while the panel
+                --is shown anywhere on the rail surface instead.
                 if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
                     for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
                         local panelName = p.text
                         if panelName ~= nil and p.submenu == nil then
-                            p.bind = nil
-                            p.check = RailHasPanel(panelName)
-                            p.click = function()
-                                RailTogglePanel(panelName)
-                            end
+                            p.check = PanelDocument.IsPanelShown(string.lower(panelName))
                         end
                     end
                 end
@@ -4407,7 +4753,7 @@ local function CreateTopBar()
                 --UI (Lisa+David review 2026-07-19 removed the rail chip),
                 --so it carries the full verb set: switch, save, save-as,
                 --reset, manage. Only in rail mode (A6).
-                if rawget(_G, "ViewsListForUser") ~= nil and dmhub.GetSettingValue("iconrail") == true and devmode() then
+                if rawget(_G, "ViewsListForUser") ~= nil and rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
                     local active = ViewsActiveId()
                     local drift = ViewsIsDrifted()
                     local viewItems = {}
@@ -4424,6 +4770,12 @@ local function CreateTopBar()
                         local text = "View: " .. v.name
                         if vid == active and drift then
                             text = text .. "  (unsaved changes)"
+                        end
+                        --a newer stock layout has shipped than the one
+                        --this user's copy was built from; switching to
+                        --it raises the take-it/keep-mine prompt.
+                        if v.updated then
+                            text = text .. "  (updated)"
                         end
                         viewItems[#viewItems + 1] = {
                             text = text,
@@ -4513,7 +4865,7 @@ local function CreateTopBar()
         },
 
         CreateCodexMenuItem{
-            name = "Report Feedback",
+            name = "Feedback",
             mainmenu = "always",
             --marker dot beside the menu name when a developer has responded
             --to one of the user's tickets and they have not viewed it yet.

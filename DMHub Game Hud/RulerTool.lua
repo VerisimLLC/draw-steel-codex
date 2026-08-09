@@ -99,6 +99,11 @@ DockablePanel.Register{
 	name = "Measuring Tool",
     menu = "tools",
 	icon = "icons/icon_tool/icon_tool_101.png",
+	--summoned from the Tools menu it opens as a floating window over the
+	--map (like the launchable dialog it used to be), on the right where
+	--the old dialog sat. It can still be dragged into a dock.
+	preferFloating = true,
+	floatingHalign = "right",
 	vscroll = false,
 	minHeight = 100,
 	maxHeight = 400,

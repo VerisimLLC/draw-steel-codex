@@ -109,6 +109,10 @@ DockablePanel.Register{
 	icon = "icons/standard/Icon_App_Chat.png",
 	minHeight = 200,
 	vscroll = false,
+	--when the icon rail opens this panel as a window, put the caret in
+	--the chat input right away (the content tree handles the
+	--"focusPanelInput" event) so the user can just start typing.
+	autoFocusInput = true,
 	content = function()
 		track("panel_open", {
 			panel = "Chat",
@@ -636,7 +640,7 @@ CreateChatPanel = function()
 		},
 
 		style = {
-			width = "auto",
+			width = "100%",
 			height = "auto",
 			flow = "vertical",
 		},
@@ -696,6 +700,7 @@ CreateChatPanel = function()
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
 				styles = ThemeEngine.MergeTokens({
 					{
@@ -717,6 +722,7 @@ CreateChatPanel = function()
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
 				lmargin = 8,
 				styles = ThemeEngine.MergeTokens({
@@ -772,6 +778,7 @@ CreateChatPanel = function()
 				text = arg,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				lmargin = 4,
 				bold = isActive,
@@ -784,6 +791,7 @@ CreateChatPanel = function()
 				text = "/" .. macroName,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				bold = true,
 			},
@@ -808,7 +816,7 @@ CreateChatPanel = function()
 		return gui.Panel{
 			classes = {"bg", "border"},
 			bgimage = true,
-			width = 400,
+			width = "100%",
 			height = "auto",
 			border = 2,
 			flow = "vertical",
@@ -932,9 +940,10 @@ CreateChatPanel = function()
 										allChildren[#allChildren+1] = gui.Label{
 											classes = {"sizeXs", "fgMuted"},
 											text = string.format("... and %d more", #filtered - maxCompletions),
-											width = "100%",
+											width = "100%-20",
 											height = "auto",
-											textAlignment = "center",
+											halign = "center",
+											textAlignment = "left",
 											vpad = 4,
 										}
 									end
@@ -942,7 +951,7 @@ CreateChatPanel = function()
 									argCompletionPanel = gui.Panel{
 										classes = {"bg", "border"},
 										bgimage = true,
-										width = 400,
+										width = "100%",
 										height = "auto",
 										maxHeight = 300,
 										border = 2,
@@ -1016,9 +1025,10 @@ CreateChatPanel = function()
 			allChildren[#allChildren + 1] = gui.Label{
 				classes = {"sizeXs", "fgMuted"},
 				text = string.format("... and %d more", #items - maxCompletions),
-				width = "100%",
+				width = "100%-20",
 				height = "auto",
-				textAlignment = "center",
+				halign = "center",
+				textAlignment = "left",
 				vpad = 4,
 			}
 		end
@@ -1027,7 +1037,7 @@ CreateChatPanel = function()
 			gui.Panel{
 				classes = {"bg", "border"},
 				bgimage = true,
-				width = 400,
+				width = "100%",
 				height = "auto",
 				maxHeight = 300,
 				border = 2,
@@ -1486,6 +1496,12 @@ CreateChatPanel = function()
 				chat.PreviewChat("/")
 
 				UpdateCompletions()
+			end,
+			--the rail window hosting this panel was opened or raised by a
+			--user gesture (see autoFocusInput in the registration): focus
+			--the input so typing starts a message immediately.
+			focusPanelInput = function(element)
+				element.hasFocus = true
 			end,
 		},
 	}

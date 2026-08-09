@@ -13,9 +13,22 @@ GameSystem.RegisterGoblinScriptField{
     target = ActivatedAbilityCast,
     name = "Boons",
     type = "number",
-    desc = "The number of boons applied while using this ability.",
-    seealso = {},
+    desc = "Deprecated name for Edges. The number of edges applied while using this ability.",
+    deprecated = true,
+    seealso = {"Edges"},
     examples = {},
+    calculate = function(c)
+        return c.boonsApplied
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "Edges",
+    type = "number",
+    desc = "The number of edges applied while using this ability.",
+    seealso = {"Banes"},
+    examples = {"Cast.Edges > Cast.Banes", "Cast.Edges >= 1"},
     calculate = function(c)
         return c.boonsApplied
     end,

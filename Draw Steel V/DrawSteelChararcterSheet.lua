@@ -4883,6 +4883,25 @@ local function DSCharSheet()
                         text = "Paste Ability",
                         press = function(element)
                             local clipboardItem = DeepCopy(dmhub.GetInternalClipboard())
+                            if clipboardItem == nil then
+                                return
+                            end
+
+                            --A pasted ability is a NEW ability, not the one that was
+                            --copied. Without a fresh guid the creature ends up with two
+                            --innate abilities sharing one guid, and guid-keyed lookups
+                            --(creature:IsActivatedAbilityInnate) resolve both sheet rows
+                            --to the same object, so one copy can never be edited (and
+                            --RemoveInnateActivatedAbility deletes both).
+                            clipboardItem.guid = dmhub.GenerateGuid()
+                            local behaviors = clipboardItem:try_get("behaviors")
+                            if behaviors ~= nil then
+                                for _, b in ipairs(behaviors) do
+                                    if b:try_get("guid") ~= nil then
+                                        b.guid = dmhub.GenerateGuid()
+                                    end
+                                end
+                            end
 
                             CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(
                                 clipboardItem)

@@ -153,6 +153,16 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                     --caster on non-squad casts.
                     if options.symbols ~= nil and options.symbols.cast ~= nil then
                         commandCasterToken = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, commandCasterToken)
+                        --"caster"-type retargets swap the source for this one
+                        --target: partner-burst abilities want enemies in the
+                        --partner-only shape taunted by / pushed away from the
+                        --partner caster. Applied last so it wins over the squad
+                        --main-attacker, matching the tier-text path in
+                        --MCDMAbilityRollBehavior. Deliberately AFTER the rule
+                        --interpolation above -- as with the companion/summoner
+                        --applyto variants, only the acting token swaps; formulas
+                        --stay bound to the ability's caster.
+                        commandCasterToken = options.symbols.cast:RemapCasterForTarget(target.token, commandCasterToken)
                     end
                 end
                 self:ExecuteCommand(ability, commandCasterToken, target.token, options, rule)

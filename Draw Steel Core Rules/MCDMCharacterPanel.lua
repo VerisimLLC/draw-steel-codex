@@ -9996,21 +9996,32 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 
 					folder = m_folderPanels[squadid]
 					if folder == nil then
+						--Members indent behind a vertical nesting rail: with
+						--the header band running full width (below), the rail
+						--is what marks this block as a subfolder.
 						local contentPanel = gui.Panel{
-							width = "100%",
+							width = "100%-12",
 							height = "auto",
 							flow = "vertical",
-							halign = "center",
+							halign = "right",
 							vmargin = 4,
-							hmargin = 4,
+							bgimage = "panels/square.png",
+							bgcolor = "clear",
+							styles = ThemeEngine.MergeTokens{
+								{
+									border = {x1 = 2, x2 = 0, y1 = 0, y2 = 0},
+									borderColor = "@border",
+								},
+							},
 						}
 
 						folder = gui.TreeNode{
 							text = squadid,
 							contentPanel = contentPanel,
-							width = "100%-10",
+							--full width: the header's dark band runs edge to
+							--edge like the party headers above it.
+							width = "100%",
 							halign = "left",
-							lmargin = 8,
 							expanded = true,
 							clickHeader = function(element)
 								element:FireEventOnParents("ClearCharacterPanelSelection")
@@ -10026,10 +10037,72 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
 							end,
 						}
 
+						--Bring the squad node onto the character list's grammar:
+						--gui.TreeNode ships its own ATTACHED styles (the old
+						--white bitmap triangle with a yellow hover, a white
+						--hover flash on the header, a 70% label), and attached
+						--styles outrank the panel cascade, so the instances
+						--are restyled directly here.
+						--header restyle FIRST: the label gains the "folder"
+						--class below, and this loop matches by that class --
+						--running it later would clobber the label's styles.
+						local headers = folder:GetChildrenWithClassRecursive("folder")
+						for _,header in ipairs(headers) do
+							header.styles = ThemeEngine.MergeTokens{
+								{
+									borderWidth = 0,
+									bgcolor = "clear",
+								},
+								{
+									selectors = {"hover"},
+									bgcolor = "@bgAlt",
+									transitionTime = 0.1,
+								},
+							}
+						end
+
 						local labels = folder:GetChildrenWithClassRecursive("folderLabel")
 						for _,label in ipairs(labels) do
 							label:SetClass("folderLabel", false)
 							label:SetClass("bestiaryLabel", true)
+							label:SetClass("folder", true)
+							--drop the attached 70% fontSize so the cascade's
+							--section-header sizing applies.
+							label.styles = {
+								{
+									width = "auto",
+									height = "auto",
+									halign = "left",
+									valign = "center",
+								},
+							}
+						end
+
+						local triangles = folder:GetChildrenWithClassRecursive("triangle")
+						for _,tri in ipairs(triangles) do
+							tri.bgimage = "phosphor/caret-down-fill.png"
+							tri.styles = ThemeEngine.MergeTokens{
+								{
+									selectors = {"triangle"},
+									bgcolor = "@fgMuted",
+									width = 10,
+									height = 10,
+									halign = "left",
+									margin = 5,
+									rotate = 90,
+									valign = "center",
+								},
+								{
+									selectors = {"triangle", "hover"},
+									bgcolor = "@fgStrong",
+									transitionTime = 0.1,
+								},
+								{
+									selectors = {"triangle", "expanded"},
+									rotate = 0,
+									transitionTime = 0.2,
+								},
+							}
 						end
 
 						folder.data.contentPanel = contentPanel

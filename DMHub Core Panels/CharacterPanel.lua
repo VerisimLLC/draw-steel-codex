@@ -147,6 +147,201 @@ local g_sidebarExtras = {
     },
 }
 
+--Character-list fork of the sidebar styles: the Character tab follows the
+--STYLE_GUIDE.md quiet-dark grammar (transparent rows, @bgAlt hover, accent
+--edge for selection, no inverse fills) while the Bestiary tab keeps
+--g_sidebarExtras until its own pass. The class NAMES stay shared; the fork
+--happens at each tab's root styles, which scope to their own subtree.
+local g_characterListExtras = {
+    {
+        selectors = { "bestiaryLabel" },
+        color = "@fg",
+        fontSize = 14,
+        bold = false,
+        height = "auto",
+        width = "auto",
+        minWidth = 200,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+    },
+    --Party headers: section-header grammar. Uppercase stays -- party names
+    --are user text, and the caps band is what separates group bands from
+    --member rows at a glance in this dense list.
+    {
+        selectors = { "bestiaryLabel", "folder" },
+        uppercase = true,
+        fontSize = 13,
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:hover" },
+        color = "@fgStrong",
+        transitionTime = 0.1,
+    },
+    --Empty folders cannot be opened: grey the band so it reads inert.
+    --The hover variant pins the muted color so the band does not light
+    --up and promise an interaction it will not deliver.
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:emptyFolder" },
+        color = "@fgMuted",
+        priority = 10,
+    },
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:emptyFolder", "parent:hover" },
+        color = "@fgMuted",
+        priority = 15,
+    },
+    {
+        selectors = { "triangle", "empty" },
+        bgcolor = "@fgMuted",
+        opacity = 0.4,
+        priority = 10,
+    },
+    {
+        selectors = { "charPartyCount", "parent:emptyFolder" },
+        opacity = 0.4,
+        priority = 10,
+    },
+    --Selection and focus brighten the NAME; the fill lives on the row.
+    {
+        selectors = { "bestiaryLabel", "parent:selected" },
+        color = "@fgStrong",
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "parent:focus" },
+        color = "@fgStrong",
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "invisible" },
+        color = "@fgMuted",
+        italics = true,
+    },
+    {
+        selectors = { "bestiarySearchNote" },
+        color = "@fgMuted",
+        italics = true,
+        fontSize = 12,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    {
+        selectors = { "headerPanel" },
+        bgcolor = "clear",
+    },
+    --Member count at the header's right edge.
+    {
+        selectors = { "charPartyCount" },
+        fontSize = 11,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        rmargin = 8,
+    },
+    --The header's underline: one step louder than row seams would be.
+    {
+        selectors = { "charHeaderRule" },
+        bgcolor = "@border",
+        opacity = 0.35,
+        width = "100%",
+        height = 1,
+    },
+    --Two-line character rows: bold name over a muted summary line.
+    {
+        selectors = { "charName" },
+        fontSize = 15,
+        bold = true,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    {
+        selectors = { "charName", "parent:selected" },
+        color = "@fgStrong",
+    },
+    {
+        selectors = { "charName", "parent:focus" },
+        color = "@fgStrong",
+    },
+    {
+        selectors = { "charName", "invisible" },
+        color = "@fgMuted",
+        italics = true,
+    },
+    {
+        selectors = { "charSubtitle" },
+        fontSize = 11,
+        italics = true,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    --Square portrait at the row's left, sitting in a subtle @bgAlt tile so
+    --any cutout-art fallback still has a defined square.
+    {
+        selectors = { "charPortraitTile" },
+        --portrait-shaped, not square: matches how portraits are normally
+        --framed. The charPortrait imageLoaded crop keeps this 28:34 aspect
+        --(update both together).
+        width = 28,
+        height = 34,
+        halign = "left",
+        valign = "center",
+        --matches the folder caret's inset (ExpandoArrow margin 5), so the
+        --portrait column and the carets read as one left edge.
+        lmargin = 5,
+        bgcolor = "@bgAlt",
+        borderWidth = 1,
+        borderColor = "@border",
+    },
+    {
+        selectors = { "charPortrait" },
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        bgcolor = "white",
+    },
+    --Rows: quiet at rest, surface on hover, accent edge when part of the
+    --selection working set or focused. No per-row seams here (dense list;
+    --see STYLE_GUIDE.md).
+    {
+        selectors = { "characterEntry" },
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "characterEntry", "hover" },
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "characterEntry", "selected" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    {
+        selectors = { "characterEntry", "focus" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    --Create-character button takes the Phosphor plus, scoped to this panel
+    --like the floors and maps lists.
+    {
+        selectors = { "panel", "buttonIcon", "parent:addButton" },
+        bgimage = "phosphor/plus-bold.png",
+        priority = 10,
+    },
+}
+
 DockablePanel.Register {
     name = "Character",
 	icon = "phosphor/user.png",
@@ -1677,27 +1872,71 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         novelContentAlert = gui.NewContentAlert { x = -14 }
     end
 
-    local playerStar = gui.Panel {
-        bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
-        width = 16,
-        height = 16,
-        valign = "center",
-        classes = {"playerStar"},
-        prepareRefresh = function(element)
-            resultPanel.data.primaryCharacter = token.playerControlledAndPrimary
-            element:SetClass("hidden", not resultPanel.data.primaryCharacter)
-        end,
-    }
-
     local clickTime = nil
 
+
+    --"Level 1 Human Censor" style summary line: level + ancestry, plus the
+    --class for heroes. Guarded with the same patterns the rest of this file
+    --uses (GetClass is hero-only; monster-typed properties can raise on
+    --missing methods).
+    local function SubtitleText()
+        local props = token ~= nil and token.valid and token.properties or nil
+        if props == nil then
+            return ""
+        end
+
+        local parts = {}
+
+        local level = nil
+        pcall(function() level = props:CharacterLevel() end)
+        if level ~= nil and level > 0 then
+            parts[#parts + 1] = string.format("Level %d", level)
+        end
+
+        local ancestry = nil
+        pcall(function() ancestry = props:RaceOrMonsterType() end)
+        if ancestry ~= nil and ancestry ~= "" then
+            --race names are stored comma-inverted ("Elf, High"); read them
+            --naturally ("High Elf") on the summary line.
+            local base, qualifier = string.match(ancestry, "^(.-),%s*(.+)$")
+            if base ~= nil then
+                ancestry = qualifier .. " " .. base
+            end
+            parts[#parts + 1] = ancestry
+        end
+
+        local classInfo = props:IsHero() and props:GetClass() or nil
+        if classInfo ~= nil then
+            parts[#parts + 1] = classInfo.name
+        end
+
+        local result = table.concat(parts, " ")
+
+        --the owning player's name, in their color, rides the summary line.
+        local playerName = token.playerNameOrNil
+        if playerName ~= nil then
+            local color = token.playerColor.tostring
+            if result == "" then
+                result = string.format("<color=%s>%s</color>", color, playerName)
+            else
+                result = string.format("%s -- <color=%s>%s</color>", result, color, playerName)
+            end
+        end
+
+        return result
+    end
 
     resultPanel = gui.Panel {
         classes = { "characterEntry" },
         bgimage = true,
         valign = "top",
-        width = "100%-6",
-        height = BestiaryPanelHeight,
+        halign = "left",
+        --full width like the headers: the old 100%-6 default-centered the
+        --row, leaving its fill and portrait 3px right of the header band.
+        width = "100%",
+        --two-line row: bold name over a muted summary line, square portrait
+        --at the left.
+        height = 40,
         flow = "horizontal",
         draggable = true,
         canDragOnto = function(element, target)
@@ -1739,8 +1978,13 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                 end
             end,
 
-            --render a tooltip of the character.
-            hover = function(element)
+            --render a tooltip of the character. On LINGER, not hover:
+            --token:Render{} builds the full stat block (~10ms of Lua plus
+            --engine layout, measured), and hover fires for every row the
+            --cursor crosses while scrolling -- which made scrolling the
+            --list visibly hitch. Linger fires only once the cursor rests
+            --on a row, so scroll-past costs nothing.
+            linger = function(element)
                 local dock = element:FindParentWithClass("dock")
 
                 local panel = token:Render {}
@@ -2029,38 +2273,161 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
         children = {
 
-            playerStar,
             novelContentAlert,
 
-            gui.CreateTokenImage(token, {
-                width = BestiaryPanelHeight,
-                height = BestiaryPanelHeight,
-                halign = "left",
+            --Square portrait in a subtle tile at the row's left. Uses the
+            --token's OFF-token portrait (the square art the sheet shows)
+            --rather than the on-token image, so no token ring or crop
+            --gymnastics are needed; falls back to the token art for tokens
+            --that never set one (same fallback Creature.lua uses).
+            gui.Panel({
+                classes = { "charPortraitTile" },
+                interactable = false,
+                bgimage = "panels/square.png",
 
-                refresh = function(element)
-                    if token == nil or not token.valid then
-                        return
-                    end
+                gui.Panel({
+                    classes = { "charPortrait" },
+                    interactable = false,
 
-                    element:FireEventTree("token", token)
-                end,
+                    data = {
+                        --the crop region the current image starts from:
+                        --nil = the full image (off-token portrait), else
+                        --the token art's own rect. imageLoaded aspect-fits
+                        --WITHIN this region so nothing stretches.
+                        baseRect = nil,
+                    },
+
+                    create = function(element)
+                        element:FireEvent("refresh")
+                    end,
+
+                    refresh = function(element)
+                        if token == nil or not token.valid then
+                            return
+                        end
+
+                        local offToken = nil
+                        pcall(function() offToken = token.offTokenPortrait end)
+                        if offToken ~= nil and offToken ~= "" then
+                            element.data.baseRect = nil
+                            element.bgimage = offToken
+                        else
+                            if token.popoutPortrait then
+                                --popout art overflows its nominal rect; use
+                                --the inset crop CreateTokenImage uses for it.
+                                local b = 0.14
+                                element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                            else
+                                element.data.baseRect = token.portraitRect
+                            end
+                            element.bgimage = token.portrait
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+
+                    --Portraits rarely match the tile's aspect; stretching
+                    --distorts them. Once the image's real dimensions are
+                    --known, center-crop the base region's longer axis so the
+                    --displayed rect has exactly the tile's 28:34 aspect (the
+                    --loading screen's cover-fit recipe, generalized to a
+                    --non-square destination and a sub-rect source).
+                    imageLoaded = function(element)
+                        if element.bgsprite == nil then
+                            return
+                        end
+
+                        local src_w = element.bgsprite.dimensions.x
+                        local src_h = element.bgsprite.dimensions.y
+                        if src_w <= 0 or src_h <= 0 then
+                            return
+                        end
+
+                        local base = element.data.baseRect or {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                        local baseW = (base.x2 - base.x1) * src_w
+                        local baseH = (base.y2 - base.y1) * src_h
+                        if baseW <= 0 or baseH <= 0 then
+                            return
+                        end
+
+                        local dstAspect = 28 / 34
+                        local srcAspect = baseW / baseH
+
+                        if srcAspect > dstAspect then
+                            --region wider than the tile: shrink its x-span, centered.
+                            local keep = dstAspect / srcAspect
+                            local inset = (base.x2 - base.x1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1 + inset,
+                                y1 = base.y1,
+                                x2 = base.x2 - inset,
+                                y2 = base.y2,
+                            }
+                        elseif srcAspect < dstAspect then
+                            --region taller than the tile: shrink its y-span, centered.
+                            local keep = srcAspect / dstAspect
+                            local inset = (base.y2 - base.y1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1,
+                                y1 = base.y1 + inset,
+                                x2 = base.x2,
+                                y2 = base.y2 - inset,
+                            }
+                        else
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+                }),
+
+                --Player-controlled-primary marker: the same corner dot the
+                --Maps panel puts on its portraits (replaces the old in-flow
+                --star column). Also keeps data.primaryCharacter fresh for
+                --the member sort.
+                gui.Panel {
+                    classes = { cond(not token.playerControlledAndPrimary, "hidden") },
+                    width = 9,
+                    height = 9,
+                    halign = "right",
+                    valign = "bottom",
+                    floating = true,
+                    bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
+                    bgcolor = "#ffffaaff",
+                    prepareRefresh = function(element)
+                        resultPanel.data.primaryCharacter = token.playerControlledAndPrimary
+                        element:SetClass("hidden", not resultPanel.data.primaryCharacter)
+                    end,
+                },
             }),
 
-            gui.Label({
-                classes = { "bestiaryLabel" },
+            --name over summary line; top-aligned so the name's cap line
+            --sits level with the portrait tile's top edge. No top margin:
+            --the tile's top is 3px in (34px tile centered in the 40px row)
+            --and the 15px font's own leading supplies almost exactly that,
+            --so the label box starts at 0 for the caps to land level.
+            gui.Panel {
+                flow = "vertical",
+                width = "100%-46",
+                height = "auto",
                 halign = "left",
-                text = creature.GetTokenDescription(token),
-                refresh = function(element)
-                    local desc = creature.GetTokenDescription(token)
-                    local playerName = token.playerNameOrNil
-                    if playerName ~= nil then
-                        local color = token.playerColor.tostring
-                        desc = string.format("%s (<color=%s>%s</color>)", desc, color, playerName)
-                    end
-                    element.text = desc
-                    element:SetClass("invisible", token.invisibleToPlayers)
-                end,
-            })
+                valign = "top",
+                lmargin = 8,
+
+                gui.Label({
+                    classes = { "charName" },
+                    text = creature.GetTokenDescription(token),
+                    refresh = function(element)
+                        element.text = creature.GetTokenDescription(token)
+                        element:SetClass("invisible", token.invisibleToPlayers)
+                    end,
+                }),
+
+                gui.Label({
+                    classes = { "charSubtitle" },
+                    text = SubtitleText(),
+                    refresh = function(element)
+                        element.text = SubtitleText()
+                    end,
+                }),
+            },
         }
     }
 
@@ -2159,11 +2526,34 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
     local folderPane
     local selectAllPanel = nil
-
     local triangle = nil
+
+    --Toggle the folder open/closed. Shared by the caret AND a press
+    --anywhere on the header band -- the caret alone was too small a
+    --target for the folder's primary action.
+    local ToggleCollapsed = function()
+        if #partyMembers == 0 then
+            return
+        end
+
+        isCollapsed = not isCollapsed
+        SetPartyCollapsed(partyid, isCollapsed)
+
+        triangle:SetClass('expanded', not isCollapsed)
+        folderPane:FireEvent("refreshCollapsed")
+        if selectAllPanel ~= nil then
+            selectAllPanel:FireEvent("refreshCollapsed")
+        end
+
+        if not isCollapsed then
+            folderPane:FireEvent('expand')
+        end
+    end
+
     triangle = gui.ExpandoArrow({
-        -- width = 8,
-        -- height = 8,
+        --Phosphor mask: the default triangle bitmap reads fuzzy at header
+        --size (same swap as the floors and maps lists).
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -2179,28 +2569,12 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 element:SetClass('empty', #partyMembers < 1)
             end,
             press = function(element)
-                print("PRESS:: TRIANGLE PRESSED")
                 if element:HasClass("collapsed") then
                     --the triangle itself isn't usable.
                     return
                 end
 
-                if #partyMembers == 0 then
-                    return
-                end
-
-                isCollapsed = not isCollapsed
-                SetPartyCollapsed(partyid, isCollapsed)
-
-                triangle:SetClass('expanded', not isCollapsed)
-                folderPane:FireEvent("refreshCollapsed")
-                if selectAllPanel ~= nil then
-                    selectAllPanel:FireEvent("refreshCollapsed")
-                end
-
-                if not isCollapsed then
-                    folderPane:FireEvent('expand')
-                end
+                ToggleCollapsed()
             end,
         },
     })
@@ -2226,7 +2600,10 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             valign = 'top',
             halign = 'left',
             width = "100%",
-            height = BestiaryPanelHeight,
+            --a step taller than member rows, with air above, so party bands
+            --read as section headers rather than more rows.
+            height = 30,
+            tmargin = 6,
             flow = 'horizontal',
         },
 
@@ -2234,22 +2611,47 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             refreshAssets = function(element)
             end,
 
+            --An empty folder cannot be opened; grey the whole band (label,
+            --caret, count) so it reads inert rather than broken.
+            create = function(element)
+                element:SetClass("emptyFolder", #partyMembers < 1)
+            end,
+            refresh = function(element)
+                element:SetClass("emptyFolder", #partyMembers < 1)
+            end,
+
+            --The whole header band toggles the folder (the caret alone was
+            --too small a target). Select-all-members, which used to be the
+            --header's press action, moved to the right-click menu.
             press = function(element, synthetic)
                 if not synthetic then
-                    element.parent:FireEventTree("select")
+                    ToggleCollapsed()
                 end
             end,
 
             rightClick = function(element)
+                local selectAllEntry = nil
+                if #partyMembers > 0 then
+                    selectAllEntry = {
+                        text = "Select All Members",
+                        click = function()
+                            element.popup = nil
+                            element.parent:FireEventTree("select")
+                        end,
+                    }
+                end
+
                 if party ~= nil then
-                    local entries = {
-                        {
-                            text = "Party Settings",
-                            click = function()
-                                Compendium.ShowModalEditDialog(Party, party.id)
-                                element.popup = nil
-                            end,
-                        },
+                    local entries = {}
+                    if selectAllEntry ~= nil then
+                        entries[#entries + 1] = selectAllEntry
+                    end
+                    entries[#entries + 1] = {
+                        text = "Party Settings",
+                        click = function()
+                            Compendium.ShowModalEditDialog(Party, party.id)
+                            element.popup = nil
+                        end,
                     }
                     local DeleteParty = function()
                         party.hidden = true
@@ -2291,36 +2693,41 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                     }
                     element.popup = gui.ContextMenu { entries = entries }
                 elseif partyid == "graveyard" then
-                    element.popup = gui.ContextMenu{
-                        entries = {
-                            {
-                                text = "Clear Dead Monsters",
-                                click = function()
-                                    local tokens = dmhub.despawnedTokens
-                                    local charids = {}
-                                    local objectTokens = dmhub.allObjectTokens
-                                    for _,tok in ipairs(tokens) do
-                                        charids[#charids+1] = tok.charid
+                    local entries = {}
+                    if selectAllEntry ~= nil then
+                        entries[#entries + 1] = selectAllEntry
+                    end
+                    entries[#entries + 1] = {
+                        text = "Clear Dead Monsters",
+                        click = function()
+                            local tokens = dmhub.despawnedTokens
+                            local charids = {}
+                            local objectTokens = dmhub.allObjectTokens
+                            for _,tok in ipairs(tokens) do
+                                charids[#charids+1] = tok.charid
 
-                                        local corpse = tok:FindCorpse()
-                                        if corpse ~= nil then
-                                            corpse.objectInstance:Destroy()
-                                        end
+                                local corpse = tok:FindCorpse()
+                                if corpse ~= nil then
+                                    corpse.objectInstance:Destroy()
+                                end
 
-                                        local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
-                                        track("character_delete", {
-                                            class = classInfo and classInfo.name or "",
-                                            ancestry = tok.properties:RaceOrMonsterType() or "",
-                                            level = tok.properties:CharacterLevel(),
-                                            dailyLimit = 5,
-                                        })
-                                    end
-                                    game.DeleteCharacters(charids)
-                                    element.popup = nil
-                                end,
-                            }
-                        }
+                                local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
+                                track("character_delete", {
+                                    class = classInfo and classInfo.name or "",
+                                    ancestry = tok.properties:RaceOrMonsterType() or "",
+                                    level = tok.properties:CharacterLevel(),
+                                    dailyLimit = 5,
+                                })
+                            end
+                            game.DeleteCharacters(charids)
+                            element.popup = nil
+                        end,
                     }
+                    element.popup = gui.ContextMenu{ entries = entries }
+                elseif selectAllEntry ~= nil then
+                    --Director Controlled and other synthetic folders still
+                    --offer the relocated select-all.
+                    element.popup = gui.ContextMenu{ entries = { selectAllEntry } }
                 end
             end,
 
@@ -2345,7 +2752,25 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 },
             },
 
+            --Glanceable size of the party.
+            gui.Label {
+                classes = { "charPartyCount" },
+                text = tostring(#partyMembers),
+                events = {
+                    refresh = function(element)
+                        element.text = tostring(#partyMembers)
+                    end,
+                },
+            },
+
         },
+    }
+
+    --The header's underline, per the section-header grammar.
+    local headerRule = gui.Panel {
+        classes = { "charHeaderRule" },
+        interactable = false,
+        bgimage = "panels/square.png",
     }
 
 
@@ -2416,6 +2841,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
         end,
 
         headerPanel,
+        headerRule,
         folderPane,
 
     }
@@ -2441,7 +2867,27 @@ CharacterPanel.CreateMapModificationsFolder = function()
     local modPanels = {}
 
     local triangle
+
+    --Shared by the caret and a press anywhere on the header band, like the
+    --party folders.
+    local ToggleCollapsed = function()
+        if #game.GetMapModifications() == 0 then
+            return
+        end
+
+        isCollapsed = not isCollapsed
+        SetPartyCollapsed(collapsedKey, isCollapsed)
+
+        triangle:SetClass("expanded", not isCollapsed)
+        folderPane:FireEvent("refreshCollapsed")
+
+        if not isCollapsed then
+            folderPane:FireEvent("expand")
+        end
+    end
+
     triangle = gui.ExpandoArrow{
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -2462,19 +2908,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
                     return
                 end
 
-                if #game.GetMapModifications() == 0 then
-                    return
-                end
-
-                isCollapsed = not isCollapsed
-                SetPartyCollapsed(collapsedKey, isCollapsed)
-
-                triangle:SetClass("expanded", not isCollapsed)
-                folderPane:FireEvent("refreshCollapsed")
-
-                if not isCollapsed then
-                    folderPane:FireEvent("expand")
-                end
+                ToggleCollapsed()
             end,
         },
     }
@@ -2523,7 +2957,8 @@ CharacterPanel.CreateMapModificationsFolder = function()
             classes = { "characterEntry" },
             bgimage = true,
             valign = "top",
-            width = "100%-6",
+            halign = "left",
+            width = "100%",
             height = BestiaryPanelHeight,
             flow = "horizontal",
 
@@ -2610,11 +3045,19 @@ CharacterPanel.CreateMapModificationsFolder = function()
             valign = "top",
             halign = "left",
             width = "100%",
-            height = BestiaryPanelHeight,
+            --matches the party headers' section-header band.
+            height = 30,
+            tmargin = 6,
             flow = "horizontal",
         },
 
         events = {
+            press = function(element, synthetic)
+                if not synthetic then
+                    ToggleCollapsed()
+                end
+            end,
+
             rightClick = function(element)
                 if #game.GetMapModifications() == 0 then
                     return
@@ -2727,6 +3170,11 @@ CharacterPanel.CreateMapModificationsFolder = function()
         end,
 
         headerPanel,
+        gui.Panel {
+            classes = { "charHeaderRule" },
+            interactable = false,
+            bgimage = "panels/square.png",
+        },
         folderPane,
     }
 
@@ -2922,7 +3370,7 @@ CreateCharacterPanel = function()
 
     local resultPanel
     resultPanel = gui.Panel {
-        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
+        styles = ThemeEngine.MergeStyles(g_characterListExtras),
 
         flow = "vertical",
         width = "100%",
@@ -3041,7 +3489,7 @@ CreateCharacterPanel = function()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+            resultPanel.styles = ThemeEngine.MergeStyles(g_characterListExtras)
         end
     end)
 

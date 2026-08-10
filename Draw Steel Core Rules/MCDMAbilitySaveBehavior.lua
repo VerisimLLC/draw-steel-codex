@@ -4,12 +4,29 @@ local mod = dmhub.GetModLoading()
 --- @field summary string Short label shown in behavior lists.
 --- @field conditionsMode string Which conditions to attempt to save against: "all" or a specific condition id.
 --- @field rollMode string How the save is resolved: "roll" (make a die roll) or "purge" (auto-succeed without rolling).
+--- @field durationScope string Which durations this behavior covers: "all", "eot" (end-of-turn expiry only), or "save" (save-ends only).
 --- Draw Steel end-of-turn save behavior: rolls to remove conditions from the target creature.
 ActivatedAbilitySaveBehavior = RegisterGameType("ActivatedAbilitySaveBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilitySaveBehavior.summary = 'Draw Steel Save'
 ActivatedAbilitySaveBehavior.conditionsMode = 'all'
 ActivatedAbilitySaveBehavior.rollMode = 'roll' --roll or purge with no roll
+
+--Which items this behavior is responsible for. The End Turn Save global rule
+--mod splits its two jobs across two triggered abilities: a mandatory one
+--scoped to "eot" that silently expires end-of-turn conditions, and a prompted
+--(hostile) one scoped to "save" that raises a trigger card for the actual
+--saving throw. "all" keeps the original combined behavior and is what the
+--player-facing Remove Condition abilities use.
+ActivatedAbilitySaveBehavior.durationScope = 'all'
+
+--When set, this behavior does not roll anything. Instead it posts one
+--invocation prompt card per in-scope item, each naming its own effect, and the
+--save is rolled only when the player accepts a card. Accepting casts
+--promptAbility with the effect's name passed through as the "effectname"
+--symbol, which narrows that cast to the single item the card was raised for.
+ActivatedAbilitySaveBehavior.promptEach = false
+ActivatedAbilitySaveBehavior.promptAbility = 'End Turn Saving Throw'
 
 ActivatedAbility.RegisterType
 {
@@ -58,6 +75,22 @@ function ActivatedAbilitySaveBehavior:GetSaveItems(targetCreature)
                 }
             end
         end
+    end
+
+    --Apply the duration scope. An "eot" condition is expired outright by Cast
+    --with no roll; everything else in this list is a save-ends item that needs
+    --one. Splitting the two lets the expiry stay mandatory while the save is
+    --raised as a prompt the player resolves in their own time.
+    local scope = self:try_get("durationScope", "all")
+    if scope ~= "all" then
+        local filtered = {}
+        for _, item in ipairs(items) do
+            local isEot = (item.type == "condition" and item.duration == "eot")
+            if (scope == "eot") == isEot then
+                filtered[#filtered+1] = item
+            end
+        end
+        items = filtered
     end
 
     return items
@@ -112,6 +145,72 @@ function ActivatedAbilitySaveBehavior:PurgeSaveItem(targetToken, item)
                 targetToken.properties:RemoveOngoingEffect(item.id)
             end,
         }
+    end
+end
+
+-- Post one prompt card per save item, so each effect is named on its own card
+-- and can be resolved independently, and sweep away cards left from earlier
+-- turns whose effect is gone.
+--
+-- Invocation prompt cards have no watcher coroutine (unlike TriggeredAbility
+-- prompts), so nothing else would ever clear a stale one -- and because they
+-- are posted hostile they do not age out either. This sweep is what keeps them
+-- honest: it runs on every end of turn, drops cards whose effect has since been
+-- removed, and skips posting a duplicate for an effect that already has a card
+-- waiting.
+function ActivatedAbilitySaveBehavior:PromptSaveItems(targetToken, items)
+    local abilityName = self:try_get("promptAbility", "End Turn Saving Throw")
+
+    local wanted = {}
+    for _, item in ipairs(items) do
+        wanted[item.name] = true
+    end
+
+    local pending = {}
+    local stale = {}
+    for guid, trigger in pairs(targetToken.properties:GetAvailableTriggers() or {}) do
+        local invocation = trigger.invocation
+        if invocation ~= nil and invocation ~= false and invocation:try_get("standardAbility") == abilityName then
+            local effectName = invocation:try_get("symbols", {}).effectname
+            if type(effectName) == "string" then
+                if wanted[effectName] then
+                    pending[effectName] = true
+                else
+                    stale[#stale+1] = guid
+                end
+            end
+        end
+    end
+
+    if #stale > 0 then
+        targetToken:ModifyProperties{
+            description = "Clear stale save prompts",
+            undoable = false,
+            execute = function()
+                for _, guid in ipairs(stale) do
+                    targetToken.properties:ClearAvailableTrigger({id = guid})
+                end
+            end,
+        }
+    end
+
+    for _, item in ipairs(items) do
+        if not pending[item.name] then
+            pending[item.name] = true
+            AbilityInvocation.PromptStandardAbility{
+                token = targetToken,
+                standardAbility = abilityName,
+                targeting = "self",
+                --Hostile so the card waits indefinitely instead of ageing out:
+                --the whole point is that the save is taken at the player's
+                --leisure, not in the seconds after their turn ends.
+                hostile = true,
+                prompt = string.format("Saving Throw vs %s", item.name),
+                rules = string.format("Roll a saving throw to end **%s**.", item.name),
+                activateText = "Roll Save",
+                symbols = { effectname = item.name },
+            }
+        end
     end
 end
 
@@ -240,6 +339,30 @@ function ActivatedAbilitySaveBehavior:Cast(ability, casterToken, targets, option
         local targetCreature = target.token.properties
         local allItems = self:GetSaveItems(targetCreature)
 
+        --A cast raised from a per-effect prompt card carries the effect's name
+        --as the "effectname" symbol (see PromptSaveItems). Narrow to that one
+        --item so accepting a card saves against the effect it named and nothing
+        --else. An effect that has since been removed narrows to nothing, which
+        --is the correct no-op for a card clicked late.
+        local effectName = nil
+        if options ~= nil and options.symbols ~= nil then
+            effectName = options.symbols.effectname
+        end
+        if type(effectName) == "string" and effectName ~= "" then
+            local narrowed = {}
+            for _, item in ipairs(allItems) do
+                if item.name == effectName then
+                    narrowed[#narrowed+1] = item
+                end
+            end
+            allItems = narrowed
+        end
+
+        if self:try_get("promptEach", false) then
+            self:PromptSaveItems(target.token, allItems)
+            goto continue_target
+        end
+
         local saveItems = {}
 
         if self.conditionsMode == "one" then
@@ -320,6 +443,36 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
             end,
 
         },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = "formPanel",
+        gui.Label{
+            classes = "formLabel",
+            text = "Durations:",
+        },
+
+        gui.Dropdown{
+            classes = "formDropdown",
+            halign = "left",
+            idChosen = self:try_get("durationScope", "all"),
+            options = {
+                { id = "all", text = "All Durations" },
+                { id = "save", text = "Save Ends Only" },
+                { id = "eot", text = "End of Turn Only" },
+            },
+            change = function(element)
+                self.durationScope = element.idChosen
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Prompt For Each Effect",
+        value = self:try_get("promptEach", false),
+        change = function(element)
+            self.promptEach = element.value
+        end,
     }
 
     --do prone.

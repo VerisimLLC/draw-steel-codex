@@ -64,7 +64,7 @@ function module.GetOurOrganizations()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetOrganizationInfo: Looks up one creator organization by id and calls options.success with {id, displayName, modules, patreonModules}, or options.failure with an error message. Unlike GetOurOrganizations this works for ANY organization, not just ones the user belongs to -- ModuleAuthor records are publicly readable. Used to show a patron which modules their Patreon membership of someone else's organization includes.
+--- GetOrganizationInfo: Looks up one creator organization by id and calls options.success with {id, displayName, modules, patreonModules, patreonCampaign}, or options.failure with an error message. patreonCampaign is {name, url} for the org's linked Patreon campaign, or nil if none. Unlike GetOurOrganizations this works for ANY organization, not just ones the user belongs to -- ModuleAuthor records are publicly readable. Used to show a patron which modules their Patreon membership of someone else's organization includes, and to offer 'Become a patron' to someone who has not pledged.
 --- @param options table Options table with 'orgid' (string), 'success' (function(table)), and 'failure' (function(string)) fields.
 function module.GetOrganizationInfo(options)
 	-- dummy implementation for documentation purposes only

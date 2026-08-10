@@ -3365,20 +3365,21 @@ end
 --cards from a handful of authors. Cached for the session: a creator adding a
 --module to their Patreon list mid-session will not show until the next launch,
 --which is fine for a browse grid and is the price of not refetching per card.
-local g_patreonModulesByOrg = {}   --orgid (lower) -> set of fullid (lower), once loaded
+local g_patreonOrgInfo = {}        --orgid (lower) -> {modules=set, campaign={name,url}|nil, displayName}, once loaded
 local g_patreonOrgWaiting = {}     --orgid (lower) -> list of callbacks, while in flight
 
---callback receives the set. Called synchronously when already cached, which is
---the common case and keeps the card from flickering into its livery.
-local function QueryPatreonModulesForOrg(orgid, callback)
+--callback receives {modules = set of fullid (lower), campaign = {name, url} or
+--nil, displayName = string or nil}. Called synchronously when already cached,
+--which is the common case and keeps the card from flickering into its livery.
+local function QueryPatreonOrgInfo(orgid, callback)
 	if orgid == nil or orgid == "" then
-		callback({})
+		callback({modules = {}})
 		return
 	end
 
 	local key = string.lower(orgid)
 
-	local cached = g_patreonModulesByOrg[key]
+	local cached = g_patreonOrgInfo[key]
 	if cached ~= nil then
 		callback(cached)
 		return
@@ -3393,7 +3394,7 @@ local function QueryPatreonModulesForOrg(orgid, callback)
 	g_patreonOrgWaiting[key] = {callback}
 
 	local finish = function(result)
-		g_patreonModulesByOrg[key] = result
+		g_patreonOrgInfo[key] = result
 		local queue = g_patreonOrgWaiting[key]
 		g_patreonOrgWaiting[key] = nil
 		for _,fn in ipairs(queue or {}) do
@@ -3404,20 +3405,35 @@ local function QueryPatreonModulesForOrg(orgid, callback)
 	module.GetOrganizationInfo{
 		orgid = orgid,
 		success = function(info)
-			local result = {}
+			local modules = {}
 			for _,id in ipairs(info.patreonModules or {}) do
-				result[string.lower(id)] = true
+				modules[string.lower(id)] = true
 			end
-			finish(result)
+			--patreonCampaign is the org's PUBLIC campaign identity ({name,
+			--url}), published when the creator links their campaign. It is
+			--what lets the offer panel name the actual creator and open the
+			--right campaign instead of hardcoding MCDM's.
+			finish({
+				modules = modules,
+				campaign = rawget(info, "patreonCampaign"),
+				displayName = info.displayName,
+			})
 		end,
 		failure = function(msg)
 			--the overwhelmingly common failure is "this module was published by
 			--a person, not an organization", which has no ModuleAuthor record.
 			--An empty set is the right answer, and caching it is what stops us
 			--asking again for every other card by the same author.
-			finish({})
+			finish({modules = {}})
 		end,
 	}
+end
+
+--compatibility wrapper: callback receives just the included-module set.
+local function QueryPatreonModulesForOrg(orgid, callback)
+	QueryPatreonOrgInfo(orgid, function(info)
+		callback(info.modules or {})
+	end)
 end
 
 --Builds one module card. Hoisted to file scope so the settings screen can
@@ -3721,6 +3737,46 @@ ModuleBrowser = {}
 --
 --Deliberately NOT dialogCustomStyles, which also defines framedPanel but sizes
 --it to the whole 1080-based dialog frame.
+--Patron livery: a module our Patreon membership unlocks wears the MCDM d20
+--logo's colors -- a blue sheen inside an orange frame -- so it reads as "this
+--one came with your membership" at a glance in a grid of otherwise identical
+--grey cards. The detail page it opens onto wears the same livery, so the page
+--is visibly the same thing as the card that was clicked.
+--
+--Literal hex rather than theme tokens on purpose: these are the logo's brand
+--colors, and they must stay the logo's colors when the user switches theme.
+--Overrides framedPanel's @surfaceLinear/@fg pair, which is a single-selector
+--rule, so any two-selector rule built from this wins.
+local patreonLiveryProperties = {
+	borderWidth = 3,
+	borderColor = "#e8701c",
+	gradient = {
+		point_a = {x = 0, y = 1},
+		point_b = {x = 1, y = 0},
+		stops = {
+			{position = 0,    color = "#0a1a2c"},
+			{position = 0.55, color = "#173c5c"},
+			{position = 1,    color = "#2a678f"},
+		},
+	},
+}
+
+--One style rule wearing the livery. The properties are shared so the card and
+--the detail page cannot drift apart, but each caller needs its own selectors
+--and may layer extra properties on top.
+local function PatreonLiveryStyle(selectors, extraProperties)
+	local result = {selectors = selectors}
+	for k,v in pairs(patreonLiveryProperties) do
+		result[k] = v
+	end
+
+	for k,v in pairs(extraProperties or {}) do
+		result[k] = v
+	end
+
+	return result
+end
+
 local moduleDisplayCustomStyles = {
 
 		{
@@ -3748,37 +3804,17 @@ local moduleDisplayCustomStyles = {
 			transitionTime = 0.1,
 		},
 
-		--Patron livery: the card for a module our Patreon membership unlocks
-		--wears the MCDM d20 logo's colors -- a blue sheen inside an orange
-		--frame -- so it reads as "this one came with your membership" at a
-		--glance in a grid of otherwise identical grey cards.
-		--
-		--Literal hex rather than theme tokens on purpose: these are the logo's
-		--brand colors, and they must stay the logo's colors when the user
-		--switches theme. Overrides framedPanel's @surfaceLinear/@fg pair, which
-		--is a single-selector rule, so this two-selector rule wins.
-		{
-			selectors = {"moduleItem", "patreonModule"},
-			borderWidth = 3,
-			borderColor = "#e8701c",
-			gradient = {
-				point_a = {x = 0, y = 1},
-				point_b = {x = 1, y = 0},
-				stops = {
-					{position = 0,    color = "#0a1a2c"},
-					{position = 0.55, color = "#173c5c"},
-					{position = 1,    color = "#2a678f"},
-				},
-			},
-		},
-		{
-			--the shared hover rule's 1.8 blows the blue out to white; the
-			--livery is already bright, so it needs a gentler lift.
-			selectors = {"moduleItem", "patreonModule", "hover"},
+		--see patreonLiveryProperties above for why the card wears the logo's
+		--colors and why they are literal hex.
+		PatreonLiveryStyle({"moduleItem", "patreonModule"}),
+
+		--the shared hover rule's 1.8 blows the blue out to white; the livery is
+		--already bright, so it needs a gentler lift.
+		PatreonLiveryStyle({"moduleItem", "patreonModule", "hover"}, {
 			brightness = 1.35,
 			borderColor = "#ff9440",
 			transitionTime = 0.1,
-		},
+		}),
 		{
 			selectors = {"moduleHeading"},
 			color = "@fgStrong",
@@ -4374,24 +4410,69 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		end,
 	}
 
-	--"Get this with a membership" for a premium module MCDM includes with their
-	--Patreon. Those modules are listed for everyone, patron or not (see
-	--Module.offeredWithMCDMPatreon), so their page has to answer "how do I get
+	--"Get this with a membership" for a premium module a creator includes with
+	--their Patreon. Those modules are listed for everyone, patron or not (see
+	--Module.offeredWithPatreon), so their page has to answer "how do I get
 	--this?" -- pointing at a store this build does not have would not.
 	local patreonOfferPanel
 	local patreonOfferLabel
 	local patreonConnectButton
+	local patreonBecomePatronButton
+	local patreonCheckAgainButton
 	local patreonOfferStatus
 	local m_patreonLink = nil
 
-	--pcall: an older engine build has no such property on ModuleLua, and on one
-	--of those nothing is offered this way in the first place.
-	local function OfferedWithMCDMPatreon(moduleInfo)
-		local result = false
-		pcall(function()
-			result = moduleInfo.offeredWithMCDMPatreon == true
-		end)
-		return result
+	--the publishing org's Patreon info for the module currently displayed,
+	--loaded by displayModule through QueryPatreonOrgInfo: {fullid, offered,
+	--campaign, displayName}. nil until the lookup lands. Deliberately the same
+	--publicly-readable lookup the card livery uses rather than the C# flag, so
+	--it works for ANY creator organization on any engine build.
+	local m_patreonOrgOffer = nil
+
+	--whether the displayed module is offered with the publisher's Patreon.
+	--Gated on the hidden "patreonsub" preference like the rest of the feature.
+	local function OfferedWithPatreon(moduleInfo)
+		if dmhub.GetSettingValue("patreonsub") ~= true then
+			return false
+		end
+		return m_patreonOrgOffer ~= nil and m_patreonOrgOffer.fullid == moduleInfo.fullid
+			and m_patreonOrgOffer.offered == true
+	end
+
+	--the creator's name for the offer copy: prefer the campaign's own name,
+	--then the organization's display name.
+	local function PatreonCreatorName()
+		if m_patreonOrgOffer == nil then
+			return "creator's"
+		end
+		local campaign = m_patreonOrgOffer.campaign
+		if campaign ~= nil and campaign.name ~= nil and campaign.name ~= "" then
+			return campaign.name
+		end
+		if m_patreonOrgOffer.displayName ~= nil and m_patreonOrgOffer.displayName ~= "" then
+			return m_patreonOrgOffer.displayName
+		end
+		return "creator's"
+	end
+
+	--where "Become a Patron" goes: the org's published campaign url, with the
+	--historical MCDM url as a fallback for their org only (their record may
+	--predate the campaign-identity field). nil hides the button.
+	local function PatreonCampaignUrl()
+		if m_patreonOrgOffer == nil then
+			return nil
+		end
+		local campaign = m_patreonOrgOffer.campaign
+		if campaign ~= nil and campaign.url ~= nil and campaign.url ~= "" then
+			return campaign.url
+		end
+		if m_patreonOrgOffer.orgid == "codex" then
+			local patreon = rawget(_G, "PatreonAccount")
+			if patreon ~= nil then
+				return patreon.mcdmCampaignUrl
+			end
+		end
+		return nil
 	end
 
 	--whether a Patreon account is linked at all, which is a different question
@@ -4470,6 +4551,63 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		end,
 	}
 
+	--Backstop for a dropped webhook: one call re-pulls the user's memberships
+	--server-side and rewrites their entitlements; the engine's live /Patrons
+	--monitor then flips the page to Install by itself if access arrived.
+	patreonCheckAgainButton = gui.Button{
+		classes = {"collapsed"},
+		width = 240,
+		height = 30,
+		fontSize = 14,
+		halign = "right",
+		vmargin = 4,
+		text = "Check Again",
+		click = function(element)
+			element.interactable = false
+			patreonOfferStatus.text = "Checking your Patreon memberships..."
+			patreonOfferStatus:SetClass("collapsed", false)
+			net.Post{
+				url = dmhub.cloudFunctionsBaseUrl .. "/patreonRefreshOrgEntitlements",
+				data = {},
+				success = function(response)
+					if not element.valid then
+						return
+					end
+					element.interactable = true
+					if type(response) == "table" and response.ok then
+						--if access arrived, the /Patrons mirror flips the page
+						--to Install within moments; this covers the other case.
+						patreonOfferStatus.text = "Checked. Your membership does not include this module yet."
+					else
+						patreonOfferStatus.text = "Could not check your memberships. Please try again."
+					end
+				end,
+				error = function(msg)
+					if not element.valid then
+						return
+					end
+					element.interactable = true
+					patreonOfferStatus.text = "Could not contact the server. Please try again."
+				end,
+			}
+		end,
+	}
+
+	patreonBecomePatronButton = gui.Button{
+		width = 240,
+		height = 40,
+		fontSize = 18,
+		halign = "right",
+		vmargin = 4,
+		text = "Become a Patron",
+		click = function(element)
+			local url = PatreonCampaignUrl()
+			if url ~= nil then
+				dmhub.OpenURL(url)
+			end
+		end,
+	}
+
 	patreonOfferPanel = gui.Panel{
 		classes = {"collapsed"},
 		flow = "vertical",
@@ -4483,32 +4621,22 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 			patreonOfferStatus:SetClass("collapsed", true)
 			patreonConnectButton:SetClass("collapsed", linked or PatreonAccountGlobal() == nil)
+			patreonCheckAgainButton:SetClass("collapsed", not linked)
+			patreonBecomePatronButton:SetClass("collapsed", PatreonCampaignUrl() == nil)
 
+			local creatorName = PatreonCreatorName()
 			if linked then
-				patreonOfferLabel.text = "This module is included with the MCDM Patreon. Your Patreon account is connected, but your membership does not include it yet."
+				patreonOfferLabel.text = string.format("This module is included with the %s Patreon. Your Patreon account is connected, but your membership does not include it yet.", creatorName)
 			else
-				patreonOfferLabel.text = "This module is included with the MCDM Patreon. Connect your Patreon account, or become a patron, to get it."
+				patreonOfferLabel.text = string.format("This module is included with the %s Patreon. Connect your Patreon account, or become a patron, to get it.", creatorName)
 			end
 		end,
 
 		patreonOfferLabel,
 		patreonOfferStatus,
 		patreonConnectButton,
-
-		gui.Button{
-			width = 240,
-			height = 40,
-			fontSize = 18,
-			halign = "right",
-			vmargin = 4,
-			text = "Become an MCDM Patron",
-			click = function(element)
-				local patreon = PatreonAccountGlobal()
-				if patreon ~= nil and patreon.mcdmCampaignUrl ~= nil then
-					dmhub.OpenURL(patreon.mcdmCampaignUrl)
-				end
-			end,
-		},
+		patreonCheckAgainButton,
+		patreonBecomePatronButton,
 	}
 
 	--think below runs ten times a second, so only touch the panel when the
@@ -4549,7 +4677,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				--decided up front, not inside the premium branch below, so the
 				--earlier returns cannot leave the offer stranded on screen
 				--behind a deprecation or install message.
-				ShowPatreonOffer(mod.premium and (not mod.owned) and OfferedWithMCDMPatreon(mod)
+				ShowPatreonOffer(mod.premium and (not mod.owned) and OfferedWithPatreon(mod)
 					and (not (mod.deprecated and not mod.deprecationOverridden))
 					and mod.fullid ~= m_installing
 					and (not mod.publishedFromThisGame))
@@ -4659,6 +4787,11 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				selectors = {"moduleDetailedDisplay"},
 				flow = "vertical",
 			},
+
+			--the detail page for a Patreon module wears the same livery as the
+			--card that opened it. No hover variant: framedPanel has no hover
+			--rule, and a full-page panel should not light up under the cursor.
+			PatreonLiveryStyle({"moduleDetailedDisplay", "patreonModule"}),
 			{
 				selectors = {"detailsPanel"},
 				width = "95%",
@@ -4720,6 +4853,30 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 		displayModule = function(element, moduleInfo)
 			element.data.moduleInfo = moduleInfo
+
+			--same livery as the grid card, and the same async lookup: clear it
+			--up front so the previous module's livery doesn't linger on this
+			--one panel, and check on arrival that the page still shows the
+			--module that asked. The same lookup also feeds the offer panel
+			--(m_patreonOrgOffer): which creator, their campaign, and whether
+			--this module is on their included list.
+			local fullid = moduleInfo.fullid
+			local authorid = moduleInfo.authorid
+			element:SetClass("patreonModule", false)
+			m_patreonOrgOffer = nil
+			QueryPatreonOrgInfo(authorid, function(info)
+				if element.valid and element.data.moduleInfo ~= nil and element.data.moduleInfo.fullid == fullid then
+					local offered = (info.modules or {})[string.lower(fullid)] == true
+					element:SetClass("patreonModule", offered)
+					m_patreonOrgOffer = {
+						fullid = fullid,
+						orgid = string.lower(authorid or ""),
+						offered = offered,
+						campaign = info.campaign,
+						displayName = info.displayName,
+					}
+				end
+			end)
 
 			detailedDisplayTitle.text = moduleInfo.name or moduleInfo.fullid
 			detailedDisplayAuthor.text = string.format("by %s", moduleInfo.authorid)

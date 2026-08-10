@@ -1288,6 +1288,21 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     end
 
     ability = ability:MakeTemporaryClone()
+
+    --The AI has already resolved which mode it is casting: callers pass a
+    --SwitchModes clone plus a matching symbols.mode (or default to mode 1).
+    --SwitchModes deliberately keeps multipleModes/modeList on its result, so
+    --RequiresPromptWhenCast() would return true and ExecuteInvoke would route
+    --this cast to the action bar's manual mode/target UI -- which, for a cast
+    --whose targets are locs, builds an EMPTY symbols.allowedtargets and strands
+    --the cast on an unanswerable "Choose Target" prompt. Clearing the flag
+    --keeps the cast on the immediate Cast path. Note MakeTemporaryClone above
+    --returns the SAME object when the ability is already a temporary clone
+    --(e.g. entries in ai.abilities), so this write can land on the run's
+    --cached instance -- benign, since AI mode switching works off modeList
+    --and nothing else in a run reads multipleModes.
+    ability.multipleModes = false
+
     print("AI:: USING ABILITY:", ability.name, "on", #targets)
     options.symbols = symbols
     options.targets = targets

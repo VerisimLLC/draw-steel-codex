@@ -163,7 +163,7 @@ TriggeredAbility.TargetTypes = {
         id = "aura",
         text = "Creatures in Aura",
         condition = function(ability)
-            return ability.trigger == "casterendturnaura"
+            return ability.trigger == "casterendturnaura" or ability.trigger == "casterstartturnaura"
         end,
     },
     {

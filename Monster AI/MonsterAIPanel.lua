@@ -15,6 +15,7 @@ local MonsterAIPanel
 
 DockablePanel.Register{
     name = "Monster AI",
+    icon = "phosphor/cpu-light.png",
     minHeight = 60,
     dmonly = true,
     content = function()
@@ -50,13 +51,20 @@ GameHud.RegisterBetweenTurnHandler{
     end,
 }
 
-local function MonsterAIThread()
+--Runs as a DockablePanel background process (see "Panel background
+--processes" in DockablePanel.lua): registered from the Start AI button,
+--it keeps taking monster turns even if the Monster AI panel is closed,
+--and the panel's icon-rail button spins its gear while this runs. The
+--process handle's stopRequested is the systemic stop signal (StopProcess
+--or a replacing StartProcess); g_terminate remains the panel's own local
+--stop flag, and both routes end the thread here.
+local function MonsterAIThread(process)
     MonsterAI.active = true
     g_status = nil
     while true do
         g_thread = coroutine.running()
         coroutine.yield(0.1)
-        if mod.unloaded or g_terminate then
+        if mod.unloaded or g_terminate or (process ~= nil and process.stopRequested) then
             MonsterAI.active = false
             return
         end
@@ -236,10 +244,18 @@ MonsterAIPanel = function()
                 if m_running then
                     g_terminate = true
                     MonsterAI.active = false
+                    DockablePanel.StopProcess("Monster AI", "monster-ai")
                 else
                     g_terminate = false
                     MonsterAI.active = true
-                    dmhub.Coroutine(MonsterAIThread)
+                    --a background process rather than a bare coroutine:
+                    --the AI keeps playing turns if this panel closes, and
+                    --the rail button's gear spins while it runs.
+                    DockablePanel.StartProcess{
+                        panel = "Monster AI",
+                        id = "monster-ai",
+                        coroutine = MonsterAIThread,
+                    }
                 end
             end,
         },

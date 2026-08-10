@@ -1415,10 +1415,14 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         tooltip = string.format("%s, %d %s", tooltip, numAllies, cond(numAllies == 1, "Ally", "Allies"))
                     end
 
-                    if strength.minLevel == strength.maxLevel then
-                        tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
-                    else
-                        tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                    --minLevel/maxLevel are nil when the pool is nothing but allied
+                    --monsters, which have no hero level to report.
+                    if strength.minLevel ~= nil then
+                        if strength.minLevel == strength.maxLevel then
+                            tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
+                        else
+                            tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                        end
                     end
 
                     tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, strength.base)
@@ -1426,6 +1430,9 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     tooltip = string.format("%s\nAverage Victories: %d", tooltip, strength.averageVictories)
                     tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, strength.victoryHeroes)
                     tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, strength.singleHero)
+                    if strength.numAllyMonsters > 0 then
+                        tooltip = string.format("%s\nEV of %d Allied %s: %d", tooltip, strength.numAllyMonsters, cond(strength.numAllyMonsters == 1, "Creature", "Creatures"), strength.allyEV)
+                    end
                     tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, strength.total)
 
                     element.data.tooltip = tooltip

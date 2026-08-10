@@ -3264,15 +3264,15 @@ function GameHud.CreateInitiativeBar(self, info)
         --Combat settings button: visible whenever the initiative bar is up. Click
         --opens a dropdown that includes "Revert Turn" (when a checkpoint exists),
         --plus the menu items that used to live behind the bubble's right-click.
+        --It rides along with the game-mode readout in the title bar's status
+        --area, as an ordinary child in that row -- it used to float off the
+        --right edge of the label back when the readout sat over the map.
         resetTurnButton = gui.Panel {
             bgimage = "panels/hud/gear.png",
             bgcolor = "#ffffffaa",
-            halign = "right",
             valign = "center",
             width = 24,
             height = 24,
-            x = 40,
-            floating = true,
             classes = {"unavailable"},
 
             data = {
@@ -3454,6 +3454,149 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addCharacters
 	local addMonsters
 
+	--Opens the game-mode menu (Exploration / Combat / Downtime / Respite ...).
+	--Shared by the bar itself and by the game-mode label, which now lives in
+	--the title bar's status area rather than over the map -- the label is the
+	--only thing in the bar that was ever hit-testable, so without this the
+	--menu would have moved out of reach along with it.
+	local function ShowGameModeMenu(element)
+		if not CanControlInitiative() or (info.initiativeQueue ~= nil and (not info.initiativeQueue.hidden)) then
+			return
+		end
+		local entries = {}
+		for i=1,#InitiativeQueue.GameModes do
+			local mod = InitiativeQueue.GameModes[i]
+			entries[#entries+1] = {
+				text = mod.text,
+				click = function()
+					element.popup = nil
+
+					if mod.id == "respite" then
+						GameHud.instance:BeginRespiteMode()
+						return
+					end
+
+					UploadDayNightInfo()
+					if info.initiativeQueue == nil then
+						info.initiativeQueue = InitiativeQueue.Create()
+					end
+					info.initiativeQueue.gameMode = mod.id
+					info.UploadInitiative()
+
+					if mod.hasinitiative then
+						Commands.rollinitiative()
+						return
+					end
+
+					if info.initiativeQueue.gameMode == "downtime" then
+						local settings = DTSettings.CreateNew()
+						if settings then
+							settings:SetPauseRolls(false)
+						end
+						for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+							token.properties:DispatchEvent("startdowntime", {})
+						end
+					else
+						local settings = DTSettings.CreateNew()
+						if settings then
+							settings:SetPauseRolls(true)
+						end
+					end
+
+				end,
+			}
+		end
+
+		element.popup = gui.ContextMenu{
+			entries = entries,
+		}
+	end
+
+	--The game-mode / round readout. Built here because its click menu and the
+	--combat-settings gear anchored to it need this file's helpers, but mounted
+	--into the title bar's status area (left of the map name) further down --
+	--it used to float over the top of the map behind a dark blurred plate.
+	local gameModePanel = gui.Panel{
+		halign = "left",
+		valign = "center",
+		width = "auto",
+		height = "100%",
+		flow = "horizontal",
+
+		gui.Label{
+			minFontSize = 10,
+			width = "auto",
+			maxWidth = 260,
+			height = "100%",
+			valign = "center",
+			textAlignment = "left",
+			textWrap = false,
+			textOverflow = "ellipsis",
+			--A bare label is not a raycast target; the (invisible) square gives
+			--the panel something to hit-test so the game-mode menu still opens.
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			hpad = 6,
+			borderBox = true,
+			text = "",
+
+			click = function(element)
+				ShowGameModeMenu(element)
+			end,
+
+			--The title bar is outside the hud's refresh cascade, so this cannot
+			--ride on `refresh` the way it did over the map. The queue document
+			--monitor does the real work; the slow think is just a backstop for
+			--state the monitor does not cover (map switches carry their own
+			--queue), and it only touches .text when the string actually changed.
+			monitorGame = "/initiativeQueue",
+			create = function(element)
+				element:FireEvent("refreshGame")
+			end,
+			thinkTime = 0.5,
+			think = function(element)
+				element:FireEvent("refreshGame")
+			end,
+			refreshGame = function(element)
+				local text
+				local queue = dmhub.initiativeQueue
+				if queue == nil then
+					text = "Exploration"
+				elseif queue.hidden then
+					text = queue:GameModeInfo().text
+				else
+					text = string.format('Round %d', queue.round)
+					local liveEncounter = queue:try_get("liveEncounter")
+					if type(liveEncounter) == "table" then
+						local name = liveEncounter:GetName()
+						if name ~= nil and name ~= "" then
+							text = string.format('%s - %s', name, text)
+						end
+					end
+				end
+
+				if element.text ~= text then
+					element.text = text
+				end
+			end,
+		},
+
+		--The combat-settings gear travels with the readout. In its old home it
+		--floated off the label's right edge; here it is just the next thing in
+		--the row. Out of combat it goes to opacity 0 rather than collapsing --
+		--its own think handler is what clears the "unavailable" class, and a
+		--collapsed panel stops thinking, so collapsing would be a one-way trip.
+		--The reserved 24px also stops the bar from reflowing when combat starts.
+		resetTurnButton,
+	}
+
+	--Guarded: the title bar module owns the mount point, and rawget keeps this
+	--from erroring if the codex is ever loaded without it.
+	local titleBar = rawget(_G, "CodexTitleBar")
+	if titleBar ~= nil and titleBar.MountInitiativeStatusPanel ~= nil then
+		titleBar.MountInitiativeStatusPanel(gameModePanel)
+	end
+
 	--The parent / top-level initiative bar.
 	return gui.Panel({
 		floating = true,
@@ -3578,56 +3721,7 @@ function GameHud.CreateInitiativeBar(self, info)
 			end,
 
 			click = function(element)
-                if not CanControlInitiative() or (info.initiativeQueue ~= nil and (not info.initiativeQueue.hidden)) then
-                    return
-                end
-                local entries = {}
-                for i=1,#InitiativeQueue.GameModes do
-                    local mod = InitiativeQueue.GameModes[i]
-                    entries[#entries+1] = {
-                        text = mod.text,
-                        click = function()
-                            element.popup = nil
-
-                            if mod.id == "respite" then
-                                GameHud.instance:BeginRespiteMode()
-                                return
-                            end
-
-					        UploadDayNightInfo()
-                            if info.initiativeQueue == nil then
-                                info.initiativeQueue = InitiativeQueue.Create()
-                            end
-                            info.initiativeQueue.gameMode = mod.id
-                            info.UploadInitiative()
-
-                            if mod.hasinitiative then
-                                Commands.rollinitiative()
-                                return
-                            end
-
-							if info.initiativeQueue.gameMode == "downtime" then
-								local settings = DTSettings.CreateNew()
-								if settings then
-									settings:SetPauseRolls(false)
-								end
-								for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
-									token.properties:DispatchEvent("startdowntime", {})
-								end
-							else
-								local settings = DTSettings.CreateNew()
-								if settings then
-									settings:SetPauseRolls(true)
-								end
-							end
-
-                        end,
-                    }
-                end
-
-                element.popup = gui.ContextMenu{
-                    entries = entries,
-                }
+				ShowGameModeMenu(element)
 			end,
 		},
 
@@ -3643,107 +3737,6 @@ function GameHud.CreateInitiativeBar(self, info)
 				halign = "center",
 			},]]
 
-			--text at the top saying initiative.
-			gui.Panel{
-				halign = "center",
-				valign = "top",
-				width = "auto",
-				height = "auto",
-				flow = "vertical",
-
-				--[[gui.Label({
-					text = 'Draw Steel',
-
-					vmargin = 8,
-					fontFace = "SupernaturalKnight",
-					fontSize = 30,
-					color = Styles.textColor,
-					valign = 'top',
-					halign = 'center',
-					textAlignment = 'center',
-					width = 'auto',
-					height = 'auto',
-				}),]]
-
-				gui.Label{ 
-					text = '',
-					fontFace = "Book",
-					fontSize = 18,
-					color = Styles.textColor,
-					valign = 'top',
-					halign = 'center',
-					textAlignment = 'center',
-                    width = "auto",
-                    minWidth = 180,
-                    maxWidth = 500,
-					height = 30,
-					tmargin = 0,
-                    vpad = 8,
-                    hpad = 8,
-                    bgimage = "panels/square.png",
-                    bgcolor = "#000000bb",
-                    borderWidth = 10,
-                    borderColor = "#000000bb",
-                    borderFade = true,
-
-					refresh = function(element)
-						if info.initiativeQueue == nil or info.initiativeQueue.hidden then
-                            if info.initiativeQueue == nil then
-                                element.text = "Exploration"
-                            else
-                                element.text = info.initiativeQueue:GameModeInfo().text
-                            end
-						else
-							local roundText = string.format('Round %d', info.initiativeQueue.round)
-							local liveEncounter = info.initiativeQueue:try_get("liveEncounter")
-							if type(liveEncounter) == "table" then
-								local name = liveEncounter:GetName()
-								if name ~= nil and name ~= "" then
-									roundText = string.format('%s - %s', name, roundText)
-								end
-							end
-							element.text = roundText
-						end
-					end,
-
-					--[[gui.Panel{
-						classes = {"clickableIcon"},
-						bgimage = "panels/hud/clockwise-rotation.png",
-						bgcolor = Styles.textColor,
-						floating = true,
-						halign = "right",
-						valign = "center",
-						width = 16,
-						height = 16,
-
-						hover = gui.Tooltip("Skip to next round"),
-
-						refresh = function(element)
-							if (not dmhub.isDM) or info.initiativeQueue == nil or info.initiativeQueue.hidden or (not info.initiativeQueue:ChoosingTurn()) then
-
-								--If there is no initiative then hide the button.
-								element:AddClass('hidden')
-							else
-								element:RemoveClass('hidden')
-							end
-						end,
-
-						click = function(element)
-							if info.initiativeQueue ~= nil then
-								info.initiativeQueue:NextRound()
-								self:NewRound()
-								info.UploadInitiative()
-							end
-						end,
-					},]]
-
-                    resetTurnButton,
-
-				},
-
-				addCharacters,
-				addMonsters,
-			},
 
 
 			mainInitiativeBar,

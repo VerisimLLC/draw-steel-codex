@@ -640,10 +640,20 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                --Reserved gutter: a vscroll panel lays its children out at the
+                --panel's FULL width, but once the content overflows the
+                --scrollbar appears and the scroll viewport shrinks by the
+                --scrollbar's width -- so the last few pixels of every child get
+                --masked off. The stat block right-aligns its header text
+                --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
+                --width, so it was the visible casualty. borderBox keeps the
+                --padding inside the declared 800 rather than widening the panel.
                 local panel = monsterEntry:Render {
                     width = 800,
                     maxHeight = lockedHeight,
                     vscroll = true,
+                    rpad = 12,
+                    borderBox = true,
                 }
 
                 if panel ~= nil then
@@ -675,10 +685,13 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                --see the linger handler above for why the right gutter is reserved.
                 local panel = monsterEntry:Render {
                     width = 800,
                     maxHeight = lockedHeight,
                     vscroll = true,
+                    rpad = 12,
+                    borderBox = true,
                 }
                 if panel == nil then
                     return

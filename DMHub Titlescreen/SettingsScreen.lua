@@ -2100,12 +2100,12 @@ local function CreateCreatorOrganizationsSection()
 
 		local ShowUnlinked
 		local ShowLinked
+		local ShowChooseCampaign
 		local RefreshStatus
 		local StartLinkPoll
 
 		local linkErrorMessages = {
 			nocampaign = "That Patreon account does not have a campaign. Log in as the account that owns your campaign and try again.",
-			multiple = "Linking accounts with multiple campaigns is not supported yet.",
 			campaigntaken = "That Patreon campaign is already linked to a different organization. Disconnect it from that organization first.",
 			error = "Something went wrong linking Patreon. Please try again.",
 		}
@@ -2169,6 +2169,95 @@ local function CreateCreatorOrganizationsSection()
 				vmargin = 2,
 				text = connectedText,
 			}
+
+			--the one-off backfill sweep granting entitlements to patrons who
+			--linked before this campaign did. Re-poll while it runs so the
+			--progress line updates; the generation guard retires the timer if
+			--the panel refreshes or goes away first.
+			local backfillState = data.backfill ~= nil and data.backfill.state or nil
+			if backfillState == "queued" or backfillState == "running" then
+				local progressText = "Granting access to your existing patrons..."
+				if (data.backfill.count or 0) > 0 then
+					progressText = string.format("Granting access to your existing patrons... (%d so far)", data.backfill.count)
+				end
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					italics = true,
+					vmargin = 2,
+					text = progressText,
+				}
+
+				local generation = m_pollGeneration
+				dmhub.Schedule(5, function()
+					if mod.unloaded or generation ~= m_pollGeneration or (not panel.valid) then
+						return
+					end
+					RefreshStatus()
+				end)
+			elseif backfillState == "failed" then
+				children[#children+1] = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					color = "#e0b050",
+					vmargin = 2,
+					text = "Granting access to your existing patrons did not finish. Use Repair Connection to run it again.",
+				}
+			end
+
+			--no registered webhook means no pledge -> access liveness at all:
+			--new pledges would never unlock anything until someone repairs it.
+			--Repair re-registers from the stored creator token and re-runs the
+			--backfill sweep to cover the dead window - no unlink needed.
+			if data.webhookHealthy == false or backfillState == "failed" then
+				if data.webhookHealthy == false then
+					children[#children+1] = gui.Label{
+						width = "100%",
+						height = "auto",
+						fontSize = 13,
+						maxWidth = 600,
+						color = "#e0b050",
+						vmargin = 2,
+						text = "The connection to Patreon is incomplete: new pledges will not unlock content automatically. Repair the connection to fix this.",
+					}
+				end
+				children[#children+1] = gui.Button{
+					width = 190,
+					height = 30,
+					fontSize = 14,
+					halign = "left",
+					vmargin = 4,
+					text = "Repair Connection",
+					click = function(element)
+						element.text = "Repairing..."
+						element.interactable = false
+						net.Post{
+							url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgRepairWebhook",
+							data = { orgid = org.id },
+							success = function(response)
+								if not panel.valid then
+									return
+								end
+								if type(response) == "table" and response.ok then
+									RefreshStatus()
+								else
+									ErrorModal("Patreon", "Could not repair the connection. Please try again.")
+									RefreshStatus()
+								end
+							end,
+							error = function(msg)
+								if not panel.valid then
+									return
+								end
+								ErrorModal("Patreon", "Could not contact the server. Please try again.")
+								RefreshStatus()
+							end,
+						}
+					end,
+				}
+			end
 
 			--setting element.value programmatically fires change, so guard the
 			--revert-on-failure write with a flag.
@@ -2456,6 +2545,98 @@ local function CreateCreatorOrganizationsSection()
 			panel.children = children
 		end
 
+		--the OAuth callback found more than one campaign on the creator's
+		--account and parked the consent server-side; pick which one this
+		--organization connects to. patreonOrgChooseCampaign completes the link
+		--exactly as the single-campaign path would have.
+		ShowChooseCampaign = function(campaigns)
+			m_pollGeneration = m_pollGeneration + 1
+
+			local children = { Heading() }
+
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 13,
+				maxWidth = 600,
+				vmargin = 2,
+				text = "Your Patreon account has more than one campaign. Choose the campaign to connect to this organization:",
+			}
+
+			for _,campaignIter in ipairs(campaigns) do
+				local campaign = campaignIter
+				children[#children+1] = gui.Button{
+					width = 300,
+					height = 30,
+					fontSize = 14,
+					halign = "left",
+					vmargin = 2,
+					text = campaign.campaignName or campaign.campaignId,
+					click = function(element)
+						panel.children = StatusChildren("Connecting campaign...")
+						net.Post{
+							url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgChooseCampaign",
+							data = {
+								orgid = org.id,
+								campaignId = campaign.campaignId,
+							},
+							success = function(response)
+								if not panel.valid then
+									return
+								end
+								if type(response) == "table" and response.ok then
+									RefreshStatus()
+								else
+									local err = nil
+									if type(response) == "table" and type(response.error) == "string" then
+										err = linkErrorMessages[response.error]
+									end
+									ShowUnlinked(err or linkErrorMessages.error)
+								end
+							end,
+							error = function(msg)
+								if not panel.valid then
+									return
+								end
+								ShowUnlinked("Could not contact the server. Please try again.")
+							end,
+						}
+					end,
+				}
+			end
+
+			children[#children+1] = gui.Button{
+				width = 120,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Cancel",
+				click = function(element)
+					--discard the parked consent (and its tokens) server-side,
+					--then fall back to the unlinked pitch.
+					net.Post{
+						url = dmhub.cloudFunctionsBaseUrl .. "/patreonOrgChooseCampaign",
+						data = { orgid = org.id, cancel = true },
+						success = function(response)
+							if not panel.valid then
+								return
+							end
+							RefreshStatus()
+						end,
+						error = function(msg)
+							if not panel.valid then
+								return
+							end
+							RefreshStatus()
+						end,
+					}
+				end,
+			}
+
+			panel.children = children
+		end
+
 		--ported from the MCDM Shop link poll: 4s tick, 180s deadline, Cancel,
 		--transient errors do not end the wait. Additionally stops early when
 		--the callback records a link error for this attempt.
@@ -2507,6 +2688,13 @@ local function CreateCreatorOrganizationsSection()
 								ShowLinked(data)
 								return
 							end
+							if data.chooseCampaign ~= nil then
+								--the consent completed but the account has
+								--several campaigns; the link is waiting on a
+								--choice, so the wait is over.
+								ShowChooseCampaign(data.chooseCampaign)
+								return
+							end
 							if data.lastError ~= nil then
 								m_pollGeneration = m_pollGeneration + 1
 								ShowUnlinked(linkErrorMessages[data.lastError] or linkErrorMessages.error)
@@ -2550,6 +2738,8 @@ local function CreateCreatorOrganizationsSection()
 					end
 					if type(data) == "table" and data.ok and data.linked then
 						ShowLinked(data)
+					elseif type(data) == "table" and data.ok and data.chooseCampaign ~= nil then
+						ShowChooseCampaign(data.chooseCampaign)
 					else
 						ShowUnlinked(nil)
 					end
@@ -4352,10 +4542,11 @@ function PatreonAccount.BeginLink(options)
 	return handle
 end
 
---The Patreon campaign a Codex user is being asked to support. Only MCDM's own
---modules are surfaced this way (see Module.cs MCDMOrgId), so this is one fixed
---campaign, not a per-organization link: the publicly readable ModuleAuthor
---record carries the included-module list but not a campaign URL.
+--Historical fallback URL for MCDM's campaign only. Each creator organization
+--now publishes its own campaign identity ({name, url}) on its publicly
+--readable ModuleAuthor record (patreonCampaign, written when the creator links
+--their campaign), and "Become a patron" surfaces read that. This constant
+--remains solely for MCDM's org in case their record predates the field.
 PatreonAccount.mcdmCampaignUrl = "https://www.patreon.com/cw/mcdm"
 
 --Patreon PATRON account linking, for the logged-in user's own Patreon account.
@@ -4383,6 +4574,7 @@ local CreatePatreonAccountPanel = function()
 	local ShowLinked
 	local ShowConfirmDisconnect
 	local RefreshStatus
+	local BeginLinkFlow
 
 	local function Heading()
 		return gui.Label{
@@ -4416,6 +4608,37 @@ local CreatePatreonAccountPanel = function()
 			color = "#ff6666",
 			vmargin = 2,
 			text = message,
+		}
+	end
+
+	--the shared connect / reconnect flow. The same round trip serves both: a
+	--RE-link simply re-consents and overwrites the stored tokens, which is how
+	--an old-scope link (hasMemberships false) gains the identity.memberships
+	--scope - there is no separate migration endpoint.
+	BeginLinkFlow = function()
+		m_link = PatreonAccount.BeginLink{
+			alive = function() return panel.valid end,
+			progress = function(text)
+				local children = StatusChildren(text)
+				children[#children+1] = gui.Button{
+					width = 120,
+					height = 30,
+					fontSize = 14,
+					halign = "left",
+					vmargin = 4,
+					text = "Cancel",
+					click = function(element)
+						RefreshStatus()
+					end,
+				}
+				panel.children = children
+			end,
+			linked = function(data)
+				ShowLinked(data)
+			end,
+			failed = function(msg)
+				ShowUnlinked(msg)
+			end,
 		}
 	end
 
@@ -4589,9 +4812,71 @@ local CreatePatreonAccountPanel = function()
 			},
 		}
 
+		--hasMemberships == false means the stored token predates the
+		--identity.memberships scope: it can only see the DMHub campaign, so no
+		--third-party creator pledge is visible and nothing new can be granted.
+		--(nil means the local mirror rendered first and the server has not
+		--answered yet - do not prompt on a guess.) Reconnecting re-consents
+		--with the new scope and overwrites the tokens.
+		if data.hasMemberships == false then
+			children[#children+1] = gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 13,
+				maxWidth = 600,
+				color = "#e0b050",
+				vmargin = 2,
+				text = "Patreon needs a new permission to see which creators you support. Until you reconnect, new creator memberships will not unlock content here.",
+			}
+			children[#children+1] = gui.Button{
+				width = 200,
+				height = 30,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+				text = "Reconnect Patreon",
+				click = function(element)
+					BeginLinkFlow()
+				end,
+			}
+		end
+
 		for _,row in ipairs(EntitledOrgRows()) do
 			children[#children+1] = row
 		end
+
+		--backstop for a dropped webhook: one call re-pulls memberships
+		--server-side and rewrites the entitlements, then the re-render below
+		--re-reads dmhub.patreonOrgEntitlements.
+		children[#children+1] = gui.Button{
+			width = 190,
+			height = 26,
+			fontSize = 13,
+			halign = "left",
+			vmargin = 4,
+			text = "Check for new content",
+			click = function(element)
+				element.text = "Checking..."
+				element.interactable = false
+				net.Post{
+					url = dmhub.cloudFunctionsBaseUrl .. "/patreonRefreshOrgEntitlements",
+					data = {},
+					success = function(response)
+						if not panel.valid then
+							return
+						end
+						RefreshStatus()
+					end,
+					error = function(msg)
+						if not element.valid then
+							return
+						end
+						element.text = "Check for new content"
+						element.interactable = true
+					end,
+				}
+			end,
+		}
 
 		children[#children+1] = gui.Button{
 			width = 190,
@@ -4719,30 +5004,7 @@ local CreatePatreonAccountPanel = function()
 			vmargin = 4,
 			text = "Link Patreon Account",
 			click = function(element)
-				m_link = PatreonAccount.BeginLink{
-					alive = function() return panel.valid end,
-					progress = function(text)
-						local children = StatusChildren(text)
-						children[#children+1] = gui.Button{
-							width = 120,
-							height = 30,
-							fontSize = 14,
-							halign = "left",
-							vmargin = 4,
-							text = "Cancel",
-							click = function(element)
-								RefreshStatus()
-							end,
-						}
-						panel.children = children
-					end,
-					linked = function(data)
-						ShowLinked(data)
-					end,
-					failed = function(msg)
-						ShowUnlinked(msg)
-					end,
-				}
+				BeginLinkFlow()
 			end,
 		}
 

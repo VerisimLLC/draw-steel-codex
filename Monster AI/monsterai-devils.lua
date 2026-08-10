@@ -280,6 +280,9 @@ local function ExecuteGrantedMovement(ai, movingToken, standardAbilityName, rang
         return false
     end
 
+    --GetStandardAbility returns the shared compendium entry, which is never
+    --flagged as a temporary clone, so MakeTemporaryClone here is a real copy
+    --and safe to mutate.
     local movementAbility = MCDMUtils.GetStandardAbility(standardAbilityName):MakeTemporaryClone()
     movementAbility.range = range
     movementAbility.targetFilter = ""
@@ -837,8 +840,15 @@ local function FindBestWritChargePlan(ai, token, ability)
                         utility = utility + (target.edges or 0)*0.1
                     end
                     if best == nil or utility > best.utility then
+                        --xyfloorOnly: a straightline Move reads a destination
+                        --loc's altitude as a vertical rise relative to the
+                        --ground there (vertical push/pull convention), so the
+                        --absolute altitude MarkMovementArrow bakes into
+                        --path.destination would aim the charge into the air
+                        --and the relocate would fail. Stripped, the engine
+                        --ground-follows like a manually clicked destination.
                         best = {
-                            chargeLoc = path.destination,
+                            chargeLoc = path.destination.xyfloorOnly,
                             targets = targets,
                             utility = utility,
                             score = cond(#targets >= 2, 1.3, 1.2),

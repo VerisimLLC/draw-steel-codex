@@ -64,11 +64,46 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     local expectedEntry = self:try_get("_tmp_expectedPromptTarget")
     if expectedEntry ~= nil and expectedEntry.casterid == invokerToken.charid then
         self._tmp_expectedPromptTarget = nil
-        if expectedEntry.sleep then
-            self.Sleep(expectedEntry.sleep)
+
+        --The expected targets were chosen for the position the caster PLANNED
+        --to reach; if the preceding movement stopped short (collision, blocked
+        --path), some may now be out of range and striking them would violate
+        --the rules. Keep only targets legal from the caster's actual position.
+        --If none remain, fall through to the registered prompt handler / DM.
+        local targets = {}
+        local range = abilityClone:GetRange(casterToken.properties)
+        for _,target in ipairs(expectedEntry.targets or {}) do
+            if target.token == nil or casterToken:Distance(target.token) <= range then
+                targets[#targets+1] = target
+            else
+                print("AI:: expected prompt target", target.token.name, "now out of range; dropping")
+            end
         end
-        options.targets = expectedEntry.targets
-        return "inherit"
+
+        if #targets > 0 then
+            --line-of-sight rays so viewers can see who is being struck, the
+            --same feedback ExecuteAbility draws for direct casts. The prompt
+            --path has no cast-finished hook, so clean them up on a timer.
+            local rays = {}
+            for _,target in ipairs(targets) do
+                if target.token ~= nil then
+                    rays[#rays+1] = dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
+                end
+            end
+            if #rays > 0 then
+                dmhub.Schedule(6, function()
+                    for _,ray in ipairs(rays) do
+                        ray:DestroyLineOfSight()
+                    end
+                end)
+            end
+
+            if expectedEntry.sleep then
+                self.Sleep(expectedEntry.sleep)
+            end
+            options.targets = targets
+            return "inherit"
+        end
     end
 
     --try_get: the invoker can be an object token (e.g. a wall voxel
@@ -478,6 +513,187 @@ function MonsterAI:WaitForAbilityIdle(timeout)
             idleSince = nil
         end
         coroutine.yield(0.1)
+    end
+end
+
+local g_aiMinionDeathPendingTimeout = 125
+
+local function AIMinionDeathPending(creatureProps)
+    local confirmedAt = creatureProps:try_get("_tmp_minionDeathPending")
+    return confirmedAt ~= nil and dmhub.Time() - confirmedAt < g_aiMinionDeathPendingTimeout
+end
+
+local function GetMinionLastAttacker(creatureProps)
+    local attacker = creatureProps:try_get("_tmp_lastattacker")
+    if type(attacker) == "function" then
+        attacker = attacker("self")
+    end
+    return attacker
+end
+
+local function IsAIControlledAttacker(attacker)
+    if attacker == nil then
+        return false
+    end
+
+    local aiControl = nil
+    pcall(function()
+        aiControl = attacker._tmp_aicontrol
+    end)
+    return type(aiControl) == "number" and aiControl > 0
+end
+
+local function ConfirmAIMinionDeath(token, attacker)
+    if token == nil or not token.valid or token.properties == nil
+        or not token.properties.minion or token.properties.minionDead
+        or AIMinionDeathPending(token.properties) then
+        return false
+    end
+
+    token.properties._tmp_minionDeathPending = dmhub.Time()
+
+    attacker = attacker or GetMinionLastAttacker(token.properties)
+    if attacker ~= nil then
+        --An overflow death can legally choose a squad member that was not the
+        --direct damage target. Carry the killing attacker onto that minion so
+        --kill triggers and the corpse attribution match the actual cast.
+        token.properties._tmp_lastattacker = attacker
+    end
+    if attacker ~= nil then
+        attacker:TriggerEvent("kill", {
+            victim = token.properties,
+            hasattacker = true,
+            attacker = attacker,
+        })
+    end
+
+    token.properties:TriggerEvent("creaturedeath", {
+        hasattacker = attacker ~= nil,
+        attacker = attacker,
+    })
+    token.properties:MinionDeath()
+    return true
+end
+
+--Minion damage reduces the squad's shared Stamina pool, but the attacker must
+--still choose the individual minions that die. Normally the Director does that
+--by clicking the skulls created in DrawSteelTokenHud. AI casts have no ability
+--prompt for that choice, so mirror the skull's eligibility and confirmation
+--rules here while the attacking creatures are still under AI control.
+function MonsterAI:ResolvePendingMinionDeaths(timeout)
+    local deadline = dmhub.Time() + (timeout or 5)
+
+    while true do
+        local squads = {}
+        for _,token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+            if token.valid and token.properties ~= nil and token.properties.minion
+                and not token.properties.minionDead
+                and token.properties:has_key("_tmp_minionSquad") then
+                local squad = token.properties._tmp_minionSquad
+                local entry = squads[squad]
+                if entry == nil then
+                    entry = {
+                        squad = squad,
+                        tokens = {},
+                        attacker = nil,
+                        attackerToken = nil,
+                    }
+                    squads[squad] = entry
+                end
+
+                entry.tokens[#entry.tokens+1] = token
+                local attacker = GetMinionLastAttacker(token.properties)
+                if IsAIControlledAttacker(attacker) then
+                    entry.attacker = attacker
+                    entry.attackerToken = dmhub.LookupToken(attacker)
+                end
+            end
+        end
+
+        local choices = {}
+        local waiting = false
+        for _,entry in pairs(squads) do
+            local squad = entry.squad
+            local healthSingle = squad.health_single or 0
+            local damageTaken = squad.damage_taken or 0
+            local deathsOwed = 0
+            if healthSingle > 0 then
+                deathsOwed = math.min(#entry.tokens, math.floor(damageTaken / healthSingle))
+            end
+
+            if entry.attacker ~= nil and deathsOwed > 0 then
+                local pendingDeaths = 0
+                for _,token in ipairs(entry.tokens) do
+                    if AIMinionDeathPending(token.properties) then
+                        pendingDeaths = pendingDeaths + 1
+                    end
+                end
+
+                local deathsToChoose = deathsOwed - pendingDeaths
+                if deathsToChoose > 0 then
+                    if squad.damage_time_pending then
+                        waiting = true
+                    else
+                        local candidates = {}
+                        local numRecentlyDamaged = squad.num_recently_damaged or 0
+                        local deathOverflows = damageTaken >= (numRecentlyDamaged + 1) * healthSingle
+
+                        for _,token in ipairs(entry.tokens) do
+                            local props = token.properties
+                            local isDirectTarget = props.minionDamageTime == squad.damage_time
+                            local gated = (props:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0
+                            local triggers = props:GetAvailableTriggers(true)
+                            if not AIMinionDeathPending(props) and not gated
+                                and (isDirectTarget or deathOverflows) and triggers == nil then
+                                local distance = 999999
+                                if entry.attackerToken ~= nil and entry.attackerToken.valid then
+                                    distance = entry.attackerToken:Distance(token)
+                                end
+                                candidates[#candidates+1] = {
+                                    token = token,
+                                    direct = isDirectTarget,
+                                    distance = distance,
+                                }
+                            end
+                        end
+
+                        table.sort(candidates, function(a, b)
+                            if a.direct ~= b.direct then
+                                return a.direct
+                            end
+                            if a.distance ~= b.distance then
+                                return a.distance < b.distance
+                            end
+                            return a.token.charid < b.token.charid
+                        end)
+
+                        for i=1,math.min(deathsToChoose, #candidates) do
+                            choices[#choices+1] = {
+                                token = candidates[i].token,
+                                attacker = entry.attacker,
+                            }
+                        end
+
+                        if #candidates < deathsToChoose then
+                            waiting = true
+                        end
+                    end
+                end
+            end
+        end
+
+        if #choices > 0 then
+            for _,choice in ipairs(choices) do
+                if ConfirmAIMinionDeath(choice.token, choice.attacker) then
+                    print("AI:: Chose minion to die:", creature.GetTokenDescription(choice.token))
+                end
+            end
+            self.Sleep(0.1)
+        elseif waiting and dmhub.Time() < deadline then
+            coroutine.yield(0.1)
+        else
+            return
+        end
     end
 end
 
@@ -1331,6 +1547,8 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
     print("AI:: FINISHED ABILITY")
     self.Sleep(options.sleep or 1.0)
+
+    self:ResolvePendingMinionDeaths()
 
     for _,ray in ipairs(rays) do
         ray:DestroyLineOfSight()

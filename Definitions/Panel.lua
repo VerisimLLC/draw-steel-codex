@@ -474,4 +474,5 @@ end
 --- @field keybinds nil|{id: string, defaultBind: string}[] When set, binds this panel to the given 'defaultBind' keybindings. (Note: currently the defaultBind cannot be changed, in the future the user may be able to configure the binding). When the keybind is pressed, the panel will receive the 'keybind' event, which takes the id of the keybind as its argument.
 --- @field positionInScreenSpace nil|Vector2 The position of the panel in screen space.
 --- @field positionInWorldSpace nil|Vector2 The position of the panel in world space.
+--- @field rendered nil|fun(element: Panel, width: number, height: number) Event fired on the panel whenever its rendered size changes, including after its first layout. width and height are the new rendered dimensions in pixels (@see renderedWidth). This fires at the end of the engine's layout update, so only toggle classes or record the size inside the handler -- never resize or reposition the panel itself from within it, or you risk a layout feedback loop.
 PanelArgs = {}

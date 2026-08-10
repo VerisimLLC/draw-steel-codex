@@ -2276,11 +2276,33 @@ function creature:GetFlankingTokens(tokensOverride)
     end
 
     local grantedFlanking = {}
-    for i, enemy in ipairs(adjacentEnemies) do
-        local grantFlanking = enemy.properties:GrantFlankingToAllies()
-        if grantFlanking then
-            grantedFlanking = DeepCopy(adjacentEnemies)
-            grantedFlanking[i].properties._tmp_grantsFlanking = token.charid
+    local granterIds = {}
+    for _, enemy in ipairs(adjacentEnemies) do
+        if enemy.properties:GrantFlankingToAllies() then
+            granterIds[#granterIds + 1] = enemy.charid
+        end
+    end
+
+    if #granterIds > 0 then
+        grantedFlanking = DeepCopy(adjacentEnemies)
+        for _, enemy in ipairs(grantedFlanking) do
+            --a creature that grants flanking to its allies can't grant it to itself,
+            --so it is marked as a grantor (and excluded by FlankedBy) only when it is
+            --the *only* grantor here. If a second creature also grants flanking, that
+            --creature is an ally granting flanking to this one, so it must not be marked.
+            local grantedByOther = false
+            for _, granterId in ipairs(granterIds) do
+                if granterId ~= enemy.charid then
+                    grantedByOther = true
+                    break
+                end
+            end
+
+            if grantedByOther then
+                enemy.properties._tmp_grantsFlanking = nil
+            else
+                enemy.properties._tmp_grantsFlanking = token.charid
+            end
         end
     end
 

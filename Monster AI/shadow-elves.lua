@@ -410,7 +410,10 @@ local function ExecuteAreaAbility(ai, token, ability, area, targets, options)
     options.symbols.targetArea = area
     options.targetArea = area
 
-    local abilityClone = ability:MakeTemporaryClone()
+    -- Abilities from GetActivatedAbilities are already temporary clones, so
+    -- MakeTemporaryClone() would return the same object and these mutations
+    -- would corrupt the instance in ai.abilities. Use a deep copy instead.
+    local abilityClone = DeepCopy(ability)
     abilityClone.targetType = "target"
     abilityClone.numTargets = math.max(1, #targets)
     if #targets == 0 then
@@ -1117,7 +1120,10 @@ local function ConfigureFreeStrikeAI(ai, token)
 end
 
 local function FreeStrikeScoringClone(ability)
-    local result = ability:MakeTemporaryClone()
+    -- ability comes from ai.abilities (GetActivatedAbilities), which returns
+    -- temporary clones -- MakeTemporaryClone() would return the same object
+    -- and the name/keyword mutations below would corrupt the shared instance.
+    local result = DeepCopy(ability)
     result.name = "Villain Action Free Strike"
     if result.keywords ~= nil then
         result.keywords.Charge = nil
@@ -1156,6 +1162,9 @@ local function ExecuteShiftAndFreeStrike(ai, token, eclipse)
         ai.Sleep(shadowElfSpeechPause)
 
         local ok, err = ai:RunWithTokenControl(token, function()
+            --GetStandardAbility returns the shared compendium entry, which is
+            --never flagged as a temporary clone, so MakeTemporaryClone here is
+            --a real copy and safe to mutate.
             local shift = MCDMUtils.GetStandardAbility("Shift"):MakeTemporaryClone()
             shift.range = token.properties:CurrentMovementSpeed()
             shift.targetFilter = ""

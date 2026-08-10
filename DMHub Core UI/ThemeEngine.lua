@@ -1031,6 +1031,85 @@ function ThemeEngine.MergeTokens(customStyles)
     return _buildResolvedStyles(customStyles, tables)
 end
 
+--- Ask what value the active theme would give `property` on an element carrying
+--- `classes`, without there being such an element.
+---
+--- The cascade is the normal way to get a themed value, so reach for this only
+--- when a value has to be known in Lua rather than merely applied: chrome that
+--- paints an opaque child OVER a themed surface has to match that surface's
+--- number by hand. The icon-rail panel window is the case that motivated it --
+--- the window root gets the theme's `framedPanel` cornerRadius from the cascade,
+--- but its own opaque header strip sits square across the rounded top corners,
+--- so the header rule has to state the same radius.
+---
+--- Matching mirrors the engine's (`SheetPanel.StyleSelected`): a rule applies
+--- when every one of its selectors is satisfied, `~name` meaning the class is
+--- absent. `parent:` selectors are unanswerable without a real element, so any
+--- rule using one is skipped. The winner is the highest
+--- `priority*1000 + specificity` (id selectors count 10, class selectors 1),
+--- ties going to the rule declared later -- the engine's sortOrder exactly.
+--- @param classes string[] Classes the hypothetical element carries.
+--- @param property string Style property to read, e.g. "cornerRadius".
+--- @param default? any Returned when no rule matches. Defaults to nil.
+--- @return any value
+function ThemeEngine.ResolveStyleProperty(classes, property, default)
+    local present = {}
+    for _, c in ipairs(classes or {}) do
+        present[c] = true
+    end
+
+    local bestValue = default
+    local bestOrder = nil
+
+    for _, rule in ipairs(ThemeEngine.GetStyles()) do
+        local value = rule[property]
+        if value ~= nil then
+            local specificity = 0
+            local matches = true
+
+            for _, selector in ipairs(rule.selectors or {}) do
+                local invert = false
+                local name = selector
+
+                if string.sub(name, 1, 1) == "~" then
+                    invert = true
+                    name = string.sub(name, 2)
+                end
+
+                if string.sub(name, 1, 1) == "#" then
+                    --an id selector: our hypothetical element has no id, so it
+                    --can only be satisfied by inversion.
+                    specificity = specificity + 10
+                    if not invert then
+                        matches = false
+                        break
+                    end
+                elseif string.find(name, "parent:", 1, true) == 1 then
+                    matches = false
+                    break
+                else
+                    specificity = specificity + 1
+                    if (present[name] == true) == invert then
+                        matches = false
+                        break
+                    end
+                end
+            end
+
+            if matches then
+                local order = (rule.priority or 0) * 1000 + specificity
+                --`>=` so a later rule wins an exact tie, as it does in the engine.
+                if bestOrder == nil or order >= bestOrder then
+                    bestOrder = order
+                    bestValue = value
+                end
+            end
+        end
+    end
+
+    return bestValue
+end
+
 --- Resolve `@tokenName` color references embedded in an arbitrary string
 --- against the active scheme. Useful for TextMeshPro markup like
 --- `"<color=@danger>warning</color>"` where the property-level resolver

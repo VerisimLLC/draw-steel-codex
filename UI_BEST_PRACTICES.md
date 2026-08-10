@@ -515,11 +515,14 @@ end
 ### Sizing Expressions
 
 - Pixels: `width = 100`
-- Percentage: `width = "50%"`
-- Percent minus pixels: `width = "100%-8"` (useful for margins within a container)
+- Percentage: `width = "50%"` (of the parent's content box)
+- Percent plus/minus pixels: `width = "100%-8"` (useful for margins within a container). Only one additive offset parses -- `"100%-20-5"` does not.
 - Auto: `width = "auto"` (fit to content)
-- Remaining space: `height = "100% available"` (fill space after siblings)
-- Aspect ratio: `width = "100% height"` (width equals the element's height)
+- Scaled auto: `width = "50% auto"` (content size scaled by the percentage)
+- Remaining space: `width = "100% available"` / `height = "100% available"` (fill space left over after other siblings are placed). Works on both axes. On the parent's flow axis the percentage is a flex-grow weight: siblings using `available` split the leftover proportional to their percents (`"200% available"` takes twice the share of `"100% available"`; equal percents split evenly), each clamped by its min/max with remainders redistributed. On the cross axis (or in a `flow = "none"` parent) there is no competition and `available` stretches to the parent's content extent. On the flow axis of a `wrap` container it is unsupported and falls back to `auto` with a console warning. (Both-axes + weights landed 2026-08-09, needs engine build; before that build, `available` is height-only with an even split.)
+- Aspect ratio: `width = "100% height"` (width equals the element's own height), `width = "50% height"` (half of it). A bare `width = "height"` / `height = "width"` also parses.
+- Font-relative: `height = "1.5em"` -- 1.5 x the panel's computed `fontSize` multiplied by the user's Font Size setting (80%-140%); `width = "20sp"` -- 20px multiplied by the Font Size setting alone. Use these for icon sizes, row heights, and gutters that should scale with text instead of staying fixed while glyphs grow. The additive offset works (`"1.5em+4"`, `"2em-6"`); `available` does NOT combine with em/sp (warns and is ignored). An `em` dimension resolves against the `fontSize` as cascaded when its style rule applies -- a *later* rule that changes only `fontSize` does not re-resolve it, so set `fontSize` in the same rule or an earlier (more general) one. Padding does not accept em/sp (pads are plain pixel ints).
+- Bounds: `minWidth`, `maxWidth`, `minHeight`, `maxHeight` accept all of these forms too, not just pixel numbers (e.g. `maxWidth = "80%"`). `cornerRadius` accepts the same dimension grammar, including em/sp.
 
 ### Spacing
 
@@ -565,7 +568,7 @@ cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 
 ### Wrap
 
-`wrap = true` -- children wrap to the next line (horizontal flow).
+`wrap = true` -- children that don't fit wrap to the next row (horizontal flow) or the next column (vertical flow). Works in both flow directions, but only against a bounded axis: `flow = "horizontal", wrap = true, width = "auto"` has nothing to wrap against.
 
 ---
 
@@ -577,7 +580,7 @@ cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 
 **Input**: `edit` (during typing, respects `editlag`), `change` (value committed), `confirm` (Enter key), `focus`, `defocus`
 
-**Lifecycle**: `create` (panel initialized), `destroy` (panel removed)
+**Lifecycle**: `create` (panel initialized), `destroy` (panel removed), `rendered` (rendered size changed; receives `width, height` -- see Reacting to Rendered Size)
 
 **Document monitoring**: Set `monitorGame = documentPath` on a panel, then handle `refreshGame` to react to shared document changes.
 
@@ -672,9 +675,23 @@ Set `element.thinkTime = 0` to stop the timer. Adjust dynamically as needed.
 
 ---
 
-## Deferred Positioning
+## Reacting to Rendered Size
 
-Panel dimensions (`renderedWidth`, `renderedHeight`) are not available until after the first render. Use `dmhub.Schedule` with a small delay for positioning that depends on rendered size:
+Panel dimensions (`renderedWidth`, `renderedHeight`) are not available until after the first render. To react to a panel's rendered size -- including whenever it later changes -- use the `rendered` event, which the engine fires on a panel each time its rendered size changes:
+
+```lua
+gui.Panel{
+    rendered = function(element, width, height)
+        -- ONLY toggle classes or record the size here. Never resize or
+        -- reposition element itself from inside this handler: it fires at
+        -- the end of the layout pass, so mutating layout from it risks a
+        -- feedback loop.
+        element:SetClass("narrow", width < 420)
+    end,
+}
+```
+
+For one-shot positioning that depends on **another** panel's rendered size, `dmhub.Schedule` with a small delay remains a workable fallback:
 
 ```lua
 create = function(element)

@@ -5396,6 +5396,29 @@ function PanelDocument:CreateInterface(args)
         valign = "center",
     }
 
+    --The window ROOT already rounds itself: it carries the `framedPanel`
+    --class and its styles snapshot is the theme's, so a rounded theme's
+    --cornerRadius reaches it through the ordinary cascade. What does not
+    --follow is the chrome painted ON TOP of it -- the header strip is an
+    --opaque @bgAlt panel spanning the full width, so under a rounded theme
+    --it sat square across the window's rounded top corners (and overhung
+    --them). Anything covering a themed surface has to state the same
+    --radius, which means reading the number out of the theme rather than
+    --letting the cascade apply it.
+    --
+    --Only a plain number is turned into a top-corner pair; a theme
+    --expressing framedPanel's radius per-corner or as a dimension string
+    --(e.g. "50% height") leaves the header square rather than guessing at
+    --a rounding that would not match the root. Non-tabbed hosts (a panel
+    --rendered as a tab inside the journal viewer) leave it square too --
+    --there the header sits in the middle of somebody else's window, not
+    --along its top edge.
+    local themeCornerRadius = ThemeEngine.ResolveStyleProperty({"framedPanel"}, "cornerRadius", 0)
+    local headerCornerRadius = 0
+    if tabbed and type(themeCornerRadius) == "number" and themeCornerRadius > 0 then
+        headerCornerRadius = {x1 = themeCornerRadius, y1 = themeCornerRadius, x2 = 0, y2 = 0}
+    end
+
     resultPanel = gui.Panel{
         width = "100%",
         height = "100%",
@@ -5487,6 +5510,11 @@ function PanelDocument:CreateInterface(args)
             {
                 selectors = {"panelDocumentHeader"},
                 bgcolor = "@bgAlt",
+                --top corners only: the strip is flush with the window's top
+                --edge, and the hairline plus the content area below it are
+                --square. Shading the window rolls it up to header + 2px, so
+                --the root's own rounded bottom is what shows there.
+                cornerRadius = headerCornerRadius,
             },
             {
                 selectors = {"panelDocumentHairline"},
@@ -5553,6 +5581,9 @@ function PanelDocument:CreateInterface(args)
                 --muted-gold line on a dark frame over bright terrain
                 --disappears.
                 border = 3,
+                --the ring traces the window's outline, so it has to take
+                --the same rounding the root got from the theme.
+                cornerRadius = themeCornerRadius,
                 opacity = 0,
                 transitionTime = 0.15,
             },

@@ -117,7 +117,10 @@ function GameHud:CreateSingleDock(params)
             classes = {"dockHandle", params.halign},
             floating = true,
             interactable = false,
-            vscroll = true,
+            --NOT vscroll: this carried vscroll = true for a while, and since
+            --the handle's image child lays out taller than the handle, the
+            --engine drew a native scroll track + thumb -- a stray grey bar
+            --with a white slider floating at each dock edge over the map.
 
             gui.Panel{
                 classes = {"dockHandleImage"},

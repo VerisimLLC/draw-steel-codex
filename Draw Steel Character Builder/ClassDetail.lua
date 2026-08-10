@@ -113,6 +113,30 @@ function CBClassDetail._navPanel()
                     end
                 end
 
+                --Drop level headers whose level no longer exists on this hero.
+                --The header and its per-level Overview button are siblings
+                --created in registerFeatureButton and carry no featureId, so
+                --destroyFeature (which matches on featureId) never reaches
+                --them: switching from a level 10 hero back to a level 3 one
+                --left the level 4-10 headers behind. Clearing the levelPanels
+                --entry also lets the level rebuild if the hero levels back up.
+                --Children are snapshotted first because DestroySelf mutates the
+                --child list.
+                for level,_ in pairs(element.data.levelPanels) do
+                    if levelStatus[level] == nil then
+                        local doomed = {}
+                        for _,child in ipairs(element.children) do
+                            if child.data ~= nil and child.data.level == level then
+                                doomed[#doomed+1] = child
+                            end
+                        end
+                        for _,child in ipairs(doomed) do
+                            child:DestroySelf()
+                        end
+                        element.data.levelPanels[level] = nil
+                    end
+                end
+
                 element:FireEventTree("updateLevelStatus", levelStatus)
             end
         end,
@@ -150,6 +174,10 @@ function CBClassDetail._navPanel()
                                     local info = levelStatus[level]
                                     if info then
                                         element:SetClass("complete", info.complete)
+                                    else
+                                        --level absent from this hero: clear rather
+                                        --than keep the previous hero's tick.
+                                        element:SetClass("complete", false)
                                     end
                                 end
                             end,
@@ -166,6 +194,11 @@ function CBClassDetail._navPanel()
                                     if info then
                                         element.text = string.format("%d/%d", info.selected, info.available)
                                         element:SetClass("collapsed", info.complete)
+                                    else
+                                        --level absent from this hero: clear rather
+                                        --than keep the previous hero's counts.
+                                        element.text = ""
+                                        element:SetClass("collapsed", true)
                                     end
                                 end
                             end,

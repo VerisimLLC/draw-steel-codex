@@ -1946,7 +1946,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 		if resourceInfo ~= nil then
 			local max = resourcesAvailable[self.channeledResource] or 0
 			local usage = creature:GetResourceUsage(self.channeledResource, resourceInfo.usageLimit)
-			local available = max - usage
+			local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
             if self.resourceCost == self.channeledResource then
 				local mode = options.mode or 1
                 local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
@@ -3772,6 +3772,12 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 				end
 			end
 		end
+	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil and GameSystem.ApplyToTargetsByID[self.applyto].resolve ~= nil then
+
+		--registered applyto options may supply their own resolve function which
+		--computes the target list directly (e.g. Draw Steel's caster_mentor).
+		result = GameSystem.ApplyToTargetsByID[self.applyto].resolve(ability, casterToken, targets, options) or {}
+
 	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil then
 
 		--these are custom roll groups. When calling RegisterRollType in the GameSystem we define applyto in the outcomes

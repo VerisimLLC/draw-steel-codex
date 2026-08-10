@@ -130,6 +130,47 @@ local g_casterTokenStack = {}
 --- @type {shapePathEnd: nil|LuaShape[], labelsAtPathEnd: nil|LuaObjectReference[], pathEndOvershoot: nil|number, fallingShape: nil|LuaObjectReference, fallDamageLabel: nil|LuaObjectReference, fallDamageKey: nil|string, shapeRequiresConfirm: nil|boolean, shapeConfirmedLoc: nil|Loc, shape: nil|LuaShape, label: nil|LuaObjectReference, radius: nil|LuaObjectReference, showingMovementArrow: nil|boolean}
 local g_pointTargeting = {}
 
+--- Partner burst: pre-create the cast object carrying "caster" retargets for the
+--- partner-only targets, so every per-target effect -- taunt source, push
+--- direction, prone source -- is sourced from the partner rather than the caster.
+--- Both DrawSteelCommandBehavior and PowerRollBehavior consume this via
+--- ActivatedAbilityCast:RemapCasterForTarget. Tokens in BOTH bursts get no
+--- retarget, leaving them on the original caster ("an enemy in both areas is
+--- taunted only by you"). Must be called immediately before EVERY
+--- g_currentAbility:Cast site -- there is more than one, and an ability that
+--- casts through an uncovered site silently loses the swap.
+--- ActivatedAbility:Cast respects a pre-existing options.symbols.cast.
+--- @param targets table The resolved target list being cast at.
+local function RecordPartnerBurstRetargets(targets)
+    if g_pointTargeting.partnerOnlyTokenIds == nil or g_pointTargeting.partnerCasterToken == nil then
+        return
+    end
+
+    --Attach to the in-flight cast when one already exists. Creating a fresh cast
+    --here would discard whatever state that one carries, and refusing outright
+    --(the original behaviour) silently dropped the caster swap on every ability
+    --whose cast object is built earlier in the flow. RecordRetarget only appends.
+    local cast = g_currentSymbols.cast
+    if cast == nil then
+        cast = ActivatedAbilityCast.new{
+            ability = g_currentAbility,
+            targets = targets,
+            mode = g_currentSymbols.mode or 1,
+            _tmp_targetArea = g_currentSymbols.targetArea,
+        }
+        g_currentSymbols.cast = cast
+    end
+
+    for charid, _ in pairs(g_pointTargeting.partnerOnlyTokenIds) do
+        cast:RecordRetarget{
+            retargetType = "caster",
+            tokenid = charid,
+            retargetid = charid,
+            casterid = g_pointTargeting.partnerCasterToken.charid,
+        }
+    end
+end
+
 --- @type nil|{oncast=nil|function, oncancel=nil|function}
 local g_invokerInfo = nil
 
@@ -3658,6 +3699,9 @@ local function CreateShiftController()
     }
 
     resultPanel = gui.Panel {
+        --starts collapsed like the other cast-specific controllers; only the
+        --cast flows that detect a shift movement type un-collapse it.
+        classes = { "collapsed" },
         halign = "center",
         width = "auto",
         height = "auto",
@@ -4610,6 +4654,8 @@ CreateAbilityController = function()
         width = "auto",
         maxWidth = 800,
         height = "auto",
+        halign = "center",
+        vmargin = 4,
         bgimage = "panels/square.png",
         bgcolor = Styles.Ability.blurColor,
         flow = "horizontal",
@@ -4653,6 +4699,21 @@ CreateAbilityController = function()
                 children[#children + 1] = gui.Label {
                     classes = { "enumSliderOption", cond(moveType == g_currentSymbols.forcedmovement, "selected") },
                     text = moveType,
+
+                    --the enumSliderOption class is height = "100%" with no width, which
+                    --in this auto-sized container renders as tall, text-width slivers.
+                    --Give the options explicit compact chip sizing instead.
+                    fontSize = 14,
+                    width = "auto",
+                    minWidth = 80,
+                    maxWidth = 160,
+                    height = 24,
+                    hpad = 8,
+                    vpad = 1,
+                    borderBox = true,
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
 
                     press = function(element)
                         g_preferredForcedMovementType:Set(moveType)
@@ -4764,13 +4825,31 @@ CreateAbilityController = function()
                 borderColor = "#99999955",
                 bgcolor = "#99999922",
             },
+            --Levels that would take the resource below zero. Selectable (the
+            --creature has the Negative Heroic Resource attribute), but tinted
+            --light red so it is clear you are going into the red.
+            {
+                selectors = { "levelPanel", "negative" },
+                color = "#ff9999",
+                borderColor = "#ff999955",
+                bgcolor = "#ff999922",
+            },
             {
                 selectors = { "levelPanel", "~invalid", "hover" },
                 borderColor = "#ffffffaa",
             },
             {
+                selectors = { "levelPanel", "negative", "~invalid", "hover" },
+                borderColor = "#ff9999aa",
+            },
+            {
                 selectors = { "levelPanel", "selected" },
                 borderColor = "#ffffffff",
+                borderWidth = 2,
+            },
+            {
+                selectors = { "levelPanel", "negative", "selected" },
+                borderColor = "#ff9999ff",
                 borderWidth = 2,
             },
         },
@@ -4798,7 +4877,14 @@ CreateAbilityController = function()
                 baseCost = ExecuteGoblinScript(g_currentAbility.resourceNumber, g_token.properties:LookupSymbol(g_currentSymbols), 0, "Determine resource number for " .. g_currentAbility.name)
             end
 
-            if resourcesAvailable <= 0 then
+            --A creature with the "Negative Heroic Resource" attribute may drive the
+            --resource below zero. resourcesAvailable is what they have in hand;
+            --resourcesSpendable includes the amount they may go into the red for.
+            --Levels between the two are offered but shown in light red.
+            local negativeAllowance = resource:AllowResourceBelowZero(g_token.properties)
+            local resourcesSpendable = resourcesAvailable + negativeAllowance
+
+            if resourcesSpendable <= 0 then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -4810,7 +4896,7 @@ CreateAbilityController = function()
 
             local added = false
             local children = element.data.children
-            while #children * channelIncrement <= resourcesAvailable and #children * channelIncrement <= maxChannel do
+            while #children * channelIncrement <= resourcesSpendable and #children * channelIncrement <= maxChannel do
                 local ncharges = #children
                 local nresources = ncharges * channelIncrement
                 local panel = gui.Label {
@@ -4839,7 +4925,8 @@ CreateAbilityController = function()
                 --because the add-children loop above only runs once (the while
                 --grows children, never shrinks); when mode changes drop the
                 --max, those previously-added chips need to hide here.
-                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesAvailable or (i - 1) * channelIncrement > maxChannel)
+                children[i]:SetClass("collapsed", (i - 1) * channelIncrement > resourcesSpendable or (i - 1) * channelIncrement > maxChannel)
+                children[i]:SetClass("negative", (i - 1) * channelIncrement > resourcesAvailable)
                 children[i]:SetClass("selected", (i - 1) == g_currentSymbols.charges)
             end
 
@@ -5388,6 +5475,10 @@ CreateAbilityController = function()
             g_castMessage:FireEvent("refresh")
             g_abilityController:SetClass("collapsed", false)
             g_castButton:SetClass("collapsed", true)
+
+            --a bare token pick has no movement: never show the shift toggle,
+            --which may have been left visible by a previous shift-move cast.
+            m_shiftController:SetClass("collapsed", true)
 
             local targetChooser = gui.Panel {
                 width = 1,
@@ -6513,6 +6604,12 @@ CreateAbilityController = function()
                                     checklos = true,
                                 }
                                 g_pointTargeting.partnerCasterToken = partnerToken
+                                --Membership is computed from this radius rather than
+                                --from the shape: TokensInShape on a companion-centred
+                                --RadiusFromCreature returns only the companion itself
+                                --(verified against the live map), so the shape is kept
+                                --for rendering only. See the union below.
+                                g_pointTargeting.partnerBurstRadius = radius
                             end
                         end
                     end
@@ -6549,7 +6646,25 @@ CreateAbilityController = function()
             -- pushes go "away from the right creature."
             g_pointTargeting.partnerOnlyTokenIds = nil
             if g_pointTargeting.partnerShape ~= nil then
-                local partnerTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.partnerShape)
+                --Membership by distance from the partner, NOT TokensInShape: the
+                --engine returns an empty set for a companion-centred
+                --RadiusFromCreature, so every partner-only enemy silently fell out
+                --of the target list. DistanceInTiles is Chebyshev, which is the
+                --burst's own metric. Line of sight from the partner mirrors the
+                --shape's checklos so a burst still does not reach through a wall.
+                local partnerTokens = {}
+                local partnerCaster = g_pointTargeting.partnerCasterToken
+                local burstRadius = g_pointTargeting.partnerBurstRadius
+                if partnerCaster ~= nil and partnerCaster.valid and burstRadius ~= nil then
+                    local pierceWalls = partnerCaster.properties:GetPierceWalls()
+                    for _, tok in ipairs(dmhub.GetTokens()) do
+                        if tok.valid and tok.floorIndex == partnerCaster.floorIndex
+                            and partnerCaster.loc:DistanceInTiles(tok.loc) <= burstRadius
+                            and partnerCaster:GetLineOfSight(tok, pierceWalls) > 0 then
+                            partnerTokens[tok.charid] = tok
+                        end
+                    end
+                end
                 local partnerOnly = {}
                 local anyPartnerOnly = false
                 for k, tok in pairs(partnerTokens) do
@@ -7172,6 +7287,8 @@ CreateAbilityController = function()
                 FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
                 local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
 
+                RecordPartnerBurstRetargets(targets)
+
                 g_currentAbility:Cast(g_token, targets, {
                     targetArea = g_pointTargeting.shape,
                     costOverride = g_currentCostProposal,
@@ -7560,33 +7677,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             AppendImprovementCosts(g_currentCostProposal)
 
-            -- Partner burst: pre-create the cast object with "caster" retargets
-            -- for partner-only targets. The PowerRollBehavior remaps casterToken
-            -- per-target via ActivatedAbilityCast:RemapCasterForTarget BEFORE
-            -- running each tier-text command, so the swap propagates to ALL
-            -- effects -- push direction, taunt source, prone source, etc. --
-            -- not just forced movement. Tokens in BOTH bursts are left on the
-            -- original caster (no retarget recorded), matching the "primary
-            -- caster" interpretation of "an enemy in both areas is only affected
-            -- once." ActivatedAbility:Cast respects a pre-existing
-            -- options.symbols.cast.
-            if g_pointTargeting.partnerOnlyTokenIds ~= nil and g_pointTargeting.partnerCasterToken ~= nil and g_currentSymbols.cast == nil then
-                local cast = ActivatedAbilityCast.new{
-                    ability = g_currentAbility,
-                    targets = targets,
-                    mode = g_currentSymbols.mode or 1,
-                    _tmp_targetArea = g_currentSymbols.targetArea,
-                }
-                for charid, _ in pairs(g_pointTargeting.partnerOnlyTokenIds) do
-                    cast:RecordRetarget{
-                        retargetType = "caster",
-                        tokenid = charid,
-                        retargetid = charid,
-                        casterid = g_pointTargeting.partnerCasterToken.charid,
-                    }
-                end
-                g_currentSymbols.cast = cast
-            end
+            RecordPartnerBurstRetargets(targets)
 
             local clearAbility = g_currentAbility
 

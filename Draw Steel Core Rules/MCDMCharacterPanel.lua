@@ -334,6 +334,15 @@ TacPanelStyles.ControlButtons = ThemeEngine.MergeTokens{
         bgimage = "ui-icons/character-sheet.png",
         bgcolor = "@fgPending",
     },
+    {
+        selectors = {"summoner-btn"},
+        bgimage = "drawsteel/hero-token.png",
+        bgcolor = "@fgMuted",
+    },
+    {   --lit when the monster currently has a summoner assigned.
+        selectors = {"summoner-btn", "light-on"},
+        bgcolor = "@accent",
+    },
 }
 TacPanelStyles.TokenBox = ThemeEngine.MergeTokens{
     {
@@ -2062,6 +2071,94 @@ function TacPanel.Portrait()
                 end,
             }),
 
+            --DM-only: manually assign which hero counts as this monster's
+            --summoner (for monsters placed outside a summon ability).
+            outlineButton(gui.Panel{
+                classes = {"toggle-btn", "summoner-btn", "collapsed"},
+                hoverCursor = "pressbutton",
+                width = visionBtnSize,
+                height = visionBtnSize,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local props = nil
+                    if token ~= nil and token.valid then
+                        props = token.properties
+                    end
+                    local show = dmhub.isDM and props ~= nil and not props:IsHero()
+                    element:SetClass("collapsed", not show)
+                    if show then
+                        element:SetClass("light-on", token.summonerid ~= nil)
+                    end
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+
+                    --any creature on the map except the monster itself can be
+                    --the summoner: heroes summon minions, but monsters can
+                    --summon for other monsters too.
+                    local candidates = {}
+                    for _,tok in ipairs(dmhub.allTokens) do
+                        if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid then
+                            candidates[#candidates+1] = tok
+                        end
+                    end
+
+                    if #candidates == 0 then
+                        gui.Tooltip("No other creatures on this map to assign as summoner.")(element)
+                        return
+                    end
+
+                    local currentid = token.summonerid
+                    local prompt = "Choose this monster's summoner"
+                    if currentid ~= nil then
+                        prompt = "Choose this monster's summoner (pick the current summoner to clear)"
+                    end
+
+                    --enter map targeting: candidates light up with the target
+                    --reticule; clicking one assigns it, Escape cancels.
+                    gamehud.actionBarPanel:FireEventTree("chooseTargetToken", {
+                        sourceToken = token,
+                        targets = candidates,
+                        prompt = prompt,
+                        choose = function(summonerTok)
+                            local t = element.valid and element.data.token or token
+                            if t == nil or not t.valid or summonerTok == nil or not summonerTok.valid then
+                                return
+                            end
+                            if summonerTok.charid == t.summonerid then
+                                --picking the current summoner clears the link.
+                                DrawSteelMinion.SetSummoner(t, nil)
+                            else
+                                DrawSteelMinion.SetSummoner(t, summonerTok)
+                            end
+                            if element.valid then
+                                element:FireEvent("refreshCharacter", t)
+                            end
+                        end,
+                        cancel = function() end,
+                    })
+                end,
+                linger = function(element)
+                    local token = element.data.token
+                    local text = "Assign Summoner"
+                    if token ~= nil and token.valid and token.summonerid ~= nil then
+                        local summonerTok = dmhub.GetTokenById(token.summonerid)
+                        if summonerTok ~= nil and summonerTok.valid then
+                            text = string.format("Summoner: %s (click to change; pick them again to clear)", summonerTok.description)
+                        end
+                    end
+                    gui.Tooltip(text)(element)
+                end,
+            }),
+
             m_companionAppButton,
 
             outlineButton(gui.Panel{
@@ -3112,10 +3209,9 @@ function TacPanel.StaminaBox()
 end
 
 --- Display-only recovery pips, split into rows of 10
---- @param recoveryid string
---- @param recoveryInfo table
+--- @param resolveRecovery fun(): string|nil, table|nil
 --- @return Panel
-function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
+function TacPanel.RecoveryPips(resolveRecovery)
     return gui.Panel{
         classes = {"container"},
         halign = "center",
@@ -3158,6 +3254,8 @@ function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
         },
 
         refreshCharacter = function(element, token)
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
             local maxRec = token.properties:GetResources()[recoveryid] or 0
             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
             local current = max(0, maxRec - usage)
@@ -3169,15 +3267,28 @@ end
 --- Draw the recoveries box
 --- @return Panel
 function TacPanel.RecoveriesBox()
+    -- The Recovery resource is found by name in characterResources, which is a live,
+    -- user-editable table: the row can be absent because the table has not finished
+    -- loading when this panel is built, or because it was soft-deleted or renamed in
+    -- the compendium. Resolving it once at construction time left every handler below
+    -- dereferencing a permanently-nil upvalue, and collapsing the box does not help --
+    -- FireEventTree delivers to hidden and collapsed descendants alike. So resolve on
+    -- demand, memoize only once found, and let each handler bail out when it is not.
     local recoveryid = nil
     local recoveryInfo = nil
-    local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
-    for k,v in pairs(resourcesTable) do
-        if v.name == "Recovery" then
-            recoveryid = k
-            recoveryInfo = v
-            break
+    local function resolveRecovery()
+        if recoveryInfo == nil then
+            local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
+            for k,v in pairs(resourcesTable) do
+                if v.name == "Recovery" then
+                    recoveryid = k
+                    recoveryInfo = v
+                    break
+                end
+            end
         end
+
+        return recoveryid, recoveryInfo
     end
 
     -- Build and show the "spend an ally's shared recovery" context menu on the
@@ -3185,6 +3296,9 @@ function TacPanel.RecoveriesBox()
     -- one bonded ally with a spendable recovery), false otherwise.
     local function ShowSharingMenu(element, token)
         if token == nil or not token.valid or token.properties == nil then return false end
+
+        local recoveryid, recoveryInfo = resolveRecovery()
+        if recoveryInfo == nil then return false end
 
         local recoverySharing = token.properties:ShareRecoveriesWith()
         if recoverySharing == nil then return false end
@@ -3242,7 +3356,8 @@ function TacPanel.RecoveriesBox()
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
-            local showRecovery = recoveryid ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
+            local id = resolveRecovery()
+            local showRecovery = id ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
             element:SetClass("collapsed", not showRecovery)
         end,
         refreshToken = function(element, token)
@@ -3254,6 +3369,8 @@ function TacPanel.RecoveriesBox()
         linger = function(element)
             local token = element.data.token
             if token == nil or not token.valid or token.properties == nil then return end
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
             local maxRec = token.properties:GetResources()[recoveryid] or 0
             local quantity = maxRec - usage
@@ -3313,6 +3430,9 @@ function TacPanel.RecoveriesBox()
         press = function(element)
             local token = element.data.token
             if token == nil then return end
+
+            local recoveryid, recoveryInfo = resolveRecovery()
+            if recoveryInfo == nil then return end
 
             local useHeroTokens = false
             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
@@ -3427,6 +3547,8 @@ function TacPanel.RecoveriesBox()
                         data = { token = nil },
                         refreshCharacter = function(element, token)
                             element.data.token = token
+                            local recoveryid, recoveryInfo = resolveRecovery()
+                            if recoveryInfo == nil then return end
                             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
                             element.textNoNotify = string.format("%d", quantity)
                         end,
@@ -3436,6 +3558,8 @@ function TacPanel.RecoveriesBox()
                         change = function(element)
                             local token = element.data.token
                             if token == nil then return end
+                            local recoveryid, recoveryInfo = resolveRecovery()
+                            if recoveryInfo == nil then return end
                             local n = tonum(element.text, -1)
                             if n < 0 then
                                 element.textNoNotify = "0"
@@ -3465,12 +3589,14 @@ function TacPanel.RecoveriesBox()
                         classes = {"recovery-max"},
                         text = "/ 0",
                         refreshCharacter = function(element, token)
+                            local recoveryid = resolveRecovery()
+                            if recoveryid == nil then return end
                             local maxRec = token.properties:GetResources()[recoveryid] or 0
                             element.text = string.format("/ %d", maxRec)
                         end,
                     }
                 },
-                TacPanel.RecoveryPips(recoveryid, recoveryInfo),
+                TacPanel.RecoveryPips(resolveRecovery),
             }
         },
     }
@@ -6815,15 +6941,7 @@ function TacPanel.MultiEdit()
     local groupInitBtn = gui.Panel{
         classes = {"me-icon-wrap", "collapsed"},
         tokens = function(element)
-            local initiativeid = false
-            for _,tok in ipairs(m_tokens) do
-                if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
-                    element:SetClass("collapsed", false)
-                    return
-                end
-                initiativeid = tok.properties.initiativeGrouping
-            end
-            element:SetClass("collapsed", true)
+            element:SetClass("collapsed", not DrawSteelMinion.CanGroupInitiative(m_tokens))
         end,
         gui.Button{
             classes = {"toggle-btn"},
@@ -6831,50 +6949,7 @@ function TacPanel.MultiEdit()
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
             press = function(element)
-                local guid = dmhub.GenerateGuid()
-
-                local hasPlayers = false
-                local existingInitiative = {}
-                local info = gamehud.initiativeInterface
-
-                for _,tok in ipairs(m_tokens) do
-                    if tok.playerControlled then
-                        hasPlayers = true
-                    end
-                end
-
-                if hasPlayers then
-                    guid = "PLAYERS-" .. guid
-                end
-
-                local tokens = DrawSteelMinion.GrowTokensToIncludeSquads(m_tokens)
-
-                for _,tok in ipairs(tokens) do
-                    local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-                    existingInitiative[initiativeid] = true
-                    tok:ModifyProperties{
-                        description = "Set Initiative",
-                        execute = function()
-                            tok.properties.initiativeGrouping = guid
-                        end,
-                    }
-                end
-
-                if info.initiativeQueue ~= nil and not info.initiativeQueue.hidden then
-                    for initiativeid,_ in pairs(existingInitiative) do
-                        info.initiativeQueue:RemoveInitiative(initiativeid)
-                    end
-
-                    info.initiativeQueue:SetInitiative(guid, 0, 0)
-                    if hasPlayers then
-                        local entry = info.initiativeQueue.entries[guid]
-                        if entry ~= nil and entry:try_get("player") ~= true then
-                            entry.player = true
-                        end
-                    end
-
-                    info.UploadInitiative()
-                end
+                DrawSteelMinion.GroupInitiativeForTokens(m_tokens)
             end,
             linger = function(element)
                 gui.Tooltip("Group Initiative")(element)
@@ -6953,79 +7028,7 @@ function TacPanel.MultiEdit()
             height = TacPanelSizes.VisionBtn.size,
             press = function(element)
                 local outer = element.parent
-                local isMakeCaptain = outer.data.mode == "Make Captain"
-                local initiativeGrouping = nil
-                local allTokens = dmhub.allTokens
-
-                local charids = {}
-                for _,tok in ipairs(m_tokens) do
-                    charids[tok.charid] = true
-                end
-                local initiativeGroupingsSeen = {}
-
-                for _,tok in ipairs(m_tokens) do
-                    if tok.properties.initiativeGrouping and not initiativeGroupingsSeen[tok.properties.initiativeGrouping] then
-                        local grouping = tok.properties.initiativeGrouping
-                        local used = false
-                        for _,otherTok in ipairs(allTokens) do
-                            if otherTok.properties.initiativeGrouping == grouping and (not charids[otherTok.charid]) then
-                                used = true
-                                break
-                            end
-                        end
-
-                        if not used then
-                            initiativeGrouping = grouping
-                            break
-                        end
-                    end
-                end
-
-                if initiativeGrouping == false or not isMakeCaptain then
-                    initiativeGrouping = dmhub.GenerateGuid()
-                end
-
-                local groupid = dmhub.GenerateGuid()
-                local captainid = nil
-                for _,tok in ipairs(m_tokens) do
-                    if (not tok.properties.minion) then
-                        captainid = tok.id
-                        tok:ModifyProperties{
-                            groupid = groupid,
-                            description = "Set Squad",
-                            execute = function()
-                                tok.properties.initiativeGrouping = initiativeGrouping
-                                if isMakeCaptain then
-                                    tok.properties.minionSquad = m_selectedSquadId
-                                else
-                                    tok.properties.minionSquad = nil
-                                end
-                            end,
-                        }
-                    elseif tok.properties.initiativeGrouping ~= initiativeGrouping and isMakeCaptain then
-                        tok:ModifyProperties{
-                            groupid = groupid,
-                            description = "Set Squad",
-                            execute = function()
-                                tok.properties.initiativeGrouping = initiativeGrouping
-                            end,
-                        }
-                    end
-                end
-
-                if captainid ~= nil then
-                    local monsterTokens = dmhub.GetTokens{}
-                    for _,tok in ipairs(monsterTokens) do
-                        if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == m_selectedSquadId then
-                            tok:ModifyProperties{
-                                description = "Set Squad",
-                                execute = function()
-                                    tok.properties.minionSquad = nil
-                                end,
-                            }
-                        end
-                    end
-                end
+                DrawSteelMinion.SetSquadCaptain(m_tokens, m_selectedSquadId, outer.data.mode == "Make Captain")
             end,
             linger = function(element)
                 gui.Tooltip(element.parent.data.mode)(element)
@@ -7054,46 +7057,19 @@ function TacPanel.MultiEdit()
     local monsterSquadPanel = gui.Panel{
         classes = {"me-squad-row", "collapsed"},
         tokens = function(element, tokens)
-            local nminions = 0
-            local monsterType = nil
-            local squadid = nil
-            local minionParty = nil
-            local potentialCaptain = nil
-            for _,tok in ipairs(tokens) do
-                if (not tok.properties.minion) then
-                    potentialCaptain = tok
-                end
-                if tok.properties.minion and tok.properties:has_key("monster_type") and (monsterType == nil or tok.properties.monster_type == monsterType) then
-                    nminions = nminions + 1
-                    monsterType = tok.properties.monster_type
-                    if squadid == nil then
-                        squadid = tok.properties:MinionSquad()
-                    elseif squadid ~= tok.properties:MinionSquad() then
-                        squadid = false
-                    end
+            --shared with the world-space "Make Captain" button so the two cannot drift.
+            local captainInfo = DrawSteelMinion.EvaluateCaptainSelection(tokens)
+            local nminions = captainInfo.nminions
+            local squadid = captainInfo.squadid
 
-                    if minionParty == nil then
-                        minionParty = tok.ownerId
-                    elseif minionParty ~= tok.ownerId then
-                        minionParty = false
-                    end
-                end
-            end
-
-            local showCaptainButton = false
-
-            if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
-                showCaptainButton = true
-                if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
-                    nminions = nminions + 1
-                    makeCaptainBtn.data.mode = "Remove Captain"
-                else
-                    makeCaptainBtn.data.mode = "Make Captain"
+            if captainInfo.show then
+                makeCaptainBtn.data.mode = captainInfo.mode
+                if captainInfo.mode == "Make Captain" then
                     m_selectedSquadId = squadid
                 end
             end
 
-            makeCaptainBtn:SetClass("collapsed", not showCaptainButton)
+            makeCaptainBtn:SetClass("collapsed", not captainInfo.show)
 
             local shouldCollapse = nminions < #tokens
             local haveFormSquad = false

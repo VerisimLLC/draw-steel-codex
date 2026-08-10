@@ -550,6 +550,7 @@
 --- | "default"
 --- | "wait"
 --- | "diagonal-expand"
+--- | "diagonal-expand-mirror"
 --- | "erase"
 --- | "eyedropper"
 --- | "hand"

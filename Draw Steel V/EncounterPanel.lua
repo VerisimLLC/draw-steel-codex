@@ -1856,10 +1856,16 @@ local function CreateBestiaryPane(party, addMonster)
                 end
 
                 local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                --Reserved gutter: once the stat block overflows, the scroll
+                --viewport shrinks by the scrollbar's width while children are
+                --still laid out at the full 800, clipping the right-aligned
+                --header text. Mirrors the Bestiary tooltip in CharacterPanel.
                 local panel = rowInfo.asset:Render {
                     width = 800,
                     maxHeight = lockedHeight,
                     vscroll = true,
+                    rpad = 12,
+                    borderBox = true,
                 }
 
                 if panel ~= nil then

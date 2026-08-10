@@ -87,7 +87,7 @@ local CreateEditorSettings
 
 DockablePanel.Register{
 	name = "Map Settings",
-	icon = "icons/standard/Icon_App_MapSettings.png",
+	icon = "phosphor/map-pin-simple-area-bold.png",
 	vscroll = true,
     dmonly = true,
 	minHeight = 100,

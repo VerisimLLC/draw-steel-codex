@@ -6,6 +6,15 @@ function GameHud:Think()
 		table.remove(self.interactionQueue, 1)
 		f()
 	end
+
+	--Keep the world-space selection action buttons alive. They key off the token
+	--selection rather than off game state, so unlike the other world-space huds
+	--nothing else will create them; this is their heartbeat. Guarded because the
+	--ruleset is not present in every build.
+	local minions = rawget(_G, "DrawSteelMinion")
+	if minions ~= nil and minions.SelectionActionsHud ~= nil then
+		minions.SelectionActionsHud()
+	end
 end
 
 function GameHud:QueueInteraction(f)
@@ -648,6 +657,22 @@ function GameHud:CreateToolbarPanel()
 
 	local buttons = {}
 
+	--Everything the toolbar can hold. Both registries: most of what used to
+	--be a launchable panel (Maps, the Compendium, the Measuring Tool, the
+	--dev tools) is an ordinary dockable panel now, and a toolbar the user
+	--had already configured must keep finding those by name.
+	local ToolbarCandidates = function()
+		local result = {}
+		for _,items in ipairs({LaunchablePanel.GetMenuItems(), DockablePanel.GetMenuItems()}) do
+			for _,item in ipairs(items) do
+				if item.name ~= nil then
+					result[#result+1] = item
+				end
+			end
+		end
+		return result
+	end
+
 	local CreateToolbarButton = function(item)
 		
 		local monitorEventGuid = nil
@@ -773,7 +798,7 @@ function GameHud:CreateToolbarPanel()
 
 	local DeserializeToolbar = function()
 		buttons = {}
-		local menuItems = LaunchablePanel.GetMenuItems()
+		local menuItems = ToolbarCandidates()
 		local doc = dmhub.GetSettingValue(settingName)
 		for _,itemName in ipairs(doc) do
 			for _,item in ipairs(menuItems) do
@@ -809,7 +834,7 @@ function GameHud:CreateToolbarPanel()
 					return
 				end
 
-				local menuItems = LaunchablePanel.GetMenuItems()
+				local menuItems = ToolbarCandidates()
 				local items = {}
 				for _,item in ipairs(menuItems) do
 					if item.icon then
@@ -1251,6 +1276,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then
 						m_presentedDialog = gui.GetFocus()
+					else
+						--panels that used to be launchable are dockable now;
+						--a remote request to present one by name still has to
+						--find them.
+						DockablePanel.ShowPanelByName(data.dialog.dialog)
 					end
 				end
 
@@ -1442,16 +1472,59 @@ function GameHud.RegisterPresentableDialog(args)
     g_presentableDialogs[args.id] = args
 end
 
+--Right margin for the right-side hosts (ability sidebar and standalone
+--roll host). With the legacy docks a fixed 364 column is reserved for
+--the right dock. In icon-rail mode the dock is gone, so the hosts sit
+--near the right edge -- clearing only the rail's button column -- and
+--slide left, up to the legacy 364, when floating panel windows are
+--parked against the right edge (RailWindowsRightIntrusion).
+local RIGHT_HOST_LEGACY_MARGIN = 364
+--rail column: 12 edge margin + 40 button + a small gap.
+local RIGHT_HOST_RAIL_MARGIN = 60
+local function RightHostMargin()
+    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
+        return RIGHT_HOST_LEGACY_MARGIN
+    end
+    local intrusion = 0
+    if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
+        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN)
+    end
+    return math.max(RIGHT_HOST_RAIL_MARGIN, intrusion)
+end
+
+--Keep a right-side host's margin tracking RightHostMargin(). Polled:
+--the inputs (the iconrail setting, window drags/opens/closes) have no
+--single change event, and the check is a handful of table reads.
+local function TrackRightHostMargin(panel)
+    local currentMargin = nil
+    panel.thinkTime = 0.25
+    --panels built with no event handlers have a nil events table; reading
+    --panel.events returns nil rather than creating one, so seed it first.
+    if panel.events == nil then
+        panel.events = {}
+    end
+    panel.events.think = function(element)
+        local m = RightHostMargin()
+        if m ~= currentMargin then
+            currentMargin = m
+            element.selfStyle.rmargin = m
+        end
+    end
+    panel:FireEvent("think")
+end
+
 function GameHud:CreateAbilityDisplayPanel()
     self.abilityDisplayPanel = gui.Panel{
         styles = ThemeEngine.GetStyles(),
         height = "100%",
         width = 360,
-        rmargin = 364,
+        rmargin = RIGHT_HOST_LEGACY_MARGIN,
         halign = "right",
         valign = "center",
         interactable = false,
     }
+
+    TrackRightHostMargin(self.abilityDisplayPanel)
 
     ThemeEngine.OnThemeChanged(mod, function()
         if self.abilityDisplayPanel ~= nil and self.abilityDisplayPanel.valid then
@@ -1477,12 +1550,14 @@ function GameHud:CreateStandaloneRollHost()
         styles = ThemeEngine.GetStyles(),
         width = 540,
         height = "auto",
-        rmargin = 364,
+        rmargin = RIGHT_HOST_LEGACY_MARGIN,
         halign = "right",
         valign = "center",
         flow = "vertical",
         interactable = true,
     }
+
+    TrackRightHostMargin(self.standaloneRollHostPanel)
 
     ThemeEngine.OnThemeChanged(mod, function()
         if self.standaloneRollHostPanel ~= nil and self.standaloneRollHostPanel.valid then

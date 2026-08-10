@@ -1916,7 +1916,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 	}
 
 	for _,applyto in ipairs(GameSystem.ApplyToTargetsList) do
-		if ((not firstBehavior) and (not applyto.deprecated)) or self.applyto == applyto.id then
+		--roll-group options depend on an earlier roll, so they are hidden on the
+		--first behavior. Options with their own resolve function do not, so they
+		--are always shown.
+		if (((not firstBehavior) or applyto.resolve ~= nil) and (not applyto.deprecated)) or self.applyto == applyto.id then
 			dropdownOptions[#dropdownOptions+1] = {
 				id = applyto.id,
 				text = applyto.text,

@@ -32,6 +32,10 @@ Aura.TriggerConditions = {
         text = "When entering the aura",
     },
     {
+        id = "casterstartturnaura",
+        text = "Start of Caster's Turn",
+    },
+    {
         id = "casterendturnaura",
         text = "End of Caster's Turn",
     },
@@ -168,8 +172,13 @@ function Aura:CreaturePassesFilter(c, auraInstance)
         end
     end
 
+    --The default is the 3rd argument and the context message the 4th. This used to pass
+    --the context in the default's slot, which made a filter that failed to compile or
+    --threw default to the truthy string "Aura Creature Filter" -- and swallowed the real
+    --error text in the log. Default to true deliberately: an unevaluable filter should
+    --leave the aura working as if unfiltered rather than make it silently affect nobody.
     local result = ExecuteGoblinScript(self.creatureFilter, c:LookupSymbol { caster = caster, target = c, aura = auraInstance },
-        "Aura Creature Filter")
+        true, "Aura Creature Filter")
     return GoblinScriptTrue(result)
 end
 
@@ -548,7 +557,7 @@ function Aura:GenerateEditor(options)
                     end
 
                     local targetType = "self"
-                    if element.idChosen == "casterendturnaura" then
+                    if element.idChosen == "casterendturnaura" or element.idChosen == "casterstartturnaura" then
                         targetType = "aura"
                     end
 
@@ -1824,17 +1833,30 @@ function Aura.CheckObjectAuraExpirationEndOfRound()
     end
 end
 
+--Turn-boundary aura triggers: which aura trigger id each turn event fires.
+--"nextturn" is dispatched at the start of the caster's turn, "endturn" at the end.
+local g_turnEventToAuraTrigger = {
+    nextturn = "casterstartturnaura",
+    endturn = "casterendturnaura",
+}
+
 function creature:CheckAuraExpiration(eventname)
     local auras = self:try_get("auras", {})
     local removes = nil
 
-    if eventname == "endturn" then
-        --check for end turn events on auras.
+    local turnTriggerId = g_turnEventToAuraTrigger[eventname]
+    if turnTriggerId ~= nil then
+        --fire the auras this creature cast that trigger on this turn boundary.
+        local auraCasterToken = dmhub.LookupToken(self)
         for i, aura in ipairs(auras) do
+            local destroy = false
+
             for j, trigger in ipairs(aura.aura.triggers) do
-                if trigger.trigger == "casterendturnaura" then
-                    local auraCasterToken = dmhub.LookupToken(self)
+                if trigger.trigger == turnTriggerId then
                     aura:FireTriggeredAbility(trigger.ability, self, auraCasterToken, { aura = aura })
+                    if trigger.destroyaura then
+                        destroy = true
+                    end
                 end
             end
 
@@ -1842,11 +1864,19 @@ function creature:CheckAuraExpiration(eventname)
             --trigger sees the child's payload while sharing the parent's caster/area.
             for _, child in ipairs(aura:GetChildInstances()) do
                 for _, trigger in ipairs(child.aura:try_get("triggers", {})) do
-                    if trigger.trigger == "casterendturnaura" then
-                        local auraCasterToken = dmhub.LookupToken(self)
+                    if trigger.trigger == turnTriggerId then
                         child:FireTriggeredAbility(trigger.ability, self, auraCasterToken, { aura = child })
+                        if trigger.destroyaura then
+                            destroy = true
+                        end
                     end
                 end
+            end
+
+            --a sub-aura has no lifetime of its own, so its destroy flag removes the parent.
+            if destroy then
+                removes = removes or {}
+                removes[#removes + 1] = aura.guid
             end
         end
     end

@@ -15,7 +15,7 @@ local CreateWhiteboardPanel
 
 DockablePanel.Register{
     name = "Whiteboard",
-	icon = "icons/standard/Icon_App_Whiteboard.png",
+	icon = "phosphor/note-pencil.png",
     vscroll = true,
     dmonly = false,
 

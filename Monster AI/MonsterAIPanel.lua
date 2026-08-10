@@ -15,6 +15,7 @@ local MonsterAIPanel
 
 DockablePanel.Register{
     name = "Monster AI",
+    icon = "phosphor/cpu-light.png",
     minHeight = 60,
     dmonly = true,
     content = function()
@@ -30,39 +31,73 @@ local g_thread = nil
 local g_terminate = false
 local g_status = nil
 
-local function MonsterAIThread()
+MonsterAI:RegisterTrigger{
+    id = "Opportunity Attack",
+    triggers = {"Opportunity Attack"},
+    description = "Automatically use opportunity attacks offered to non-player creatures.",
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+
+GameHud.RegisterBetweenTurnHandler{
+    id = "Monster AI Villain Actions",
+    priority = 50,
+    run = function(context)
+        if MonsterAI.active then
+            local ai = MonsterAI.new{}
+            ai:HandleVillainActionWindow(context)
+        end
+    end,
+}
+
+--Runs as a DockablePanel background process (see "Panel background
+--processes" in DockablePanel.lua): registered from the Start AI button,
+--it keeps taking monster turns even if the Monster AI panel is closed,
+--and the panel's icon-rail button spins its gear while this runs. The
+--process handle's stopRequested is the systemic stop signal (StopProcess
+--or a replacing StartProcess); g_terminate remains the panel's own local
+--stop flag, and both routes end the thread here.
+local function MonsterAIThread(process)
+    MonsterAI.active = true
     g_status = nil
     while true do
         g_thread = coroutine.running()
         coroutine.yield(0.1)
-        if mod.unloaded or g_terminate then
+        if mod.unloaded or g_terminate or (process ~= nil and process.stopRequested) then
+            MonsterAI.active = false
             return
         end
 
         local queue = dmhub.initiativeQueue
 
 
-        --check for opportunity attacks.
+        --check for registered triggered abilities.
+        local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
                 if not token.playerControlled then
                     local triggers = token.properties:GetAvailableTriggers()
                     if triggers ~= nil then
+                        local ai = MonsterAI.new{token = token}
                         for _,trigger in pairs(triggers) do
-                            if trigger.text == "Opportunity Attack" and (not trigger.triggered) then
-                                print("AI:: DISPATCH OPPORTUNITY ATTACK")
-                                trigger.triggered = true
-                                token.properties:DispatchAvailableTrigger(trigger)
+                            if ai:HandleAvailableTrigger(token, trigger) then
+                                handledTrigger = true
                                 break
                             end
                         end
                     end
                 end
+
+                if handledTrigger then
+                    break
+                end
             end
         end
 
 
-        if queue ~= nil and (not queue.hidden) and (not queue:IsPlayersTurn()) then
+        if (not handledTrigger) and queue ~= nil and (not queue.hidden)
+            and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
 
             if initiativeid == nil then
@@ -183,6 +218,7 @@ MonsterAIPanel = function()
                     end
                 else
                     m_running = false
+                    MonsterAI.active = false
                     element.text = "Not Running"
                 end
                 resultPanel:FireEventTree("refreshai")
@@ -207,9 +243,19 @@ MonsterAIPanel = function()
             click = function()
                 if m_running then
                     g_terminate = true
+                    MonsterAI.active = false
+                    DockablePanel.StopProcess("Monster AI", "monster-ai")
                 else
                     g_terminate = false
-                    dmhub.Coroutine(MonsterAIThread)
+                    MonsterAI.active = true
+                    --a background process rather than a bare coroutine:
+                    --the AI keeps playing turns if this panel closes, and
+                    --the rail button's gear spins while it runs.
+                    DockablePanel.StartProcess{
+                        panel = "Monster AI",
+                        id = "monster-ai",
+                        coroutine = MonsterAIThread,
+                    }
                 end
             end,
         },

@@ -2915,7 +2915,9 @@ function gui.ContextMenuItem(args, params)
 		checkPanel = gui.Panel{
 			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
-			bgimage = "icons/icon_common/icon_common_29.png",
+			--phosphor's geometric check rather than the hand-drawn
+			--icon_common_29 tick, matching the icon set used elsewhere.
+			bgimage = "phosphor/check-bold.png",
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -3077,9 +3079,13 @@ function gui.ContextMenu(args)
 				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
+			--invisible when unchecked, NOT faintly visible: a ghost check on
+			--every row reads as noise in long menus (e.g. Panels). The panel
+			--keeps its 16px slot so labels stay aligned, and the parent:hover
+			--rule below still previews the check on the hovered row.
 			{
 				selectors = {'contextMenuCheck'},
-				opacity = 0.1,
+				opacity = 0,
 			},
 			{
 				selectors = {'contextMenuCheck', 'checked'},
@@ -5052,6 +5058,11 @@ function gui.DockablePanelMaximizeButton()
 end
 
 --- A panel for alerting to new content.
+--- args.count: with a count of 2 or more the marker shows the number
+--- inside it (capped at a single digit -- 9); nil, 0, or 1 shows the
+--- plain marker. The marker is the same size either way.
+--- args.size: diameter of the circle (default 10); the digit scales
+--- with it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.NewContentAlert(args)
@@ -5059,18 +5070,45 @@ function gui.NewContentAlert(args)
 	local info = args.info
 	args.info = nil
 
+	local count = args.count
+	args.count = nil
+
+	local size = args.size or 10
+	args.size = nil
+
 	local params = {
 		halign = "right",
 		valign = "center",
 		floating = true,
-		width = 6,
-		height = 6,
+		width = size,
+		height = size,
 		bgimage = "panels/square.png",
-		bgcolor = Styles.textColor,
-		cornerRadius = 3,
+		--solid red, undoctored by brightness, so the alert reads at a
+		--glance against both the dark rail and light panel surfaces.
+		bgcolor = "#ee4444",
+		cornerRadius = size/2,
 		x = 14,
-		brightness = 1.5,
+		flow = "none",
 	}
+
+	if type(count) == "number" and count > 1 then
+		if count > 9 then
+			count = 9
+		end
+		params[1] = gui.Label{
+			text = tostring(count),
+			fontSize = math.floor(size * 0.9 + 0.5),
+			fontWeight = "black",
+			color = "white",
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			halign = "center",
+			valign = "center",
+			interactable = false,
+			textWrap = false,
+		}
+	end
 
 	for k,v in pairs(args) do
 		params[k] = v
@@ -5078,6 +5116,21 @@ function gui.NewContentAlert(args)
 
 
 	return gui.Panel(params)
+end
+
+--- Counts the entries recorded as novel content for the given content type.
+--- @param contentType string
+--- @return number
+function gui.NovelContentCount(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local count = 0
+	for _ in pairs(t) do
+		count = count + 1
+	end
+	return count
 end
 
 --- Will create a new content alert if the key within the given kind of content has new content. Otherwise returns nil.

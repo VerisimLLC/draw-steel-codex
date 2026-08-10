@@ -5337,10 +5337,11 @@ function creature:FillBaseActiveModifiers(result)
 		end
 	end
 
-	--add features from templates.
+	--add features from templates. Pass ourselves so template features with
+	--prerequisites (e.g. a minimum level) we don't meet are not applied.
 	for i,feat in ipairs(self:GetActiveTemplates()) do
 		local features = {}
-		feat:FillClassFeatures(self:GetLevelChoices(), features)
+		feat:FillClassFeatures(self:GetLevelChoices(), features, self)
 		for i,feature in ipairs(features) do
             feature:FillModifiers(self, result)
 		end
@@ -6059,12 +6060,19 @@ function creature:IsDownCached()
     return self:try_get("_tmp_down", false)
 end
 
+--Not everyone dies at 0 Stamina: heroes and retainers die at minus their
+--BloodiedThreshold. Deal enough to reach this creature's own kill threshold,
+--or a healthy one ends up merely dying instead of dead.
 function creature:Destroy(note)
     if self.minion then
-	    self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
-    else
-	    self:TakeDamage(self:MaxHitpoints(), note, {doesNotTrigger = true})
+        --Minions die at 0, so one member's share of the pool is enough.
+        self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
+        return
     end
+
+    --math.max keeps this at least as lethal as the old max-Stamina version.
+    local needed = self:CurrentHitpoints() + self:TemporaryHitpoints() - self:KillThresholdStamina()
+    self:TakeDamage(math.max(needed, self:MaxHitpoints()), note, {doesNotTrigger = true})
 end
 
 function creature:ProficiencyBonus()
@@ -7372,6 +7380,10 @@ function IsFriendForTargeting(casterToken, targetToken)
     return true
 end
 
+--Derived states like "winded" that aren't conditions, but which we still want to be
+--usable as criteria strings. Game systems fill this in via creature.RegisterMatchString.
+creature.matchStringPredicates = {}
+
 --- @param viewingToken nil|CharacterToken
 --- @param token nil|CharacterToken
 --- @param str string
@@ -7457,6 +7469,13 @@ function creature:MatchesString(viewingToken, token, str)
     local condition = CharacterCondition.conditionsByName[str]
     if condition ~= nil and self:HasCondition(condition.id) then
         return true
+    end
+
+    --Last resort: a derived state such as "winded", which isn't a condition and so
+    --has to be tested by asking the creature directly.
+    local predicate = creature.matchStringPredicates[string.gsub(str, "%s+", "")]
+    if predicate ~= nil then
+        return predicate(self) == true
     end
 
     return false
@@ -7778,22 +7797,22 @@ creature.helpSymbols = {
 	countnearbyenemies = {
 		name = "Count Nearby Enemies",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")", "OBJ.Count Nearby Enemies(1, \"Winded\")", "OBJ.Count Nearby Enemies(1, \"~Winded\")"},
 	},
 
 	countnearbyfriends = {
 		name = "Count Nearby Friends",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)"},
+		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)", "OBJ.Count Nearby Friends(5, \"Winded\")"},
 	},
 
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")"},
 	},
 
 	countriders = {
@@ -8939,6 +8958,16 @@ for _,movementType in ipairs(creature.movementTypeInfo) do
 	}
 end
 
+--mod tool for making a derived state usable as a criteria string in
+--Count Nearby Creatures / Count Nearby Enemies / Count Riders / the "is" operator.
+--Use the following fields:
+-- name: the criteria string, e.g. "winded"
+-- match: function(creature) that returns true if the creature is in that state
+function creature.RegisterMatchString(entry)
+	local key = string.lower(string.gsub(entry.name, "%s+", ""))
+	creature.matchStringPredicates[key] = entry.match
+end
+
 --mod tool for adding new Goblin Script symbols
 --Use the following fields:
 -- symbol: string symbol name
@@ -9109,6 +9138,25 @@ function creature:BeginTurn()
 	end
 end
 
+--Re-entrancy guard for aura creature filters. A filter is GoblinScript, and it is
+--completely reasonable for one to ask about the auras on the creature it is testing --
+--e.g. 'not (Target.Auras Affecting has "Basic Halo")' to stop an aura stacking with
+--itself. Evaluating that symbol calls back into GetAurasAffecting, which evaluates the
+--filters again, with no base case. Worse, the recursion FANS OUT by the number of
+--filtered auras touching the creature, so four adjacent minions sharing one such aura is
+--4^depth work and the app locks up hard (bug report SJG43VRQ).
+--
+--So: while we are filtering a creature's auras, a nested query for that same creature
+--answers from the auras accepted so far instead of recursing. That makes the example
+--above resolve greedily -- the first halo passes, the rest see it and fail, exactly one
+--applies -- which is what such a filter is written to mean. g_aurasAffectingDepth is the
+--backstop for filters that reach a DIFFERENT creature (caster.Auras Affecting, Squad
+--Captain.Auras Affecting), where the per-creature key alone cannot see the cycle; past
+--the cap a nested query just gets the unfiltered touching list.
+local g_aurasAffectingInProgress = {}
+local g_aurasAffectingDepth = 0
+local g_maxAurasAffectingDepth = 4
+
 function creature:GetAurasAffecting(token)
     token = token or dmhub.LookupToken(self)
     if token == nil then
@@ -9120,29 +9168,52 @@ function creature:GetAurasAffecting(token)
         return nil
     end
 
-    local numPass = nil
-
+    --Fast path: with no filters to run there is nothing to recurse through, so skip the
+    --bookkeeping entirely and hand back the engine's list. This is the common case.
+    local anyFilter = false
     for i,aura in ipairs(auras) do
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) == false then
-            numPass = i-1
+        if aura.auraInstance.aura:try_get("creatureFilter", "") ~= "" then
+            anyFilter = true
             break
         end
     end
 
-    if numPass == nil then
+    if not anyFilter then
+        return auras
+    end
+
+    --charid is always set on a real token, but a nil key would throw right here and take
+    --aura filtering down with it, so fall back to the creature table's identity.
+    local key = token.charid or self
+
+    local inProgress = g_aurasAffectingInProgress[key]
+    if inProgress ~= nil then
+        return inProgress
+    end
+
+    if g_aurasAffectingDepth >= g_maxAurasAffectingDepth then
         return auras
     end
 
     local result = {}
-    for i=1,numPass do
-        result[#result+1] = auras[i]
-    end
+    g_aurasAffectingInProgress[key] = result
+    g_aurasAffectingDepth = g_aurasAffectingDepth + 1
 
-    for i=numPass+2,#auras do
-        local aura = auras[i]
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
-            result[#result+1] = aura
+    --pcall so a filter that throws cannot leave the guard latched on, which would
+    --silently disable aura filtering for the rest of the session.
+    local ok, err = pcall(function()
+        for i,aura in ipairs(auras) do
+            if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
+                result[#result+1] = aura
+            end
         end
+    end)
+
+    g_aurasAffectingDepth = g_aurasAffectingDepth - 1
+    g_aurasAffectingInProgress[key] = nil
+
+    if not ok then
+        error(err)
     end
 
     return result
@@ -9837,8 +9908,14 @@ ActiveTrigger.invocation = false
 --existed have 0 here and fall back to timestamp.
 ActiveTrigger.expiryTimestamp = 0
 
---How long a trigger prompt stays available before it ages out.
-local g_triggerExpirySeconds = 60
+--How long a trigger prompt stays available before it ages out. This is a
+--garbage-collection backstop, not a gameplay timer: in combat the sustain
+--coroutine in TriggeredAbility.lua ends a prompt ~6s after the owner's turn
+--refresh id changes, long before this fires. The cases that actually reach this
+--clock are orphaned entries whose watcher coroutine died (with a reload or a
+--previous session), invocation prompt cards (which have no coroutine at all),
+--and prompts raised out of combat where the turn id never advances.
+local g_triggerExpirySeconds = 600
 
 --Once a trigger has fewer than this many seconds left, the prompt shows a thin
 --bar across its top that drains away as the trigger dies.
@@ -10841,6 +10918,163 @@ end
 
 function creature:SetInitiativeNotes(notes)
 	self.initiativeNotes = notes
+end
+
+----------------------------------------------
+-- Per-token dice preference.
+--
+-- A token can carry its own dice loadout rather than simply rolling with whatever
+-- the rolling player has equipped in their own inventory (the diceequipped /
+-- diceequipped2 / diceequippedd6 account settings). Edited from the character
+-- sheet's Appearance > Effects tab; consumed by the embedded roll dialog, which
+-- hands the resolved loadout to the engine via dice.SetRollLoadout.
+--
+-- Stored on the creature as 'diceLoadout'. The property is ABSENT for a token that
+-- has not been customized -- which is the default, and means "use the roller's own
+-- dice" -- so an uncustomized token costs nothing. When present it is a table with
+-- the same three-part shape as the account loadout, and the same rules for reading
+-- it (see GameConfig.ResolveDiceModelForDie engine-side):
+--   model    -- required. The token's dice: the first power d10, and every die
+--               another field does not override.
+--   model2   -- optional. A DIFFERENT second d10, so a Draw Steel 2d10 power roll
+--               shows a mixed pair. Absent = both power dice are 'model'.
+--   modelD6  -- optional. A different set for d3- and d6-shaped dice.
+--               Absent = they use 'model' too.
+--
+-- Entitlement: resolution happens on the ROLLING player's client, and a set that
+-- player does not own is dropped -- an unowned 'model' falls the whole token back
+-- to that player's own dice, an unowned model2/modelD6 falls that die back to
+-- 'model'. So a DM can never push dice onto a player who has not bought them.
+----------------------------------------------
+
+--The three slots of a dice loadout, in display order. Keys into a diceLoadout
+--table and, deliberately, the same names DiceMaterialInfo uses engine-side.
+--'model' is the primary; the other two are optional overrides of it.
+creature.diceLoadoutSlots = { "model", "model2", "modelD6" }
+
+--- The dice-set asset ids this client's account may roll with, as a set keyed by
+--- asset id. "Default" (the stock dice) is always available.
+--- dice.GetAvailableDice walks the account's shop inventory and is the same
+--- authority the diceequipped setting's dropdown uses, so this is exactly the
+--- ownership test the rest of the app applies.
+--- @return table<string, boolean>
+function creature.OwnedDiceSets()
+	local result = { Default = true }
+	--pcall: an engine build without the bridge just leaves everyone on Default.
+	local ok, list = pcall(function() return dice.GetAvailableDice() end)
+	if ok and type(list) == "table" then
+		for _,entry in ipairs(list) do
+			if entry ~= nil and entry.value ~= nil and entry.value ~= "" then
+				result[entry.value] = true
+			end
+		end
+	end
+	return result
+end
+
+--- This creature's dice loadout as a plain copy safe to read from UI (mutating it
+--- does not change the creature -- go through SetDiceLoadoutSlot inside a
+--- token:ModifyProperties block for that). An empty table means the token is not
+--- customized and rolls with the rolling player's own dice.
+--- @return table<string, string>
+function creature:GetDiceLoadout()
+	local result = {}
+	local loadout = self:try_get("diceLoadout")
+	if type(loadout) ~= "table" then
+		return result
+	end
+
+	for _,key in ipairs(creature.diceLoadoutSlots) do
+		local id = loadout[key]
+		if type(id) == "string" and id ~= "" then
+			result[key] = id
+		end
+	end
+
+	--model2/modelD6 only mean anything as overrides OF a primary set, so a table
+	--that somehow lost its primary is no customization at all.
+	if result.model == nil then
+		return {}
+	end
+
+	return result
+end
+
+--- True if this creature carries its own dice rather than using the roller's.
+--- @return boolean
+function creature:HasCustomDice()
+	return self:GetDiceLoadout().model ~= nil
+end
+
+--- Sets one slot of this creature's dice loadout. key is one of
+--- creature.diceLoadoutSlots; assetid is a cloud dice id, or nil/"" to clear that
+--- slot -- clearing "model" drops the whole loadout (the token goes back to using
+--- the roller's own dice), clearing "model2"/"modelD6" makes those dice use
+--- "model". Must be called inside a token:ModifyProperties block.
+--- @param key string
+--- @param assetid string|nil
+function creature:SetDiceLoadoutSlot(key, assetid)
+	if key == "model" and (assetid == nil or assetid == "") then
+		self:ClearDiceLoadout()
+		return
+	end
+
+	local loadout = self:GetDiceLoadout()
+
+	if assetid == nil or assetid == "" then
+		loadout[key] = nil
+	else
+		loadout[key] = assetid
+	end
+
+	if loadout.model == nil then
+		self:ClearDiceLoadout()
+	else
+		self.diceLoadout = loadout
+	end
+end
+
+--- Drops this creature's dice loadout, so its rolls use the rolling player's own
+--- equipped dice again. Must be called inside a token:ModifyProperties block.
+function creature:ClearDiceLoadout()
+	self.diceLoadout = nil
+end
+
+--- The loadout to actually roll for this creature, or nil when it carries no dice
+--- the local player may use and the roller's own equipped loadout should apply
+--- unchanged.
+---
+--- Ready to hand straight to dice.SetRollLoadout: model2/modelD6 come back as ""
+--- when this token does not override them, which the engine reads as "same as
+--- model" exactly as it does for the account loadout. Any slot naming a set the
+--- LOCAL player does not own is dropped as though it had never been set.
+--- @return {model: string, model2: string, modelD6: string}|nil
+function creature:ResolveDiceLoadout()
+	local loadout = self:GetDiceLoadout()
+	if loadout.model == nil then
+		return nil
+	end
+
+	--Entitlement: the player about to roll must own the set. An unowned primary
+	--means this token gives them nothing and they roll their own dice.
+	local owned = creature.OwnedDiceSets()
+	if not owned[loadout.model] then
+		return nil
+	end
+
+	local function Override(key)
+		local id = loadout[key]
+		if id == nil or not owned[id] then
+			return ""
+		end
+		return id
+	end
+
+	return {
+		model = loadout.model,
+		model2 = Override("model2"),
+		modelD6 = Override("modelD6"),
+	}
 end
 
 ----------------------------------------------

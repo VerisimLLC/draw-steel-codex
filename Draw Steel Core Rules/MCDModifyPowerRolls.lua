@@ -1087,7 +1087,18 @@ CharacterModifier.TypeInfo.power = {
     modifyPowerRollCasting = function(self, creature, ability, options)
         if self:try_get("overrideCost", false) then
             local tempCopy = DeepCopy(ability)
-            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(options.symbols), 0, "Override Resource Cost")
+
+            --The cost formula must see the modifier's own context symbols
+            --(Stacks, OngoingEffect, Aura) on top of the cast symbols, the same
+            --way the cost shown in the roll dialog is calculated. Copy the cast
+            --symbols first so AppendSymbols does not write into the live table.
+            local costSymbols = {}
+            for k,v in pairs(options.symbols or {}) do
+                costSymbols[k] = v
+            end
+            self:AppendSymbols(costSymbols)
+
+            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(costSymbols), 0, "Override Resource Cost")
             local tok = dmhub.LookupToken(creature)
             local costInfo = tempCopy:GetCost(tok)
             

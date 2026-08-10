@@ -2166,6 +2166,26 @@ ThemeEngine.RegisterTheme{
             vpad = 4,
         },
 
+        -- Focus ring: traces the panel whose content tree currently holds
+        -- GUI focus. Several panels are only "armed" while focused (the
+        -- Map Markup drawing tools, the Building editor, the Objects
+        -- panel), and nothing used to show which one that was. Accent
+        -- rather than a neutral edge: this is a live mode indicator, not
+        -- decoration. Fades rather than snapping, so it reads as state
+        -- moving between panels instead of flickering.
+        {
+            selectors = {"dockPanelFocusOutline"},
+            bgcolor = "clear",
+            borderColor = "@accent",
+            border = 2,
+            opacity = 0,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"dockPanelFocusOutline", "parent:focused"},
+            opacity = 1,
+        },
+
         -- Header gradient strip across the top of each panel/tab group.
         {
             selectors = {"tabContainer"},

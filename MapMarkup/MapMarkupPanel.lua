@@ -385,16 +385,136 @@ local function EntryWallAsset(entry)
     return assets.walls[entry.guid]
 end
 
+--============================================================================
+--Map-private wall types.
+--
+--Every wall asset the panel creates (materialized presets, Custom, Door) is
+--stamped with the current map's id (WallAsset.markupMapId, engine build
+--required) and hidden from other maps' pickers until promoted via Edit
+--Wall's "Make Available to All Maps" - the same lifecycle map-scoped zone
+--types get from EnvironmentalKeyword.mapid. Removing an unused, map-private
+--type from the palette deletes its asset outright: nothing can reference it
+--at that point. On engine builds without the field everything degrades to
+--the old behavior (game-wide walls, no deletion).
+--
+--One table rather than several locals: this file-level chunk is AT Lua's
+--200-local cap (the openable probe's cache lives here as a field for the
+--same reason). The keyword-side helpers are added as extra fields further
+--down, below the GetKeyword/FindKeywordIdByName locals they need.
+--============================================================================
+local m_mapScope
+m_mapScope = {
+    openableSupport = nil,
+
+    --Engine gate, same probe recipe as OpenableWallsSupported: the accessor
+    --reads "" (never nil) when unset precisely so this probe works.
+    wallSupportCache = nil,
+    WallSupported = function()
+        if m_mapScope.wallSupportCache ~= nil then
+            return m_mapScope.wallSupportCache
+        end
+        local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
+        if probe == nil then
+            for _,wall in pairs(assets.walls) do
+                probe = wall
+                break
+            end
+        end
+        if probe == nil then
+            --no wall assets at all; leave undecided so we re-probe later.
+            return false
+        end
+        local value = nil
+        pcall(function()
+            value = probe.markupMapId
+        end)
+        m_mapScope.wallSupportCache = (value ~= nil)
+        return m_mapScope.wallSupportCache
+    end,
+
+    --the map id a wall type is private to, or nil for game-wide/legacy walls
+    --and pre-scoping engine builds.
+    WallMapId = function(asset)
+        if asset == nil then
+            return nil
+        end
+        local result = nil
+        pcall(function()
+            local id = asset.markupMapId
+            if type(id) == "string" and id ~= "" then
+                result = id
+            end
+        end)
+        return result
+    end,
+
+    --Whether a wall asset is usable on the current map: game-wide walls
+    --always are; map-private ones only on the map they were created on.
+    --The wall twin of KeywordAvailableOnThisMap.
+    WallAvailableOnThisMap = function(asset)
+        local mapid = m_mapScope.WallMapId(asset)
+        return mapid == nil or mapid == game.currentMapId
+    end,
+
+    --Stamps a freshly created markup wall as private to the current map.
+    --Quietly does nothing on engine builds without the field: the wall is
+    --then simply game-wide, exactly as before this feature.
+    StampWall = function(asset)
+        pcall(function()
+            asset.markupMapId = game.currentMapId
+        end)
+    end,
+
+    --Whether any building operation on the current map still draws with this
+    --wall type. Engine-gated (map:GetWallOperationCount): unknown = true, so
+    --callers keep the asset rather than deleting something possibly in use.
+    WallInUseOnMap = function(guid)
+        local count = nil
+        pcall(function()
+            count = game.currentMap:GetWallOperationCount(guid)
+        end)
+        if count == nil then
+            return true
+        end
+        return count > 0
+    end,
+
+    --Deletes a map-private wall type when removing its chip orphans it:
+    --private to THIS map (so no other map's palette or geometry can
+    --reference it), no walls drawn with it anywhere on the map, and no
+    --other chip still pointing at the asset. Game-wide and library walls
+    --are shared content and are never deleted here.
+    DeleteWallIfOrphaned = function(guid, remainingEntries)
+        local asset = assets.walls[guid]
+        if asset == nil then
+            return
+        end
+        local mapid = m_mapScope.WallMapId(asset)
+        if mapid == nil or mapid ~= game.currentMapId then
+            return
+        end
+        for _,entry in ipairs(remainingEntries or {}) do
+            if entry.guid == guid then
+                return
+            end
+        end
+        if m_mapScope.WallInUseOnMap(guid) then
+            return
+        end
+        asset:Delete()
+    end,
+}
+
 --Engine gate: WallAsset.openable (and the door icon/toggle machinery) needs
 --an engine build. NOTE: reading an unknown property on engine userdata does
 --NOT error - it silently returns nil (verified live 2026-07-27) - so the
 --probe must check the VALUE is non-nil, not just that the read succeeded.
---On a supporting build the accessor returns a real boolean. Cached: chips
---and dialogs consult this repeatedly.
-local m_openableSupport = nil
+--On a supporting build the accessor returns a real boolean. Cached (on
+--m_mapScope, sparing a file-level local): chips and dialogs consult this
+--repeatedly.
 local function OpenableWallsSupported()
-    if m_openableSupport ~= nil then
-        return m_openableSupport
+    if m_mapScope.openableSupport ~= nil then
+        return m_mapScope.openableSupport
     end
     local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
     if probe == nil then
@@ -410,8 +530,8 @@ local function OpenableWallsSupported()
     local ok, value = pcall(function()
         return probe.openable
     end)
-    m_openableSupport = ok and value ~= nil
-    return m_openableSupport
+    m_mapScope.openableSupport = ok and value ~= nil
+    return m_mapScope.openableSupport
 end
 
 local function AssetIsOpenable(asset)
@@ -540,8 +660,12 @@ end
 --A miniature of the skeleton centerline the engine draws for this wall in
 --the building tools: solid = occludes light/vision, dashed = blocks movement
 --only, dotted = blocks forced movement only, ">" = one-way. Mirrors the
---classification in WallMesh.BuildSkeleton.
-local function CreateWallLinePreview(fields)
+--classification in WallMesh.BuildSkeleton. color is the wall type's markup
+--color ("#rrggbb" or nil): when set, the engine draws this type's skeleton
+--in it, so the preview line tints to match. narrow trims the dash/dot
+--counts to fit the palette chips' 70px preview column (the color swatches
+--sit beside it); the library modal keeps the full-width pattern.
+local function CreateWallLinePreview(fields, color, narrow)
     local segments = {}
 
     local dashed = false
@@ -554,13 +678,14 @@ local function CreateWallLinePreview(fields)
         end
     end
 
-    --Segment sizing keeps the widest pattern under 100px, the width of the
-    --preview column in the palette rows, so a dash never runs under the name.
+    --Segment sizing keeps the widest pattern under the preview column width
+    --(100px, or 70px narrow), so a dash never runs under the name.
     if dashed then
-        for _ = 1,7 do
+        for _ = 1,cond(narrow, 5, 7) do
             segments[#segments+1] = gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
+                bgcolor = color,
                 width = 9,
                 height = 3,
                 hmargin = 2,
@@ -568,10 +693,11 @@ local function CreateWallLinePreview(fields)
             }
         end
     elseif dotted then
-        for _ = 1,12 do
+        for _ = 1,cond(narrow, 9, 12) do
             segments[#segments+1] = gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
+                bgcolor = color,
                 width = 3,
                 height = 3,
                 hmargin = 2,
@@ -582,6 +708,7 @@ local function CreateWallLinePreview(fields)
         segments[#segments+1] = gui.Panel{
             classes = {"markupWallLine"},
             bgimage = true,
+            bgcolor = color,
             width = "100%",
             height = 3,
             valign = "center",
@@ -614,8 +741,9 @@ end
 --door glyph the engine floats on top of it. "This type is the clickable
 --door." The leaf is drawn filled because that is a CLOSED door, the state a
 --freshly drawn door starts in; open doors draw the same rectangle hollow,
---which a static chip has no way to show.
-local function CreateDoorLinePreview()
+--which a static chip has no way to show. color tints the wall line + leaf
+--like CreateWallLinePreview's, matching the type's markup color on the map.
+local function CreateDoorLinePreview(color)
     return gui.Panel{
         width = "100%",
         height = 14,
@@ -631,6 +759,7 @@ local function CreateDoorLinePreview()
             gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
+                bgcolor = color,
                 width = "22%",
                 height = 3,
                 valign = "center",
@@ -638,6 +767,7 @@ local function CreateDoorLinePreview()
             gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
+                bgcolor = color,
                 width = "46%",
                 height = 9,
                 valign = "center",
@@ -645,6 +775,7 @@ local function CreateDoorLinePreview()
             gui.Panel{
                 classes = {"markupWallLine"},
                 bgimage = true,
+                bgcolor = color,
                 width = "22%",
                 height = 3,
                 valign = "center",
@@ -759,6 +890,9 @@ local function CreateMarkupWallAsset(name, fields)
     local wall = assets.walls[guid]
     wall.description = name
     ApplyFieldsToWall(wall, fields)
+    --new markup walls are private to the map they were created on until
+    --promoted from Edit Wall's "Make Available to All Maps".
+    m_mapScope.StampWall(wall)
     wall:Upload()
     return guid
 end
@@ -1272,6 +1406,172 @@ local function ZoneLocKey(x, y)
     return string.format("%d,%d", x, y)
 end
 
+--Dynamic-light zone types: a zone type can be set to only apply where the map's
+--light level is below a per-type threshold (the flagship use: Darkness that is
+--dynamically calculated from the light on the map). The engine samples light
+--deterministically (dmhub.GetDarkTiles: ambient day/night + token/object lights
+--with wall shadowing, animation-free), and the sampled dark sets carve the
+--type's footprints -- painted zones AND its Entire Map blanket -- exactly like
+--the dispel machinery carves them: records are untouched, the auras and overlay
+--stripes just skip lit tiles.
+--
+--Per-map setting "kwid:pct;kwid:pct" (pct = light threshold percent; below it a
+--tile counts as dark), sorted for a stable cache key. Sampled state lives here
+--too: [floorid.."@"..pct] = {state=<engine hash>, dark={[lockey]=true}}, with
+--`serial` bumped on every change so EnsureZoneCache rebuilds. All of it on ONE
+--table: this chunk runs close to Lua's 200-locals-per-function cap (see
+--m_entireMap).
+local m_dynamicLight = {
+    setting = setting{
+        id = "markup:zonedynamiclight",
+        description = "Map Markup Dynamic-Light Zone Types",
+        storage = "map",
+        default = "",
+    },
+
+    --nil = not probed yet; the engine API is new, so the UI hides on old builds.
+    supported = nil,
+
+    states = {},
+    serial = 0,
+
+    --the CacheKey value the current zone cache was built from (EnsureZoneCache).
+    cacheKey = false,
+}
+
+function m_dynamicLight.Supported()
+    if m_dynamicLight.supported == nil then
+        local ok, value = pcall(function()
+            return dmhub.supportsDynamicLightZones
+        end)
+        m_dynamicLight.supported = (ok and value == true)
+    end
+    return m_dynamicLight.supported
+end
+
+--pcall-guarded like m_entireMap.Serialized: read on aura polls that can land
+--before there is a map to scope a map-storage setting to.
+function m_dynamicLight.Serialized()
+    local str = nil
+    pcall(function()
+        str = m_dynamicLight.setting:Get()
+    end)
+    if type(str) ~= "string" then
+        return ""
+    end
+    return str
+end
+
+--{ keywordid -> threshold percent (integer 1..100) }. Only keywords whose
+--compendium entry has "Can Use Dynamic Light" checked count: unchecking the
+--flag disables an already-configured threshold everywhere (carve, sampling,
+--chip UI) without deleting it -- re-checking restores it. The flag lives on
+--the keyword so the palette only offers Dynamic Light where it makes sense
+--(Darkness), not on every chip. refreshTables bumps m_zoneTablesGen, which
+--is already part of the zone cache key, so a flag flip rebuilds promptly.
+function m_dynamicLight.Thresholds()
+    local result = {}
+    for _,item in ipairs(string.split(m_dynamicLight.Serialized(), ";")) do
+        if item ~= "" then
+            local kwid, pct = string.match(item, "^(.-):(%d+)$")
+            pct = tonumber(pct)
+            if kwid ~= nil and kwid ~= "" and pct ~= nil and pct > 0 then
+                local allowed = false
+                local kw = GetKeyword(kwid)
+                if kw ~= nil then
+                    --pcall: this file loads before EnvironmentalKeyword, so
+                    --keyword instances are only known well-typed at runtime.
+                    pcall(function()
+                        allowed = kw:try_get("dynamicLight", false) == true
+                    end)
+                end
+                if allowed then
+                    result[kwid] = pct
+                end
+            end
+        end
+    end
+    return result
+end
+
+function m_dynamicLight.GetThreshold(keywordid)
+    if keywordid == nil then
+        return nil
+    end
+    return m_dynamicLight.Thresholds()[keywordid]
+end
+
+--Sets or clears (pct = nil) the threshold for a keyword. Stored sorted so the
+--serialized value is stable: it is part of the zone cache's validity key.
+function m_dynamicLight.Set(keywordid, pct)
+    if keywordid == nil then
+        return
+    end
+
+    local thresholds = m_dynamicLight.Thresholds()
+    if thresholds[keywordid] == pct then
+        return
+    end
+    thresholds[keywordid] = pct
+
+    local sorted = {}
+    for id,value in pairs(thresholds) do
+        sorted[#sorted+1] = string.format("%s:%d", id, value)
+    end
+    table.sort(sorted)
+    m_dynamicLight.setting:Set(table.concat(sorted, ";"))
+end
+
+--The zone cache's validity key for dynamic light: the configuration plus the
+--sampling serial (a sample changing what is dark must rebuild the footprints).
+--Empty string when the feature is off -- the common case.
+function m_dynamicLight.CacheKey()
+    local str = m_dynamicLight.Serialized()
+    if str == "" then
+        return ""
+    end
+    return string.format("%s#%d", str, m_dynamicLight.serial)
+end
+
+function m_dynamicLight.StateKey(floorid, pct)
+    return string.format("%s@%d", floorid, pct)
+end
+
+--entry.locs filtered to the currently-dark tiles when the entry's keyword is
+--light-gated; entry.locs itself otherwise. NEVER mutates entry.locs -- the
+--record locs also drive painting/splitting, and a filtered list written back
+--would drop lit tiles from the record on its next write. An unsampled
+--(floor, threshold) applies the zone unfiltered: painted zones stay in force
+--until the first sample lands (<1s), rather than flashing off.
+function m_dynamicLight.ApplyFilter(thresholds, entry)
+    local pct = nil
+    if entry.keywordid ~= nil then
+        pct = thresholds[entry.keywordid]
+    end
+    if pct == nil then
+        return entry.locs
+    end
+
+    local darkState = m_dynamicLight.states[m_dynamicLight.StateKey(entry.floorid, pct)]
+    if darkState == nil then
+        return entry.locs
+    end
+
+    local filtered = {}
+    for _,l in ipairs(entry.locs) do
+        local key = ZoneLocKey(l.x, l.y)
+        --a tile the sampler has never seen (just painted; next sample is
+        --<1s away) defaults to applying, like an unsampled floor does --
+        --absent from `sampled` means unknown, not lit. Rect-mode samples
+        --(blankets) have sampled == nil: the rect covers the whole map.
+        if darkState.dark[key] ~= nil
+            or (darkState.sampled ~= nil and darkState.sampled[key] == nil) then
+            filtered[#filtered+1] = l
+        end
+    end
+    return filtered
+end
+
 --The keyword's stripe/chip color: its icon background color when it has a
 --real one, otherwise a fallback picked stably from the keyword id.
 local function KeywordColor(keywordid, kw)
@@ -1514,6 +1814,70 @@ local function FindKeywordIdByName(name)
         end
     end
     return nil
+end
+
+--Whether any zone record on the current map still uses this keyword. Records
+--reference keywords by id but heal dead ids by stored name (see
+--RebuildZoneCache), so a record whose id no longer resolves and whose
+--keywordName matches counts as using it too. Assigned here rather than in
+--the m_mapScope constructor because it needs GetKeyword, which is declared
+--below that constructor (a closure written above a file-level local compiles
+--to a global read and comes back nil).
+m_mapScope.KeywordInUseOnMap = function(keywordid, kw)
+    local map = game.currentMap
+    if map == nil then
+        --can't tell; report in-use so the caller keeps the keyword.
+        return true
+    end
+    local kwName = nil
+    pcall(function() kwName = kw.name end)
+    for _,floor in ipairs(map.floors or {}) do
+        local zones = nil
+        pcall(function() zones = floor.markupZones end)
+        if zones ~= nil then
+            for _,record in pairs(zones) do
+                if type(record) == "table" and record.category == nil then
+                    if record.keyword == keywordid then
+                        return true
+                    end
+                    if kwName ~= nil and record.keywordName ~= nil
+                        and GetKeyword(record.keyword) == nil
+                        and string.lower(record.keywordName) == string.lower(kwName) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+--Deletes a map-scoped zone type when removing its chip orphans it: scoped to
+--THIS map (mapid set; so no other map's palette, zones, or dropdowns can
+--reference it), no zone records still using it, and no other chip pointing
+--at it. Promoted and compendium keywords are shared content and are never
+--deleted here. The blanket/dynamic-light configs are cleared by the removal
+--path before this runs.
+m_mapScope.DeleteKeywordIfOrphaned = function(keywordid, remainingEntries)
+    local kw = GetKeyword(keywordid)
+    if kw == nil then
+        return
+    end
+    local mapid = nil
+    pcall(function() mapid = kw:try_get("mapid") end)
+    if mapid == nil or mapid ~= game.currentMapId then
+        return
+    end
+    for _,entry in ipairs(remainingEntries or {}) do
+        if entry.keywordid == keywordid then
+            return
+        end
+    end
+    if m_mapScope.KeywordInUseOnMap(keywordid, kw) then
+        return
+    end
+    kw.hidden = true
+    dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
 end
 
 --Materializes a built-in zone preset as a real Environmental Keyword in this
@@ -1957,11 +2321,14 @@ function m_entireMap.Rebuild(floors)
         return
     end
 
+    local dynThresholds = m_dynamicLight.Thresholds()
+
     for keywordid,_ in pairs(ids) do
         local kw = GetKeyword(keywordid)
         if kw ~= nil then
             local dispels = KeywordDispels(kw)
             local kwName = kw.name or "Zone"
+            local dynPct = dynThresholds[keywordid]
 
             for _,floorInfo in ipairs(floors) do
                 --tiles the blanket yields to. Same keyword: a painted zone
@@ -1981,11 +2348,24 @@ function m_entireMap.Rebuild(floors)
                     end
                 end
 
+                --a dynamic-light blanket covers only the tiles the light
+                --sampler currently reports dark. No sample yet = covers
+                --nothing: on a lit map that avoids a flash of whole-map
+                --darkness in the second before the first sample lands.
+                local darkState = nil
+                if dynPct ~= nil then
+                    darkState = m_dynamicLight.states[m_dynamicLight.StateKey(floorInfo.floorid, dynPct)]
+                end
+
                 local locs = {}
-                for y = y0, y1 do
-                    for x = x0, x1 do
-                        if blocked[ZoneLocKey(x, y)] == nil then
-                            locs[#locs+1] = { x = x, y = y }
+                if dynPct == nil or darkState ~= nil then
+                    for y = y0, y1 do
+                        for x = x0, x1 do
+                            local key = ZoneLocKey(x, y)
+                            if blocked[key] == nil
+                                and (dynPct == nil or darkState.dark[key] ~= nil) then
+                                locs[#locs+1] = { x = x, y = y }
+                            end
                         end
                     end
                 end
@@ -2221,10 +2601,15 @@ local function RebuildZoneCache()
         return a.zoneid < b.zoneid
     end)
 
+    --dynamic-light types register/stripe only their currently-dark tiles; the
+    --record locs (entry.locs) stay pristine -- they drive painting/splitting.
+    local dynThresholds = m_dynamicLight.Thresholds()
+
     for _,entry in ipairs(m_zoneCache) do
-        if #entry.locs > 0 and entry.floorIndex >= 0 then
+        local paintLocs = m_dynamicLight.ApplyFilter(dynThresholds, entry)
+        if #paintLocs > 0 and entry.floorIndex >= 0 then
             local locsUserdata = {}
-            for _,l in ipairs(entry.locs) do
+            for _,l in ipairs(paintLocs) do
                 locsUserdata[#locsUserdata+1] = core.Loc{
                     x = l.x,
                     y = l.y,
@@ -2410,10 +2795,13 @@ local function EnsureZoneCache()
     local mapid = game.currentMapId
     --blankets live in a per-map setting, not in the zone records, so no
     --record write (and no seq bump) accompanies a change to them -- here or
-    --on another client. Compare the value itself.
+    --on another client. Compare the value itself. Dynamic light is the same
+    --shape: a per-map setting plus the sampling serial.
     local blanketKey = m_entireMap.CacheKey()
+    local dynamicKey = m_dynamicLight.CacheKey()
     if m_zoneCache ~= nil and seq == m_zoneCacheSeq and mapid == m_zoneCacheMapid
-        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey then
+        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey
+        and dynamicKey == m_dynamicLight.cacheKey then
         return
     end
 
@@ -2421,6 +2809,7 @@ local function EnsureZoneCache()
     m_zoneCacheMapid = mapid
     m_zoneCacheTablesGen = m_zoneTablesGen
     m_entireMap.cacheKey = blanketKey
+    m_dynamicLight.cacheKey = dynamicKey
     m_zoneRevision = m_zoneRevision + 1
     RebuildZoneCache()
 end
@@ -2797,6 +3186,176 @@ dmhub.RegisterEventHandler("refreshTables", function()
         end)
     end
 end)
+
+--============================================================================
+--Dynamic-light sampling. A slow poll (below) asks the engine which candidate
+--tiles are currently dark; when the answer changes (a torch moved, a door
+--closed, night fell), the sampling serial bumps -- which invalidates the zone
+--cache -- and the aura index is asked to re-poll dmhub.GetMapAuras. The
+--engine hashes the dark set and returns nil while it matches knownState, so
+--an unchanged poll marshals nothing and rebuilds nothing.
+--============================================================================
+
+--One engine call per (floor, distinct threshold): candidates are the whole
+--map extent when any keyword at that threshold blankets the map, else the
+--union of that threshold's painted zone tiles on the floor (built in stable
+--cache order -- the candidate order is part of the engine's state hash).
+function m_dynamicLight.Sample()
+    if not m_dynamicLight.Supported() or not ZonesSupported() then
+        return
+    end
+
+    local thresholds = m_dynamicLight.Thresholds()
+    if next(thresholds) == nil then
+        if next(m_dynamicLight.states) ~= nil then
+            m_dynamicLight.states = {}
+            m_dynamicLight.serial = m_dynamicLight.serial + 1
+            --without this the carve lingers until some unrelated aura
+            --rebuild happens to re-poll the zone cache.
+            pcall(function()
+                dmhub.RefreshMapAuras()
+            end)
+        end
+        return
+    end
+
+    local map = game.currentMap
+    if map == nil then
+        return
+    end
+
+    EnsureZoneCache()
+
+    local floors = {}
+    for _,floor in ipairs(map.floors or {}) do
+        pcall(function()
+            local floorIndex = floor.floorIndex
+            if floorIndex ~= nil and floorIndex >= 0 then
+                floors[#floors+1] = { floorid = floor.floorid, floorIndex = floorIndex }
+            end
+        end)
+    end
+
+    local dims = nil
+    pcall(function()
+        dims = map.dimensions
+    end)
+
+    local blankets = m_entireMap.Keywords()
+
+    --pct -> { kwids = set, blanket = bool }
+    local groups = {}
+    for kwid,pct in pairs(thresholds) do
+        local group = groups[pct]
+        if group == nil then
+            group = { kwids = {}, blanket = false }
+            groups[pct] = group
+        end
+        group.kwids[kwid] = true
+        if blankets[kwid] == true then
+            group.blanket = true
+        end
+    end
+
+    local live = {}
+    local changed = false
+
+    for pct,group in pairs(groups) do
+        for _,floorInfo in ipairs(floors) do
+            local args = {
+                floorIndex = floorInfo.floorIndex,
+                threshold = pct / 100,
+            }
+
+            local haveCandidates = false
+            if group.blanket and dims ~= nil then
+                args.x1 = math.floor(dims.x)
+                args.y1 = math.floor(dims.y)
+                args.x2 = math.floor(dims.z) - 1
+                args.y2 = math.floor(dims.w) - 1
+                haveCandidates = args.x2 >= args.x1 and args.y2 >= args.y1
+            else
+                local locs = {}
+                for _,entry in ipairs(m_zoneCache) do
+                    if entry.floorid == floorInfo.floorid and entry.keywordid ~= nil
+                        and group.kwids[entry.keywordid] == true then
+                        for _,l in ipairs(entry.locs) do
+                            locs[#locs+1] = l.x
+                            locs[#locs+1] = l.y
+                        end
+                    end
+                end
+                if #locs > 0 then
+                    args.locs = locs
+                    haveCandidates = true
+                end
+            end
+
+            if haveCandidates then
+                local key = m_dynamicLight.StateKey(floorInfo.floorid, pct)
+                live[key] = true
+
+                local prev = m_dynamicLight.states[key]
+                if prev ~= nil then
+                    args.knownState = prev.state
+                end
+
+                local ok, result = pcall(function()
+                    return dmhub.GetDarkTiles(args)
+                end)
+                if ok and result ~= nil then
+                    local dark = {}
+                    local resultLocs = result.locs or {}
+                    for i = 1, #resultLocs - 1, 2 do
+                        dark[ZoneLocKey(resultLocs[i], resultLocs[i+1])] = true
+                    end
+
+                    --locs mode also records WHICH tiles were sampled, so
+                    --ApplyFilter can tell "sampled and lit" (drop) from
+                    --"never sampled" (keep until the next sample). Rect mode
+                    --covers the whole map, so nothing is ever unknown there.
+                    local sampled = nil
+                    if args.locs ~= nil then
+                        sampled = {}
+                        for i = 1, #args.locs - 1, 2 do
+                            sampled[ZoneLocKey(args.locs[i], args.locs[i+1])] = true
+                        end
+                    end
+
+                    m_dynamicLight.states[key] = { state = result.state, dark = dark, sampled = sampled }
+                    changed = true
+                end
+            end
+        end
+    end
+
+    --configuration/zones that stopped being sampled must not keep carving.
+    for key,_ in pairs(m_dynamicLight.states) do
+        if live[key] ~= true then
+            m_dynamicLight.states[key] = nil
+            changed = true
+        end
+    end
+
+    if changed then
+        m_dynamicLight.serial = m_dynamicLight.serial + 1
+        pcall(function()
+            dmhub.RefreshMapAuras()
+        end)
+    end
+end
+
+--reschedule-first so a Sample error can't kill the loop; cheap when the
+--feature is unconfigured (one setting read).
+function m_dynamicLight.Tick()
+    if mod.unloaded then
+        return
+    end
+    dmhub.Schedule(0.7, m_dynamicLight.Tick)
+    pcall(m_dynamicLight.Sample)
+end
+
+dmhub.Schedule(0.7, m_dynamicLight.Tick)
 
 --============================================================================
 --Zone editing operations (paint / erase / create / update / delete).
@@ -3837,6 +4396,14 @@ local function ShowMarkupWallDialog(wallid)
         rubbleTerrainId = asset.rubbleTerrainId,
     }
 
+    --pcall + engine gate, like the openable fields below: pre-scoping engine
+    --builds have no markupMapId to capture or restore.
+    if m_mapScope.WallSupported() then
+        pcall(function()
+            originalValues.markupMapId = asset.markupMapId
+        end)
+    end
+
     local RevertChanges = function()
         asset.description = originalValues.description
         asset.blocksMovement = originalValues.blocksMovement
@@ -3856,6 +4423,11 @@ local function ShowMarkupWallDialog(wallid)
                 asset.openable = originalValues.openable
                 asset.openSound = originalValues.openSound
                 asset.closeSound = originalValues.closeSound
+            end)
+        end
+        if originalValues.markupMapId ~= nil then
+            pcall(function()
+                asset.markupMapId = originalValues.markupMapId
             end)
         end
     end
@@ -3888,6 +4460,96 @@ local function ShowMarkupWallDialog(wallid)
     --the live asset always matches the controls; Save uploads, Cancel reverts.
     local ApplyBreakToAsset = function()
         SetAssetBreakable(asset, breakable, breakStamina)
+    end
+
+    --Shared ("global") walls fork on save rather than being edited in place:
+    --a wall other maps can also use must not change under them. Save creates
+    --a copy carrying the edits, private to this map, and retypes every wall
+    --drawn with the original on this map to the copy (palette chips follow).
+    --"Save Changes to This Wall for All Maps" is the explicit opt-in to edit
+    --the shared wall in place - and once the wall has been RENAMED it swaps
+    --to "Make Available to All Maps", because a renamed wall is a different
+    --wall: the fork then uploads game-wide instead of map-private, leaving
+    --the original untouched either way. Requires the scoping engine build:
+    --on a stale build every wall reads as unscoped, so forking is disabled
+    --and the dialog saves in place exactly as before.
+    local isGlobalWall = m_mapScope.WallSupported() and m_mapScope.WallMapId(asset) == nil
+
+    local IsRenamed = function()
+        return (asset.description or "") ~= (originalValues.description or "")
+    end
+
+    --any difference from the state the dialog opened with, so a Save on an
+    --untouched shared wall does not fork pointlessly.
+    local IsEdited = function()
+        if IsRenamed()
+            or asset.blocksMovement ~= originalValues.blocksMovement
+            or asset.blocksForcedMovement ~= originalValues.blocksForcedMovement
+            or asset.occludesVision ~= originalValues.occludesVision
+            or asset.occludesLight ~= originalValues.occludesLight
+            or asset.visionOneWay ~= originalValues.visionOneWay
+            or asset.cover ~= originalValues.cover
+            or asset.soundOcclusion ~= originalValues.soundOcclusion
+            or asset.climbable ~= originalValues.climbable
+            or asset.solidity ~= originalValues.solidity
+            or asset.breakStamina ~= originalValues.breakStamina then
+            return true
+        end
+        local openableChanged = false
+        if originalValues.openable ~= nil then
+            pcall(function()
+                openableChanged = asset.openable ~= originalValues.openable
+                    or asset.openSound ~= originalValues.openSound
+                    or asset.closeSound ~= originalValues.closeSound
+            end)
+        end
+        return openableChanged
+    end
+
+    --Creates the fork and points this map at it. DuplicateWall serializes
+    --the LIVE in-memory asset, so the copy snapshots the dialog's edits
+    --exactly as they stand; the original is then reverted and never
+    --uploaded - other maps keep it exactly as it was. Every operation drawn
+    --with the original on this map is retyped to the fork
+    --(ReplaceWallOperations keeps each op's timestamp so geometry re-applies
+    --in the same order), and palette chips follow - a forked library chip
+    --becomes a custom chip so Edit Wall stays available on it.
+    local ForkAsset = function(makeGlobal)
+        local newGuid = assets:DuplicateWall(wallid)
+        if newGuid == nil then
+            RevertChanges()
+            return
+        end
+
+        local fork = assets.walls[newGuid]
+        if makeGlobal then
+            pcall(function()
+                fork.markupMapId = ""
+            end)
+        else
+            m_mapScope.StampWall(fork)
+        end
+        fork:Upload()
+
+        RevertChanges()
+
+        pcall(function()
+            game.currentMap:ReplaceWallOperations(wallid, newGuid)
+        end)
+
+        local changed = false
+        for _,entry in ipairs(m_paletteEntries) do
+            if entry.guid == wallid then
+                entry.guid = newGuid
+                if entry.kind == "wall" then
+                    entry.kind = "custom"
+                end
+                changed = true
+            end
+        end
+        if changed then
+            SavePalette(m_paletteEntries)
+        end
     end
 
     local dialogPanel
@@ -3938,6 +4600,81 @@ local function ShowMarkupWallDialog(wallid)
                     text = asset.description or "",
                     change = function(element)
                         asset.description = element.text
+                        --renaming a shared wall makes it a new wall: the
+                        --shared-wall row's label and button follow the name.
+                        dialogPanel:FireEventTree("refreshscope")
+                    end,
+                },
+            },
+
+            --map-private wall types: created from this map's palette and
+            --hidden from other maps' pickers until promoted, mirroring the
+            --zone type editor's button. Applied live like every other field
+            --in this dialog: Save uploads the promotion, Cancel reverts it.
+            gui.Panel{
+                classes = {"formStackedRow", cond(m_mapScope.WallMapId(asset) ~= nil, nil, "collapsed")},
+                gui.Label{
+                    classes = {"formStacked"},
+                    text = "This wall type is only available on this map.",
+                },
+                gui.Button{
+                    classes = {"sizeM"},
+                    halign = "left",
+                    text = "Make Available to All Maps",
+                    click = function(element)
+                        pcall(function()
+                            asset.markupMapId = ""
+                        end)
+                        element.parent:SetClass("collapsed", true)
+                    end,
+                },
+            },
+
+            --shared walls: the explicit opt-in to edit the wall in place for
+            --every map that uses it - or, once renamed, to make the FORK
+            --available to all maps instead (a renamed wall is a new wall;
+            --see the fork comment above). Both act immediately and close.
+            gui.Panel{
+                classes = {"formStackedRow", cond(isGlobalWall, nil, "collapsed")},
+                flow = "vertical",
+                height = "auto",
+
+                gui.Label{
+                    classes = {"formStacked"},
+                    width = "100%",
+                    text = "This wall is shared with other maps. Save makes a copy private to this map.",
+                    refreshscope = function(element)
+                        if IsRenamed() then
+                            element.text = "Renamed: saving creates a new wall type for this map."
+                        else
+                            element.text = "This wall is shared with other maps. Save makes a copy private to this map."
+                        end
+                    end,
+                },
+
+                gui.Button{
+                    classes = {"sizeM"},
+                    halign = "left",
+                    vmargin = 4,
+                    text = "Save Changes to This Wall for All Maps",
+                    refreshscope = function(element)
+                        if IsRenamed() then
+                            element.text = "Make Available to All Maps"
+                        else
+                            element.text = "Save Changes to This Wall for All Maps"
+                        end
+                    end,
+                    click = function()
+                        if IsRenamed() then
+                            --a renamed wall is a new wall: fork it game-wide,
+                            --leaving the original untouched.
+                            ForkAsset(true)
+                        else
+                            --edit the shared wall in place: every map using
+                            --it sees the changes.
+                            asset:Upload()
+                        end
+                        gui.CloseModal()
                     end,
                 },
             },
@@ -4220,11 +4957,22 @@ local function ShowMarkupWallDialog(wallid)
 
                 gui.Button{
                     classes = {"sizeM"},
-                    text = "Save",
+                    text = cond(isGlobalWall, "Save Copy for This Map", "Save"),
                     halign = "center",
                     events = {
                         click = function()
-                            asset:Upload()
+                            if isGlobalWall then
+                                --editing a shared wall forks it (see the
+                                --fork comment above); untouched = nothing
+                                --to fork, so just restore and close.
+                                if IsEdited() then
+                                    ForkAsset(false)
+                                else
+                                    RevertChanges()
+                                end
+                            else
+                                asset:Upload()
+                            end
                             gui.CloseModal()
                         end,
                     },
@@ -4233,9 +4981,11 @@ local function ShowMarkupWallDialog(wallid)
         },
     }
 
-    --settle the breakability + openable rows' initial collapse state + values.
+    --settle the breakability + openable rows' initial collapse state + values,
+    --and the shared-wall row's label/button text.
     dialogPanel:FireEventTree("refreshbreak")
     dialogPanel:FireEventTree("refreshopenable")
+    dialogPanel:FireEventTree("refreshscope")
 
     gui.ShowModal(dialogPanel)
 end
@@ -4298,6 +5048,27 @@ local TOOL_DELETE = {
     help = "Delete Wall: hover a markup wall to highlight the segment under the cursor, then click to remove just that segment. Visible art walls are not affected.",
 }
 
+--Apply Type ("retype"): converts drawn markup walls to the SELECTED palette
+--type. Two gestures through one real rectangle map tool: a click converts
+--the WHOLE drawn operation under the cursor (the same hover machinery as
+--Delete, tinted the target type's color and extended to the full wall
+--path), and a drag converts every wall edge the rectangle touches, at edge
+--granularity, with the captured edges highlighted live as the rect grows.
+--Input arrives twice over - map focus (mappress, like Delete) AND the
+--rectangle stroke (a click is a degenerate stroke) - because which of the
+--two the engine delivers for a click depends on how it arbitrates a live
+--custom tool against map focus; handling both is safe since retyping an
+--already-converted wall is a no-op (RetypeWallEdges skips ops already of
+--the target type).
+local TOOL_RETYPE = {
+    id = "retype",
+    text = "Retype",
+    icon = "phosphor/paint-roller-fill.png",
+    mapTool = "rectangle",
+    mapToolClosed = true,
+    help = "Apply Type: click a markup wall to change that whole drawn wall to the selected wall type, or drag a rectangle starting on empty space to convert every wall edge it touches. Visible art walls are not affected.",
+}
+
 --`shape` pairs a tool with its counterpart in the other draw mode, so switching
 --Thin <-> Solid keeps the shape the user picked instead of resetting the strip.
 --Both strips lead with the rectangle so the two modes read the same.
@@ -4333,6 +5104,7 @@ local TOOLS = {
         tool = "points",
         help = "Edit Points: drag a wall vertex to move it. Right-click a vertex to delete it, click on a wall line to add a vertex, and click a one-way wall's direction marker to flip its facing.",
     },
+    TOOL_RETYPE,
     TOOL_ERASE,
     TOOL_DELETE,
 }
@@ -4372,6 +5144,7 @@ local SOLID_TOOLS = {
         mapToolClosed = true,
         help = "Freehand block: drag to trace the outline of the area to fill.",
     },
+    TOOL_RETYPE,
     TOOL_ERASE,
     TOOL_DELETE,
 }
@@ -4517,6 +5290,25 @@ local function MarkupChipStyles()
             bgcolor = "@fgMuted",
         },
 
+        --the Wall Color swatches: a quiet outline normally, brightening on
+        --hover, and a thick bright ring on the chosen swatch. The ring is
+        --@fg rather than @accent because it sits on an arbitrary swatch
+        --color and must read against all eight.
+        {
+            selectors = {"markupColorSwatch"},
+            borderWidth = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"markupColorSwatch", "hover"},
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"markupColorSwatch", "selected"},
+            borderWidth = 2,
+            borderColor = "@fg",
+        },
+
         --the zone chip's "Entire Map" toggle: a small pill that lights up
         --while this zone type blankets the whole map.
         {
@@ -4639,18 +5431,22 @@ local function GetPanelStyles()
     }
 end
 
---Tooltip that opens to the SIDE of the dock - over the map, not over the
---panel - so it never covers the controls it describes. Side is picked per
---hover from where the panel is docked: left dock opens right, right dock
---opens left. Falls back to the right for undocked hosts.
+--Tooltip that opens to the SIDE of the hovered control - over the map, not
+--over the panel - so it never covers the controls it describes. Side is
+--picked per hover from where the control actually sits on screen: open
+--toward whichever side has more room. The engine clamps tooltips back
+--onto the screen, so opening toward a nearby screen edge would slide the
+--tooltip over the control itself (the old dock-class check missed
+--undocked/windowed hosts and did exactly that).
 local function SideTooltip(text)
     if text == nil then
         return nil
     end
     return function(element)
         local halign = "right"
-        local dock = element:FindParentWithClass("dock")
-        if dock ~= nil and dock:HasClass("right") then
+        --x1/x2 = screen room to the left/right of the element.
+        local distances = element.distancesToScreenEdge
+        if distances ~= nil and distances.x2 < distances.x1 then
             halign = "left"
         end
         element.tooltip = CreateTooltipPanel{
@@ -4678,8 +5474,9 @@ end
 --fires on every mouse move).
 local m_deleteHighlight = nil
 local m_deleteHighlightKey = nil
---Warn once, not every mouse move, if the engine build lacks GetNearestWallSegment.
-local m_deleteWarnedNoEngine = false
+--The warn-once flag for engine builds lacking GetNearestWallSegment lives on
+--m_mapScope (m_mapScope.deleteWarnedNoEngine) rather than in its own local:
+--this file-level chunk is AT Lua's 200-local cap.
 
 local function DistancePointToSegment(px, py, ax, ay, bx, by)
     local dx = bx - ax
@@ -4741,8 +5538,8 @@ local function FindNearestDeleteSegment(point)
         }
     end)
     if not ok then
-        if not m_deleteWarnedNoEngine then
-            m_deleteWarnedNoEngine = true
+        if not m_mapScope.deleteWarnedNoEngine then
+            m_mapScope.deleteWarnedNoEngine = true
             dmhub.Debug("MARKUP:: delete tool needs an engine build with GetNearestWallSegment support")
         end
         return nil
@@ -4753,11 +5550,14 @@ local function FindNearestDeleteSegment(point)
 
     --Engines with atMouse support hand back the nearest edge directly (matched
     --in projected screen space, so it is the edge visually under the cursor
-    --even on steep slopes). Prefer it over re-deriving the edge here.
+    --even on steep slopes). Prefer it over re-deriving the edge here. The
+    --wall's whole path rides along in `points` (interleaved x,y) for callers
+    --that preview the full wall (the Apply Type hover).
     if seg.segment ~= nil and #seg.segment >= 4 then
         return {
             a = { x = seg.segment[1], y = seg.segment[2] },
             b = { x = seg.segment[3], y = seg.segment[4] },
+            points = seg.points,
         }
     end
 
@@ -4776,7 +5576,7 @@ local function FindNearestDeleteSegment(point)
         local d = DistancePointToSegment(point.x, point.y, ax, ay, bx, by)
         if bestDist == nil or d < bestDist then
             bestDist = d
-            best = { a = { x = ax, y = ay }, b = { x = bx, y = by } }
+            best = { a = { x = ax, y = ay }, b = { x = bx, y = by }, points = pts }
         end
     end
     return best
@@ -4832,16 +5632,29 @@ local function DeleteSegmentGeometry(seg)
     }
 end
 
+--m_deleteHighlight holds either one HighlightLine handle (Delete's single
+--edge) or a plain list of them (Apply Type's whole-wall / marquee preview).
 local function ClearDeleteHighlight()
-    if m_deleteHighlight ~= nil then
-        m_deleteHighlight:Destroy()
-        m_deleteHighlight = nil
-    end
+    local h = m_deleteHighlight
+    m_deleteHighlight = nil
     m_deleteHighlightKey = nil
+    if h == nil then
+        return
+    end
+    if type(h) == "table" then
+        for _,line in ipairs(h) do
+            line:Destroy()
+        end
+    else
+        h:Destroy()
+    end
 end
 
-local function ShowDeleteHighlight(seg)
-    local key = string.format("%.4f,%.4f,%.4f,%.4f", seg.a.x, seg.a.y, seg.b.x, seg.b.y)
+--Also used by the Apply Type (retype) tool, which tints the highlight the
+--target type's color instead of the delete red.
+local function ShowDeleteHighlight(seg, color)
+    color = color or "#ff4d4d"
+    local key = string.format("%.4f,%.4f,%.4f,%.4f,%s", seg.a.x, seg.a.y, seg.b.x, seg.b.y, color)
     if key == m_deleteHighlightKey and m_deleteHighlight ~= nil then
         return
     end
@@ -4850,12 +5663,46 @@ local function ShowDeleteHighlight(seg)
     --height every frame, so a flat (z=0) line drifts off the wall wherever the
     --map has parallax. This projects the highlight with the same parallax.
     m_deleteHighlight = dmhub.HighlightLine{
-        color = "#ff4d4d",
+        color = color,
         a = core.Vector2(seg.a.x, seg.a.y),
         b = core.Vector2(seg.b.x, seg.b.y),
         floorIndex = game.currentFloorIndex,
         terrainParallax = true,
     }
+    m_deleteHighlightKey = key
+end
+
+--Multi-line variant for the Apply Type tool: one highlight line per edge in
+--a flat interleaved {ax,ay,bx,by, ...} list (the whole hovered wall on
+--hover; the captured edges during a marquee drag). Shares the delete
+--highlight's storage, so the two previews never stack. A field on
+--m_mapScope rather than a new file-level local: this chunk is AT Lua's
+--200-local cap.
+m_mapScope.ShowSegmentsHighlight = function(segments, color)
+    if segments == nil or #segments < 4 then
+        ClearDeleteHighlight()
+        return
+    end
+    local parts = { color }
+    for i = 1, #segments do
+        parts[#parts+1] = string.format("%.3f", segments[i])
+    end
+    local key = table.concat(parts, ",")
+    if key == m_deleteHighlightKey and m_deleteHighlight ~= nil then
+        return
+    end
+    ClearDeleteHighlight()
+    local lines = {}
+    for i = 1, #segments - 3, 4 do
+        lines[#lines+1] = dmhub.HighlightLine{
+            color = color,
+            a = core.Vector2(segments[i], segments[i+1]),
+            b = core.Vector2(segments[i+2], segments[i+3]),
+            floorIndex = game.currentFloorIndex,
+            terrainParallax = true,
+        }
+    end
+    m_deleteHighlight = lines
     m_deleteHighlightKey = key
 end
 
@@ -4869,6 +5716,9 @@ DockablePanel.Register{
     minHeight = 200,
     folder = "Map Editing",
     stickyFocus = true,
+    --a press anywhere on the panel -- its background, its title bar --
+    --arms it, not just its individual tool controls.
+    focusOnClick = true,
     content = function()
         track("panel_open", {
             panel = "Map Markup",
@@ -4961,6 +5811,99 @@ CreateMarkupEditor = function()
         return guid
     end
 
+    --Wall colors: 8 distinct colors, drawn as a tiny 4x2 swatch grid ON each
+    --palette chip (left of the line preview - see CreateWallChip). The color
+    --lives on the wall ASSET (WallAsset.markupColor, engine build required),
+    --so every wall of that type on the map - thin skeleton lines and
+    --solid-block striping alike - draws in it, on every client. One table
+    --rather than several locals: this function is already large and locals
+    --are capped at 200 per function.
+    local m_wallColor
+    m_wallColor = {
+        --The first swatch is the engine's stock skeleton grey and CLEARS the
+        --stored color instead of writing one, so "no color" stays the
+        --engine-default styling rather than pinning a lookalike grey.
+        COLORS = {
+            { name = "Default", color = "#d9d9d9", default = true },
+            { name = "Red", color = "#e5484d" },
+            { name = "Orange", color = "#f76b15" },
+            { name = "Yellow", color = "#ffc53d" },
+            { name = "Green", color = "#46a758" },
+            { name = "Cyan", color = "#00a2c7" },
+            { name = "Blue", color = "#3e63dd" },
+            { name = "Purple", color = "#ab4aba" },
+        },
+
+        --Engine gate, same probe recipe as OpenableWallsSupported: reading an
+        --unknown property on engine userdata silently returns nil, so check
+        --the VALUE. A supporting build returns a string - deliberately ""
+        --rather than nil when unset, exactly so this probe works.
+        supportCache = nil,
+        Supported = function()
+            if m_wallColor.supportCache ~= nil then
+                return m_wallColor.supportCache
+            end
+            local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
+            if probe == nil then
+                for _,wall in pairs(assets.walls) do
+                    probe = wall
+                    break
+                end
+            end
+            if probe == nil then
+                --no wall assets at all; leave undecided so we re-probe later.
+                return false
+            end
+            local value = nil
+            pcall(function()
+                value = probe.markupColor
+            end)
+            m_wallColor.supportCache = (value ~= nil)
+            return m_wallColor.supportCache
+        end,
+
+        --the type's stored color ("#rrggbb"), or nil for unset/unmaterialized
+        --entries and pre-color engine builds.
+        EntryColor = function(entry)
+            local asset = EntryWallAsset(entry)
+            if asset == nil then
+                return nil
+            end
+            local result = nil
+            pcall(function()
+                local c = asset.markupColor
+                if type(c) == "string" and c ~= "" then
+                    result = c
+                end
+            end)
+            return result
+        end,
+
+        --writes the chosen swatch onto the entry's wall asset, materializing
+        --a preset chip first exactly like selecting it does. Upload syncs the
+        --asset, which recolors the type's walls on every client.
+        SetEntryColor = function(entry, colorInfo)
+            local guid = MaterializeEntry(entry)
+            if guid == nil then
+                return
+            end
+            local wall = assets.walls[guid]
+            if wall == nil then
+                return
+            end
+            local ok = pcall(function()
+                if colorInfo.default then
+                    wall.markupColor = ""
+                else
+                    wall.markupColor = colorInfo.color
+                end
+            end)
+            if ok then
+                wall:Upload()
+            end
+        end,
+    }
+
     SelectChip = function(index)
         local entry = m_paletteEntries[index]
         if entry == nil then
@@ -5020,9 +5963,11 @@ CreateMarkupEditor = function()
         end
 
         --the selection can flip between openable and plain types, which
-        --hides/shows the Draw As toggle.
+        --hides/shows the Draw As toggle. The Wall Color swatches follow the
+        --selected type too.
         if contentPanel ~= nil and contentPanel.valid then
             contentPanel:FireEventTree("refreshdoorchip")
+            contentPanel:FireEventTree("refreshwallcolors")
         end
     end
 
@@ -5034,7 +5979,8 @@ CreateMarkupEditor = function()
     end
 
     RemovePaletteEntry = function(index)
-        if m_paletteEntries[index] == nil then
+        local removed = m_paletteEntries[index]
+        if removed == nil then
             return
         end
 
@@ -5047,13 +5993,26 @@ CreateMarkupEditor = function()
             end
         end
         SavePalette(m_paletteEntries)
+
+        --a map-private type with no walls drawn is orphaned once its chip is
+        --gone: delete the asset rather than stranding it in the library.
+        if removed.guid ~= nil then
+            m_mapScope.DeleteWallIfOrphaned(removed.guid, m_paletteEntries)
+        end
     end
 
     local CreateChipContextMenuItems = function(element, index)
         local entry = m_paletteEntries[index]
         local result = {}
 
-        if entry ~= nil and (entry.kind == "preset" or entry.kind == "solid" or entry.kind == "custom") and entry.guid ~= nil and assets.walls[entry.guid] ~= nil then
+        --library ("wall") chips were deliberately not editable while editing
+        --meant mutating the shared asset under other maps; with the scoping
+        --engine build, editing a shared wall forks it instead (see
+        --ShowMarkupWallDialog), so they become safely editable too.
+        local editableKind = entry ~= nil and (entry.kind == "preset" or entry.kind == "solid" or entry.kind == "custom"
+            or (entry.kind == "wall" and m_mapScope.WallSupported()))
+
+        if editableKind and entry.guid ~= nil and assets.walls[entry.guid] ~= nil then
             result[#result+1] = {
                 text = "Edit Wall...",
                 click = function()
@@ -5081,11 +6040,131 @@ CreateMarkupEditor = function()
     --same whether it is drawn thin or solid, so it does not vary with the
     --draw mode.
     local CreateWallChip = function(index, entry)
+        --the preview line draws in the type's markup color, matching the
+        --skeleton the engine draws on the map. nil = the stock grey.
+        local wallColor = m_wallColor.EntryColor(entry)
+
+        --the color control rides ON the chip: one larger square showing the
+        --type's current color, to the left of the line preview (which
+        --narrows to make room). Clicking it pops out the full 4x2 palette
+        --to choose from. Engine-gated: on builds without
+        --WallAsset.markupColor no square is built and the chip keeps its
+        --original full-width layout.
+        local colorSwatch = nil
+        if m_wallColor.Supported() then
+            --the popout: the 4x2 swatch grid the chip used to carry inline.
+            --Rebuilt on every open so the ring always marks the type's
+            --current color. anchor is the square the popup hangs off.
+            local CreatePalettePopout = function(anchor)
+                local current = m_wallColor.EntryColor(m_paletteEntries[index])
+                local gridRows = {}
+                for rowIndex = 0,1 do
+                    local swatches = {}
+                    for col = 1,4 do
+                        local colorInfo = m_wallColor.COLORS[rowIndex*4 + col]
+                        --ring the type's current color; Default is lit when
+                        --the type has none stored.
+                        local selected
+                        if current == nil then
+                            selected = colorInfo.default == true
+                        else
+                            selected = (not colorInfo.default) and string.lower(current) == colorInfo.color
+                        end
+                        swatches[#swatches+1] = gui.Panel{
+                            classes = {"markupColorSwatch", cond(selected, "selected")},
+                            bgimage = true,
+                            bgcolor = colorInfo.color,
+                            width = 20,
+                            height = 20,
+                            borderBox = true,
+                            hmargin = 2,
+                            vmargin = 2,
+
+                            data = {
+                                colorInfo = colorInfo,
+                            },
+
+                            press = function(element)
+                                anchor.popup = nil
+                                local chipEntry = m_paletteEntries[index]
+                                if chipEntry == nil then
+                                    return
+                                end
+                                m_wallColor.SetEntryColor(chipEntry, element.data.colorInfo)
+                                --picking a color is also picking the type:
+                                --select the chip like any press on the row
+                                --(this also takes markup focus and fires
+                                --refreshwallcolors tree-wide, updating the
+                                --squares before the asset-driven rebuild).
+                                SelectChip(index)
+                            end,
+                        }
+                    end
+                    gridRows[#gridRows+1] = gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "center",
+                        children = swatches,
+                    }
+                end
+                --popups render in the overlay layer with no style cascade of
+                --their own, so re-attach the panel styles explicitly.
+                return gui.Panel{
+                    styles = GetPanelStyles(),
+                    classes = {"framedPanel"},
+                    --2 rows / 4 cols of 24px cells (20px swatch + 2px
+                    --margins) plus 8px padding each side.
+                    width = 112,
+                    height = 64,
+                    flow = "vertical",
+                    pad = 8,
+                    borderBox = true,
+                    children = gridRows,
+                }
+            end
+
+            colorSwatch = gui.Panel{
+                classes = {"markupColorSwatch"},
+                bgimage = true,
+                --a single 24px square exactly fills the chip's content
+                --height (36 minus 6px borderBox padding each side).
+                width = 24,
+                height = 24,
+                borderBox = true,
+                hmargin = 2,
+                valign = "center",
+                popupPositioning = "panel",
+
+                events = {
+                    create = function(element)
+                        element:FireEvent("refreshwallcolors")
+                    end,
+
+                    --show the type's current color; Default shows the stock
+                    --grey when the type has none stored.
+                    refreshwallcolors = function(element)
+                        local current = m_wallColor.EntryColor(m_paletteEntries[index])
+                        element.selfStyle.bgcolor = current or m_wallColor.COLORS[1].color
+                    end,
+
+                    press = function(element)
+                        if element.popup ~= nil then
+                            element.popup = nil
+                            return
+                        end
+                        element.popup = CreatePalettePopout(element)
+                    end,
+                },
+            }
+        end
+
+        local previewWidth = cond(colorSwatch ~= nil, 70, 100)
         local preview
         if EntryIsOpenable(entry) then
-            preview = CreateDoorLinePreview()
+            preview = CreateDoorLinePreview(wallColor)
         else
-            preview = CreateWallLinePreview(EntryFields(entry))
+            preview = CreateWallLinePreview(EntryFields(entry), wallColor, colorSwatch ~= nil)
         end
 
         --Summaries follow a "<behavior> - <cover/extra>" grammar. Rendered as
@@ -5155,7 +6234,10 @@ CreateMarkupEditor = function()
             end,
 
             gui.Panel{
-                width = "100%-110",
+                --the color square + narrowed preview together take the same
+                --room the full-width preview did, less the 2px saved by the
+                --square being narrower than the old inline grid.
+                width = cond(colorSwatch ~= nil, "100%-108", "100%-110"),
                 height = "auto",
                 valign = "center",
                 flow = "vertical",
@@ -5171,12 +6253,26 @@ CreateMarkupEditor = function()
                 summaryPanel,
             },
 
+            --square + preview assembled via a children list: colorSwatch is
+            --nil on non-supporting engines, and a nil POSITIONAL child would
+            --leave a constructor hole that ends ipairs and drops the preview.
             gui.Panel{
-                width = 100,
+                width = cond(colorSwatch ~= nil, 98, 100),
                 height = "auto",
                 valign = "center",
                 flow = "horizontal",
-                preview,
+                children = (function()
+                    local kids = {}
+                    kids[#kids+1] = colorSwatch
+                    kids[#kids+1] = gui.Panel{
+                        width = previewWidth,
+                        height = "auto",
+                        valign = "center",
+                        flow = "horizontal",
+                        preview,
+                    }
+                    return kids
+                end)(),
             },
         }
     end
@@ -5291,6 +6387,9 @@ CreateMarkupEditor = function()
                 end
                 if contentPanel ~= nil and contentPanel.valid then
                     contentPanel:FireEventTree("refreshdoorchip")
+                    --a palette change can change which type is selected (and a
+                    --remote edit can change its color) - resync the swatches.
+                    contentPanel:FireEventTree("refreshwallcolors")
                 end
             end,
 
@@ -5415,7 +6514,8 @@ CreateMarkupEditor = function()
 
                 local sortedWalls = {}
                 for id,wall in pairs(assets.walls) do
-                    if (not wall.hidden) and wall.invisible == true and (not paletteGuids[id]) then
+                    --wall types private to other maps never appear here.
+                    if (not wall.hidden) and wall.invisible == true and (not paletteGuids[id]) and m_mapScope.WallAvailableOnThisMap(wall) then
                         sortedWalls[#sortedWalls+1] = {
                             id = id,
                             wall = wall,
@@ -5724,14 +6824,16 @@ CreateMarkupEditor = function()
             end,
 
             think = function(element)
-                --The Delete tool takes map focus so it gets maphover/mappress
-                --(hover-highlight + click-to-delete-one-segment). Own map focus
-                --only while Delete is the active markup tool and this panel is
-                --focused; release it and drop any highlight otherwise. Gating on
-                --focus keeps us from stealing map focus from ability targeting
-                --etc. This runs before the m_mode guard so switching mode/tool
-                --tears the overlay down promptly.
-                local wantDelete = m_mode == "walls" and m_toolId == "delete"
+                --The Delete and Apply Type (retype) tools take map focus so
+                --they get maphover/mappress (hover-highlight + click-on-one-
+                --segment). Own map focus only while one of them is the active
+                --markup tool and this panel is focused; release it and drop
+                --any highlight otherwise. Gating on focus keeps us from
+                --stealing map focus from ability targeting etc. This runs
+                --before the m_mode guard so switching mode/tool tears the
+                --overlay down promptly.
+                local wantDelete = m_mode == "walls"
+                    and (m_toolId == "delete" or m_toolId == "retype")
                     and m_markupHud ~= nil and m_markupHud.valid
                     and gui.ChildHasFocus(m_markupHud)
 
@@ -5744,6 +6846,7 @@ CreateMarkupEditor = function()
                         element.mapfocus = false
                     end
                     ClearDeleteHighlight()
+                    m_mapScope.retypeAnchor = nil
                 end
 
                 if m_mode ~= "walls" then
@@ -5781,7 +6884,12 @@ CreateMarkupEditor = function()
                     --setting, since it publishes no wall selection -- which is
                     --why solid blocks did not snap while thin walls did.
                     --Needs an engine build; older engines ignore the field.
-                    snapToGrid = true,
+                    --NOT for Apply Type: its rectangle is an edge-SELECTION
+                    --gesture, and a snapped border landing exactly on a tile
+                    --boundary would catch every wall lying on that boundary -
+                    --a free rect lets the user offset slightly to include or
+                    --exclude a boundary wall unambiguously.
+                    snapToGrid = toolInfo.id ~= "retype",
                     --Show the engine's editor cursor dot (where a stroke would
                     --start), like the Building editor's tools do. Not for the
                     --Delete sentinel: it highlights the hovered wall segment
@@ -5810,9 +6918,113 @@ CreateMarkupEditor = function()
                 --arrives via maphover/mappress.
                 if m_toolId == "erase" then
                     element:FireEvent("markuperase", path)
+                elseif m_toolId == "retype" then
+                    element:FireEvent("markupretype", path)
                 elseif m_toolId == "solidrect" or m_toolId == "solidpoly" or m_toolId == "solidfree" then
                     element:FireEvent("markupsolid", path)
                 end
+            end,
+
+            --Apply Type rectangle stroke: convert every markup wall edge the
+            --rectangle touches to the selected type, at edge granularity. A
+            --degenerate (click-sized) stroke routes to the single-edge click
+            --path instead - whether a plain click arrives here, via mappress,
+            --or both depends on how the engine arbitrates the live rectangle
+            --tool against map focus, and all three are safe (see TOOL_RETYPE).
+            markupretype = function(element, path)
+                --the marquee (or click) is over: drop the drag anchor and the
+                --live preview before applying.
+                m_mapScope.retypeAnchor = nil
+                ClearDeleteHighlight()
+
+                local floor = game.currentFloor
+                if floor == nil then
+                    return
+                end
+                local ok, points = pcall(function()
+                    return path.points
+                end)
+                if not ok or points == nil or #points < 4 then
+                    if not ok then
+                        dmhub.Debug("MARKUP:: Apply Type needs an engine build with MapPath points support")
+                    end
+                    return
+                end
+
+                local minx, miny = points[1], points[2]
+                local maxx, maxy = points[1], points[2]
+                for i = 1, #points - 1, 2 do
+                    local x, y = points[i], points[i+1]
+                    if x < minx then minx = x end
+                    if x > maxx then maxx = x end
+                    if y < miny then miny = y end
+                    if y > maxy then maxy = y end
+                end
+
+                if (maxx - minx) < 0.12 and (maxy - miny) < 0.12 then
+                    --a click, not a marquee. FindNearestDeleteSegment matches
+                    --atMouse (the cursor is still at the release point), so
+                    --the passed point only feeds older-engine fallbacks.
+                    element:FireEvent("markupretypeclick", { x = (minx + maxx)*0.5, y = (miny + maxy)*0.5 })
+                    return
+                end
+
+                local entry = m_paletteEntries[m_selectedIndex or 0]
+                if entry == nil then
+                    return
+                end
+                local guid = MaterializeEntry(entry)
+                if guid == nil then
+                    return
+                end
+
+                local okCall = pcall(function()
+                    floor:RetypeWallEdges{
+                        wallid = guid,
+                        rect = { minx, miny, maxx, maxy },
+                    }
+                end)
+                if not okCall then
+                    dmhub.Debug("MARKUP:: Apply Type needs an engine build with RetypeWallEdges support")
+                end
+            end,
+
+            --Apply Type click: convert the WHOLE drawn operation under the
+            --cursor to the selected palette type (segment mode retypes every
+            --op with an edge coincident with the touched one). Reached from
+            --mappress AND from a degenerate rectangle stroke; double delivery
+            --is harmless because RetypeWallEdges skips ops already of the
+            --target type.
+            markupretypeclick = function(element, point)
+                local floor = game.currentFloor
+                if floor == nil then
+                    return
+                end
+                local seg = FindNearestDeleteSegment(point)
+                if seg == nil then
+                    return
+                end
+                local entry = m_paletteEntries[m_selectedIndex or 0]
+                if entry == nil then
+                    return
+                end
+                local guid = MaterializeEntry(entry)
+                if guid == nil then
+                    return
+                end
+                local okCall = pcall(function()
+                    floor:RetypeWallEdges{
+                        wallid = guid,
+                        segment = { seg.a.x, seg.a.y, seg.b.x, seg.b.y },
+                    }
+                end)
+                if not okCall then
+                    dmhub.Debug("MARKUP:: Apply Type needs an engine build with RetypeWallEdges support")
+                    return
+                end
+                --the highlighted edge just changed type; recompute on the
+                --next hover so the tint follows the new state.
+                ClearDeleteHighlight()
             end,
 
             --rectangle stroke: erase every invisible wall - and, on engine
@@ -5913,13 +7125,83 @@ CreateMarkupEditor = function()
                 }
             end,
 
-            --Delete tool hover: highlight the single wall segment nearest the
-            --cursor so the user sees exactly what a click will remove.
+            --Delete / Apply Type hover previews, tinted delete red for Delete
+            --and the TARGET type's color for Apply Type (the hover literally
+            --shows what will change):
+            --  Delete            - the single segment a click clears.
+            --  Apply Type hover  - the WHOLE wall under the cursor (a click
+            --                      retypes the entire drawn operation).
+            --  Apply Type drag   - the edges the current marquee rect would
+            --                      convert, live as the rect grows.
             maphover = function(element, loc, point)
-                if m_mode ~= "walls" or m_toolId ~= "delete" then
+                if m_mode ~= "walls" or (m_toolId ~= "delete" and m_toolId ~= "retype") then
                     ClearDeleteHighlight()
                     return
                 end
+
+                if m_toolId == "retype" then
+                    local entry = m_paletteEntries[m_selectedIndex or 0]
+                    local color = m_wallColor.EntryColor(entry) or "#4da6ff"
+
+                    --marquee-in-progress: while the left button is held, the
+                    --press point (or, when the press was swallowed by the
+                    --live rectangle tool, the first held-button hover)
+                    --anchors the rect and the captured edges highlight live.
+                    if element:GetMouseButton(0) then
+                        local anchor = m_mapScope.retypeAnchor
+                        if anchor == nil and point ~= nil then
+                            anchor = { x = point.x, y = point.y }
+                            m_mapScope.retypeAnchor = anchor
+                        end
+                        if anchor ~= nil and point ~= nil
+                            and (math.abs(point.x - anchor.x) >= 0.12 or math.abs(point.y - anchor.y) >= 0.12) then
+                            local floor = game.currentFloor
+                            local segments = nil
+                            if floor ~= nil then
+                                pcall(function()
+                                    segments = floor:GetWallEdgesInRect{
+                                        rect = { anchor.x, anchor.y, point.x, point.y },
+                                        --edges already of the target type are
+                                        --omitted, matching what the retype
+                                        --will skip. nil for unmaterialized
+                                        --presets (no exclusion).
+                                        wallid = entry ~= nil and entry.guid or nil,
+                                    }
+                                end)
+                            end
+                            m_mapScope.ShowSegmentsHighlight(segments or {}, color)
+                            return
+                        end
+                    else
+                        m_mapScope.retypeAnchor = nil
+                    end
+
+                    local seg = FindNearestDeleteSegment(point)
+                    if seg == nil then
+                        ClearDeleteHighlight()
+                        return
+                    end
+                    --a click converts the whole drawn operation, so preview
+                    --the whole wall path under the cursor. The derived wall
+                    --is the visual unit the user is pointing at; a merged or
+                    --multi-path operation can differ slightly, but this is
+                    --the honest approximation available without op access.
+                    local pts = seg.points
+                    if pts ~= nil and #pts >= 4 then
+                        local segments = {}
+                        for i = 1, #pts - 3, 2 do
+                            segments[#segments+1] = pts[i]
+                            segments[#segments+1] = pts[i+1]
+                            segments[#segments+1] = pts[i+2]
+                            segments[#segments+1] = pts[i+3]
+                        end
+                        m_mapScope.ShowSegmentsHighlight(segments, color)
+                    else
+                        ShowDeleteHighlight(seg, color)
+                    end
+                    return
+                end
+
                 local seg = FindNearestDeleteSegment(point)
                 if seg == nil then
                     ClearDeleteHighlight()
@@ -5933,8 +7215,23 @@ CreateMarkupEditor = function()
             --Delete tool click: clear just the segment under the cursor (or the
             --minimum stable span around it - see DeleteSegmentGeometry), leaving
             --the rest of the wall intact, instead of wiping the whole wall.
+            --Apply Type routes its click to the shared single-edge handler.
             mappress = function(element, loc, point)
-                if m_mode ~= "walls" or m_toolId ~= "delete" then
+                if m_mode ~= "walls" then
+                    return
+                end
+                if m_toolId == "retype" then
+                    --the press anchors a potential marquee (maphover shows
+                    --the live rect's captured edges while the button stays
+                    --down) and, when it lands on a wall, converts that whole
+                    --drawn operation immediately.
+                    if point ~= nil then
+                        m_mapScope.retypeAnchor = { x = point.x, y = point.y }
+                    end
+                    element:FireEvent("markupretypeclick", point)
+                    return
+                end
+                if m_toolId ~= "delete" then
                     return
                 end
                 local floor = game.currentFloor
@@ -6377,6 +7674,113 @@ CreateMarkupEditor = function()
             },
         }
 
+        --"Dynamic Light": the zone type only applies where the map's light
+        --level is below the slider's threshold, recomputed live as lights
+        --move and the time of day changes. Double-gated: the engine must
+        --support the sampling API (new), and the KEYWORD must have "Can Use
+        --Dynamic Light" checked in its editor -- most zone types (Water,
+        --Difficult Terrain) have no use for it, so only opted-in types
+        --(Darkness) grow the second row. Preset chips have no keyword yet
+        --and so never show it; materialize the keyword and check the flag.
+        local dynEligible = false
+        if kw ~= nil then
+            pcall(function()
+                dynEligible = kw:try_get("dynamicLight", false) == true
+            end)
+        end
+
+        local dynRow = nil
+        if dynEligible and m_dynamicLight.Supported() then
+            local dynPct = m_dynamicLight.GetThreshold(entry.keywordid)
+
+            local dynSlider
+            dynSlider = gui.PercentSlider{
+                --the args table REPLACES PercentSlider's own classes list, so
+                --"percentSlider" must ride along or the control loses its look.
+                classes = {"percentSlider", cond(dynPct == nil, "hidden")},
+                width = 100,
+                height = 14,
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+                value = (dynPct or 30) / 100,
+                hover = SideTooltip("Light threshold: tiles where the light level is below this count as dark, and this zone type applies only there."),
+                confirm = function(element)
+                    local keywordid = entry.keywordid
+                    if keywordid == nil then
+                        return
+                    end
+                    local pct = round(element.value * 100)
+                    if pct < 1 then
+                        pct = 1
+                    end
+                    m_dynamicLight.Set(keywordid, pct)
+                    --sample the new threshold NOW: waiting for the ticker
+                    --leaves a visible blink where the zone rebuilds unfiltered
+                    --(new threshold = no sample yet) and then snaps back a
+                    --poll later.
+                    pcall(m_dynamicLight.Sample)
+                end,
+            }
+
+            local dynButton
+            dynButton = gui.Panel{
+                classes = {"markupEntireMap", cond(dynPct ~= nil, "lit")},
+                width = 78,
+                height = 16,
+                halign = "left",
+                valign = "center",
+                bgimage = "panels/square.png",
+                hover = SideTooltip("Calculate this zone type dynamically from the light on the map: it only applies where the light level is below the threshold. Updates as lights move, doors close and night falls. Painted zones and the Entire Map blanket are both filtered."),
+
+                click = function(element)
+                    --the row only shows for a resolved keyword (the
+                    --dynamicLight flag lives on it), so this is just the
+                    --dead-id healing path, same as the Entire Map pill.
+                    local keywordid = EnsureZoneTypeKeyword(index)
+                    if keywordid == nil then
+                        return
+                    end
+
+                    local lit = m_dynamicLight.GetThreshold(keywordid) == nil
+                    if lit then
+                        local pct = round(dynSlider.value * 100)
+                        if pct < 1 then
+                            pct = 30
+                        end
+                        m_dynamicLight.Set(keywordid, pct)
+                    else
+                        m_dynamicLight.Set(keywordid, nil)
+                    end
+                    element:SetClass("lit", lit)
+                    dynSlider:SetClass("hidden", not lit)
+                    --sample immediately: enabling carves in the same tick
+                    --(no unfiltered blink), disabling clears the stored dark
+                    --sets and refreshes the auras without waiting a poll.
+                    pcall(m_dynamicLight.Sample)
+                end,
+
+                gui.Label{
+                    classes = {"markupEntireMapLabel", "sizeXs"},
+                    text = "Dynamic Light",
+                    fontSize = 10,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                },
+            }
+
+            dynRow = gui.Panel{
+                width = "100%",
+                height = 24,
+                flow = "horizontal",
+
+                dynButton,
+                dynSlider,
+            }
+        end
+
         --A wider version of m_zoneStripes.Swatch for the row's right-side
         --visual, mirroring the wall rows' line-preview column: the stripe
         --pattern at the angle the map will actually paint.
@@ -6386,72 +7790,12 @@ CreateMarkupEditor = function()
             swatchColor = "white"
         end
 
-        return gui.Panel{
-            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+        --the classic chip content; on engines with light sampling the chip
+        --grows a second row holding the Dynamic Light controls.
+        local topRow = gui.Panel{
             width = "100%",
-            height = 36,
-            halign = "center",
+            height = 24,
             flow = "horizontal",
-            bgimage = true,
-            pad = 6,
-            borderBox = true,
-            vmargin = 1,
-
-            data = {
-                index = index,
-            },
-
-            press = function(element)
-                m_zoneSelectedType = element.data.index
-                --a fresh type selection paints into that type's existing zone
-                --(or a new one), not whatever zone was last targeted.
-                m_zoneTargetId = nil
-                zonePalettePanel:FireEvent("refreshchips")
-                RefreshZoneUI()
-                --picking a zone type must arm the paint tool by itself: without
-                --this the next click on the map lands with no custom map tool
-                --registered and silently does nothing.
-                TakeMarkupFocus()
-            end,
-
-            rightClick = function(element)
-                element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Edit Zone Type...",
-                            click = function()
-                                element.popup = nil
-                                EditZoneTypeKeyword(element.data.index)
-                            end,
-                        },
-                        {
-                            text = "Remove from Palette",
-                            click = function()
-                                element.popup = nil
-                                --drop the blanket with the chip: otherwise it
-                                --keeps applying to the map with no UI left to
-                                --turn it off.
-                                local removed = m_zonePaletteEntries[element.data.index]
-                                if removed ~= nil and removed.keywordid ~= nil
-                                    and m_entireMap.IsSet(removed.keywordid) then
-                                    m_entireMap.Set(removed.keywordid, false)
-                                    pcall(function()
-                                        dmhub.RefreshMapAuras()
-                                    end)
-                                end
-                                table.remove(m_zonePaletteEntries, element.data.index)
-                                if m_zoneSelectedType > #m_zonePaletteEntries then
-                                    m_zoneSelectedType = #m_zonePaletteEntries
-                                end
-                                if m_zoneSelectedType < 1 then
-                                    m_zoneSelectedType = 1
-                                end
-                                SaveZonePalette(m_zonePaletteEntries)
-                            end,
-                        },
-                    },
-                }
-            end,
 
             gui.Panel{
                 width = "100%-104",
@@ -6493,6 +7837,88 @@ CreateMarkupEditor = function()
                 borderColor = "@border",
             },
         }
+
+        return gui.Panel{
+            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+            width = "100%",
+            height = cond(dynRow ~= nil, 60, 36),
+            halign = "center",
+            flow = "vertical",
+            bgimage = true,
+            pad = 6,
+            borderBox = true,
+            vmargin = 1,
+
+            data = {
+                index = index,
+            },
+
+            press = function(element)
+                m_zoneSelectedType = element.data.index
+                --a fresh type selection paints into that type's existing zone
+                --(or a new one), not whatever zone was last targeted.
+                m_zoneTargetId = nil
+                zonePalettePanel:FireEvent("refreshchips")
+                RefreshZoneUI()
+                --picking a zone type must arm the paint tool by itself: without
+                --this the next click on the map lands with no custom map tool
+                --registered and silently does nothing.
+                TakeMarkupFocus()
+            end,
+
+            rightClick = function(element)
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Edit Zone Type...",
+                            click = function()
+                                element.popup = nil
+                                EditZoneTypeKeyword(element.data.index)
+                            end,
+                        },
+                        {
+                            text = "Remove from Palette",
+                            click = function()
+                                element.popup = nil
+                                --drop the blanket (and the dynamic-light
+                                --config) with the chip: otherwise they keep
+                                --applying to the map with no UI left to turn
+                                --them off.
+                                local removed = m_zonePaletteEntries[element.data.index]
+                                if removed ~= nil and removed.keywordid ~= nil then
+                                    if m_entireMap.IsSet(removed.keywordid) then
+                                        m_entireMap.Set(removed.keywordid, false)
+                                        pcall(function()
+                                            dmhub.RefreshMapAuras()
+                                        end)
+                                    end
+                                    m_dynamicLight.Set(removed.keywordid, nil)
+                                end
+                                table.remove(m_zonePaletteEntries, element.data.index)
+                                if m_zoneSelectedType > #m_zonePaletteEntries then
+                                    m_zoneSelectedType = #m_zonePaletteEntries
+                                end
+                                if m_zoneSelectedType < 1 then
+                                    m_zoneSelectedType = 1
+                                end
+                                SaveZonePalette(m_zonePaletteEntries)
+
+                                --a map-scoped zone type with no zones painted
+                                --is orphaned once its chip is gone: delete the
+                                --keyword rather than stranding it hidden in
+                                --the table.
+                                if removed ~= nil and removed.keywordid ~= nil then
+                                    m_mapScope.DeleteKeywordIfOrphaned(removed.keywordid, m_zonePaletteEntries)
+                                end
+                            end,
+                        },
+                    },
+                }
+            end,
+
+            topRow,
+            dynRow,
+        }
     end
 
     zonePalettePanel = gui.Panel{
@@ -6503,9 +7929,10 @@ CreateMarkupEditor = function()
 
         --monitorAssets: keyword table edits change chip names/colors/summaries.
         monitorAssets = true,
-        --zoneentiremap as well as the palette: the "Entire Map" pills read it,
-        --and it can change from another client (or from an undo).
-        multimonitor = {"markup:zonepalette", "markup:zoneentiremap"},
+        --zoneentiremap and zonedynamiclight as well as the palette: the
+        --"Entire Map" and "Dynamic Light" pills read them, and they can
+        --change from another client (or from an undo).
+        multimonitor = {"markup:zonepalette", "markup:zoneentiremap", "markup:zonedynamiclight"},
 
         events = {
             monitor = function(element)
@@ -10047,6 +11474,16 @@ CreateMarkupEditor = function()
         height = "auto",
         flow = "vertical",
         styles = GetPanelStyles(),
+
+        --The host (dock container or rail window) fires this when a press
+        --lands anywhere on the panel that its own controls did not handle
+        --- the background, the title bar. It has already put focus on this
+        --element; TakeMarkupFocus additionally re-fires the current mode's
+        --tool think, without which the very next click can land before the
+        --0.3s poll re-registers the map tool and silently do nothing.
+        panelFocused = function(element)
+            TakeMarkupFocus()
+        end,
 
         showpanel = function(element)
             --the overlay renders markup zones whenever the panel is open,

@@ -166,6 +166,27 @@ local mySetting = setting{
 }
 ```
 
+### Panel Background Processes
+A dockable panel can keep work running after the panel itself is closed by registering a **background process** -- a coroutine tracked by the panel framework. While any process for a panel is running, the panel's icon-rail button shows a small spinning gear (accent-colored) in its bottom-left corner, whether the panel is open or not. The first client is the Monster AI: Start AI registers a process, and closing the panel does not stop the AI.
+
+```lua
+local process = DockablePanel.StartProcess{
+    panel = "Monster AI",          -- the DockablePanel.Register name
+    id = "monster-ai",             -- unique per panel; restarting an id replaces it
+    coroutine = function(process)  -- runs as a dmhub.Coroutine
+        while true do
+            coroutine.yield(0.1)
+            if mod.unloaded or process.stopRequested then
+                return
+            end
+            -- do work
+        end
+    end,
+}
+```
+
+Stopping is **cooperative**: `DockablePanel.StopProcess(panelName, id)` (or `process:Stop()`) only sets `process.stopRequested`; the coroutine must poll it -- and its own `mod.unloaded` -- and return. `DockablePanel.HasActiveProcess(panelName)` reports liveness (it is what the rail gear reads), and `DockablePanel.GetProcess(panelName, id)` returns the handle. Full details in the "Panel background processes" section of `DMHub Core UI/DockablePanel.lua`.
+
 ## Lua File Constraints
 
 **Syntax-check before you deploy.** The repo ships a Lua 5.4.7 interpreter built from the

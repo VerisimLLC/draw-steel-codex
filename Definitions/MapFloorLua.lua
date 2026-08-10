@@ -19,9 +19,9 @@
 --- @field floorOpacity any 
 --- @field floorOpacityNoUpload any 
 --- @field ceilingHeightInTiles number The floor's slab height in tiles above floor zero (the primary floor slab's height; layers report their parent floor's). Solid terrain or wall voxels stack no higher than this. Whether the plane caps the floor is 'hasCeiling'.
---- @field ceiling string The floor's ceiling override: "auto" (default -- has a ceiling when another floor is above it or the floor is below ground level), "yes" (always has a ceiling), or "no" (open-topped). Read inside pcall on engine builds that may predate the ceiling bridge.
+--- @field ceiling any The floor's ceiling override: 'auto' (default -- has a ceiling when another floor is above it or the floor is below ground level), 'yes' (always has a ceiling), or 'no' (open-topped). See hasCeiling for the resolved value.
 --- @field hasCeiling boolean Read-only. Whether this floor is capped by a ceiling at its slab height, after resolving the 'ceiling' override and the automatic rule (another floor above it, or below ground level). Layers report their parent floor's value.
---- @field floorHeightInTiles number
+--- @field floorHeightInTiles number 
 --- @field shadowCasting any 
 --- @field renderOrder any 
 --- @field shareLighting any 
@@ -189,6 +189,20 @@ end
 --- @param options {x: nil|number, y: nil|number, maxDistance: nil|number, invisibleOnly: nil|boolean, atMouse: nil|boolean}
 --- @return nil|{wallid: string, wallheight: number, distance: number, points: number[], segmentIndex: number, segment: number[]}
 function MapFloorLua:GetNearestWallSegment(optionsVal)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RetypeWallEdges: Changes the wall type of drawn markup wall geometry on this floor. Options: wallid (required, the new wall asset id) plus exactly one selection: segment = {ax, ay, bx, by} (floor-space endpoints of one drawn edge, e.g. GetNearestWallSegment's segment result - every operation with an edge coincident with it is retyped WHOLE, the click-a-wall gesture) or rect = {x1, y1, x2, y2} (floor-space axis-aligned rectangle - every operation edge intersecting it, boundary inclusive, is retyped at EDGE granularity). Only non-erase, non-solid wall operations whose current wall asset is invisible are considered (markup scope; art walls are never touched). In rect mode an operation with only some edges caught is split at its own vertices into a kept part and a retyped part - no polygon clipping is involved - and every replacement keeps the original operation's timestamp (so it re-applies in the same order relative to erases) under a new id, which is what makes clients rebuild. One undoable command per call. Returns the number of edges retyped. Probe inside pcall: older engine builds lack this method.
+--- @param options {wallid: string, segment: nil|number[], rect: nil|number[]}
+--- @return number
+function MapFloorLua:RetypeWallEdges(optionsVal)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetWallEdgesInRect: Read-only companion to RetypeWallEdges' rect mode, for live previews: returns the drawn markup wall edges a rect-mode call with the same rectangle would retype, as a flat interleaved list {a1x, a1y, b1x, b1y, a2x, ...} of floor-space edge endpoints. Options: rect = {x1, y1, x2, y2} (required); wallid (optional - edges of operations already of this type are omitted, matching what a retype to that type would skip). Same eligibility as RetypeWallEdges: non-erase, non-solid wall operations with an invisible wall asset. Capped at 300 edges. Probe inside pcall: older engine builds lack this method.
+--- @param options {rect: number[], wallid: nil|string}
+--- @return number[]
+function MapFloorLua:GetWallEdgesInRect(optionsVal)
 	-- dummy implementation for documentation purposes only
 end
 

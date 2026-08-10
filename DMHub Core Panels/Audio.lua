@@ -302,6 +302,9 @@ DockablePanel.Register{
 	hasNewContent = function()
 		return module.HasNovelContent("audio")
 	end,
+	newContentCount = function()
+		return gui.NovelContentCount("audio")
+	end,
 }
 
 --Audio Studio: the session-prep power surface. Deliberately a LaunchablePanel

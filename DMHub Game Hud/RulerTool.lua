@@ -21,8 +21,55 @@ local function CreateRulerPanel()
 		flow = "vertical",
         pad = 16,
 
+		--Measuring mode follows FOCUS, not mere existence.
+		--
+		--This used to arm on create and disarm on destroy, so the app
+		--stayed in measuring mode for as long as the panel was open --
+		--even after you clicked the Building editor and it plainly had
+		--the focus ring. With several tool panels on screen at once, the
+		--one you last clicked is the one that should be driving the map,
+		--so the signal has to track focus the way the other tool panels'
+		--do.
+		--
+		--Focus is taken on create so opening the panel arms it
+		--immediately, which is what it always did; the difference is that
+		--another panel taking focus now stands it back down.
 		create = function(element)
+			dmhub.rulerToolActive = gui.ChildHasFocus(element)
+			--Deferred by a beat: taking focus inside create is too early
+			--to stick (the panel is still being mounted -- doing it here
+			--left focus nil and the tool disarmed until you clicked it).
+			element:ScheduleEvent("armOnOpen", 0.01)
+		end,
+
+		--opening the panel arms it, which is what it has always done; the
+		--change is that another panel taking focus now stands it down.
+		armOnOpen = function(element)
+			if element.valid then
+				gui.SetFocus(element)
+			end
+		end,
+
+		childfocus = function(element)
 			dmhub.rulerToolActive = true
+		end,
+
+		childdefocus = function(element)
+			dmhub.rulerToolActive = false
+		end,
+
+		--a dock tab switch away from this panel is a defocus too.
+		showpanel = function(element)
+			if not gui.ChildHasFocus(element) then
+				gui.SetFocus(element)
+			end
+		end,
+
+		hidepanel = function(element)
+			if gui.ChildHasFocus(element) then
+				gui.SetFocus(nil)
+			end
+			dmhub.rulerToolActive = false
 		end,
 
 		destroy = function(element)
@@ -48,12 +95,25 @@ local function CreateRulerPanel()
 end
 
 
-LaunchablePanel.Register{
+DockablePanel.Register{
 	name = "Measuring Tool",
     menu = "tools",
 	icon = "icons/icon_tool/icon_tool_101.png",
-	halign = "right",
-	valign = "top",
+	--summoned from the Tools menu it opens as a floating window over the
+	--map (like the launchable dialog it used to be), on the right where
+	--the old dialog sat. It can still be dragged into a dock.
+	preferFloating = true,
+	floatingHalign = "right",
+	vscroll = false,
+	minHeight = 100,
+	maxHeight = 400,
+	--the measuring modes arm map tools, so the panel needs to survive
+	--Escape and map clicks the way the other tool panels do.
+	stickyFocus = true,
+	--a press anywhere on the panel -- its background, its title bar --
+	--claims focus, so clicking it takes focus AWAY from whichever other
+	--tool panel held it (you are measuring now, not drawing walls).
+	focusOnClick = true,
 	content = function()
 		return CreateRulerPanel()
 	end,

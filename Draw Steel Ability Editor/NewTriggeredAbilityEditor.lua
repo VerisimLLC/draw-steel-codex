@@ -186,9 +186,10 @@ local DESPAWN_OPTIONS = {
       * fumble -- has a hide() predicate gated on power-roll outcome structure
         that DS never satisfies; the standard filter already drops it.
       * hit -- deregistered in MCDMRules.lua:1277.
-      * Aura-specific ids (onenter, casterendturnaura) never hit the main
-        picker because they live in Aura.lua and are only surfaced in the
-        aura-embed editor (which falls through to classic dispatch).
+      * Aura-specific ids (onenter, casterstartturnaura, casterendturnaura)
+        never hit the main picker because they live in Aura.lua and are only
+        surfaced in the aura-embed editor (which falls through to classic
+        dispatch).
 ]]
 local TRIGGER_METADATA = {
     -- Common (priority-sorted)
@@ -1334,7 +1335,8 @@ local function buildSetupSection(ability, refreshSection, fireChange)
     -- condition(ability) predicate (e.g. "attacker" only valid for
     -- attacked / hit / losehitpoints / inflictcondition / winded / dying;
     -- "pathmoved" / "pathmovednodest" only for finishmove; "aura" only
-    -- for casterendturnaura; "subject" only when subject ~= self -- the
+    -- for the caster-turn aura triggers (casterstartturnaura /
+    -- casterendturnaura); "subject" only when subject ~= self -- the
     -- last shows as "The Trigger Subject" per design doc gotcha 6).
     local targetingChildren = AbilityEditor.BuildTargetingSection(ability, fireChange)
     for _, c in ipairs(targetingChildren) do

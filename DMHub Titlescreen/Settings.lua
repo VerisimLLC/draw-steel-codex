@@ -23,6 +23,17 @@ setting{
     default = 0,
 }
 
+--Gates the in-development Patreon feature: the Patreon tab in the module
+--browser and the Patreon/email sections of the account settings. No editor
+--field, so it never appears in the settings menus; flip it on with
+--/set patreonsub true. Remove this setting once the feature ships.
+setting{
+    id = "patreonsub",
+    description = "Show the in-development Patreon features.",
+    storage = "preference",
+    default = false,
+}
+
 setting{
     id = "disableparallax",
     description = "Disable Parallax",
@@ -843,11 +854,39 @@ setting{
 --dev-only: when set for a game, the game's cloud assets are replaced by a
 --local directory tree of YAML files (see the /localassets macro). Takes
 --effect on the next game load. Edited via the custom Local Assets section
---in the Editing settings tab (no generic editor).
+--in the Editing settings tab (no generic editor). Superseded by
+--localassets:dirs when that is non-empty; kept as a fallback so games
+--configured before the multi-directory feature keep working.
 setting{
 	id = "localassets:dir",
 	description = "Local Assets Directory (dev)",
 	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only: ordered list of local asset directories, stored as a single
+--newline-delimited string. The FIRST entry is the "top" directory: highest
+--precedence (an item present in several directories loads from the top-most
+--one holding it) and the home for newly created entries. Edited via the
+--custom Local Assets section in the Editing settings tab (no generic
+--editor); the engine reads it in LocalAssetDirectory.MaybeActivate.
+setting{
+	id = "localassets:dirs",
+	description = "Local Assets Directories (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): explicit path to the git executable used
+--by the local-assets read-only git integration (status badges in the file
+--browser). When empty, the engine auto-detects git from PATH and common
+--install locations; set this only when auto-detection fails. Edited via the
+--git row in the Local Assets settings section; the engine reads it in
+--GitStatusService.ResolveGitPath.
+setting{
+	id = "localassets:gitpath",
+	description = "Git Executable for Local Assets (dev)",
+	storage = "preference",
 	default = "",
 }
 

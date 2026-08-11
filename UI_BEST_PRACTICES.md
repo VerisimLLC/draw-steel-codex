@@ -549,6 +549,12 @@ gui.Panel{ width = "100%-20", hpad = 10 }
 
 The same applies to `vpad` and `height`. `borderBox` works with both fixed pixel widths and percentage widths.
 
+**Two exceptions to the `borderBox` rule.**
+
+*Labels and buttons are already border-box.* A `gui.Label` (and therefore a `gui.Button`, which is a label) does not lay its padding out as box geometry at all -- `SheetLabel` pushes the pad into the TMP text margin and reports zero pad to the layout, so padding insets the *text* and leaves the element's rendered size untouched. A `sizeL` button is 175px wide with or without `hpad = 12`; only the text gutter changes (and, because `minFontSize` auto-shrink now has less room, a long label starts shrinking sooner instead of running edge to edge). Do not add `borderBox` to a label to "compensate" -- there is nothing to subtract.
+
+*`borderBox` only acts within the style rule that also sets the width.* The flag subtracts padding from `width`/`height` as that same style is applied, so setting `borderBox` on a panel whose width arrives from a *class* rule -- e.g. `gui.Button{ classes = {"sizeL"}, hpad = 12, borderBox = true }`, where the 175 comes from the `sizeL` rule -- does nothing at all. Put `borderBox` in the same rule (or the same constructor call) as the width it is meant to modify.
+
 ### Scrolling
 
 Set `vscroll = true` on a container panel to enable vertical scrolling.

@@ -449,10 +449,19 @@ ThemeEngine.RegisterTheme{
         },
 
         --[[ Button (sizes + states + variants) ]]
+        -- Horizontal padding note: a button is a Label, and SheetLabel routes pad
+        -- into the TMP text margin while reporting zero pad to the layout (see
+        -- SheetLabel._lpad). So hpad here does NOT widen the button -- it only
+        -- insets the text, which makes the minFontSize auto-shrink start earlier
+        -- and guarantees a gutter instead of letting a long label run edge to
+        -- edge. Do NOT add borderBox to compensate; there is nothing to subtract.
+        -- Each size rule sets its own hpad because the small sizes are only a few
+        -- dozen pixels wide and would have no content area left at the large value.
         {
             selectors = {"label", "button"},
             height = 31,
             width = 129,
+            hpad = 10,
             bgimage = true,
             fontFace = "@label",
             fontSize = 16,
@@ -472,6 +481,7 @@ ThemeEngine.RegisterTheme{
             width = 24,
             height = 18,
             fontSize = 10,
+            hpad = 2,
             priority = 5,
         },
         {
@@ -479,6 +489,7 @@ ThemeEngine.RegisterTheme{
             width = 31,
             height = 20,
             fontSize = 12,
+            hpad = 3,
             priority = 5,
         },
         {
@@ -486,6 +497,7 @@ ThemeEngine.RegisterTheme{
             width = 57,
             height = 26,
             fontSize = 14,
+            hpad = 6,
             priority = 5,
         },
         {
@@ -493,6 +505,7 @@ ThemeEngine.RegisterTheme{
             width = 129,
             height = 31,
             fontSize = 16,
+            hpad = 10,
             priority = 5,
         },
         {
@@ -500,6 +513,7 @@ ThemeEngine.RegisterTheme{
             width = 175,
             height = 35,
             fontSize = 18,
+            hpad = 12,
             priority = 5,
         },
         {
@@ -507,6 +521,7 @@ ThemeEngine.RegisterTheme{
             width = 175,
             height = 35,
             fontSize = 18,
+            hpad = 12,
             priority = 5,
         },
         {
@@ -514,6 +529,7 @@ ThemeEngine.RegisterTheme{
             width = 175,
             height = 35,
             fontSize = 18,
+            hpad = 12,
             priority = 5,
         },
         {
@@ -522,6 +538,13 @@ ThemeEngine.RegisterTheme{
             border = 0,
             borderWidth = 0,
             bgcolor = "clear",
+            -- Icon buttons hold a glyph, not text, and the glyph child is sized
+            -- "100%" of the parent's content area -- which ApplyChildElement
+            -- shrinks by the pad. Measured live, the size classes' hpad does not
+            -- currently reach hasIcon buttons (they stay 24x24 / 32x32 with a
+            -- full-bleed glyph either way), so this is belt-and-braces: it keeps
+            -- the text padding above from ever insetting an icon.
+            pad = 0,
         },
         {
             selectors = {"button", "disabled"},

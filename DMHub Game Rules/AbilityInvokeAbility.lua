@@ -153,8 +153,210 @@ local function GetParentPrimaryTargetTokenId(options)
     return nil
 end
 
+--Pulls every ActivatedAbility granted by a feature's "activated" modifiers into result,
+--stamping each clone with the class metadata that the chooseClassAbility filter reads.
+--- @param feature CharacterFeature
+--- @param info {classLevel: number, levelsAbove: number, className: string, prerequisitesMet: boolean, known: table<string,boolean>}
+--- @param result ActivatedAbility[]
+local function CollectFeatureAbilities(feature, info, result)
+    for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+        if modifier:try_get("behavior") == "activated" then
+            local grantedAbility = modifier:try_get("activatedAbility")
+            if grantedAbility ~= nil then
+                local candidate = grantedAbility:MakeTemporaryClone()
+
+                --_tmp_ fields are skipped by the serializer, so this metadata never
+                --reaches the database even though the clone gets cast for real.
+                candidate._tmp_classLevel = info.classLevel
+                candidate._tmp_levelsAbove = info.levelsAbove
+                candidate._tmp_className = info.className
+                candidate._tmp_prerequisitesMet = info.prerequisitesMet
+                candidate._tmp_abilityKnown = info.known[string.lower(candidate.name)] == true
+
+                result[#result+1] = candidate
+            end
+        end
+    end
+end
+
+--Harvests every activated ability offered by the level lists of the caster's classes,
+--subclasses and domains. Nothing is filtered here beyond structure -- the GoblinScript
+--abilityFilter decides what the player actually sees, reading the stamped metadata via
+--Ability.Class Level / Levels Above / Class / Known / Prerequisites Met.
+--- @param casterToken nil|CharacterToken
+--- @return ActivatedAbility[]
+local function GatherClassAbilities(casterToken)
+    local result = {}
+
+    local creature = casterToken ~= nil and casterToken.properties or nil
+    if creature == nil then
+        return result
+    end
+
+    --Monsters and other non-character creatures have no class list -- the base
+    --creature implementation returns an empty table, so this is safe to call.
+    local classEntries = creature:GetClassesAndSubClasses()
+    if classEntries == nil or #classEntries == 0 then
+        return result
+    end
+
+    --Abilities the character already has, keyed by lowercased name. Matching by name
+    --rather than guid because a class option and the character's granted copy of it
+    --are distinct objects with distinct guids.
+    local known = {}
+    for _,a in ipairs(creature:GetActivatedAbilities{ characterSheet = true }) do
+        if a.name ~= nil then
+            known[string.lower(a.name)] = true
+        end
+    end
+
+    local levelChoices = creature:GetLevelChoices() or {}
+
+    for _,entry in ipairs(classEntries) do
+        local classInfo = entry.class
+        local currentLevel = entry.level or 0
+
+        --Read the levels table directly rather than via Class:GetLevel, which creates
+        --a fresh ClassLevel for any key it doesn't find -- we must not mutate the
+        --shared, cached class objects just to look at them.
+        for key,levelEntry in pairs(classInfo:try_get("levels", {})) do
+            --Level-1 content is NOT under "level-1" -- per Class:FillLevelsUpTo, a
+            --character's progression is "primary", then "tutoriallevel-1".."tutoriallevel-4",
+            --then "level-1".."level-N". The tutoriallevel-* entries are always included
+            --regardless of level; they are how level 1 is split into builder stages, and
+            --for most classes they hold ALL the level-1 features (including the 3- and
+            --5-cost heroic ability choices, while "level-1" itself is empty). Treat them
+            --as level 1. "multiclass" is the secondary-class variant of "primary" and is
+            --deliberately skipped.
+            local levelNum = tonumber(string.match(key, "^level%-(%d+)$"))
+            if levelNum == nil and (key == "primary" or string.match(key, "^tutoriallevel%-%d+$") ~= nil) then
+                levelNum = 1
+            end
+
+            if levelNum ~= nil and levelEntry ~= nil then
+                local info = {
+                    classLevel = levelNum,
+                    levelsAbove = levelNum - currentLevel,
+                    className = classInfo.name or "",
+                    prerequisitesMet = true,
+                    known = known,
+                }
+
+                for _,feature in ipairs(levelEntry:try_get("features", {})) do
+                    if feature.typeName == "CharacterFeatureChoice" then
+                        for _,option in ipairs(feature:GetOptions(levelChoices)) do
+                            --A feature is only offered if every prerequisite on it is
+                            --met. Exposed as a symbol rather than filtered out here so
+                            --content can choose to ignore it.
+                            local prerequisitesMet = true
+                            for _,prerequisite in ipairs(rawget(option, "prerequisites") or {}) do
+                                if not prerequisite:Met(creature) then
+                                    prerequisitesMet = false
+                                end
+                            end
+
+                            info.prerequisitesMet = prerequisitesMet
+                            CollectFeatureAbilities(option, info, result)
+                        end
+                    else
+                        info.prerequisitesMet = true
+                        CollectFeatureAbilities(feature, info, result)
+                    end
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--Runs the abilityFilter over the harvested candidates and prompts the player to pick
+--one. Returns nil if there was nothing to offer or the player canceled -- in both
+--cases the caller must abort without charging the ability's cost.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @param casterToken nil|CharacterToken
+--- @param options nil|table
+--- @return nil|ActivatedAbility
+local function ChooseClassAbility(behavior, casterToken, options)
+    local candidates = GatherClassAbilities(casterToken)
+
+    local filter = behavior:try_get("abilityFilter", "")
+    if filter ~= "" and casterToken ~= nil and casterToken.properties ~= nil then
+        local creature = casterToken.properties
+        local filtered = {}
+        for _,candidate in ipairs(candidates) do
+            local symbols = {
+                ability = candidate,
+                caster = creature,
+            }
+
+            if GoblinScriptTrue(ExecuteGoblinScript(filter, creature:LookupSymbol(symbols), 0, "Choose Class Ability Filter")) then
+                filtered[#filtered+1] = candidate
+            end
+        end
+        candidates = filtered
+    end
+
+    --Two candidates can be the same ability reached by two routes (e.g. a subclass
+    --that re-lists a class option). Collapse by name so the list reads cleanly.
+    local seen = {}
+    local unique = {}
+    for _,candidate in ipairs(candidates) do
+        local key = string.lower(candidate.name or "")
+        if not seen[key] then
+            seen[key] = true
+            unique[#unique+1] = candidate
+        end
+    end
+
+    table.sort(unique, function(a,b)
+        return string.lower(a.name or "") < string.lower(b.name or "")
+    end)
+
+    return ActivatedAbility.ShowAbilityChoiceDialog(unique, {
+        title = behavior:try_get("chooseAbilityTitle", "Choose an Ability"),
+        buttonText = "Use",
+        emptyText = behavior:try_get("chooseAbilityEmptyText", "You have no abilities available to choose from right now."),
+
+        --Right-hand column: where the ability came from and what it costs, so the
+        --player can choose without opening every tooltip.
+        detailText = function(ability)
+            local parts = {}
+
+            local className = ability:try_get("_tmp_className", "")
+            local classLevel = ability:try_get("_tmp_classLevel", 0)
+            if className ~= "" then
+                parts[#parts+1] = string.format("%s %d", className, classLevel)
+            end
+
+            local resourceid = ability:try_get("resourceCost", "none")
+            if resourceid ~= "none" then
+                local resourceInfo = (dmhub.GetTable("characterResources") or {})[resourceid]
+                local quantity = tonumber(ability:try_get("resourceNumber", ""))
+                if resourceInfo ~= nil and quantity ~= nil and quantity > 0 then
+                    parts[#parts+1] = string.format("%d %s", quantity, resourceInfo.name)
+                end
+            end
+
+            return table.concat(parts, "  -  ")
+        end,
+    }, casterToken)
+end
+
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
+
+    --Resolve a "choose an ability off your class list" pick up front, before any
+    --targeting and before CommitToPaying: backing out of the picker must not spend
+    --the invoking ability's cost or burn its usage-limit charge. Hoisted out of the
+    --per-target loop below so the dialog is shown once, not once per target.
+    local chosenClassAbility = nil
+    if self.abilityType == "chooseClassAbility" then
+        chosenClassAbility = ChooseClassAbility(self, casterToken, options)
+        if chosenClassAbility == nil then
+            return
+        end
+    end
 
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
     local rangeOriginTokenId = nil
@@ -244,7 +446,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     symbols.compeltoward = options.symbols.attacker
                 end
 
-                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
+                --chooseClassAbility is excluded alongside custom: both resolve to an
+                --ability object that only exists on this client, so there is nothing
+                --the remote controller could look up from a serialized invocation.
+                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -333,10 +538,40 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     elseif self.abilityType == "standard" then
                         local t = dmhub.GetTable("standardAbilities") or {}
                         abilityTemplate = t[self.standardAbility]
+                    elseif self.abilityType == "chooseClassAbility" then
+                        --Already chosen at the top of Cast; a nil here means the player
+                        --canceled, which returned before we got this far.
+                        --
+                        --Copied per target: the choice is already a temporary clone, and
+                        --MakeTemporaryClone below hands back the same object for one of
+                        --those, so without this a second target would re-run the modifier
+                        --pipeline over the first target's mutations.
+                        abilityTemplate = DeepCopy(chosenClassAbility)
                     end
 
                     if abilityTemplate ~= nil then
                         local abilityClone = abilityTemplate:MakeTemporaryClone()
+
+                        --The invoked ability is cast through the normal path, which pays
+                        --its own action cost as well as the invoking ability's. When the
+                        --invoker already charges the action for the whole package, that
+                        --double-charge makes the invoked ability unaffordable, so clear it.
+                        --Safe to do on the clone: for custom/standard MakeTemporaryClone
+                        --returned a fresh copy, and chooseClassAbility DeepCopies per target.
+                        if self:try_get("suppressInvokedActionCost", false) then
+                            abilityClone.actionResourceId = "none"
+                        end
+
+                        --A borrowed class ability must pay its own Heroic Resource -- that
+                        --is the whole point of "provided you can spend any required Heroic
+                        --Resource". ExecuteInvoke's direct-cast path never sets options.pay,
+                        --and heroic abilities mostly report RequiresPromptWhenCast() == false
+                        --so they take exactly that path, which would silently skip payment.
+                        --Implicit for this mode rather than a flag, so existing invoke
+                        --content (overwhelmingly free custom abilities) is untouched.
+                        if self.abilityType == "chooseClassAbility" then
+                            abilityClone._tmp_payInvokedCost = true
+                        end
 
                         if self.abilityType == "standard" or self.abilityType == "custom" then
 
@@ -381,7 +616,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --then run the invoker's modifier pipeline, then call PostProcessInvoked-
                         --Ability for any per-creature-type adjustments that live outside the
                         --modifier system (e.g. AnimalCompanion's melee damage bonus).
-                        if self.abilityType == "custom" and target.token ~= nil and target.token.properties ~= nil then
+                        --chooseClassAbility candidates are harvested raw out of the class
+                        --level lists rather than through GetActivatedAbilities, so unlike
+                        --"named" they have not been through the modifier pipeline yet. Run
+                        --them through it here so a borrowed class ability picks up the
+                        --character's kit, feats and other bonuses exactly as it would if
+                        --they had actually learned it.
+                        if (self.abilityType == "custom" or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
@@ -751,8 +992,12 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else
                 --Immediate cast: we control the options table so just pre-install the finish handler.
+                --pay defaults to false (the historical behavior for invoked abilities, which are
+                --almost always free custom abilities); callers that invoke a REAL costed ability
+                --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
                 abilityClone:Cast(casterToken, targets, {
                     symbols = symbols,
+                    pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
                 })
             end
@@ -794,6 +1039,17 @@ end
 ActivatedAbilityInvokeAbilityBehavior.abilityType = "custom"
 ActivatedAbilityInvokeAbilityBehavior.namedAbility = ""
 ActivatedAbilityInvokeAbilityBehavior.standardAbility = ""
+
+--Used only when abilityType is "chooseClassAbility". GoblinScript run over every
+--ability offered by the caster's class/subclass level lists; those it returns true for
+--are offered to the player.
+ActivatedAbilityInvokeAbilityBehavior.abilityFilter = ""
+ActivatedAbilityInvokeAbilityBehavior.chooseAbilityTitle = "Choose an Ability"
+ActivatedAbilityInvokeAbilityBehavior.chooseAbilityEmptyText = "You have no abilities available to choose from right now."
+
+--Set when the invoking ability already charges the action cost for the whole package,
+--so the invoked ability should not charge its own on top.
+ActivatedAbilityInvokeAbilityBehavior.suppressInvokedActionCost = false
 ActivatedAbilityInvokeAbilityBehavior.targeting = "prompt"
 ActivatedAbilityInvokeAbilityBehavior.inheritRange = false
 
@@ -873,6 +1129,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				options = {
 					{ text = "Custom Ability", id = "custom" },
 					{ text = "Named Ability", id = "named" },
+					{ text = "Choose Class Ability", id = "chooseClassAbility" },
 					cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
 				},
 				idChosen = self.abilityType,
@@ -898,6 +1155,98 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				end,
 			},
 		},
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Ability Filter:",
+		},
+		gui.GoblinScriptInput{
+			value = self:try_get("abilityFilter", ""),
+			change = function(element)
+				self.abilityFilter = element.value
+			end,
+
+			documentation = {
+				help = "This GoblinScript is run over every ability offered by the level lists of the caster's classes, subclasses and domains. Abilities it returns true for are offered to the player to choose from; the chosen one is then cast immediately, paying its own costs. Leave empty to offer every class ability.",
+				output = "boolean",
+				subject = creature.helpSymbols,
+				subjectDescription = "The creature choosing an ability",
+				symbols = {
+					ability = {
+						name = "Ability",
+						type = "ability",
+						desc = "The class ability being considered. Ability.Class Level, Ability.Levels Above, Ability.Class, Ability.Known and Ability.Prerequisites Met describe where it came from.",
+						examples = {
+							'Ability.Levels Above = 1 and Ability.Categorization = "Heroic Ability"',
+							'Ability.Class is "Tactician"',
+							"not Ability.Known",
+						},
+					},
+					caster = {
+						name = "Caster",
+						type = "creature",
+						desc = "The creature choosing an ability.",
+						examples = {
+							"Caster.Level > 5",
+						},
+					},
+				}
+			}
+		}
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Chooser Title:",
+		},
+		gui.Input{
+			classes = {"formInput"},
+			text = self:try_get("chooseAbilityTitle", "Choose an Ability"),
+			placeholderText = "Choose an Ability",
+			characterLimit = 120,
+			change = function(element)
+				self.chooseAbilityTitle = element.text
+			end,
+		},
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "No Options Text:",
+		},
+		gui.Input{
+			classes = {"formInput"},
+			text = self:try_get("chooseAbilityEmptyText", ""),
+			placeholderText = "You have no abilities available to choose from right now.",
+			characterLimit = 240,
+			change = function(element)
+				self.chooseAbilityEmptyText = element.text
+			end,
+		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Invoked Ability Costs No Action",
+		value = self:try_get("suppressInvokedActionCost", false),
+		change = function(element)
+			self.suppressInvokedActionCost = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{

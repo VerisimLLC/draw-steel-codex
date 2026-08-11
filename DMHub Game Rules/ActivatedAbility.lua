@@ -2328,6 +2328,11 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         params.director = true
     end
 
+    --Whether this user has the "New Experimental UI" (icon rails) turned on.
+    --Recorded on every event, including false, so an absent field means an
+    --older client rather than a user who has the setting off.
+    params.newUI = dmhub.GetSettingValue("iconrail") == true
+
     if casterToken.properties:IsHero() then
         local classInfo = casterToken.properties:GetClass()
         if classInfo ~= nil then
@@ -5545,6 +5550,200 @@ function ActivatedAbility:GetDamageTypesSet()
 	}
 end
 
+--- Shows a modal list of abilities and returns the one the user chose, or nil if they
+--- canceled (or if there was nothing to choose from). Must be called from inside a
+--- coroutine -- it yields until the dialog is dismissed.
+---
+--- Shared by ActivatedAbilityStealAbilityBehavior (steal an ability off a target) and
+--- ActivatedAbilityInvokeAbilityBehavior's "chooseClassAbility" mode (borrow an ability
+--- off your own class/subclass level lists).
+---
+--- Sizing note: GameHud:ModalDialog consumes options.width/options.height for the dialog
+--- FRAME and builds our content panel with no size of its own, so it auto-sizes to its
+--- content. Percentage widths inside it therefore collapse -- the rows and the scroll
+--- region use concrete widths, matching the pattern in AbilitySummon's squad dialog.
+---
+--- @param choices ActivatedAbility[] The abilities to offer.
+--- @param dialogOptions nil|{title: nil|string, buttonText: nil|string, emptyText: nil|string, detailText: nil|fun(ability: ActivatedAbility):nil|string}
+--- @param casterToken nil|CharacterToken Whose perspective ability tooltips render from.
+--- @return nil|ActivatedAbility
+function ActivatedAbility.ShowAbilityChoiceDialog(choices, dialogOptions, casterToken)
+	dialogOptions = dialogOptions or {}
+
+	local chosenOption = nil
+	local canceled = false
+	local finished = false
+
+	--Nothing to choose from: say why rather than showing an empty box.
+	if #choices == 0 then
+		gamehud:ModalDialog{
+			title = dialogOptions.title or "Choose an Ability",
+			buttons = {
+				{
+					text = "Close",
+					escapeActivates = true,
+					click = function()
+						finished = true
+					end,
+				},
+			},
+			width = 560,
+			height = 280,
+			flow = "vertical",
+			children = {
+				gui.Label{
+					classes = {"modalMessage"},
+					text = dialogOptions.emptyText or "There are no abilities available to choose from.",
+					width = 480,
+					height = "auto",
+					halign = "center",
+					valign = "center",
+				},
+			},
+		}
+
+		while not finished do
+			coroutine.yield(0.1)
+		end
+
+		return nil
+	end
+
+	local optionPanels = {}
+
+	for i,option in ipairs(choices) do
+		local detail = nil
+		if dialogOptions.detailText ~= nil then
+			detail = dialogOptions.detailText(option)
+		end
+
+		local panel = gui.Panel{
+			classes = {"abilityOption"},
+			data = {
+				ability = option,
+			},
+			gui.Label{
+				classes = {"abilityOptionName"},
+				text = option.name,
+			},
+			gui.Label{
+				classes = {"abilityOptionDetail", cond(detail == nil or detail == "", "collapsed")},
+				text = detail or "",
+			},
+			press = function(element)
+				for _,p in ipairs(optionPanels) do
+					p:SetClass("selected", p == element)
+				end
+
+				chosenOption = choices[i]
+			end,
+			hover = function(element)
+				element.tooltip = CreateAbilityTooltip(option, {
+					token = casterToken,
+					halign = "right",
+					width = 500,
+					pad = 8,
+				})
+			end,
+		}
+
+		if chosenOption == nil then
+			panel:SetClass("selected", true)
+			chosenOption = option
+		end
+
+		optionPanels[#optionPanels+1] = panel
+	end
+
+	gamehud:ModalDialog{
+		title = dialogOptions.title or "Choose an Ability",
+		buttons = {
+			{
+				text = dialogOptions.buttonText or "Choose",
+				click = function()
+					finished = true
+				end,
+			},
+			{
+				text = "Cancel",
+				escapeActivates = true,
+				click = function()
+					finished = true
+					canceled = true
+				end,
+			},
+		},
+
+		styles = ThemeEngine.MergeTokens{
+			{
+				selectors = {"abilityOption"},
+				width = 496,
+				height = 34,
+				flow = "horizontal",
+				halign = "center",
+				valign = "top",
+				vmargin = 2,
+				hpad = 12,
+				borderBox = true,
+				bgimage = true,
+				bgcolor = "clear",
+			},
+			{ selectors = {"abilityOption","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"abilityOption","selected"}, bgcolor = "@bgInverse" },
+
+			{
+				selectors = {"abilityOptionName"},
+				width = "60%",
+				height = "auto",
+				valign = "center",
+				halign = "left",
+				textAlignment = "left",
+				fontSize = 18,
+				color = "@fg",
+			},
+			{ selectors = {"abilityOptionName","parent:selected"}, color = "@fgInverse" },
+
+			{
+				selectors = {"abilityOptionDetail"},
+				width = "40%",
+				height = "auto",
+				valign = "center",
+				halign = "right",
+				textAlignment = "right",
+				fontSize = 14,
+				color = "@fgMuted",
+			},
+			{ selectors = {"abilityOptionDetail","parent:selected"}, color = "@fgInverse" },
+		},
+
+		width = 560,
+		height = 560,
+		flow = "vertical",
+
+		children = {
+			gui.Panel{
+				flow = "vertical",
+				vscroll = true,
+				width = 520,
+				height = 400,
+				halign = "center",
+				valign = "top",
+				children = optionPanels,
+			},
+		}
+	}
+
+	while not finished do
+		coroutine.yield(0.1)
+	end
+
+	if canceled then
+		return nil
+	end
+
+	return chosenOption
+end
+
 local g_lookupSymbols = {
 	datatype = function(c)
 		return "ability"
@@ -5718,6 +5917,29 @@ local g_lookupSymbols = {
             end
         end
     end,
+
+    --The following symbols are only populated on candidate abilities harvested from a
+    --class/subclass level list (see AbilityInvokeAbility's "chooseClassAbility" mode).
+    --On any other ability they read as their neutral defaults.
+    classlevel = function(c)
+        return c:try_get("_tmp_classLevel", 0)
+    end,
+
+    levelsabove = function(c)
+        return c:try_get("_tmp_levelsAbove", 0)
+    end,
+
+    class = function(c)
+        return c:try_get("_tmp_className", "")
+    end,
+
+    known = function(c)
+        return c:try_get("_tmp_abilityKnown", false)
+    end,
+
+    prerequisitesmet = function(c)
+        return c:try_get("_tmp_prerequisitesMet", true)
+    end,
 }
 
 local g_helpCasting = {
@@ -5867,6 +6089,40 @@ local g_helpSymbols = {
         name = "Power Roll Uses Agility",
         type = "boolean",
         desc = "Whether the power roll for this ability uses agility. Only valid for abilities with a power roll behavior.",
+    },
+
+    classlevel = {
+        name = "Class Level",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, the level that offers it. Zero for any other ability.",
+        examples = {"Class Level = 5"},
+    },
+
+    levelsabove = {
+        name = "Levels Above",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, how far above the character's level in that class it is offered. 1 means it could be learned one level from now, 0 or less means it is already available.",
+        examples = {"Levels Above = 1", "Levels Above <= 0"},
+    },
+
+    class = {
+        name = "Class",
+        type = "text",
+        desc = "For an ability offered by a class or subclass level list, the name of the class or subclass offering it. Empty for any other ability.",
+        examples = {'Class is "Tactician"'},
+    },
+
+    known = {
+        name = "Known",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character already has this ability.",
+        examples = {"not Known"},
+    },
+
+    prerequisitesmet = {
+        name = "Prerequisites Met",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character meets the prerequisites of the feature that grants it. True for any other ability.",
     },
 }
 

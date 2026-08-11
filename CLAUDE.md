@@ -16,7 +16,7 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
-**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+**IMPORTANT: New top-level Lua files must be registered through the DMHub MCP CodeMod workflow.** A file placed on disk is not part of its CodeMod, and manually adding a `require` to `main.lua` is not a substitute for registration. While DMHub is running, call `mcp__dmhub__register_lua_file` with a path of the form `<mod directory>/<file>.lua` (and optional `before` or `after` ordering), then confirm that Firebase persistence succeeded. Prefer registering the safe baseline before substantive edits; the tool preserves an existing local file if work has already begun. Do not hand-edit `main.lua` to register a new file. If the MCP bridge is unavailable, stop and ask the user rather than falling back to a manual `require`.
 
 ## Repository Structure
 

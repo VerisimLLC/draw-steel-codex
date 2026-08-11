@@ -908,6 +908,23 @@ audio.SoundEvent{
     ignoreDuplicates = 0.01,
 }
 
+
+
+
+--Wode version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Wode",
+    mixgroup = "dice",
+    sounds = {"dice/cust/wode/Dice_NumGlow_Wode_01.wav","dice/cust/wode/Dice_NumGlow_Wode_02.wav","dice/cust/wode/Dice_NumGlow_Wode_03.wav","dice/cust/wode/Dice_NumGlow_Wode_04.wav","dice/cust/wode/Dice_NumGlow_Wode_05.wav"},
+    volume = 0.08,
+    pitchRand = 0.01,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+
+
+
 --Spectral version of numglow
 audio.SoundEvent{
     name = "Dice.Numglow_Spectral",
@@ -1039,7 +1056,8 @@ DiceImpactFamilies.families = {
     { id = "MetalShield", text = "Metal Shield",    suffix = "MetalShield" },
     { id = "Spectral",   text = "Spectral",         suffix = "Spectral" },
     { id = "GlassGas",   text = "Glass Gas",        suffix = "GlassGas" },
-    { id = "GlassLight",  text = "Glass Light",    suffix = "GlassLight" },
+    { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
+    { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1167,6 +1185,32 @@ audio.SoundEvent{
 
 
 
+
+--Leafy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Hard_01.wav","dice/leafy/DiceImp_leafy_Hard_02.wav","dice/leafy/DiceImp_leafy_Hard_03.wav","dice/leafy/DiceImp_leafy_Hard_04.wav","dice/leafy/DiceImp_leafy_Hard_05.wav","dice/leafy/DiceImp_leafy_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Mild_01.wav","dice/leafy/DiceImp_leafy_Mild_02.wav","dice/leafy/DiceImp_leafy_Mild_03.wav","dice/leafy/DiceImp_leafy_Mild_04.wav","dice/leafy/DiceImp_leafy_Mild_05.wav","dice/leafy/DiceImp_leafy_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Soft_01.wav","dice/leafy/DiceImp_leafy_Soft_02.wav","dice/leafy/DiceImp_leafy_Soft_03.wav","dice/leafy/DiceImp_leafy_Soft_04.wav","dice/leafy/DiceImp_leafy_Soft_05.wav","dice/leafy/DiceImp_leafy_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
 
 
 --Glass Dice Impacts

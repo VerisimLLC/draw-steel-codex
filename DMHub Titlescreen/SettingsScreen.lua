@@ -5488,6 +5488,21 @@ function CreateSettingsScreen(dialog, args)
 						element:SetClass("hidden", text ~= nil and text ~= "")
 					end,
 
+					--Deep link support for dmhub.ShowPlayerSettings{tab = "..."}:
+					--fired once on the assembled tree (see the end of this
+					--function). Selecting the tab by pressing it reuses the normal
+					--press path, so a name that does not match any tab -- unknown,
+					--or a dm-only tab that was not created for this user -- simply
+					--leaves the default tab selected instead of collapsing
+					--every group.
+					selectTab = function(element, tabName)
+						for _,child in ipairs(element.children) do
+							if child.text == tabName then
+								child:FireEvent("press")
+							end
+						end
+					end,
+
 					CreateTab{
 						text = "General",
 					},
@@ -6358,6 +6373,15 @@ function CreateSettingsScreen(dialog, args)
 		height = "100%",
 		settingsDialog,
 	}
+
+	--args.tab: open straight on a named tab, e.g.
+	--dmhub.ShowPlayerSettings{tab = "Editing"}. Done here rather than by
+	--seeding m_selectedTab so the tab bar's selected highlight, the lazy
+	--build of the tab's group, and the unknown-name fallback all go through
+	--the same path a real click does.
+	if args.tab ~= nil then
+		m_screenRoot:FireEventTree("selectTab", args.tab)
+	end
 
 	--In-game, the C# host for this sheet (PlayerSettingsScreenLua) lives in
 	--the topmost UI canvas, which renders above the game hud's canvas --

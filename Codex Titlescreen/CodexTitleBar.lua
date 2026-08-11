@@ -902,10 +902,11 @@ local function CreateStatusBar()
         -- directory (the "local assets" developer feature -- a custom data
         -- directory that replaces the game's cloud assets), flag it here so it
         -- is obvious at a glance that this is a dev game. Hovering shows the
-        -- source directory; clicking reveals it in the OS file browser. Empty
-        -- (zero-width) for every normal game. LocalAssetsStatus /
-        -- RevealInFileBrowser are read-and-compared-to-nil so an older engine
-        -- build (before the bridge exists) simply shows nothing.
+        -- source directory; clicking opens Settings -> Editing, where the
+        -- "Local Assets (Developer)" section configures the directories (and
+        -- can reveal them in the OS file browser). Empty (zero-width) for every
+        -- normal game. LocalAssetsStatus is read-and-compared-to-nil so an
+        -- older engine build (before the bridge exists) simply shows nothing.
         gui.Label{
             minFontSize = 10,
             bold = true,
@@ -921,12 +922,12 @@ local function CreateStatusBar()
                 if dir == nil or dir == "" then
                     return
                 end
-                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open it in your file browser.", dir))(element)
+                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open the Local Assets settings.", dir))(element)
             end,
             click = function(element)
                 local dir = element.data.dir
-                if dir ~= nil and dir ~= "" and dmhub.RevealInFileBrowser ~= nil then
-                    dmhub.RevealInFileBrowser(dir)
+                if dir ~= nil and dir ~= "" then
+                    dmhub.ShowPlayerSettings{tab = "Editing"}
                 end
             end,
             multimonitor = {"showstatusbar"},

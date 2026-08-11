@@ -23,15 +23,16 @@ setting{
     default = 0,
 }
 
---Gates the in-development Patreon feature: the Patreon tab in the module
---browser and the Patreon/email sections of the account settings. No editor
---field, so it never appears in the settings menus; flip it on with
---/set patreonsub true. Remove this setting once the feature ships.
+--Gates the Patreon feature: the Patreon tab in the module browser and the
+--Patreon/email sections of the account settings. On by default now that the
+--feature ships; no editor field, so it never appears in the settings menus.
+--Turn it off for a session with /set patreonsub false. Remove this setting
+--once the gating is no longer needed at all.
 setting{
     id = "patreonsub",
-    description = "Show the in-development Patreon features.",
+    description = "Show the Patreon features.",
     storage = "preference",
-    default = false,
+    default = true,
 }
 
 setting{

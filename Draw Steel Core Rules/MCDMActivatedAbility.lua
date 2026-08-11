@@ -2558,6 +2558,15 @@ function ActivatedAbility:Render(options, params)
                     element:SetClass("collapsed", true)
                 end
             end,
+            --The Monster AI drives its own roll and completes it, so the card
+            --offers no cancel affordance while it does. Fired by
+            --CharacterPanel.EmbedDialogInAbility straight after embedRollDialog
+            --above, so this re-collapse lands on the freshly revealed button.
+            rollDialogAIDriven = function(element, aiDriven)
+                if aiDriven then
+                    element:SetClass("collapsed", true)
+                end
+            end,
             click = function(element)
                 local dialog = element.data.rollDialog
                 if dialog ~= nil and dialog.valid and dialog.data ~= nil

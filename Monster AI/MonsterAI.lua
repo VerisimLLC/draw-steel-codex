@@ -1316,6 +1316,74 @@ function MonsterAI:FindBestMoveToUseBurst(token, ability, scorefn)
     return bestMove, bestScore
 end
 
+-- Find the highest-scoring line area from a set of candidate endpoints.
+-- Candidates can be tokens, locations, or tables containing targetLoc and an
+-- optional locOverride. The latter supports placed lines whose origin differs
+-- from the caster without making their candidate-generation rules generic.
+function MonsterAI:FindBestLinePlan(token, ability, options)
+    options = options or {}
+    local candidates = options.candidates or self.enemyTokens or {}
+    local scorefn = options.scorefn or function() return 1 end
+    local symbols = options.symbols or {}
+    local checklos = options.checklos
+    if checklos == nil then
+        checklos = true
+    end
+
+    local range = options.range or ability:GetRange(token.properties, symbols)
+    local radius = options.radius or ability:GetRadius(token.properties, symbols)
+    local best = nil
+
+    for _,candidate in ipairs(candidates) do
+        local targetLoc = candidate.targetLoc or candidate.loc or candidate
+        local locOverride = candidate.locOverride or options.locOverride
+        if targetLoc ~= nil and targetLoc.valid and targetLoc.isOnMap then
+            local originLoc = locOverride or token.loc
+            local area = dmhub.CalculateShape{
+                shape = "line",
+                targetPoint = token:PosAtLoc(targetLoc),
+                token = token,
+                range = range,
+                radius = radius,
+                locOverride = locOverride,
+                checklos = checklos,
+                altitude = originLoc.altitude * dmhub.unitsPerSquare,
+            }
+
+            local areaSymbols = {}
+            for key,value in pairs(symbols) do
+                areaSymbols[key] = value
+            end
+            areaSymbols.targetArea = area
+
+            local targets = {}
+            local score = 0
+            for _,target in pairs(dmhub.tokenInfo.TokensInShape(area)) do
+                if target.valid and ability:TargetPassesFilter(token, target, areaSymbols) then
+                    targets[#targets+1] = {token = target}
+                    score = score + (scorefn(target, candidate, areaSymbols) or 0)
+                end
+            end
+
+            if best == nil or score > best.score then
+                best = {
+                    targetLoc = targetLoc,
+                    locOverride = locOverride,
+                    targets = targets,
+                    numTargets = #targets,
+                    score = score,
+                    candidate = candidate,
+                }
+            end
+            if type(area.Destroy) == "function" then
+                area:Destroy()
+            end
+        end
+    end
+
+    return best
+end
+
 function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
     if move.id == "Minion Signature Ability" then
         --minion signatures cannot be disabled.
@@ -2030,10 +2098,19 @@ end
 Commands.RegisterMacro{
     name = "testai",
     summary = "test the AI with one ability",
-    doc = "Usage: /testai <ability name>\nMakes the Monster AI use the named ability, maneuver, or villain action with the selected token. Works in or out of combat and whether or not the AI is running. Grants any resources needed to execute (malice, actions, maneuvers, the villain action budget and used state, ability charges). Uses the registered AI move for the ability when one exists (even if disabled in the panel); otherwise falls back to a generic strike/burst execution. Minion signature abilities execute as a squad strike. Note: a villain action cast this way is marked used for the encounter by the normal cast pipeline.",
+    doc = "Usage: /testai <ability name> [tier1|tier2|tier3]\nMakes the Monster AI use the named ability, maneuver, or villain action with the selected token. Works in or out of combat and whether or not the AI is running. Grants any resources needed to execute (malice, actions, maneuvers, the villain action budget and used state, ability charges). Uses the registered AI move for the ability when one exists (even if disabled in the panel); otherwise falls back to a generic strike/burst execution. Minion signature abilities execute as a squad strike. Note: a villain action cast this way is marked used for the encounter by the normal cast pipeline.\n\nAdd tier1, tier2 or tier3 (before or after the ability name) to force every power roll made during the run to that tier -- the same as clicking that row on the power table after the dice land. The dice still roll; the result is overridden.",
     completions = function(args, argIndex)
-        if argIndex ~= 1 then return {} end
         local result = {}
+
+        --the tier argument may be given as a second word.
+        if argIndex == 2 then
+            result[#result+1] = {text = "tier1", summary = "force tier 1"}
+            result[#result+1] = {text = "tier2", summary = "force tier 2"}
+            result[#result+1] = {text = "tier3", summary = "force tier 3"}
+            return result
+        end
+
+        if argIndex ~= 1 then return {} end
         local tokens = dmhub.selectedTokens
         if tokens == nil or #tokens == 0 then
             return result
@@ -2061,11 +2138,27 @@ Commands.RegisterMacro{
         end
 
         local name = trim(str or "")
+
+        --Optional tier1/tier2/tier3 argument, accepted at either end so both
+        --`/testai Bury the Point tier3` and `/testai tier3 Bury the Point` work.
+        --Parsed BEFORE the quote strip below, so a quoted ability name followed
+        --by the tier word still unquotes. Lua patterns have no case-insensitive
+        --classes, hence the spelled-out character sets.
+        local forcedTier = nil
+        local stripped, tierText = string.match(name, "^(.-)%s+[Tt][Ii][Ee][Rr]([123])$")
+        if stripped == nil then
+            tierText, stripped = string.match(name, "^[Tt][Ii][Ee][Rr]([123])%s+(.-)$")
+        end
+        if tierText ~= nil then
+            forcedTier = tonumber(tierText)
+            name = trim(stripped)
+        end
+
         if string.sub(name, 1, 1) == "\"" and string.sub(name, -1) == "\"" and #name >= 2 then
             name = trim(string.sub(name, 2, #name - 1))
         end
         if name == "" then
-            TestAIMessage("usage: /testai <ability name>")
+            TestAIMessage("usage: /testai <ability name> [tier1|tier2|tier3]")
             return
         end
 
@@ -2141,7 +2234,10 @@ Commands.RegisterMacro{
         --instance-level flag: this one-shot run is active even when the AI thread is not.
         ai.active = true
 
-        dmhub.Coroutine(function()
+        --The run itself. Named rather than inlined into dmhub.Coroutine so the
+        --forced-tier flag below can be cleared on every exit path -- the body has
+        --several early returns and can also throw.
+        local RunTestAI = function()
             local queue = dmhub.initiativeQueue
             if queue ~= nil and queue.hidden then
                 queue = nil
@@ -2288,6 +2384,31 @@ Commands.RegisterMacro{
             TestAIMessage(string.format("%s: no AI move is registered for \"%s\"; using generic execution.", tokenName, ability.name))
             TestAIExecuteGeneric(ai, token, ability)
             ai:WaitForAbilityIdle()
+        end
+
+        dmhub.Coroutine(function()
+            --test:aiforcetier is read by ActivatedAbilityPowerRollBehavior:Cast
+            --as each power roll resolves; it stamps overrideTier onto the roll,
+            --which is exactly what clicking that tier row would have done. It
+            --applies to every power roll made while set, so keep it set for the
+            --run and no longer.
+            if forcedTier ~= nil then
+                dmhub.SetSettingValue("test:aiforcetier", forcedTier)
+                TestAIMessage(string.format("forcing tier %d for every power roll in this run.", forcedTier))
+            end
+
+            --RunYieldingFunction drives the body in a nested coroutine and hands
+            --back any error rather than letting it escape, so the clear below
+            --always runs.
+            local ok, err = RunYieldingFunction(RunTestAI)
+
+            if forcedTier ~= nil then
+                dmhub.SetSettingValue("test:aiforcetier", 0)
+            end
+
+            if not ok then
+                TestAIMessage(string.format("run failed: %s", tostring(err)))
+            end
         end)
     end,
 }

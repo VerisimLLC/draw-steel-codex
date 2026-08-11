@@ -1690,7 +1690,11 @@ local function ClaimEmbeddedDialog(dialog, where)
     return nil
 end
 
-function CharacterPanel.EmbedDialogInAbility()
+--aiDriven: true when the roller is under Monster AI control. The AI drives and
+--completes its own rolls, so the card must not offer a cancel affordance for
+--one (the close X). Fired as a second event AFTER embedRollDialog, which is
+--what reveals the button -- order matters. ESC still cancels.
+function CharacterPanel.EmbedDialogInAbility(aiDriven)
     local panel = LiveHostPanel("abilityDisplay")
     if panel == nil then
         return nil
@@ -1699,6 +1703,7 @@ function CharacterPanel.EmbedDialogInAbility()
     local dialog = GameHud.CreateEmbeddedRollDialog()
 
     panel:FireEventTree("embedRollDialog", dialog)
+    panel:FireEventTree("rollDialogAIDriven", aiDriven or false)
     return ClaimEmbeddedDialog(dialog, "ability")
 end
 
@@ -2143,7 +2148,14 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
 
     local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, displayOptions)
 
-    local dialog = CharacterPanel.EmbedDialogInAbility()
+    --_tmp_aicontrol is a counter, raised while the Monster AI holds the token
+    --(MonsterAI:BeginTokenControl). The dialog itself reads the same flag off
+    --options.creature to hide its own buttons; the card's close X is outside the
+    --dialog's subtree, so it has to be told.
+    local aiDriven = token ~= nil and token.valid and token.properties ~= nil
+        and token.properties._tmp_aicontrol > 0
+
+    local dialog = CharacterPanel.EmbedDialogInAbility(aiDriven)
     if dialog ~= nil then
         if dialog.data ~= nil then
             dialog.data.castCoroutine = coid

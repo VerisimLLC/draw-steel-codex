@@ -813,6 +813,18 @@ function GameHud.CreateEmbeddedRollDialog()
             collapsed = 1,
         },
 
+        --While the Monster AI drives a roll it presses Roll Dice / Accept Result
+        --itself and completes the roll, so the human-facing controls would only
+        --ever flash on screen. "aiDriven" is put on the whole dialog subtree by
+        --ShowDialog (SetClassTree) when the roller is AI controlled; everything
+        --tagged "hideWhenAI" collapses for the duration. Deliberately NOT tagged:
+        --the trigger countdown, which is the players' window to spend reaction
+        --triggers against the AI's roll.
+        {
+            selectors = { "hideWhenAI", "aiDriven" },
+            collapsed = 1,
+        },
+
         {
             selectors = { "icon" },
             bgcolor = "white",
@@ -3784,7 +3796,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
     rollAgainButton = gui.PrettyButton {
         text = "Re-roll",
-        classes = { "shownWhenPending", "button" },
+        classes = { "shownWhenPending", "button", "hideWhenAI" },
         width = 140,
         height = 30,
         fontSize = 20,
@@ -3864,7 +3876,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
     proceedAfterRollButton = gui.PrettyButton {
         text = "Accept Result",
-        classes = { "shownWhenPending" },
+        classes = { "shownWhenPending", "hideWhenAI" },
         width = 140,
         height = 30,
         fontSize = 20,
@@ -3881,7 +3893,7 @@ function GameHud.CreateEmbeddedRollDialog()
         --Inline halign overrides the buttonPanel's `button` selector (halign
         --right), which otherwise pushes the frame's width slack to the left and
         --makes the button look off-center.
-        classes = { "collapsedWhenRolling", "button" },
+        classes = { "collapsedWhenRolling", "button", "hideWhenAI" },
         width = "100%",
         height = 50,
         halign = "center",
@@ -3945,7 +3957,7 @@ function GameHud.CreateEmbeddedRollDialog()
     --On press it spends 1 Intel, then drives the existing reroll path.
     local intelRerollButton = gui.PrettyButton {
         text = "Re-roll for 1 Intel",
-        classes = { "shownWhenPending", "collapsed" },
+        classes = { "shownWhenPending", "collapsed", "hideWhenAI" },
         width = 200,
         height = 26,
         fontSize = 16,
@@ -5420,6 +5432,15 @@ function GameHud.CreateEmbeddedRollDialog()
                 CalculateRollText()
 
                 RecalculateMultiTargets()
+
+                --Monster-AI-driven roll: the AI rolls and accepts the result
+                --itself, so suppress the controls a human would have driven it
+                --with (see the "hideWhenAI" style rule) and the tier rows'
+                --click-to-override affordance (read off this class by the power
+                --table rows in ActivatedAbilityPowerRollBehavior).
+                --SetClassTree, not SetClass: the custom result panel populated by
+                --options.PopulateCustom above tests for it on its own rows.
+                resultPanel:SetClassTree("aiDriven", (creature ~= nil and creature._tmp_aicontrol > 0) or false)
 
                 if options.skipDeterministic and dmhub.IsRollDeterministic(rollInput.text) and dmhub.IsRollDeterministic(options.roll) then
                     rollIsSilent = true

@@ -12,10 +12,29 @@ This module provides an automated combat AI for monsters in DMHub. When active, 
 | `MonsterAITactics.lua` | Registered **tactics** -- passive scoring modifiers that bias target/position selection (flanking, aid attack, high ground) |
 | `MonsterAIPanel.lua` | DM-only dockable panel UI and AI thread: start/stop AI, dispatch registered triggered abilities, view analysis of available moves per monster type, enable/disable individual moves |
 | `shadow-elves.lua` | Shadow Elf band AI, including darkness-aware positioning and Eclipse villain actions |
+| `MonsterAI<BandName>.lua` | Preferred home for a band's moves, prompts, triggers, villain actions, and monster-filtered tactics |
 
-## Load Order
+## CodeMod Registration and Load Order
 
-In `main.lua` (prefix `Monster_AI_d7b4`):
+The Monster AI CodeMod owns its ordered file list. A new top-level Lua file must
+be registered with the running DMHub instance; adding it to the filesystem or
+manually adding a `require` to `main.lua` does not register it.
+
+Use the DMHub MCP tool after creating the safe baseline and before substantive
+editing when possible:
+
+```text
+mcp__dmhub__check_connection
+mcp__dmhub__register_lua_file { path: "Monster AI/MonsterAI<BandName>.lua" }
+```
+
+Use the optional `before` or `after` argument when ordering matters. Confirm the
+tool reports both the CodeMod position and successful Firebase persistence. The
+registration operation is idempotent and preserves an existing local file. If
+the MCP bridge is unavailable, stop and ask the user; do not fall back to a
+hand-written `main.lua` require.
+
+The core files must remain ordered before band registrations:
 ```
 MonsterAI.lua        -- must be first (defines the MonsterAI game type)
 MonsterAIPanel.lua
@@ -87,6 +106,12 @@ MonsterAI:RegisterMaliceAbility{
 A **prompt** handles abilities that require a secondary targeting choice during resolution (e.g., a Shift destination after a hit, or a Push/Pull direction). Registered with:
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
+
+The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
+`vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's
+normal altitude calculator and gives altitude priority over its horizontal
+collision and positioning heuristics, selecting the highest legal requested
+altitude before breaking ties tactically.
 
 #### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 
@@ -161,6 +186,7 @@ The AI's decision-making is score-based:
 |---|---|
 | `ai:FindBestMoveToUseStrike(token, ability, scorefn?)` | Finds the best reachable tile to use a strike ability from. Returns `loc, score` |
 | `ai:FindBestMoveToUseBurst(token, ability, scorefn?)` | Same but for burst/area abilities (targetType "all") |
+| `ai:FindBestLinePlan(token, ability, options?)` | Scores line areas aimed at candidate tokens or locations. Supports `candidates`, `scorefn`, `symbols`, `checklos`, and placed-line `locOverride`; returns the best plan with its endpoint, targets, and score |
 | `ai:FindValidTargetsOfStrike(token, ability, loc, range?)` | Returns sorted array of `{token, loc, charge, edges}` for valid targets from a position |
 | `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Moves, displays line-of-sight rays, invokes the ability, waits for resolution |
 | `ai:Speech(token, text, options?)` | Makes a token say something (text can be a string or array for random selection) |
@@ -188,7 +214,15 @@ GenerateStandardStrikeExecuteFunction()
 
 Open the monster's YAML file in `compendium/bestiary/`. The key field is `monster_type` (e.g., `"Goblin Warrior"`) -- this is what you match against in the `monsters` array. Look at `innateActivatedAbilities` for the ability names, keywords, ranges, and targeting.
 
-### Step 2: Register Moves in `MonsterAIMonsters.lua`
+### Step 2: Choose and Register the Band Module
+
+Prefer one `MonsterAI<BandName>.lua` module for a cohesive monster band. Reuse
+an existing band module when present. For a new file, create a safe baseline and
+register it in the Monster AI CodeMod with `mcp__dmhub__register_lua_file`; do
+not edit `main.lua`. Put the band's moves, prompts, triggers, villain actions,
+and monster-filtered tactics together in that module.
+
+### Step 3: Register Moves in the Band Module
 
 For each ability or combo the monster should use, add a `MonsterAI:RegisterMove{}` call. Example for a simple strike:
 
@@ -204,7 +238,7 @@ MonsterAI:RegisterMove{
 }
 ```
 
-### Step 3: Choose a Score Value
+### Step 4: Choose a Score Value
 
 Score values determine priority. Guidelines:
 - **0.2** -- Generic fallback (free strikes). Monster-specific moves should always score higher
@@ -213,7 +247,7 @@ Score values determine priority. Guidelines:
 - **1.5 - 2.5** -- Powerful or malice-costing abilities that should be preferred when available
 - Return `nil` from `score()` if the move can't be used (no targets in range, conditions not met)
 
-### Step 4: Write the Score Function
+### Step 5: Write the Score Function
 
 The score function evaluates whether the move is viable and how good it is. Common patterns:
 
@@ -258,7 +292,7 @@ score = function(self, ai, token, ability)
 end,
 ```
 
-### Step 5: Write the Execute Function
+### Step 6: Write the Execute Function
 
 The execute function performs the move. Standard pattern:
 
@@ -283,7 +317,7 @@ For burst abilities, omit the targets parameter:
 ai:ExecuteAbility(token, ability)  -- auto-targets all in range
 ```
 
-### Step 6: Handle Prompts (If Needed)
+### Step 7: Handle Prompts (If Needed)
 
 If the monster's ability triggers a secondary prompt (e.g., forced movement direction, a sub-ability invocation), add a prompt handler in `MonsterAIPrompts.lua`:
 
@@ -298,7 +332,7 @@ MonsterAI:RegisterPrompt{
 }
 ```
 
-### Step 7: Register Tactics (If Needed)
+### Step 8: Register Tactics (If Needed)
 
 If the monster benefits from a positioning tactic not already registered, add it in `MonsterAITactics.lua`:
 

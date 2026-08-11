@@ -20,6 +20,18 @@ setting{
     storage = "transient",
 }
 
+-- Forces every ability power roll resolved on this client to the given tier
+-- (1-3; 0 = off), as if that tier row had been clicked after the roll. Set and
+-- cleared by "/testai <ability> tier2" -- see the testai macro in MonsterAI.lua.
+-- Storage is transient so a crashed/aborted run cannot leave it set across a
+-- restart.
+setting{
+    id = "test:aiforcetier",
+    description = "Test: Force Power Roll Tier",
+    default = 0,
+    storage = "transient",
+}
+
 --register the ability to modify power roll damage during spell casting.
 ActivatedAbilityModifyCastBehavior.RegisterParam{
     id = "ability_damage",
@@ -737,7 +749,11 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         --SetClassTree so the descendant labels can gate their hover
                         --recolor on "selectable" too (see the {label, selectable, hover}
                         --rule); the press guard above still reads it off the row itself.
-                        element:SetClassTree("selectable", true)
+                        --Not while the Monster AI is driving the dialog: it completes
+                        --the roll itself, so the rows must offer no click-to-override
+                        --affordance. "aiDriven" is put on this subtree by the embedded
+                        --roll dialog's ShowDialog before the dice land.
+                        element:SetClassTree("selectable", not element:HasClass("aiDriven"))
                     end
                 end,
                 tierIcon,
@@ -1528,6 +1544,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     for _,target in ipairs(multitargets) do
         table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
+    end
+
+    --Test hook: "/testai <ability> tier2" forces the result. Stamped on
+    --rollProperties BEFORE the roll rather than after it, which is what makes it
+    --show: rollProperties rides along on dmhub.Roll, so the power table's own
+    --finish path (`tier = m_rollInfo.properties:try_get("overrideTier") or tier`)
+    --lands the highlight + flash on the forced row, the per-target tiers come out
+    --of CalculateMultitargetsFromRollProperties already overridden, and remote
+    --clients see it without an extra upload. The dice still animate to their
+    --natural tier and then snap -- exactly like a click on that row.
+    --overrideMessage is what the chat card prints as the reason.
+    local forcedTier = dmhub.GetSettingValue("test:aiforcetier")
+    if type(forcedTier) == "number" and forcedTier >= 1 and forcedTier <= #rollProperties.tiers then
+        rollProperties.overrideTier = forcedTier
+        rollProperties.overrideMessage = string.format("%s forced tier %d (/testai)", dmhub.userDisplayName, forcedTier)
     end
 
     local m_rollInfo = nil

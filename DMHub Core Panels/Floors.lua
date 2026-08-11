@@ -1726,53 +1726,6 @@ CreateLayersPanel = function()
 							},
 						}
 
-						local displayedCharacters = nil
-						local floorTokensPanel = gui.Panel{
-							classes = {"floorTokensPanel"},
-							styles = {
-								{
-									selectors = {"token-image"},
-									width = 20,
-									height = 20,
-									halign = "left",
-									valign = "center",
-								}
-							},
-							monitorGame = '/characters',
-
-							refreshGame = function(element)
-								local characters = floor.playerCharactersOnFloor
-
-								--see if the displayed characters have changed vs last time.
-								if displayedCharacters ~= nil and #displayedCharacters == #characters then
-									local diffs = false
-									for i,c in ipairs(characters) do
-										if c.charid ~= displayedCharacters[i].charid then
-											diffs = true
-										end
-									end
-
-									if diffs == false then
-										--no changes, so just return.
-										return
-									end
-								end
-
-								displayedCharacters = characters
-
-								local children = {}
-
-								for i,c in ipairs(characters) do
-									if i <= 10 then
-										children[#children+1] = gui.CreateTokenImage(c,{
-										})
-									end
-								end
-
-								element.children = children
-							end,
-						}
-
 						local opacitySlider = gui.PercentSlider{
 							width = 88,
 							styles = MutedPercentSliderStyles(),
@@ -1849,28 +1802,20 @@ CreateLayersPanel = function()
 
 							floorDetailsPanel,
 
-							--Right-aligned readout column: the height sits on the row's
-							--center line with player tokens beneath. The gear is NOT
-							--here -- it floats in the corner (below), so the row's one
-							--editable number is not sharing a line with a button.
+							--Right-aligned height readout. The gear is NOT here -- it
+							--floats in the corner (below), so the row's one editable
+							--number is not sharing a line with a button.
+							--Bottom, not centre: the gear occupies the top-right corner
+							--and a 16px gear plus an 18px readout do not both fit on a
+							--44px row's centre line without overlapping.
 							gui.Panel{
-								flow = "vertical",
+								flow = "horizontal",
 								width = "auto",
-								height = "100%",
+								height = 22,
 								halign = "right",
-								--Bottom, not centre: the gear now occupies the top-right
-								--corner and a 16px gear plus an 18px readout do not both
-								--fit on a 44px row's centre line without overlapping.
-								gui.Panel{
-									flow = "horizontal",
-									width = "auto",
-									height = 22,
-									halign = "right",
-									valign = "bottom",
-									rmargin = 8,
-									heightEditor,
-								},
-								floorTokensPanel,
+								valign = "bottom",
+								rmargin = 8,
+								heightEditor,
 							},
 
 							--Settings floats in the row's top-right corner, out of the

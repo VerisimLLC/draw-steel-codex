@@ -1444,8 +1444,8 @@ function DTProjectEditor:_createRollButton(options)
                 return 0
             end,
             followerRolls = function(element)
-                local downtimeInfo = element.data.getDowntimeInfo(element)
-                if downtimeInfo then return downtimeInfo:AggregateFollowerRolls() end
+                local downtimeFollowers = element.data.getDowntimeFollowers(element)
+                if downtimeFollowers then return downtimeFollowers:AggregateAvailableRolls() end
                 return 0
             end,
         },
@@ -1551,10 +1551,13 @@ function DTProjectEditor:_createRollButton(options)
                 -- Check if any followers have rolls (keyed table, so use next())
                 local hasFollowersWithRolls = next(followersWithRolls) ~= nil
 
-                -- If no followers with rolls, go straight to roll dialog with character
+                -- If no followers with rolls, go straight to roll dialog with character.
+                -- Only when the hero actually has rolls -- otherwise this rolled for free.
                 if not hasFollowersWithRolls then
-                    local roller = DTRoller.CreateNew(token.properties)
-                    showRollDialog(roller)
+                    if element.data.characterRolls(element) > 0 then
+                        local roller = DTRoller.CreateNew(token.properties)
+                        showRollDialog(roller)
+                    end
                 else
                     -- Build context menu with character + followers
                     local menuItems = {}

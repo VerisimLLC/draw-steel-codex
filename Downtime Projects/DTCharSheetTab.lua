@@ -412,9 +412,9 @@ function DTCharSheetTab._createHeaderPanel()
                     if CharacterSheet.instance.data.info then
                         local token = CharacterSheet.instance.data.info.token
                         if token and token.properties and token.properties:IsHero() then
-                            local downtimeInfo = token.properties:GetDowntimeInfo()
-                            if downtimeInfo then
-                                availableRolls = downtimeInfo:AggregateFollowerRolls()
+                            local downtimeFollowers = token.properties:GetDowntimeFollowers()
+                            if downtimeFollowers then
+                                availableRolls = downtimeFollowers:AggregateAvailableRolls()
                             else
                                 msg = " (Can't get follower rolls)"
                             end

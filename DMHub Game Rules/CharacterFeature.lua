@@ -806,8 +806,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	local internalCheck = gui.Check{
 		text = "Internal Feature",
 		value = self.internal,
-		halign = "left",
-		valign = "center",
+		halign = "right",
 		change = function(element)
 			if element.value then
 				self.internal = true
@@ -821,9 +820,8 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	local coreMechanicCheck = gui.Check{
 		text = "Core Mechanic",
 		value = self.coreMechanic,
-		halign = "left",
-		valign = "center",
-		lmargin = 24,
+		halign = "right",
+		vmargin = 4,
 		change = function(element)
 			if element.value then
 				self.coreMechanic = true
@@ -834,25 +832,36 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		hover = gui.Tooltip("Pin this feature's rules to the top of the character sheet and panel"),
 	}
 
-	local flagsRow = gui.Panel{
-		flow = "horizontal",
-		width = "100%",
+	-- The flags float in the form's top-right dead space (level with the
+	-- Name and Source rows) rather than spending form rows of their own:
+	-- the form's main work is modifiers, so metadata must not tax vertical
+	-- space.
+	local flagsPanel = gui.Panel{
+		floating = true,
+		halign = "right",
+		valign = "top",
+		flow = "vertical",
+		width = "auto",
 		height = "auto",
-		halign = "left",
+		rmargin = 8,
+		tmargin = 4,
 		internalCheck,
 		coreMechanicCheck,
 	}
 
 	-- Game mode tags. Only rendered when the active game system registers
-	-- modes (Draw Steel does; 5e does not).
-	local modesRow = nil
+	-- modes (Draw Steel does; 5e does not). No label row: the "Add Tag..."
+	-- placeholder self-describes, mirroring the Add Prerequisite dropdown
+	-- it shares a row with.
+	local modesEditor = nil
 	if #GameSystem.featureModes > 0 then
 		local modeOptions = {}
 		for _,modeName in ipairs(GameSystem.featureModes) do
 			modeOptions[#modeOptions+1] = { id = modeName, text = modeName }
 		end
 
-		local modesEditor = gui.Multiselect{
+		modesEditor = gui.Multiselect{
+			halign = "left",
 			addItemText = "Add Tag...",
 			options = modeOptions,
 			value = self:try_get("modes", {}),
@@ -868,8 +877,6 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				self.modes = newModes
 			end,
 		}
-
-		modesRow = makeFormRow("Tags:", modesEditor, "modesPanel")
 	end
 
 	local descriptionInput = gui.Input{
@@ -901,22 +908,50 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	-- children across that height (~700px), producing large gaps between
 	-- rows and before the + Add Modifier button. The Create New Ability
 	-- modal uses the same pattern at AbilityEditorTemplates.lua:1436-1453.
-	-- Built incrementally rather than as a literal: modesRow and
-	-- prerequisitesPanel can be nil, and a holed list makes the later
-	-- #innerRows+1 append implementation-defined.
+	-- Prerequisites and tags share one horizontal row when both exist.
+	local metaRow = nil
+	if prerequisitesPanel ~= nil and modesEditor ~= nil then
+		metaRow = gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			halign = "left",
+			gui.Panel{
+				flow = "vertical",
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				valign = "top",
+				prerequisitesPanel,
+			},
+			gui.Panel{
+				flow = "vertical",
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				valign = "top",
+				modesEditor,
+			},
+		}
+	else
+		metaRow = prerequisitesPanel or modesEditor
+	end
+
+	-- Built incrementally rather than as a literal: metaRow can be nil, and
+	-- a holed list makes the later #innerRows+1 append
+	-- implementation-defined.
 	local innerRows = {}
 	for _,row in ipairs{
 		makeFormRow("Name:", nameInput, "namePanel"),
 		makeFormRow("Source:", sourceInput, "sourcePanel"),
 		makeInlineRow("Implementation:", implementationWidget),
-		flagsRow,
+		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
 	} do
 		innerRows[#innerRows+1] = row
 	end
-	innerRows[#innerRows+1] = modesRow
-	innerRows[#innerRows+1] = makeFormRow("Description:", descriptionInput, "descriptionPanel")
-	innerRows[#innerRows+1] = prerequisitesPanel
+	innerRows[#innerRows+1] = metaRow
 	innerRows[#innerRows+1] = modifiersPanel
+	innerRows[#innerRows+1] = flagsPanel
 
 	-- Themed mode builds a persistent Add / Paste Modifier bottom bar. In
 	-- normal (scrolling) editors the bar is kept outside the scroll area so

@@ -184,6 +184,13 @@ Related queued items (NOT this scope):
   position; menu contains grant, benefit choice per owned title, remove.
   Granted-title chips render as today. Players manage their own titles.
 
+### Post-chunk-1 rulings (2026-08-12, James)
+
+| Date | Decision | Rationale |
+|---|---|---|
+| 2026-08-12 | Core mechanic STAYS feature-level, governed by ONE-PER-CLASS policy: exactly one pinned feature per qualifying class, the base mechanic only. The earlier stacking rule is STRUCK; subclass features (Congregation, Furious Change) and doctrine Mark-riders render as NORMAL features, never pinned | James dismantled the subclass-precedent examples; pinning riders makes the card a wall of text that gets ignored |
+| 2026-08-12 | Editor layout: Internal Feature checkbox right-aligned on the Name row; Core Mechanic right-aligned beneath it (Source row); Tags shares the prerequisite row | Feature form's main work is modifiers -- metadata must not tax vertical space |
+
 ## Rollout follow-ups
 
 - Once feature metadata ships: update the implement-content skill and/or

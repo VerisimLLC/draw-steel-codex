@@ -4554,21 +4554,23 @@ function PanelDocument:CreateInterface(args)
     --universal window convention (one close control only: two x's in
     --one header read as a bug -- Venla 2026-08-12). Hidden entirely
     --while pinned (SyncPinnedState): a pinned window cannot be closed.
-    local closeButton = gui.Button{
-        classes = {"closeButton", "sizeXs"},
-        --escape is handled by the window root (see resultPanel), which
-        --closes the window WITHOUT forgetting its rail record. The kind
-        --default (escapeActivates) would race it and win, and this
-        --button's click forgets the record -- an explicit-close-only
-        --semantic.
-        escapeActivates = false,
-        --FLOATING, anchored to the corner: stays put when the title chip
-        --changes form or the header wraps.
+    --A plain panel with the phosphor x, NOT the legacy closeButton
+    --widget: the old glyph read dated, its top-anchored offset sat
+    --below the header's centre line, and the widget kind's default
+    --escape activation would race the window root's own escape handler.
+    local closeButton = gui.Panel{
+        classes = {"panelDocumentCloseButton"},
+        bgimage = "phosphor/x-bold.png",
+        width = 18,
+        height = 18,
+        --FLOATING, anchored to the corner and centred against the
+        --header's real height: stays put when the title chip changes
+        --form or the header wraps.
         floating = true,
         halign = "right",
-        valign = "top",
+        valign = "center",
         x = -6,
-        y = 8,
+        swallowPress = true,
         click = function(element)
             if Pinned() then
                 return
@@ -5522,6 +5524,20 @@ function PanelDocument:CreateInterface(args)
                 opacity = 1,
                 bgcolor = "@fgStrong",
                 rotate = 0,
+            },
+            --the corner close x: the phosphor glyph tinted like the rest
+            --of the chrome -- present but calm at rest, full-strength on
+            --hover (STYLE_GUIDE icon states).
+            {
+                selectors = {"panelDocumentCloseButton"},
+                bgcolor = "@fg",
+                opacity = 0.7,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panelDocumentCloseButton", "hover"},
+                opacity = 1,
+                bgcolor = "@fgStrong",
             },
         }),
 

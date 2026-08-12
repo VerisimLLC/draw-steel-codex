@@ -673,14 +673,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	}
 
 
-	-- Prerequisites are offered to every plain CharacterFeature. The
-	-- canHavePrerequisites flag was historically set by only one authoring
-	-- path (the class editor's plain "Feature" option), so prefab clones,
-	-- pasted features and ability-wrapping features arbitrarily lost the
-	-- dropdown even though prerequisite EVALUATION never checks the flag.
-	-- Subtypes (CharacterOngoingEffect and friends -- effect payloads whose
-	-- prerequisites nothing evaluates) keep the explicit opt-in.
-	if self.canHavePrerequisites or self.typeName == "CharacterFeature" then
+	if self.canHavePrerequisites then
 		local dropdown = gui.Dropdown{
 			height = 30,
 			width = 220,

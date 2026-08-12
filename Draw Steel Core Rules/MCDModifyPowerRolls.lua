@@ -297,11 +297,49 @@ CharacterModifier.TypeInfo.power = {
 		--can then read the flag the marker grants and deliver on this same
 		--strike. (The customTrigger above is deferred until after the cast, so
 		--it is too late to gate same-strike delivery.)
+		--
+		--armEffectApplyTo = "target" marks the ability's TARGET instead of the
+		--modifier's owner. Required whenever the creature a later trigger has to
+		--identify is not the owner -- e.g. Shadow Elf Knightfell's Trick of the
+		--Eye halves ONE ally's damage, so the marker has to name that ally.
+		--Marking the owner there yields a global on/off flag that every damaged
+		--ally in range matches, firing the redirect once per target instead of
+		--once for the protected one.
 		local armEffect = modifier:try_get("armEffect")
 		if armEffect ~= nil then
-			local armToken = dmhub.LookupToken(creature)
+			local armSubject = creature
+			if modifier:try_get("armEffectApplyTo", "self") == "target" then
+				--symbol contexts are installed as GenerateSymbols lookup
+				--functions (see CharacterModifier:InstallSymbolsFromContext);
+				--calling with "self" unwraps back to the creature. Same idiom
+				--as the "subject" applyto in ActivatedAbility:GetTargets.
+				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+				if type(abilityTarget) == "function" then
+					abilityTarget = abilityTarget("self")
+				end
+
+				if abilityTarget ~= nil then
+					armSubject = abilityTarget
+				end
+			end
+
+			local armToken = dmhub.LookupToken(armSubject)
 			if armToken ~= nil and armToken.valid then
-				armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				if armSubject == creature then
+					--the owner's properties are already inside the caller's
+					--ModifyProperties block (see ConsumeResource in DSRollDialog).
+					armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				else
+					--a different token: needs its own ModifyProperties or the
+					--mutation never uploads.
+					armToken:ModifyProperties{
+						description = "Arm Triggered Effect",
+						undoable = false,
+						execute = function()
+							armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+						end,
+					}
+				end
 			end
 		end
 

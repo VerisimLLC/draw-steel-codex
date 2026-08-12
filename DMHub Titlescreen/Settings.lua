@@ -44,15 +44,82 @@ setting{
     default = false,
 }
 
+--The old single "Show Map Overlay" preference, superseded by the split
+--mapoverlay:* settings below. Kept registered (no editor/section, so it never
+--appears in the settings menus) so the one-time migration can still read the
+--stored value; safe to remove once the migration has been out for a while.
 setting{
     id = "tileheight:overlay",
-    description = "Show Map Overlay",
-    help = "Draws contour lines and integer labels showing the game-rules height of each tile on the current floor.",
+    description = "Show Map Overlay (legacy)",
+    storage = "preference",
+    default = false,
+}
+
+--The map overlay, split into layers. Each is also reachable from the map
+--overlay menu on the title bar's terrain chip (see CodexTitleBar), which
+--additionally lists a per-zone-type toggle for every zone type present on the
+--current map. Players only see overlay information on tiles currently inside
+--their vision.
+setting{
+    id = "mapoverlay:walls",
+    description = "Show Walls",
+    help = "Draws the map's walls as lines colored by the cover they grant: black for full cover, greys for partial cover.",
     storage = "preference",
     section = "Map",
     editor = "check",
     default = false,
 }
+
+setting{
+    id = "mapoverlay:elevation",
+    description = "Show Elevation",
+    help = "Draws contour lines wherever tile elevation changes, and an integer height label inside each region.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+--';'-joined environmental keyword ids whose zones are hidden from the map
+--overlay for this user. Zone types default to VISIBLE; this records opt-outs.
+--No editor: managed from the title bar's map overlay menu.
+setting{
+    id = "mapoverlay:hiddenzones",
+    description = "Hidden Map Overlay Zone Types",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined built-in terrain rule types (water/difficult/concealment/
+--climbable) whose tile-art stripes are shown. Unlike zones these default
+--HIDDEN: a DM paints zones deliberately, but tile-art rules would stripe
+--every pond on every map by default. No editor: managed from the title
+--bar's map overlay menu, which lists only the types actually present on
+--the map's terrain tiles (dmhub.GetBuiltinTerrainTypesOnMap).
+setting{
+    id = "mapoverlay:shownbuiltins",
+    description = "Shown Built-in Terrain Types",
+    storage = "preference",
+    default = "",
+}
+
+--One-time migration: a user who had the old combined preference on gets the
+--equivalent full overlay from the split settings.
+setting{
+    id = "mapoverlay:migrated",
+    description = "Map overlay settings migrated",
+    storage = "preference",
+    default = false,
+}
+
+if not dmhub.GetSettingValue("mapoverlay:migrated") then
+    dmhub.SetSettingValue("mapoverlay:migrated", true)
+    if dmhub.GetSettingValue("tileheight:overlay") then
+        dmhub.SetSettingValue("mapoverlay:walls", true)
+        dmhub.SetSettingValue("mapoverlay:elevation", true)
+        dmhub.SetSettingValue("mapoverlay:shownbuiltins", "climbable;concealment;difficult;water")
+    end
+end
 
 setting{
     id = "canopy:defaultradius",
@@ -792,6 +859,10 @@ setting{
         {
             value = "dither",
             text = "Dim",
+        },
+        {
+            value = "roof",
+            text = "Roof",
         },
     }
 }

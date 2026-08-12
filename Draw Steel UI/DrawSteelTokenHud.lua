@@ -1184,7 +1184,10 @@ TokenHud.RegisterPanel{
 --Hovering a token you control shows a small character-panel icon in the
 --token's bottom-left corner; clicking it opens that character's ad-hoc
 --panel window (ShowCharacterPanelDocument -- the same per-character
---window the journal's Characters section opens).
+--window the journal's Characters section opens). The Party Member
+--Controls game setting can extend the icon to party members a player
+--doesn't control (CharacterPanel.CanViewToken); the panel itself then
+--opens read-only when the setting only grants View access.
 local g_characterPanelLauncherStyles = {
     gui.Style{
         selectors = {"characterPanelLauncher"},
@@ -1257,7 +1260,7 @@ TokenHud.RegisterPanel{
             tokenHoverTree = function(element, targeting)
                 --while the token is a targeting candidate the corner click
                 --belongs to targeting, not to us.
-                if targeting or (not token.canControl) then
+                if targeting or (not CharacterPanel.CanViewToken(token)) then
                     return
                 end
                 element:SetClass("shown", true)
@@ -1284,14 +1287,14 @@ TokenHud.RegisterPanel{
             end,
 
             refresh = function(element)
-                --hide if control of the token has been taken away.
-                if element:HasClass("shown") and ((not token.valid) or (not token.canControl)) then
+                --hide if access to the token has been taken away.
+                if element:HasClass("shown") and ((not token.valid) or (not CharacterPanel.CanViewToken(token))) then
                     HideLauncher(element)
                 end
             end,
 
             press = function(element)
-                if not token.canControl then
+                if not CharacterPanel.CanViewToken(token) then
                     return
                 end
                 --toggles: a second click while the window is open closes it.

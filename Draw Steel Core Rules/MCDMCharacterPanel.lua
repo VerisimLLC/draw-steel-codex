@@ -27,6 +27,23 @@ local g_refreshChecklistName = {
 TacPanel = {}
 TacPanelStyles = {}
 
+--- True when this element lives inside a character panel presented in
+--- read-only mode (Party Member Controls = View: look but not touch).
+--- The "readonly" class is set on the panel root by
+--- CharacterPanel.CreatePinnedCharacterPanel and the sidebar character
+--- list. Every handler in the tac panel that mutates game state (or
+--- navigates to an editable surface) must call this first and bail out.
+--- Checked at event time rather than build time because most chips and
+--- rows are rebuilt on every refresh.
+--- @param element Panel
+--- @return boolean
+function TacPanel.IsReadOnly(element)
+    if not element.valid then
+        return false
+    end
+    return element:HasClass("readonly") or element:FindParentWithClass("readonly") ~= nil
+end
+
 local TacPanelSizes = {}
 
 TacPanelSizes.Panels = {
@@ -1744,6 +1761,20 @@ TacPanelStyles.HealthFill = ThemeEngine.MergeTokens{
     },
 }
 
+-- Read-only mode (Party Member Controls = View): the "readonly" class sits
+-- on the character panel root and descends via inherit_selectors, so any
+-- control tagged "editOnly" collapses while the panel is read-only. The
+-- styles only remove edit-only chrome; look-but-not-touch is actually
+-- enforced by the TacPanel.IsReadOnly gates inside the mutating handlers.
+TacPanelStyles.ReadOnly = {
+    {
+        selectors = {"editOnly", "readonly"},
+        inherit_selectors = true,
+        priority = 100,
+        collapsed = 1,
+    },
+}
+
 end
 
 TacPanel.BuildStyles()
@@ -1772,6 +1803,7 @@ function TacPanel.AllStyles()
         TacPanelStyles.MultiEdit,
         TacPanelStyles.Routines,
         TacPanelStyles.Conditions,
+        TacPanelStyles.ReadOnly,
     }
 end
 
@@ -1947,7 +1979,7 @@ function TacPanel.Portrait()
     
     if g_companionAppSetting:Get() then
         m_companionAppButton = outlineButton(gui.Panel{
-            classes = {"toggle-btn", "light-btn"},
+            classes = {"toggle-btn", "light-btn", "editOnly"},
             hoverCursor = "pressbutton",
             bgimage = "ui-icons/codex-logo.png",
             bgcolor = "white",
@@ -1964,6 +1996,7 @@ function TacPanel.Portrait()
                 element:FireEvent("refreshCharacter", token)
             end,
             press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
                 local token = element.data.token
                 if token == nil then return end
                 dmhub.OpenCharacterPopout(token.charid, nil, function(msg)
@@ -2025,7 +2058,7 @@ function TacPanel.Portrait()
                 valign = "center",
             outlineButton(gui.Panel{
                 id = "char-panel-light-btn",
-                classes = {"toggle-btn", "light-btn"},
+                classes = {"toggle-btn", "light-btn", "editOnly"},
                 hoverCursor = "pressbutton",
                 width = visionBtnSize,
                 height = visionBtnSize,
@@ -2039,6 +2072,7 @@ function TacPanel.Portrait()
                     element:FireEvent("refreshCharacter", token)
                 end,
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     Commands.light()
                 end,
                 linger = function(element)
@@ -2046,7 +2080,7 @@ function TacPanel.Portrait()
                 end,
             }),
             outlineButton(gui.Panel{
-                classes = {"toggle-btn", "character-sheet-btn"},
+                classes = {"toggle-btn", "character-sheet-btn", "editOnly"},
                 hoverCursor = "pressbutton",
                 width = visionBtnSize,
                 height = visionBtnSize,
@@ -2061,6 +2095,7 @@ function TacPanel.Portrait()
                     element:FireEvent("refreshCharacter", token)
                 end,
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local token = element.data.token
                     if token ~= nil then
                         token:ShowSheet()
@@ -2389,6 +2424,10 @@ function TacPanel.HeroTokenBox()
                 change = function(element)
                     local token = element.parent.parent.data.token
                     if token == nil then return end
+                    if TacPanel.IsReadOnly(element) then
+                        element.textNoNotify = string.format("%d", token.properties:GetHeroTokens())
+                        return
+                    end
                     local n = tonum(element.text, -1)
                     if n >= 0 then
                         local prev = token.properties:GetHeroTokens()
@@ -2410,6 +2449,7 @@ function TacPanel.HeroTokenBox()
                     if element.hasFocus then
                         return
                     end
+                    element.editable = not TacPanel.IsReadOnly(element)
                     element.textNoNotify = tostring(token.properties:GetHeroTokens())
                 end,
                 defocus = function(element)
@@ -2424,10 +2464,11 @@ function TacPanel.HeroTokenBox()
 
         -- Floating: refresh button
         gui.Button{
-            classes = {"refresh-icon", "sizeS"},
+            classes = {"refresh-icon", "sizeS", "editOnly"},
             floating = true,
             icon = "icons/standard/Icon_App_Undo.png",
             press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
                 local token = element.parent.data.token
                 if token == nil then return end
 
@@ -2539,6 +2580,10 @@ function TacPanel.SurgesBox()
                 change = function(element)
                     local token = element.parent.parent.data.token
                     if token == nil then return end
+                    if TacPanel.IsReadOnly(element) then
+                        element.textNoNotify = tostring(token.properties:GetAvailableSurges())
+                        return
+                    end
                     local n = tonum(element.text, -1)
                     if n < 0 then
                         element.textNoNotify = tostring(token.properties:GetAvailableSurges())
@@ -2565,7 +2610,7 @@ function TacPanel.SurgesBox()
                         element.editable = false
                         element.textNoNotify = "--"
                     else
-                        element.editable = true
+                        element.editable = not TacPanel.IsReadOnly(element)
                         element.textNoNotify = tostring(token.properties:GetAvailableSurges())
                     end
                 end,
@@ -2611,6 +2656,7 @@ function TacPanel.VictoriesBox()
                 data = { token = nil },
                 refreshCharacter = function(element, token)
                     element.data.token = token
+                    element.editable = not TacPanel.IsReadOnly(element)
                     element.textNoNotify = string.format("%d", token.properties:GetVictories())
                 end,
                 refreshToken = function(element, token)
@@ -2632,7 +2678,7 @@ function TacPanel.VictoriesBox()
                     local token = element.data.token
                     if token == nil then return end
                     local n = tonum(element.text, -1)
-                    if n < 0 then
+                    if TacPanel.IsReadOnly(element) or n < 0 then
                         element:FireEvent("refreshCharacter", token)
                         return
                     end
@@ -2734,7 +2780,7 @@ function TacPanel.HeroicResourcesBox()
                         element.editable = false
                         element.textNoNotify = "--"
                     else
-                        element.editable = true
+                        element.editable = not TacPanel.IsReadOnly(element)
                         element.textNoNotify = tostring(token.properties:GetHeroicOrMaliceResources())
                     end
                 end,
@@ -2757,7 +2803,7 @@ function TacPanel.HeroicResourcesBox()
                     local token = element.data.token
                     if token == nil then return end
                     local n = tonum(element.text, nil)
-                    if n == nil then
+                    if n == nil or TacPanel.IsReadOnly(element) then
                         element:FireEvent("refreshCharacter", token)
                         return
                     end
@@ -2949,7 +2995,7 @@ function TacPanel.Summary()
         -- when there is an active initiative queue and this token is not yet a
         -- combatant (same semantics as the old initiative icon button).
         gui.Button{
-            classes = {"sizeM", "collapsed"},
+            classes = {"sizeM", "collapsed", "editOnly"},
             width = "100%-12",
             height = 40,
             vmargin = 4,
@@ -2971,6 +3017,7 @@ function TacPanel.Summary()
                 element:FireEvent("refreshCharacter", token)
             end,
             press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
                 Commands.rollinitiative()
             end,
         },
@@ -2982,7 +3029,9 @@ end
 --- @return Panel
 function TacPanel.HarmBox()
     return gui.Panel{
-        classes = {"stamina-box", "harm"},
+        --pure action box (type damage to apply it): hidden entirely in
+        --read-only mode.
+        classes = {"stamina-box", "harm", "editOnly"},
         gui.Label{
             classes = {"stambox-title", "harm"},
             text = "DMG",
@@ -2996,6 +3045,10 @@ function TacPanel.HarmBox()
                 token = nil,
             },
             change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    element.textNoNotify = ""
+                    return
+                end
                 local n = tonum(element.text, 0)
                 if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
                     element.data.token:ModifyProperties{
@@ -3021,7 +3074,9 @@ end
 --- @return Panel
 function TacPanel.HealBox()
     return gui.Panel{
-        classes = {"stamina-box", "heal"},
+        --pure action box (type healing to apply it): hidden entirely in
+        --read-only mode.
+        classes = {"stamina-box", "heal", "editOnly"},
         gui.Label{
             classes = {"stambox-title", "heal"},
             text = "HEAL",
@@ -3035,6 +3090,10 @@ function TacPanel.HealBox()
                 token = nil,
             },
             change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    element.textNoNotify = ""
+                    return
+                end
                 local n = tonum(element.text, 0)
                 if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
                     element.data.token:ModifyProperties{
@@ -3077,6 +3136,12 @@ function TacPanel.TempStamBox()
                 token = nil,
             },
             change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    if element.data.token ~= nil and element.data.token.valid then
+                        element:FireEvent("refreshCharacter", element.data.token)
+                    end
+                    return
+                end
                 local before = tonum(element.data.token.properties:TemporaryHitpointsStr(), 0)
                 local after = tonum(element.text, 0)
                 if element.text ~= "" and after ~= before and element.data.token ~= nil and element.data.token.properties ~= nil then
@@ -3091,6 +3156,7 @@ function TacPanel.TempStamBox()
             end,
             refreshCharacter = function(element, token)
                 element.data.token = token
+                element.editable = not TacPanel.IsReadOnly(element)
                 local tempHp = token.properties:TemporaryHitpoints()
                 if tempHp <= 0 then
                     element.text = "0"
@@ -3153,6 +3219,12 @@ function TacPanel.StaminaBox()
                 end,
                 change = function(element)
                     local token = element.data.token
+                    if TacPanel.IsReadOnly(element) then
+                        if token ~= nil and token.valid then
+                            element:FireEvent("refreshValue", token)
+                        end
+                        return
+                    end
                     if token ~= nil and token.valid and token.properties ~= nil then
                         local n = tonumber(element.text)
                         if n ~= nil and (n >= 0 or token.properties:IsHero()) then
@@ -3171,6 +3243,7 @@ function TacPanel.StaminaBox()
                     if element.hasFocus then
                         return
                     end
+                    element.editable = not TacPanel.IsReadOnly(element)
                     local text = tostring(token.properties:CurrentHitpoints())
                     element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
                     element.textNoNotify = text
@@ -3428,6 +3501,7 @@ function TacPanel.RecoveriesBox()
             element.tooltip = TacPanel.Tooltip(table.concat(lines, "\n"))
         end,
         press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             local token = element.data.token
             if token == nil then return end
 
@@ -3488,6 +3562,7 @@ function TacPanel.RecoveriesBox()
             })
         end,
         rightClick = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             ShowSharingMenu(element, element.data.token)
         end,
         gui.Label{
@@ -3547,6 +3622,7 @@ function TacPanel.RecoveriesBox()
                         data = { token = nil },
                         refreshCharacter = function(element, token)
                             element.data.token = token
+                            element.editable = not TacPanel.IsReadOnly(element)
                             local recoveryid, recoveryInfo = resolveRecovery()
                             if recoveryInfo == nil then return end
                             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
@@ -3561,7 +3637,7 @@ function TacPanel.RecoveriesBox()
                             local recoveryid, recoveryInfo = resolveRecovery()
                             if recoveryInfo == nil then return end
                             local n = tonum(element.text, -1)
-                            if n < 0 then
+                            if n < 0 or TacPanel.IsReadOnly(element) then
                                 element.textNoNotify = "0"
                                 element:FireEvent("refreshCharacter", token)
                                 return
@@ -3967,6 +4043,7 @@ function TacPanel.SpeedBox()
         data = { token = nil },
         linger = GenerateAttributeCalculationTooltip(tokenInfo, "Speed", creature.GetBaseSpeed, creature.DescribeSpeedModifications),
         press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             local token = element.data.token
             if token ~= nil then
                 gui.PopupOverrideAttribute{
@@ -4046,6 +4123,7 @@ function TacPanel.DisengageBox()
         data = { token = nil },
         linger = GenerateCustomAttributeCalculationTooltip(tokenInfo, "Disengage Speed"),
         press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             local token = element.data.token
             if token ~= nil then
                 gui.PopupOverrideAttribute{
@@ -4105,6 +4183,7 @@ function TacPanel.StabilityBox()
                 return c:DescribeModifications("forcedmoveresistance", c:BaseForcedMoveResistance())
             end),
         press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             local token = element.data.token
             if token ~= nil then
                 local baseStability = token.properties:BaseForcedMoveResistance()
@@ -4216,10 +4295,11 @@ function TacPanel.AltitudeBox()
                 floating = true,
                 halign = "right",
                 gui.Label{
-                    classes = {"altitude-btn"},
+                    classes = {"altitude-btn", "editOnly"},
                     text = "+",
                     data = { token = nil },
                     press = function(element)
+                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
                         if token ~= nil then
                             if token.properties:CanFly() then
@@ -4243,10 +4323,11 @@ function TacPanel.AltitudeBox()
                     end,
                 },
                 gui.Label{
-                    classes = {"altitude-btn"},
+                    classes = {"altitude-btn", "editOnly"},
                     text = "-",
                     data = { token = nil },
                     press = function(element)
+                        if TacPanel.IsReadOnly(element) then return end
                         local token = element.data.token
                         if token ~= nil then
                             if token.properties:CanFly() then
@@ -4295,6 +4376,9 @@ function TacPanel.CharacteristicBox(attrInfo)
         hoverCursor = "pressbutton",
         data = { token = nil },
         press = function(element)
+            --rolling a characteristic acts as (and broadcasts for) the
+            --character, so it counts as touching.
+            if TacPanel.IsReadOnly(element) then return end
             local token = element.data.token
             if token ~= nil and token.properties ~= nil then
                 token.properties:ShowCharacteristicRollDialog(attrInfo.id)
@@ -4400,6 +4484,9 @@ function TacPanel.HRGainRow(entry, token)
                 element:SetClassImmediate("completed", consumed)
             end,
             press = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    return
+                end
                 local q = dmhub.initiativeQueue
                 if q == nil or q.hidden then
                     return
@@ -4892,6 +4979,7 @@ function TacPanel.Routines()
             children[#children+1] = gui.Panel{
                 classes = {"rt-chip"},
                 press = function(el)
+                    if TacPanel.IsReadOnly(el) then return end
                     token:ModifyProperties{
                         description = tr("Select Routine"),
                         execute = function()
@@ -4921,6 +5009,7 @@ function TacPanel.Routines()
                         })
                     end,
                     press = function(el)
+                        if TacPanel.IsReadOnly(el) then return end
                         token:ModifyProperties{
                             description = tr("Select Routine"),
                             execute = function()
@@ -4971,6 +5060,7 @@ function TacPanel.Routines()
                                     width = 12,
                                     height = 12,
                                     press = function(element)
+                                        if TacPanel.IsReadOnly(element) then return end
                                         local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
                                         settings.hide = not settings.hide
 
@@ -5005,6 +5095,7 @@ function TacPanel.Routines()
                                     --Live preview during drag (gui.ColorPicker
                                     --fires `change` per-frame while dragging).
                                     --Mutate in place; confirm handles upload.
+                                    if TacPanel.IsReadOnly(element) then return end
                                     local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
                                     settings.bgcolor = element.value.tostring
                                     token.properties:SetAuraDisplaySetting(routine.name, settings)
@@ -5016,6 +5107,7 @@ function TacPanel.Routines()
                                     --uploads (without the clear, the live-preview
                                     --already-set value would make ModifyProperties
                                     --see no diff).
+                                    if TacPanel.IsReadOnly(element) then return end
                                     local preserved = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
                                     preserved.bgcolor = element.value.tostring
                                     token.properties:SetAuraDisplaySetting(routine.name, nil)
@@ -5149,6 +5241,9 @@ function TacPanel.MonsterMode()
                     classes = classes,
                     hover = hover,
                     press = function(el)
+                        if TacPanel.IsReadOnly(el) then
+                            return
+                        end
                         if i == selected then
                             --the creature is always in exactly one mode; no deselect.
                             return
@@ -5385,7 +5480,7 @@ function TacPanel.Summoner()
             vmargin = 4,
 
             gui.Button{
-                classes = {"sizeM"},
+                classes = {"sizeM", "editOnly"},
                 halign = "center",
                 width = 175,
                 height = 40,
@@ -5398,6 +5493,7 @@ function TacPanel.Summoner()
                     element.data.token = token
                 end,
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local token = element.data.token
                     if token == nil or not token.valid then return end
                     local ability = MCDMUtils.GetStandardAbility("Summoner Sacrifice Minions")
@@ -5480,7 +5576,7 @@ function TacPanel.Summoner()
 
             -- Opens the squad manager modal; the panel itself is read-only.
             gui.Button{
-                classes = {"sizeS"},
+                classes = {"sizeS", "editOnly"},
                 halign = "center",
                 width = 150,
                 height = 28,
@@ -5494,6 +5590,7 @@ function TacPanel.Summoner()
                     element.tooltip = gui.Tooltip("Open the squad manager to reassign, combine, split, rename, recolor, or delete your squads.")
                 end,
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local token = element.data.token
                     if token == nil or not token.valid then return end
                     DrawSteelMinion.ShowSquadManager(token)
@@ -5644,7 +5741,7 @@ end
 --- @param quantity number max quantity of the resource
 --- @param styleCache table<string, any> cache keyed by resource id
 --- @return Panel
-function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
+function TacPanel.OtherResourceRow(token, resource, quantity, styleCache, readOnly)
     local creature = token.properties
     local styles = styleCache[resource.id] or resource:CreateStyles()
     styleCache[resource.id] = styles
@@ -5710,11 +5807,17 @@ function TacPanel.OtherResourceRow(token, resource, quantity, styleCache)
             textAlignment = "center",
             bgcolor = "clear",
             border = 0,
+            editable = not readOnly,
             text = string.format("%d/%d", remaining, quantity or 0),
             change = function(element)
                 local rowData = element.parent.data
                 local tok = rowData.token
                 if tok == nil or not tok.valid then return end
+                if TacPanel.IsReadOnly(element) then
+                    local ro_expended = tok.properties:GetResourceUsage(rowData.resourceId, rowData.usageLimit) or 0
+                    element.textNoNotify = string.format("%d/%d", math.max(0, (rowData.maxQuantity or 0) - ro_expended), rowData.maxQuantity or 0)
+                    return
+                end
                 local maxQuantity = rowData.maxQuantity or 0
                 local resourceId = rowData.resourceId
                 local usageLimit = rowData.usageLimit
@@ -5848,10 +5951,11 @@ function TacPanel.OtherResources()
             hpad = 4,
             vpad = 4,
             setEntries = function(element, info)
+                local readOnly = TacPanel.IsReadOnly(element)
                 local children = {}
                 for _, entry in ipairs(info.entries) do
                     children[#children+1] = TacPanel.OtherResourceRow(
-                        info.token, entry.resource, entry.quantity, resourceStyles)
+                        info.token, entry.resource, entry.quantity, resourceStyles, readOnly)
                 end
                 element.children = children
             end,
@@ -6022,6 +6126,22 @@ function TacPanel.FeatureChip(token, name, descFn, onOpen)
             local displayName = element.data.name
             local descFnNow = element.data.descFn
             local desc = (descFnNow and descFnNow()) or "*No description.*"
+            --the description popup is pure viewing, but the sheet link
+            --leads to the fully editable character sheet: omit it in
+            --read-only mode.
+            local sheetLink = nil
+            if not TacPanel.IsReadOnly(element) then
+                sheetLink = gui.Label{
+                    width = "auto", height = "auto",
+                    halign = "right", tmargin = 6,
+                    bold = true, fontSize = 12, color = "@accent",
+                    text = "Open on sheet",
+                    click = function(linkEl)
+                        chip.popup = nil
+                        FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, displayName)
+                    end,
+                }
+            end
             element.popupsInheritStyles = true
             element.popup = gui.Panel{
                 classes = {"dialog"},
@@ -6041,16 +6161,7 @@ function TacPanel.FeatureChip(token, name, descFn, onOpen)
                     tmargin = 4,
                     text = desc,
                 },
-                gui.Label{
-                    width = "auto", height = "auto",
-                    halign = "right", tmargin = 6,
-                    bold = true, fontSize = 12, color = "@accent",
-                    text = "Open on sheet",
-                    click = function(linkEl)
-                        chip.popup = nil
-                        FeatureCategoriser.OpenSheetAtFeaturesTab(capturedId, displayName)
-                    end,
-                },
+                sheetLink,
             }
         end,
         nameLabel,
@@ -7402,6 +7513,10 @@ function TacPanel.EffectChip(args)
         characterLimit = args.onEdit and 60 or nil,
         textWrap = args.onEdit and false or nil,
         change = args.onEdit and function(element)
+            if TacPanel.IsReadOnly(element) then
+                element.text = args.label
+                return
+            end
             args.onEdit(element, args.token)
         end or nil,
     }
@@ -7414,8 +7529,9 @@ function TacPanel.EffectChip(args)
 
     if args.onRemove then
         children[#children+1] = gui.Panel{
-            classes = {"panel", "cond-remove"},
+            classes = {"panel", "cond-remove", "editOnly"},
             press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
                 args.token:ModifyProperties{
                     description = args.removeDescription,
                     execute = function()
@@ -7499,9 +7615,10 @@ function TacPanel.ConditionChip(condid, cond, token)
         end,
         extraChildren = {
             gui.Button{
-                classes = {"sizeXxs", "cond-setCaster", showSetCaster and "" or "collapsed"},
+                classes = {"sizeXxs", "cond-setCaster", "editOnly", showSetCaster and "" or "collapsed"},
                 icon = "icons/icon_app/icon_app_4.png",
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     if element.data.invoking or gamehud.actionBarPanel.data.IsCastingSpell() then return end
                     element.data.invoking = true
                     element.thinkTime = 0.1
@@ -7718,12 +7835,13 @@ local function FillAurasEmittingPanels(token, chips)
             pad = 3,
             lmargin = 4,
             gui.VisibilityPanel{
-                classes = {"visDot"},
+                classes = {"visDot", "editOnly"},
                 opacity = 1,
                 visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
                 width = 12,
                 height = 12,
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
                     settings.hide = not settings.hide
                     token:ModifyProperties{
@@ -7745,7 +7863,7 @@ local function FillAurasEmittingPanels(token, chips)
             -- Stored aura: color lives on the AuraInstance.display table
             -- and is persisted through ModifyProperties on creature.auras.
             chipChildren[#chipChildren+1] = gui.ColorPicker{
-                classes = {"bordered"},
+                classes = {"bordered", "editOnly"},
                 valign = "center",
                 halign = "right",
                 hmargin = 6,
@@ -7756,6 +7874,7 @@ local function FillAurasEmittingPanels(token, chips)
                 change = function(element)
                     -- Live preview: mutate the in-memory display and refresh the
                     -- aura visual without going through ModifyProperties.
+                    if TacPanel.IsReadOnly(element) then return end
                     local liveDisplay = auraInstance:try_get("display")
                     if liveDisplay == nil then
                         return
@@ -7764,6 +7883,7 @@ local function FillAurasEmittingPanels(token, chips)
                     token:UpdateAuras()
                 end,
                 confirm = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local liveDisplay = auraInstance:try_get("display")
                     if liveDisplay ~= nil then
                         --make sure that when we do modify properties this gets picked up as a change.
@@ -7785,8 +7905,9 @@ local function FillAurasEmittingPanels(token, chips)
                 end,
             }
             chipChildren[#chipChildren+1] = gui.Panel{
-                classes = {"panel", "cond-remove"},
+                classes = {"panel", "cond-remove", "editOnly"},
                 press = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     token:ModifyProperties{
                         description = "Remove Aura",
                         execute = function()
@@ -7810,7 +7931,7 @@ local function FillAurasEmittingPanels(token, chips)
             -- name (same persistent table the visibility toggle uses).
             local capturedAuraName = aura.name
             chipChildren[#chipChildren+1] = gui.ColorPicker{
-                classes = {"bordered"},
+                classes = {"bordered", "editOnly"},
                 valign = "center",
                 halign = "right",
                 hmargin = 6,
@@ -7820,6 +7941,7 @@ local function FillAurasEmittingPanels(token, chips)
                 value = token.properties:GetAuraDisplaySetting(capturedAuraName).bgcolor
                     or (token.playerControlled and token.playerColor.tostring or "#AA0000"),
                 change = function(element)
+                    if TacPanel.IsReadOnly(element) then return end
                     local settings = DeepCopy(token.properties:GetAuraDisplaySetting(capturedAuraName))
                     settings.bgcolor = element.value.tostring
                     token.properties:SetAuraDisplaySetting(capturedAuraName, settings)
@@ -7830,6 +7952,7 @@ local function FillAurasEmittingPanels(token, chips)
                     -- mutations), then clear the live setting and re-apply
                     -- inside ModifyProperties so the upload sees a real
                     -- diff.
+                    if TacPanel.IsReadOnly(element) then return end
                     local preserved = DeepCopy(token.properties:GetAuraDisplaySetting(capturedAuraName))
                     preserved.bgcolor = element.value.tostring
                     token.properties:SetAuraDisplaySetting(capturedAuraName, nil)
@@ -8484,8 +8607,9 @@ function TacPanel.PersistentAbilities()
                             text = string.format("%s--%d", entry.abilityName, entry.cost),
                         },
                         gui.Panel{
-                            classes = {"panel", "cond-remove"},
+                            classes = {"panel", "cond-remove", "editOnly"},
                             press = function(el)
+                                if TacPanel.IsReadOnly(el) then return end
                                 token.properties:EndPersistentAbilityById(guid)
                             end,
                             linger = function(el)
@@ -8569,9 +8693,10 @@ function TacPanel.Conditions()
     --icon rail's panel windows). This is the row's first child, so without it
     --every chip after it is displaced too.
     local m_addButton = gui.Button{
-        classes = {"addButton"} ,
+        classes = {"addButton", "editOnly"} ,
         halign = "left",
         press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
             TacPanel.AddConditionMenu{
                 tokens = {m_token},
                 button = element,

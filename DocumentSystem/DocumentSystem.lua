@@ -3525,7 +3525,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
+            --UpdateStyle: assigning styles alone never marks the tree
+            --style-dirty, so the recolor would wait for an unrelated
+            --event. See the panel-window listener for the full note.
             g_tabbedViewer.styles = ThemeEngine.GetStyles()
+            g_tabbedViewer:UpdateStyle()
         end
     end)
 
@@ -3543,73 +3547,19 @@ function CustomDocument:WindowResizeOptions()
     }
 end
 
---args may carry placement overrides for the window:
---  width/height: initial size (defaults to the full document dialog size;
---      a location remembered from a drag/resize this session still wins).
---  x/y: explicit position. Beats both the default centering and the
---      remembered location -- callers anchoring a window to a fixed spot
---      (e.g. beside a rail icon) always get the spot they asked for.
---The args table is also forwarded to CreateInterface, so interface args
---(close, bubbleIcon, ...) ride along unchanged.
-function CustomDocument:PresentDocument(args)
-    args = args or {}
-
-    local dialogWidth = args.width or 1100
-    local dialogHeight = args.height or 940
-
-    local loc = {
-        x = 1920 * 0.5 * ((dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y) / (1920 / 1080)) - dialogWidth / 2,
-        y = 1080 * 0.5 - dialogHeight / 2,
-        width = dialogWidth,
-        height = dialogHeight,
-    }
-    if self:has_key("_tmp_location") and self._tmp_location.screenx == dmhub.screenDimensionsBelowTitlebar.x and self._tmp_location.screeny == dmhub.screenDimensionsBelowTitlebar.y then
-        loc.x = self._tmp_location.x or loc.x
-        loc.y = self._tmp_location.y or loc.y
-        loc.width = self._tmp_location.width or loc.width
-        loc.height = self._tmp_location.height or loc.height
-    end
-
-    if args.x ~= nil then
-        loc.x = args.x
-    end
-    if args.y ~= nil then
-        loc.y = args.y
-    end
-
-    dialogWidth = loc.width
-    dialogHeight = loc.height
-
-    local dialog
-
-    --A PINNED window is locked in place: no drag, no resize, no close.
-    --The caller supplies the live predicate (PanelDocument does; journal
-    --documents don't pin, so it is absent and this reads false).
-    local function DialogPinned()
-        return args.IsPinned ~= nil and args.IsPinned() == true
-    end
-
-    --a resize that drags the left/top edges moves the window; callers
-    --tracking window position (the icon rail's open-window record) observe
-    --it the same way they observe a window drag.
-    local resizeOptions = self:WindowResizeOptions()
-    resizeOptions.onResized = function(element, moved)
-        if moved and args.onMoved ~= nil then
-            args.onMoved(element)
-        end
-        --a width change re-fits the tab chips (compact vs full labels)
-        --and the header height tracks any row change. Tabbed panel
-        --windows handle this event; everywhere else it is a no-op.
-        if dialog ~= nil and dialog.valid then
-            dialog:FireEventTree("syncPanelHeader")
-        end
-    end
-
-    --COPY the theme styles before appending: ThemeEngine.GetStyles() returns
-    --its shared cached table, and appending to it directly injects these
-    --window-chrome rules (borderless framedPanel, dockingIntoRail shrink)
-    --into the global theme cascade for every later GetStyles/MergeStyles
-    --caller -- which is how every framedPanel in the app lost its border.
+--The style cascade for a document/panel window: the whole active theme
+--plus this window's own chrome rules. A FUNCTION, not a table, because
+--GetStyles resolves against the ACTIVE theme and scheme at call time --
+--the window re-runs it on a theme switch (see the dialog's create /
+--destroy) so a scheme change recolors open windows instead of waiting
+--for them to be reopened.
+--
+--COPY the theme styles before appending: ThemeEngine.GetStyles() returns
+--its shared cached table, and appending to it directly injects these
+--window-chrome rules (borderless framedPanel, dockingIntoRail shrink)
+--into the global theme cascade for every later GetStyles/MergeStyles
+--caller -- which is how every framedPanel in the app lost its border.
+local function DocumentWindowStyles()
     local dialogStyles = {}
     for _, rule in ipairs(ThemeEngine.GetStyles()) do
         dialogStyles[#dialogStyles + 1] = rule
@@ -3640,9 +3590,98 @@ function CustomDocument:PresentDocument(args)
         opacity = 0,
         transitionTime = 0.15,
     }
+    return dialogStyles
+end
+
+--args may carry placement overrides for the window:
+--  width/height: initial size (defaults to the full document dialog size;
+--      a location remembered from a drag/resize this session still wins).
+--  x/y: explicit position. Beats both the default centering and the
+--      remembered location -- callers anchoring a window to a fixed spot
+--      (e.g. restoring a stuck window at its recorded coordinates) always
+--      get the spot they asked for.
+--  anchor: marks x/y as a DEFAULT spot rather than an absolute one (the
+--      rail icons pass it: "open beside my button, unless this window
+--      already has a home"). A position the user established by dragging
+--      the window this session then wins, so a rail window reopens where
+--      it was left -- exactly as its size does.
+--The args table is also forwarded to CreateInterface, so interface args
+--(close, bubbleIcon, ...) ride along unchanged.
+function CustomDocument:PresentDocument(args)
+    args = args or {}
+
+    local dialogWidth = args.width or 1100
+    local dialogHeight = args.height or 940
+
+    local loc = {
+        x = 1920 * 0.5 * ((dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y) / (1920 / 1080)) - dialogWidth / 2,
+        y = 1080 * 0.5 - dialogHeight / 2,
+        width = dialogWidth,
+        height = dialogHeight,
+    }
+    --a location remembered from a drag/resize this session, discarded if
+    --the screen has changed size under it. moved = the user physically
+    --put the window somewhere (a drag, or a left/top-edge resize that
+    --shifted it) -- as opposed to the coordinates it merely happened to
+    --be sitting at when it was resized, which are the opener's anchor.
+    local userPlaced = false
+    if self:has_key("_tmp_location") and self._tmp_location.screenx == dmhub.screenDimensionsBelowTitlebar.x and self._tmp_location.screeny == dmhub.screenDimensionsBelowTitlebar.y then
+        loc.x = self._tmp_location.x or loc.x
+        loc.y = self._tmp_location.y or loc.y
+        loc.width = self._tmp_location.width or loc.width
+        loc.height = self._tmp_location.height or loc.height
+        userPlaced = self._tmp_location.moved == true and self._tmp_location.x ~= nil and self._tmp_location.y ~= nil
+    end
+
+    --an anchored placement yields to a window the user has moved; an
+    --unanchored one is absolute (restores, Views, token-side placement).
+    local anchored = args.anchor == true and userPlaced
+    if args.x ~= nil and not anchored then
+        loc.x = args.x
+    end
+    if args.y ~= nil and not anchored then
+        loc.y = args.y
+    end
+
+    dialogWidth = loc.width
+    dialogHeight = loc.height
+
+    local dialog
+
+    --A PINNED window is locked in place: no drag, no resize, no close.
+    --The caller supplies the live predicate (PanelDocument does; journal
+    --documents don't pin, so it is absent and this reads false).
+    local function DialogPinned()
+        return args.IsPinned ~= nil and args.IsPinned() == true
+    end
+
+    --a resize that drags the left/top edges moves the window; callers
+    --tracking window position (the icon rail's open-window record) observe
+    --it the same way they observe a window drag.
+    local resizeOptions = self:WindowResizeOptions()
+    resizeOptions.onResized = function(element, moved)
+        if moved and args.onMoved ~= nil then
+            args.onMoved(element)
+        end
+        --a width change re-fits the tab chips (compact vs full labels)
+        --and the header height tracks any row change. Tabbed panel
+        --windows handle this event; everywhere else it is a no-op.
+        if dialog ~= nil and dialog.valid then
+            dialog:FireEventTree("syncPanelHeader")
+        end
+    end
+    --and DURING the drag too, so the chips compress in the same frame
+    --the width changes instead of wrapping until release. The fit pass
+    --works from the declared width (see AvailableStripWidth), so it is
+    --not a frame behind the drag.
+    resizeOptions.onResizing = function(element)
+        if dialog ~= nil and dialog.valid then
+            dialog:FireEventTree("syncPanelHeader")
+        end
+    end
 
     dialog = gui.Panel {
-        styles = dialogStyles,
+        styles = DocumentWindowStyles(),
         classes = { "framedPanel", "journalViewer" },
         bgimage = true,
         blurBackground = true,
@@ -3674,6 +3713,9 @@ function CustomDocument:PresentDocument(args)
                 y = dialog.y,
                 width = dialog.selfStyle.width,
                 height = dialog.selfStyle.height,
+                --the user has chosen where this window lives, so an
+                --anchored reopen (a rail icon) yields to this position.
+                moved = true,
                 screenx = dmhub.screenDimensionsBelowTitlebar.x,
                 screeny = dmhub.screenDimensionsBelowTitlebar.y
             }
@@ -3714,6 +3756,39 @@ function CustomDocument:PresentDocument(args)
             forwardHistory = {},
             currentDocId = self.id,
         },
+
+        --Recolor on a theme / color-scheme switch. This window OWNS its
+        --cascade (it is a top-level dialog, not a child of anything
+        --themed), and DocumentWindowStyles resolved the tokens once, at
+        --open time -- so without this an open panel window keeps the old
+        --scheme until it is closed and reopened. The subscription is
+        --per-window and dies with the window; the rail does the same for
+        --its buttons.
+        --
+        --UpdateStyle() is required after the assignment: writing
+        --`panel.styles` only marks the style-APPLICATION cache stale
+        --(SheetPanel.cs bumps styleUpdateSeq but, unlike the `selfStyle`
+        --setter, never calls SetStyleDirty), so nothing schedules the
+        --restyle pass and the new colors sit dormant until some unrelated
+        --event dirties the tree. UpdateStyle IS SetStyleDirty, and the
+        --dirty time propagates to every descendant, so this one call
+        --recolors the window's whole contents -- inside the same frame,
+        --under the theme dialog's crossfade.
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = DocumentWindowStyles()
+                    element:UpdateStyle()
+                end
+            end)
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+        end,
 
         navigateToDocument = function(element, docId)
             local docs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -4965,33 +5040,48 @@ function PanelDocument:CreateInterface(args)
         return 8 * #tostring(t.reg.name or "")
     end
 
-    --The width the strip has to work with. renderedWidth once the strip
-    --has been through layout; before that (a window built this frame),
-    --derive it from the dialog's declared width and the strip's -48.
+    --The width the strip has to work with. Derived from the dialog's
+    --DECLARED width (selfStyle is authoritative: construction and every
+    --resize write it), minus the dialog-to-strip inset. The inset starts
+    --at the tabStrip's declared -48 and self-calibrates from rendered
+    --measurements once a layout pass has run. Working from the declared
+    --width rather than the strip's renderedWidth is what keeps a
+    --mid-drag fit frame-correct: renderedWidth is a frame stale while a
+    --resize drag is rewriting the width every frame.
+    local m_stripInset = 48
     local function AvailableStripWidth()
-        local w
+        local sw, dw
         if tabStrip ~= nil and tabStrip.valid then
-            w = tabStrip.renderedWidth
+            sw = tabStrip.renderedWidth
         end
-        if type(w) ~= "number" or w <= 0 then
-            local dw
-            if dialog ~= nil and dialog.valid then
-                dw = dialog.selfStyle.width
-            end
-            if type(dw) ~= "number" then
-                return nil
-            end
-            w = dw - 48
+        if dialog ~= nil and dialog.valid then
+            dw = dialog.renderedWidth
         end
-        return w
+        if type(sw) == "number" and sw > 0 and type(dw) == "number" and dw > 0 then
+            m_stripInset = dw - sw
+        end
+        local declared
+        if dialog ~= nil and dialog.valid then
+            declared = dialog.selfStyle.width
+        end
+        if type(declared) == "number" then
+            return declared - m_stripInset
+        end
+        --non-numeric window width (never the case for panel windows
+        --today): the measured strip is the best remaining answer.
+        if type(sw) == "number" and sw > 0 then
+            return sw
+        end
+        return nil
     end
 
     --Fit the chips to the strip WITHOUT wrapping when possible, shedding
     --width in stages: level 1 drops inactive chips' labels (the name
-    --moves to a hover tooltip), level 2 drops their close x too. The
-    --active chip always keeps its full form, and everything comes back
-    --the moment there is room. Wrapping remains the true fallback for
-    --when even icon-only chips overflow.
+    --moves to a hover tooltip), level 2 drops their close x too, and as
+    --a final stage the ACTIVE chip's label gets a maxWidth cap so it
+    --shrinks/ellipsizes into whatever width remains. Everything comes
+    --back the moment there is room. Wrapping remains the true fallback
+    --for when even icon-only chips + a 30px active label overflow.
     --
     --Callable BEFORE the strip's first layout pass (estimates take over
     --for missing measurements), which is what lets a restored window
@@ -5007,9 +5097,12 @@ function PanelDocument:CreateInterface(args)
         end
 
         --measure what is measurable and remember it across windows.
+        --A width-capped label renders at its cap, not its natural width,
+        --so it is excluded -- caching it would corrupt the full-width
+        --estimates every later fit works from.
         for _, t in ipairs(m_tabs) do
             local lbl = t.chipLabel
-            if lbl ~= nil and lbl.valid and not lbl:HasClass("collapsed") then
+            if lbl ~= nil and lbl.valid and not lbl:HasClass("collapsed") and t.labelCap == nil then
                 local lw = lbl.renderedWidth
                 if type(lw) == "number" and lw > 0 then
                     t.labelWidth = lw
@@ -5061,6 +5154,48 @@ function PanelDocument:CreateInterface(args)
                 end
             end
         end
+
+        --Final stage: even fully compacted, the active chip's full label
+        --can be wider than what remains (a very narrow window). Cap the
+        --label's maxWidth to exactly the surplus-free width so the strip
+        --still fits one row -- the label shrinks its font toward
+        --minFontSize and then ellipsizes (see BuildChip) instead of
+        --pushing chips onto a second row. The 30px floor keeps a few
+        --characters legible; when even that overflows, the + button goes
+        --first (right-clicking the bar opens the same add menu), and only
+        --after all that does wrap get its say (as it does for many
+        --icon-only chips overflowing on their own).
+        local hideAdd = false
+        for _, t in ipairs(m_tabs) do
+            local lbl = t.chipLabel
+            if lbl ~= nil and lbl.valid then
+                local cap = nil
+                if level >= 2 and t.key == m_activeKey then
+                    local overflow = needed[2] - avail
+                    if overflow > 0 then
+                        cap = LabelWidthOf(t) - overflow
+                        if cap < 30 and addTabButton ~= nil then
+                            hideAdd = true
+                            cap = cap + ADD_BUTTON_W
+                        end
+                        cap = math.max(30, math.ceil(cap))
+                    end
+                end
+                if cap ~= t.labelCap then
+                    t.labelCap = cap
+                    --relax to a huge cap rather than nil: clearing style
+                    --numbers can pin them (see cornerRadius), and 9999
+                    --is beyond any real label.
+                    lbl.selfStyle.maxWidth = cap or 9999
+                    changed = true
+                end
+            end
+        end
+        if addTabButton ~= nil and addTabButton.valid and addTabButton:HasClass("collapsed") ~= hideAdd then
+            addTabButton:SetClass("collapsed", hideAdd)
+            changed = true
+        end
+
         if SyncChipCloseButtons() then
             changed = true
         end
@@ -5165,10 +5300,11 @@ function PanelDocument:CreateInterface(args)
                     }
                 end
             end,
-            --an icon-only chip (compact mode) names itself on hover.
+            --an icon-only chip (compact mode) or a chip whose label is
+            --width-capped (shrunk/ellipsized) names itself on hover.
             hover = function(element)
                 local lbl = tab.chipLabel
-                if lbl ~= nil and lbl.valid and lbl:HasClass("collapsed") then
+                if lbl ~= nil and lbl.valid and (lbl:HasClass("collapsed") or tab.labelCap ~= nil) then
                     gui.Tooltip(tab.reg.name)(element)
                 end
             end,
@@ -5192,6 +5328,13 @@ function PanelDocument:CreateInterface(args)
                     valign = "center",
                     lmargin = 6,
                     rmargin = 4,
+                    --when SyncChipCompaction caps this label's maxWidth
+                    --(very narrow windows), shed width gracefully: shrink
+                    --the font a little first, then ellipsize. At auto
+                    --width with no cap these are inert.
+                    minFontSize = 8,
+                    textWrap = false,
+                    textOverflow = "ellipsis",
                 }
                 return tab.chipLabel
             end)(),
@@ -7065,9 +7208,13 @@ SyncDocksToRailMode = function()
     dmhub.UpdateScreenHudArea(cond(railOn, 0, 1))
 end
 
---Open a rail window for the named panel. placement = {x=,y=,tabs=} anchors
+--Open a rail window for the named panel. placement = {x=,y=,tabs=} places
 --it (and overrides the stored tab list); nil lets PresentDocument use the
 --session-remembered location and PresentPanel restore the stored tabs.
+--placement.anchor marks x/y as the icon's spot rather than an absolute
+--position: a window the user has dragged somewhere this session reopens
+--there instead, the way its size already comes back. Restores and Views
+--leave it off -- their coordinates ARE the remembered position.
 --placement.autoFocus marks a USER-initiated open: a focusOnClick panel
 --(Map Markup and the other map-mode tools) grabs focus -- and so arms its
 --mode -- the moment the window is constructed. Restores omit it.
@@ -7129,6 +7276,7 @@ local function OpenIconRailWindow(panelName, placement)
     if placement ~= nil then
         args.x = placement.x
         args.y = placement.y
+        args.anchor = placement.anchor
         args.tabs = placement.tabs
         args.autoFocus = placement.autoFocus
     end
@@ -8566,7 +8714,7 @@ if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
                 local placement = nil
                 if side ~= nil then
                     local x, y = RailAnchor(side, slot)
-                    placement = { x = x, y = y }
+                    placement = { x = x, y = y, anchor = true }
                 end
                 OpenIconRailWindow(owner, placement)
                 local d = ownerDoc:try_get("_tmp_dialog")
@@ -8602,6 +8750,7 @@ if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
             local x, y = RailAnchor(side, slot)
             placement.x = x
             placement.y = y
+            placement.anchor = true
         end
         OpenIconRailWindow(key, placement)
         RefreshRails()
@@ -8670,7 +8819,7 @@ local function RailSlashOpensChat()
         for _, e in ipairs(list) do
             if e.key == "chat" then
                 local anchorX, anchorY = RailAnchor(railSide, e.slot)
-                placement = { x = anchorX, y = anchorY }
+                placement = { x = anchorX, y = anchorY, anchor = true }
             end
         end
     end
@@ -8987,7 +9136,7 @@ local function CreateIconRail(side, entries)
                 end
                 g_railTransientKey = key
                 local anchorX, anchorY = RailAnchor(side, index)
-                OpenIconRailWindow(key, { x = anchorX, y = anchorY })
+                OpenIconRailWindow(key, { x = anchorX, y = anchorY, anchor = true })
             end
             local dlg = doc:try_get("_tmp_dialog")
             if dlg ~= nil and dlg.valid then
@@ -9472,8 +9621,12 @@ local function CreateIconRail(side, entries)
         --inside the marker as a badge; 1 stays a plain dot), and
         --markContentSeen() is called while the panel is on screen so the
         --registration can retire its "new" state (how Chat absorbs unread
-        --messages). Everything re-checks on the rail's refreshRail cadence,
-        --and the marker hides while the panel itself is shown.
+        --messages), and clearNewContent() retires it on demand -- the
+        --right-click "Clear Alerts" entry, for the panels whose alerts do
+        --NOT retire by being looked at (novel module content clears only
+        --per item, and only from the handful of rows wired to do it).
+        --Everything re-checks on the rail's refreshRail cadence, and the
+        --marker hides while the panel itself is shown.
         local novelMarker = nil
         if reg ~= nil and reg.hasNewContent ~= nil then
             local hasNewContent = reg.hasNewContent
@@ -10129,6 +10282,7 @@ local function CreateIconRail(side, entries)
                     OpenIconRailWindow(key, {
                         x = anchorX,
                         y = anchorY,
+                        anchor = true,
                         autoFocus = true,
                     })
                     CenterOnCharacter()
@@ -10191,7 +10345,7 @@ local function CreateIconRail(side, entries)
                     local pinning = not PanelDocument.IsPinned(key)
                     if pinning and not doc:PresentDocumentOpen() then
                         local anchorX, anchorY = RailAnchor(side, index)
-                        OpenIconRailWindow(key, { x = anchorX, y = anchorY, autoFocus = true })
+                        OpenIconRailWindow(key, { x = anchorX, y = anchorY, anchor = true, autoFocus = true })
                     end
                     PanelDocument.SetPinned(key, pinning)
                 end
@@ -10286,12 +10440,21 @@ local function CreateIconRail(side, entries)
                         host:FireEventTree("focusPanelTab", key)
                     else
                         local anchorX, anchorY = RailAnchor(side, index)
-                        RailRememberWindow(key, anchorX, anchorY, nil)
                         OpenIconRailWindow(key, {
                             x = anchorX,
                             y = anchorY,
+                            anchor = true,
                             autoFocus = true,
                         })
+                        --record where it ACTUALLY landed, not the anchor:
+                        --an anchored open yields to a position the user
+                        --dragged this window to earlier in the session.
+                        local d = doc:try_get("_tmp_dialog")
+                        if d ~= nil and d.valid then
+                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                        else
+                            RailRememberWindow(key, anchorX, anchorY, nil)
+                        end
                     end
                     RefreshRails()
                 end
@@ -10346,6 +10509,21 @@ local function CreateIconRail(side, entries)
                     end,
                 }
 
+                --"Clear Alerts": retire the new-content marker in one act,
+                --for the registrations that can do it -- clearNewContent
+                --(a bulk wipe, e.g. Bestiary dropping every novel monster)
+                --or, failing that, markContentSeen (what Chat already uses
+                --to absorb unread). ONLY offered while there is actually an
+                --alert on this button: a permanently-present "Clear Alerts"
+                --over a clean icon is noise, and reads as if something were
+                --there to clear.
+                local clearAlerts = nil
+                local numAlerted = 0
+                if reg ~= nil and reg.hasNewContent ~= nil and reg.hasNewContent() then
+                    clearAlerts = reg.clearNewContent or reg.markContentSeen
+                    numAlerted = #DockablePanel.GetAlertedRegistrations()
+                end
+
                 table.insert(entries, 1, {
                     text = cond(PanelDocument.IsPinned(key), "Unpin", "Pin in place"),
                     click = function()
@@ -10368,6 +10546,39 @@ local function CreateIconRail(side, entries)
                         element:FireEvent("activateRailButton")
                     end,
                 })
+
+                --slotted in after the three open/keep/pin verbs, ahead of
+                --the move verbs: it acts on this panel, not on where the
+                --button lives.
+                if clearAlerts ~= nil then
+                    table.insert(entries, 4, {
+                        text = "Clear Alerts",
+                        click = function()
+                            element.popup = nil
+                            clearAlerts()
+                            RefreshRails()
+                        end,
+                    })
+
+                    --when other panels have alerts too, offer the sweep:
+                    --every alerted registration retires in one act.
+                    if numAlerted > 1 then
+                        table.insert(entries, 5, {
+                            text = "Clear All Alerts",
+                            click = function()
+                                element.popup = nil
+                                --re-fetched at click time: alerts may have
+                                --changed while the menu sat open.
+                                for _,p in ipairs(DockablePanel.GetAlertedRegistrations()) do
+                                    local clear = p.clearNewContent or p.markContentSeen
+                                    clear()
+                                end
+                                RefreshRails()
+                            end,
+                        })
+                    end
+                end
+
                 element.popup = gui.ContextMenu{
                     entries = entries,
                 }
@@ -10692,6 +10903,48 @@ RebuildIconRails = function()
         BuildIconRails()
     end
 end
+
+--Recolor the rails when the theme or color scheme changes. IconRailStyles
+--resolves its tokens (@fg, @fgStrong, the accent on the process gear)
+--ONCE, at construction, and nothing rebuilds the rails on a scheme
+--switch -- so without this the buttons keep the old scheme's colors until
+--something else tears the rails down (a rearrange, a reload, a restart).
+--Re-resolving and reassigning styles is the standard MergeTokens
+--follow-up; it disturbs neither the layout nor any open window.
+--
+--The trash zone and the drag ghost are layer children, outside the rail's
+--style cascade, so they carry their own copy and need their own
+--reassignment. Each gets a FRESH array rather than a shared one: panels
+--that append to their own styles later must not edit their neighbours'.
+--
+--UpdateStyle() after each assignment is REQUIRED, not belt-and-braces.
+--Writing `panel.styles` marks only the style-APPLICATION cache stale
+--(SheetPanel.cs:806 bumps styleUpdateSeq); unlike the `selfStyle` setter
+--it never calls SetStyleDirty, so the root never learns a restyle pass is
+--due and the new colors sit dormant until some unrelated event dirties
+--the tree -- a hover, a class change, a relayout -- which is why the rail
+--used to recolor a beat after the crossfade instead of under it.
+--UpdateStyle is exactly SetStyleDirty, and the dirty time propagates down
+--to every descendant, so one call per styled root does the whole subtree.
+--ThemeSettingsDialog's Apply pokes the docks the same way.
+ThemeEngine.OnThemeChanged(mod, function()
+    for _, rail in pairs(g_iconRails) do
+        if rail ~= nil and rail.valid then
+            rail.styles = IconRailStyles()
+            rail:UpdateStyle()
+        end
+    end
+    for _, trash in pairs(g_railTrashZones) do
+        if trash ~= nil and trash.valid then
+            trash.styles = IconRailStyles()
+            trash:UpdateStyle()
+        end
+    end
+    if g_railDragGhost ~= nil and g_railDragGhost.valid then
+        g_railDragGhost.styles = IconRailStyles()
+        g_railDragGhost:UpdateStyle()
+    end
+end)
 
 --Create or destroy the rails to match the setting; restore pinned windows
 --when they come up. Safe to call any time.

@@ -34,6 +34,16 @@ DockablePanel.Register{
 	hasNewContent = function()
 		return module.HasNovelContent("object")
 	end,
+	--having the panel open counts as seeing the new objects: the rail
+	--calls this while the panel is shown. The folder/item pips only
+	--re-check on moduleInstalled, so they stay visible for this viewing
+	--and are gone the next time the panel is built.
+	markContentSeen = function()
+		gui.ClearNovelContent("object")
+	end,
+	clearNewContent = function()
+		gui.ClearNovelContent("object")
+	end,
 }
 
 local function Indent(depth)
@@ -2262,24 +2272,25 @@ dmhub.GetSelectedObject = function()
 	return gui.GetFocus().data.objectid
 end
 
+--This used to require a "dockablePanel" ANCESTOR, which doubled as the
+--liveness check and as the thing carrying the legacy highlight class. That
+--ancestor only exists in a DOCK, so hosted anywhere else -- notably an
+--icon-rail panel window -- object editing mode never armed at all, meaning
+--locked objects could not be clicked. Liveness is now checked directly and
+--the dock ancestor is only used for the highlight class, when there is one.
 dmhub.ObjectEditingEnabled = function()
-	if m_objectEditor == nil or (not m_objectEditor.valid) then
-		return false
-	end
-	if m_objectEditor:FindParentWithClass("dockablePanel") == nil then
+	if m_objectEditor == nil or (not m_objectEditor.valid) or m_objectEditor.parent == nil then
 		return false
 	end
 
-	if gui.ChildHasFocus(m_objectEditor) then
-		m_objectEditor:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return true
+	local focused = gui.ChildHasFocus(m_objectEditor)
+
+	local dockPanel = m_objectEditor:FindParentWithClass("dockablePanel")
+	if dockPanel ~= nil then
+		dockPanel:SetClass("highlightPanel", focused)
 	end
 
-	--attempt to index nil setclass.
-	m_objectEditor:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-	return false
-
-
+	return focused
 end
 
 -- Live image editing dialog: appears (parented to the world dialog layer, like the vision

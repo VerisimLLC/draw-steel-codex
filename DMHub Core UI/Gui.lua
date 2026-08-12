@@ -90,6 +90,81 @@ function gui.ChildHasFocus(panel)
 	return panel ~= nil and panel.valid and panel.enabled and m_focus ~= nil and m_focus.valid and m_focus:IsDescendantOf(panel)
 end
 
+--- If this panel, or anything below it, currently owns an open popup.
+---
+--- Popups are not children - they live in the overlay layer and are reachable
+--- only through their owner's .popup - so this walks the subtree looking for
+--- owners rather than looking at the popup layer.
+--- @param panel nil|Panel
+--- @return boolean
+function gui.SubtreeHasPopup(panel)
+	if panel == nil or panel.valid == false then
+		return false
+	end
+
+	if panel.popup ~= nil then
+		return true
+	end
+
+	for _,child in ipairs(panel.children) do
+		if gui.SubtreeHasPopup(child) then
+			return true
+		end
+	end
+
+	return false
+end
+
+--- Run rebuild(panel) now, unless a popup is open somewhere beneath panel - in
+--- which case park the rebuild and replay it once the popup closes.
+---
+--- Lists that rebuild their children wholesale from a monitor have a hazard:
+--- destroying a panel destroys any popup it owns, and a monitor fires on the
+--- round trip of OUR OWN write as readily as on another client's edit. So a
+--- refresh can land while the user has a context menu or popout open and yank
+--- it out from under the cursor - the popup appears to open and immediately
+--- close again. Guarding the rebuild with this leaves the list momentarily
+--- stale, but stale-and-matching-the-popup beats correct-and-gone.
+---
+--- The parked rebuild re-reads state when it finally runs, so a second park
+--- simply replaces the first: several coalesced updates cost one rebuild.
+---
+--- Panels using this must declare a `data` table and route their 'think' event
+--- to gui.ThinkDeferredRebuild. thinkTime is armed only while a rebuild is
+--- parked, so a panel with nothing parked costs nothing.
+--- @param panel Panel
+--- @param rebuild fun(panel:Panel):nil
+function gui.RebuildDeferringPopups(panel, rebuild)
+	if gui.SubtreeHasPopup(panel) then
+		panel.data.deferredRebuild = rebuild
+		panel.thinkTime = 0.25
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
+--- The 'think' half of gui.RebuildDeferringPopups: replays the parked rebuild
+--- as soon as the popup that blocked it is gone, and disarms the poll.
+--- @param panel Panel
+function gui.ThinkDeferredRebuild(panel)
+	local rebuild = panel.data.deferredRebuild
+	if rebuild == nil then
+		panel.thinkTime = nil
+		return
+	end
+
+	if gui.SubtreeHasPopup(panel) then
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
 --- Get the main dialog panel which dialogs can be parented to.
 --- @return Panel
 function gui.DialogPanel()
@@ -5131,6 +5206,28 @@ function gui.NovelContentCount(contentType)
 		count = count + 1
 	end
 	return count
+end
+
+--- Clears every entry recorded as novel content for the given content type,
+--- retiring the alerts driven by it in one act. Returns the number cleared.
+--- The keys are gathered up front rather than removed during the traversal:
+--- RemoveNovelContent mutates the table it hands back, and drops the content
+--- type entirely once it empties.
+--- @param contentType string
+--- @return number
+function gui.ClearNovelContent(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local keys = {}
+	for k, _ in pairs(t) do
+		keys[#keys+1] = k
+	end
+	for _, k in ipairs(keys) do
+		module.RemoveNovelContent(contentType, k)
+	end
+	return #keys
 end
 
 --- Will create a new content alert if the key within the given kind of content has new content. Otherwise returns nil.

@@ -13,6 +13,69 @@ end
 
 CharacterPanel = {}
 
+--Party Member Controls: a game-wide Director option controlling whether
+--players can view (or view and edit) the character panels of party members
+--they don't control. "Party member" means any player-controlled token.
+local g_partyMemberControlsSetting = setting{
+    id = "partymembercontrols",
+    description = "Party Member Controls",
+    help = "None: Players cannot view the stats of other party members.\nView: Players can view the stats of other party members.\nView & Edit: Players can view and edit the stats of other party members.",
+    editor = "dropdown",
+    default = "none",
+    storage = "game",
+    section = "game",
+    classes = {"dmonly"},
+    enum = {
+        { value = "none", text = "None", help = "Players cannot view the stats of other party members" },
+        { value = "view", text = "View", help = "Players can view the stats of other party members" },
+        { value = "edit", text = "View & Edit", help = "Players can view and edit the stats of other party members" },
+    },
+}
+
+--The id of the Party Member Controls setting, for panels that want to
+--monitor it for changes.
+CharacterPanel.partyMemberControlsSettingId = "partymembercontrols"
+
+--- The access the local player has to a token's character panel:
+--- "edit" (may view and change it), "view" (look but not touch), or
+--- "none" (may not even open the panel). Anyone who can control the
+--- token gets "edit"; the Party Member Controls game setting can extend
+--- view or edit access to party members (player-controlled tokens) the
+--- local player doesn't control.
+--- @param token nil|CharacterToken
+--- @return "edit"|"view"|"none"
+function CharacterPanel.TokenAccessLevel(token)
+    if token == nil or not token.valid then
+        return "none"
+    end
+    if token.canControl then
+        return "edit"
+    end
+    if not token.playerControlled then
+        return "none"
+    end
+    local access = g_partyMemberControlsSetting:Get()
+    if access == "edit" or access == "view" then
+        return access
+    end
+    return "none"
+end
+
+--- True if the local player may open this token's character panel at all.
+--- @param token nil|CharacterToken
+--- @return boolean
+function CharacterPanel.CanViewToken(token)
+    return CharacterPanel.TokenAccessLevel(token) ~= "none"
+end
+
+--- True if the local player may look at this token's character panel but
+--- not change anything in it (Party Member Controls = View).
+--- @param token nil|CharacterToken
+--- @return boolean
+function CharacterPanel.TokenIsReadOnly(token)
+    return CharacterPanel.TokenAccessLevel(token) == "view"
+end
+
 --Remembers which party folders the local user has collapsed, on a per-user-per-game
 --basis. Value is a map of party key -> collapsed boolean.
 setting{
@@ -361,7 +424,40 @@ DockablePanel.Register {
     newContentCount = function()
         return gui.NovelContentCount("character")
     end,
+    --having the panel open counts as seeing the new characters: the rail
+    --calls this while the panel is shown. The rows' pips only re-check on
+    --moduleInstalled, so they stay visible for this viewing and are gone
+    --the next time the panel is built.
+    markContentSeen = function()
+        gui.ClearNovelContent("character")
+    end,
+    clearNewContent = function()
+        gui.ClearNovelContent("character")
+    end,
 }
+
+--live root panels built by CreateBestiaryPanel, so the Bestiary
+--registration's markContentSeen (below) can reach the trees the user is
+--actually looking at. Pruned of dead panels as they're visited.
+local g_bestiaryPanelRoots = {}
+
+--whether any monster in this asset-node subtree is recorded as novel
+--(added or updated by a module install). Walks the ASSET nodes, not the
+--panels, so collapsed (never-materialized) folders are covered too.
+local function SubtreeHasNovelMonsters(node)
+    for _, v in ipairs(node.children) do
+        if not v.hidden then
+            if v.folder ~= nil then
+                if SubtreeHasNovelMonsters(v) then
+                    return true
+                end
+            elseif module.HasNovelContent("monsters", v.id) then
+                return true
+            end
+        end
+    end
+    return false
+end
 
 DockablePanel.Register {
     name = "Bestiary",
@@ -382,6 +478,30 @@ DockablePanel.Register {
     end,
     newContentCount = function()
         return gui.NovelContentCount("monsters")
+    end,
+    --while the panel is on screen, every monster row actually on display
+    --retires its novel record -- the pip stays visible for this viewing,
+    --but won't come back next time. Monsters hidden inside collapsed
+    --folders keep their records (and their folder keeps its alert pip)
+    --until the folder is expanded. The rail calls this on its refresh
+    --cadence whenever the panel is shown.
+    markContentSeen = function()
+        if not module.HasNovelContent("monsters") then
+            return
+        end
+        for i = #g_bestiaryPanelRoots, 1, -1 do
+            local p = g_bestiaryPanelRoots[i]
+            if p == nil or not p.valid then
+                table.remove(g_bestiaryPanelRoots, i)
+            else
+                p.data.retireVisibleNovel(p)
+            end
+        end
+    end,
+    --clicking a bestiary row clears that one monster (ClearNovelContent
+    --below); this is the bulk escape for a module that flagged hundreds.
+    clearNewContent = function()
+        gui.ClearNovelContent("monsters")
     end,
 }
 
@@ -784,8 +904,13 @@ local function CreateMonsterEntry(nodeid, startHidden)
     --(added or updated by a module install). Viewing the monster --
     --focusing its row or lingering for the stat block -- dismisses the
     --record, which in turn lets the Bestiary rail/tab marker go out
-    --once every novel monster has been seen.
+    --once every novel monster has been seen. Merely having the row on
+    --display (folder expanded, panel open) retires the RECORD too, but
+    --keeps the pip showing for this viewing: m_pipRetained marks that
+    --state so refreshAssets doesn't take the pip down early.
     local novelContentAlert = gui.NewContentAlertConditional("monsters", nodeid)
+    local m_pipRetained = false
+    local nameLabel = nil --forward-declared; the label the pip rides on.
     local function ClearNovelContent()
         if module.HasNovelContent("monsters", nodeid) then
             module.RemoveNovelContent("monsters", nodeid)
@@ -794,7 +919,48 @@ local function CreateMonsterEntry(nodeid, startHidden)
             novelContentAlert:DestroySelf()
         end
         novelContentAlert = nil
+        m_pipRetained = false
     end
+
+    nameLabel = gui.Label({
+        classes = { "bestiaryLabel" },
+        text = creature.GetTokenDescription(monster),
+        novelContentAlert,
+        refreshAssets = function(element)
+            --a module install updates assets and fires this, so
+            --an already-built row gains its pip when the monster
+            --it shows is re-delivered (updated) by a module.
+            if module.HasNovelContent("monsters", nodeid) then
+                --a live record trumps any earlier retirement: the
+                --monster was (re-)delivered, so it's news again.
+                m_pipRetained = false
+                if novelContentAlert == nil then
+                    novelContentAlert = gui.NewContentAlert{}
+                    element:AddChild(novelContentAlert)
+                end
+            elseif novelContentAlert ~= nil and not m_pipRetained then
+                if novelContentAlert.valid then
+                    novelContentAlert:DestroySelf()
+                end
+                novelContentAlert = nil
+            end
+            local desc = creature.GetTokenDescription(monster)
+            local showImportStatus = false --disabled for now.
+            if showImportStatus and devmode() then
+                if monster.properties:has_key("import") then
+                    local postfix = " <size=60%><color=#bbbbff>(imported)"
+                    if monster.properties.import.override then
+                        postfix = " <size=60%><color=#ffbbbb>(overridden)"
+                    end
+                    element.text = desc .. postfix
+                else
+                    element.text = desc
+                end
+            else
+                element.text = desc
+            end
+        end
+    })
 
     resultPanel = gui.Panel({
         classes = { cond(startHidden, "collapsed"), "monsterEntry" },
@@ -1025,6 +1191,26 @@ local function CreateMonsterEntry(nodeid, startHidden)
             nodeid = nodeid, --storing the nodeid with the panel for drag and drop.
             monsterid = nodeid, --makes it so this reports the monster id to GetSelectedMonster()
 
+            --the row is being displayed to the user (folder expanded, or a
+            --search is showing it, while the panel is open): its novel
+            --record retires now so the alert won't return next time, but
+            --the pip stays up for this viewing. Press/linger (a real look)
+            --still dismisses the pip itself via ClearNovelContent.
+            retireVisibleNovel = function(element)
+                if element:HasClass("collapsed") then
+                    return
+                end
+                if not module.HasNovelContent("monsters", nodeid) then
+                    return
+                end
+                module.RemoveNovelContent("monsters", nodeid)
+                if novelContentAlert == nil and nameLabel ~= nil and nameLabel.valid then
+                    novelContentAlert = gui.NewContentAlert{}
+                    nameLabel:AddChild(novelContentAlert)
+                end
+                m_pipRetained = true
+            end,
+
             search = function(text, matchedParent, budget)
                 searchActive = text ~= ''
                 matchesSearch = matchedParent or text == '' or node:MatchesSearch(text)
@@ -1158,42 +1344,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 },
             }),
 
-            gui.Label({
-                classes = { "bestiaryLabel" },
-                text = creature.GetTokenDescription(monster),
-                novelContentAlert,
-                refreshAssets = function(element)
-                    --a module install updates assets and fires this, so
-                    --an already-built row gains its pip when the monster
-                    --it shows is re-delivered (updated) by a module.
-                    if module.HasNovelContent("monsters", nodeid) then
-                        if novelContentAlert == nil then
-                            novelContentAlert = gui.NewContentAlert{}
-                            element:AddChild(novelContentAlert)
-                        end
-                    elseif novelContentAlert ~= nil then
-                        if novelContentAlert.valid then
-                            novelContentAlert:DestroySelf()
-                        end
-                        novelContentAlert = nil
-                    end
-                    local desc = creature.GetTokenDescription(monster)
-                    local showImportStatus = false --disabled for now.
-                    if showImportStatus and devmode() then
-                        if monster.properties:has_key("import") then
-                            local postfix = " <size=60%><color=#bbbbff>(imported)"
-                            if monster.properties.import.override then
-                                postfix = " <size=60%><color=#ffbbbb>(overridden)"
-                            end
-                            element.text = desc .. postfix
-                        else
-                            element.text = desc
-                        end
-                    else
-                        element.text = desc
-                    end
-                end
-            })
+            nameLabel
         }
     })
 
@@ -1209,6 +1360,32 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     local node = assets:GetMonsterNode(nodeid)
 
     local folderPane = nil
+
+    --novel-content pip on the folder row: lit while any monster anywhere
+    --in this folder's subtree is recorded as novel, so a collapsed folder
+    --advertises the new arrivals inside it. Goes out as the records
+    --retire (rows displayed via expansion, or individually viewed). The
+    --root folder skips it -- the rail badge already covers the whole
+    --bestiary.
+    local folderNovelAlert = nil
+    local folderLabel = nil
+    local function RefreshFolderNovelAlert()
+        if nodeid == '' or folderLabel == nil or not folderLabel.valid then
+            return
+        end
+        local has = module.HasNovelContent("monsters") and SubtreeHasNovelMonsters(node)
+        if has then
+            if folderNovelAlert == nil then
+                folderNovelAlert = gui.NewContentAlert{}
+                folderLabel:AddChild(folderNovelAlert)
+            end
+        elseif folderNovelAlert ~= nil then
+            if folderNovelAlert.valid then
+                folderNovelAlert:DestroySelf()
+            end
+            folderNovelAlert = nil
+        end
+    end
 
     --the root folder gets additional UI, such as a search and ways to add objects.
     local clearSearchButton = nil
@@ -1441,11 +1618,40 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
                 if not isCollapsed then
                     folderPane:FireEvent('expand')
+
+                    --the rows inside are on display now: their novel
+                    --records retire (pips stay up for this viewing), and
+                    --this folder's own pip follows suit.
+                    folderPane.data.retireVisibleNovel(folderPane)
                 end
             end,
         },
     })
 
+
+    folderLabel = gui.Label({
+        text = 'Bestiary',
+        classes = { "bestiaryLabel", "folder", cond(nodeid == '', "noHoverColor") },
+        x = 4,
+        editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
+        characterLimit = 24,
+        events = {
+            change = function(element)
+                node.description = element.text
+                node:Upload()
+            end,
+            refreshAssets = function(element)
+                element.text = node.description
+                RefreshFolderNovelAlert()
+            end,
+            press = function()
+                triangle:FireEvent('press')
+            end,
+            editname = function(element)
+                element:BeginEditing()
+            end,
+        },
+    })
 
     local headerPanel = gui.Panel({
 
@@ -1481,29 +1687,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         children = {
             triangle,
-
-            gui.Label({
-                text = 'Bestiary',
-                classes = { "bestiaryLabel", "folder", cond(nodeid == '', "noHoverColor") },
-                x = 4,
-                editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
-                characterLimit = 24,
-                events = {
-                    change = function(element)
-                        node.description = element.text
-                        node:Upload()
-                    end,
-                    refreshAssets = function(element)
-                        element.text = node.description
-                    end,
-                    press = function()
-                        triangle:FireEvent('press')
-                    end,
-                    editname = function(element)
-                        element:BeginEditing()
-                    end,
-                },
-            }),
+            folderLabel,
         },
     })
 
@@ -1589,6 +1773,25 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             end,
             isCollapsed = function()
                 return isCollapsed
+            end,
+
+            --retire the novel records of every row currently on display
+            --under this folder: direct monster rows retire theirs (keeping
+            --their pips up for this viewing), expanded subfolders recurse,
+            --and collapsed subfolders are left alone so their alerts keep
+            --until they too are expanded. An active search overrides the
+            --collapse (matching rows display through it), mirroring how
+            --the rows' own visibility works.
+            retireVisibleNovel = function(element)
+                if isCollapsed and not searchActive then
+                    return
+                end
+                for _, v in pairs(elements) do
+                    if v.valid and v.data.retireVisibleNovel ~= nil then
+                        v.data.retireVisibleNovel(v)
+                    end
+                end
+                RefreshFolderNovelAlert()
             end,
 
             setParentCollapsed = function(element, newValue)
@@ -3419,6 +3622,7 @@ CreateCharacterPanel = function()
 
                 if token.valid then
                     hasVisible = true
+                    panel:SetClass("readonly", CharacterPanel.TokenIsReadOnly(token))
                     panel:FireEvent("setToken", token)
                 end
             end
@@ -3441,6 +3645,7 @@ CreateCharacterPanel = function()
 
                 singleTokenDetailsPanel:SetClass("collapsed", false)
                 if tokens[1] ~= nil and tokens[1].properties ~= nil then
+                    singleTokenDetailsPanel:SetClass("readonly", CharacterPanel.TokenIsReadOnly(tokens[1]))
                     singleTokenDetailsPanel:FireEvent("dirtyToken", tokens[1])
                 end
 
@@ -3522,6 +3727,15 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
         width = "100%",
         height = "auto",
 
+        --re-evaluate access when the Director changes Party Member
+        --Controls while the window is open.
+        monitor = CharacterPanel.partyMemberControlsSettingId,
+        events = {
+            monitor = function(element)
+                element:FireEvent("refresh")
+            end,
+        },
+
         deferredBuild = function(element)
             element:FireEvent("refresh")
         end,
@@ -3533,18 +3747,26 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
                 return
             end
             local token = dmhub.GetCharacterById(charid)
-            if token == nil or not token.valid or token.properties == nil then
-                --the character is gone (deleted or unloaded); leave a
-                --note rather than an empty window.
+            local access = CharacterPanel.TokenAccessLevel(token)
+            if token == nil or not token.valid or token.properties == nil or access == "none" then
+                --the character is gone (deleted or unloaded), or the
+                --Director revoked party member viewing; leave a note
+                --rather than an empty window.
+                local message = "This character is no longer available."
+                if token ~= nil and token.valid then
+                    message = "You do not have access to view this character."
+                end
                 if missingLabel == nil then
                     missingLabel = gui.Label {
                         classes = {"modalMessage"},
-                        text = "This character is no longer available.",
+                        text = message,
                         width = "100%",
                         height = "auto",
                         vmargin = 24,
                     }
                     element:AddChild(missingLabel)
+                else
+                    missingLabel.text = message
                 end
                 if summaryPanel ~= nil then
                     summaryPanel:SetClass("collapsed", true)
@@ -3559,6 +3781,12 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
                 missingLabel:DestroySelf()
                 missingLabel = nil
             end
+
+            --look but not touch: the readonly class descends to every
+            --control in the panel; mutating handlers check it via
+            --TacPanel.IsReadOnly and edit-only chrome hides via the
+            --readonly styles.
+            element:SetClass("readonly", access == "view")
 
             local createdDetailsPanel = false
             if summaryPanel == nil then
@@ -3622,6 +3850,10 @@ CreateBestiaryPanel = function()
     bestiaryPanel = CreateBestiaryFolder('')
     bestiaryPanel:FireEventTree("refreshAssets")
     bestiaryPanel:FireEventTree("refresh")
+
+    --registered so the Bestiary registration's markContentSeen can retire
+    --the records of rows on display while the panel is shown.
+    g_bestiaryPanelRoots[#g_bestiaryPanelRoots + 1] = bestiaryPanel
     local resultPanel
     resultPanel = gui.Panel {
         styles = ThemeEngine.MergeStyles(g_sidebarExtras),

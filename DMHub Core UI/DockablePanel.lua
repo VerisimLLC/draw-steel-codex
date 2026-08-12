@@ -2219,6 +2219,20 @@ DockablePanel = {
 		return nil
 	end,
 
+	--Registrations whose new-content alert is currently lit AND which offer
+	--a way to retire it (clearNewContent, or markContentSeen as a fallback).
+	--Drives the icon rail's "Clear All Alerts" context-menu entry, which only
+	--appears when more than one panel has an alert to clear.
+	GetAlertedRegistrations = function()
+		local result = {}
+		for _,p in pairs(dockablePanels) do
+			if p.hasNewContent ~= nil and (p.clearNewContent ~= nil or p.markContentSeen ~= nil) and p.hasNewContent() then
+				result[#result+1] = p
+			end
+		end
+		return result
+	end,
+
 	--The ordered list of panel names currently docked in one side's dock
 	--("left"/"right"). The read-side mirror of SetDockPanels; used by the
 	--Views feature to capture the working layout.

@@ -2,24 +2,79 @@ local mod = dmhub.GetModLoading()
 
 local function CreateRulerPanel()
 	local hud = gamehud
-	local persistentSetting = nil
-	if dmhub.isDM then
-		persistentSetting = CreateSettingsEditor("measure:persistent")
-	end
 	-- Every form-style setting in this panel uses the stacked (label-above-
 	-- control) layout. Pull the option once so each CreateSettingsEditor call
 	-- stays terse.
 	local stackedOpts = {stacked = true}
+	-- The slider editor hands its control a fixed 160px box, which cannot
+	-- track the panel. A relative width lets it shrink with everything else.
+	local stackedSliderOpts = {stacked = true, style = {width = "100%"}}
+	-- The check editor takes no stacked layout of its own, but its rows still
+	-- want the vertical breathing room the stacked form rows have.
+	local stackedCheckOpts = {stacked = true, vmargin = 4}
+
+	-- CreateSettingsEditor wraps every editor in an auto-width container, so
+	-- the rows would size to their content and ignore the window instead of
+	-- following it. Widen each container to the panel so the "98%" row/label/
+	-- dropdown widths inside it resolve against the real panel width -- that
+	-- is what makes the whole panel shrink and grow with the window.
+	local function Setting(id, opts)
+		opts = opts or stackedOpts
+		local editor = CreateSettingsEditor(id, opts)
+		if editor ~= nil then
+			editor.selfStyle.width = "100%"
+			if opts.vmargin ~= nil then
+				editor.selfStyle.vmargin = opts.vmargin
+			end
+		end
+		return editor
+	end
+
+	local persistentSetting = nil
+	if dmhub.isDM then
+		persistentSetting = Setting("measure:persistent", stackedCheckOpts)
+	end
+
+	--Local overrides for the stock checkbox, which is the one control here
+	--that cannot shrink: its row is width = "auto" with minWidth = 200 and a
+	--flat 30px height, and its caption is width = "auto" too, so a long
+	--caption ("Display to others") runs straight out of a narrow panel and a
+	--large Font Size setting overflows the row. Pin the row to the panel
+	--width, size it in "sp" (pixels x the Font Size setting) so it grows with
+	--the text, and hand the caption whatever width is left after the check
+	--square, with a minFontSize floor so it shrinks to fit rather than
+	--overrunning. (Wrapping instead of shrinking is not an option here: an
+	--"auto" height on this row stretches to the parent extent rather than to
+	--its content, which is exactly why the stock rule pins 30px.)
+	local rulerStyles = {
+		{
+			selectors = {"checkbox"},
+			width = "100%",
+			minWidth = 0,
+			height = "30sp",
+			borderBox = true,
+		},
+		{
+			selectors = {"checkboxLabel"},
+			width = "100% available",
+			height = "100%",
+			minFontSize = 10,
+		},
+	}
 
 	local resultPanel = gui.Panel{
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(rulerStyles),
 		classes = {"LaunchablePanel"},
-		width = 320,
+		--fills whatever the dock or the floating window gives it, and grows
+		--downward with its content; the host's scroll parent takes the
+		--vertical overflow (see the registration below).
+		width = "100%",
 		height = "auto",
-		halign = "right",
+		halign = "left",
 		valign = "top",
 		flow = "vertical",
         pad = 16,
+        borderBox = true,
 
 		--Measuring mode follows FOCUS, not mere existence.
 		--
@@ -76,17 +131,23 @@ local function CreateRulerPanel()
 			dmhub.rulerToolActive = false
 		end,
 
+		--width/height are relative + auto so the title wraps rather than
+		--overruns at a narrow width or a large Font Size setting.
 		gui.Label{
 			text = "Measuring Tool",
 			classes = {"sizeXl", "bold"},
-			halign = "center",
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			textWrap = true,
+			vmargin = 2,
 		},
-		CreateSettingsEditor("measure:shape", stackedOpts),
-		CreateSettingsEditor("measure:coneangle", stackedOpts),
-		CreateSettingsEditor("measure:linewidth", stackedOpts),
-		CreateSettingsEditor("measure:share", stackedOpts),
-		CreateSettingsEditor("measure:snap", stackedOpts),
-		CreateSettingsEditor("measure:distances", stackedOpts),
+		Setting("measure:shape"),
+		Setting("measure:coneangle"),
+		Setting("measure:linewidth", stackedSliderOpts),
+		Setting("measure:share", stackedCheckOpts),
+		Setting("measure:snap"),
+		Setting("measure:distances"),
 		persistentSetting,
 
 	}
@@ -104,9 +165,14 @@ DockablePanel.Register{
 	--the old dialog sat. It can still be dragged into a dock.
 	preferFloating = true,
 	floatingHalign = "right",
-	vscroll = false,
+	--the content is all relative-width, so the window is freely resizable on
+	--both axes; the host's scroll parent (vscroll left at its default) takes
+	--the vertical overflow that a large Font Size setting or a short window
+	--produces, and these bounds are the range the layout was checked at.
 	minHeight = 100,
-	maxHeight = 400,
+	maxHeight = 520,
+	minWidth = 240,
+	maxWidth = 560,
 	--the measuring modes arm map tools, so the panel needs to survive
 	--Escape and map clicks the way the other tool panels do.
 	stickyFocus = true,

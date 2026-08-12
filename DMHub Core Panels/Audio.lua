@@ -305,6 +305,15 @@ DockablePanel.Register{
 	newContentCount = function()
 		return gui.NovelContentCount("audio")
 	end,
+	--having the panel open counts as seeing the new audio: the rail calls
+	--this while the panel is shown, so the alert doesn't return after the
+	--panel closes.
+	markContentSeen = function()
+		gui.ClearNovelContent("audio")
+	end,
+	clearNewContent = function()
+		gui.ClearNovelContent("audio")
+	end,
 }
 
 --Audio Studio: the session-prep power surface. Deliberately a LaunchablePanel

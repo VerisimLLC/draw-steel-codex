@@ -38,6 +38,18 @@ DockablePanel.Register{
 	newContentCount = function()
 		return gui.NovelContentCount("map")
 	end,
+	--having the panel open counts as seeing the new maps: the rail calls
+	--this while the panel is shown. The rows' markers are only built at
+	--construction (and torn down by travelling there), so they stay
+	--visible for this viewing and are gone the next time the panel opens.
+	markContentSeen = function()
+		gui.ClearNovelContent("map")
+	end,
+	--travelling to a map clears that one map (see CreateMapNode); this is
+	--the "I have seen them all" escape for the rest.
+	clearNewContent = function()
+		gui.ClearNovelContent("map")
+	end,
 }
 
 local g_mapDialog = nil

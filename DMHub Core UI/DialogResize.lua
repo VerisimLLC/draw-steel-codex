@@ -50,6 +50,10 @@ end
 --  onResized(dialog, moved): called when a resize drag completes.
 --      moved is true when the drag changed the window's x/y (left/top
 --      handles), for callers that track window position (icon rail pins).
+--  onResizing(dialog): called every frame DURING a resize drag whose
+--      width changed, before layout runs. For live re-fitting (tab-chip
+--      compaction); keep it cheap, and don't persist anything from it --
+--      onResized still fires once on release for that.
 function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
     options = options or {}
     local resizeWidth = options.resizeWidth ~= false
@@ -108,16 +112,22 @@ function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
         --size deltas re-seat every handle (including this one -- its own
         --field position was never touched during the drag).
         parentPanel:FireEventTree("resize", element, {deltax = w - beginState.width, deltay = h - beginState.height})
+        --a left/top-edge drag moves the window as it resizes, which counts
+        --as the user placing it (see PresentDocument's anchor handling).
+        --A right/bottom resize leaves it wherever its opener put it, so it
+        --must NOT claim a position -- carry any earlier claim forward.
+        local moved = dialog.x ~= beginState.x or dialog.y ~= beginState.y
+        local prevLoc = doc:try_get("_tmp_location")
         doc._tmp_location = {
             x = dialog.x,
             y = dialog.y,
             width = w,
             height = h,
+            moved = moved or (prevLoc ~= nil and prevLoc.moved == true),
             screenx = dmhub.screenDimensionsBelowTitlebar.x,
             screeny = dmhub.screenDimensionsBelowTitlebar.y,
         }
         if options.onResized ~= nil then
-            local moved = dialog.x ~= beginState.x or dialog.y ~= beginState.y
             options.onResized(dialog, moved)
         end
     end
@@ -196,6 +206,12 @@ function gui.WindowResizePanel(doc, dialogWidth, dialogHeight, options)
                     dialog.selfStyle.height = newHeight
                 elseif edges.bottom then
                     dialog.selfStyle.height = ClampHeight(element.ydrag + beginState.grabOffsetY)
+                end
+                --live re-fit: a width change mid-drag lets the caller
+                --compact its chrome NOW, in the same frame, rather than
+                --wrapping until the drag releases.
+                if options.onResizing ~= nil and dialog.selfStyle.width ~= w then
+                    options.onResizing(dialog)
                 end
             end,
 

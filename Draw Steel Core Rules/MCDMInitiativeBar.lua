@@ -3454,13 +3454,26 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addCharacters
 	local addMonsters
 
+	--True exactly when ShowGameModeMenu will do something: you can control
+	--initiative, and combat is not currently running. The readout uses this to
+	--decide whether to present itself as a clickable menu item.
+	local function GameModeMenuAvailable()
+		return CanControlInitiative() and (info.initiativeQueue == nil or info.initiativeQueue.hidden)
+	end
+
 	--Opens the game-mode menu (Exploration / Combat / Downtime / Respite ...).
 	--Shared by the bar itself and by the game-mode label, which now lives in
 	--the title bar's status area rather than over the map -- the label is the
 	--only thing in the bar that was ever hit-testable, so without this the
 	--menu would have moved out of reach along with it.
-	local function ShowGameModeMenu(element)
-		if not CanControlInitiative() or (info.initiativeQueue ~= nil and (not info.initiativeQueue.hidden)) then
+	--
+	--anchorPanel = true drops the menu under the element and flush with its
+	--left edge, the way the title bar's own File/Edit/View menus drop -- this
+	--is CreateCodexMenuItem's recipe verbatim (it needs the element to carry
+	--popupPositioning = 'panel'). The map-overlay initiative bubble is not a
+	--menu strip item, so it keeps the plain cursor-anchored popup.
+	local function ShowGameModeMenu(element, anchorPanel)
+		if not GameModeMenuAvailable() then
 			return
 		end
 		local entries = {}
@@ -3507,6 +3520,24 @@ function GameHud.CreateInitiativeBar(self, info)
 			}
 		end
 
+		if anchorPanel then
+			element.popup = gui.Panel{
+				width = "auto",
+				height = "auto",
+				halign = "right",
+				valign = "bottom",
+				gui.ContextMenu{
+					width = 300,
+					x = -element.renderedWidth,
+					entries = entries,
+					click = function()
+						element.popup = nil
+					end,
+				},
+			}
+			return
+		end
+
 		element.popup = gui.ContextMenu{
 			entries = entries,
 		}
@@ -3523,62 +3554,88 @@ function GameHud.CreateInitiativeBar(self, info)
 		height = "100%",
 		flow = "horizontal",
 
-		gui.Label{
-			minFontSize = 10,
+		--The readout is a title-bar menu item like File/Edit/View beside it:
+		--the "menuItem" class supplies the invisible-at-rest plate plus the
+		--inverted (@fg) hover fill, and the inner "menuLabel" flips its text to
+		--@bg on parent:hover. Structure has to match that pattern -- the fill
+		--and the click live on the wrapper, the label is interactable = false
+		--so the hover lands on the wrapper rather than on the text.
+		gui.Panel{
+			classes = {"menuItem"},
+			popupPositioning = 'panel',
 			width = "auto",
-			maxWidth = 260,
 			height = "100%",
 			valign = "center",
-			textAlignment = "left",
-			textWrap = false,
-			textOverflow = "ellipsis",
-			--A bare label is not a raycast target; the (invisible) square gives
-			--the panel something to hit-test so the game-mode menu still opens.
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			hpad = 6,
-			borderBox = true,
-			text = "",
+			flow = "horizontal",
+			--Inline (not left to the menuItem style) so the readout does not
+			--shift sideways on the frames where the class is dropped below.
+			hpad = 8,
 
 			click = function(element)
-				ShowGameModeMenu(element)
+				ShowGameModeMenu(element, true)
 			end,
 
-			--The title bar is outside the hud's refresh cascade, so this cannot
-			--ride on `refresh` the way it did over the map. The queue document
-			--monitor does the real work; the slow think is just a backstop for
-			--state the monitor does not cover (map switches carry their own
-			--queue), and it only touches .text when the string actually changed.
-			monitorGame = "/initiativeQueue",
-			create = function(element)
-				element:FireEvent("refreshGame")
-			end,
-			thinkTime = 0.5,
-			think = function(element)
-				element:FireEvent("refreshGame")
-			end,
-			refreshGame = function(element)
-				local text
-				local queue = dmhub.initiativeQueue
-				if queue == nil then
-					text = "Exploration"
-				elseif queue.hidden then
-					text = queue:GameModeInfo().text
-				else
-					text = string.format('Round %d', queue.round)
-					local liveEncounter = queue:try_get("liveEncounter")
-					if type(liveEncounter) == "table" then
-						local name = liveEncounter:GetName()
-						if name ~= nil and name ~= "" then
-							text = string.format('%s - %s', name, text)
+			gui.Label{
+				classes = {"menuLabel"},
+				minFontSize = 10,
+				--menuLabel is 16 for the main menu strip; the status cluster
+				--this sits in runs at the default 14, so match the neighbours.
+				fontSize = 14,
+				width = "auto",
+				maxWidth = 260,
+				height = "100%",
+				valign = "center",
+				textAlignment = "left",
+				textWrap = false,
+				textOverflow = "ellipsis",
+				interactable = false,
+				text = "",
+
+				--The title bar is outside the hud's refresh cascade, so this cannot
+				--ride on `refresh` the way it did over the map. The queue document
+				--monitor does the real work; the slow think is just a backstop for
+				--state the monitor does not cover (map switches carry their own
+				--queue), and it only touches .text when the string actually changed.
+				monitorGame = "/initiativeQueue",
+				create = function(element)
+					element:FireEvent("refreshGame")
+				end,
+				thinkTime = 0.5,
+				think = function(element)
+					element:FireEvent("refreshGame")
+				end,
+				refreshGame = function(element)
+					local text
+					local queue = dmhub.initiativeQueue
+					if queue == nil then
+						text = "Exploration"
+					elseif queue.hidden then
+						text = queue:GameModeInfo().text
+					else
+						text = string.format('Round %d', queue.round)
+						local liveEncounter = queue:try_get("liveEncounter")
+						if type(liveEncounter) == "table" then
+							local name = liveEncounter:GetName()
+							if name ~= nil and name ~= "" then
+								text = string.format('%s - %s', name, text)
+							end
 						end
 					end
-				end
 
-				if element.text ~= text then
-					element.text = text
-				end
-			end,
+					if element.text ~= text then
+						element.text = text
+					end
+
+					--Only advertise the hover affordance when the menu would
+					--actually open: ShowGameModeMenu bails out for players who
+					--cannot control initiative, and during a visible combat.
+					--Dropping "menuItem" also drops the wrapper's bgimage, so
+					--it stops being a raycast target at the same time.
+					if element.parent ~= nil then
+						element.parent:SetClass("menuItem", GameModeMenuAvailable())
+					end
+				end,
+			},
 		},
 
 		--The combat-settings gear travels with the readout. In its old home it

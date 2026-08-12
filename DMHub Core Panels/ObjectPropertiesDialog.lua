@@ -1724,6 +1724,7 @@ local CreateObjectEditor = function(nodes, options)
 		["Animation Curve"] = true,
 		["Mount"] = true,
 		["Light"] = true,
+		["Darkness"] = true,
 	}
 
 	local addPropertiesOptions = assets.objectComponentOptions

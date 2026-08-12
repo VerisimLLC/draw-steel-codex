@@ -855,6 +855,7 @@ CreateMyContentImportPanel = function()
                     height = "auto",
                     maxWidth = 160,
                     textWrap = false,
+                    textOverflow = "ellipsis",
                     valign = "center",
                     text = gameInfo.description,
                 },

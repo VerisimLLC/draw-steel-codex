@@ -191,6 +191,19 @@ Related queued items (NOT this scope):
 | 2026-08-12 | Core mechanic STAYS feature-level, governed by ONE-PER-CLASS policy: exactly one pinned feature per qualifying class, the base mechanic only. The earlier stacking rule is STRUCK; subclass features (Congregation, Furious Change) and doctrine Mark-riders render as NORMAL features, never pinned | James dismantled the subclass-precedent examples; pinning riders makes the card a wall of text that gets ignored |
 | 2026-08-12 | Editor layout: Internal Feature checkbox right-aligned on the Name row; Core Mechanic right-aligned beneath it (Source row); Tags shares the prerequisite row | Feature form's main work is modifiers -- metadata must not tax vertical space |
 
+### Prerequisite-gate observation (2026-08-12; NO decision taken)
+
+While eyeballing chunk 1, James noticed some features (e.g. Shadow's Careful
+Observation) lack the Add Prerequisite dropdown. Diagnosis: pre-existing
+behavior, not a chunk-1 regression. The editor gates on a per-feature
+canHavePrerequisites flag that only the class editor's plain "Feature"
+authoring path sets; prefab clones, pasted features and ability-wrapping
+features never get it. Prerequisite EVALUATION never checks the flag. A fix
+offering prerequisites on every plain CharacterFeature was committed
+(e2029e99) then REVERTED (838348e2) -- James was asking why, not requesting
+a change. Open question if it ever matters: what the gate SHOULD be; likely
+a lead-dev (David) question since the behavior predates this project.
+
 ## Rollout follow-ups
 
 - Once feature metadata ships: update the implement-content skill and/or

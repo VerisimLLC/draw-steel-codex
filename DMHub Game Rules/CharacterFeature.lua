@@ -17,10 +17,19 @@ local mod = dmhub.GetModLoading()
 --- @field implementation nil|number Choice implementation index (1-based enum).
 --- @field options nil|table[] Optional list of sub-options for multi-option features.
 --- @field costsPoints nil|boolean If true, selecting this feature costs character build points.
+--- @field internal nil|boolean If true, this is a supporting/plumbing feature (not a book feature) and is hidden on the character sheet and panel.
+--- @field coreMechanic nil|boolean If true, this feature's rules are pinned toward the top of the character sheet and panel.
+--- @field modes nil|table<string,boolean> Set of game mode tags from GameSystem.featureModes (e.g. "Combat"). Absent/empty = mode-agnostic.
 CharacterFeature = RegisterGameType("CharacterFeature")
 
 CharacterFeature.canHavePrerequisites = false
 CharacterFeature.modifiers = {}
+CharacterFeature.internal = false
+CharacterFeature.coreMechanic = false
+
+--Shared class-level default; readers may iterate it but must NEVER mutate
+--it. Writers always assign a fresh table (or nil to clear) on the instance.
+CharacterFeature.modes = {}
 
 --- Creates a new CharacterFeature with default fields and optional overrides.
 --- @param options nil|table Field overrides to apply after defaults.
@@ -791,6 +800,78 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		end,
 	}
 
+	-- Feature metadata flags. Instance fields fall back to class-level
+	-- defaults (false / empty), and writers assign nil rather than false so
+	-- serialized data only carries deliberate opt-ins.
+	local internalCheck = gui.Check{
+		text = "Internal Feature",
+		value = self.internal,
+		halign = "left",
+		valign = "center",
+		change = function(element)
+			if element.value then
+				self.internal = true
+			else
+				self.internal = nil
+			end
+		end,
+		hover = gui.Tooltip("This feature will be hidden on the character sheet and panel"),
+	}
+
+	local coreMechanicCheck = gui.Check{
+		text = "Core Mechanic",
+		value = self.coreMechanic,
+		halign = "left",
+		valign = "center",
+		lmargin = 24,
+		change = function(element)
+			if element.value then
+				self.coreMechanic = true
+			else
+				self.coreMechanic = nil
+			end
+		end,
+		hover = gui.Tooltip("Pin this feature's rules to the top of the character sheet and panel"),
+	}
+
+	local flagsRow = gui.Panel{
+		flow = "horizontal",
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		internalCheck,
+		coreMechanicCheck,
+	}
+
+	-- Game mode tags. Only rendered when the active game system registers
+	-- modes (Draw Steel does; 5e does not).
+	local modesRow = nil
+	if #GameSystem.featureModes > 0 then
+		local modeOptions = {}
+		for _,modeName in ipairs(GameSystem.featureModes) do
+			modeOptions[#modeOptions+1] = { id = modeName, text = modeName }
+		end
+
+		local modesEditor = gui.Multiselect{
+			addItemText = "Add Tag...",
+			options = modeOptions,
+			value = self:try_get("modes", {}),
+			change = function(element, value)
+				local newModes = nil
+				for modeName,selected in pairs(value) do
+					if selected then
+						newModes = newModes or {}
+						newModes[modeName] = true
+					end
+				end
+				--nil when empty so mode-agnostic features serialize clean.
+				self.modes = newModes
+			end,
+		}
+
+		modesRow = makeFormRow("Tags:", modesEditor, "modesPanel")
+	end
+
 	local descriptionInput = gui.Input{
 		text = self:GetDescription(),
 		multiline = true,
@@ -820,14 +901,22 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	-- children across that height (~700px), producing large gaps between
 	-- rows and before the + Add Modifier button. The Create New Ability
 	-- modal uses the same pattern at AbilityEditorTemplates.lua:1436-1453.
-	local innerRows = {
+	-- Built incrementally rather than as a literal: modesRow and
+	-- prerequisitesPanel can be nil, and a holed list makes the later
+	-- #innerRows+1 append implementation-defined.
+	local innerRows = {}
+	for _,row in ipairs{
 		makeFormRow("Name:", nameInput, "namePanel"),
 		makeFormRow("Source:", sourceInput, "sourcePanel"),
 		makeInlineRow("Implementation:", implementationWidget),
-		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
-		prerequisitesPanel,
-		modifiersPanel,
-	}
+		flagsRow,
+	} do
+		innerRows[#innerRows+1] = row
+	end
+	innerRows[#innerRows+1] = modesRow
+	innerRows[#innerRows+1] = makeFormRow("Description:", descriptionInput, "descriptionPanel")
+	innerRows[#innerRows+1] = prerequisitesPanel
+	innerRows[#innerRows+1] = modifiersPanel
 
 	-- Themed mode builds a persistent Add / Paste Modifier bottom bar. In
 	-- normal (scrolling) editors the bar is kept outside the scroll area so

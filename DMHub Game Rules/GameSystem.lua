@@ -153,6 +153,16 @@ GameSystem.hasAbilityKeywords = false
 GameSystem.abilityKeywords = {}
 GameSystem.itemKeywords = {}
 
+--Game modes that CharacterFeatures can be tagged with (e.g. "Combat").
+--An ordered list of strings; registration order is display order. Empty
+--when the active game system registers no modes, in which case feature
+--editors hide the Game Modes row.
+GameSystem.featureModes = {}
+
+function GameSystem.RegisterFeatureMode(mode)
+	GameSystem.featureModes[#GameSystem.featureModes+1] = mode
+end
+
 --do we trigger abilities at the start of the round?
 GameSystem.HaveBeginRoundTrigger = false
 
@@ -198,6 +208,7 @@ function GameSystem.ClearRules()
 
 	GameSystem.abilityKeywords = {}
     GameSystem.itemKeywords = {}
+	GameSystem.featureModes = {}
 
 	GameSystem.CharacterBuilderShowsHitpoints = true
 

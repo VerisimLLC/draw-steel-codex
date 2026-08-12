@@ -4544,34 +4544,63 @@ function PanelDocument:CreateInterface(args)
         return tabbed and PanelDocument.IsPinned(panelKey)
     end
 
-    --forward-declared: SyncPinnedState is built from all three, and the
-    --pin button's own click handler calls it. resultPanel is declared up
-    --here too so SyncPinnedState can toggle its escape capture.
+    --forward-declared: resultPanel is declared up here so
+    --SyncPinnedState can toggle its escape capture.
     local pinButton
-    local SyncChipCloseButtons
     local SyncPinnedState
     local resultPanel
 
+    --The window's close x owns the header's top-right corner -- the
+    --universal window convention (one close control only: two x's in
+    --one header read as a bug -- Venla 2026-08-12). Hidden entirely
+    --while pinned (SyncPinnedState): a pinned window cannot be closed.
+    local closeButton = gui.Button{
+        classes = {"closeButton", "sizeXs"},
+        --escape is handled by the window root (see resultPanel), which
+        --closes the window WITHOUT forgetting its rail record. The kind
+        --default (escapeActivates) would race it and win, and this
+        --button's click forgets the record -- an explicit-close-only
+        --semantic.
+        escapeActivates = false,
+        --FLOATING, anchored to the corner: stays put when the title chip
+        --changes form or the header wraps.
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = -6,
+        y = 8,
+        click = function(element)
+            if Pinned() then
+                return
+            end
+            if args.close ~= nil then
+                args.close()
+            elseif dialog ~= nil and dialog.valid then
+                dialog:DestroySelf()
+            end
+        end,
+    }
+    if args.suppressCloseButton then
+        closeButton:SetClass("collapsed", true)
+    end
+
     --The pin toggle: locks the window in place (no close, no drag, no
     --resize) and marks it to be restored with the rails. Quiet until
-    --hovered or pinned, so an unpinned window's header stays clean.
-    --It owns the header's top-right corner: the CLOSE affordance is the
-    --title chip's own x (two x's in one header read as a bug -- Venla
-    --2026-08-12), and that x hides entirely while pinned
-    --(SyncChipCloseButtons), leaving the lit pin as the only control.
+    --hovered or pinned, so the header stays clean. It rides INSIDE the
+    --title chip, after the name (see BuildChip) -- the corner belongs
+    --to the close x. While pinned, the x hides and the lit upright pin
+    --is the header's only control.
     pinButton = gui.Panel{
         classes = {"panelDocumentPinButton"},
         bgimage = "phosphor/push-pin-simple-light.png",
         width = 14,
         height = 14,
-        --FLOATING, not a flow child: anchored to the corner it stays put
-        --when the title chip changes form or the header wraps. x is
-        --measured leftward from the right edge.
-        floating = true,
-        halign = "right",
-        valign = "top",
-        x = -8,
-        y = 11,
+        valign = "center",
+        lmargin = 2,
+        rmargin = 6,
+        --the chip around it switches tabs/shades on (double)click; the
+        --pin's own click must not double as those.
+        swallowPress = true,
         click = function(element)
             PanelDocument.SetPinned(panelKey, not Pinned())
         end,
@@ -4892,33 +4921,9 @@ function PanelDocument:CreateInterface(args)
 
     local AddTab
 
-    --each chip carries its own close x, shown even when it is the only
-    --tab (Lisa+David review 2026-07-19: closing the last tab closes the
-    --whole window). Hidden in non-tabbed hosts (e.g. the journal viewer),
-    --where the host owns closing, and on a PINNED window's last tab --
-    --that x would close the locked window.
-    --Also hidden on inactive chips at compaction level 2 (icon-only) --
-    --those tabs can still be closed from the right-click menu, or by
-    --activating them first. Returns true when it changed anything.
-    SyncChipCloseButtons = function()
-        local pinned = Pinned()
-        local changed = false
-        for _, t in ipairs(m_tabs) do
-            if t.chipClose ~= nil and t.chipClose.valid then
-                local hide = (not tabbed) or (pinned and #m_tabs <= 1)
-                    or (m_compactLevel >= 2 and t.key ~= m_activeKey)
-                if t.chipClose:HasClass("collapsed") ~= hide then
-                    t.chipClose:SetClass("collapsed", hide)
-                    changed = true
-                end
-            end
-        end
-        return changed
-    end
-
     --Chip geometry, derived from live measurement: a chip is ~58px of
     --fixed chrome (border, icon + its 8px inset, the label's 6+4
-    --margins, the close x and its 6px inset) plus its label text; an
+    --margins, the pin and its insets) plus its label text; an
     --icon + close chip renders at 48; icon alone at 30. Each chip adds
     --2px of h-margins on top.
     local CHIP_FIXED = 58
@@ -5083,9 +5088,6 @@ function PanelDocument:CreateInterface(args)
             end
         end
 
-        if SyncChipCloseButtons() then
-            changed = true
-        end
         return changed
     end
 
@@ -5096,50 +5098,15 @@ function PanelDocument:CreateInterface(args)
         if pinButton ~= nil and pinButton.valid then
             pinButton:SetClass("pinned", pinned)
         end
-        --a pinned window cannot be closed, so it stops listening for
-        --escape entirely -- the press falls through to lower-priority
-        --handlers instead of being swallowed by a no-op.
+        --a pinned window cannot be closed: its corner x hides entirely.
+        if closeButton ~= nil and closeButton.valid then
+            closeButton:SetClass("collapsed", args.suppressCloseButton == true or pinned)
+        end
+        --a pinned window also stops listening for escape entirely -- the
+        --press falls through to lower-priority handlers instead of being
+        --swallowed by a no-op.
         if resultPanel ~= nil and resultPanel.valid then
             resultPanel.captureEscape = tabbed and not pinned
-        end
-        SyncChipCloseButtons()
-    end
-
-    local function RemoveTab(key)
-        local tab, idx = FindTab(key)
-        if tab == nil then
-            return
-        end
-        --closing the ONLY tab closes the whole window -- the chip's x IS
-        --the window's close control (Lisa+David review 2026-07-19; header
-        --x retired 2026-08-12). A pinned window cannot be closed, so its
-        --last tab stays put.
-        if #m_tabs <= 1 then
-            if Pinned() then
-                return
-            end
-            if args.close ~= nil then
-                args.close()
-            elseif dialog ~= nil and dialog.valid then
-                dialog:DestroySelf()
-            end
-            return
-        end
-        table.remove(m_tabs, idx)
-        if tab.chip ~= nil and tab.chip.valid then
-            tab.chip:DestroySelf()
-        end
-        if tab.wrapper ~= nil and tab.wrapper.valid then
-            tab.wrapper:DestroySelf()
-        end
-        if m_activeKey == key then
-            SwitchTab(m_tabs[1].key)
-        end
-        SyncDialogTabs()
-        SyncChipCloseButtons()
-        --the strip may have dropped a row; re-measure after layout.
-        if header ~= nil and header.valid then
-            header:ScheduleEvent("syncPanelHeader", 0.05)
         end
     end
 
@@ -5203,24 +5170,10 @@ function PanelDocument:CreateInterface(args)
                 }
                 return tab.chipLabel
             end)(),
-            (function()
-                tab.chipClose = gui.Button{
-                    classes = {"closeButton", "sizeXxs", "collapsed"},
-                    --without this, the closeButton kind's escapeActivates
-                    --makes every chip an escape listener, and the NEWEST
-                    --listener wins the escape race -- so escape closed the
-                    --last-added tab (unraveling a group one member at a
-                    --time) instead of closing the window (field report
-                    --2026-08-08). The window root handles escape.
-                    escapeActivates = false,
-                    valign = "center",
-                    rmargin = 6,
-                    click = function(element)
-                        RemoveTab(tab.key)
-                    end,
-                }
-                return tab.chipClose
-            end)(),
+            --the window's pin toggle rides in the chip after the name
+            --(constructed above with the header chrome; the chip is only
+            --ever built once -- windows are single-panel).
+            pinButton,
         }
     end
 
@@ -5312,7 +5265,7 @@ function PanelDocument:CreateInterface(args)
         end,
 
         tabStrip,
-        pinButton,
+        closeButton,
     }
 
     hairline = gui.Panel{

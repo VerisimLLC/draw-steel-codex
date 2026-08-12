@@ -5537,6 +5537,12 @@ function PanelDocument:CreateInterface(args)
         height = "100%",
         halign = "center",
         valign = "center",
+        --the focus edge's one-sided border is INLINE: a border TABLE in
+        --the styles list verifiably never reaches this panel (scalar
+        --properties do -- the old full ring worked; tested live), while
+        --selfStyle renders it. Color and opacity still come from the
+        --dockPanelFocusOutline style rules, so theming is intact.
+        border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
     }
 
     --The window ROOT already rounds itself: it carries the `framedPanel`
@@ -5719,13 +5725,13 @@ function PanelDocument:CreateInterface(args)
                 selectors = {"dockPanelFocusOutline"},
                 bgcolor = "clear",
                 borderColor = "@accent",
-                --heavier than the dock's 2px: a floating window sits over
-                --the map rather than against a dock column, so a thin
-                --muted-gold line on a dark frame over bright terrain
-                --disappears.
-                border = 3,
-                --the ring traces the window's outline, so it has to take
-                --the same rounding the root got from the theme.
+                --a single thick LEFT edge, not a full ring: the row
+                --grammar's selected-state vocabulary scaled to panel size,
+                --matching the dock copy in DefaultStyles (a ring around
+                --the whole window outshouted its content).
+                border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+                --the edge hugs the window's frame, so it takes the same
+                --rounding the root got from the theme.
                 cornerRadius = themeCornerRadius,
                 opacity = 0,
                 transitionTime = 0.15,
@@ -7020,6 +7026,29 @@ local function RailDragPointer(baseX, baseY, element)
 end
 
 --Pointer position for a dragged rail button resting at (side, slot).
+--Whether an open rail-band window intersects the given band (top-left
+--anchored layer coordinates -- the rails and the panel windows are both
+--top-left anchored in near-identical full-screen layers, so their x/y
+--are comparable to within a few pixels). The group flyout strips use
+--this to decide their dress: chromeless over bare map, the opaque
+--"stripCard" treatment only when the strip would actually draw over a
+--window -- a card floating over nothing reads as clutter.
+local function RailWindowIntersectsBand(x1, y1, x2, y2)
+    for _, doc in pairs(g_panelDocuments) do
+        local d = doc:try_get("_tmp_dialog")
+        if d ~= nil and d.valid then
+            local wx = tonumber(d.x) or 0
+            local wy = tonumber(d.y) or 0
+            local ww = tonumber(d.renderedWidth) or 0
+            local wh = tonumber(d.renderedHeight) or 0
+            if ww > 0 and wh > 0 and x1 < wx + ww and x2 > wx and y1 < wy + wh and y2 > wy then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function RailButtonDragPointer(side, slot, element)
     local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
     local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
@@ -7363,25 +7392,36 @@ local function IconRailStyles()
             opacity = 1,
             transitionTime = 0.1,
         },
-        --while the flyout is open the stack is visually expanded into
-        --the strip, so the marker card quickly fades away (and fades
-        --back when the strip closes). transitionTime must be on THIS
-        --rule, not just the base: the engine reads it per-rule when the
-        --rule's selector match changes (StyleSelected), so a rule
-        --without its own transitionTime snaps instantly. The same
-        --value drives both directions -- the ramp-in when groupOpen
-        --lands and the ramp-out when it clears.
+        --the marker card fades out while the stack is "visually spent":
+        --the strip is expanded into the band, OR the group's window is
+        --open (popping back at window-open read glitchy). ONE class for
+        --both reasons, deliberately: StyleSelected blends rules by
+        --per-rule match ratio, so swapping between two opacity-0 rules
+        --in the same frame (strip class off + window class on) had
+        --neither at full ratio mid-transition and the card bulged to
+        --~25% opacity for the crossfade -- a visible flicker on every
+        --open. A single class never crossfades with itself.
+        --transitionTime must be on THIS rule, not just the base: the
+        --engine reads it per-rule when the rule's selector match
+        --changes, so a rule without its own transitionTime snaps
+        --instantly. The same value drives both directions.
         {
             selectors = {"iconRailGroupShadow", "groupOpen"},
             opacity = 0,
             transitionTime = 0.1,
         },
         --the hover flyout: the grouped panels' own buttons, opening
-        --toward the screen centre beside the owner. The strip itself is
-        --just a hover bridge (see CreateIconRail) and carries no fill.
+        --toward the screen centre beside the owner. At rest over the bare
+        --map the strip is just a hover bridge (a barely-there fill so the
+        --gaps between members still hit-test -- fully "clear" would not).
+        --When the strip would draw over an open window it becomes an
+        --opaque rounded card instead; that fill is applied via selfStyle
+        --in the owner's hover handler, NOT here -- a fill switched by a
+        --class rule verifiably never repainted this panel. The "stripCard"
+        --class still marks the state for anything that wants to key off it.
         {
             selectors = {"iconRailGroupFlyout"},
-            bgcolor = "clear",
+            bgcolor = "#00000001",
         },
         {
             selectors = {"iconRailGroupMember"},
@@ -7559,20 +7599,55 @@ local function IconRailStyles()
         {
             selectors = {"label", "iconRailLabel"},
             opacity = 0,
-            bgcolor = "#0a0a0beb",
-            border = 1,
-            --@border (white @ 0.16) rather than the old hard-coded #ffffff47
-            --(0.28): the design system's quiet-edge standard, and it follows
-            --the colour scheme instead of pinning white in every theme.
-            borderColor = "@border",
-            cornerRadius = 6,
-            color = "@fg",
-            fontSize = 11,
+            --Plain flyout text, no chip: the old boxed background (dark
+            --fill + border + rounded corners) read as a panel colliding
+            --with the buttons around it.
+            --NO textOutline either: the engine renders textOutlineColor as
+            --a snug PLATE behind the whole text, not a per-glyph stroke --
+            --it was the mystery grey box hugging these labels.
+            bgcolor = "clear",
+            border = 0,
+            color = "@fgStrong",
+            fontSize = 12,
             bold = true,
             transitionTime = 0.15,
         },
         {
             selectors = {"label", "iconRailLabel", "parent:hover"},
+            opacity = 1,
+        },
+        --No label while the button's panel is already open: the window
+        --sits flush beside the rail, exactly where the label draws, and
+        --the name of an open panel is information the user already has.
+        --priority outranks the parent:hover fade-in above.
+        {
+            selectors = {"label", "iconRailLabel", "parent:active"},
+            opacity = 0,
+            priority = 10,
+        },
+        --The flyout strip's name slot. No textOutline -- the engine draws
+        --it as a plate hugging the text, not a glyph stroke (see the
+        --iconRailLabel note).
+        {
+            selectors = {"label", "iconRailStripLabel"},
+            color = "@fgStrong",
+            fontSize = 12,
+            bold = true,
+        },
+        --Close hint: hovering a button whose panel is open means a click
+        --will CLOSE it -- the icon recedes and an X takes its place.
+        {
+            selectors = {"iconRailIcon", "parent:active", "parent:hover"},
+            opacity = 0.15,
+        },
+        {
+            selectors = {"iconRailCloseHint"},
+            bgcolor = "@fg",
+            opacity = 0,
+            transitionTime = 0.12,
+        },
+        {
+            selectors = {"iconRailCloseHint", "parent:active", "parent:hover"},
             opacity = 1,
         },
     })
@@ -8946,7 +9021,7 @@ local function CreateIconRail(side, entries)
                 halign = nearSideLabel.halign,
                 valign = "center",
                 interactable = false,
-                bgimage = true,
+                --no bgimage: see the main hover label's note.
                 text = "STOP REARRANGING",
                 width = "auto",
                 height = "auto",
@@ -9065,16 +9140,44 @@ local function CreateIconRail(side, entries)
         --next press the "show it again" gesture). Cleared on dehover, so a
         --fresh hover always opens the strip.
         local groupFlyoutSuppressed = false
-        --the "second card" group marker behind the button. While the
-        --flyout is open the stack is visually expanded into the strip,
-        --so the marker quickly fades out (the "groupOpen" class) and
-        --fades back when the strip closes. Forward-declared for the
-        --same reason as groupFlyout.
+        --the "second card" group marker behind the button. It fades out
+        --(the "groupOpen" class) while the strip is expanded OR the
+        --group's window is open, and fades back when both are done. One
+        --class covers both reasons -- see the style rule for why two
+        --classes crossfading in the same frame flickered. Forward-
+        --declared for the same reason as groupFlyout.
         local groupShadow
-        local function SetGroupExpanded(expanded)
-            if groupShadow ~= nil and groupShadow.valid then
-                groupShadow:SetClass("groupOpen", expanded)
+        local groupStripExpanded = false
+        local function GroupShadowHidden()
+            return groupStripExpanded or g_railRearranging or PanelDocument.IsPanelShown(key)
+        end
+        local function UpdateGroupShadow()
+            if groupShadow == nil or not groupShadow.valid then
+                return
             end
+            if GroupShadowHidden() then
+                groupShadow:SetClass("groupOpen", true)
+            else
+                --clears are deferred a frame and re-checked: a press that
+                --opens the group's window collapses the strip (clear) and
+                --refreshes the rails (set) in the same call stack, and the
+                --engine restarts a re-added class's transition ramp from
+                --zero (SetClassActive resets activeTime), which flashed
+                --the card fully visible for the 0.1s fade. Deferring means
+                --a clear immediately followed by a set never lands at all.
+                dmhub.Schedule(0.02, function()
+                    if mod.unloaded then
+                        return
+                    end
+                    if groupShadow ~= nil and groupShadow.valid and not GroupShadowHidden() then
+                        groupShadow:SetClass("groupOpen", false)
+                    end
+                end)
+            end
+        end
+        local function SetGroupExpanded(expanded)
+            groupStripExpanded = expanded
+            UpdateGroupShadow()
         end
         --the owner's own button, captured on create so the members can
         --schedule the close on it.
@@ -9150,6 +9253,25 @@ local function CreateIconRail(side, entries)
             RefreshRails()
         end
 
+        --The hover label doubles as the hotkey reminder: append the
+        --keystroke bound to this panel's "togglepanel" command (the same
+        --command the settings screen's User Interface section binds).
+        --Panels only -- document and character shortcuts have no
+        --togglepanel command. Recomputed from refreshRail because a
+        --binding can change in the settings screen (or via this button's
+        --own Set Keybind... entry) without the rails rebuilding.
+        --(Defined up here, before the flyout strip: the strip's name slot
+        --shows this text while the owner is hovered.)
+        local function HoverLabelText()
+            if docid == nil and charid == nil then
+                local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
+                if bind ~= nil and bind ~= "" then
+                    return string.format("%s  (%s)", string.upper(panelName), bind)
+                end
+            end
+            return string.upper(panelName)
+        end
+
         --The flyout itself: the members' own buttons in a strip beside the
         --owner, opening toward the screen centre like the hover labels do.
         --Hidden with "collapsed" rather than opacity: an opacity-0 panel
@@ -9158,6 +9280,13 @@ local function CreateIconRail(side, entries)
         --Built even when there is no group (empty and collapsed): a nil in
         --the button's children array would truncate it and drop the label
         --after it.
+        --The strip is an opaque rounded CARD (see its construction): loose
+        --translucent buttons floating over an open rail window read as an
+        --accidental overlap. Its last slot is the NAME of whatever the
+        --pointer is on -- the owner, or the hovered member -- so the group
+        --case needs no floating labels at all.
+        local stripLabel = nil
+        local memberLabelTexts = {}
         local memberButtons = {}
         if groupMembers ~= nil then
             for mi, memberKey in ipairs(groupMembers) do
@@ -9172,6 +9301,7 @@ local function CreateIconRail(side, entries)
                 if memberBind ~= nil and memberBind ~= "" then
                     memberLabel = string.format("%s  (%s)", memberLabel, memberBind)
                 end
+                memberLabelTexts[#memberLabelTexts + 1] = memberLabel
 
                 --in rearrange mode members wiggle like the rail's own
                 --buttons, seeded by strip position so neighbours start
@@ -9195,13 +9325,21 @@ local function CreateIconRail(side, entries)
                     width = ICON_RAIL_BUTTON,
                     height = ICON_RAIL_BUTTON,
                     flow = "none",
-                    hmargin = 4,
+                    --no leading margin on the FIRST member: the strip card
+                    --starts exactly at its edge (see flyoutArgs), so the
+                    --card's border-to-button alignment is pixel-perfect.
+                    lmargin = cond(mi == 1, 0, 4),
+                    rmargin = 4,
                     swallowPress = true,
                     draggable = g_railRearranging,
                     data = { ownerKey = key, memberKey = memberKey, memberIndex = mi },
 
                     hover = function(element)
                         RailButtonSound("hover")
+                        --the strip's name slot follows the pointer.
+                        if stripLabel ~= nil and stripLabel.valid then
+                            stripLabel.text = memberLabel
+                        end
                     end,
 
                     --leaving a member re-arms the close; the handler
@@ -9301,30 +9439,9 @@ local function CreateIconRail(side, entries)
                         interactable = false,
                     },
 
-                    --the member's name, BELOW its button rather than beside
-                    --it: the strip already occupies the space the rail's
-                    --own hover labels use. Like the rail's own hover
-                    --labels, it carries the panel's hotkey when one is
-                    --bound; static is fine here -- the flyout is rebuilt
-                    --with the rails, and a mid-hover rebind is not a case
-                    --worth a live refresh.
-                    gui.Label{
-                        classes = {"iconRailLabel"},
-                        floating = true,
-                        renderOnTop = true,
-                        halign = "center",
-                        valign = "top",
-                        y = ICON_RAIL_BUTTON + 4,
-                        interactable = false,
-                        bgimage = true,
-                        text = memberLabel,
-                        width = "auto",
-                        height = "auto",
-                        hpad = 8,
-                        vpad = 4,
-                        borderBox = true,
-                        textWrap = false,
-                    },
+                    --(the member's name shows in the strip card's own name
+                    --slot -- see stripLabel -- rather than as a floating
+                    --label of its own.)
 
                     --the click sound still goes on PRESS: it acknowledges
                     --the mouse going down, which is when the gesture reads
@@ -9405,11 +9522,16 @@ local function CreateIconRail(side, entries)
         end
 
         do
+            --the strip starts 4px off the owner (the old inter-button gap),
+            --with its edge exactly on the first member button -- the card's
+            --outline hugs the buttons instead of poking a bare sliver out
+            --toward the owner. The 4px pointer gap to the owner is covered
+            --by the same close-grace that covers the gaps between members.
             local flyoutArgs
             if side == "left" then
-                flyoutArgs = { halign = "left", x = ICON_RAIL_BUTTON }
+                flyoutArgs = { halign = "left", x = ICON_RAIL_BUTTON + 4 }
             else
-                flyoutArgs = { halign = "right", x = -ICON_RAIL_BUTTON }
+                flyoutArgs = { halign = "right", x = -(ICON_RAIL_BUTTON + 4) }
             end
 
             --in rearrange mode every group EXPANDS: the strip constructs
@@ -9510,6 +9632,34 @@ local function CreateIconRail(side, entries)
                     cutout = cutoutPanel,
                 }
             end
+
+            --the card's name slot: the owner's name while the owner is
+            --hovered, a member's while the pointer is on that member.
+            --FIXED width, sized for the longest name in the group: the
+            --flyout is width-auto, so a name slot that resized with its
+            --text shifted the whole open strip sideways whenever the
+            --pointer moved between owner and members. ~8px per character
+            --of the 12px small-caps font, with a little slack -- a
+            --slightly roomy slot beats a moving strip.
+            local nameSlotChars = #HoverLabelText()
+            for _, t in ipairs(memberLabelTexts) do
+                if #t > nameSlotChars then
+                    nameSlotChars = #t
+                end
+            end
+            stripLabel = gui.Label{
+                classes = {"iconRailStripLabel"},
+                text = HoverLabelText(),
+                interactable = false,
+                width = nameSlotChars * 8 + 12,
+                height = "auto",
+                valign = "center",
+                textAlignment = "left",
+                hmargin = 6,
+                textWrap = false,
+            }
+            memberButtons[#memberButtons + 1] = stripLabel
+
             groupFlyout = gui.Panel{
                 classes = flyoutClasses,
                 floating = true,
@@ -9533,12 +9683,16 @@ local function CreateIconRail(side, entries)
                 valign = "top",
                 x = flyoutArgs.x,
                 y = buttonTop,
-                --Anchored FLUSH against the owner button (no gap) and given
-                --a hit surface of its own: the pointer must be able to
-                --travel from the button into the strip without crossing
-                --dead space that would dehover the owner and close it.
+                --a barely-there hit surface at rest (the iconRailGroupFlyout
+                --rule); when the strip would overlap an open window, the
+                --owner's hover handler swaps in an opaque rounded card via
+                --selfStyle (see the RailWindowIntersectsBand check there).
+                --NOTE the strip's total width must stay CONSTANT while it
+                --is open: a width change repositions the auto-width panel
+                --and the whole strip visibly shifts (and re-anchoring via
+                --pivot desyncs the hit geometry -- field-tested). The name
+                --slot is fixed-width for exactly this reason.
                 bgimage = true,
-                bgcolor = "#00000001",
                 --the raycaster hands "hover" to the hit panel plus its
                 --ancestors, stopping at the first swallowPress panel. The
                 --member buttons swallow, but without this the strip's own
@@ -9756,23 +9910,6 @@ local function CreateIconRail(side, entries)
             }
         end
 
-        --The hover label doubles as the hotkey reminder: append the
-        --keystroke bound to this panel's "togglepanel" command (the same
-        --command the settings screen's User Interface section binds).
-        --Panels only -- document and character shortcuts have no
-        --togglepanel command. Recomputed from refreshRail because a
-        --binding can change in the settings screen (or via this button's
-        --own Set Keybind... entry) without the rails rebuilding.
-        local function HoverLabelText()
-            if docid == nil and charid == nil then
-                local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
-                if bind ~= nil and bind ~= "" then
-                    return string.format("%s  (%s)", string.upper(panelName), bind)
-                end
-            end
-            return string.upper(panelName)
-        end
-
         --GROUP marker: a second card peeking out from behind the button
         --(up and toward the screen centre), so a grouped button reads as
         --a small stack. A floating SIBLING appended before the button --
@@ -9792,10 +9929,11 @@ local function CreateIconRail(side, entries)
         --scale (scale does not affect layout, and the panel is not
         --interactable, so hit-testing is moot).
         if groupMembers ~= nil then
-            --in rearrange mode the strip constructs expanded, so the
-            --marker card starts faded out to match.
+            --constructs already faded out when the strip starts expanded
+            --(rearrange mode) or the group's window is already open, so
+            --a rail rebuild never flashes the card in.
             local shadowClasses = {"iconRailGroupShadow"}
-            if g_railRearranging then
+            if g_railRearranging or PanelDocument.IsPanelShown(key) then
                 shadowClasses[#shadowClasses + 1] = "groupOpen"
             end
             groupShadow = gui.Panel{
@@ -9810,6 +9948,11 @@ local function CreateIconRail(side, entries)
                 x = cond(side == "left", 5, -5),
                 y = buttonTop - 5,
                 scale = cond(side == "left", 1, {x = -1, y = 1}),
+                --keeps the hidden state honest as the window opens and
+                --closes by any path (rail click, tab close, hotkey).
+                refreshRail = function(element)
+                    UpdateGroupShadow()
+                end,
             }
             buttons[#buttons + 1] = groupShadow
         end
@@ -9850,6 +9993,15 @@ local function CreateIconRail(side, entries)
                 if groupMembers == nil or groupFlyout == nil or not groupFlyout.valid then
                     return
                 end
+                --With the group's window already open, its TAB BAR is the
+                --navigation -- re-showing every member in a strip beside
+                --the button is a redundant second switcher. The hover
+                --reads as pure close affordance instead (the icon's X
+                --hint). Rearrange mode still always opens the strip: it
+                --is the grouping UI itself.
+                if (not g_railRearranging) and PanelDocument.IsPanelShown(key) then
+                    return
+                end
                 --arriving on the button is always a fresh reach for the
                 --strip, whatever a previous press did.
                 groupFlyoutSuppressed = false
@@ -9861,6 +10013,46 @@ local function CreateIconRail(side, entries)
                     rail:SetAsLastSibling()
                 end
                 groupFlyout:SetClass("collapsed", false)
+                --dress for the occasion: the card treatment only when the
+                --strip's own band actually intersects an open window.
+                --Width covers the member slots plus the name slot (a
+                --generous allowance; erring toward the card near an edge
+                --beats loose buttons over a window).
+                local stripWidth = #groupMembers * (ICON_RAIL_BUTTON + 8) + 160
+                local sy = ICON_RAIL_TOP + buttonTop
+                local sx1
+                if side == "left" then
+                    sx1 = ICON_RAIL_LEFT + ICON_RAIL_BUTTON
+                else
+                    sx1 = (dmhub.screenDimensionsBelowTitlebar.x - ICON_RAIL_LEFT - ICON_RAIL_BUTTON) - stripWidth
+                end
+                local overPanel = RailWindowIntersectsBand(sx1, sy, sx1 + stripWidth, sy + ICON_RAIL_BUTTON)
+                --docks are not panel-document windows, but a dock visible
+                --on this side always underlies the strip band -- the strip
+                --opens straight across it. Err toward the card: text and
+                --loose buttons over ANY panel is the failure mode.
+                if not overPanel then
+                    overPanel = dmhub.GetSettingValue(string.format("%sdockoffscreen", side)) == false
+                end
+                --the fill goes through selfStyle, NOT the class rules: a
+                --bgcolor switched via cascade classes verifiably failed to
+                --repaint this panel (the stripCard class was set, the rule
+                --existed, nothing drew -- field-tested twice), while
+                --selfStyle paints unconditionally. The class stays set for
+                --anything else that wants to key off the state.
+                groupFlyout:SetClass("stripCard", overPanel)
+                if overPanel then
+                    groupFlyout.selfStyle.bgcolor = "#0a0a0b"
+                    groupFlyout.selfStyle.cornerRadius = 8
+                else
+                    groupFlyout.selfStyle.bgcolor = "#00000001"
+                    groupFlyout.selfStyle.cornerRadius = 0
+                end
+                --arriving back on the owner, the card's name slot shows
+                --the owner's own name again.
+                if stripLabel ~= nil and stripLabel.valid then
+                    stripLabel.text = HoverLabelText()
+                end
                 --the stack is now expanded into the strip: the marker
                 --card behind the button fades out while it is open.
                 SetGroupExpanded(true)
@@ -9942,29 +10134,46 @@ local function CreateIconRail(side, entries)
                 interactable = false,
             },
 
+            --the close hint that replaces the icon while hovering an OPEN
+            --panel's button (see the iconRailCloseHint styles). Present on
+            --every button unconditionally -- keeping the children list
+            --hole-free -- but only the "active" class ever reveals it, and
+            --character-card shortcuts never carry that class.
+            gui.Panel{
+                classes = {"iconRailCloseHint"},
+                floating = true,
+                bgimage = "phosphor/x-bold.png",
+                width = 16,
+                height = 16,
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+
             gui.Label{
-                classes = {"iconRailLabel"},
+                classes = {"iconRailLabel", cond(groupMembers ~= nil, "collapsed")},
                 floating = true,
                 --see the tray label: rail windows left open sit over the rail,
                 --so without this the hover label drew behind them.
                 renderOnTop = true,
-                --a grouped button opens its flyout into exactly the space
-                --beside the button the label normally uses, so a grouped
-                --button's label sits BELOW the button instead: anchored to
-                --the rail's screen edge (a long name grows toward the screen
-                --centre rather than offscreen), matching the flyout member
-                --labels' own below-the-button placement. It overlaps the
-                --next button down, but it is renderOnTop, hover-only, and
-                --non-interactable, so nothing is obscured or blocked.
-                --In rearrange mode EVERY group-capable button has a strip
-                --(at least the cut-out box) beside it, so the label drops
-                --below there too.
-                x = cond(groupMembers ~= nil or (g_railRearranging and groupCapable), 0, labelArgs.x),
-                halign = cond(groupMembers ~= nil or (g_railRearranging and groupCapable), cond(side == "left", "left", "right"), labelArgs.halign),
-                valign = cond(groupMembers ~= nil or (g_railRearranging and groupCapable), "top", "center"),
-                y = cond(groupMembers ~= nil or (g_railRearranging and groupCapable), buttonHeight + 4, 0),
+                --The label sits on the MAP side of the button, vertically
+                --centred on its row -- the one place guaranteed free of
+                --other controls, so it never overlaps a neighbouring
+                --button. GROUPED buttons collapse this label entirely: the
+                --flyout strip card carries its own name slot (stripLabel),
+                --which follows the pointer across owner and members. The
+                --rearrange-mode cut-out on a group-capable button still
+                --shifts the label one slot outward.
+                x = labelArgs.x + cond(side == "left", 1, -1) * (
+                    cond(g_railRearranging and groupCapable, 1, 0) * (ICON_RAIL_BUTTON + 8)),
+                halign = labelArgs.halign,
+                valign = "center",
+                y = 0,
                 interactable = false,
-                bgimage = true,
+                --NO bgimage: the label is plain text, and a bgimage panel
+                --can flash its plate at default tint for a frame when the
+                --rails rebuild mid-hover, before the cascade's clear
+                --bgcolor lands. No image, no plate, no race.
                 text = HoverLabelText(),
                 refreshRail = function(element)
                     local text = HoverLabelText()
@@ -10816,7 +11025,7 @@ local function CreateRailTrashZone(side)
             halign = cond(side == "left", "left", "right"),
             valign = "center",
             interactable = false,
-            bgimage = true,
+            --no bgimage: see the main hover label's note.
             text = "DRAG HERE TO REMOVE",
             width = "auto",
             height = "auto",

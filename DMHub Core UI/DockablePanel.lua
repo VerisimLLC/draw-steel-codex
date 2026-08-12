@@ -1710,6 +1710,12 @@ CreateDockablePanelTabbedContainer = function(options)
 		height = "100%",
 		halign = "center",
 		valign = "center",
+		--the focus edge's one-sided border is INLINE: a border TABLE in a
+		--styles list verifiably never reaches this panel (scalar properties
+		--do -- the old full ring worked; tested live on the rail-window
+		--copy), while selfStyle renders it. Color and opacity still come
+		--from the dockPanelFocusOutline style rules, so theming is intact.
+		border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
 	}
 
 	--the framed surface every panel in this container sits on; hoisted out

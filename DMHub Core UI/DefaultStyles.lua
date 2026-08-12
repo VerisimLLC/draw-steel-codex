@@ -2189,18 +2189,21 @@ ThemeEngine.RegisterTheme{
             vpad = 4,
         },
 
-        -- Focus ring: traces the panel whose content tree currently holds
+        -- Focus edge: marks the panel whose content tree currently holds
         -- GUI focus. Several panels are only "armed" while focused (the
         -- Map Markup drawing tools, the Building editor, the Objects
-        -- panel), and nothing used to show which one that was. Accent
-        -- rather than a neutral edge: this is a live mode indicator, not
-        -- decoration. Fades rather than snapping, so it reads as state
-        -- moving between panels instead of flickering.
+        -- panel), and nothing used to show which one that was. A single
+        -- thick accent edge on the LEFT, not a full ring: the same
+        -- selected-state vocabulary the row grammar uses (see
+        -- STYLE_GUIDE.md), scaled up a notch for panel size -- a ring
+        -- around the whole panel outshouted the content it framed.
+        -- Fades rather than snapping, so it reads as state moving
+        -- between panels instead of flickering.
         {
             selectors = {"dockPanelFocusOutline"},
             bgcolor = "clear",
             borderColor = "@accent",
-            border = 2,
+            border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
             opacity = 0,
             transitionTime = 0.15,
         },

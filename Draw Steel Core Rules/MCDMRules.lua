@@ -924,6 +924,13 @@ GameSystem.RegisterAbilityKeyword("Charge")
 GameSystem.RegisterAbilityKeyword("Telekinesis")
 GameSystem.RegisterAbilityKeyword("Chronopathy")
 
+--Game modes features can be tagged with; order here is display order.
+GameSystem.RegisterFeatureMode("Combat")
+GameSystem.RegisterFeatureMode("Exploration")
+GameSystem.RegisterFeatureMode("Montage")
+GameSystem.RegisterFeatureMode("Negotiation")
+GameSystem.RegisterFeatureMode("Respite")
+
 GameSystem.RegisterItemKeyword("Potion")
 GameSystem.RegisterItemKeyword("Neck")
 

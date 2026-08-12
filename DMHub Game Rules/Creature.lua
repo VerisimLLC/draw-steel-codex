@@ -9112,10 +9112,15 @@ function creature:BeginTurn()
         end
 
         if token ~= nil then
-            local auras = self:GetAurasAffecting(token)
+            --includeAdjacentOnly: creatures merely adjacent to an extended aura
+            --(includeAdjacent) still start-of-turn trigger it, with a bane on
+            --the entry power roll. EnterAura is told which kind of contact this
+            --is; helper via the class table since it is defined further down
+            --the file.
+            local auras = self:GetAurasAffecting(token, {includeAdjacentOnly = true})
             if auras ~= nil then
                 for i,auraInfo in ipairs(auras) do
-                    self:EnterAura(auraInfo)
+                    self:EnterAura(auraInfo, creature.AuraTokenOnlyAdjacent(auraInfo, token), true)
                 end
             end
         end
@@ -9174,7 +9179,28 @@ local g_aurasAffectingInProgress = {}
 local g_aurasAffectingDepth = 0
 local g_maxAurasAffectingDepth = 4
 
-function creature:GetAurasAffecting(token)
+--Aura.TokenOnlyAdjacent is a newer engine method (includeAdjacent auras); on an
+--older engine build the member read raises. Probe once with the first real
+--query and fall back to "never adjacent-only", which is exactly the old
+--behavior since an old engine never builds adjacent extensions either.
+local g_hasTokenOnlyAdjacent = nil
+local function AuraTokenOnlyAdjacent(aura, token)
+	if g_hasTokenOnlyAdjacent == nil then
+		local ok, result = pcall(function() return aura:TokenOnlyAdjacent(token) end)
+		g_hasTokenOnlyAdjacent = ok
+		return ok and result == true
+	end
+
+	if g_hasTokenOnlyAdjacent then
+		return aura:TokenOnlyAdjacent(token) == true
+	end
+
+	return false
+end
+
+creature.AuraTokenOnlyAdjacent = AuraTokenOnlyAdjacent
+
+function creature:GetAurasAffecting(token, options)
     token = token or dmhub.LookupToken(self)
     if token == nil then
         return nil
@@ -9183,6 +9209,34 @@ function creature:GetAurasAffecting(token)
     local auras = token:GetAurasTouching()
     if auras == nil or #auras == 0 then
         return nil
+    end
+
+    --An includeAdjacent aura also reports tokens standing next to it as
+    --touching. That adjacency exists only for enter/start-of-turn trigger
+    --contact (BeginTurn asks with includeAdjacentOnly); for every other
+    --caller -- modifier collection, panels, filters -- adjacent-only contact
+    --does not count as being in the aura.
+    if options == nil or not options.includeAdjacentOnly then
+        local anyAdjacentOnly = false
+        for i,aura in ipairs(auras) do
+            if AuraTokenOnlyAdjacent(aura, token) then
+                anyAdjacentOnly = true
+                break
+            end
+        end
+
+        if anyAdjacentOnly then
+            local kept = {}
+            for i,aura in ipairs(auras) do
+                if not AuraTokenOnlyAdjacent(aura, token) then
+                    kept[#kept+1] = aura
+                end
+            end
+            if #kept == 0 then
+                return nil
+            end
+            auras = kept
+        end
     end
 
     --Fast path: with no filters to run there is nothing to recurse through, so skip the
@@ -9299,9 +9353,14 @@ local function PushAurasToCompanion(creatureObj, token, auras)
 end
 
 local g_baseGetAurasAffecting = creature.GetAurasAffecting
-function creature:GetAurasAffecting(token)
-    local result = g_baseGetAurasAffecting(self, token)
-    PushAurasToCompanion(self, token, result)
+function creature:GetAurasAffecting(token, options)
+    local result = g_baseGetAurasAffecting(self, token, options)
+    --Only the default (core-only) view feeds the Companion: pushing the
+    --includeAdjacentOnly variant would flap the dedupe signature between the
+    --two views of the same state.
+    if options == nil or not options.includeAdjacentOnly then
+        PushAurasToCompanion(self, token, result)
+    end
     return result
 end
 
@@ -10289,25 +10348,51 @@ function creature:GetTurnId()
 end
 
 --called by dmhub to see if entering this aura will halt movement.
-function creature:EnterAuraHaltsMovement(info)
+--level is the containment depth being entered: 2 = inside the aura, 1 = only
+--on the adjacent extension of an includeAdjacent aura. The per-turn
+--aurasEntered record stores the deepest level already triggered, so moving
+--from adjacent into the aura proper still triggers, while re-entering at the
+--same (or a shallower) depth in one turn does not. Records written before
+--levels existed hold true, which reads as level 2.
+function creature:EnterAuraHaltsMovement(info, level)
+	level = level or 2
 	local turnid = self:GetTurnId()
-	if turnid ~= nil and turnid == self:try_get("aurasEnteredTurnId") and self.aurasEntered[info.auraInstance.guid] then
-		return false
+	if turnid ~= nil and turnid == self:try_get("aurasEnteredTurnId") then
+		local entered = self.aurasEntered[info.auraInstance.guid]
+		if entered == true then
+			entered = 2
+		end
+		if entered ~= nil and entered >= level then
+			return false
+		end
 	end
-	
+
 	return true
 end
 
---called by dmhub when a creature enters an aura.
+--called by dmhub when a creature enters an aura (adjacentOnly = it is only on
+--the adjacent extension of an includeAdjacent aura, not inside it), and from
+--BeginTurn for every aura the creature starts its turn touching (fromBeginTurn).
+--Adjacent-only contact triggers only at the start of a turn -- moving past an
+--extended aura neither prompts nor halts -- and rolls the simple power roll
+--with a bane. Stored onenter triggers never fire for adjacent-only contact.
 --returns true if the aura triggered something, false otherwise.
-function creature:EnterAura(info)
+function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 
     if info.auraInstance.aura:CreaturePassesFilter(self, info.auraInstance) == false then
         return
     end
 
+	local level = 2
+	if adjacentOnly then
+		level = 1
+		if not fromBeginTurn then
+			return false
+		end
+	end
+
 	local result = false
-	if self:EnterAuraHaltsMovement(info) == false then
+	if self:EnterAuraHaltsMovement(info, level) == false then
 		return result
 	end
 
@@ -10322,31 +10407,40 @@ function creature:EnterAura(info)
 					self.aurasEntered = {}
 				end
 
-				self.aurasEntered[info.auraInstance.guid] = true
+				local entered = self.aurasEntered[info.auraInstance.guid]
+				if entered == true then
+					entered = 2
+				end
+				if entered == nil or entered < level then
+					self.aurasEntered[info.auraInstance.guid] = level
+				end
 			end,
 		}
 	end
 
-	for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
-		if triggerInfo.trigger == "onenter" then
-            local auraCasterToken = info.token
-            if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
-                auraCasterToken = dmhub.LookupToken(self)
-            end
-			result = true
-            print("AURA:: FIRE")
-			info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
-            if triggerInfo.destroyaura then
-                print("AURA:: DESTROY", info)
-                info:Destroy()
-            end
+	if not adjacentOnly then
+		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
+			if triggerInfo.trigger == "onenter" then
+				local auraCasterToken = info.token
+				if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+					auraCasterToken = dmhub.LookupToken(self)
+				end
+				result = true
+				print("AURA:: FIRE")
+				info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
+				if triggerInfo.destroyaura then
+					print("AURA:: DESTROY", info)
+					info:Destroy()
+				end
+			end
 		end
 	end
 
 	--The simple power roll option (powerRollEnabled and friends on the Aura)
 	--synthesizes an onenter trigger rather than storing one in aura.triggers,
-	--so the roll always reflects the aura's current fields.
-	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger()
+	--so the roll always reflects the aura's current fields. Adjacent-only
+	--contact rolls with a bane.
+	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger({adjacentOnly = adjacentOnly == true})
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
 		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then

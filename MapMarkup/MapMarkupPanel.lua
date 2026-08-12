@@ -375,6 +375,20 @@ local function SavePalette(entries)
 end
 
 --============================================================================
+--Popup survival across list rebuilds.
+--
+--Every list in this panel rebuilds its children wholesale from a monitor, and
+--a monitor fires on the round trip of OUR OWN write just as readily as on
+--another DM's edit. Destroying a panel destroys any popup it owns, so a
+--refresh landing while the user has a color popout or a context menu open
+--yanks it out from under the cursor: the popup appears to open and instantly
+--close again. Rebuilds stand down while a popup is open and replay once it
+--is gone - gui.RebuildDeferringPopups / gui.ThinkDeferredRebuild in Gui.lua.
+--The list on screen is momentarily stale, but it matches the popup the user
+--is interacting with, which is the more important consistency.
+--============================================================================
+
+--============================================================================
 --Palette entry helpers.
 --============================================================================
 
@@ -952,8 +966,9 @@ end
 --
 --Runtime: ZoneManager (below) builds one AuraInstance per zone from the
 --records and hands them to the engine via dmhub.GetMapAuras (re-polled on
---every aura rebuild). The keyword's difficultTerrain/water/concealment flags
---ride the aura into tile rules, its CharacterModifiers reach creatures via
+--every aura rebuild). The keyword's difficultTerrain/water/concealment/
+--climbable flags ride the aura into tile rules, its CharacterModifiers reach
+--creatures via
 --the normal FillModifiersFromAuras path, and the height field drives the
 --engine's vertical-overlap test (a height-2 Lava zone burns a ground token
 --and ignores a flyer at altitude 3).
@@ -1700,7 +1715,7 @@ end
 --older serialized keywords predate some fields, and game-typed instances
 --raise on unknown-field reads.
 local function KeywordFlags(kw)
-    local flags = { difficultTerrain = false, water = false, concealment = false }
+    local flags = { difficultTerrain = false, water = false, concealment = false, climbable = false, climbersOnly = false }
     if kw == nil then
         return flags
     end
@@ -1708,6 +1723,8 @@ local function KeywordFlags(kw)
         flags.difficultTerrain = kw:try_get("difficultTerrain", false) == true
         flags.water = kw:try_get("water", false) == true
         flags.concealment = kw:try_get("concealment", false) == true
+        flags.climbable = kw:try_get("climbable", false) == true
+        flags.climbersOnly = kw:try_get("climbersOnly", false) == true
     end)
     return flags
 end
@@ -1747,6 +1764,13 @@ local function KeywordSummary(kw)
     if flags.difficultTerrain then parts[#parts+1] = "Difficult terrain" end
     if flags.water then parts[#parts+1] = "Water" end
     if flags.concealment then parts[#parts+1] = "Concealment" end
+    if flags.climbable then
+        if flags.climbersOnly then
+            parts[#parts+1] = "Climbable (climbers only)"
+        else
+            parts[#parts+1] = "Climbable"
+        end
+    end
     pcall(function()
         local movedamage = kw:try_get("movedamage", "none")
         if movedamage ~= nil and movedamage ~= "none" then
@@ -1756,8 +1780,12 @@ local function KeywordSummary(kw)
     end)
     pcall(function()
         if kw:try_get("powerRollEnabled", false) and kw:try_get("powerRollTiers") ~= nil then
-            local bonus = math.floor(tonumber(kw:try_get("powerRollBonus", 0)) or 0)
-            parts[#parts+1] = string.format("2d10%+d roll on enter", bonus)
+            parts[#parts+1] = "Damaging"
+        end
+    end)
+    pcall(function()
+        if kw:try_get("includeAdjacent", false) == true then
+            parts[#parts+1] = "Affects adjacent"
         end
     end)
     pcall(function()
@@ -2046,9 +2074,6 @@ local m_lastFeedFootstepsMode = nil --last footstepsMode the feed reported; a fl
                                    --bumps m_zoneRevision so old and new engine
                                    --builds alike rebuild the overlay mesh
 local m_lastFeedPanelOpen = nil    --same, for the feed's panelOpen flag
-local m_zonePanelOpen = false      --show/hide events only; MarkupPanelIsOpen
-                                   --derives openness from the live panel, see
-                                   --the comment there
 
 --Dispel suppression state (EnvironmentalKeyword.dispels): live auras whose
 --keyword dispels other keywords temporarily carve their tiles out of zones
@@ -2627,7 +2652,11 @@ local function RebuildZoneCache()
                 difficultTerrain = entry.flags.difficultTerrain,
                 water = entry.flags.water,
                 concealment = entry.flags.concealment,
+                climbable = entry.flags.climbable,
                 floorIndex = entry.floorIndex,
+                --the engine ignores this; the feed uses it to filter zones by
+                --the user's per-zone-type visibility preference.
+                keywordid = entry.keywordid,
             }
             m_dispelState.overlaySources[#m_zoneOverlayZones] = entry
 
@@ -2821,15 +2850,20 @@ end
 
 --Openness is read from the LIVE panel, not from the show/hide events.
 --showpanel/hidepanel only fire on a dock TAB switch (DockablePanel.lua's
---buttonContainer `select`), so m_zonePanelOpen goes stale in two ways that
+--buttonContainer `select`), so a tracked flag goes stale in two ways that
 --both leave the overlay dark with the panel plainly on screen:
 --  * a Lua reload rebuilds the panel content (refreshMod -> init -> content())
---    with no showpanel, and m_zonePanelOpen has just been re-initialized false;
+--    with no showpanel;
 --  * a saved dock layout can build the content at startup without showing it.
---So: open means the content exists, is alive, is parented into the UI, and its
---dock panel is not collapsed (which is exactly what hidepanel signals). The
---tracked flag is only the fallback for content hosted outside the dock (the
---PanelDocument bridge / harness), where there is no dockablePanel ancestor.
+--So: open means the content exists, is alive, is parented into the UI, and no
+--ancestor is collapsed away. Every host hides this content with the
+--"collapsed" class on some ancestor -- the dock on its dockablePanel, the
+--rail panel window (DocumentSystem's PanelDocument host, which has NO
+--dockablePanel ancestor) on both its per-tab wrapper (tab switched away) and
+--its contentArea (window shaded) -- so walking the parent chain covers all of
+--them, plus the harness, without host-specific casing. Checking only the
+--dockablePanel ancestor here was exactly the bug that left the Fade Map
+--slider dead when the panel was hosted in a rail window.
 local function MarkupPanelIsOpen()
     local hud = m_markupHudRef()
     if hud == nil or not hud.valid then
@@ -2840,12 +2874,19 @@ local function MarkupPanelIsOpen()
         return false
     end
 
-    local dockPanel = hud:FindParentWithClass("dockablePanel")
-    if dockPanel ~= nil and dockPanel.valid then
-        return not dockPanel:HasClass("collapsed")
+    local p = parent
+    while p ~= nil and p.valid do
+        if p:HasClass("collapsed") then
+            return false
+        end
+        local okParent, nextParent = pcall(function() return p.parent end)
+        if not okParent then
+            return false
+        end
+        p = nextParent
     end
 
-    return m_zonePanelOpen
+    return true
 end
 
 --Live auras that name an Environmental Keyword paint like a hand-painted zone:
@@ -2947,7 +2988,11 @@ local function CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signa
                 difficultTerrain = flags.difficultTerrain,
                 water = flags.water,
                 concealment = flags.concealment,
+                climbable = flags.climbable,
                 floorIndex = floorIndex,
+                --the engine ignores this; the feed uses it to filter zones by
+                --the user's per-zone-type visibility preference.
+                keywordid = keywordid,
             }
             signature[#signature+1] = keywordid
 
@@ -3138,6 +3183,35 @@ pcall(function()
             end
         end
 
+        --Per-zone-type visibility: the map overlay menu (title bar terrain
+        --chip) hides zone types via the mapoverlay:hiddenzones preference
+        --(';'-joined keyword ids). The ZONES tab overrides the filter - you
+        --are editing the zones, so you see all of them. A filter change is
+        --invisible to the engine's other cache signals, so bump the revision
+        --when the effective filter flips (including the zones-tab override
+        --kicking in and out).
+        local hiddenStr = ""
+        if not (panelOpen and mode == "zones") then
+            hiddenStr = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+        end
+        if hiddenStr ~= m_dispelState.feedZoneFilter then
+            m_dispelState.feedZoneFilter = hiddenStr
+            m_zoneRevision = m_zoneRevision + 1
+        end
+        if hiddenStr ~= "" then
+            local hidden = {}
+            for id in string.gmatch(hiddenStr, "[^;]+") do
+                hidden[id] = true
+            end
+            local filtered = {}
+            for _,zone in ipairs(zones) do
+                if zone.keywordid == nil or hidden[zone.keywordid] == nil then
+                    filtered[#filtered+1] = zone
+                end
+            end
+            zones = filtered
+        end
+
         --"Entire Map" types draw nothing (that is the point - a blanket is
         --implied), but their auras still contribute terrain rules to every
         --tile, and the engine's BUILT-IN rule stripes/labels are driven off
@@ -3153,6 +3227,7 @@ pcall(function()
                 difficultTerrain = entry.flags.difficultTerrain,
                 water = entry.flags.water,
                 concealment = entry.flags.concealment,
+                climbable = entry.flags.climbable,
             }
         end
 
@@ -3162,14 +3237,101 @@ pcall(function()
             --The Zones tab also lights up the overlay's built-in terrain-rule
             --striping (water/difficult/concealment/climbable), so the user
             --sees existing terrain conditions alongside the zones they are
-            --painting - without needing the tileheight:overlay preference.
+            --painting - without needing the Show Terrain Features preference.
             terrainZones = panelOpen and mode == "zones",
             footstepsMode = footstepsMode,
+            --The Walls tab force-renders solid-block interiors; any open tab
+            --forces the wall cover lines. The Elevation tab force-renders the
+            --height contours + number labels. Each rides on its mapoverlay:*
+            --preference otherwise (see TileHeightOverlay.Update).
+            wallsMode = panelOpen and mode == "walls",
+            elevationMode = panelOpen and mode == "elevation",
             revision = m_zoneRevision,
             zones = zones,
         }
     end
 end)
+
+--Public API for the title bar's map overlay menu (CodexTitleBar): the zone
+--types present on the current map, one entry per environmental keyword, as
+--{ keywordid, name, color ("#rrggbb"), angleRadians, playerVisible }.
+--playerVisible is true when at least one zone of the type is player-visible
+--(keyword-aura zones - a monster's Darkness - are always on screen for
+--everyone and count as player-visible). Non-DM clients only receive the
+--player-visible types, so the menu cannot leak hidden zone types.
+--Lives on a global table so the title bar can reach it with rawget: the
+--module may be absent (lobby game) or not yet loaded.
+if rawget(_G, "MapMarkup") == nil then
+    MapMarkup = {}
+end
+
+function MapMarkup.GetZoneTypesOnMap()
+    if not ZonesSupported() then
+        return {}
+    end
+    EnsureZoneCache()
+    pcall(function()
+        EnsureKeywordAuraZones(false)
+    end)
+
+    local seen = {}
+    local result = {}
+    local function Add(keywordid, name, color, playerVisible)
+        if keywordid == nil then
+            return
+        end
+        --normalize colors to "#rrggbb": overlay feed colors carry the "bf"
+        --stripe alpha, keyword colors can be 9-char too.
+        if type(color) == "string" and string.len(color) == 9 then
+            color = string.sub(color, 1, 7)
+        end
+        local entry = seen[keywordid]
+        if entry == nil then
+            entry = {
+                keywordid = keywordid,
+                name = name or "Zone",
+                color = color,
+                angleRadians = m_zoneStripes.AngleForKeyword(keywordid),
+                playerVisible = playerVisible == true,
+            }
+            seen[keywordid] = entry
+            result[#result+1] = entry
+        elseif playerVisible == true then
+            entry.playerVisible = true
+        end
+    end
+
+    for _,entry in ipairs(m_zoneCache) do
+        if entry.floorIndex ~= nil and entry.floorIndex >= 0 then
+            Add(entry.keywordid, entry.keywordName or entry.name, entry.patternColor, entry.playerVisible)
+        end
+    end
+    --"Entire Map" blankets: the type is in force even though nothing is drawn
+    --for it. Never player-visible.
+    for _,entry in ipairs(m_entireMap.entries) do
+        Add(entry.keywordid, entry.keywordName or entry.name, entry.patternColor, false)
+    end
+    --keyword-carrying auras (abilities, monster traits): on screen for
+    --everyone already.
+    for _,zone in ipairs(m_keywordAuraOverlay.zones or {}) do
+        Add(zone.keywordid, zone.label, zone.color, true)
+    end
+
+    if not dmhub.isDM then
+        local filtered = {}
+        for _,entry in ipairs(result) do
+            if entry.playerVisible then
+                filtered[#filtered+1] = entry
+            end
+        end
+        result = filtered
+    end
+
+    table.sort(result, function(a, b)
+        return string.lower(a.name or "") < string.lower(b.name or "")
+    end)
+    return result
+end
 
 --Keyword edits (refreshTables) change what zone auras contribute: invalidate
 --the cache, and if this map actually has zones, rebuild the aura index so
@@ -4331,7 +4493,13 @@ local function GetMarkupSelectedWall()
     --tools + ExecutePolygonOperation{solid=true}, not the engine building
     --tools. Publishing here would let the building tools draw THIN walls
     --while the panel is in Solid mode.
-    if m_solidMode then
+    --EXCEPT for the Points tool: it EDITS existing geometry (solid block
+    --outlines included, with an engine build) rather than drawing, so its
+    --activation token can't draw anything - and publishing it is also what
+    --keeps GetWallPointsInvisibleOnly scoping the tool away from art walls.
+    --Gated on the engine tool actually being "points", like the fallback
+    --below, so the exception can never leak into wall drawing.
+    if m_solidMode and not (m_toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points") then
         if dockPanel ~= nil then
             dockPanel:SetClass("highlightPanel", false)
         end
@@ -5113,9 +5281,10 @@ local TOOLS = {
 --polyline, so the drawing tools are closed shapes running as custom map tools
 --(like the eraser) - never the engine building tools. Their strokes come back
 --as 'tool' events and turn into ExecutePolygonOperation{solid=true} (see
---markupsolid below). No Points tool: PointEditingTool skips floor-type ops
---(PointEditingTool.cs "op.Value.erase || op.Value.floor"), and a solid op is
---a floor op, so solid regions have no editable vertices.
+--markupsolid below). The Points tool is the one engine building tool in this
+--strip: PointEditingTool edits solid-op outlines too (it exempts solid ops
+--from its floor-op skip), reshaping the block's area. On a stale engine build
+--the tool activates but shows no vertices for solids - harmless no-op.
 local SOLID_TOOLS = {
     {
         id = "solidrect",
@@ -5143,6 +5312,15 @@ local SOLID_TOOLS = {
         mapTool = "free",
         mapToolClosed = true,
         help = "Freehand block: drag to trace the outline of the area to fill.",
+    },
+    {
+        --same id as the thin strip's entry so switching Thin <-> Solid keeps
+        --the Points tool selected (rebuildtools' validTool check passes).
+        id = "points",
+        text = "Points",
+        icon = "icons/icon_gesture/icon_gesture_47.png",
+        tool = "points",
+        help = "Edit Points: drag a vertex of a solid block to reshape its area. Right-click a vertex to delete it; click on an edge to add a vertex.",
     },
     TOOL_RETYPE,
     TOOL_ERASE,
@@ -6136,6 +6314,16 @@ CreateMarkupEditor = function()
                 valign = "center",
                 popupPositioning = "panel",
 
+                --presses bubble to ancestors by default, so without this the
+                --chip's own press ran too and SELECTED the type - and
+                --selecting an unmaterialized preset creates + uploads its wall
+                --asset and rewrites the palette setting. Those writes come
+                --back as a monitor, the palette rebuilds, and the popout we
+                --just opened dies with the square that owns it. Opening the
+                --color picker is not "I want to draw this" anyway; picking a
+                --color from it selects the type explicitly (see below).
+                swallowPress = true,
+
                 events = {
                     create = function(element)
                         element:FireEvent("refreshwallcolors")
@@ -6342,6 +6530,39 @@ CreateMarkupEditor = function()
         end)(),
     }
 
+    --the rebuild proper, split out so refreshpalette can hand it to
+    --RebuildDeferringPopups and have it replayed later if a popup is open.
+    local RebuildPalette = function(element)
+        m_paletteEntries = ParsePalette()
+        if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
+            m_selectedIndex = nil
+        end
+
+        local children = {}
+        for i,entry in ipairs(m_paletteEntries) do
+            children[#children+1] = CreateWallChip(i, entry)
+        end
+        element.children = children
+
+        --the selected chip can have become openable (Edit Wall on it,
+        --or a remote change); openable types are thin-only.
+        if m_solidMode and EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]) and SetDrawMode ~= nil then
+            SetDrawMode(false)
+        end
+
+        --the selection (and with it the thin-vs-solid tool strip) can
+        --change with the palette contents.
+        if toolsPanel ~= nil and toolsPanel.valid then
+            toolsPanel:FireEvent("rebuildtools")
+        end
+        if contentPanel ~= nil and contentPanel.valid then
+            contentPanel:FireEventTree("refreshdoorchip")
+            --a palette change can change which type is selected (and a
+            --remote edit can change its color) - resync the swatches.
+            contentPanel:FireEventTree("refreshwallcolors")
+        end
+    end
+
     palettePanel = gui.Panel{
         width = "96%",
         height = "auto",
@@ -6351,7 +6572,12 @@ CreateMarkupEditor = function()
         monitorAssets = "Tilesheet",
         multimonitor = {"markup:wallpalette"},
 
+        --gui.RebuildDeferringPopups parks a stood-down rebuild in here.
+        data = {},
+
         events = {
+            think = gui.ThinkDeferredRebuild,
+
             --the palette setting changed: our own write, another DM's, or a
             --map switch changing the effective value.
             monitor = function(element)
@@ -6362,35 +6588,10 @@ CreateMarkupEditor = function()
                 element:FireEvent("refreshpalette")
             end,
 
+            --replaces every chip, taking any open color popout or chip
+            --context menu down with it - so it waits its turn.
             refreshpalette = function(element)
-                m_paletteEntries = ParsePalette()
-                if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
-                    m_selectedIndex = nil
-                end
-
-                local children = {}
-                for i,entry in ipairs(m_paletteEntries) do
-                    children[#children+1] = CreateWallChip(i, entry)
-                end
-                element.children = children
-
-                --the selected chip can have become openable (Edit Wall on it,
-                --or a remote change); openable types are thin-only.
-                if m_solidMode and EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]) and SetDrawMode ~= nil then
-                    SetDrawMode(false)
-                end
-
-                --the selection (and with it the thin-vs-solid tool strip) can
-                --change with the palette contents.
-                if toolsPanel ~= nil and toolsPanel.valid then
-                    toolsPanel:FireEvent("rebuildtools")
-                end
-                if contentPanel ~= nil and contentPanel.valid then
-                    contentPanel:FireEventTree("refreshdoorchip")
-                    --a palette change can change which type is selected (and a
-                    --remote edit can change its color) - resync the swatches.
-                    contentPanel:FireEventTree("refreshwallcolors")
-                end
+                gui.RebuildDeferringPopups(element, RebuildPalette)
             end,
 
             refreshchips = function(element)
@@ -7811,11 +8012,22 @@ CreateMarkupEditor = function()
                     height = "auto",
                 },
 
+                --the summary can outgrow the chip (e.g. Lava: difficult
+                --terrain + damaging + affects adjacent), so it ellipsizes on
+                --one line rather than wrapping out of the fixed-height row;
+                --hovering shows the untruncated string.
                 gui.Label{
                     classes = {"fgMuted", "sizeXs"},
                     text = summary,
                     width = "100%",
                     height = "auto",
+                    textWrap = false,
+                    textOverflow = "ellipsis",
+                    linger = function(element)
+                        if summary ~= nil and summary ~= "" then
+                            gui.Tooltip(summary)(element)
+                        end
+                    end,
                 },
             },
 
@@ -7921,6 +8133,29 @@ CreateMarkupEditor = function()
         }
     end
 
+    --split out so refreshzonepalette can hand it to RebuildDeferringPopups
+    --and have it replayed later if a chip context menu is open.
+    local RebuildZonePalette = function(element)
+        m_zonePaletteEntries = ParseZonePalette()
+        if m_zoneSelectedType > #m_zonePaletteEntries then
+            m_zoneSelectedType = #m_zonePaletteEntries
+        end
+        if m_zoneSelectedType < 1 then
+            m_zoneSelectedType = 1
+        end
+
+        --the chips stripe at the angle the map will actually use, and
+        --that assignment is computed by the zone cache rebuild. Cheap
+        --when the cache is already warm.
+        EnsureZoneCache()
+
+        local children = {}
+        for i,entry in ipairs(m_zonePaletteEntries) do
+            children[#children+1] = CreateZoneChip(i, entry)
+        end
+        element.children = children
+    end
+
     zonePalettePanel = gui.Panel{
         width = "96%",
         height = "auto",
@@ -7934,7 +8169,12 @@ CreateMarkupEditor = function()
         --change from another client (or from an undo).
         multimonitor = {"markup:zonepalette", "markup:zoneentiremap", "markup:zonedynamiclight"},
 
+        --gui.RebuildDeferringPopups parks a stood-down rebuild in here.
+        data = {},
+
         events = {
+            think = gui.ThinkDeferredRebuild,
+
             monitor = function(element)
                 element:FireEvent("refreshzonepalette")
             end,
@@ -7943,25 +8183,10 @@ CreateMarkupEditor = function()
                 element:FireEvent("refreshzonepalette")
             end,
 
+            --replaces every chip, so it stands down while a chip context
+            --menu is open rather than closing it under the cursor.
             refreshzonepalette = function(element)
-                m_zonePaletteEntries = ParseZonePalette()
-                if m_zoneSelectedType > #m_zonePaletteEntries then
-                    m_zoneSelectedType = #m_zonePaletteEntries
-                end
-                if m_zoneSelectedType < 1 then
-                    m_zoneSelectedType = 1
-                end
-
-                --the chips stripe at the angle the map will actually use, and
-                --that assignment is computed by the zone cache rebuild. Cheap
-                --when the cache is already warm.
-                EnsureZoneCache()
-
-                local children = {}
-                for i,entry in ipairs(m_zonePaletteEntries) do
-                    children[#children+1] = CreateZoneChip(i, entry)
-                end
-                element.children = children
+                gui.RebuildDeferringPopups(element, RebuildZonePalette)
             end,
 
             refreshchips = function(element)
@@ -9404,6 +9629,7 @@ CreateMarkupEditor = function()
         data = {
             seq = nil,
             floorid = nil,
+            popupDeferred = false,
         },
 
         events = {
@@ -9411,7 +9637,7 @@ CreateMarkupEditor = function()
                 if m_mode ~= "surfaces" or not ZonesSupported() then
                     return
                 end
-                if dmhub.markupZonesSeq ~= element.data.seq or game.currentFloorId ~= element.data.floorid then
+                if element.data.popupDeferred or dmhub.markupZonesSeq ~= element.data.seq or game.currentFloorId ~= element.data.floorid then
                     element:FireEvent("refreshfootsteps")
                 end
             end,
@@ -9420,6 +9646,15 @@ CreateMarkupEditor = function()
                 if not ZonesSupported() then
                     return
                 end
+
+                --a rebuild would destroy the row a context menu hangs off, so
+                --stand down and let the think poll above retry once the menu
+                --is gone.
+                if gui.SubtreeHasPopup(element) then
+                    element.data.popupDeferred = true
+                    return
+                end
+                element.data.popupDeferred = false
 
                 element.data.seq = dmhub.markupZonesSeq
                 element.data.floorid = game.currentFloorId
@@ -11329,67 +11564,22 @@ CreateMarkupEditor = function()
         end,
     }
 
-    --The tile height overlay (contour lines, height labels, wall lines colored
-    --by cover) is the readout for everything drawn from this panel, so it gets
-    --a toggle here as well as in Settings. CreateSettingsEditor monitors the
-    --setting, so this checkbox and the settings screen stay in sync.
-    --Exception: the Props tab places objects, not height/zone geometry, so the
-    --overlay toggle is irrelevant there and collapses out.
+    --The old "Show Map Overlay" checkbox lived here; the overlay is now split
+    --into per-layer settings (mapoverlay:walls / elevation / terrain plus
+    --per-zone-type toggles) managed from the title bar's map overlay menu and
+    --the Settings screen. The panel needs no toggle of its own any more: an
+    --open markup tab force-renders its own readout regardless of those
+    --settings (walls + solid interiors on Walls, zones on Zones, contours +
+    --height numbers on Elevation; see dmhub.GetMarkupZones).
     --
-    --The Fade Map slider below it does NOT collapse with the checkbox. It is
-    --live in every mode (fading the art helps just as much when placing props),
-    --and more importantly a fade left up on a mode that hid its own control
-    --would be a dimmed map with no visible way to undim it.
+    --The Fade Map slider stays: it is live in every mode (fading the art
+    --helps just as much when placing props).
     local overlayPanel = gui.Panel{
         width = "96%",
         height = "auto",
         halign = "center",
         flow = "vertical",
         vmargin = 4,
-
-        --No section header: the row is a single self-labelled checkbox, and a
-        --header over one checkbox reads as an empty section. Built directly
-        --instead of via CreateSettingsEditor because the generic editor
-        --centers a 90%-wide row, which left the checkbox indented relative to
-        --the content column above; the monitor keeps it in sync with the same
-        --checkbox on the Settings screen. Wrapped so only the checkbox
-        --collapses in Props mode; the Fade Map slider below stays live.
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-
-            markupmode = function(element)
-                element:SetClass("collapsed", m_mode == "props")
-            end,
-
-            gui.Check{
-                value = dmhub.GetSettingValue("tileheight:overlay"),
-                text = (Settings["tileheight:overlay"] or {}).description or "Show Map Overlay",
-                halign = "left",
-
-                hover = SideTooltip((Settings["tileheight:overlay"] or {}).help),
-
-                style = {
-                    width = "100%",
-                    height = 30,
-                    fontSize = 14,
-                    hpad = 0,
-                },
-
-                monitor = "tileheight:overlay",
-
-                events = {
-                    monitor = function(element)
-                        element.value = dmhub.GetSettingValue("tileheight:overlay")
-                    end,
-
-                    change = function(element)
-                        dmhub.SetSettingValue("tileheight:overlay", element.value)
-                    end,
-                },
-            },
-        },
 
         --stacked: the default horizontal settings row gives its label width "60%",
         --which in a dock this narrow leaves the 160px slider hanging off the right
@@ -11485,24 +11675,18 @@ CreateMarkupEditor = function()
             TakeMarkupFocus()
         end,
 
+        --openness is NOT tracked from these events -- MarkupPanelIsOpen reads
+        --it from the live panel (see its comment); these only manage focus.
         showpanel = function(element)
-            --the overlay renders markup zones whenever the panel is open,
-            --independent of the tileheight:overlay preference.
-            m_zonePanelOpen = true
             if not gui.ChildHasFocus(element) then
                 gui.SetFocus(element)
             end
         end,
 
         hidepanel = function(element)
-            m_zonePanelOpen = false
             if gui.ChildHasFocus(element) then
                 gui.SetFocus(nil)
             end
-        end,
-
-        destroy = function(element)
-            m_zonePanelOpen = false
         end,
 
         --The dockablePanel ancestor can be nil: content can be hosted outside
@@ -11544,9 +11728,9 @@ CreateMarkupEditor = function()
         end
     end)
 
-    --NOTE: m_zonePanelOpen is NOT set here. A saved dock layout builds this
-    --content at startup without showing it; visibility comes solely from the
-    --dock's showpanel/hidepanel events.
+    --NOTE: openness is not flagged here. A saved dock layout builds this
+    --content at startup without showing it; MarkupPanelIsOpen derives
+    --visibility from the live panel's ancestor chain.
     m_markupHud = contentPanel
 
     palettePanel:FireEvent("refreshpalette")

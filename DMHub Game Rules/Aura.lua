@@ -19,6 +19,8 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the aura or starting its turn there (fires through the onenter trigger path as a free triggered action on the creature; see Aura:GetSimplePowerRollTrigger).
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+), executed by the Draw Steel command parser.
+--- @field includeAdjacent boolean If true, the engine extends the aura's area one tile outward (8-way) and marks the extension tiles as adjacent-only. Creatures on those tiles count as touching the aura for enter/start-of-turn trigger contact (the simple power roll fires for them at the start of their turn, with a bane), but the tiles do not take the aura's terrain rules, move damage, or modifiers.
+--- @field damaging boolean Explicitly marks the aura as damaging terrain for movement advisories (the red "moving into damaging terrain" line on the drag tooltip). Only needed for auras whose damage comes from custom triggers: an entry power roll or per-tile move damage already implies it (see Aura:IsDamaging).
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
 Aura = RegisterGameType("Aura", "CharacterFeature")
 
@@ -89,6 +91,7 @@ Aura.source = "Aura"
 Aura.description = ""
 Aura.applyto = "all"
 Aura.hasCustomIcon = false
+Aura.includeAdjacent = false
 
 function Aura.OnDeserialize(self)
     --we had to change id -> guid to match CharacterFeature.
@@ -189,9 +192,14 @@ end
 --- ability is a free (no action resource), non-mandatory triggered action: it
 --- comes up as a trigger prompt on the creature, and the roll is flagged as an
 --- environment roll so it counts as a roll made AGAINST the creature for power
---- roll modifiers (their own modifiers do not apply to it).
+--- roll modifiers (their own modifiers do not apply to it). The prompt is
+--- hostile: environment rolls are never beneficial offers, so it renders red
+--- and never expires.
+--- @param options nil|{adjacentOnly: boolean} adjacentOnly = the creature touches
+--- the aura only via its adjacent extension (includeAdjacent), not any true aura
+--- tile: the roll takes a bane.
 --- @return nil|{trigger: string, ability: TriggeredAbility}
-function Aura:GetSimplePowerRollTrigger()
+function Aura:GetSimplePowerRollTrigger(options)
     if not self:try_get("powerRollEnabled", false) then
         return nil
     end
@@ -225,6 +233,26 @@ function Aura:GetSimplePowerRollTrigger()
         roll = string.format("2d10 + %d", bonus)
     end
 
+    local behaviorFields = {
+        roll = roll,
+        tiers = {tiers[1] or "", tiers[2] or "", tiers[3] or ""},
+    }
+
+    --Adjacent-only contact rolls with a bane (e.g. Lava: "If the target is
+    --adjacent to lava but not in it, this ability takes a bane"). The entry
+    --shape matches the behavior's built-in modifiers list ({type, condition,
+    --text}, see MCDMAbilityRollBehavior's "our behavior-builtin modifiers").
+    if options ~= nil and options.adjacentOnly then
+        behaviorFields.modifiers = {
+            {
+                type = "bane",
+                condition = true,
+                text = string.format("Adjacent to %s", self.name),
+                details = string.format("This roll takes a bane against a creature that is adjacent to the %s but not in it. You started your turn next to the area rather than inside it.", self.name),
+            },
+        }
+    end
+
     return {
         trigger = "onenter",
         ability = TriggeredAbility.Create{
@@ -235,16 +263,46 @@ function Aura:GetSimplePowerRollTrigger()
             radius = 0,
             silent = true,
             mandatory = false,
+            hostile = true,
             environmentRoll = true,
             iconid = self.iconid,
             behaviors = {
-                rollBehaviorType.new{
-                    roll = roll,
-                    tiers = {tiers[1] or "", tiers[2] or "", tiers[3] or ""},
-                },
+                rollBehaviorType.new(behaviorFields),
             },
         },
     }
+end
+
+--- Whether this aura is "damaging terrain" for movement advisories: it hurts
+--- creatures that enter it or move through it. True when the aura has an entry
+--- power roll (Lava), per-tile move damage, or the explicit `damaging` flag
+--- (for hand-authored auras whose damage comes from custom triggers).
+--- @return boolean
+function Aura:IsDamaging()
+    if self:try_get("damaging", false) == true then
+        return true
+    end
+
+    if self:try_get("movedamage", "none") ~= "none" then
+        return true
+    end
+
+    if not self:try_get("powerRollEnabled", false) then
+        return false
+    end
+
+    local tiers = self:try_get("powerRollTiers")
+    if tiers == nil then
+        return false
+    end
+
+    for i = 1, 3 do
+        if trim(tiers[i] or "") ~= "" then
+            return true
+        end
+    end
+
+    return false
 end
 
 local g_powerRollTierLabels = {"11 or less", "12 - 16", "17 +"}
@@ -875,6 +933,18 @@ function Aura:GenerateEditor(options)
             gui.Check {
                 styles = ThemeEngine.GetStyles(),
                 halign = "left",
+                text = "Affects Adjacent Squares",
+                tooltip = "The aura's area extends one square outward. Creatures adjacent to the aura count as touching it for enter/start-of-turn triggers -- the entry power roll fires for them at the start of their turn, with a bane -- but adjacent squares do not take the aura's terrain rules, move damage, or modifiers.",
+                value = self:try_get("includeAdjacent", false),
+                change = function(element)
+                    self.includeAdjacent = element.value
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+            },
+
+            gui.Check {
+                styles = ThemeEngine.GetStyles(),
+                halign = "left",
                 text = "Blocks Line of Effect",
                 value = self:try_get("blocks_line_of_effect", false),
                 change = function(element)
@@ -1272,6 +1342,26 @@ end
 --or nil for no override.
 function AuraInstance:GetSurfaceType()
     return self.aura:try_get("surfaceType")
+end
+
+--Whether the aura's tiles can be climbed, like a climbable wall: creatures in
+--the area may climb up to the ceiling of the floor. Returns nil (not climbable)
+--or {climbersOnly = boolean}, where climbersOnly restricts the surface to
+--natural climbers (climb speed >= walk speed), matching walls'
+--"Climbable (Climbers Only)".
+function AuraInstance:GetClimbable()
+    if self.aura:try_get("climbable", false) ~= true then
+        return nil
+    end
+    return { climbersOnly = self.aura:try_get("climbersOnly", false) == true }
+end
+
+--Whether the engine should extend this aura's area one tile outward (8-way),
+--marking the extension tiles as adjacent-only (AuraManager.AddAuraFromLua).
+--Adjacent tiles count as touching the aura for enter/start-of-turn trigger
+--contact, but do not take the aura's terrain rules, move damage, or modifiers.
+function AuraInstance:GetIncludeAdjacent()
+    return self.aura:try_get("includeAdjacent", false) == true
 end
 
 --Optional vertical extent in tiles: the aura only affects creatures whose

@@ -238,8 +238,8 @@ function GameHud.TokenMoving(self, token, path)
 	end
 
     local hazards = path:CalculateHazards(token)
+    local damageHazards = {}
     if hazards ~= nil then
-        local damageHazards = {}
         for _,hazard in ipairs(hazards) do
             if hazard.type == "damage" then
                 local found = false
@@ -264,6 +264,69 @@ function GameHud.TokenMoving(self, token, path)
             else
                 text = string.format("%s\n<color=#ff6666>%d %s damage from %s</color>", text, hazard.damage, hazard.type, hazard.name)
             end
+        end
+    end
+
+    --Damaging-terrain advisory: a red warning when the path moves into terrain
+    --flagged as damaging (Aura:IsDamaging -- an entry power roll like Lava,
+    --per-tile move damage, or an explicit `damaging` flag on the aura). Auras
+    --already itemized above with exact move-damage numbers are skipped, as are
+    --friendly-only auras and an includeAdjacent aura's adjacent-extension
+    --tiles (standing next to lava is not moving into it). Footprint-based like
+    --the rest of the tooltip: vertical bands are ignored. pcall throughout --
+    --scratch auras that do not implement the AuraInstance interface must not
+    --take the tooltip down.
+    do
+        local reportedNames = {}
+        for _,hazard in ipairs(damageHazards) do
+            reportedNames[hazard.name] = true
+        end
+
+        local seenNames = {}
+        local damagingNames = {}
+        local steps = path.steps or {}
+        for i = 2, #steps do
+            local auras = game.GetAurasAtLoc(steps[i])
+            if auras ~= nil then
+                for _,aura in ipairs(auras) do
+                    pcall(function()
+                        local instance = aura.auraInstance
+                        if instance == nil then
+                            return
+                        end
+
+                        local auraDef = instance:try_get("aura")
+                        if auraDef == nil or auraDef:IsDamaging() ~= true then
+                            return
+                        end
+
+                        local name = auraDef:try_get("name", "Hazard")
+                        if reportedNames[name] or seenNames[name] then
+                            return
+                        end
+
+                        local applyto = instance:GetApplyTo()
+                        if applyto == "friends" or applyto == "selfandfriends" then
+                            return
+                        end
+
+                        if EnvironmentalKeyword.AuraLocOnlyAdjacent(aura, steps[i]) then
+                            return
+                        end
+
+                        if auraDef:CreaturePassesFilter(token.properties, instance) == false then
+                            return
+                        end
+
+                        seenNames[name] = true
+                        damagingNames[#damagingNames+1] = name
+                    end)
+                end
+            end
+        end
+
+        if #damagingNames > 0 then
+            text = string.format(tr("%s\n<color=#ff0000>Moving into damaging terrain (%s)!</color>"), text, table.concat(damagingNames, ", "))
         end
     end
 

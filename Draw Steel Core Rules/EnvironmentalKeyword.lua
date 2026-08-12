@@ -19,6 +19,8 @@ local mod = dmhub.GetModLoading()
 --- @field difficultTerrain boolean If true, an area marked with this keyword counts as difficult terrain. Uses the same terrain rule flag name as tiles (asset.rules.difficultTerrain).
 --- @field water boolean If true, an area marked with this keyword counts as water. Uses the same terrain rule flag name as tiles (asset.rules.water).
 --- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
+--- @field climbable boolean If true, an area marked with this keyword can be climbed, like a climbable wall: creatures in it may climb up to the ceiling of the floor.
+--- @field climbersOnly boolean Only meaningful when climbable is true: restricts climbing to natural climbers (climb speed >= walk speed), matching walls' "Climbable (Climbers Only)". Uses the same terrain rule flag name as tiles (rules.climbersOnly).
 --- @field dynamicLight boolean If true, the Map Markup zone palette offers the "Dynamic Light" option for this keyword (its zones/blanket apply only where the map's light level is below a per-map threshold). Purely a UI/eligibility gate: the sampling and carving live in MapMarkupPanel.lua; unchecking disables an already-configured threshold without deleting it.
 --- @field dispels string[]|nil Ids (environmentalKeywords table keys) of keywords this keyword dispels. Painting a zone of this keyword deletes the overlap from zones of a dispelled keyword (and a dispelled keyword cannot be painted over this one); an aura carrying this keyword suppresses zones of dispelled keywords beneath it for as long as the aura covers them. No class default: assigned per instance by the editor (a class-level default table would be shared-mutable).
 --- @field movedamage string Damage type dealt to creatures moving through an area with this keyword, or "none" for no damage. Uses the same field names as Aura so the values copy straight onto zone auras.
@@ -27,6 +29,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the area or starting its turn there. Same field names as Aura; copied onto zone auras.
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
+--- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
 
@@ -38,12 +41,15 @@ EnvironmentalKeyword.iconid = "ui-icons/skills/1.png"
 EnvironmentalKeyword.difficultTerrain = false
 EnvironmentalKeyword.water = false
 EnvironmentalKeyword.concealment = false
+EnvironmentalKeyword.climbable = false
+EnvironmentalKeyword.climbersOnly = false
 EnvironmentalKeyword.dynamicLight = false
 EnvironmentalKeyword.movedamage = "none"
 EnvironmentalKeyword.damage = 0
 EnvironmentalKeyword.movementDamageFilter = "all"
 EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
+EnvironmentalKeyword.includeAdjacent = false
 
 --Index of keywords by lower-case name, rebuilt whenever tables refresh. Used by
 --runtime code that needs to resolve a keyword from its name.
@@ -123,6 +129,21 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 		end
 		if keyword:try_get("concealment", false) == true then
 			auraDef.concealment = true
+		end
+		--climbersOnly rides along only when this keyword is the one turning
+		--climbable on: it is a restriction, so it must never tighten an aura
+		--that already declared itself climbable for all creatures.
+		if keyword:try_get("climbable", false) == true and auraDef:try_get("climbable", false) ~= true then
+			auraDef.climbable = true
+			if keyword:try_get("climbersOnly", false) == true then
+				auraDef.climbersOnly = true
+			end
+		end
+		--the area extends one tile outward for enter/start-of-turn trigger
+		--contact (adjacent tiles never take terrain rules or modifiers, so
+		--this is additive-safe like the other flags).
+		if keyword:try_get("includeAdjacent", false) == true then
+			auraDef.includeAdjacent = true
 		end
 	end)
 
@@ -437,6 +458,56 @@ local SetData = function(tableName, keywordPanel, keyid)
 			text = "Concealment",
 			change = function(element)
 				keyword.concealment = element.value
+				UploadKeyword()
+			end,
+		},
+	}
+
+	--an area marked with this keyword can be climbed (like a climbable wall:
+	--creatures in it may climb up to the ceiling of the floor). The second
+	--checkbox restricts it to natural climbers (climb speed >= walk speed),
+	--matching walls' "Climbable (Climbers Only)"; it only shows while
+	--Climbable is checked.
+	local climbersOnlyCheck
+	climbersOnlyCheck = gui.Check{
+		value = keyword:try_get("climbersOnly", false),
+		text = "Climbers Only",
+		hmargin = 24,
+		change = function(element)
+			keyword.climbersOnly = element.value
+			UploadKeyword()
+		end,
+	}
+	if keyword:try_get("climbable", false) ~= true then
+		climbersOnlyCheck:SetClass("collapsed", true)
+	end
+
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("climbable", false),
+			text = "Climbable",
+			change = function(element)
+				keyword.climbable = element.value
+				climbersOnlyCheck:SetClass("collapsed", not element.value)
+				UploadKeyword()
+			end,
+		},
+		climbersOnlyCheck,
+	}
+
+	--the area extends one tile outward: creatures adjacent to it count as
+	--touching it for enter/start-of-turn triggers (the entry power roll fires
+	--for them at the start of their turn, with a bane), but adjacent tiles do
+	--not take the keyword's terrain rules, move damage, or modifiers.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("includeAdjacent", false),
+			text = "Affects Adjacent Squares",
+			tooltip = "The area extends one square outward. Creatures adjacent to the area count as touching it for enter and start-of-turn triggers - the entry power roll fires for them at the start of their turn, with a bane - but adjacent squares do not take the keyword's terrain rules, movement damage, or modifiers.",
+			change = function(element)
+				keyword.includeAdjacent = element.value
 				UploadKeyword()
 			end,
 		},
@@ -877,6 +948,27 @@ local function AuraBandCoversAltitude(auraInstance, refAltitude)
 	return refAltitude >= base and refAltitude <= base + height
 end
 
+--Aura.LocOnlyAdjacent is a newer engine method (includeAdjacent auras); on an
+--older engine build the member read raises. Probe once and fall back to
+--"never adjacent-only", which matches such builds: they never build adjacent
+--extensions either.
+local g_hasLocOnlyAdjacent = nil
+local function AuraLocOnlyAdjacent(aura, engineLoc)
+	if g_hasLocOnlyAdjacent == nil then
+		local ok, result = pcall(function() return aura:LocOnlyAdjacent(engineLoc) end)
+		g_hasLocOnlyAdjacent = ok
+		return ok and result == true
+	end
+
+	if g_hasLocOnlyAdjacent then
+		return aura:LocOnlyAdjacent(engineLoc) == true
+	end
+
+	return false
+end
+
+EnvironmentalKeyword.AuraLocOnlyAdjacent = AuraLocOnlyAdjacent
+
 --Returns the (Lua) AuraInstances covering a single square, band-tested at the
 --square's ground altitude. engineLoc is an engine Loc userdata.
 local function AuraInstancesCoveringSquare(engineLoc)
@@ -884,7 +976,8 @@ local function AuraInstancesCoveringSquare(engineLoc)
 
 	--normalize the query the way the engine does for tokens: the aura index
 	--is keyed by x/y/floor with tiny-size and altitude stripped.
-	local auras = game.GetAurasAtLoc(engineLoc.xyfloorOnly)
+	local queryLoc = engineLoc.xyfloorOnly
+	local auras = game.GetAurasAtLoc(queryLoc)
 	if auras == nil then
 		return result
 	end
@@ -893,7 +986,9 @@ local function AuraInstancesCoveringSquare(engineLoc)
 
 	for _,aura in ipairs(auras) do
 		local instance = aura.auraInstance
-		if instance ~= nil then
+		--squares on an aura's adjacent extension (includeAdjacent) are next to
+		--the area, not covered by it, so they are not part of its Environment.
+		if instance ~= nil and not AuraLocOnlyAdjacent(aura, queryLoc) then
 			--tolerate aura instances that do not implement the AuraInstance
 			--interface: skip them rather than erroring the whole filter.
 			local ok, covers = pcall(AuraBandCoversAltitude, instance, refAltitude)

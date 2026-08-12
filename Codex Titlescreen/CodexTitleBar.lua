@@ -869,6 +869,661 @@ function CodexTitleBar.MountInitiativeStatusPanel(panel)
     end
 end
 
+----------------------------------------------------------------------
+-- Hovered-tile terrain indicator.
+--
+-- A small square chip in the status bar, just left of the map name,
+-- styled like the Map Markup panel's zone swatches: solid fill for
+-- plain ground / open air, diagonal stripes for special terrain (the
+-- same stripe treatment the map overlay itself uses for zones). One
+-- characteristic is shown at a time -- the most important one covering
+-- the tile under the mouse. Everything lives on one table to keep the
+-- file's local count down.
+----------------------------------------------------------------------
+
+local g_tileIndicator = {
+    gradients = {},
+
+    --The priority ladder: lower tier = more important. Physical hazards
+    --(no floor at all, then damage) outrank movement modifiers (water,
+    --difficult), which outrank vision zones (darkness, sunlight,
+    --concealing), which outrank informational surfaces. "zone" is any
+    --other environmental-keyword zone, striped in the keyword's own
+    --color; "ground" is the no-features fallback.
+    kinds = {
+        void       = { tier = 1,  name = "Open Air (no floor)", color = "#000000", stripes = false },
+        damaging   = { tier = 2,  name = "Damaging Terrain",    color = "#cc3333", stripes = true },
+        water      = { tier = 3,  name = "Water",               color = "#3373d9", stripes = true },
+        difficult  = { tier = 4,  name = "Difficult Terrain",   color = "#8c5926", stripes = true },
+        darkness   = { tier = 5,  name = "Darkness",            color = "#4b2a6b", stripes = true },
+        sunlight   = { tier = 6,  name = "Sunlight",            color = "#e2c433", stripes = true },
+        concealing = { tier = 7,  name = "Concealing",          color = "#4d594d", stripes = true },
+        climbable  = { tier = 8,  name = "Climbable",           color = "#2e8b8b", stripes = true },
+        stairs     = { tier = 9,  name = "Stairs",              color = "#8a8a8a", stripes = true },
+        zone       = { tier = 10, name = "Zone",                color = "#888888", stripes = true },
+        ground     = { tier = 11, name = "Ground",              color = "#3a8f3a", stripes = false },
+    },
+}
+
+--The same diagonal-stripe recipe as the Map Markup zone swatches
+--(m_zoneStripes.Gradient): a linear gradient one stripe period long
+--along a diagonal vector, hard flip between the color and its
+--transparent twin, repeating. The gradient MULTIPLIES the panel's own
+--color, so striped chips set bgcolor white. color must be "#rrggbb".
+--angle defaults to 45 degrees; the overlay menu passes each zone type's
+--own map angle so its swatch stripes the way the map does.
+function g_tileIndicator.StripeGradient(color, angle)
+    angle = angle or (math.pi * 0.25)
+    local key = color .. "/" .. tostring(angle)
+    local cached = g_tileIndicator.gradients[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local period = 0.28
+    local result = gui.Gradient{
+        type = "linear",
+        point_a = {x = 0.5, y = 0.5},
+        point_b = {
+            x = 0.5 + math.cos(angle) * period,
+            y = 0.5 + math.sin(angle) * period,
+        },
+        ["repeat"] = true,
+        stops = {
+            {position = 0.00, color = color .. "ff"},
+            {position = 0.48, color = color .. "ff"},
+            {position = 0.52, color = color .. "00"},
+            {position = 1.00, color = color .. "00"},
+        },
+    }
+    g_tileIndicator.gradients[key] = result
+    return result
+end
+
+--Vertical band test mirroring EnvironmentalKeyword.lua's per-square Loc
+--symbols: nil height = unlimited; otherwise a creature standing at
+--refAltitude must fall inside [altitude, altitude + height].
+function g_tileIndicator.BandCovers(instance, refAltitude)
+    local height = instance:GetHeight()
+    if height == nil then
+        return true
+    end
+    local base = instance:GetAltitude() or 0
+    return refAltitude >= base and refAltitude <= base + height
+end
+
+--An environmental keyword's display color, normalized to "#rrggbb" or
+--nil. display.bgcolor may be a Color USERDATA (the compendium color
+--picker's storage idiom) whose .tostring property is the real hex
+--string; white means "unset". Same normalization as the Map Markup
+--panel's KeywordColor.
+function g_tileIndicator.KeywordColor(kw)
+    local color = nil
+    pcall(function()
+        local display = kw:try_get("display")
+        if display ~= nil then
+            color = display.bgcolor
+        end
+    end)
+
+    if type(color) == "userdata" then
+        local ok, str = pcall(function() return color.tostring end)
+        if ok and type(str) == "string" then
+            color = str
+        else
+            color = nil
+        end
+    end
+    if type(color) == "string" and string.len(color) == 9 then
+        color = string.sub(color, 1, 7)
+    end
+    if type(color) ~= "string" or string.len(color) ~= 7
+        or string.sub(color, 1, 1) ~= "#" or string.lower(color) == "#ffffff" then
+        return nil
+    end
+    return color
+end
+
+--Classifies the tile under the mouse. Returns a .kinds entry plus
+--optional color/name overrides (used by the generic "zone" kind, which
+--stripes in the covering keyword's own color and names itself after it).
+--The hovered loc is derived the same way the engine's dmhub.status
+--string derives it: mouse world point snapped to the tile grid, on the
+--currently selected floor; rules == nil is exactly the status string's
+--"(void)" -- no terrain here, a creature would fall to the floor below.
+function g_tileIndicator.Classify()
+    local kinds = g_tileIndicator.kinds
+
+    local pt = dmhub.GetMouseWorldPoint()
+    if pt == nil then
+        return kinds.void, nil, nil
+    end
+
+    local loc = core.Loc{
+        x = math.floor(pt.x + 0.5),
+        y = math.floor(pt.y + 0.5),
+        floorIndex = game.currentFloorIndex,
+    }
+
+    --Non-DM viewers only get information about tiles currently inside their
+    --vision; an unseen tile reads as void (solid black) - no information.
+    --IsLocInVision returns true outright for DM vision, and on engine builds
+    --without the bridge the pcall leaves visible true (no filtering).
+    local visible = true
+    pcall(function()
+        visible = dmhub.IsLocInVision(loc)
+    end)
+    if visible == false then
+        return kinds.void, nil, "Not visible"
+    end
+
+    local rules = dmhub.GetTileRulesAtLoc(loc)
+    if rules == nil or rules.hole then
+        return kinds.void, nil, nil
+    end
+
+    local best = nil
+    local bestColor = nil
+    local bestName = nil
+    local function Consider(kind, colorOverride, nameOverride)
+        if kind ~= nil and (best == nil or kind.tier < best.tier) then
+            best = kind
+            bestColor = colorOverride
+            bestName = nameOverride
+        end
+    end
+
+    --Merged tile rules cover both tile art flags and apply-to-all auras
+    --(markup zones), so water/difficult/concealing zones land here too.
+    if rules.water then
+        Consider(kinds.water)
+    end
+    if rules.difficultTerrain then
+        Consider(kinds.difficult)
+    end
+    if rules.concealment then
+        Consider(kinds.concealing)
+    end
+    if rules.stairs then
+        Consider(kinds.stairs)
+    end
+    if rules.climbHeight > 0 then
+        Consider(kinds.climbable)
+    end
+
+    --Auras covering the square: damage-on-move / hazard-roll auras, the
+    --named light-level keywords, climbable zones, and any other
+    --environmental-keyword zone. Same footprint + ground-altitude band
+    --test as EnvironmentalKeyword.lua's per-square symbols.
+    local auras = game.GetAurasAtLoc(loc.xyfloorOnly)
+    if auras ~= nil then
+        local refAltitude = loc.withGroundAltitude.altitude
+        local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+        for _,aura in ipairs(auras) do
+            local instance = aura.auraInstance
+            --squares on an aura's adjacent extension (includeAdjacent) are
+            --next to the area, not in it: no chip for them.
+            if instance ~= nil and not EnvironmentalKeyword.AuraLocOnlyAdjacent(aura, loc.xyfloorOnly) then
+                --tolerate aura instances that do not implement the full
+                --AuraInstance interface: skip them, not error the tick.
+                pcall(function()
+                    if not g_tileIndicator.BandCovers(instance, refAltitude) then
+                        return
+                    end
+
+                    local auraDef = instance:try_get("aura")
+                    if auraDef == nil then
+                        return
+                    end
+
+                    --"does damage in some way": per-tile movement damage
+                    --or an on-enter hazard power roll.
+                    if instance:GetDamageInfo() ~= nil
+                        or auraDef:try_get("powerRollEnabled", false) then
+                        Consider(kinds.damaging)
+                    end
+
+                    if instance:GetClimbable() ~= nil then
+                        Consider(kinds.climbable)
+                    end
+
+                    local keywordid = auraDef:try_get("environmentalKeywordId")
+                    if keywordid ~= nil then
+                        local kw = keywordsTable[keywordid]
+                        if kw ~= nil then
+                            local name = string.lower(kw.name or "")
+                            if name == "darkness" or name == "dark" then
+                                Consider(kinds.darkness)
+                            elseif name == "sunlight" or name == "daylight" then
+                                Consider(kinds.sunlight)
+                            else
+                                Consider(kinds.zone,
+                                    g_tileIndicator.KeywordColor(kw),
+                                    kw.name)
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    if best == nil then
+        best = kinds.ground
+    end
+    return best, bestColor, bestName
+end
+
+--------------------------------------------------------------------
+-- The map overlay menu, opened by clicking the chip. One checkbox
+-- per overlay layer (walls / elevation / terrain features) plus one
+-- per zone type present on the map, with Show All / Hide All. All
+-- state lives in per-user settings, so it works for players and
+-- directors alike; players are only offered player-visible zone
+-- types (MapMarkup.GetZoneTypesOnMap filters for them).
+--------------------------------------------------------------------
+
+--The hidden-zone-types preference (';'-joined keyword ids) as a set.
+function g_tileIndicator.HiddenZoneSet()
+    local result = {}
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+    for id in string.gmatch(str, "[^;]+") do
+        result[id] = true
+    end
+    return result
+end
+
+function g_tileIndicator.WriteHiddenZoneSet(set)
+    local ids = {}
+    for id,_ in pairs(set) do
+        ids[#ids+1] = id
+    end
+    table.sort(ids)
+    dmhub.SetSettingValue("mapoverlay:hiddenzones", table.concat(ids, ";"))
+end
+
+--The four built-in terrain rule types, styled to match the engine's
+--overlay stripes exactly (TileHeightOverlay ZoneWater/Difficult/
+--Concealment/Climbable colors and alternating angles).
+g_tileIndicator.BUILTINS = {
+    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25 },
+    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75 },
+    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25 },
+    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75 },
+}
+
+--The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
+--Built-ins default hidden, so this records opt-INs (the mirror image of
+--HiddenZoneSet).
+function g_tileIndicator.ShownBuiltinSet()
+    local result = {}
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
+    for id in string.gmatch(str, "[^;]+") do
+        result[id] = true
+    end
+    return result
+end
+
+function g_tileIndicator.WriteShownBuiltinSet(set)
+    local ids = {}
+    for id,_ in pairs(set) do
+        ids[#ids+1] = id
+    end
+    table.sort(ids)
+    dmhub.SetSettingValue("mapoverlay:shownbuiltins", table.concat(ids, ";"))
+end
+
+--Built-in terrain rule types present on the map's TERRAIN TILES themselves.
+--The bridge excludes every aura contribution, so a rule that only exists
+--because a defined zone grants it does not produce an entry - the zone
+--type's own row is its control. {} on engine builds without the bridge.
+function g_tileIndicator.BuiltinTypesOnMap()
+    local flags = nil
+    pcall(function()
+        flags = dmhub.GetBuiltinTerrainTypesOnMap()
+    end)
+    if flags == nil then
+        return {}
+    end
+
+    local result = {}
+    for _,entry in ipairs(g_tileIndicator.BUILTINS) do
+        local present = false
+        if entry.id == "water" then
+            present = flags.water
+        elseif entry.id == "difficult" then
+            present = flags.difficultTerrain
+        elseif entry.id == "concealment" then
+            present = flags.concealment
+        else
+            present = flags.climbable
+        end
+        if present then
+            result[#result+1] = entry
+        end
+    end
+    return result
+end
+
+--Zone types present on the current map, or {} when the Map Markup
+--module is absent (lobby) or predates the API.
+function g_tileIndicator.ZoneTypesOnMap()
+    local markup = rawget(_G, "MapMarkup")
+    if markup == nil or markup.GetZoneTypesOnMap == nil then
+        return {}
+    end
+    local ok, types = pcall(markup.GetZoneTypesOnMap)
+    if ok and type(types) == "table" then
+        return types
+    end
+    return {}
+end
+
+function g_tileIndicator.CreateOverlayMenu()
+    local checkStyle = {
+        width = "100%",
+        height = 24,
+        fontSize = 14,
+        hpad = 0,
+    }
+
+    --a checkbox bound to a boolean mapoverlay:* setting; monitor keeps
+    --it in sync with the Settings screen and the Show/Hide All buttons.
+    local function SettingCheck(settingid, text, tooltip)
+        return gui.Check{
+            value = dmhub.GetSettingValue(settingid) and true or false,
+            text = text,
+            halign = "left",
+            hover = gui.Tooltip(tooltip),
+            style = checkStyle,
+            monitor = settingid,
+            events = {
+                monitor = function(element)
+                    element.value = dmhub.GetSettingValue(settingid) and true or false
+                end,
+                change = function(element)
+                    dmhub.SetSettingValue(settingid, element.value)
+                end,
+            },
+        }
+    end
+
+    --one row per zone type: a stripe swatch in the type's map color and
+    --angle, and a checkbox driving its entry in mapoverlay:hiddenzones.
+    local function ZoneRow(zoneType)
+        local gradient = nil
+        local bg = zoneType.color or "#888888"
+        if type(zoneType.color) == "string" and string.len(zoneType.color) == 7 then
+            gradient = g_tileIndicator.StripeGradient(zoneType.color, zoneType.angleRadians)
+            bg = "white"
+        end
+
+        return gui.Panel{
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+
+            gui.Panel{
+                width = 14,
+                height = 14,
+                valign = "center",
+                bgimage = true,
+                bgcolor = bg,
+                gradient = gradient,
+                borderWidth = 1,
+                borderColor = "@border",
+            },
+
+            gui.Check{
+                value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil,
+                text = zoneType.name,
+                halign = "left",
+                lmargin = 6,
+                style = checkStyle,
+                monitor = "mapoverlay:hiddenzones",
+                events = {
+                    monitor = function(element)
+                        element.value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil
+                    end,
+                    change = function(element)
+                        local set = g_tileIndicator.HiddenZoneSet()
+                        if element.value then
+                            set[zoneType.keywordid] = nil
+                        else
+                            set[zoneType.keywordid] = true
+                        end
+                        g_tileIndicator.WriteHiddenZoneSet(set)
+                    end,
+                },
+            },
+        }
+    end
+
+    --one row per built-in terrain rule type present on the map's terrain
+    --tiles: same swatch+check shape as a zone row, driving the type's entry
+    --in mapoverlay:shownbuiltins (built-ins default hidden).
+    local function BuiltinRow(builtin)
+        return gui.Panel{
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+
+            gui.Panel{
+                width = 14,
+                height = 14,
+                valign = "center",
+                bgimage = true,
+                bgcolor = "white",
+                gradient = g_tileIndicator.StripeGradient(builtin.color, builtin.angle),
+                borderWidth = 1,
+                borderColor = "@border",
+            },
+
+            gui.Check{
+                value = g_tileIndicator.ShownBuiltinSet()[builtin.id] ~= nil,
+                text = builtin.name,
+                halign = "left",
+                lmargin = 6,
+                style = checkStyle,
+                monitor = "mapoverlay:shownbuiltins",
+                events = {
+                    monitor = function(element)
+                        element.value = g_tileIndicator.ShownBuiltinSet()[builtin.id] ~= nil
+                    end,
+                    change = function(element)
+                        local set = g_tileIndicator.ShownBuiltinSet()
+                        if element.value then
+                            set[builtin.id] = true
+                        else
+                            set[builtin.id] = nil
+                        end
+                        g_tileIndicator.WriteShownBuiltinSet(set)
+                    end,
+                },
+            },
+        }
+    end
+
+    local zoneTypes = g_tileIndicator.ZoneTypesOnMap()
+    local builtinTypes = g_tileIndicator.BuiltinTypesOnMap()
+
+    local children = {}
+
+    children[#children+1] = gui.Label{
+        classes = {"bold"},
+        text = "Map Overlay",
+        width = "100%",
+        height = "auto",
+        bmargin = 4,
+    }
+
+    --Show All / Hide All: every layer plus every listed zone type at once.
+    children[#children+1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bmargin = 4,
+
+        gui.Button{
+            text = "Show All",
+            width = "48%",
+            height = 22,
+            fontSize = 13,
+            halign = "left",
+            click = function(element)
+                dmhub.SetSettingValue("mapoverlay:walls", true)
+                dmhub.SetSettingValue("mapoverlay:elevation", true)
+                dmhub.SetSettingValue("mapoverlay:hiddenzones", "")
+                local set = g_tileIndicator.ShownBuiltinSet()
+                for _,builtin in ipairs(g_tileIndicator.BuiltinTypesOnMap()) do
+                    set[builtin.id] = true
+                end
+                g_tileIndicator.WriteShownBuiltinSet(set)
+            end,
+        },
+
+        gui.Button{
+            text = "Hide All",
+            width = "48%",
+            height = 22,
+            fontSize = 13,
+            halign = "right",
+            click = function(element)
+                dmhub.SetSettingValue("mapoverlay:walls", false)
+                dmhub.SetSettingValue("mapoverlay:elevation", false)
+                dmhub.SetSettingValue("mapoverlay:shownbuiltins", "")
+                local set = g_tileIndicator.HiddenZoneSet()
+                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
+                    set[zoneType.keywordid] = true
+                end
+                g_tileIndicator.WriteHiddenZoneSet(set)
+            end,
+        },
+    }
+
+    children[#children+1] = SettingCheck("mapoverlay:walls", "Walls",
+        "Wall lines colored by the cover they grant: black for full cover, greys for partial.")
+    children[#children+1] = SettingCheck("mapoverlay:elevation", "Elevation",
+        "Contour lines where tile elevation changes, with a height number in each region.")
+
+    --The terrain list: the defined zone types on the map, then the built-in
+    --terrain rule types the map's TILES carry on their own (a rule only
+    --derived from a defined zone gets no row - the zone's row is its
+    --control).
+    if #zoneTypes > 0 or #builtinTypes > 0 then
+        children[#children+1] = gui.Label{
+            classes = {"fgMuted", "sizeXs"},
+            text = "Terrain on This Map",
+            width = "100%",
+            height = "auto",
+            vmargin = 4,
+        }
+        for _,zoneType in ipairs(zoneTypes) do
+            children[#children+1] = ZoneRow(zoneType)
+        end
+        for _,builtin in ipairs(builtinTypes) do
+            children[#children+1] = BuiltinRow(builtin)
+        end
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }
+end
+
+--The chip itself. Paints fully clear (no fill, no border) outside a
+--game rather than collapsing: a collapsed panel's think does not run,
+--so a self-collapse would be permanent (same trap the player-status
+--cluster documents above). Clicking it opens the map overlay menu.
+function g_tileIndicator.CreatePanel()
+    local function Clear(element)
+        element.data.key = nil
+        element.data.name = nil
+        element.selfStyle.gradient = nil
+        element.selfStyle.bgcolor = "clear"
+        element.selfStyle.borderWidth = 0
+    end
+
+    return gui.Panel{
+        width = 18,
+        height = 18,
+        valign = "center",
+        rmargin = 8,
+        bgimage = true,
+        bgcolor = "clear",
+        borderWidth = 0,
+        borderColor = "@border",
+
+        data = { key = nil, name = nil },
+
+        linger = function(element)
+            if element.data.name ~= nil then
+                gui.Tooltip(string.format("Tile under cursor: %s\nClick to choose which map overlays are shown.", element.data.name))(element)
+            end
+        end,
+
+        --the map overlay menu. Same popup rig as the player-status
+        --cluster's Heroes popout: click toggles, click-away dismisses.
+        click = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                return
+            end
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                classes = {"bordered", "bg"},
+                width = 280,
+                height = "auto",
+                pad = 12,
+                borderBox = true,
+                halign = "left",
+                valign = "bottom",
+                flow = "vertical",
+                g_tileIndicator.CreateOverlayMenu(),
+            }
+        end,
+
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+            Clear(element)
+        end,
+        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        think = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                if element.data.key ~= nil then
+                    Clear(element)
+                end
+                return
+            end
+
+            local kind, colorOverride, nameOverride = g_tileIndicator.Classify()
+            local color = colorOverride or kind.color
+            local key = (nameOverride or kind.name) .. "|" .. color
+            if key == element.data.key then
+                return
+            end
+
+            element.data.key = key
+            element.data.name = nameOverride or kind.name
+            element.selfStyle.borderWidth = 1
+            if kind.stripes then
+                element.selfStyle.bgcolor = "white"
+                element.selfStyle.gradient = g_tileIndicator.StripeGradient(color)
+            else
+                element.selfStyle.gradient = nil
+                element.selfStyle.bgcolor = color
+            end
+        end,
+    }
+end
+
 local function CreateStatusBar()
     local resultPanel
 
@@ -962,6 +1617,10 @@ local function CreateStatusBar()
         -- panel so the initiative bar does not have to know about this
         -- setting.
         CreateInitiativeStatusHost(),
+
+        -- Hovered-tile terrain chip: a zone-swatch-style square
+        -- characterizing the tile under the mouse (see g_tileIndicator).
+        g_tileIndicator.CreatePanel(),
 
         -- Map name + engine status. Long map descriptions used to eat the bar,
         -- so the box is capped (narrower than the old 420) and the text

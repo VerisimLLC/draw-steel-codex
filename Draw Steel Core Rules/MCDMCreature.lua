@@ -7061,6 +7061,15 @@ function creature:EndCombat()
         }
     end
 
+    if self:try_get("routinesSelected") ~= nil then
+        token:ModifyProperties {
+            description = "End Routines",
+            execute = function()
+                self.routinesSelected = nil
+            end,
+        }
+    end
+
     token:ModifyProperties {
         description = "Reset Heroic Resource",
         execute = function()

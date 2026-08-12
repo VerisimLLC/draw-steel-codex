@@ -4141,8 +4141,8 @@ function PanelDocument.SetPinned(key, on)
     end
 end
 
---The stored tab list for a panel window, or nil when it has none beyond
---its own panel.
+--The stored member list for a panel's folder (owner included), or nil
+--when the panel has no folder beyond itself.
 function PanelDocument.StoredTabs(key)
     if key == nil then
         return nil
@@ -4180,8 +4180,8 @@ function PanelDocument.SetStoredTabs(key, keys)
             changed = true
         end
 
-        --A panel lives in exactly ONE window, so everything now grouped
-        --here -- this window's own panel included -- is released from
+        --A panel lives in exactly ONE folder, so everything now grouped
+        --here -- this folder's own panel included -- is released from
         --every other group. Both directions matter: a member that also
         --owned a group would have no rail button to reach that group
         --from, and an owner that was also somebody else's member would
@@ -4225,10 +4225,14 @@ function PanelDocument.SetStoredTabs(key, keys)
     end
 end
 
---GROUPS. A window hosting several panels as tabs is a group: the panel
---whose window it is owns it, the rest are members. A member has no rail
---button of its own -- the owner's button carries a badge and a hover
---flyout that opens the group straight to that member's tab.
+--GROUPS. A group is a FOLDER on the rail: a category of panels filed
+--under one button. The panel whose button it is owns the group, the
+--rest are members. A member has no rail button of its own -- the
+--owner's button carries a stack marker and a hover flyout with the
+--members' buttons, and every panel in the folder (owner included)
+--opens and closes its OWN window independently. The stored list
+--("iconrailtabs", a name kept for compatibility with saved layouts)
+--is purely the folder membership -- windows are always single-panel.
 
 --{ [memberKey] = ownerKey } across every stored group. Owners never
 --appear as members (SetStoredTabs enforces it), so this cannot chain.
@@ -4246,8 +4250,8 @@ function PanelDocument.GroupOwners()
     return result
 end
 
---The other panels grouped into this panel's window, in tab order, or nil
---when it hosts only itself.
+--The other panels filed in this panel's folder, in strip order, or nil
+--when it stands alone.
 function PanelDocument.GroupMembers(key)
     if key == nil then
         return nil
@@ -4270,8 +4274,7 @@ function PanelDocument.GroupMembers(key)
 end
 
 --Open this panel's standalone window, or raise the existing one.
---Placement args (x, y, width, height) pass through to PresentDocument;
---args.tabs overrides the stored tab list.
+--Placement args (x, y, width, height) pass through to PresentDocument.
 --Returns the window panel.
 function PanelDocument:PresentPanel(args)
     args = args or {}
@@ -4298,40 +4301,7 @@ function PanelDocument:PresentPanel(args)
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
     GameHud.instance.documentsPanel:AddChild(dialog)
-    self:RestoreTabs(dialog, args.tabs)
     return dialog
-end
-
---Re-add the tabs this window was carrying when it was last closed (or an
---explicit list). Panels already visible in another window are skipped, so
---restoring never produces two copies of the same panel.
-function PanelDocument:RestoreTabs(dialog, tabs)
-    if dialog == nil or not dialog.valid then
-        return
-    end
-    local key = string.lower(self:try_get("panelName") or "")
-    if tabs == nil then
-        tabs = PanelDocument.StoredTabs(key)
-    end
-    if tabs == nil then
-        return
-    end
-    --one batched add: the per-tab addPanelTab path pays the full
-    --per-add sync cost each time (worst of all, a stored-tabs settings
-    --write whose partial list differs from the stored one, firing a
-    --full icon-rail rebuild per tab -- ~50ms each).
-    local toAdd = {}
-    for _, k in ipairs(tabs) do
-        k = string.lower(k)
-        if k ~= key and PanelDocument.FindHostDialog(k) == nil then
-            toAdd[#toAdd + 1] = k
-        end
-    end
-    if #toAdd > 0 then
-        dialog:FireEventTree("addPanelTabs", toAdd)
-        --land on the window's own tab rather than the last one added.
-        dialog:FireEventTree("activatePanelTab", key)
-    end
 end
 
 --Close this panel's standalone window if it is open.
@@ -4491,8 +4461,7 @@ local function RailPanelDocument(key)
 end
 
 --The rail's curated panel list, in display order (from the Player Icon
---Rail design). Used by the rail buttons AND by the panel window's
---add-tab menu. Panels missing a registration, or not available to this
+--Rail design). Panels missing a registration, or not available to this
 --user (dmonly/devonly), are skipped wherever the list is consumed.
 local g_iconRailPanels = {
     "Character",
@@ -4583,54 +4552,25 @@ function PanelDocument:CreateInterface(args)
     local SyncPinnedState
     local resultPanel
 
-    --anchored to the top-right so it stays put when the tab strip wraps to
-    --extra rows and the header grows.
-    local closeButton = gui.Button{
-        classes = {"closeButton", "sizeXs"},
-        --escape is handled by the window root (see resultPanel), which
-        --closes the window WITHOUT forgetting its rail record. The kind
-        --default (escapeActivates) would race it and win, and this
-        --button's click forgets the record -- an explicit-close-only
-        --semantic.
-        escapeActivates = false,
-        halign = "right",
-        valign = "top",
-        rmargin = 6,
-        tmargin = 8,
-        click = function(element)
-            if Pinned() then
-                return
-            end
-            if args.close ~= nil then
-                args.close()
-            elseif dialog ~= nil and dialog.valid then
-                dialog:DestroySelf()
-            end
-        end,
-    }
-    if args.suppressCloseButton then
-        closeButton:SetClass("collapsed", true)
-    end
-
     --The pin toggle: locks the window in place (no close, no drag, no
     --resize) and marks it to be restored with the rails. Quiet until
-    --hovered or pinned, so an unpinned window's header stays clean. Built
-    --unconditionally and collapsed in non-tabbed hosts -- a nil in the
-    --header's child array would truncate it and drop the close button.
+    --hovered or pinned, so an unpinned window's header stays clean.
+    --It owns the header's top-right corner: the CLOSE affordance is the
+    --title chip's own x (two x's in one header read as a bug -- Venla
+    --2026-08-12), and that x hides entirely while pinned
+    --(SyncChipCloseButtons), leaving the lit pin as the only control.
     pinButton = gui.Panel{
         classes = {"panelDocumentPinButton"},
         bgimage = "phosphor/push-pin-simple-light.png",
         width = 14,
         height = 14,
-        --FLOATING, not a flow child: in the header's horizontal flow it
-        --stacked against the close button and so jumped sideways every
-        --time that button appeared or hid (which pinning itself does).
-        --Anchored, it stays put. x is measured leftward from the right
-        --edge, clear of the 16px close button and its 6px inset.
+        --FLOATING, not a flow child: anchored to the corner it stays put
+        --when the title chip changes form or the header wraps. x is
+        --measured leftward from the right edge.
         floating = true,
         halign = "right",
         valign = "top",
-        x = -28,
+        x = -8,
         y = 11,
         click = function(element)
             PanelDocument.SetPinned(panelKey, not Pinned())
@@ -4641,9 +4581,10 @@ function PanelDocument:CreateInterface(args)
     end
 
     --===== tab model =====
-    --The window can host several panels as tabs (added via right-click on
-    --the title bar). Ordered list of {key, reg, chip, wrapper}; content
-    --wrappers realize lazily on first activation.
+    --Historically the window hosted several panels as tabs; windows are
+    --single-panel now (folders on the rail replaced tabbed windows), but
+    --the tab structure remains as the window's title chip + lazy content
+    --wrapper. Always exactly one entry: {key, reg, chip, wrapper}.
     local m_tabs = {}
     local m_activeKey = nil
     local m_constructing = true
@@ -4654,7 +4595,6 @@ function PanelDocument:CreateInterface(args)
     local m_compactLevel = 0
     local SyncChipCompaction
     local tabStrip
-    local addTabButton
     local contentArea
     local hairline
     local header
@@ -4865,8 +4805,11 @@ function PanelDocument:CreateInterface(args)
         }
     end
 
-    --publish the tab list on the dialog (so the rail and other windows
-    --can see which panels are visible here) and notify the host.
+    --publish the panel list on the dialog (the rail's window bookkeeping
+    ---- FindHostDialog, orphan cleanup after a reload -- identifies panel
+    --windows by this field). Always the window's own panel alone: windows
+    --are single-panel, and folder membership is stored separately (the
+    --rail's grouping verbs own it; windows never write it).
     local function SyncDialogTabs()
         if not tabbed then
             return
@@ -4877,16 +4820,6 @@ function PanelDocument:CreateInterface(args)
                 keys[#keys + 1] = t.key
             end
             dialog.data.panelTabs = keys
-            --Remember the arrangement so closing and reopening the window
-            --brings its tabs back. Skipped while constructing: the window
-            --is still only its own tab at that point, and storing that
-            --would wipe the list before RestoreTabs reads it.
-            if not m_constructing then
-                PanelDocument.SetStoredTabs(panelKey, keys)
-                if args.onTabsChanged ~= nil then
-                    args.onTabsChanged(keys)
-                end
-            end
         end
     end
 
@@ -4959,38 +4892,6 @@ function PanelDocument:CreateInterface(args)
 
     local AddTab
 
-    --entries for the add-a-panel menu: curated panels available to this
-    --user and not already visible in this or any other window.
-    local function BuildAddEntries(parentElement)
-        local entries = {}
-        for _, name in ipairs(g_iconRailPanels) do
-            local k = string.lower(name)
-            if FindTab(k) == nil and (not PanelDocument.IsPanelShown(k)) and PanelDocument.Get(name) ~= nil then
-                entries[#entries + 1] = {
-                    text = name,
-                    click = function(element)
-                        parentElement.popup = nil
-                        AddTab(k)
-                    end,
-                }
-            end
-        end
-        return entries
-    end
-
-    local function ShowAddMenu(element)
-        if not tabbed then
-            return
-        end
-        local entries = BuildAddEntries(element)
-        if #entries == 0 then
-            return
-        end
-        element.popup = gui.ContextMenu{
-            entries = entries,
-        }
-    end
-
     --each chip carries its own close x, shown even when it is the only
     --tab (Lisa+David review 2026-07-19: closing the last tab closes the
     --whole window). Hidden in non-tabbed hosts (e.g. the journal viewer),
@@ -5023,7 +4924,6 @@ function PanelDocument:CreateInterface(args)
     local CHIP_FIXED = 58
     local CHIP_ICON_CLOSE = 48
     local CHIP_ICON_ONLY = 30
-    local ADD_BUTTON_W = 28
 
     --A tab's label width: measured when we have it (this window or any
     --earlier one -- the cache is per registration name), 8px per
@@ -5112,7 +5012,7 @@ function PanelDocument:CreateInterface(args)
         end
 
         --the width one row needs at each compaction level.
-        local needed = {[0] = ADD_BUTTON_W, [1] = ADD_BUTTON_W, [2] = ADD_BUTTON_W}
+        local needed = {[0] = 0, [1] = 0, [2] = 0}
         for _, t in ipairs(m_tabs) do
             if t.chip ~= nil and t.chip.valid then
                 local fullW = CHIP_FIXED + LabelWidthOf(t) + 2
@@ -5155,17 +5055,13 @@ function PanelDocument:CreateInterface(args)
             end
         end
 
-        --Final stage: even fully compacted, the active chip's full label
-        --can be wider than what remains (a very narrow window). Cap the
-        --label's maxWidth to exactly the surplus-free width so the strip
-        --still fits one row -- the label shrinks its font toward
-        --minFontSize and then ellipsizes (see BuildChip) instead of
-        --pushing chips onto a second row. The 30px floor keeps a few
-        --characters legible; when even that overflows, the + button goes
-        --first (right-clicking the bar opens the same add menu), and only
-        --after all that does wrap get its say (as it does for many
-        --icon-only chips overflowing on their own).
-        local hideAdd = false
+        --Final stage: even fully compacted, the chip's full label can be
+        --wider than what remains (a very narrow window). Cap the label's
+        --maxWidth to exactly the surplus-free width so the strip still
+        --fits one row -- the label shrinks its font toward minFontSize
+        --and then ellipsizes (see BuildChip) instead of pushing the chip
+        --onto a second row. The 30px floor keeps a few characters
+        --legible.
         for _, t in ipairs(m_tabs) do
             local lbl = t.chipLabel
             if lbl ~= nil and lbl.valid then
@@ -5173,12 +5069,7 @@ function PanelDocument:CreateInterface(args)
                 if level >= 2 and t.key == m_activeKey then
                     local overflow = needed[2] - avail
                     if overflow > 0 then
-                        cap = LabelWidthOf(t) - overflow
-                        if cap < 30 and addTabButton ~= nil then
-                            hideAdd = true
-                            cap = cap + ADD_BUTTON_W
-                        end
-                        cap = math.max(30, math.ceil(cap))
+                        cap = math.max(30, math.ceil(LabelWidthOf(t) - overflow))
                     end
                 end
                 if cap ~= t.labelCap then
@@ -5191,10 +5082,6 @@ function PanelDocument:CreateInterface(args)
                 end
             end
         end
-        if addTabButton ~= nil and addTabButton.valid and addTabButton:HasClass("collapsed") ~= hideAdd then
-            addTabButton:SetClass("collapsed", hideAdd)
-            changed = true
-        end
 
         if SyncChipCloseButtons() then
             changed = true
@@ -5206,9 +5093,6 @@ function PanelDocument:CreateInterface(args)
     --pin state. Fired on construction and whenever the pin toggles.
     SyncPinnedState = function()
         local pinned = Pinned()
-        if closeButton ~= nil and closeButton.valid then
-            closeButton:SetClass("collapsed", args.suppressCloseButton == true or pinned)
-        end
         if pinButton ~= nil and pinButton.valid then
             pinButton:SetClass("pinned", pinned)
         end
@@ -5226,9 +5110,10 @@ function PanelDocument:CreateInterface(args)
         if tab == nil then
             return
         end
-        --closing the ONLY tab closes the whole window: same path as the
-        --header close button (Lisa+David review 2026-07-19). A pinned
-        --window cannot be closed, so its last tab stays put.
+        --closing the ONLY tab closes the whole window -- the chip's x IS
+        --the window's close control (Lisa+David review 2026-07-19; header
+        --x retired 2026-08-12). A pinned window cannot be closed, so its
+        --last tab stays put.
         if #m_tabs <= 1 then
             if Pinned() then
                 return
@@ -5279,26 +5164,6 @@ function PanelDocument:CreateInterface(args)
             end,
             doubleclick = function(element)
                 ToggleShade()
-            end,
-            rightClick = function(element)
-                if not tabbed then
-                    return
-                end
-                local entries = BuildAddEntries(element)
-                if #m_tabs > 1 then
-                    entries[#entries + 1] = {
-                        text = string.format("Close Tab: %s", tab.reg.name),
-                        click = function(el)
-                            element.popup = nil
-                            RemoveTab(tab.key)
-                        end,
-                    }
-                end
-                if #entries > 0 then
-                    element.popup = gui.ContextMenu{
-                        entries = entries,
-                    }
-                end
             end,
             --an icon-only chip (compact mode) or a chip whose label is
             --width-capped (shrunk/ellipsized) names itself on hover.
@@ -5359,18 +5224,14 @@ function PanelDocument:CreateInterface(args)
         }
     end
 
-    --batch=true (tab restore) adds the chip and NOTHING else: no switch
-    --(so no content wrapper is built for a tab nobody activated), and
-    --none of the per-add sync work -- the batch caller does that once at
-    --the end. This is what makes restoring a many-tab window cheap: the
-    --per-add SyncDialogTabs used to store a DIFFERENT partial tab list
-    --per tab, and every one of those writes fired a full icon-rail
-    --rebuild (~50ms each).
-    AddTab = function(key, batch)
+    --the window's one tab: its own panel, added once at construction.
+    --The tab STRUCTURE (m_tabs, chips, SwitchTab) survives the removal
+    --of multi-tab windows because the chip doubles as the window's
+    --title and the content-wrapper machinery hangs off it -- there is
+    --just never more than one entry.
+    AddTab = function(key)
         if FindTab(key) ~= nil then
-            if not batch then
-                SwitchTab(key)
-            end
+            SwitchTab(key)
             return
         end
         --the window's own panel may be a synthetic registration (e.g. a
@@ -5391,13 +5252,6 @@ function PanelDocument:CreateInterface(args)
         m_tabs[#m_tabs + 1] = tab
         tab.chip = BuildChip(tab)
         tabStrip:AddChild(tab.chip)
-        --the + affordance stays after the last chip.
-        if addTabButton ~= nil and addTabButton.valid then
-            addTabButton:SetAsLastSibling()
-        end
-        if batch then
-            return
-        end
         SwitchTab(tab.key)
         SyncDialogTabs()
         --fit the strip NOW, estimates standing in for the unmeasured new
@@ -5411,54 +5265,15 @@ function PanelDocument:CreateInterface(args)
         end
     end
 
-    --the + at the end of the tab strip: same add-a-panel menu as
-    --right-clicking the bar, in the tab chips' visual language
-    --(Lisa+David review 2026-07-19). Kept as the strip's last child as
-    --chips come and go.
-    if tabbed then
-        addTabButton = gui.Panel{
-            classes = {"panelDocumentTab"},
-            flow = "none",
-            width = g_panelDocumentHeaderHeight - 6,
-            height = g_panelDocumentHeaderHeight - 6,
-            bgimage = true,
-            halign = "left",
-            valign = "center",
-            hmargin = 1,
-            vmargin = 3,
-
-            click = function(element)
-                ShowAddMenu(element)
-            end,
-
-            gui.Label{
-                classes = {"panelDocumentTitle"},
-                text = "+",
-                fontSize = 16,
-                width = "auto",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                interactable = false,
-            },
-        }
-    end
-
-    --Tab chips wrap to extra rows when the strip runs out of width --
-    --but only as a last resort: SyncChipCompaction drops inactive
-    --chips' labels first, and wrap happens only when even icon-only
-    --chips overflow.
     tabStrip = gui.Panel{
-        --leaves room for the right-side chrome: the close button ends
-        --22px from the right edge and the floating pin's left edge sits
-        --at -42, so 48 clears both with a small gap.
-        width = "100%-48",
+        --leaves room for the right-side chrome: the floating pin's left
+        --edge sits at -22, so 28 clears it with a small gap.
+        width = "100%-28",
         height = "auto",
         flow = "horizontal",
         wrap = true,
         halign = "left",
         valign = "center",
-        addTabButton,
     }
 
     header = gui.Panel{
@@ -5474,10 +5289,6 @@ function PanelDocument:CreateInterface(args)
 
         doubleclick = function(element)
             ToggleShade()
-        end,
-        --right-click on the bar: add another panel to this window as a tab.
-        rightClick = function(element)
-            ShowAddMenu(element)
         end,
 
         --keep the content area (and a shaded window's height) tracking the
@@ -5502,7 +5313,6 @@ function PanelDocument:CreateInterface(args)
 
         tabStrip,
         pinButton,
-        closeButton,
     }
 
     hairline = gui.Panel{
@@ -5574,12 +5384,11 @@ function PanelDocument:CreateInterface(args)
         flow = "vertical",
 
         --Escape closes the ENTIRE window -- one gesture, one window --
-        --leaving the rail's records (keep-open, stored tabs, groups)
-        --untouched so the arrangement comes back intact on reopen. The
-        --window's closeButtons have their kind-default escape activation
-        --disabled (header close + chip x): the newest of those listeners
-        --won the escape race and closed a single TAB instead. Pinned
-        --windows clear captureEscape in SyncPinnedState.
+        --leaving the rail's records (keep-open, folders) untouched so
+        --the arrangement comes back intact on reopen. The chip x has its
+        --kind-default escape activation disabled: as the newest listener
+        --it won the escape race. Pinned windows clear captureEscape in
+        --SyncPinnedState.
         captureEscape = tabbed,
         escapePriority = EscapePriority.EXIT_DIALOG,
         escape = function(element)
@@ -5763,37 +5572,12 @@ function PanelDocument:CreateInterface(args)
             },
         }),
 
-        --tab plumbing for outside callers (the rail, tab restore):
-        --fired via dialog:FireEventTree.
-        addPanelTab = function(element, key)
-            AddTab(string.lower(key))
-        end,
-        --batch add for tab restore: all chips first, then ONE pass of
-        --the per-add work (store, close-x sync, chip fit, header
-        --re-measure). The synchronous fit runs before the window's
-        --first layout, so a many-tab window's first visible frame is
-        --already in its final compact form. None of the added tabs is
-        --switched to -- the restore caller activates the window's own
-        --tab right after.
-        addPanelTabs = function(element, keys)
-            for _, k in ipairs(keys) do
-                AddTab(string.lower(k), true)
-            end
-            SyncDialogTabs()
-            SyncChipCompaction()
-            if header ~= nil and header.valid then
-                header:ScheduleEvent("syncPanelHeader", 0.05)
-            end
-        end,
-        activatePanelTab = function(element, key)
-            SwitchTab(string.lower(key))
-        end,
         --a user gesture that SHOWS a panel (rail icon, group flyout, the
         --panel-open handler) wants a map-mode panel ARMED, not just
-        --visible: fired after activatePanelTab, this claims focus for
-        --the active tab when it is a focusOnClick panel. Session
-        --restores never fire it -- a pinned Map Markup window coming
-        --back at load must not silently put the app into markup mode.
+        --visible: this claims focus for the panel when it is a
+        --focusOnClick panel. Session restores never fire it -- a pinned
+        --Map Markup window coming back at load must not silently put
+        --the app into markup mode.
         focusPanelTab = function(element, key)
             if key ~= nil and string.lower(key) ~= m_activeKey then
                 return
@@ -5801,11 +5585,10 @@ function PanelDocument:CreateInterface(args)
             FocusActiveTab()
         end,
         --"/" pressed with no chat input on screen (RailSlashOpensChat):
-        --this window hosts chat, so show that tab and hand the keystroke
-        --to its input. The input may not exist yet -- a freshly opened
-        --window or a never-activated background tab builds a tick later
-        ---- so record the intent and let the build complete it, the same
-        --way focus grabs work.
+        --this window IS the chat window, so hand the keystroke to its
+        --input. The input may not exist yet -- a freshly opened window
+        --builds a tick later -- so record the intent and let the build
+        --complete it, the same way focus grabs work.
         slashChat = function(element)
             local tab = FindTab("chat")
             if tab == nil then
@@ -5854,7 +5637,9 @@ end
 -- icon opens the panel in a document window beside the rail (one such
 -- "transient" window at a time); dragging a window makes it stick where
 -- it lands, and any number of stuck windows can stay open. Which windows
--- are open, where, and with which tabs persists per game.
+-- are open and where persists per game. Windows are single-panel;
+-- related panels are organized into rail FOLDERS (see GROUPS above),
+-- each opening its own window from the folder's hover strip.
 --
 -- A window can also be PINNED (the push-pin in its title bar, or the
 -- rail button's context menu): a pinned window is locked in place -- no
@@ -5916,7 +5701,7 @@ setting{
 }
 
 --g_iconRailPanels (the curated panel list) is declared above the
---PanelDocument interface, which also uses it for the add-tab menu.
+--PanelDocument interface.
 
 ----------------------------------------------------------------------
 -- Renamed panels
@@ -6232,9 +6017,10 @@ end
 local RebuildIconRails
 
 --The open-window record (see the "iconrailpins" setting above): which
---panel windows to restore, where, and with which tabs. Named for what it
---does, not for the legacy setting id -- "pinned" now means locked in
---place, which is PanelDocument.IsPinned.
+--panel windows to restore, and where. Named for what it does, not for
+--the legacy setting id -- "pinned" now means locked in place, which is
+--PanelDocument.IsPinned. (Old records may carry a `tabs` list from the
+--retired tabbed-window era; it is simply ignored.)
 local function RailRestoreWindows()
     return dmhub.GetSettingValue("iconrailpins") or {}
 end
@@ -6245,9 +6031,9 @@ end
 
 --Record (or forget) an open window's placement, so it comes back next
 --time the rails are built.
-local function RailRememberWindow(key, x, y, tabs)
+local function RailRememberWindow(key, x, y)
     local windows = RailRestoreWindows()
-    windows[key] = { x = x, y = y, tabs = tabs }
+    windows[key] = { x = x, y = y }
     SetRailRestoreWindows(windows)
     if g_railTransientKey == key then
         g_railTransientKey = nil
@@ -6546,7 +6332,7 @@ g_onPanelPinnedChanged = function(key, pinned)
             dlg = doc:try_get("_tmp_dialog")
         end
         if dlg ~= nil and dlg.valid then
-            RailRememberWindow(key, dlg.x, dlg.y, dlg.data.panelTabs)
+            RailRememberWindow(key, dlg.x, dlg.y)
         end
     end
     RefreshRails()
@@ -6882,13 +6668,6 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         return
     end
 
-    local host = PanelDocument.FindHostDialog(key)
-    if host ~= nil then
-        host:SetAsLastSibling()
-        host:FireEventTree("activatePanelTab", key)
-        return
-    end
-
     local presentArgs = {}
     if anchorToken ~= nil then
         --mirror PresentPanel/PresentDocument's size resolution so the
@@ -6918,7 +6697,7 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
             if MaybeMinimizeCharacterWindow(key, element) then
                 return
             end
-            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
+            RailRememberWindow(key, element.x, element.y)
         end
         presentArgs.onDragging = function(element)
             CharacterWindowDragging(key, element)
@@ -6932,14 +6711,6 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         --rail windows' escapeClose.
         presentArgs.escapeClose = function()
             doc:ClosePanel()
-            RefreshRails()
-        end
-        presentArgs.onTabsChanged = function(keys)
-            local d = doc:try_get("_tmp_dialog")
-            if d == nil or not d.valid then
-                return
-            end
-            RailRememberWindow(key, d.x, d.y, keys)
             RefreshRails()
         end
     end
@@ -7257,16 +7028,15 @@ local function OpenIconRailWindow(panelName, placement)
     local key = string.lower(panelName)
 
     local args = {
-        --dragging a rail window makes it stick where it lands, tabs and
-        --all: it stops being the transient window and comes back next
-        --time the rails are built. A character window dragged into the
-        --rail band at either screen edge minimizes into a rail card
-        --instead.
+        --dragging a rail window makes it stick where it lands: it stops
+        --being the transient window and comes back next time the rails
+        --are built. A character window dragged into the rail band at
+        --either screen edge minimizes into a rail card instead.
         onMoved = function(element)
             if MaybeMinimizeCharacterWindow(key, element) then
                 return
             end
-            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
+            RailRememberWindow(key, element.x, element.y)
         end,
 
         --the live half of the same gesture: while the drag is inside the
@@ -7275,8 +7045,7 @@ local function OpenIconRailWindow(panelName, placement)
             CharacterWindowDragging(key, element)
         end,
 
-        --the header close button: closing forgets the window. The tab
-        --arrangement is NOT forgotten -- it comes back on reopen.
+        --the header close button: closing forgets the window.
         close = function()
             RailForgetWindow(key)
             doc:ClosePanel()
@@ -7289,24 +7058,11 @@ local function OpenIconRailWindow(panelName, placement)
             doc:ClosePanel()
             RefreshRails()
         end,
-
-        --adding or removing a tab makes the window stick: a multi-panel
-        --window is an arrangement worth keeping. (The tab list itself is
-        --stored by the window; this only records that it is open here.)
-        onTabsChanged = function(keys)
-            local d = doc:try_get("_tmp_dialog")
-            if d == nil or not d.valid then
-                return
-            end
-            RailRememberWindow(key, d.x, d.y, keys)
-            RefreshRails()
-        end,
     }
     if placement ~= nil then
         args.x = placement.x
         args.y = placement.y
         args.anchor = placement.anchor
-        args.tabs = placement.tabs
         args.autoFocus = placement.autoFocus
     end
 
@@ -8500,40 +8256,12 @@ local function RailIsGroupableKey(key)
     return string.match(key, "^doc:") == nil and string.match(key, "^character:") == nil
 end
 
---Close every open rail window that hosts any of `keys` (as its own
---window or as a tab), forgetting its keep-open record. Grouping edits
---change which window a panel belongs to; an open window keeps its stale
---tab set live and would write it straight back over the new arrangement
---on its next tab change (SyncDialogTabs writes window -> storage), so
---the affected windows close and come back with the new grouping on the
---next click.
-local function RailCloseWindowsHosting(keys)
-    local wanted = {}
-    for _, k in ipairs(keys) do
-        if k ~= nil then
-            wanted[string.lower(k)] = true
-        end
-    end
-    for k, doc in pairs(g_panelDocuments) do
-        local d = doc:try_get("_tmp_dialog")
-        if d ~= nil and d.valid then
-            local hosts = wanted[string.lower(k)] == true
-            if not hosts then
-                for _, t in ipairs(d.data.panelTabs or {}) do
-                    if wanted[string.lower(t)] then
-                        hosts = true
-                    end
-                end
-            end
-            if hosts then
-                RailForgetWindow(k)
-                doc:ClosePanel()
-            end
-        end
-    end
-end
+--(Grouping edits used to close every window hosting an affected panel:
+--an open tabbed window would write its stale tab set back over the new
+--arrangement. Windows are single-panel now and never write the folder
+--store, so open windows ride out grouping edits untouched.)
 
---The full stored tab list for a window (owner included, owner first
+--The full stored member list for a folder (owner included, owner first
 --when it has no stored list yet).
 local function RailGroupTabs(ownerKey)
     ownerKey = string.lower(ownerKey)
@@ -8603,7 +8331,6 @@ local function RailGroupInsert(draggedKey, ownerKey, beforeKey)
     for bi = #block, 1, -1 do
         table.insert(list, pos, block[bi])
     end
-    RailCloseWindowsHosting({draggedKey, ownerKey})
     PanelDocument.SetStoredTabs(ownerKey, list)
 end
 
@@ -8623,7 +8350,6 @@ local function RailUngroup(memberKey, ownerKey)
             kept[#kept + 1] = string.lower(k)
         end
     end
-    RailCloseWindowsHosting({ownerKey})
     PanelDocument.SetStoredTabs(ownerKey, kept)
 end
 
@@ -8634,12 +8360,11 @@ local function RailUngroupAll(ownerKey)
     if PanelDocument.StoredTabs(ownerKey) == nil then
         return
     end
-    RailCloseWindowsHosting({ownerKey})
     PanelDocument.SetStoredTabs(ownerKey, nil)
 end
 
 --Invert a child-parent relationship: `memberKey` becomes the group's
---owner (its button carries the stack, its window hosts the tabs) and
+--owner (its button carries the stack and fronts the folder) and
 --the old owner becomes an ordinary member. The group's button keeps its
 --rail position: the new owner takes the old owner's slot, and the old
 --owner inherits the new owner's remembered slot as its own resting
@@ -8658,8 +8383,6 @@ local function RailGroupInvert(memberKey, ownerKey)
     for _, k in ipairs(tabs) do
         list[#list + 1] = string.lower(k)
     end
-
-    RailCloseWindowsHosting({ownerKey, memberKey})
 
     local layout = dmhub.GetSettingValue("iconraillayout") or {}
     local prevMember = layout[memberKey]
@@ -8708,7 +8431,6 @@ local function RailGroupShiftMember(memberKey, ownerKey, delta)
     for _, k in ipairs(members) do
         list[#list + 1] = string.lower(k)
     end
-    RailCloseWindowsHosting({ownerKey})
     PanelDocument.SetStoredTabs(ownerKey, list)
 end
 
@@ -8768,47 +8490,23 @@ if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
             return true
         end
 
-        --showing as a tab of another window (its group owner's, or one it
-        --was dragged into): raise that window and switch to the tab.
-        local host = PanelDocument.FindHostDialog(key)
-        if host ~= nil then
-            host:SetAsLastSibling()
-            host:FireEventTree("activatePanelTab", key)
-            host:FireEventTree("focusPanelTab", key)
-            RefreshRails()
-            return true
-        end
+        --a folder member has no rail button of its own; its window opens
+        --anchored at the OWNER's button, the same as clicking it in the
+        --group flyout. It must not be given a loose button of its own --
+        --it is still filed in the folder.
+        local memberOwner = PanelDocument.GroupOwners()[key]
 
-        --grouped under a panel whose window is closed: open the owner
-        --there and land on this tab, the same as the group flyout does.
-        local owner = PanelDocument.GroupOwners()[key]
-        if owner ~= nil then
-            local ownerDoc = RailPanelDocument(owner)
-            if ownerDoc ~= nil then
-                local side, slot = RailFindButton(owner)
-                local placement = nil
-                if side ~= nil then
-                    local x, y = RailAnchor(side, slot)
-                    placement = { x = x, y = y, anchor = true }
-                end
-                OpenIconRailWindow(owner, placement)
-                local d = ownerDoc:try_get("_tmp_dialog")
-                if d ~= nil and d.valid then
-                    d:SetAsLastSibling()
-                    d:FireEventTree("activatePanelTab", key)
-                    d:FireEventTree("focusPanelTab", key)
-                end
-                RefreshRails()
-                return true
-            end
-        end
-
-        --give it a button if it has none, so it stays reachable once this
-        --window is closed again.
-        local side, slot = RailFindButton(key)
-        if side == nil then
-            RailAddPanel(panelName, "left")
+        local side, slot
+        if memberOwner ~= nil then
+            side, slot = RailFindButton(memberOwner)
+        else
             side, slot = RailFindButton(key)
+            --give it a button if it has none, so it stays reachable once
+            --this window is closed again.
+            if side == nil then
+                RailAddPanel(panelName, "left")
+                side, slot = RailFindButton(key)
+            end
         end
 
         --one transient window at a time, as the rail buttons enforce.
@@ -9129,8 +8827,8 @@ local function CreateIconRail(side, entries)
         --whether this button's panel can host a group at all (document
         --and character shortcuts cannot live as tabs, either way round).
         local groupCapable = docid == nil and charid == nil
-        --forward-declared: ShowGroupTab below closes the strip, and a
-        --local declared after it would not be in that closure's scope.
+        --forward-declared: ToggleGroupMember below closes the strip, and
+        --a local declared after it would not be in that closure's scope.
         local groupFlyout
         --A press on the owner opens its window into exactly the band the
         --strip occupies, leaving the strip overlapping the thing it just
@@ -9149,7 +8847,18 @@ local function CreateIconRail(side, entries)
         local groupShadow
         local groupStripExpanded = false
         local function GroupShadowHidden()
-            return groupStripExpanded or g_railRearranging or PanelDocument.IsPanelShown(key)
+            if groupStripExpanded or g_railRearranging or PanelDocument.IsPanelShown(key) then
+                return true
+            end
+            --a member's open window counts too: member windows anchor in
+            --the same band beside this button, so the marker popping back
+            --next to one reads as the same glitch the owner case did.
+            for _, m in ipairs(groupMembers or {}) do
+                if PanelDocument.IsPanelShown(m) then
+                    return true
+                end
+            end
+            return false
         end
         local function UpdateGroupShadow()
             if groupShadow == nil or not groupShadow.valid then
@@ -9220,33 +8929,47 @@ local function CreateIconRail(side, entries)
             return false
         end
 
-        --Ensure this button's window is up, raise it, and switch it to the
-        --given tab. Used by the flyout, so a member opens the group and
-        --lands directly on itself.
-        local function ShowGroupTab(tabKey)
-            local doc = RailPanelDocument(key)
+        --Toggle a folder member's OWN panel window: every panel in a
+        --folder opens and closes independently, exactly like a loose rail
+        --button's panel (same transient-window rule, same pinned-raise
+        --behavior). The window anchors beside the folder's button -- the
+        --member has no button of its own to anchor to.
+        local function ToggleGroupMember(memberKey)
+            memberKey = string.lower(memberKey)
+            local doc = RailPanelDocument(memberKey)
             if doc == nil then
                 return
             end
-            if not doc:PresentDocumentOpen() then
-                --the same one-transient-window rule the icon's own click
-                --follows.
-                if g_railTransientKey ~= nil and g_railTransientKey ~= key then
-                    local prev = RailPanelDocument(g_railTransientKey)
-                    if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
-                        prev:ClosePanel()
+            if doc:PresentDocumentOpen() then
+                if PanelDocument.IsPinned(memberKey) then
+                    --a pinned window cannot be closed from its button;
+                    --the click raises it (and re-arms a map-mode tool).
+                    local d = doc:try_get("_tmp_dialog")
+                    if d ~= nil and d.valid then
+                        d:SetAsLastSibling()
+                        d:FireEventTree("focusPanelTab", memberKey)
                     end
+                else
+                    RailForgetWindow(memberKey)
+                    doc:ClosePanel()
                 end
-                g_railTransientKey = key
-                local anchorX, anchorY = RailAnchor(side, index)
-                OpenIconRailWindow(key, { x = anchorX, y = anchorY, anchor = true })
+                --closing (or raising) leaves the strip up: the pointer is
+                --still on it, likely headed for a sibling.
+                RefreshRails()
+                return
             end
-            local dlg = doc:try_get("_tmp_dialog")
-            if dlg ~= nil and dlg.valid then
-                dlg:SetAsLastSibling()
-                dlg:FireEventTree("activatePanelTab", tabKey)
-                dlg:FireEventTree("focusPanelTab", tabKey)
+
+            --the same one-transient-window rule the icon's own click
+            --follows.
+            if g_railTransientKey ~= nil and g_railTransientKey ~= memberKey then
+                local prev = RailPanelDocument(g_railTransientKey)
+                if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
+                    prev:ClosePanel()
+                end
             end
+            g_railTransientKey = memberKey
+            local anchorX, anchorY = RailAnchor(side, index)
+            OpenIconRailWindow(memberKey, { x = anchorX, y = anchorY, anchor = true, autoFocus = true })
             --the strip has done its job, and the window it just opened
             --lands on top of it.
             CollapseGroupFlyout()
@@ -9286,6 +9009,16 @@ local function CreateIconRail(side, entries)
         --pointer is on -- the owner, or the hovered member -- so the group
         --case needs no floating labels at all.
         local stripLabel = nil
+        --the card FILL is a separate backdrop layer sized to the CURRENT
+        --name, not to the name slot: the slot is fixed-width (longest
+        --name in the group) so the strip never repositions, but painting
+        --that full width left a slab of empty card after a short name
+        --(field report 2026-08-12). The backdrop hugs the text; the
+        --slot's invisible tail still hit-tests, keeping the strip's
+        --geometry constant. Defined in the strip's construction block;
+        --forward-declared so the member hover handlers can call it.
+        local stripCardBackdrop = nil
+        local UpdateStripCard = nil
         local memberLabelTexts = {}
         local memberButtons = {}
         if groupMembers ~= nil then
@@ -9307,6 +9040,11 @@ local function CreateIconRail(side, entries)
                 --buttons, seeded by strip position so neighbours start
                 --desynced.
                 local memberClasses = {"iconRailButton", "iconRailGroupMember"}
+                --lit while the member's own panel is open, same as a
+                --loose rail button (the strip may be built while it is).
+                if PanelDocument.IsPanelShown(memberKey) then
+                    memberClasses[#memberClasses + 1] = "active"
+                end
                 if g_railRearranging then
                     memberClasses[#memberClasses + 1] = "rearranging"
                     if mi % 2 == 1 then
@@ -9336,9 +9074,13 @@ local function CreateIconRail(side, entries)
 
                     hover = function(element)
                         RailButtonSound("hover")
-                        --the strip's name slot follows the pointer.
+                        --the strip's name slot follows the pointer, and
+                        --the card backdrop resizes to the new name.
                         if stripLabel ~= nil and stripLabel.valid then
                             stripLabel.text = memberLabel
+                        end
+                        if UpdateStripCard ~= nil then
+                            UpdateStripCard(memberLabel)
                         end
                     end,
 
@@ -9439,6 +9181,27 @@ local function CreateIconRail(side, entries)
                         interactable = false,
                     },
 
+                    --the same close hint the rail's own buttons carry:
+                    --hovering a member whose panel is open means a click
+                    --will close it (the active+hover style rules reveal
+                    --it and recede the icon).
+                    gui.Panel{
+                        classes = {"iconRailCloseHint"},
+                        floating = true,
+                        bgimage = "phosphor/x-bold.png",
+                        width = 16,
+                        height = 16,
+                        halign = "center",
+                        valign = "center",
+                        interactable = false,
+                    },
+
+                    --keeps the lit state honest as the member's window
+                    --opens and closes by any path.
+                    refreshRail = function(element)
+                        element:SetClass("active", PanelDocument.IsPanelShown(memberKey))
+                    end,
+
                     --(the member's name shows in the strip card's own name
                     --slot -- see stripLabel -- rather than as a floating
                     --label of its own.)
@@ -9451,17 +9214,17 @@ local function CreateIconRail(side, entries)
                     end,
 
                     --click, NOT press like the rail's own buttons: the
-                    --group window opens beside the rail, i.e. exactly
+                    --member's window opens beside the rail, i.e. exactly
                     --where this strip is, so on press the mouse-up landed
-                    --on the window's own tab chip that had just appeared
-                    --under the cursor -- and switched the tab straight
-                    --back. On click the selection is already complete.
+                    --on the window chrome that had just appeared under
+                    --the cursor. On click the selection is already
+                    --complete.
                     click = function(element)
                         --in rearrange mode member presses begin drags.
                         if g_railRearranging then
                             return
                         end
-                        ShowGroupTab(memberKey)
+                        ToggleGroupMember(memberKey)
                     end,
 
                     --non-drag parity for the member gestures (the same
@@ -9472,10 +9235,10 @@ local function CreateIconRail(side, entries)
                         end
                         local entries = {
                             {
-                                text = "Open",
+                                text = cond(PanelDocument.IsPanelShown(memberKey), "Close", "Open"),
                                 click = function()
                                     element.popup = nil
-                                    ShowGroupTab(memberKey)
+                                    ToggleGroupMember(memberKey)
                                 end,
                             },
                             {
@@ -9659,6 +9422,50 @@ local function CreateIconRail(side, entries)
                 textWrap = false,
             }
             memberButtons[#memberButtons + 1] = stripLabel
+
+            --the card fill (see the forward declaration): drawn UNDER the
+            --member buttons (first sibling), anchored to the strip's left
+            --edge on both rails -- the name slot is the last flow child
+            --on both, so the unused slot tail is always on the right.
+            --Fill and radius live on selfStyle, not a class rule: cascade
+            --bgcolor swaps verifiably fail to repaint these panels.
+            stripCardBackdrop = gui.Panel{
+                classes = {"iconRailStripCardBackdrop", "collapsed"},
+                floating = true,
+                interactable = false,
+                bgimage = true,
+                bgcolor = "#0a0a0b",
+                cornerRadius = 8,
+                halign = "left",
+                valign = "top",
+                height = ICON_RAIL_BUTTON,
+                width = 10,
+            }
+            table.insert(memberButtons, 1, stripCardBackdrop)
+
+            --size the backdrop to the members plus the CURRENT name (8px
+            --per character, same estimate the slot uses, plus breathing
+            --room). shown=nil leaves visibility as it is (member hovers
+            --only rename; the owner's hover decides card-vs-chromeless).
+            UpdateStripCard = function(text, shown)
+                if stripCardBackdrop == nil or not stripCardBackdrop.valid then
+                    return
+                end
+                if shown ~= nil then
+                    stripCardBackdrop:SetClass("collapsed", not shown)
+                end
+                local memberCount = 0
+                if groupMembers ~= nil then
+                    memberCount = #groupMembers
+                end
+                --members span 48px per slot minus the first one's missing
+                --lead-in margin; rearrange mode adds the 48px cut-out box.
+                local span = memberCount * 48 - 4
+                if g_railRearranging and groupCapable then
+                    span = span + 48
+                end
+                stripCardBackdrop.selfStyle.width = span + 6 + #tostring(text or "") * 8 + 12
+            end
 
             groupFlyout = gui.Panel{
                 classes = flyoutClasses,
@@ -9930,10 +9737,10 @@ local function CreateIconRail(side, entries)
         --interactable, so hit-testing is moot).
         if groupMembers ~= nil then
             --constructs already faded out when the strip starts expanded
-            --(rearrange mode) or the group's window is already open, so
-            --a rail rebuild never flashes the card in.
+            --(rearrange mode) or any of the folder's windows is already
+            --open, so a rail rebuild never flashes the card in.
             local shadowClasses = {"iconRailGroupShadow"}
-            if g_railRearranging or PanelDocument.IsPanelShown(key) then
+            if GroupShadowHidden() then
                 shadowClasses[#shadowClasses + 1] = "groupOpen"
             end
             groupShadow = gui.Panel{
@@ -9993,15 +9800,11 @@ local function CreateIconRail(side, entries)
                 if groupMembers == nil or groupFlyout == nil or not groupFlyout.valid then
                     return
                 end
-                --With the group's window already open, its TAB BAR is the
-                --navigation -- re-showing every member in a strip beside
-                --the button is a redundant second switcher. The hover
-                --reads as pure close affordance instead (the icon's X
-                --hint). Rearrange mode still always opens the strip: it
-                --is the grouping UI itself.
-                if (not g_railRearranging) and PanelDocument.IsPanelShown(key) then
-                    return
-                end
+                --The strip opens even while this button's own window is
+                --open: members are independent panels now, and the strip
+                --is the only way to reach them. (The owner's own button
+                --still reads as the close affordance -- the icon's X
+                --hint -- while its window is up.)
                 --arriving on the button is always a fresh reach for the
                 --strip, whatever a previous press did.
                 groupFlyoutSuppressed = false
@@ -10034,24 +9837,18 @@ local function CreateIconRail(side, entries)
                 if not overPanel then
                     overPanel = dmhub.GetSettingValue(string.format("%sdockoffscreen", side)) == false
                 end
-                --the fill goes through selfStyle, NOT the class rules: a
-                --bgcolor switched via cascade classes verifiably failed to
-                --repaint this panel (the stripCard class was set, the rule
-                --existed, nothing drew -- field-tested twice), while
-                --selfStyle paints unconditionally. The class stays set for
-                --anything else that wants to key off the state.
+                --the fill lives on the backdrop layer, sized to the
+                --current name (see UpdateStripCard); the flyout itself
+                --stays the barely-there full-width hit surface. The class
+                --stays set for anything else keying off the state.
                 groupFlyout:SetClass("stripCard", overPanel)
-                if overPanel then
-                    groupFlyout.selfStyle.bgcolor = "#0a0a0b"
-                    groupFlyout.selfStyle.cornerRadius = 8
-                else
-                    groupFlyout.selfStyle.bgcolor = "#00000001"
-                    groupFlyout.selfStyle.cornerRadius = 0
-                end
                 --arriving back on the owner, the card's name slot shows
                 --the owner's own name again.
                 if stripLabel ~= nil and stripLabel.valid then
                     stripLabel.text = HoverLabelText()
+                end
+                if UpdateStripCard ~= nil then
+                    UpdateStripCard(HoverLabelText(), overPanel)
                 end
                 --the stack is now expanded into the strip: the marker
                 --card behind the button fades out while it is open.
@@ -10468,14 +10265,6 @@ local function CreateIconRail(side, entries)
                         RailForgetWindow(key)
                         doc:ClosePanel()
                     end
-                elseif PanelDocument.FindHostDialog(key) ~= nil then
-                    --the panel lives as a tab in another window: raise
-                    --that window and switch to the tab.
-                    local host = PanelDocument.FindHostDialog(key)
-                    host:SetAsLastSibling()
-                    host:FireEventTree("activatePanelTab", key)
-                    host:FireEventTree("focusPanelTab", key)
-                    CenterOnCharacter()
                 else
                     --one transient window at a time: opening a panel
                     --closes the previous un-pinned one.
@@ -10640,13 +10429,8 @@ local function CreateIconRail(side, entries)
                     if doc:PresentDocumentOpen() then
                         local d = doc:try_get("_tmp_dialog")
                         if d ~= nil and d.valid then
-                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                            RailRememberWindow(key, d.x, d.y)
                         end
-                    elseif PanelDocument.FindHostDialog(key) ~= nil then
-                        local host = PanelDocument.FindHostDialog(key)
-                        host:SetAsLastSibling()
-                        host:FireEventTree("activatePanelTab", key)
-                        host:FireEventTree("focusPanelTab", key)
                     else
                         local anchorX, anchorY = RailAnchor(side, index)
                         OpenIconRailWindow(key, {
@@ -10660,9 +10444,9 @@ local function CreateIconRail(side, entries)
                         --dragged this window to earlier in the session.
                         local d = doc:try_get("_tmp_dialog")
                         if d ~= nil and d.valid then
-                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                            RailRememberWindow(key, d.x, d.y)
                         else
-                            RailRememberWindow(key, anchorX, anchorY, nil)
+                            RailRememberWindow(key, anchorX, anchorY)
                         end
                     end
                     RefreshRails()
@@ -11186,15 +10970,23 @@ function EnsureIconRail()
     local existing = g_iconRails.left
     if existing ~= nil and existing.valid then
         --rails already up: they were built from the pre-rename state, so
-        --the repair has to reach the screen on its own. Open windows go
-        --too -- one still carrying the old key as a live tab writes it
-        --straight back to storage on its next tab change.
+        --the repair has to reach the screen on its own. A window still
+        --open under an old key references a document the repaired state
+        --no longer points at, so it closes too.
         if renamed then
-            local oldKeys = {}
+            local wanted = {}
             for oldKey in pairs(g_railRenamedPanels) do
-                oldKeys[#oldKeys + 1] = oldKey
+                wanted[string.lower(oldKey)] = true
             end
-            RailCloseWindowsHosting(oldKeys)
+            for k, doc in pairs(g_panelDocuments) do
+                if wanted[string.lower(k)] then
+                    local d = doc:try_get("_tmp_dialog")
+                    if d ~= nil and d.valid then
+                        RailForgetWindow(string.lower(k))
+                        doc:ClosePanel()
+                    end
+                end
+            end
             if RebuildIconRails ~= nil then
                 RebuildIconRails()
             end
@@ -11266,10 +11058,8 @@ function EnsureIconRail()
         end
     end
     for key, p in pairs(restore) do
-        --a panel already showing as a TAB of another restored window must
-        --not also get a window of its own.
         if PanelDocument.FindHostDialog(key) == nil then
-            OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })
+            OpenIconRailWindow(key, { x = p.x, y = p.y })
         end
     end
 end
@@ -12021,9 +11811,9 @@ function ViewsApplyLayout(layout)
     end
     dmhub.SetSettingValue("iconrailpins", pins)
 
-    --locked-in-place windows and per-window tab arrangements travel with
-    --the view. Applied BEFORE the windows are opened below so restored
-    --windows come up already pinned and already tabbed.
+    --locked-in-place windows and folder groupings travel with the view.
+    --Applied BEFORE the windows are opened below so restored windows
+    --come up already pinned and the rail builds with the right folders.
     dmhub.SetSettingValue("iconrailpanelpinned", DeepCopy(layout.pinned or {}))
     dmhub.SetSettingValue("iconrailtabs", DeepCopy(layout.tabs or {}))
     --a pinned window is always meant to be up: fold any pin the record
@@ -12046,11 +11836,6 @@ function ViewsApplyLayout(layout)
             else
                 dlg.x = pin.x or dlg.x
                 dlg.y = pin.y or dlg.y
-                if pin.tabs ~= nil then
-                    for _, k in ipairs(pin.tabs) do
-                        dlg:FireEventTree("addPanelTab", k)
-                    end
-                end
                 dlg:FireEventTree("refreshPanelPinned")
             end
         end
@@ -12058,8 +11843,8 @@ function ViewsApplyLayout(layout)
     for key, pin in pairs(pins) do
         if type(pin) == "table" then
             local doc = RailPanelDocument(key)
-            if doc ~= nil and not doc:PresentDocumentOpen() and PanelDocument.FindHostDialog(key) == nil then
-                OpenIconRailWindow(key, { x = pin.x, y = pin.y, tabs = pin.tabs })
+            if doc ~= nil and not doc:PresentDocumentOpen() then
+                OpenIconRailWindow(key, { x = pin.x, y = pin.y })
             end
         end
     end

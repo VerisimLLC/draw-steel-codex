@@ -73,9 +73,9 @@ The Gnoll Cackletongue shape: the working trigger lives in a feature a
 cloner would never know to copy. 'likely supports' is a token-overlap
 guess; None = no guess, needs a human eye.
 
-- **Accursed Mummy** -- feature 'Mummy Dust' (beh: trigger, triggerdisplay) -> likely supports: Blast of Mummy Dust  `(0c1c3e78-fbd0-4f1e-9f62-fc8450f0e200.yaml)`
-- **Ajax the Invincible** -- feature 'Ajax' (beh: attribute, resource, trigger) -> likely supports: Ajax Turns  `(ajax-the-invincible.yaml)`
-- **Ajax the Invincible (Leader)** -- feature 'Ajax' (beh: attribute, trigger) -> likely supports: Ajax Turns  `(ajax-the-invincible-leader.yaml)`
+- **Accursed Mummy** -- feature 'Mummy Dust' (beh: trigger, triggerdisplay) -> likely supports: Blast of Mummy Dust  `(0c1c3e78-fbd0-4f1e-9f62-fc8450f0e200.yaml)` - This is a trait on a summoner minion
+- **Ajax the Invincible** -- feature 'Ajax' (beh: attribute, resource, trigger) -> likely supports: Ajax Turns  `(ajax-the-invincible.yaml)` - This is a trait and everything it needs is inside it. 
+- **Ajax the Invincible (Leader)** -- feature 'Ajax' (beh: attribute, trigger) -> likely supports: Ajax Turns  `(ajax-the-invincible-leader.yaml)` 
 - **Big Animal A** -- feature 'Nature Calls' (beh: trigger) -> likely supports: Nature's Spirit  `(big-animal-a.yaml)`
 - **Big Animal B** -- feature 'Nature Calls' (beh: trigger) -> likely supports: Nature's Spirit  `(big-animal-b.yaml)`
 - **Elemental Mote** -- feature 'Dweomer Burst' (beh: trigger) -> likely supports: Dweomer Plume  `(0544e196-72af-45a7-845d-0aabbe177bdb.yaml)`
@@ -253,7 +253,23 @@ The orphan-support-feature list (Pattern B) still only covers Book Two
 monsters -- adventure monsters cannot be orphan-checked without their own
 references and need a manual pass or their adventure docs.
 
-### Progress -- James's consolidation pass (updated 2026-08-13)
+### Progress -- James's consolidation pass (updated 2026-08-13 EOD)
+
+**PATTERN A: FINISHED** except two stragglers James could not locate,
+verified still present by structural re-sweep:
+
+1. Radenwight Ratagast -- Ready Rodent (ability + feature). File
+   radenwight-ratagast.yaml, bestiary folder "Radenwight". NOTE: the
+   ability name carries a trailing space ("Ready Rodent ").
+2. "Rival Shadow duplicate duplicate" -- Envenomed Steel (ability +
+   feature). Folder Rival -> ECHELON 4. Three scratch copies of Rival
+   Shadow exist (duplicate / dup-dup / dup-dup-dup); only this one has the
+   pair. Candidate for deletion rather than repair.
+
+**PATTERN B (orphan support features): NOT STARTED.** James continues
+content work 2026-08-14.
+
+Earlier progress detail (superseded, kept for history):
 
 DONE (data commits e87a547..e807e3e): everything alphabetically through
 **Shambling Mound**, plus the double-standalone-ability trio (Aeolyxria

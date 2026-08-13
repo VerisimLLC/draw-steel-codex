@@ -2,6 +2,12 @@ local mod = dmhub.GetModLoading()
 
 local g_displayedAbility = nil
 
+-- A card that was built invisible because it exists only to host a roll dialog that
+-- may never appear (see AcquireAbilityRollDialog / RevealAbilityCard below). Holds the
+-- card's wrapper panel until the dialog un-hides, at which point it is faded in and
+-- this is cleared. nil whenever no card is waiting on a roll.
+local g_deferredCard = nil
+
 -- Abilities that were routed INTO the currently displayed card instead of getting a
 -- card of their own -- i.e. Hidden sub-abilities that DisplayAbility deliberately
 -- swallowed (see DisplayAbility below). Teardown calls HideAbility with whatever the
@@ -1461,17 +1467,43 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             --wrapper carries the centering the card used to do itself.
             panel.selfStyle.valign = "top"
 
-            element.children = {
-                gui.Panel{
-                    width = "auto",
-                    height = "auto",
-                    valign = "center",
-                    flow = "vertical",
+            local wrapperArgs = {
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                flow = "vertical",
 
-                    CreateRollVisibilityBanner(token, cardWidth),
-                    panel,
-                }
+                CreateRollVisibilityBanner(token, cardWidth),
+                panel,
             }
+
+            --A card raised purely to host a roll dialog is built invisible and only
+            --revealed once that dialog actually un-hides (RevealAbilityCard). Rolls
+            --that resolve without ever showing UI -- deterministic damage taking the
+            --skipDeterministic fast path, a ShowDialog that bails -- therefore never
+            --flash an empty card on screen for a few frames.
+            --
+            --`hidden`, NOT `opacity`: opacity is applied per widget to its own
+            --bgimage/border/label colour (SheetPanel.RefreshStyle, SheetLabel) and is
+            --never inherited, so opacity=0 on this bgimage-less wrapper hid nothing
+            --at all. `hidden` hides the whole subtree and makes it non-interactive
+            --while still taking up space in the flow, so the roll dialog mounted
+            --inside still lays out and initializes during the wait -- the same state
+            --the dialog itself lives in before its own ShowDialog.
+            if displayOptions.deferReveal then
+                wrapperArgs.hidden = 1
+            end
+
+            local cardWrapper = gui.Panel(wrapperArgs)
+            if displayOptions.deferReveal then
+                g_deferredCard = cardWrapper
+            else
+                g_deferredCard = nil
+            end
+            print(string.format("AbilityCard:: BUILD ability=%s deferred=%s",
+                tostring(ability ~= nil and ability.name), tostring(displayOptions.deferReveal == true)))
+
+            element.children = { cardWrapper }
 
         end,
 
@@ -1480,6 +1512,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             -- The local ability was hidden; re-evaluate whether a remote
             -- display should appear.
+            g_deferredCard = nil
             g_displayedAbility = nil
             ClearDisplayedAbilityAliases()
             local doc = mod:GetDocumentSnapshot(g_abilityShareDocId)
@@ -2023,6 +2056,9 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     if options.renderAsAbility then
         displayOptions.renderAsAbility = true
     end
+    if options.deferReveal then
+        displayOptions.deferReveal = true
+    end
     panel:FireEventTree("showAbility", token, ability, symbols, displayOptions)
 
     if options.lock then
@@ -2146,7 +2182,27 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --Clear any stale lock so DisplayAbility's displace guard does not refuse us.
     CharacterPanel.UnlockDisplayAbility()
 
-    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, displayOptions)
+    --Do not raise a *visible* card for a roll that may never show one: build it
+    --invisible and let the dialog reveal it when it un-hides (RevealAbilityCard).
+    --Rolls that resolve silently -- deterministic damage taking ShowDialog's
+    --skipDeterministic fast path, or a ShowDialog that bails -- then tear their
+    --card down again without it ever having been seen, instead of flashing an
+    --empty card for a few frames (the "Collision" flash on wall collisions).
+    --
+    --Skipped when this ability's card is ALREADY on screen -- targeting raised it
+    --and DisplayAbility rebuilds it unconditionally, so deferring there would blink
+    --a card the player is already looking at out of existence.
+    local hostPanel = LiveHostPanel("abilityDisplay")
+    local cardAlreadyUp = hostPanel ~= nil and #hostPanel.children > 0
+        and AbilityOwnsDisplayedCard(ability)
+
+    local acquireDisplayOptions = {}
+    for k, v in pairs(displayOptions or {}) do
+        acquireDisplayOptions[k] = v
+    end
+    acquireDisplayOptions.deferReveal = not cardAlreadyUp
+
+    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
 
     --_tmp_aicontrol is a counter, raised while the Monster AI holds the token
     --(MonsterAI:BeginTokenControl). The dialog itself reads the same flag off
@@ -2199,6 +2255,34 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     print(string.format("AcquireRollDialog:: CREATE coid=%s displayed=%s dialogValid=%s",
         tostring(coid), tostring(displayed), tostring(dialog ~= nil and dialog.valid)))
     return dialog, displayed
+end
+
+--Fade in a card that AcquireAbilityRollDialog built invisible. Called by the
+--embedded roll dialog at the moment it stops being hidden -- the first point at
+--which we know the player is definitely going to see a roll. A no-op when no
+--card is waiting, so it is safe to call on every ShowDialog.
+--
+--dialogPanel: the dialog that is becoming visible. The card is only revealed when
+--that dialog is the one mounted in the ability card, so a table roll in the
+--standalone host cannot pull up somebody else's pending card.
+function CharacterPanel.RevealAbilityCard(dialogPanel)
+    if g_deferredCard == nil then
+        return
+    end
+
+    if not g_deferredCard.valid then
+        g_deferredCard = nil
+        return
+    end
+
+    if dialogPanel ~= nil and CharacterPanel.FindEmbeddedRollDialog() ~= dialogPanel then
+        print("AbilityCard:: REVEAL skipped -- dialog is not the one in the ability card")
+        return
+    end
+
+    print("AbilityCard:: REVEAL")
+    g_deferredCard.selfStyle.hidden = 0
+    g_deferredCard = nil
 end
 
 function CharacterPanel.HighlightAbilitySection(options)

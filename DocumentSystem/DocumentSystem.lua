@@ -3663,6 +3663,11 @@ function CustomDocument:PresentDocument(args)
         if moved and args.onMoved ~= nil then
             args.onMoved(element)
         end
+        --a plain resize places nothing, but callers persisting window
+        --geometry (the icon rail's open-window record) still track it.
+        if args.onResized ~= nil then
+            args.onResized(element)
+        end
         --a width change re-fits the tab chips (compact vs full labels)
         --and the header height tracks any row change. Tabbed panel
         --windows handle this event; everywhere else it is a no-op.
@@ -4727,10 +4732,15 @@ function PanelDocument:CreateInterface(args)
         end
         --a drag while shaded records the rolled-up height into
         --_tmp_location; keep the remembered height the full one so a
-        --later reopen is never squashed.
+        --later reopen is never squashed. Announce the repair the same way
+        --a resize is announced, so a caller persisting window geometry
+        --(the icon rail's open-window record) picks it up too.
         local loc = self:try_get("_tmp_location")
         if loc ~= nil and m_savedHeight ~= nil then
             loc.height = m_savedHeight
+            if args.onResized ~= nil and dialog ~= nil and dialog.valid then
+                args.onResized(dialog)
+            end
         end
     end
 
@@ -5888,8 +5898,9 @@ setting{
 }
 
 --Which rail windows are open and where, for this game:
---{ [panelKey] = {x = ..., y = ..., tabs = {...}} }. Restored when the
---rails come up.
+--{ [panelKey] = {x = ..., y = ..., width = ..., height = ..., tabs = {...}} }.
+--Restored when the rails come up. width/height are optional (records
+--predating them restore at the panel's default size).
 --NOTE the setting id is a legacy name: these are NOT the user-facing
 --"pinned" windows (that is PanelDocument.IsPinned -- locked in place).
 --The id is kept so existing arrangements and saved Views still load.
@@ -6237,15 +6248,58 @@ local function SetRailRestoreWindows(windows)
     dmhub.SetSettingValue("iconrailpins", windows)
 end
 
+--The window size worth recording alongside a placement: the doc's
+--session-remembered geometry, if it has one. Read from _tmp_location
+--rather than the live dialog because the shade toggle keeps its height
+--the full, un-rolled-up one. nil when the window was never dragged or
+--resized this session -- the caller falls back to what the record
+--already holds, and a restore falls back to the panel defaults.
+local function RailWindowSize(doc)
+    local loc = nil
+    if doc ~= nil then
+        loc = doc:try_get("_tmp_location")
+    end
+    if loc == nil then
+        return nil, nil
+    end
+    return loc.width, loc.height
+end
+
 --Record (or forget) an open window's placement, so it comes back next
---time the rails are built.
-local function RailRememberWindow(key, x, y, tabs)
+--time the rails are built. doc (optional) contributes the window's size
+--to the record; a placement with no fresh size to offer -- e.g. keep-open
+--on a window untouched since it was restored -- keeps the recorded one.
+local function RailRememberWindow(key, x, y, tabs, doc)
     local windows = RailRestoreWindows()
-    windows[key] = { x = x, y = y, tabs = tabs }
+    local width, height = RailWindowSize(doc)
+    local prev = windows[key]
+    if type(prev) == "table" then
+        width = width or prev.width
+        height = height or prev.height
+    end
+    windows[key] = { x = x, y = y, tabs = tabs, width = width, height = height }
     SetRailRestoreWindows(windows)
     if g_railTransientKey == key then
         g_railTransientKey = nil
     end
+end
+
+--A resize keeps a remembered window's recorded size current. It never
+--CREATES a record: only a real placement (a drag, keep-open, tabs) makes
+--a window stick, exactly as for position.
+local function RailRememberWindowSize(key, doc)
+    local windows = RailRestoreWindows()
+    local w = windows[key]
+    if type(w) ~= "table" then
+        return
+    end
+    local width, height = RailWindowSize(doc)
+    if width == nil and height == nil then
+        return
+    end
+    w.width = width or w.width
+    w.height = height or w.height
+    SetRailRestoreWindows(windows)
 end
 
 local function RailForgetWindow(key)
@@ -6540,7 +6594,7 @@ g_onPanelPinnedChanged = function(key, pinned)
             dlg = doc:try_get("_tmp_dialog")
         end
         if dlg ~= nil and dlg.valid then
-            RailRememberWindow(key, dlg.x, dlg.y, dlg.data.panelTabs)
+            RailRememberWindow(key, dlg.x, dlg.y, dlg.data.panelTabs, doc)
         end
     end
     RefreshRails()
@@ -6912,7 +6966,12 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
             if MaybeMinimizeCharacterWindow(key, element) then
                 return
             end
-            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
+            RailRememberWindow(key, element.x, element.y, element.data.panelTabs, doc)
+        end
+        --a plain resize keeps a stuck window's recorded size current
+        --(a transient window has no record and this is a no-op).
+        presentArgs.onResized = function(element)
+            RailRememberWindowSize(key, doc)
         end
         presentArgs.onDragging = function(element)
             CharacterWindowDragging(key, element)
@@ -6933,7 +6992,7 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
             if d == nil or not d.valid then
                 return
             end
-            RailRememberWindow(key, d.x, d.y, keys)
+            RailRememberWindow(key, d.x, d.y, keys, doc)
             RefreshRails()
         end
     end
@@ -7208,9 +7267,10 @@ SyncDocksToRailMode = function()
     dmhub.UpdateScreenHudArea(cond(railOn, 0, 1))
 end
 
---Open a rail window for the named panel. placement = {x=,y=,tabs=} places
---it (and overrides the stored tab list); nil lets PresentDocument use the
---session-remembered location and PresentPanel restore the stored tabs.
+--Open a rail window for the named panel. placement = {x=,y=,width=,
+--height=,tabs=} places and sizes it (and overrides the stored tab list);
+--nil lets PresentDocument use the session-remembered location and
+--PresentPanel restore the stored tabs.
 --placement.anchor marks x/y as the icon's spot rather than an absolute
 --position: a window the user has dragged somewhere this session reopens
 --there instead, the way its size already comes back. Restores and Views
@@ -7237,7 +7297,13 @@ local function OpenIconRailWindow(panelName, placement)
             if MaybeMinimizeCharacterWindow(key, element) then
                 return
             end
-            RailRememberWindow(key, element.x, element.y, element.data.panelTabs)
+            RailRememberWindow(key, element.x, element.y, element.data.panelTabs, doc)
+        end,
+
+        --a plain resize keeps a stuck window's recorded size current
+        --(a transient window has no record and this is a no-op).
+        onResized = function(element)
+            RailRememberWindowSize(key, doc)
         end,
 
         --the live half of the same gesture: while the drag is inside the
@@ -7269,13 +7335,15 @@ local function OpenIconRailWindow(panelName, placement)
             if d == nil or not d.valid then
                 return
             end
-            RailRememberWindow(key, d.x, d.y, keys)
+            RailRememberWindow(key, d.x, d.y, keys, doc)
             RefreshRails()
         end,
     }
     if placement ~= nil then
         args.x = placement.x
         args.y = placement.y
+        args.width = placement.width
+        args.height = placement.height
         args.anchor = placement.anchor
         args.tabs = placement.tabs
         args.autoFocus = placement.autoFocus
@@ -7407,6 +7475,13 @@ local function IconRailStyles()
             cornerRadius = 8,
             transitionTime = 0.15,
         },
+        --the cut-out doubles as a button (click the "+" to pick a panel
+        --to add), so it also lights under the pointer -- more softly
+        --than a drag hovering it, which stays the loudest state.
+        {
+            selectors = {"iconRailGroupCutout", "hover"},
+            bgcolor = "#ffffff1c",
+        },
         {
             selectors = {"iconRailGroupCutout", "dropHover"},
             bgcolor = "#ffffff2e",
@@ -7416,6 +7491,11 @@ local function IconRailStyles()
             bgcolor = "@fg",
             opacity = 0.5,
             transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailGroupCutoutPlus", "parent:hover"},
+            bgcolor = "@fgStrong",
+            opacity = 1,
         },
         {
             selectors = {"iconRailGroupCutoutPlus", "parent:dropHover"},
@@ -8637,6 +8717,56 @@ local function RailGroupShiftMember(memberKey, ownerKey, delta)
     PanelDocument.SetStoredTabs(ownerKey, list)
 end
 
+--Entries for the "+" cut-out at the end of a strip: every available
+--registered panel that is not already in this window's group, sorted by
+--name. This is the non-drag door into grouping -- the cut-out reads as
+--an empty child space, and clicking it should be able to fill that
+--space, not only receive a drag.
+--
+--Panels already sitting elsewhere on the rail are offered too and
+--picking one MOVES it in (SetStoredTabs releases a key from wherever
+--else it lived); RailLayout parks its own button inert while it is a
+--member, so ungrouping later drops it back on its remembered slot. A
+--panel that is on no rail at all needs no layout entry to be a member.
+local function RailGroupAddEntries(element, ownerKey)
+    ownerKey = string.lower(ownerKey)
+    local inGroup = {}
+    for _, k in ipairs(RailGroupTabs(ownerKey)) do
+        inGroup[k] = true
+    end
+
+    local entries = {}
+    local items = DockablePanel.GetMenuItems(true)
+    table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
+    for _, item in ipairs(items) do
+        local name = item.text
+        if name ~= nil then
+            local memberKey = string.lower(name)
+            if not inGroup[memberKey] and RailIsGroupableKey(memberKey) and PanelDocument.Get(name) ~= nil then
+                entries[#entries + 1] = {
+                    text = name,
+                    click = function()
+                        element.popup = nil
+                        --beforeKey nil = append, so the new panel lands
+                        --in the space the "+" itself occupies.
+                        RailGroupInsert(memberKey, ownerKey, nil)
+                    end,
+                }
+            end
+        end
+    end
+
+    if #entries == 0 then
+        entries[#entries + 1] = {
+            text = "(no panels available)",
+            click = function()
+                element.popup = nil
+            end,
+        }
+    end
+    return entries
+end
+
 --While the rail is on, the RAIL hosts panels -- not the docks. Opening a
 --panel from a menu, a keybind or a by-name request used to build a dock
 --container regardless, and because the docks are slid away in rail mode
@@ -9488,15 +9618,45 @@ local function CreateIconRail(side, entries)
                     valign = "center",
                     interactable = false,
                 }
-                local cutoutPanel = gui.Panel{
+                --The cut-out is the one zone that is also a BUTTON: the
+                --dividers are pure drag affordances, but "add a panel to
+                --this row" has an obvious non-drag form, so clicking the
+                --"+" drops a menu of the panels that could fill the
+                --space. It is still not a dragTarget -- drops are
+                --resolved by RailGroupZoneAt's pointer math, and the
+                --dragged buttons' canDragOnto approves only the trash --
+                --so making it interactable changes nothing about drags.
+                local cutoutPanel
+                cutoutPanel = gui.Panel{
                     classes = {"iconRailGroupCutout"},
                     bgimage = true,
                     flow = "none",
                     width = ICON_RAIL_BUTTON,
                     height = ICON_RAIL_BUTTON,
                     hmargin = 4,
-                    interactable = false,
+                    swallowPress = true,
                     children = cutoutChildren,
+
+                    hover = function(element)
+                        RailButtonSound("hover")
+                    end,
+                    dehover = function(element)
+                        RailButtonSound("dehover")
+                    end,
+
+                    --click, not press: the menu is a popup and press
+                    --would open it under a pointer that has not lifted
+                    --yet. A click landing right after a drop is the
+                    --release of that drag, not a new gesture.
+                    click = function(element)
+                        if g_railDragTime ~= nil and dmhub.Time() - g_railDragTime < 0.3 then
+                            return
+                        end
+                        RailButtonSound("press")
+                        element.popup = gui.ContextMenu{
+                            entries = RailGroupAddEntries(element, key),
+                        }
+                    end,
                 }
                 memberButtons[#memberButtons + 1] = cutoutPanel
 
@@ -10431,7 +10591,7 @@ local function CreateIconRail(side, entries)
                     if doc:PresentDocumentOpen() then
                         local d = doc:try_get("_tmp_dialog")
                         if d ~= nil and d.valid then
-                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs, doc)
                         end
                     elseif PanelDocument.FindHostDialog(key) ~= nil then
                         local host = PanelDocument.FindHostDialog(key)
@@ -10451,9 +10611,9 @@ local function CreateIconRail(side, entries)
                         --dragged this window to earlier in the session.
                         local d = doc:try_get("_tmp_dialog")
                         if d ~= nil and d.valid then
-                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs)
+                            RailRememberWindow(key, d.x, d.y, d.data.panelTabs, doc)
                         else
-                            RailRememberWindow(key, anchorX, anchorY, nil)
+                            RailRememberWindow(key, anchorX, anchorY, nil, doc)
                         end
                     end
                     RefreshRails()
@@ -11060,7 +11220,7 @@ function EnsureIconRail()
         --a panel already showing as a TAB of another restored window must
         --not also get a window of its own.
         if PanelDocument.FindHostDialog(key) == nil then
-            OpenIconRailWindow(key, { x = p.x, y = p.y, tabs = p.tabs })
+            OpenIconRailWindow(key, { x = p.x, y = p.y, width = p.width, height = p.height, tabs = p.tabs })
         end
     end
 end
@@ -11850,7 +12010,7 @@ function ViewsApplyLayout(layout)
         if type(pin) == "table" then
             local doc = RailPanelDocument(key)
             if doc ~= nil and not doc:PresentDocumentOpen() and PanelDocument.FindHostDialog(key) == nil then
-                OpenIconRailWindow(key, { x = pin.x, y = pin.y, tabs = pin.tabs })
+                OpenIconRailWindow(key, { x = pin.x, y = pin.y, width = pin.width, height = pin.height, tabs = pin.tabs })
             end
         end
     end

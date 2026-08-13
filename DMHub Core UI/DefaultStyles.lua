@@ -594,6 +594,19 @@ ThemeEngine.RegisterTheme{
             border = 2,
             bold = false,
             height = 26,
+            -- The dims below mirror the legacy Styles.Default 'input-main' rule
+            -- (DMHub Titlescreen/Styles.lua). Every normal surface inherits that
+            -- sheet from its root, so these values change nothing there -- but a
+            -- panel popped out via MoveToNativeWindow becomes its own root and
+            -- loses the ancestor cascade, so the theme sheet must supply them
+            -- itself or popped-out inputs render unpadded at 40x26 instead of
+            -- 60x34. The pads are intentionally additive (no borderBox): inputs
+            -- are not labels, so pad grows the rect AND insets the text, and
+            -- borderBox here would shrink every input in the app.
+            width = 240,
+            hpad = 10,
+            vpad = 4,
+            selectedColor = "#444444",
         },
         {
             selectors = {"input", "focus"},

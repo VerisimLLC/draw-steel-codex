@@ -435,4 +435,17 @@ RegisterGameType("GameHud", "Hud")
 -- (the lobby uses the titlescreen as the shop host instead).
 GameHud.shopPanel = false
 
+-- The dialog currently being presented to players, or nil if none is. The
+-- in-game hud overrides this with an instance closure over its presentation
+-- state (see dmhub.CreateGameHud in GameHud.lua). The lobby hud has no
+-- presentation system at all -- it never fires "presentDialog" -- so nothing
+-- is ever presented there and nil is the truthful answer. This class-level
+-- default is what makes the accessor total: without it, callers running under
+-- the lobby hud (e.g. the Present button that CustomDocument:CreateInterface
+-- puts on info-bubble documents, which the lobby does show) fall through
+-- GameHud to the base Hud type and raise "Attempt to read unknown field".
+GameHud.GetCurrentlyPresentedDialog = function()
+	return nil
+end
+
 ActionBarElements = {}

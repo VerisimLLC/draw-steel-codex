@@ -264,6 +264,12 @@ Chunk-2 display contract (sheet + panel), decided 2026-08-13:
   taxonomy exists.
 - Monster builder contract untouched: no tag = trait, Ability = ability,
   Trigger = triggered action, Hidden = omit.
+- Eye toggle icons: phosphor/eye-light + phosphor/eye-closed-light (James
+  2026-08-13; the settingsButton class is unusable for it - paints its own
+  gear over any bgimage).
+- AGREED FOLLOW-UP: a design pass over the whole Features tab once content
+  is tagged, so tagged content displays properly end-to-end. Mode-tag
+  filter chips remain chunk 4 (not part of chunk 2).
 
 ## Rollout follow-ups
 

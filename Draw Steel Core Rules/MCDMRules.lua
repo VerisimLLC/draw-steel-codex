@@ -924,7 +924,12 @@ GameSystem.RegisterAbilityKeyword("Charge")
 GameSystem.RegisterAbilityKeyword("Telekinesis")
 GameSystem.RegisterAbilityKeyword("Chronopathy")
 
---Game modes features can be tagged with; order here is display order.
+--Feature tags; order here is display order. Hidden features are excluded
+--from sheet/panel feature lists unless the user filters to the Hidden tag;
+--Core Feature drives the pinned core-mechanic display and is filterable
+--like any other tag. The remaining tags are the game modes.
+GameSystem.RegisterFeatureTag{ name = "Hidden", defaultExcluded = true }
+GameSystem.RegisterFeatureTag{ name = "Core Feature" }
 GameSystem.RegisterFeatureMode("Combat")
 GameSystem.RegisterFeatureMode("Exploration")
 GameSystem.RegisterFeatureMode("Montage")

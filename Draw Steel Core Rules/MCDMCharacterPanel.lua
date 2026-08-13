@@ -3885,7 +3885,6 @@ function TacPanel.HealthBar()
                 r = m_animValue / totalAmount
             end
 
-            print("SEEK:: DELTA =", seekDelta, "diff =", math.abs(m_animTarget - m_animValue), "animValue =", m_animValue, "r =", r)
             fill.selfStyle.width = string.format("%f%%-2", r * 100)
 
             r = m_animTempValue / totalAmount

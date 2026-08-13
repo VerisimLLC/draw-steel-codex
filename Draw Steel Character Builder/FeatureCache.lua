@@ -1360,14 +1360,18 @@ function FeatureCategoriser.ClassifyEntry(entry)
 end
 
 --- Build a normalised entry table from already-extracted parts. Centralised so
---- every source emits the same shape.
+--- every source emits the same shape. `subName` is an optional secondary label
+--- (a Title's granted benefit, which is NOT the entry's identity); `origin` is
+--- the origin object the entry came from (the Title / Class / Ancestry ...).
 --- @return table
 local function categoriserNormalise(args)
     return {
         guid       = args.guid,
         name       = args.name,
+        subName    = args.subName,
         bucket     = args.bucket,
         source     = args.source,
+        origin     = args.origin,
         originName = args.originName,
         levels     = args.levels,
         level      = args.level,
@@ -1459,13 +1463,25 @@ local function categoriserAddBuildFeatures(creature, addEntry)
                 bucket = grantBucketBySlot[guid] or bucket
             end
             local _, originObj = categoriserEntryOrigin(entry)
+            local originName = categoriserOriginName(originObj)
             local levels = entry.levels
+            --A Title arrives as the BENEFIT feature it granted, never as itself,
+            --so naming the entry after the feature loses the title entirely
+            --(report GETSJ9FB). The Title is the identity the player knows: it
+            --leads, and the benefit becomes the secondary label.
+            local name = _safeFeatureName(feature)
+            local subName = nil
+            if bucket == "title" and originName ~= nil and originName ~= name then
+                name, subName = originName, name
+            end
             addEntry(categoriserNormalise{
                 guid       = guid,
-                name       = _safeFeatureName(feature),
+                name       = name,
+                subName    = subName,
                 bucket     = bucket,
                 source     = _safeGet(feature, "source"),
-                originName = categoriserOriginName(originObj),
+                origin     = originObj,
+                originName = originName,
                 levels     = levels,
                 level      = (levels ~= nil and levels[1]) or nil,
                 kind       = "build",
@@ -2100,7 +2116,7 @@ function FeatureCategoriser.BuildTacIndex(creature)
     end
 
     local features = {}
-    --Dedupe by bucket + name: several level slots can resolve to the same-named
+    --Dedupe by bucket + name + subName: several level slots can resolve to the same-named
     --capability (e.g. a Conduit picking "Storm Domain" at four levels yields
     --four distinct CharacterFeatureLists all named "Storm Domain"); one chip is
     --enough on a play surface (per-level detail lives on the sheet).
@@ -2108,7 +2124,15 @@ function FeatureCategoriser.BuildTacIndex(creature)
     local function emit(name, feature, src)
         if isDomainScaffolding(name) then return end
         if heroicResourceName ~= nil and heroicResourceName ~= "" and name == heroicResourceName then return end
-        local key = string.format("%s|%s", tostring(src.bucket), name or "")
+        --A Title's leaves are its granted benefits, and a chip named after the
+        --benefit never names the title the player earned (report GETSJ9FB). The
+        --title leads; the benefit is the secondary label. The dedupe key keeps
+        --the benefit so a title granting two of them still gets two chips.
+        local subName = nil
+        if src.bucket == "title" and src.originName ~= nil and src.originName ~= name then
+            name, subName = src.originName, name
+        end
+        local key = string.format("%s|%s|%s", tostring(src.bucket), name or "", subName or "")
         if seenKey[key] then return end
         seenKey[key] = true
         --Tier-1+2 haystack for this leaf (its own name + description + the
@@ -2116,11 +2140,15 @@ function FeatureCategoriser.BuildTacIndex(creature)
         --the local filter and the glow match structured payload, not just prose.
         features[#features+1] = {
             name       = name,
+            subName    = subName,
             feature    = feature,
             bucket     = src.bucket,
+            origin     = src.origin,
             originName = src.originName,
             levels     = src.levels,
             level      = src.level,
+            --`feature` is the benefit, so its own name/description keep the
+            --benefit searchable even though the chip now reads as the title.
             searchText = categoriserEntrySearchText{ name = name, feature = feature },
         }
     end

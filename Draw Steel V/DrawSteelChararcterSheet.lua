@@ -8051,7 +8051,9 @@ local function FeaturesIndexPanel()
 
     local function entrySearchText(entry)
         if entry._searchText == nil then
-            local parts = {entry.name or "", FeatureEntryDescription(entry) or ""}
+            --subName keeps a Title's granted benefit findable now that the row
+            --leads with the title's own name (report GETSJ9FB).
+            local parts = {entry.name or "", entry.subName or "", FeatureEntryDescription(entry) or ""}
             --Chosen option features are folded into the slot entry, so the
             --filter must reach their names and descriptions too.
             for _,chosenFeature in ipairs(entry.chosen or {}) do
@@ -8087,6 +8089,15 @@ local function FeaturesIndexPanel()
             local desc = FeatureEntryDescription(entry)
             if desc ~= nil then
                 descs[#descs+1] = desc
+            end
+        end
+        --A Title row is named after the title, so its expansion leads with the
+        --title's own description, then the granted benefit's (report GETSJ9FB).
+        if entry.bucket == "title" and entry.origin ~= nil then
+            local originDesc = nil
+            pcall(function() originDesc = entry.origin:try_get("description") end)
+            if originDesc ~= nil and originDesc ~= "" then
+                table.insert(descs, 1, originDesc)
             end
         end
         for _,desc in ipairs(descs) do
@@ -8247,10 +8258,27 @@ local function FeaturesIndexPanel()
 
         local titleText = entry.name or "Feature"
         local subParts = {}
+        --What this row resolved to: the chosen options of a made choice slot,
+        --else the benefit a Title arrived as (the index's subName).
+        local grantedText = nil
         if entry.kind == "build" and (entry._unspent or 0) == 0 then
             local texts = FeatureChosenTexts(entry.feature, creature)
             if #texts > 0 then
-                titleText = table.concat(texts, ", ")
+                grantedText = table.concat(texts, ", ")
+            end
+        end
+        if grantedText == nil and entry.subName ~= nil and entry.subName ~= "" then
+            grantedText = entry.subName
+        end
+        if grantedText ~= nil then
+            --A Title keeps its own name in the lead: the title is what the
+            --player earned, and naming the row after the benefit hid it
+            --entirely (report GETSJ9FB). Other buckets still read better as
+            --"Forgettable Face" over a muted "Agent Perk".
+            if entry.bucket == "title" then
+                subParts[#subParts+1] = grantedText
+            else
+                titleText = grantedText
                 subParts[#subParts+1] = entry.name
             end
         end

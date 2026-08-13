@@ -94,14 +94,18 @@ function DTInfo:GrantFollowerRolls(followerId, amount)
     return self
 end
 
---- Gets the total aggregate of all follower rolls
---- @return number total The sum of all follower rolls
-function DTInfo:AggregateFollowerRolls()
-    local total = 0
-    for _, rolls in pairs(self:GetFollowerRollsMap()) do
-        total = total + (rolls or 0)
+--- Removes a follower's entry from the rolls map entirely, unlike SetFollowerRolls
+--- which leaves a zero behind.
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param followerId string The GUID of the follower
+--- @return DTInfo self For chaining
+function DTInfo:RemoveFollowerRolls(followerId)
+    if followerId == nil or followerId == "" then return self end
+    local map = self:try_get("followerRolls")
+    if map ~= nil then
+        map[followerId] = nil
     end
-    return total
+    return self
 end
 
 --- Gets all follower IDs that have available rolls greater than zero

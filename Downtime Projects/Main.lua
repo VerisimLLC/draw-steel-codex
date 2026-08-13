@@ -85,6 +85,43 @@ CharSheet.RegisterTab {
 }
 dmhub.RefreshCharacterSheet()
 
+--- Drops followerRolls entries whose id is not one of the hero's live followers.
+--- These are left behind when a follower character is deleted rather than removed
+--- from the mentor, and they cannot be spent.
+local function _pruneStaleFollowerRolls(token, hero, dt)
+    local liveFollowers = {}
+    local followers = hero:try_get(DTConstants.FOLLOWERS_STORAGE_KEY)
+    if followers and type(followers) == "table" then
+        for id,_ in pairs(followers) do
+            if dmhub.GetCharacterById(id) then
+                liveFollowers[id] = true
+            end
+        end
+    end
+
+    local staleIds = {}
+    for id,_ in pairs(dt:GetFollowerRollsMap()) do
+        if not liveFollowers[id] then
+            staleIds[#staleIds + 1] = id
+        end
+    end
+
+    if #staleIds == 0 then return end
+
+    chat.Send(string.format("Pruning %d stale follower roll entries for %s.",
+        #staleIds, token.name or "Unnamed Token"))
+
+    token:ModifyProperties{
+        description = "Prune stale follower rolls",
+        undoable = false,
+        execute = function()
+            for _,id in ipairs(staleIds) do
+                dt:RemoveFollowerRolls(id)
+            end
+        end,
+    }
+end
+
 -- Migration
 local function _migrateFollowerRollsToHero()
     local allTokens = table.values(game.GetGameGlobalCharacters())
@@ -117,6 +154,8 @@ local function _migrateFollowerRollsToHero()
                         end,
                     }
                 end
+
+                _pruneStaleFollowerRolls(token, hero, dt)
             end
         end
     end
@@ -126,7 +165,7 @@ if dmhub.isDM then
 Commands.RegisterMacro{
     name = "dtmigratefollowerrolls",
     summary = "migrate follower rolls",
-    doc = "Usage: /dtmigratefollowerrolls\nMigrates legacy follower roll data to hero tokens. DM only.",
+    doc = "Usage: /dtmigratefollowerrolls\nMigrates legacy follower roll data to hero tokens and prunes rolls stranded on deleted followers. DM only.",
     command = function()
         _migrateFollowerRollsToHero()
     end,

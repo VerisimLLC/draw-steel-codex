@@ -30,16 +30,23 @@ function DTFollowers:GetFollower(followerId)
     return self.followers[followerId or ""]
 end
 
---- Retrieve the total number of rolls the followers have
+--- Retrieve the total number of rolls the followers have. Only counts followers
+--- that still resolve to a live character, so rolls stranded on a deleted
+--- follower are not reported as spendable.
 --- @return number numRolls The number of rolls
 function DTFollowers:AggregateAvailableRolls()
-    if self.token and self.token.properties and self.token.properties:IsHero() then
-        local downtimeInfo = self.token.properties:GetDowntimeInfo()
-        if downtimeInfo then
-            return downtimeInfo:AggregateFollowerRolls()
-        end
+    if not (self.token and self.token.properties and self.token.properties:IsHero()) then
+        return 0
     end
-    return 0
+
+    local downtimeInfo = self.token.properties:GetDowntimeInfo()
+    if not downtimeInfo then return 0 end
+
+    local total = 0
+    for id,_ in pairs(self.followers or {}) do
+        total = total + downtimeInfo:GetFollowerRolls(id)
+    end
+    return total
 end
 
 --- Find all the followers that have available rolls

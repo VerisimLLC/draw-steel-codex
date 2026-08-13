@@ -17,19 +17,15 @@ local mod = dmhub.GetModLoading()
 --- @field implementation nil|number Choice implementation index (1-based enum).
 --- @field options nil|table[] Optional list of sub-options for multi-option features.
 --- @field costsPoints nil|boolean If true, selecting this feature costs character build points.
---- @field internal nil|boolean If true, this is a supporting/plumbing feature (not a book feature) and is hidden on the character sheet and panel.
---- @field coreMechanic nil|boolean If true, this feature's rules are pinned toward the top of the character sheet and panel.
---- @field modes nil|table<string,boolean> Set of game mode tags from GameSystem.featureModes (e.g. "Combat"). Absent/empty = mode-agnostic.
+--- @field tags nil|table<string,boolean> Set of tags from GameSystem.featureTags (e.g. "Combat", "Hidden"). Absent/empty = untagged.
 CharacterFeature = RegisterGameType("CharacterFeature")
 
 CharacterFeature.canHavePrerequisites = false
 CharacterFeature.modifiers = {}
-CharacterFeature.internal = false
-CharacterFeature.coreMechanic = false
 
 --Shared class-level default; readers may iterate it but must NEVER mutate
 --it. Writers always assign a fresh table (or nil to clear) on the instance.
-CharacterFeature.modes = {}
+CharacterFeature.tags = {}
 
 --- Creates a new CharacterFeature with default fields and optional overrides.
 --- @param options nil|table Field overrides to apply after defaults.
@@ -800,81 +796,34 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		end,
 	}
 
-	-- Feature metadata flags. Instance fields fall back to class-level
-	-- defaults (false / empty), and writers assign nil rather than false so
-	-- serialized data only carries deliberate opt-ins.
-	local internalCheck = gui.Check{
-		text = "Internal Feature",
-		value = self.internal,
-		halign = "right",
-		change = function(element)
-			if element.value then
-				self.internal = true
-			else
-				self.internal = nil
-			end
-		end,
-		hover = gui.Tooltip("This feature will be hidden on the character sheet and panel"),
-	}
-
-	local coreMechanicCheck = gui.Check{
-		text = "Core Mechanic",
-		value = self.coreMechanic,
-		halign = "right",
-		vmargin = 4,
-		change = function(element)
-			if element.value then
-				self.coreMechanic = true
-			else
-				self.coreMechanic = nil
-			end
-		end,
-		hover = gui.Tooltip("Pin this feature's rules to the top of the character sheet and panel"),
-	}
-
-	-- The flags float in the form's top-right dead space (level with the
-	-- Name and Source rows) rather than spending form rows of their own:
-	-- the form's main work is modifiers, so metadata must not tax vertical
-	-- space.
-	local flagsPanel = gui.Panel{
-		floating = true,
-		halign = "right",
-		valign = "top",
-		flow = "vertical",
-		width = "auto",
-		height = "auto",
-		rmargin = 8,
-		tmargin = 4,
-		internalCheck,
-		coreMechanicCheck,
-	}
-
-	-- Game mode tags. Only rendered when the active game system registers
-	-- modes (Draw Steel does; 5e does not). No label row: the "Add Tag..."
-	-- placeholder self-describes, mirroring the Add Prerequisite dropdown
-	-- it shares a row with.
-	local modesEditor = nil
-	if #GameSystem.featureModes > 0 then
-		local modeOptions = {}
-		for _,modeName in ipairs(GameSystem.featureModes) do
-			modeOptions[#modeOptions+1] = { id = modeName, text = modeName }
+	-- Feature tags (Hidden, Core Feature, game modes). Only rendered when
+	-- the active game system registers tags (Draw Steel does; 5e does not).
+	-- No label row: the "Add Tag..." placeholder self-describes, mirroring
+	-- the Add Prerequisite dropdown it shares a row with. Writers assign
+	-- nil rather than an empty table so serialized data only carries
+	-- deliberate opt-ins.
+	local tagsEditor = nil
+	if #GameSystem.featureTags > 0 then
+		local tagOptions = {}
+		for _,tag in ipairs(GameSystem.featureTags) do
+			tagOptions[#tagOptions+1] = { id = tag.name, text = tag.name }
 		end
 
-		modesEditor = gui.Multiselect{
+		tagsEditor = gui.Multiselect{
 			halign = "left",
 			addItemText = "Add Tag...",
-			options = modeOptions,
-			value = self:try_get("modes", {}),
+			options = tagOptions,
+			value = self:try_get("tags", {}),
 			change = function(element, value)
-				local newModes = nil
-				for modeName,selected in pairs(value) do
+				local newTags = nil
+				for tagName,selected in pairs(value) do
 					if selected then
-						newModes = newModes or {}
-						newModes[modeName] = true
+						newTags = newTags or {}
+						newTags[tagName] = true
 					end
 				end
-				--nil when empty so mode-agnostic features serialize clean.
-				self.modes = newModes
+				--nil when empty so untagged features serialize clean.
+				self.tags = newTags
 			end,
 		}
 	end
@@ -910,7 +859,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	-- modal uses the same pattern at AbilityEditorTemplates.lua:1436-1453.
 	-- Prerequisites and tags share one horizontal row when both exist.
 	local metaRow = nil
-	if prerequisitesPanel ~= nil and modesEditor ~= nil then
+	if prerequisitesPanel ~= nil and tagsEditor ~= nil then
 		metaRow = gui.Panel{
 			flow = "horizontal",
 			width = "100%",
@@ -930,11 +879,11 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				height = "auto",
 				halign = "left",
 				valign = "top",
-				modesEditor,
+				tagsEditor,
 			},
 		}
 	else
-		metaRow = prerequisitesPanel or modesEditor
+		metaRow = prerequisitesPanel or tagsEditor
 	end
 
 	-- Built incrementally rather than as a literal: metaRow can be nil, and
@@ -951,7 +900,6 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	end
 	innerRows[#innerRows+1] = metaRow
 	innerRows[#innerRows+1] = modifiersPanel
-	innerRows[#innerRows+1] = flagsPanel
 
 	-- Themed mode builds a persistent Add / Paste Modifier bottom bar. In
 	-- normal (scrolling) editors the bar is kept outside the scroll area so

@@ -153,14 +153,27 @@ GameSystem.hasAbilityKeywords = false
 GameSystem.abilityKeywords = {}
 GameSystem.itemKeywords = {}
 
---Game modes that CharacterFeatures can be tagged with (e.g. "Combat").
---An ordered list of strings; registration order is display order. Empty
---when the active game system registers no modes, in which case feature
---editors hide the Game Modes row.
-GameSystem.featureModes = {}
+--Tags that CharacterFeatures can carry (e.g. "Combat", "Hidden"). An
+--ordered list of {name, defaultExcluded, gameMode} records; registration
+--order is display order. Empty when the active game system registers no
+--tags, in which case feature editors hide the tag row.
+--  defaultExcluded: the tag is filtered OUT of sheet/panel feature lists
+--    unless the user opts into it (e.g. "Hidden").
+--  gameMode: the tag mirrors a real game mode (Combat, Respite, ...) and
+--    participates in mode auto-tagging; system tags leave it false.
+GameSystem.featureTags = {}
 
+function GameSystem.RegisterFeatureTag(args)
+	GameSystem.featureTags[#GameSystem.featureTags+1] = {
+		name = args.name,
+		defaultExcluded = args.defaultExcluded or false,
+		gameMode = args.gameMode or false,
+	}
+end
+
+--A game mode is a feature tag with gameMode semantics.
 function GameSystem.RegisterFeatureMode(mode)
-	GameSystem.featureModes[#GameSystem.featureModes+1] = mode
+	GameSystem.RegisterFeatureTag{ name = mode, gameMode = true }
 end
 
 --do we trigger abilities at the start of the round?
@@ -208,7 +221,7 @@ function GameSystem.ClearRules()
 
 	GameSystem.abilityKeywords = {}
     GameSystem.itemKeywords = {}
-	GameSystem.featureModes = {}
+	GameSystem.featureTags = {}
 
 	GameSystem.CharacterBuilderShowsHitpoints = true
 

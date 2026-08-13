@@ -204,6 +204,31 @@ offering prerequisites on every plain CharacterFeature was committed
 a change. Open question if it ever matters: what the gate SHOULD be; likely
 a lead-dev (David) question since the behavior predates this project.
 
+## Amendment 2026-08-13: tags replace the boolean flags (James + David)
+
+Decided in James's meeting with David. The `internal` and `coreMechanic`
+booleans (chunk 1) are RETIRED before any content carried them. One tagging
+system covers everything:
+
+- The chunk-1 `modes` field is renamed `tags`; two system tags join the
+  five game-mode tags in the same vocabulary: **Hidden** and **Core
+  Feature**. Registered by the Draw Steel rules layer only (5e untouched,
+  registers nothing; extend later if needed). Lua-only change.
+- **Hidden** is default-EXCLUDED: sheet + panel feature lists drop
+  Hidden-tagged features unless the user clicks the Hidden tag filter chip,
+  which flips the view to show them. This replaces both the internal flag
+  AND the per-user eye-toggle reveal design.
+- **Core Feature** still drives the pinned core-mechanic display (confirmed
+  by James 2026-08-13) and additionally acts as a normal filter chip.
+- Authoring workflow: a feature that only grants a Signature/Heroic ability
+  or a displayed triggered ability / power-roll trigger gets the Hidden tag
+  at creation time. Sweep write-back writes `tags: {Hidden: true}` instead
+  of `internal: true`, and Core Feature tags on the three core mechanics.
+- Editor: the two checkboxes are gone; the single "Add Tag..." multiselect
+  (shared row with Add Prerequisite) lists Hidden, Core Feature, then the
+  modes. Registration order = display order
+  (GameSystem.RegisterFeatureTag{name, defaultExcluded, gameMode}).
+
 ## Rollout follow-ups
 
 - Once feature metadata ships: update the implement-content skill and/or

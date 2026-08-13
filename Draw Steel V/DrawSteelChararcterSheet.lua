@@ -7989,6 +7989,20 @@ local function CreatureTemplateDropdownOptions(creature)
     return choices
 end
 
+--Per-user "Show All" preference for the Features tab eye toggle: reveals
+--rows suppressed by their display-kind tag (Hidden / Ability / Trigger),
+--each labeled with the tag so the author can see why it was suppressed
+--and re-tag it. Off = the play view (suppressed rows dropped).
+local g_featuresShowAllSetting = setting{
+    id = "featuretags:showall",
+    description = "Show all features",
+    help = "Show features hidden from the Features list by their tags (Hidden, Ability, Trigger).",
+    storage = "preference",
+    section = "general",
+    default = false,
+    editor = "check",
+}
+
 local function FeaturesIndexPanel()
     local resultPanel
 
@@ -8342,6 +8356,25 @@ local function FeaturesIndexPanel()
         --arrow keeps a fixed position on every row; the "Choose" pill sits to
         --its left rather than pushing the arrow inward.
         local rightChildren = {}
+        --Suppressed rows only render while the Show All eye toggle is on;
+        --the tag chip says WHY the row is normally hidden (Hidden / Ability
+        --/ Trigger) so the author can spot mis-tagged content at a glance.
+        if entry.displayKind ~= nil and entry.displayKind ~= "normal" then
+            local tagNames = { hidden = "Hidden", ability = "Ability", trigger = "Trigger" }
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                italics = true,
+                text = tagNames[entry.displayKind] or entry.displayKind,
+            }
+        end
         if (entry._unspent or 0) > 0 then
             rightChildren[#rightChildren+1] = gui.Label{
                 classes = {"featureChoiceBadge"},
@@ -8668,15 +8701,25 @@ local function FeaturesIndexPanel()
 
         local index = FeatureCategoriser.BuildIndex(creature)
 
+        --Rows whose display-kind tag suppresses them (Hidden / Ability /
+        --Trigger) are dropped unless the Show All eye toggle is on.
+        local showAll = g_featuresShowAllSetting:Get()
+
         local groupsChildren = {}
         local total = 0
         local matchedTotal = 0
+        local suppressedTotal = 0
         for _,bucketId in ipairs(index.order) do
             local group = index.groups[bucketId]
             local entries = {}
             for _,e in ipairs(group.items) do
-                e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
-                entries[#entries+1] = e
+                local suppressed = e.displayKind ~= nil and e.displayKind ~= "normal"
+                if suppressed and not showAll then
+                    suppressedTotal = suppressedTotal + 1
+                else
+                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                    entries[#entries+1] = e
+                end
             end
             if #entries > 0 then
                 total = total + #entries
@@ -8974,6 +9017,31 @@ local function FeaturesIndexPanel()
         m_groupsContainer,
     }
 
+    --Show All eye toggle: reveals tag-suppressed rows (Hidden / Ability /
+    --Trigger). Per-user preference; the sheet is simultaneously a play and
+    --an edit surface (monster sheets always, hero sheets for custom
+    --features), so this is the one reveal mechanism that keeps suppressed
+    --containers reachable for editing.
+    local m_showAllButton
+    m_showAllButton = gui.Button{
+        classes = {"settingsButton"},
+        bgimage = cond(g_featuresShowAllSetting:Get(), "ui-icons/eye.png", "ui-icons/eye-closed.png"),
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 4,
+        linger = function(element)
+            gui.Tooltip("Show All: reveal features hidden by their tags")(element)
+        end,
+        press = function(element)
+            local newValue = not g_featuresShowAllSetting:Get()
+            g_featuresShowAllSetting:Set(newValue)
+            element.bgimage = cond(newValue, "ui-icons/eye.png", "ui-icons/eye-closed.png")
+            Rebuild()
+        end,
+    }
+
     --The filter/count/settings row is returned SEPARATELY so the tab can
     --pin it above the scroll area (it must survive scrolling).
     m_headerPanel = gui.Panel{
@@ -8983,6 +9051,7 @@ local function FeaturesIndexPanel()
         styles = styles,
         m_countLabel,
         m_filterInput,
+        m_showAllButton,
         m_gearButton,
     }
 

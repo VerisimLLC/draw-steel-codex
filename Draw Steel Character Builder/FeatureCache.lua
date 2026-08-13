@@ -1745,6 +1745,14 @@ function FeatureCategoriser.BuildIndex(creature)
             if seenGuid[guid] then return end
             seenGuid[guid] = true
         end
+        --Display-kind from tags (Hidden/Trigger/Ability). Choice slots and
+        --non-CharacterFeature entries have no DisplayKind; pcall-guarded
+        --because reading a missing method on a game-typed instance raises.
+        local kind = "normal"
+        pcall(function()
+            kind = norm.feature:DisplayKind()
+        end)
+        norm.displayKind = kind
         features[#features+1] = norm
     end
 
@@ -1973,6 +1981,14 @@ end
 --- @return boolean
 function FeatureCategoriser.IsPassiveFeature(feature)
     if feature == nil then return true end
+    --Display-kind tags override the structural heuristics below: a feature
+    --tagged Hidden / Ability / Trigger is authored as suppressed (its
+    --content shows via the ability surfaces, or not at all). Untagged
+    --content continues through the heuristics until the content sweep
+    --tags it.
+    local kind = nil
+    pcall(function() kind = feature:DisplayKind() end)
+    if kind ~= nil and kind ~= "normal" then return false end
     --A skill / language / perk CHOICE container belongs to its own section
     --(a skill-group pick is captured under Skills). The recursion can surface
     --these nested inside a class feature, so catch them by choice type.

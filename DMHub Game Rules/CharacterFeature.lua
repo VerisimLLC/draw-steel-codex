@@ -63,6 +63,32 @@ function CharacterFeature.OnDeserialize(self)
 	end
 end
 
+--- How this feature renders, from its display-kind tags. Precedence:
+--- Hidden > Trigger > Ability > normal (a feature tagged both Trigger and
+--- Ability renders as a trigger). Consumers (sheet, panel, monster
+--- builder) branch on this instead of inspecting modifiers:
+---   "normal"  - ordinary trait/feature row
+---   "ability" - displays as an ability card; feature row suppressed
+---   "trigger" - displays as a triggered action; feature row suppressed
+---   "hidden"  - plumbing; not shown at all
+--- @return string
+function CharacterFeature:DisplayKind()
+	local tags = self:try_get("tags")
+	if tags == nil then
+		return "normal"
+	end
+	if tags["Hidden"] then
+		return "hidden"
+	end
+	if tags["Trigger"] then
+		return "trigger"
+	end
+	if tags["Ability"] then
+		return "ability"
+	end
+	return "normal"
+end
+
 --- Appends this feature's active modifiers to the result list.
 --- @param creature creature
 --- @param result table[] The accumulator list to append modifier entries to.

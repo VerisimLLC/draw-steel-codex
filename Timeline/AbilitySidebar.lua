@@ -108,9 +108,28 @@ local function WriteAbilityShare()
         doc.data[k] = nil
     end
 
-    -- Write current sharing data.
+    -- Write current sharing data. The ability is written as a COPY with
+    -- function-valued fields stripped -- never the live ability object.
+    -- Serializing a function-valued field emits "Unknown type deep copied:
+    -- Function" and stores null, and the server's echo patch then deletes
+    -- those fields from the document. When the document held the LIVE
+    -- ability, that echo landed mid-cast and destroyed the ability's
+    -- OnBeginCast/OnFinishCast wrappers -- the invoke cast-finished signal --
+    -- stranding the invoke on casting=true forever and killing every
+    -- subsequent triggered ability on the client (they queue behind the
+    -- stranded cast in ActivatedAbility.RunWhenCastsComplete).
     for k, v in pairs(g_sharingData) do
-        doc.data[k] = v
+        if k == "ability" and v ~= nil then
+            local copy = DeepCopy(v)
+            for field, value in pairs(copy) do
+                if type(value) == "function" then
+                    copy[field] = nil
+                end
+            end
+            doc.data[k] = copy
+        else
+            doc.data[k] = v
+        end
     end
 
     doc.data.heartbeat = ServerTimestamp()
@@ -1500,8 +1519,19 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             else
                 g_deferredCard = nil
             end
+            --The trigger panel routes ActiveTrigger records through showAbility
+            --(hover preview); ActiveTrigger has no `name` field and game-typed
+            --reads of unknown fields raise, which aborted this handler between
+            --building the card and attaching it. Read defensively.
+            local diagName = nil
+            if ability ~= nil then
+                pcall(function() diagName = ability.name end)
+                if diagName == nil then
+                    pcall(function() diagName = ability.abilityName end)
+                end
+            end
             print(string.format("AbilityCard:: BUILD ability=%s deferred=%s",
-                tostring(ability ~= nil and ability.name), tostring(displayOptions.deferReveal == true)))
+                tostring(diagName), tostring(displayOptions.deferReveal == true)))
 
             element.children = { cardWrapper }
 
@@ -2282,6 +2312,13 @@ function CharacterPanel.RevealAbilityCard(dialogPanel)
 
     print("AbilityCard:: REVEAL")
     g_deferredCard.selfStyle.hidden = 0
+    --The engine's selfStyle.hidden setter historically did not mark the panel
+    --style-dirty (unlike collapsed and the other properties), so this write
+    --only took effect when something else happened to restyle the hierarchy --
+    --the card stayed invisible until e.g. a hover anywhere. UpdateStyle forces
+    --the restyle pass. Kept even after the engine setter fix: harmless, and it
+    --makes the reveal independent of the running build.
+    g_deferredCard:UpdateStyle()
     g_deferredCard = nil
 end
 

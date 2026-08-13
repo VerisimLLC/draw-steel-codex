@@ -161,13 +161,21 @@ GameSystem.itemKeywords = {}
 --    unless the user opts into it (e.g. "Hidden").
 --  gameMode: the tag mirrors a real game mode (Combat, Respite, ...) and
 --    participates in mode auto-tagging; system tags leave it false.
+--  filterable: offered as a filter chip on sheet/panel (default true).
+--    Display-kind tags ("Ability", "Trigger") set false: they declare how
+--    the feature renders (ability card / trigger drawer) rather than being
+--    a user-facing filter, and features carrying them do not appear in
+--    feature lists (their content displays via the ability surfaces).
 GameSystem.featureTags = {}
 
 function GameSystem.RegisterFeatureTag(args)
+	local filterable = args.filterable
+	if filterable == nil then filterable = true end
 	GameSystem.featureTags[#GameSystem.featureTags+1] = {
 		name = args.name,
 		defaultExcluded = args.defaultExcluded or false,
 		gameMode = args.gameMode or false,
+		filterable = filterable,
 	}
 end
 

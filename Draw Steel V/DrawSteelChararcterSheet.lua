@@ -9022,22 +9022,28 @@ local function FeaturesIndexPanel()
     --an edit surface (monster sheets always, hero sheets for custom
     --features), so this is the one reveal mechanism that keeps suppressed
     --containers reachable for editing.
+    --Plain tinted panel, NOT the settingsButton class: that class paints
+    --its own gear glyph over any bgimage. Phosphor icon + bgcolor tint is
+    --the title bar's icon idiom (CodexTitleBar wifi icons).
     local m_showAllButton
-    m_showAllButton = gui.Button{
-        classes = {"settingsButton"},
-        bgimage = cond(g_featuresShowAllSetting:Get(), "ui-icons/eye.png", "ui-icons/eye-closed.png"),
+    m_showAllButton = gui.Panel{
+        bgimage = cond(g_featuresShowAllSetting:Get(), "phosphor/eye-light.png", "phosphor/eye-closed-light.png"),
         width = 16,
         height = 16,
         halign = "right",
         valign = "center",
         hmargin = 4,
+        styles = {
+            { bgcolor = "#b0b0b0" },
+            { selectors = {"hover"}, bgcolor = "#ffffff" },
+        },
         linger = function(element)
             gui.Tooltip("Show All: reveal features hidden by their tags")(element)
         end,
         press = function(element)
             local newValue = not g_featuresShowAllSetting:Get()
             g_featuresShowAllSetting:Set(newValue)
-            element.bgimage = cond(newValue, "ui-icons/eye.png", "ui-icons/eye-closed.png")
+            element.bgimage = cond(newValue, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
             Rebuild()
         end,
     }

@@ -8061,6 +8061,18 @@ local function FeaturesIndexPanel()
             selectors = {"featureClearFilter"},
             bgcolor = "@fgMuted",
         },
+        {
+            selectors = {"featureShowAllEye"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureShowAllEye", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"featureShowAllEye", "on"},
+            bgcolor = "@accent",
+        },
     }
 
     local function entrySearchText(entry)
@@ -9022,28 +9034,32 @@ local function FeaturesIndexPanel()
     --an edit surface (monster sheets always, hero sheets for custom
     --features), so this is the one reveal mechanism that keeps suppressed
     --containers reachable for editing.
-    --Plain tinted panel, NOT the settingsButton class: that class paints
-    --its own gear glyph over any bgimage. Phosphor icon + bgcolor tint is
-    --the title bar's icon idiom (CodexTitleBar wifi icons).
+    --Plain icon panel, NOT the settingsButton class: that class paints
+    --its own gear glyph over any bgimage. Tint comes from the tab's
+    --featureShowAllEye theme rules (@fgMuted / hover @fgStrong / on
+    --@accent) so it follows scheme switches.
     local m_showAllButton
     m_showAllButton = gui.Panel{
+        classes = {"featureShowAllEye", cond(g_featuresShowAllSetting:Get(), "on")},
         bgimage = cond(g_featuresShowAllSetting:Get(), "phosphor/eye-light.png", "phosphor/eye-closed-light.png"),
         width = 16,
         height = 16,
         halign = "right",
         valign = "center",
         hmargin = 4,
-        styles = {
-            { bgcolor = "#b0b0b0" },
-            { selectors = {"hover"}, bgcolor = "#ffffff" },
-        },
         linger = function(element)
-            gui.Tooltip("Show All: reveal features hidden by their tags")(element)
+            --Tooltip states the ACTION the click will take, from current state.
+            local text = "Show hidden features"
+            if g_featuresShowAllSetting:Get() then
+                text = "Hide hidden features"
+            end
+            gui.Tooltip(text)(element)
         end,
         press = function(element)
             local newValue = not g_featuresShowAllSetting:Get()
             g_featuresShowAllSetting:Set(newValue)
             element.bgimage = cond(newValue, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
+            element:SetClass("on", newValue)
             Rebuild()
         end,
     }

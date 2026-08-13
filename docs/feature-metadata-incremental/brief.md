@@ -229,6 +229,42 @@ system covers everything:
   modes. Registration order = display order
   (GameSystem.RegisterFeatureTag{name, defaultExcluded, gameMode}).
 
+## Amendment 2026-08-13b: display-kind tags + the chunk-2 display contract
+
+After monster-builder integration work (James + David): consumers were
+inferring how a feature renders by inspecting modifiers; too complex and
+error-prone for authors. Two DISPLAY-KIND tags added (commit 068aebad),
+registered filterable=false:
+
+- **No tag** = trait/normal feature row. **Ability** = renders as an
+  ability card. **Trigger** = renders as a triggered action (wins when
+  both Ability and Trigger are present). **Hidden** = not shown.
+  Precedence: Hidden > Trigger > Ability > untagged.
+- Tags serialize in the YAML as the feature's `tags` map (opt-in only).
+- Sweep write-back remap: ability-grant wrappers -> Ability,
+  trigger-drawer features -> Trigger, plumbing/stat carriers -> Hidden.
+  Write-back runs AFTER James's monster consolidation pass (merged/deleted
+  features must not be tagged first).
+
+Chunk-2 display contract (sheet + panel), decided 2026-08-13:
+
+- Feature lists suppress rows tagged Hidden, Ability, or Trigger.
+  Ability/Trigger content displays via the ability card / trigger drawer;
+  Hidden is plumbing.
+- Filter chips: only filterable tags (Core Feature + game modes). The
+  Hidden chip concept is gone -- superseded by:
+- **"Show All" eye toggle** [COPY: exact label TBD at implementation],
+  default off, remembered per-user (the original brief's eye-toggle,
+  generalized): reveals ALL suppressed rows regardless of cause, each
+  revealed row carrying its tag as a small chip so the author can see why
+  it was suppressed and re-tag inline. Revealed rows are normal editable
+  rows. This is what keeps containers reachable on surfaces that are
+  simultaneously play and edit (monster sheets always; hero sheets for
+  character-specific customisation) -- no edit-vs-display surface
+  taxonomy exists.
+- Monster builder contract untouched: no tag = trait, Ability = ability,
+  Trigger = triggered action, Hidden = omit.
+
 ## Rollout follow-ups
 
 - Once feature metadata ships: update the implement-content skill and/or

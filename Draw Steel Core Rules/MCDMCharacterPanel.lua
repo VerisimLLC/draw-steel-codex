@@ -61,6 +61,9 @@ TacPanelSizes.Fonts = {
     charLevel = 18,
     charClass = 26,
     charSubclass = 20,
+    -- The monster type ("SKELETON") sits under the token name as a
+    -- subheading, so it reads below the name rather than competing with it.
+    monsterType = 15,
 
     stamBoxTitle = 10,      -- Stamina panel
     stamBoxInput = 22,
@@ -78,6 +81,14 @@ TacPanelSizes.Fonts = {
 
     charTitle = 12,
     charValue = 30,
+
+    -- Compact variants, used for monsters. Same boxes and the same press
+    -- handlers -- a monster sheet just wants far less of the panel spent on
+    -- them than a hero sheet does.
+    movePanelTitleCompact = 8,
+    movePanelValueCompact = 12,
+    charTitleCompact = 8,
+    charValueCompact = 13,
 
     hrChipValue = 12,
     hrChipEvent = 11,
@@ -458,23 +469,27 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         borderWidth = 1,
         cornerRadius = 6,
     },
+    -- The stamina BAR is the only thing in this area that carries status
+    -- colour. These boxes were tinted red/green permanently, regardless of
+    -- state, so the colour was decoration rather than signal -- and it made
+    -- the one place that does signal (the bar) harder to read.
     {
         selectors = {"panel", "stamina-box", "harm"},
-        borderColor = "@danger",
+        borderColor = "@border",
     },
     {
         selectors = {"panel", "stamina-box", "stamina"},
         width = TacPanelSizes.Panels.stamBoxStam,
-        borderColor = "@success",
+        borderColor = "@border",
     },
     {
         selectors = {"panel", "stamina-box", "heal"},
-        borderColor = "@success",
+        borderColor = "@border",
     },
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
-        borderColor = "@success",
+        borderColor = "@border",
     },
     {
         selectors = {"panel", "stamina-box", "recoveries", "hover"},
@@ -519,11 +534,11 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"stambox-input", "harm"},
-        color = "@danger",
+        color = "@fg",
     },
     {
         selectors = {"stambox-input", "heal"},
-        color = "@success",
+        color = "@fg",
     },
     {
         selectors = {"stambox-input", "temp"},
@@ -874,7 +889,31 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     {
         selectors = {"label", "char-value", "negative"},
         color = "@fg",
-    }
+    },
+
+    -- Compact (monster) variant. The box keeps its press handler and its
+    -- hover/press feedback -- only its footprint changes. Height goes fixed
+    -- because the default is "100% width", i.e. square, which is what makes
+    -- these so tall.
+    {
+        selectors = {"panel", "characteristic-box", "compact"},
+        height = 32,
+        pad = 1,
+        hmargin = 2,
+    },
+    {
+        selectors = {"label", "char-title", "parent:compact"},
+        tmargin = 0,
+        fontSize = TacPanelSizes.Fonts.charTitleCompact,
+    },
+    {
+        selectors = {"label", "char-title", "first", "parent:compact"},
+        fontSize = TacPanelSizes.Fonts.charTitleCompact + 2,
+    },
+    {
+        selectors = {"label", "char-value", "parent:compact"},
+        fontSize = TacPanelSizes.Fonts.charValueCompact,
+    },
 }
 TacPanelStyles.MovementPanel = ThemeEngine.MergeTokens{
     {
@@ -927,6 +966,26 @@ TacPanelStyles.MovementPanel = ThemeEngine.MergeTokens{
         selectors = {"label", "movebox-value", "hindered"},
         lmargin = 4,
         color = "@danger",
+    },
+
+    -- Compact (monster) variant, matching the characteristic boxes. The
+    -- altitude stepper inside AltitudeBox keeps working; it just has less
+    -- room around it.
+    {
+        selectors = {"panel", "movement-box", "compact"},
+        height = 30,
+        tmargin = 2,
+        rmargin = 4,
+        pad = 2,
+    },
+    {
+        selectors = {"label", "movebox-title", "parent:compact"},
+        fontSize = TacPanelSizes.Fonts.movePanelTitleCompact,
+    },
+    {
+        selectors = {"label", "movebox-value", "parent:compact"},
+        tmargin = -2,
+        fontSize = TacPanelSizes.Fonts.movePanelValueCompact,
     },
     {
         selectors = {"panel", "altitude-row"},
@@ -1473,6 +1532,199 @@ TacPanelStyles.Routines = ThemeEngine.MergeTokens{
         color = "@fgStrong",
     },
 }
+-- Monster sheet: the card grammar for the Abilities / Triggers / Traits
+-- sections. Follows the "Monster quick access sheet" design, expressed in
+-- ThemeEngine tokens rather than the mock's literal palette so the sections
+-- track the active colour scheme (see STYLE_GUIDE.md - never hex in panel
+-- code).
+TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
+    {
+        selectors = {"panel", "ms-stack"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        hpad = 8,
+        vpad = 2,
+        borderBox = true,
+    },
+
+    -- One ability / trigger / trait card.
+    {
+        selectors = {"panel", "ms-card"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        border = 1,
+        borderColor = "@border",
+        cornerRadius = 6,
+        hpad = 10,
+        vpad = 8,
+        vmargin = 4,
+        borderBox = true,
+    },
+
+    -- Header row: name on the left, categorization or cost on the right.
+    {
+        selectors = {"panel", "ms-head"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+    },
+    {
+        selectors = {"label", "ms-name"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontSize = 15,
+        bold = true,
+        color = "@fgStrong",
+    },
+    {
+        selectors = {"label", "ms-tag"},
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        fontSize = 10,
+        uppercase = true,
+        color = "@fgMuted",
+    },
+    -- Resource cost ("2 MALICE") reads as a chip, not as running text.
+    {
+        selectors = {"label", "ms-pill"},
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        fontSize = 10,
+        uppercase = true,
+        bold = true,
+        color = "@fgMuted",
+        bgimage = "panels/square.png",
+        bgcolor = "@bg",
+        border = 1,
+        borderColor = "@border",
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 2,
+        borderBox = true,
+    },
+
+    -- "Melee, Strike, Weapon - Main action"
+    {
+        selectors = {"label", "ms-sub"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 12,
+        italics = true,
+        color = "@fgMuted",
+        tmargin = 2,
+    },
+    -- Distance / target line.
+    {
+        selectors = {"label", "ms-meta"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 12,
+        color = "@fg",
+        tmargin = 3,
+    },
+
+    {
+        selectors = {"label", "ms-rollhead"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 10,
+        uppercase = true,
+        color = "@fgMuted",
+        tmargin = 6,
+    },
+
+    -- Tier rows: fixed glyph column so the three outcomes align.
+    {
+        selectors = {"panel", "ms-tier"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = "@bg",
+        cornerRadius = 3,
+        hpad = 5,
+        vpad = 3,
+        tmargin = 2,
+        borderBox = true,
+    },
+    -- The book's own tier dingbats (DrawSteelGlyphs: ! @ #). Kept instead of
+    -- the mock's "<=11 / 12-16 / 17+" text because Lua sources here are
+    -- ASCII-only, so the mock's glyphs cannot be literals -- and these are
+    -- what the rest of the Codex already draws.
+    {
+        selectors = {"label", "ms-tier-k"},
+        width = 30,
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        fontFace = "DrawSteelGlyphs",
+        fontSize = 22,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"label", "ms-tier-v"},
+        width = "100%-30",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontSize = 12,
+        color = "@fg",
+    },
+
+    {
+        selectors = {"label", "ms-effect"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 12,
+        color = "@fg",
+        tmargin = 5,
+    },
+
+    -- Trait / trigger body prose.
+    {
+        selectors = {"label", "ms-body"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 12,
+        color = "@fg",
+        tmargin = 3,
+    },
+
+    -- Movement modes, sitting under the stat boxes. Muted and unbolded to
+    -- match movebox-title: this is reference info, and the section's own
+    -- grammar puts labels at @fgMuted rather than at full strength.
+    {
+        selectors = {"label", "ms-profile"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = TacPanelSizes.Fonts.movePanelTitle,
+        color = "@fgMuted",
+        tmargin = 4,
+        lmargin = 4,
+    },
+
+}
+
 TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
     {   -- Visibility-toggle dot tint.
         selectors = {"visDot"},
@@ -1713,7 +1965,9 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         color = "@fg",
         bgimage = true,
         border = 1,
-        borderColor = "@danger",
+        --Neutral like the stamina boxes above: the words "WEAKNESS" and
+        --"IMMUNITIES" already say which is which.
+        borderColor = "@border",
         cornerRadius = 4,
         hpad = 6,
         vpad = 4,
@@ -1731,7 +1985,7 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         color = "@fg",
         bgimage = true,
         border = 1,
-        borderColor = "@success",
+        borderColor = "@border",
         cornerRadius = 4,
         hpad = 6,
         vpad = 4,
@@ -1802,6 +2056,7 @@ function TacPanel.AllStyles()
         TacPanelStyles.CollapsibleEntry,
         TacPanelStyles.MultiEdit,
         TacPanelStyles.Routines,
+        TacPanelStyles.MonsterSheet,
         TacPanelStyles.Conditions,
         TacPanelStyles.ReadOnly,
     }
@@ -2880,6 +3135,34 @@ function TacPanel.Summary()
                     end,
                 },
 
+                -- Monster type, e.g. ZOMBIE. Sits directly under the token
+                -- name and above the keywords, so the identity block reads
+                -- name -> what it is -> what it has -> what it costs.
+                --
+                -- A separate label rather than moving the "Class" slot up:
+                -- that slot renders the CLASS for heroes, and reordering it
+                -- would rearrange the hero panel too. This one collapses for
+                -- heroes, and the class slot collapses for monsters.
+                gui.Label{
+                    classes = {"summary-info", "class"},
+                    refreshCharacter = function(element, token)
+                        local isMonster = false
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                        if not isMonster then
+                            element:SetClass("collapsed", true)
+                            element.text = ""
+                            return
+                        end
+                        element:SetClass("collapsed", false)
+                        local text = string.upper(token.properties:try_get("monster_type", "Monster"))
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.monsterType, 14, #text)
+                        element.text = text
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+
                 -- Monster Keywords
                 gui.Label{
                     classes = {"summary-info", "monster-keywords"},
@@ -2929,19 +3212,25 @@ function TacPanel.Summary()
                     end,
                 },
 
-                -- Class
+                -- Class. Monsters show their type in the label above instead,
+                -- so this collapses for them rather than repeating it here.
                 gui.Label{
                     classes = {"summary-info", "class"},
                     refreshCharacter = function(element, token)
+                        local isMonster = false
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                        if isMonster then
+                            element:SetClass("collapsed", true)
+                            element.text = ""
+                            return
+                        end
+                        element:SetClass("collapsed", false)
                         local text = ""
                         if token.properties:IsHero() then
                             local classItem = token.properties:GetClass()
                             if classItem ~= nil then
                                 text = string.upper(classItem.name)
                             end
-                        else
-                            local mt = token.properties:try_get("monster_type", "Monster")
-                            text = string.upper(mt)
                         end
                         element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charClass, 9, #text)
                         element.text = text
@@ -4354,11 +4643,36 @@ function TacPanel.AltitudeBox()
     }
 end
 
+--- Put the stat boxes in a container onto their compact footprint for
+--- monsters, and back to full size for heroes.
+---
+--- The class goes on each BOX rather than on the container because the
+--- engine has no ancestor selector: a label inside a box can only see its
+--- direct parent, so "parent:compact" has to find the class one level up.
+--- @param element Panel The container whose children are stat boxes
+--- @param token CharacterToken
+function TacPanel.SetCompactBoxes(element, token)
+    local compact = false
+    if token ~= nil and token.valid and token.properties ~= nil then
+        pcall(function() compact = token.properties:IsMonster() end)
+    end
+    for _, child in ipairs(element.children) do
+        child:SetClass("compact", compact)
+    end
+end
+
 --- Display the movement panel
 --- @return Panel
 function TacPanel.MovementPanel()
     return gui.Panel{
         classes = {"movement-panel"},
+        refreshCharacter = TacPanel.SetCompactBoxes,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
         TacPanel.SpeedBox(),
         TacPanel.DisengageBox(),
         TacPanel.StabilityBox(),
@@ -4442,11 +4756,120 @@ function TacPanel.CharacteristicsPanel()
     return gui.Panel{
         classes = {"characteristics-panel"},
         children = children,
+        refreshCharacter = TacPanel.SetCompactBoxes,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
     }
 end
 
 --- Display the statistics panel
 --- @return Panel
+--- The monster reference fields STATISTICS does not otherwise carry: size,
+--- free strike, and any movement modes. Hidden entirely for heroes.
+---
+--- Deliberately an ADDITION to the existing boxes rather than the monster
+--- sheet's compact strip replacing them: the characteristic boxes open the
+--- characteristic roll dialog on press and the altitude box moves the token
+--- vertically, so swapping them for static text would trade a working
+--- affordance for a closer match to the mock.
+--- @return Panel
+function TacPanel.MonsterProfile()
+    return gui.Panel{
+        classes = {"container", "collapsed"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        flow = "vertical",
+        hpad = 4,
+        borderBox = true,
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local isMonster = false
+            pcall(function() isMonster = token.properties:IsMonster() end)
+            if not isMonster then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local props = token.properties
+
+            local size = nil
+            pcall(function() size = props:SizeDescription() end)
+            local freeStrike = nil
+            pcall(function() freeStrike = props:OpportunityAttack() end)
+
+            --Same shape as SpeedBox / StabilityBox so these read as more of
+            --the section's own stat boxes rather than as a new kind of row:
+            --muted title over a value in the number face.
+            local function StatBox(title, value)
+                --"compact" is unconditional here: this row only ever exists
+                --for monsters, so it never needs the full-size variant.
+                return gui.Panel{
+                    classes = {"movement-box", "compact"},
+                    gui.Label{ classes = {"movebox-title"}, text = title },
+                    gui.Label{ classes = {"movebox-value"}, text = tostring(value) },
+                }
+            end
+
+            local boxes = {}
+            if size ~= nil and size ~= "" then
+                boxes[#boxes+1] = StatBox("Size", size)
+            end
+            if freeStrike ~= nil then
+                boxes[#boxes+1] = StatBox("Free Strike", freeStrike)
+            end
+
+            local modes = {}
+            for mode, speed in pairs(props:try_get("movementSpeeds", {})) do
+                if speed > 0 then
+                    --stored lower-case ("burrow"); title-case for display.
+                    modes[#modes+1] = string.upper(string.sub(mode, 1, 1)) .. string.sub(mode, 2)
+                end
+            end
+            table.sort(modes)
+
+            local children = {}
+            if #boxes > 0 then
+                --Its own row: the movement row already carries four boxes at
+                --20% each, so appending would overflow the panel.
+                children[#children+1] = gui.Panel{
+                    classes = {"movement-panel"},
+                    children = boxes,
+                }
+            end
+            if #modes > 0 then
+                children[#children+1] = gui.Label{
+                    classes = {"ms-profile"},
+                    text = string.format("Movement  %s", string.join(modes, ", ")),
+                }
+            end
+
+            if #children == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
 function TacPanel.Statistics()
     return TacPanel.CollapsiblePanel{
         sectionId = "statistics",
@@ -4462,6 +4885,7 @@ function TacPanel.Statistics()
             flow = "vertical",
             TacPanel.CharacteristicsPanel(),
             TacPanel.MovementPanel(),
+            TacPanel.MonsterProfile(),
         }
     }
 end
@@ -5294,6 +5718,430 @@ function TacPanel.MonsterMode()
     }
 end
 
+-- =====================================================================
+-- Monster sheet sections: Abilities / Triggers / Traits
+--
+-- The panel already carries stamina, immunities, characteristics, speed,
+-- disengage and stability. What it has no home for is what the monster
+-- actually DOES: without these sections a director has to leave the panel
+-- and open an action-bar button to read tier text mid-fight.
+--
+-- Monsters only -- every section below hides itself for heroes, who have
+-- their own ability surfaces.
+-- =====================================================================
+
+--- Rewrite a CollapsiblePanel's title label in place, the way MonsterMode
+--- does. The title bar stays visible while a section is collapsed, so a
+--- count in the title has to update even when the body does not rebuild.
+--- @param element Panel The CollapsiblePanel root
+--- @param text string
+local function SetSectionTitle(element, text)
+    local titleBar = element.children[1]
+    if titleBar == nil then return end
+    for _, child in ipairs(titleBar.children) do
+        if child:HasClass("panel-title") then
+            if child.text ~= text then
+                child.text = text
+            end
+            return
+        end
+    end
+end
+
+--- Categorizations that belong in the Triggers section rather than Abilities.
+local g_msTriggerCategories = {
+    ["Trigger"] = true,
+    ["Triggered Ability"] = true,
+}
+
+--- Categorizations that belong in the Villain Actions section.
+local g_msVillainCategories = {
+    ["Villain Action"] = true,
+}
+
+--- Split a monster's activated abilities into the three display buckets.
+--- @param props any The monster's creature properties
+--- @return table abilities, table triggers, table villainActions
+local function MonsterSheetAbilities(props)
+    local abilities = {}
+    local triggers = {}
+    local villainActions = {}
+    for _, ability in ipairs(props:GetActivatedAbilities{
+        excludeGlobal = true, allLoadouts = true, bindCaster = true,
+    }) do
+        local cat = ability:try_get("categorization", "")
+        if g_msTriggerCategories[cat] then
+            triggers[#triggers+1] = ability
+        elseif g_msVillainCategories[cat] or ability:has_key("villainAction") then
+            villainActions[#villainActions+1] = ability
+        else
+            abilities[#abilities+1] = ability
+        end
+    end
+    return abilities, triggers, villainActions
+end
+
+--- Every trait the monster shows in print: group traits, its own features,
+--- and monster notes. Entries with no body are dropped -- monster:Render
+--- prints a bare "Monster Notes:" heading for those, which reads as a bug.
+--- @param props any
+--- @return table[] List of {name=, text=}
+local function MonsterSheetTraits(props)
+    local out = {}
+    local function add(name, text)
+        if name == nil or name == "" then return end
+        if text == nil or text == "" then return end
+        out[#out+1] = { name = name, text = text }
+    end
+    for _, feature in ipairs(props:GetTraitsFromGroup()) do
+        add(feature.name, feature.description)
+    end
+    for _, feature in ipairs(props:try_get("characterFeatures", {})) do
+        add(feature.name, feature.description)
+    end
+    for _, note in ipairs(props:try_get("notes", {})) do
+        add(note.title, note.text)
+    end
+    return out
+end
+
+--- Build one ability card in the monster-sheet grammar.
+---
+--- Tier text goes through the same two calls the ability card and the hover
+--- statblock use -- DisplayRuleTextForCreature (potency gates, GoblinScript)
+--- then ApplyCreatureTierDamage (monster level-scaling damage) -- so the
+--- numbers here match the rest of the app rather than being recomputed.
+--- @param ability any
+--- @param token CharacterToken
+--- @return Panel
+local function MonsterSheetAbilityCard(ability, token)
+    local props = token.properties
+    local children = {}
+
+    -- Header: name, then either a resource cost chip or the categorization.
+    local costText = ""
+    if ability:has_key("resourceCost") then
+        local resourceTable = dmhub.GetTable(CharacterResource.tableName)
+        local resourceInfo = resourceTable[ability.resourceCost]
+        if resourceInfo ~= nil then
+            local amount = tonumber(rawget(ability, "resourceNumber") or "1") or 1
+            if amount > 0 then
+                costText = string.format("%d %s", amount, resourceInfo.name)
+            end
+        end
+    end
+
+    local tagLabel
+    local categorization = ability:try_get("categorization", "")
+    if costText ~= "" then
+        tagLabel = gui.Label{ classes = {"ms-pill"}, text = costText }
+    elseif not g_msVillainCategories[categorization] then
+        --A villain action's own section header already says so, and the
+        --numbered "Villain Action 2" still appears on the line below.
+        --"Signature Ability" reads better as just "Signature" at this size.
+        local cat = string.gsub(categorization, " Ability$", "")
+        if cat ~= "" then
+            tagLabel = gui.Label{ classes = {"ms-tag"}, text = cat }
+        end
+    end
+
+    children[#children+1] = gui.Panel{
+        classes = {"ms-head"},
+        gui.Label{ classes = {"ms-name"}, text = ability.name or "" },
+        gui.Panel{ width = "100%", height = 1, bgcolor = "clear" },
+        tagLabel,
+    }
+
+    -- "Melee, Strike, Weapon - Main action"
+    local keywords = {}
+    for k, _ in pairs(ability:try_get("keywords", {})) do
+        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+    end
+    table.sort(keywords)
+
+    local actionText = ""
+    if ability:has_key("villainAction") then
+        actionText = ability.villainAction
+    else
+        local resourceTable = dmhub.GetTable(CharacterResource.tableName)
+        local resourceInfo = resourceTable[ability:ActionResource()]
+        if resourceInfo == nil then
+            actionText = "Free"
+        else
+            actionText = resourceInfo.name
+        end
+    end
+
+    local subParts = {}
+    if #keywords > 0 then subParts[#subParts+1] = string.join(keywords, ", ") end
+    if actionText ~= "" then subParts[#subParts+1] = actionText end
+    if #subParts > 0 then
+        children[#children+1] = gui.Label{
+            classes = {"ms-sub"},
+            text = string.join(subParts, " - "),
+        }
+    end
+
+    -- Distance / target.
+    local metaParts = {}
+    local range = nil
+    pcall(function() range = ability:DescribeRange(props) end)
+    if range ~= nil and range ~= "" then metaParts[#metaParts+1] = range end
+    local target = nil
+    pcall(function() target = ability:DescribeTarget(token) end)
+    if target ~= nil and target ~= "" then metaParts[#metaParts+1] = target end
+    if #metaParts > 0 then
+        children[#children+1] = gui.Label{
+            classes = {"ms-meta"},
+            text = string.join(metaParts, "  |  "),
+        }
+    end
+
+    -- Power roll + tiers.
+    local powerRoll = nil
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            powerRoll = behavior
+            break
+        end
+    end
+
+    if powerRoll ~= nil then
+        local rollText = powerRoll:try_get("roll", "")
+        if rollText ~= "" then
+            children[#children+1] = gui.Label{
+                classes = {"ms-rollhead"},
+                text = string.format("Power Roll %s", rollText),
+            }
+        end
+
+        local tiers = {}
+        for i, t in ipairs(powerRoll.tiers) do
+            tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(props, t, nil, true)
+        end
+        --ApplyCreatureTierDamage mutates rollProps.tiers, which IS `tiers`.
+        local rollProps = RollPropertiesPowerTable.new{ tiers = tiers }
+        pcall(function() rollProps:ApplyCreatureTierDamage(props, ability) end)
+
+        --DrawSteelGlyphs codepoints for tiers 1-3.
+        local glyphs = {"!", "@", "#"}
+        for i, text in ipairs(tiers) do
+            children[#children+1] = gui.Panel{
+                classes = {"ms-tier"},
+                gui.Label{ classes = {"ms-tier-k"}, text = glyphs[i] or "" },
+                gui.Label{ classes = {"ms-tier-v"}, text = text },
+            }
+        end
+    end
+
+    -- Effect.
+    local description = ability:try_get("description", "")
+    if description ~= "" then
+        children[#children+1] = gui.Label{
+            classes = {"ms-effect"},
+            text = string.format("<b>Effect:</b> %s",
+                StringInterpolateGoblinScript(description, props)),
+        }
+    end
+
+    return gui.Panel{
+        classes = {"ms-card"},
+        children = children,
+    }
+end
+
+--- Build one trait / trigger card: bold name over its rules text.
+--- @param name string
+--- @param text string
+--- @param props any
+--- @return Panel
+local function MonsterSheetTextCard(name, text, props)
+    return gui.Panel{
+        classes = {"ms-card"},
+        gui.Panel{
+            classes = {"ms-head"},
+            gui.Label{ classes = {"ms-name"}, text = name },
+        },
+        gui.Label{
+            classes = {"ms-body"},
+            text = StringInterpolateGoblinScript(text, props),
+        },
+    }
+end
+
+--- Shared builder for the three monster-sheet sections.
+---
+--- Each rebuild costs roughly 10ms of Lua plus engine layout, and
+--- refreshCharacter fires on every property change on the token (each point
+--- of damage, each condition). The signature guard means routine refreshes
+--- cost a table walk instead of a rebuild -- the same pattern MonsterMode
+--- uses.
+---
+--- A section with nothing in it hides completely rather than leaving an
+--- empty header behind, and the header carries its item count so the number
+--- is readable while the section is closed.
+--- @param args table {sectionId=, title=, collapsed=, items=fun(props): any[], key=fun(item): string, card=fun(item, props, token): Panel}
+--- @return Panel
+local function MonsterSheetSection(args)
+    return TacPanel.CollapsiblePanel{
+        sectionId = args.sectionId,
+        classes = {"collapsed"},
+        altBg = false,
+        title = args.title,
+        data = { collapsed = args.collapsed == true, token = nil, signature = nil },
+
+        setCollapse = function(element)
+            element:FireEvent("refreshCharacter", element.data.token)
+        end,
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                element.data.token = nil
+                element.data.signature = nil
+                return
+            end
+
+            element.data.token = token
+
+            local isMonster = false
+            pcall(function() isMonster = token.properties:IsMonster() end)
+            if not isMonster then
+                element:SetClass("collapsed", true)
+                element.data.signature = nil
+                return
+            end
+
+            local props = token.properties
+            local items = args.items(props)
+
+            --Nothing to show: hide the whole section, header included.
+            if #items == 0 then
+                element:SetClass("collapsed", true)
+                element.data.signature = nil
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            SetSectionTitle(element, string.format("%s (%d)", args.title, #items))
+
+            if element.data.collapsed then
+                return
+            end
+
+            local parts = { token.charid }
+            for _, item in ipairs(items) do
+                parts[#parts+1] = args.key(item)
+            end
+            local signature = table.concat(parts, "|")
+            if signature == element.data.signature then
+                return
+            end
+            element.data.signature = signature
+
+            local children = {}
+            for _, item in ipairs(items) do
+                children[#children+1] = args.card(item, props, token)
+            end
+            element:FireEventTree("setContent", children)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"ms-stack"},
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- Signature fragment for one ability: name plus guid, so a swapped loadout
+--- or a renamed ability forces a rebuild but a damage tick does not.
+--- @param ability any
+--- @return string
+local function MonsterSheetAbilityKey(ability)
+    return string.format("%s/%s", ability.name or "", ability:try_get("guid", ""))
+end
+
+--- The monster's abilities, each with its power-roll tiers.
+--- @return Panel
+function TacPanel.MonsterAbilities()
+    return MonsterSheetSection{
+        sectionId = "monsterabilities",
+        title = "ABILITIES",
+        --Closed by default: a solo's eight abilities fill the dock several
+        --times over, and the collapsed path skips the build entirely.
+        collapsed = true,
+        items = function(props)
+            local abilities = MonsterSheetAbilities(props)
+            return abilities
+        end,
+        key = MonsterSheetAbilityKey,
+        card = function(ability, props, token)
+            return MonsterSheetAbilityCard(ability, token)
+        end,
+    }
+end
+
+--- Villain actions, in their own section the way the book prints them.
+--- @return Panel
+function TacPanel.MonsterVillainActions()
+    return MonsterSheetSection{
+        sectionId = "monstervillainactions",
+        title = "VILLAIN ACTIONS",
+        collapsed = true,
+        items = function(props)
+            local _, _, villainActions = MonsterSheetAbilities(props)
+            return villainActions
+        end,
+        key = MonsterSheetAbilityKey,
+        card = function(ability, props, token)
+            return MonsterSheetAbilityCard(ability, token)
+        end,
+    }
+end
+
+--- Triggered abilities, kept apart from main actions the way the book does.
+--- @return Panel
+function TacPanel.MonsterTriggers()
+    return MonsterSheetSection{
+        sectionId = "monstertriggers",
+        title = "TRIGGERS",
+        collapsed = true,
+        items = function(props)
+            local _, triggers = MonsterSheetAbilities(props)
+            return triggers
+        end,
+        key = MonsterSheetAbilityKey,
+        card = function(ability, props, token)
+            return MonsterSheetAbilityCard(ability, token)
+        end,
+    }
+end
+
+--- Group traits, the monster's own features, and its notes, printed in full.
+--- @return Panel
+function TacPanel.MonsterTraits()
+    return MonsterSheetSection{
+        sectionId = "monstertraits",
+        title = "TRAITS",
+        collapsed = true,
+        items = MonsterSheetTraits,
+        key = function(trait)
+            return trait.name
+        end,
+        card = function(trait, props, token)
+            return MonsterSheetTextCard(trait.name, trait.text, props)
+        end,
+    }
+end
+
 --- Display the summoner's squads, each a row of minion portraits with a shared
 --- health bar.
 --- @return Panel
@@ -5962,13 +6810,58 @@ function TacPanel.OtherResources()
     }
 end
 
---- Display the Skills & Languages panel
+--- Languages a creature knows, sorted by name.
+--- @param creature any
+--- @return table[] Language table entries
+local function KnownLanguages(creature)
+    local languagesTable = dmhub.GetTable(Language.tableName) or {}
+    local languages = {}
+    for langid, _ in pairs(creature:LanguagesKnown()) do
+        local language = languagesTable[langid]
+        if language then
+            languages[#languages + 1] = language
+        end
+    end
+    table.sort(languages, function(a, b) return a.name < b.name end)
+    return languages
+end
+
+--- Display the Skills & Languages panel.
+---
+--- Monsters get a Languages-only section: titled LANGUAGES, with a count,
+--- hidden when there is nothing to list. Heroes are untouched -- they keep
+--- their skill proficiencies, the SKILLS & LANGUAGES title, and the section
+--- stays put whether or not it has content.
 --- @return Panel
 function TacPanel.SkillLanguages()
     return TacPanel.CollapsiblePanel{
         sectionId = "skilllanguages",
         altBg = false,
         title = "SKILLS & LANGUAGES",
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                return
+            end
+
+            local isMonster = false
+            pcall(function() isMonster = token.properties:IsMonster() end)
+            if not isMonster then
+                element:SetClass("collapsed", false)
+                SetSectionTitle(element, "SKILLS & LANGUAGES")
+                return
+            end
+
+            local languages = KnownLanguages(token.properties)
+            if #languages == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            SetSectionTitle(element, string.format("LANGUAGES (%d)", #languages))
+        end,
+
         gui.Panel{
             width = "100%",
             height = "auto",
@@ -5976,51 +6869,52 @@ function TacPanel.SkillLanguages()
             refreshCharacter = function(element, token)
                 local creature = token.properties
                 local children = {}
-                -- Skill categories
-                for _, cat in ipairs(Skill.categories) do
-                    local proficiencyList = nil
-                    for _, skill in ipairs(Skill.SkillsInfo) do
-                        if skill.category == cat.id and creature:ProficientInSkill(skill) then
-                            if proficiencyList == nil then
-                                proficiencyList = skill.name
-                            else
-                                proficiencyList = proficiencyList .. ", " .. skill.name
+
+                local isMonster = false
+                pcall(function() isMonster = creature:IsMonster() end)
+
+                -- Skill categories: heroes only. Monsters show languages alone.
+                if not isMonster then
+                    for _, cat in ipairs(Skill.categories) do
+                        local proficiencyList = nil
+                        for _, skill in ipairs(Skill.SkillsInfo) do
+                            if skill.category == cat.id and creature:ProficientInSkill(skill) then
+                                if proficiencyList == nil then
+                                    proficiencyList = skill.name
+                                else
+                                    proficiencyList = proficiencyList .. ", " .. skill.name
+                                end
                             end
                         end
-                    end
-                    if proficiencyList ~= nil then
-                        children[#children + 1] = gui.Label{
-                            classes = {"skillslangs"},
-                            textWrap = true,
-                            markdown = true,
-                            text = ThemeEngine.ResolveTokens(string.format("**<color=@fgMuted>%s:</color>** %s", cat.text, proficiencyList))
-                        }
+                        if proficiencyList ~= nil then
+                            children[#children + 1] = gui.Label{
+                                classes = {"skillslangs"},
+                                textWrap = true,
+                                markdown = true,
+                                text = ThemeEngine.ResolveTokens(string.format("**<color=@fgMuted>%s:</color>** %s", cat.text, proficiencyList))
+                            }
+                        end
                     end
                 end
+
                 -- Languages
-                local languagesTable = dmhub.GetTable(Language.tableName) or {}
-                local languages = {}
-                for langid, _ in pairs(creature:LanguagesKnown()) do
-                    local language = languagesTable[langid]
-                    if language then
-                        languages[#languages + 1] = language
-                    end
+                local names = {}
+                for _, language in ipairs(KnownLanguages(creature)) do
+                    names[#names + 1] = language.name
                 end
-                table.sort(languages, function(a, b) return a.name < b.name end)
-                local langText = nil
-                for _, language in ipairs(languages) do
-                    if langText == nil then
-                        langText = language.name
-                    else
-                        langText = langText .. ", " .. language.name
+                if #names > 0 then
+                    --A monster's header already reads "LANGUAGES (n)", so the
+                    --inline "Languages:" prefix would just repeat it. A hero's
+                    --section holds skills too, so there it still earns its place.
+                    local text = string.join(names, ", ")
+                    if not isMonster then
+                        text = string.format("**<color=@fgMuted>Languages:</color>** %s", text)
                     end
-                end
-                if langText ~= nil then
                     children[#children + 1] = gui.Label{
                         classes = {"skillslangs"},
                         textWrap = true,
                         markdown = true,
-                        text = ThemeEngine.ResolveTokens(string.format("**<color=@fgMuted>Languages:</color>** %s", langText))
+                        text = ThemeEngine.ResolveTokens(text),
                     }
                 end
                 element.children = children
@@ -9187,13 +10081,20 @@ end
 
 local TACPANEL_DEFAULT_ORDER = {
     "statistics",
+    --Conditions sit directly under the stats and above the abilities: what
+    --is currently ON the monster is read far more often mid-fight than what
+    --it can do.
+    "conditions",
     "monstermode",
+    "monsterabilities",
+    "monstervillainactions",
+    "monstertriggers",
+    "monstertraits",
     "summoner",
     "routines",
     "persistentabilities",
     "heroicresources",
     "otherresources",
-    "conditions",
     "skilllanguages",
     "features",
     "perks",
@@ -9203,6 +10104,10 @@ local TACPANEL_DEFAULT_ORDER = {
 local TACPANEL_FACTORIES = {
     statistics = TacPanel.Statistics,
     monstermode = TacPanel.MonsterMode,
+    monsterabilities = TacPanel.MonsterAbilities,
+    monstervillainactions = TacPanel.MonsterVillainActions,
+    monstertriggers = TacPanel.MonsterTriggers,
+    monstertraits = TacPanel.MonsterTraits,
     routines = TacPanel.Routines,
     persistentabilities = TacPanel.PersistentAbilities,
     heroicresources = TacPanel.HeroicResources,

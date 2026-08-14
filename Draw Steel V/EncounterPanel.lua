@@ -62,6 +62,9 @@ if encounterBuilderSetting:Get() then
     --bug report meant.
     DockablePanel.Register {
         name = "Encounters",
+        --Authored encounters are Director-only content: the same reason the
+        --encounters search provider below returns nothing to players.
+        dmonly = true,
         icon = "icons/standard/Icon_App_EncounterCreator.png",
         minHeight = 200,
         vscroll = true,

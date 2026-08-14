@@ -269,6 +269,14 @@ TacPanelStyles.Portrait = ThemeEngine.MergeTokens{
         borderWidth = 2,
         cornerRadius = 10,
     },
+    -- Monster portraits stand these buttons up as a vertical strip beside the
+    -- image; that repositioning is applied directly in TacPanel.GatedPortrait
+    -- because the panel declares its alignment inline. This rule is the hero
+    -- default: overlaid across the bottom of the portrait.
+    {
+        selectors = {"panel", "portrait-buttons"},
+        bmargin = 6,
+    },
     {
         selectors = {"panel", "portrait-body"},
         width = "100%-2",
@@ -276,6 +284,22 @@ TacPanelStyles.Portrait = ThemeEngine.MergeTokens{
         valign = "center",
         halign = "center",
         bgcolor = "white",
+        cornerRadius = 10,
+    },
+    -- A dark plate behind the portrait image (monsters only -- added in
+    -- TacPanel.GatedPortrait). portrait-body paints bgcolor "white" so the
+    -- token art keeps its natural colours, which means anything the art does
+    -- not cover reads as a pale hole; this backs it with the panel's own
+    -- ground instead. It cannot go on portrait-body itself: bgcolor there
+    -- tints the artwork.
+    {
+        selectors = {"panel", "portrait-backing"},
+        width = "100%-2",
+        height = "100%-2",
+        valign = "center",
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "@bg",
         cornerRadius = 10,
     },
 }
@@ -298,6 +322,45 @@ TacPanelStyles.SummaryInfo = ThemeEngine.MergeTokens{
         valign = "top",
         textWrap = false,
         minFontSize = 10,
+    },
+    -- Monster identity strip: two columns, the way the book heads a stat
+    -- block -- name over type over keywords on the left, EV over level/role
+    -- hard right. Pairing the lines rather than stacking all five saves two
+    -- lines of panel height. Heroes keep the single left column.
+    {
+        selectors = {"panel", "ident-left"},
+        width = "54%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+    },
+    {
+        --Roles run long ("HORDE ARTILLERY"), so the right column gets the
+        --larger share and its labels shrink hard to stay inside it.
+        selectors = {"panel", "ident-right"},
+        width = "44%",
+        height = "auto",
+        halign = "right",
+        valign = "top",
+        flow = "vertical",
+        --Right-aligned text otherwise ends exactly on the panel's right
+        --edge and the last glyph gets shaved: measured at x=655 against a
+        --panel edge of 655. This also has to clear the vertical scrollbar,
+        --which sits inside that edge and was eating the breathing room.
+        rmargin = 38,
+    },
+    {
+        selectors = {"label", "ident-right"},
+        width = "100%",
+        height = "auto",
+        halign = "right",
+        valign = "top",
+        textAlignment = "right",
+        textWrap = false,
+        color = "@fgMuted",
+        fontSize = TacPanelSizes.Fonts.charLevel,
+        minFontSize = 9,
     },
     {
         selectors = {"label", "summary-info", "char-name"},
@@ -449,7 +512,11 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
     {
         selectors = {"panel", "stamina-controls"},
         height = "auto",
-        width = "auto", --TacPanelSizes.Panels.fullWidth,
+        --Now sits in the column beside the portrait rather than across the
+        --whole panel, so it wraps: monsters fit on one line, heroes push
+        --the recoveries box onto a second.
+        width = "100%",
+        wrap = true,
         valign = "top",
         halign = "left",
         flow = "horizontal",
@@ -1566,6 +1633,17 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         vmargin = 4,
         borderBox = true,
     },
+    -- A minion's With Captain bonus only applies while the squad actually
+    -- has a captain. Accent edge marks that it is live right now, matching
+    -- the chip treatment this replaced when FEATURES went away for monsters.
+    {
+        selectors = {"panel", "ms-card", "captain-live"},
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"label", "ms-name", "parent:captain-live"},
+        color = "@fgStrong",
+    },
 
     -- Header row: name on the left, categorization or cost on the right.
     {
@@ -1769,6 +1847,18 @@ TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
         brightness = 1.3,
         transitionTime = 0.2,
     },
+    -- A minion's "With Captain" bonus is a TEMPORAL modifier: it is only
+    -- applied while the squad actually has a captain. Accent edge marks that
+    -- it is live right now, per the style guide's "selected/current edge".
+    {
+        selectors = {"panel", "cond-chip", "captain-live"},
+        borderColor = "@accent",
+    },
+    {
+        selectors = {"label", "cond-name", "parent:captain-live"},
+        color = "@fgStrong",
+        bold = true,
+    },
     {   -- Condition icon
         selectors = {"panel", "cond-icon"},
         width = 16,
@@ -1964,10 +2054,10 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         bold = false,
         color = "@fg",
         bgimage = true,
-        border = 1,
-        --Neutral like the stamina boxes above: the words "WEAKNESS" and
-        --"IMMUNITIES" already say which is which.
-        borderColor = "@border",
+        --No outline: the words "WEAKNESS" and "IMMUNITIES" already say what
+        --these are, and a box around one line of text was extra structure
+        --for nothing.
+        border = 0,
         cornerRadius = 4,
         hpad = 6,
         vpad = 4,
@@ -1984,8 +2074,7 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         bold = false,
         color = "@fg",
         bgimage = true,
-        border = 1,
-        borderColor = "@border",
+        border = 0,
         cornerRadius = 4,
         hpad = 6,
         vpad = 4,
@@ -2296,14 +2385,15 @@ function TacPanel.Portrait()
         -- (width "auto" + halign center is the codebase idiom for centering a flow).
         -- Each icon carries its own clearly-visible chip, so no group backing needed.
         gui.Panel{
-            classes = {"container"},
+            classes = {"container", "portrait-buttons"},
             floating = true,
             flow = "vertical",
             width = "100%",
             height = "auto",
             halign = "center",
             valign = "bottom",
-            bmargin = 6,
+            --bmargin lives in the style rules, not here: an inline value
+            --becomes selfStyle, which no selector can override.
             gui.Panel{
                 classes = {"container"},
                 flow = "horizontal",
@@ -3089,29 +3179,146 @@ function TacPanel.HeroicResourcesBox()
     }
 end
 
+--- A portrait that only shows for one kind of token.
+---
+--- Heroes keep the portrait beside the name column; monsters move it down
+--- next to the stamina controls. A panel has a single parent, so rather than
+--- reparent one portrait on every token change -- fragile, and it fires on
+--- every property change -- both positions get their own instance and the
+--- inactive one collapses.
+--- @param forMonster boolean Which kind of token this instance serves
+--- @return Panel
+function TacPanel.GatedPortrait(forMonster)
+    local portrait = TacPanel.Portrait()
+
+    if forMonster then
+        --Monsters stand the three control buttons up as a vertical strip to
+        --the RIGHT of the portrait, between it and the stamina block, rather
+        --than overlaying them on the image.
+        --
+        --Set directly rather than through style rules: the buttons panel
+        --declares halign, valign and width INLINE, and inline args become
+        --selfStyle, which no selector can override.
+        portrait.selfStyle.rmargin = 36
+        --Clearance so the next section's rule reads as a line under the
+        --portrait rather than one running into its rounded bottom edge.
+        portrait.selfStyle.bmargin = 8
+
+        --Dark plate behind the artwork. Prepended so it renders first, i.e.
+        --behind everything else in the frame.
+        local backing = gui.Panel{ classes = {"portrait-backing"} }
+        local kids = { backing }
+        for _, child in ipairs(portrait.children or {}) do
+            kids[#kids+1] = child
+        end
+        portrait.children = kids
+        for _, child in ipairs(portrait.children or {}) do
+            if child:HasClass("portrait-buttons") then
+                child.selfStyle.halign = "right"
+                child.selfStyle.valign = "center"
+                child.selfStyle.width = "auto"
+                --Floating, so this pushes the strip out past the frame's
+                --right edge into the room the rmargin above reserved.
+                child.selfStyle.rmargin = -34
+                child.selfStyle.bmargin = 0
+                for _, row in ipairs(child.children or {}) do
+                    row.selfStyle.flow = "vertical"
+                end
+            end
+        end
+    end
+
+    return gui.Panel{
+        classes = {"container"},
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        valign = "top",
+        halign = "left",
+        refreshCharacter = function(element, token)
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            element:SetClass("collapsed", isMonster ~= forMonster)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        portrait,
+    }
+end
+
 --- Display the summary section with portrait, class, levels, etc.
 --- @return Panel
 function TacPanel.Summary()
 
     return gui.Panel{
         classes = {"tacpanel"},
-        -- Main arrangement - 3 columns
+        --Monsters tighten the strip's padding: half off the bottom (that space
+        --moves to the far side of the rule, see the portrait row in
+        --CharacterPanel.SingleCharacterDisplaySidePanel) and most off the top,
+        --which was leaving a wide gap between the panel's title bar and the
+        --token name. tacpanel's vpad is 8.
+        refreshCharacter = function(element, token)
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            element.selfStyle.bpad = cond(isMonster, 4, 8)
+            element.selfStyle.tpad = cond(isMonster, 2, 8)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
         gui.Panel{
             classes = {"container"},
             flow = "horizontal",
 
-            -- Col1: Portrait
-            TacPanel.Portrait(),
+            --Heroes only: monsters show their portrait beside the stamina
+            --controls instead, so the identity strip can run full width.
+            TacPanel.GatedPortrait(false),
 
-            -- Col2: Name etc.
             gui.Panel{
                 classes = {"summary-info"},
                 width = TacPanelSizes.Panels.summaryNames,
+                flow = "horizontal",
+
+                --MONSTERS get the book's full-width two-column header strip;
+                --the portrait moves down beside the stamina controls (see
+                --CharacterPanel.SingleCharacterDisplaySidePanel). HEROES keep
+                --the original narrow name column beside their portrait.
                 refreshCharacter = function(element, token)
-                    if token.properties:IsMonster() then
-                        element.selfStyle.width = TacPanelSizes.Panels.summaryNames + 100
+                    local isMonster = false
+                    pcall(function() isMonster = token.properties:IsMonster() end)
+                    if isMonster then
+                        element.selfStyle.width = "100%"
+                        --summary-info carries pad = 6; drop the top half of it
+                        --so the name sits closer to the panel's title bar.
+                        element.selfStyle.tpad = 0
                     else
                         element.selfStyle.width = TacPanelSizes.Panels.summaryNames
+                        element.selfStyle.tpad = 6
+                    end
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+
+                gui.Panel{
+                classes = {"ident-left"},
+                --Full width for heroes, who have no right column.
+                refreshCharacter = function(element, token)
+                    local isMonster = false
+                    pcall(function() isMonster = token.properties:IsMonster() end)
+                    if isMonster then
+                        --54 + 44, not 100: summary-info carries pad = 6 with
+                        --no borderBox, so its children's percentages resolve
+                        --against a box 12px wider than the visible panel.
+                        element.selfStyle.width = "54%"
+                    else
+                        element.selfStyle.width = "100%"
                     end
                 end,
                 setToken = function(element, token)
@@ -3163,40 +3370,22 @@ function TacPanel.Summary()
                     end,
                 },
 
-                -- Monster Keywords
-                gui.Label{
-                    classes = {"summary-info", "monster-keywords"},
-                    refreshCharacter = function(element, token)
-                        local text = ""
-                        if token.properties:IsMonster() then
-                            local keywords = token.properties.keywords or {}
-                            local sorted = {}
-                            for k, _ in pairs(keywords) do
-                                sorted[#sorted+1] = ActivatedAbility.CanonicalKeyword(k)
-                            end
-                            table.sort(sorted)
-                            text = string.join(sorted, ", ")
-                        end
-                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charClass, 9, #text)
-                        element.text = text
-                    end,
-                },
-
-                -- Level
+                -- Level. Monsters carry theirs in the strip's right column
+                -- alongside EV, so this collapses for them.
                 gui.Label{
                     classes = {"summary-info", "level"},
                     refreshCharacter = function(element, token)
+                        local isMonster = false
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                        if isMonster then
+                            element:SetClass("collapsed", true)
+                            element.text = ""
+                            return
+                        end
+                        element:SetClass("collapsed", false)
                         local level = token.properties:CharacterLevel()
                         local text = element.text
-                        if token.properties:IsMonster() then
-                            local role = token.properties:try_get("role", "")
-                            local ev = token.properties:EV()
-                            if role ~= "" then
-                                text = string.format("LEVEL %d %s  EV %d", level, string.upper(role), ev)
-                            else
-                                text = string.format("LEVEL %d  EV %d", level, ev)
-                            end
-                        elseif level == 1 then
+                        if level == 1 then
                             local extra = token.properties:ExtraLevelInfo()
                             local encounter = type(extra) == "table" and extra.encounter or nil
                             local mapping = {"FIRST ENCOUNTER", "SECOND ENCOUNTER", "THIRD ENCOUNTER", "FOURTH ENCOUNTER"}
@@ -3260,6 +3449,100 @@ function TacPanel.Summary()
                     setToken = function(element, token)
                         element:FireEvent("refreshCharacter", token)
                     end,
+                },
+
+                },
+
+                --RIGHT column of the monster identity strip: EV on the name's
+                --line, level/role on the type's. Collapsed for heroes, who
+                --keep everything in the single left column.
+                gui.Panel{
+                    classes = {"ident-right"},
+                    refreshCharacter = function(element, token)
+                        local isMonster = false
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                        element:SetClass("collapsed", not isMonster)
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+
+                    gui.Label{
+                        classes = {"ident-right", "ident-ev"},
+                        refreshCharacter = function(element, token)
+                            local isMonster = false
+                            pcall(function() isMonster = token.properties:IsMonster() end)
+                            if not isMonster then
+                                element.text = ""
+                                return
+                            end
+                            element.text = string.format("EV %d", token.properties:EV())
+                        end,
+                        setToken = function(element, token)
+                            element:FireEvent("refreshCharacter", token)
+                        end,
+                    },
+
+                    gui.Label{
+                        classes = {"ident-right", "ident-level"},
+                        refreshCharacter = function(element, token)
+                            local isMonster = false
+                            pcall(function() isMonster = token.properties:IsMonster() end)
+                            if not isMonster then
+                                element.text = ""
+                                return
+                            end
+                            local level = token.properties:CharacterLevel()
+                            local role = token.properties:try_get("role", "")
+                            local text
+                            if role ~= "" then
+                                text = string.format("LEVEL %d %s", level, string.upper(role))
+                            else
+                                text = string.format("LEVEL %d", level)
+                            end
+                            --Not _fitFontSize: that floors at 12pt, and
+                            --"LEVEL 1 HORDE ARTILLERY" is 23 characters that
+                            --have to sit inside 44% of the strip. Own floor
+                            --of 9 so the long roles actually fit.
+                            local size = TacPanelSizes.Fonts.charLevel
+                            if #text > 11 then
+                                size = math.max(9, math.floor(size * 11 / #text))
+                            end
+                            element.selfStyle.fontSize = size
+                            element.text = text
+                        end,
+                        setToken = function(element, token)
+                            element:FireEvent("refreshCharacter", token)
+                        end,
+                    },
+
+                    -- Monster keywords, e.g. "Soulless, Undead". Right column
+                    -- under the level line. halign/textAlignment are inline
+                    -- rather than in a rule because the label also carries
+                    -- "summary-info", which left-aligns it.
+                    gui.Label{
+                        classes = {"summary-info", "monster-keywords"},
+                        halign = "right",
+                        textAlignment = "right",
+                        refreshCharacter = function(element, token)
+                            local text = ""
+                            if token.properties:IsMonster() then
+                                local keywords = token.properties.keywords or {}
+                                local sorted = {}
+                                for k, _ in pairs(keywords) do
+                                    sorted[#sorted+1] = ActivatedAbility.CanonicalKeyword(k)
+                                end
+                                table.sort(sorted)
+                                text = string.join(sorted, ", ")
+                            end
+                            --Was based on charClass (26). _fitFontSize returns
+                            --the BASE untouched when the text is short, so a
+                            --Ghoul's "Undead" -- 6 characters -- rendered at the
+                            --full 26pt, as large as the token's own name.
+                            element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.monsterType, 20, #text)
+                            element.text = text
+                        end,
+                    },
                 },
 
             },
@@ -4040,7 +4323,9 @@ function TacPanel.HealthBar()
 
     resultPanel = gui.Panel{
         classes = {"bordered"},
-        width = "100%-8",
+        --5% inset at each end so the bar stops short of the panel edges
+        --rather than running the full width.
+        width = "90%",
         flow = "horizontal",
         halign = "center",
         height = 20,
@@ -5781,17 +6066,43 @@ local function MonsterSheetAbilities(props)
     return abilities, triggers, villainActions
 end
 
+--- A minion's "With Captain" bonus text, or nil when there is nothing worth
+--- showing. Non-minions never carry the field at all, and 22 of the 181
+--- minions that do store a placeholder dash rather than a bonus -- "-" is
+--- truthy in Lua, so it has to be filtered out explicitly.
+---
+--- Shared by the monster TRAITS section, the hero FEATURES chip and the
+--- feature search matcher, so a query can never claim a hit on something the
+--- panel is not displaying.
+--- @param creature any
+--- @return nil|string
+local function WithCaptainText(creature)
+    if not creature.minion then
+        return nil
+    end
+    local raw = creature:try_get("withCaptain", false)
+    if type(raw) ~= "string" then
+        return nil
+    end
+    local trimmed = raw:match("^%s*(.-)%s*$")
+    if trimmed == "" or trimmed == "-" or trimmed == "--" then
+        return nil
+    end
+    return trimmed
+end
+
 --- Every trait the monster shows in print: group traits, its own features,
---- and monster notes. Entries with no body are dropped -- monster:Render
---- prints a bare "Monster Notes:" heading for those, which reads as a bug.
+--- monster notes, and a minion's With Captain bonus. Entries with no body are
+--- dropped -- monster:Render prints a bare "Monster Notes:" heading for those,
+--- which reads as a bug.
 --- @param props any
---- @return table[] List of {name=, text=}
+--- @return table[] List of {name=, text=, live=}
 local function MonsterSheetTraits(props)
     local out = {}
-    local function add(name, text)
+    local function add(name, text, live)
         if name == nil or name == "" then return end
         if text == nil or text == "" then return end
-        out[#out+1] = { name = name, text = text }
+        out[#out+1] = { name = name, text = text, live = live == true }
     end
     for _, feature in ipairs(props:GetTraitsFromGroup()) do
         add(feature.name, feature.description)
@@ -5802,6 +6113,17 @@ local function MonsterSheetTraits(props)
     for _, note in ipairs(props:try_get("notes", {})) do
         add(note.title, note.text)
     end
+
+    --With Captain lives here for monsters. It used to be a chip in FEATURES,
+    --which monsters no longer show. It only APPLIES while the squad has a
+    --captain (see FillTemporalActiveModifiers in MCDMMonster.lua), so the card
+    --is marked when it is actually live rather than merely possible.
+    local captainText = WithCaptainText(props)
+    if captainText ~= nil then
+        local squad = props:try_get("_tmp_minionSquad")
+        add("With Captain", captainText, squad ~= nil and squad.hasCaptain == true)
+    end
+
     return out
 end
 
@@ -5954,10 +6276,15 @@ end
 --- @param name string
 --- @param text string
 --- @param props any
+--- @param live? boolean Mark the card as currently in effect
 --- @return Panel
-local function MonsterSheetTextCard(name, text, props)
+local function MonsterSheetTextCard(name, text, props, live)
+    local classes = {"ms-card"}
+    if live then
+        classes[#classes+1] = "captain-live"
+    end
     return gui.Panel{
-        classes = {"ms-card"},
+        classes = classes,
         gui.Panel{
             classes = {"ms-head"},
             gui.Label{ classes = {"ms-name"}, text = name },
@@ -6137,7 +6464,7 @@ function TacPanel.MonsterTraits()
             return trait.name
         end,
         card = function(trait, props, token)
-            return MonsterSheetTextCard(trait.name, trait.text, props)
+            return MonsterSheetTextCard(trait.name, trait.text, props, trait.live)
         end,
     }
 end
@@ -7375,9 +7702,10 @@ function TacPanel.Features()
         for _,e in ipairs(index.features) do
             if Search.MatchesText(e.searchText or e.name or "", needle) then return true end
         end
-        if creature.withCaptain and creature.minion then
+        local captainText = WithCaptainText(creature)
+        if captainText ~= nil then
             if Search.MatchesText("With Captain", needle)
-                or Search.MatchesText(creature.withCaptain or "", needle) then return true end
+                or Search.MatchesText(captainText, needle) then return true end
         end
         return false
     end
@@ -7466,8 +7794,9 @@ function TacPanel.Features()
 
         --Minion "With Captain": a standalone chip (not a characterFeatures entry,
         --so the categoriser never sees it). Built once, then reused.
-        if creature.withCaptain and creature.minion then
-            local captainText = creature.withCaptain
+        --
+        local captainText = WithCaptainText(creature)
+        if captainText ~= nil then
             -- Rebuild if the cached chip was destroyed/orphaned by a prior
             -- children reassignment: the engine clears .data on a dead panel, so
             -- a non-nil handle with nil .data would crash the .active write below.
@@ -7482,7 +7811,15 @@ function TacPanel.Features()
                 }
             end
             m_withCaptainChip:FireEvent("update", token, "With Captain",
-                function() return captainText end, "With Captain " .. (captainText or ""))
+                function() return captainText end, "With Captain " .. captainText)
+
+            --The bonus only applies while the squad actually has a captain --
+            --see FillTemporalActiveModifiers in MCDMMonster.lua. Mark the chip
+            --so the panel says whether it is live rather than merely possible.
+            local squad = creature:try_get("_tmp_minionSquad")
+            local captainLive = squad ~= nil and squad.hasCaptain == true
+            m_withCaptainChip:SetClass("captain-live", captainLive)
+
             m_withCaptainChip.data.active = true
             children[#children+1] = m_withCaptainWrap
         elseif m_withCaptainChip ~= nil then
@@ -7683,6 +8020,20 @@ function TacPanel.Features()
         end,
 
         refreshCharacter = function(element, token)
+            --Monsters do not show FEATURES at all: their traits, abilities,
+            --triggers and villain actions each have their own section, and a
+            --minion's With Captain bonus now rides along in TRAITS. Skipping
+            --the reconcile also skips building chips nobody will see.
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            if isMonster then
+                element:SetClass("collapsed", true)
+                m_token = token
+                return
+            end
+
             m_token = token
             reconcile()
             --Re-evaluate any active title-bar search against the new creature so
@@ -11270,7 +11621,58 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 		},
 
         TacPanel.Summary(),
-        TacPanel.Stamina(),
+
+        --MONSTERS: the portrait sits here, beside the stamina controls, with
+        --the identity strip running full width above. HEROES: this portrait
+        --is collapsed and the stamina column takes the whole width, which is
+        --the original arrangement.
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "top",
+            --Half the space that was sitting above the rule is moved to
+            --below it, so the portrait is not jammed against the divider.
+            --Monsters only: heroes have no portrait in this row.
+            refreshCharacter = function(element, token)
+                local isMonster = false
+                if token ~= nil and token.valid and token.properties ~= nil then
+                    pcall(function() isMonster = token.properties:IsMonster() end)
+                end
+                element.selfStyle.tmargin = cond(isMonster, 6, 0)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            TacPanel.GatedPortrait(true),
+            gui.Panel{
+                classes = {"container"},
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                valign = "top",
+                --Leaves room for the portrait column on monsters only: the
+                --90px frame plus the 36px strip its rmargin reserves for the
+                --control buttons, plus slack. A wrapped row that fills to
+                --within ~3px phantom-wraps, reserving two lines to render one.
+                refreshCharacter = function(element, token)
+                    local isMonster = false
+                    if token ~= nil and token.valid and token.properties ~= nil then
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                    end
+                    if isMonster then
+                        element.selfStyle.width = "100%-140"
+                    else
+                        element.selfStyle.width = "100%"
+                    end
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                TacPanel.Stamina(),
+            },
+        },
 	}
 
 	return RegisterRoot(characterDisplaySidebar)

@@ -521,7 +521,14 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 						return
 					end
 
-					element.dragging = false
+					--Arm the engine's placement mode and let OUR drag keep running to
+					--mouse-up, exactly as the Bestiary row does (CharacterPanel.lua's
+					--dragging -> dmhub.SetDraggingMonster). Cancelling the drag here
+					--(element.dragging = false) used to end it while button 0 was still
+					--held, and the engine then handed the live mouse-down to the nearest
+					--draggable ancestor -- the rail panel window, or the dock's drag
+					--ghost -- so the WINDOW followed the cursor and the object never got
+					--placed. Report 29MWMJ3X.
 					dmhub.SetDraggingObject()
 				end
 			end,

@@ -4736,6 +4736,17 @@ function PanelDocument:CreateInterface(args)
             return
         end
         if tab.reg.focusOnClick then
+            --Already ours: leave focus exactly where it is. See the dock's
+            --copy in FocusPanelContent -- a press on one of the panel's own
+            --controls bubbles up here too (presses do not swallow by
+            --default), and re-grabbing to the content root wipes focus
+            --state the panel's controls track themselves. The Objects
+            --palette's ctrl/shift multi-select reads the previously focused
+            --entry inside its click handler, and press runs first, so the
+            --unguarded grab broke it outright (report YYDRFNXP).
+            if gui.ChildHasFocus(content) then
+                return
+            end
             gui.SetFocus(content)
             content:FireEventTree("panelFocused")
         elseif tab.reg.autoFocusInput then

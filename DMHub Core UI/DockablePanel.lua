@@ -901,6 +901,21 @@ function FocusPanelContent(instance)
 	if root == nil or not root.valid then
 		return false
 	end
+
+	--Already ours: leave focus exactly where it is. Presses do not swallow
+	--by default, so a press on one of the panel's OWN controls bubbles up
+	--to the host and lands here too -- and re-grabbing to the content root
+	--wipes whatever the panel's controls were tracking through focus. The
+	--Objects palette reads "which entry was focused" inside its click
+	--handler to build a ctrl/shift multi-selection, and press runs before
+	--click, so the unguarded grab made every multi-select see the root
+	--instead of the previous entry (report YYDRFNXP). The panel is already
+	--armed in this case, so there is nothing to re-arm and no panelFocused
+	--to fire.
+	if gui.ChildHasFocus(root) then
+		return true
+	end
+
 	gui.SetFocus(root)
 	root:FireEventTree("panelFocused")
 	return true

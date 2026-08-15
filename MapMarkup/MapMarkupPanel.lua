@@ -1076,6 +1076,161 @@ function m_zoneStripes.AngleForKeyword(keywordid)
     return m_zoneStripes.assignment[keywordid] or m_zoneStripes.HashAngle(keywordid)
 end
 
+--============================================================================
+--Per-zone-type fade: the opacity slider on each group in the Zones list.
+--
+--Purely a local viewing aid, in the same spirit as Fade Map above: it dims
+--one zone TYPE on the map so the others (or the map art under them) read
+--clearly. Session-only - nothing is written to a setting, a preference or the
+--map record - so it starts at 100% on every load, and it is applied only
+--while the Map Markup panel is open, so a slider left at 20% cannot follow
+--the Director back to the table or reach a player.
+--
+--It is applied to the COLOUR the overlay feed hands the engine, not to any
+--stored data, which is why it costs an overlay re-mesh (the colours are baked
+--into the mesh) and nothing else. Zone labels take the same colour
+--(TileHeightOverlay.EmitMarkupZones sets textColor = zone.color), so a faded
+--type's labels fade with its stripes.
+--
+--  .opacity[key]    0..1 per group key; ABSENT means full strength
+--  .opacitySeq      bumped on every real change - the feed's re-mesh signal
+--  .opacityFeedSeq  the seq the feed last published (see dmhub.GetMarkupZones)
+--
+--(Fields on m_zoneStripes rather than file-level locals: this chunk is at
+--Lua's 200-locals cap, same reason the rest of this table exists.)
+--============================================================================
+m_zoneStripes.opacity = {}
+m_zoneStripes.opacitySeq = 0
+m_zoneStripes.opacityFeedSeq = 0
+
+--Zones group by keyword - one group, one slider, per zone type. A record
+--whose keyword id could not be resolved (dead id from the table-creation
+--race; see MaterializeZonePreset) falls back to its stored keyword NAME, so
+--it still groups with its siblings instead of splitting off on its own.
+function m_zoneStripes.GroupKey(entry)
+    if type(entry.keywordid) == "string" and entry.keywordid ~= "" then
+        return entry.keywordid
+    end
+    return "name:" .. tostring(entry.keywordName or "Zone")
+end
+
+function m_zoneStripes.Opacity(key)
+    if type(key) ~= "string" or key == "" then
+        return 1
+    end
+    return m_zoneStripes.opacity[key] or 1
+end
+
+function m_zoneStripes.SetOpacity(key, value)
+    if type(key) ~= "string" or key == "" then
+        return
+    end
+
+    local v = tonumber(value) or 1
+    if v < 0 then
+        v = 0
+    elseif v > 1 then
+        v = 1
+    end
+    --quantized to the slider's own 1% display resolution: a drag fires an
+    --event per frame and every distinct value costs an overlay re-mesh, so
+    --sub-percent jitter is not worth re-meshing for.
+    v = math.floor(v * 100 + 0.5) / 100
+
+    --full strength is stored as absent, so AnyFade below is a plain emptiness
+    --test and the feed can skip the whole pass in the common case.
+    local stored = nil
+    if v < 1 then
+        stored = v
+    end
+
+    if m_zoneStripes.opacity[key] == stored then
+        return
+    end
+
+    m_zoneStripes.opacity[key] = stored
+    m_zoneStripes.opacitySeq = m_zoneStripes.opacitySeq + 1
+end
+
+function m_zoneStripes.AnyFade()
+    for _,_ in pairs(m_zoneStripes.opacity) do
+        return true
+    end
+    return false
+end
+
+--The stripe colour scaled by a fade factor. Only the "#rrggbb"/"#rrggbbaa"
+--forms can be scaled; anything else (a named colour) passes through, matching
+--ZoneOverlayColor's own rule.
+function m_zoneStripes.FadeColor(color, opacity)
+    if opacity >= 1 or type(color) ~= "string" or string.sub(color, 1, 1) ~= "#" then
+        return color
+    end
+
+    local len = string.len(color)
+    local alpha = 255
+    if len == 9 then
+        alpha = tonumber(string.sub(color, 8, 9), 16) or 255
+    elseif len ~= 7 then
+        return color
+    end
+
+    alpha = math.floor(alpha * opacity + 0.5)
+    if alpha < 0 then
+        alpha = 0
+    elseif alpha > 255 then
+        alpha = 255
+    end
+
+    return string.format("%s%02x", string.sub(color, 1, 7), alpha)
+end
+
+--Muted, compact styling for the group opacity sliders, matching the per-floor
+--sliders in the Floors panel. Passed at the PercentSlider call site: the
+--control attaches its OWN styles list, which outranks the panel's cascade
+--rules, so muting it from the cascade is a no-op. Resolved via MergeTokens at
+--build time (the list rebuilds on every refresh, so a live theme switch is
+--picked up on the next refresh).
+function m_zoneStripes.OpacitySliderStyles()
+    return ThemeEngine.MergeTokens{
+        {
+            selectors = {"percentSlider"},
+            borderWidth = 1,
+            borderColor = "@border",
+            cornerRadius = 2,
+            bgimage = "panels/square.png",
+            bgcolor = "@bg",
+            height = 12,
+            flow = "none",
+        },
+        {
+            selectors = {"percentSliderLabel"},
+            color = "@fg",
+            fontSize = 10,
+            bold = true,
+            halign = "left",
+            valign = "center",
+            width = 40,
+            textAlignment = "center",
+            height = "auto",
+        },
+        --the clipped duplicate that shows over the filled portion needs the
+        --inverse treatment to stay legible against the fill.
+        {
+            selectors = {"percentSliderLabel", "fill"},
+            color = "@bg",
+        },
+        {
+            selectors = {"percentFill"},
+            bgcolor = "@fgMuted",
+            height = "100%",
+            width = "0%",
+            halign = "left",
+            cornerRadius = 2,
+        },
+    }
+end
+
 --{h, s, v} in 0..1 for a "#rrggbb" / "#rrggbbaa" colour; nil for anything else
 --(named colours, which the panel's colours never are in practice).
 function m_zoneStripes.HSV(color)
@@ -1744,6 +1899,74 @@ local function KeywordDispels(kw)
     return result
 end
 
+--============================================================================
+--Default zone height, per zone TYPE. The height a zone reaches is a property
+--of what the zone is - lava is ground only, a gas cloud is a couple of tiles,
+--darkness fills the room - so the default lives on the EnvironmentalKeyword
+--(field defaultHeight) rather than on the map or the tool. It is stamped onto
+--each zone by CreateZone as it is painted; the zone owns its height from then
+--on (Edit Zone dialog), so changing the type later does not disturb zones
+--already on a map.
+--
+--Values: nil = unlimited, 0 = ground only, N = up to N tiles above the ground.
+--Bands are GROUND-RELATIVE (BuildZoneAuraInstance sets auraGroundRelative), so
+--"ground only" covers a creature standing in the zone whether the zone sits on
+--flat ground, in a pit, or on a raised ledge, and excludes anything flying
+--over it.
+--
+--Everything hangs off this ONE table: MapMarkupPanel's main chunk is at Lua's
+--200-local ceiling, and this declaration takes the last free slot. Do NOT add
+--another file-level local here without first re-probing (append dummy locals
+--to a copy and run luac -p until it reports "too many local variables").
+local m_zoneHeight = {}
+
+--The type's default height, or nil for unlimited. try_get + pcall: keywords
+--serialized before this field exist, and game-typed instances raise on
+--unknown-field reads.
+function m_zoneHeight.Get(kw)
+    if kw == nil then
+        return nil
+    end
+    local result = nil
+    pcall(function()
+        local value = kw:try_get("defaultHeight")
+        if value ~= nil then
+            result = math.max(0, math.floor(tonumber(value) or 0))
+        end
+    end)
+    return result
+end
+
+--Writes the default onto the keyword. nil clears it back to unlimited (the
+--same nil-assign the keyword editor uses to clear mapid).
+function m_zoneHeight.Set(keywordid, height)
+    local kw = GetKeyword(keywordid)
+    if kw == nil then
+        return
+    end
+    if height == nil then
+        kw.defaultHeight = nil
+    else
+        kw.defaultHeight = math.max(0, math.floor(height))
+    end
+    dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
+end
+
+--Human-readable height for chip summaries, list rows and menus. Unlimited is
+--the default and reads as clutter everywhere, so it describes as nil.
+function m_zoneHeight.Describe(height)
+    if height == nil then
+        return nil
+    end
+    if height <= 0 then
+        return "Ground only"
+    end
+    if height == 1 then
+        return "Up to 1 tile high"
+    end
+    return string.format("Up to %d tiles high", height)
+end
+
 local function KeywordModifierCount(kw)
     local count = 0
     if kw == nil then
@@ -1788,6 +2011,12 @@ local function KeywordSummary(kw)
             parts[#parts+1] = "Affects adjacent"
         end
     end)
+    --the default height a zone of this type is painted with; unlimited (the
+    --default) describes as nil and stays out of the summary.
+    local heightText = m_zoneHeight.Describe(m_zoneHeight.Get(kw))
+    if heightText ~= nil then
+        parts[#parts+1] = heightText
+    end
     pcall(function()
         local dispels = kw:try_get("dispels")
         if dispels ~= nil and #dispels > 0 then
@@ -2070,10 +2299,10 @@ local m_zoneOverlayZones = {}      --GetMarkupZones list: the rules zones
 local m_surfaceOverlayZones = {}   --footstep-surface region overlay entries
 local m_footstepsOverlayZones = {} --GetMarkupZones list in footsteps mode:
                                    --the surface regions + water rules zones
-local m_lastFeedFootstepsMode = nil --last footstepsMode the feed reported; a flip
-                                   --bumps m_zoneRevision so old and new engine
-                                   --builds alike rebuild the overlay mesh
-local m_lastFeedPanelOpen = nil    --same, for the feed's panelOpen flag
+--(The feed's last-reported footstepsMode/panelOpen flags used to be two
+--file-level locals here; they now live on m_dispelState as feedFootstepsMode /
+--feedPanelOpen -- alongside its feedZoneFilter -- to free local slots under the
+--200-locals cap for m_holes below.)
 
 --Dispel suppression state (EnvironmentalKeyword.dispels): live auras whose
 --keyword dispels other keywords temporarily carve their tiles out of zones
@@ -2088,9 +2317,14 @@ local m_lastFeedPanelOpen = nil    --same, for the feed's panelOpen flag
 --                 when nothing is suppressed (use the base list)
 --  overlayZones   m_zoneOverlayZones likewise, or nil
 --  auraSources    index-aligned with m_zoneAuraInstances: the m_zoneCache
---                 entry an instance was built from (absent for surfaces)
+--                 entry an instance was built from (absent for surfaces and
+--                 holes -- both pass through RebuildLists untouched)
 --  overlaySources index-aligned with m_zoneOverlayZones, same idea
 --  RebuildLists   derives auraInstances/overlayZones from the base lists
+--  feedFootstepsMode / feedPanelOpen / feedZoneFilter
+--                 the overlay feed's last-reported state; a flip bumps
+--                 m_zoneRevision so the overlay mesh rebuilds (fields here
+--                 rather than file-level locals: 200-locals cap)
 local m_dispelState = {
     signature = false,
     footprints = {},
@@ -2099,6 +2333,130 @@ local m_dispelState = {
     auraSources = {},
     overlaySources = {},
 }
+
+--============================================================================
+--Markup "Hole" zones: regions that cut a REAL hole through the floor, using
+--the same tech as the excavate hole object (ObjectComponentExcavate).
+--
+--Storage: one markupZones record per drawn stroke, category "hole":
+--  { category = "hole", polygons = { <polygon>, ... }, locs = {{x,y},...} }
+--where <polygon> is a flat {x1,y1,x2,y2,...} ring as painted (v1), or a
+--structured { points = ring, holes = {ring, ...} } entry once the eraser has
+--clipped it (a rect erased from the middle of a hole leaves a donut). The
+--cache normalizes both to the structured form on read. The drawn rings are
+--kept (they shape the smooth visual cut, the way drawing floors keeps its
+--polygons); the rasterized locs drive gameplay per tile, like zone records.
+--
+--Runtime: one AuraInstance per record with `hole = true` on its Aura
+--definition (read by AuraInstance:GetHole). The engine turns that into
+--forceGameRules.hole (GetTileRulesAtLoc reports no floor there), registers
+--MapGeometry holes from the aura's tiles (creatures fall through), and builds
+--the excavation visual from the polygons (MarkupHoleVisuals) -- the same
+--alpha-punch material the excavate object uses, so the floor beneath shows
+--through. While the Map Markup panel is open the engine hides the visual cut
+--and the overlay feed stripes the holes like zones instead.
+--
+--Holes have no keyword and are not editable like zone types: no Edit dialog,
+--no height, no Entire Map pill. The zone eraser CLIPS holes like floor
+--erasing clips floors: the erase region is subtracted from the polygons via
+--dmhub.ClipPolygons (trim, bisect, or donut; empty result deletes the
+--record). On engines without ClipPolygons it falls back to deleting touched
+--shapes whole.
+--
+--One table rather than several file-level locals: 200-locals cap.
+--============================================================================
+local m_holes = {
+    color = "#555555",   --stripe/swatch color; holes have no keyword to color them
+    cache = {},          --resolved hole entries, all floors; rebuilt with the zone cache
+    overlayZones = {},   --stripe overlay entries, fed only while the panel is open
+    engineSupport = nil,
+}
+
+--Engine capability probe. On a stale engine the hole aura registers as a
+--harmless no-op aura and no hole appears, so painting refuses instead of
+--appearing to do nothing. (Unknown dmhub properties read as nil silently, so
+--== true is the whole test; see supportsObjectEditingFilter for the pattern.)
+function m_holes.Supported()
+    if m_holes.engineSupport == nil then
+        m_holes.engineSupport = (dmhub.supportsMarkupHoles == true)
+    end
+    return m_holes.engineSupport
+end
+
+--The aura that makes a hole real: `hole = true` rides AuraInstance:GetHole
+--into the engine (forceGameRules.hole + fall-through map geometry + the
+--excavation visual); the polygons ride AuraInstance:GetHolePolygons into the
+--visual's mesh.
+function m_holes.BuildAuraInstance(entry)
+    local auraType = rawget(_G, "Aura")
+    local auraInstanceType = rawget(_G, "AuraInstance")
+    if auraType == nil or auraInstanceType == nil then
+        return nil
+    end
+    if entry.locsUserdata == nil or #entry.locsUserdata == 0 then
+        return nil
+    end
+
+    local okShape, shape = pcall(function()
+        return dmhub.CalculateShape{
+            shape = "locations",
+            locations = entry.locsUserdata,
+            locOverride = entry.locsUserdata[1],
+            range = 0,
+            radius = 0,
+            checklos = false,
+        }
+    end)
+    if not okShape or shape == nil then
+        return nil
+    end
+
+    local auraDef = auraType.Create{
+        name = "Hole",
+        applyto = "all",
+        modifiers = {},
+        hole = true,
+    }
+
+    --No casterid, no duration: permanent and floor-scoped, like zone auras.
+    --guid = the record id so the aura identity is stable across rebuilds.
+    return auraInstanceType.new{
+        aura = auraDef,
+        guid = entry.zoneid,
+        name = "Hole",
+        iconid = "ui-icons/skills/1.png",
+        display = { bgcolor = m_holes.color, hueshift = 0, saturation = 1, brightness = 1 },
+        area = shape,
+        holePolygons = entry.polygons,
+    }
+end
+
+--Writes a new hole record from a closed stroke. One record per stroke;
+--overlapping holes simply overlap (the hole rule and the visual are both
+--idempotent per tile), so there is none of the zones' merge/split machinery.
+function m_holes.Paint(floor, points, locs)
+    if not m_holes.Supported() then
+        dmhub.Debug("MARKUP:: hole zones need an engine build with dmhub.supportsMarkupHoles")
+        return
+    end
+
+    --copy the engine path's points into a plain flat array for storage.
+    local polygon = {}
+    for i = 1,#points do
+        polygon[i] = points[i]
+    end
+
+    local cleanLocs = {}
+    for _,l in ipairs(locs) do
+        cleanLocs[#cleanLocs+1] = { x = l.x, y = l.y }
+    end
+
+    floor:SetMarkupZone(dmhub.GenerateGuid(), {
+        category = "hole",
+        polygons = { polygon },
+        locs = cleanLocs,
+    })
+end
 
 --The label the overlay paints on the map for a zone. Zone names exist to
 --tell zones apart in the "Zones on This Floor" list; on the MAP the terrain
@@ -2237,6 +2595,14 @@ local function BuildZoneAuraInstance(entry)
 
     if entry.height ~= nil then
         auraDef.auraHeight = entry.height
+        --Zone bands follow the terrain: the engine measures [altitude,
+        --altitude+height] up from the GROUND under each tile tested rather
+        --than from the floor's zero altitude (Aura.BandBaseAtLoc /
+        --BandBaseForToken). Without this a "ground only" zone would miss a
+        --creature standing on a ledge inside it, and a height-2 gas cloud
+        --painted across a slope would sit at one absolute altitude instead of
+        --hugging the ground. entry.altitude stays an offset above ground.
+        auraDef.auraGroundRelative = true
     end
     if entry.altitude ~= nil and entry.altitude ~= 0 then
         auraDef.auraAltitude = entry.altitude
@@ -2252,6 +2618,63 @@ local function BuildZoneAuraInstance(entry)
         end
     end)
 
+    --The zone type's optional visual representation rides on the INSTANCE
+    --(like holePolygons): purely presentational, read by the engine through
+    --the AuraInstance:GetAppearance hook and rendered by MarkupZoneVisuals.
+    --The dispel machinery rebuilds suppressed zones through this same
+    --function with carved locsUserdata, so the visuals follow the carving.
+    --Blanket ("Entire Map") entries skip it deliberately: repainting the
+    --whole map's floor or scattering thousands of sprites from a palette
+    --pill is a footgun. A zone whose visuals are toggled off (the Visuals
+    --badge in the zone list, or painted while the type's Visuals pill was
+    --off) skips it too and renders as stripes only.
+    local appearance = nil
+    if entry.entireMap ~= true and entry.hideAppearance ~= true then
+        pcall(function()
+            local kwAppearance = entry.keywordInfo:try_get("appearance")
+            if kwAppearance == nil or kwAppearance.mode == nil or kwAppearance.mode == "none" then
+                return
+            end
+            --hash seed derived from the keyword id: sprite layout and fractal
+            --edge displacement key on absolute world coords + this seed, so
+            --every zone of a keyword renders identically on every client and
+            --every rebuild, and painting/erasing never reshuffles survivors.
+            local keywordid = entry.keywordid or ""
+            local seed = 0
+            for i = 1, #keywordid do
+                seed = (seed * 33 + string.byte(keywordid, i)) % 1000000007
+            end
+
+            if kwAppearance.mode == "floor" then
+                if kwAppearance.tileid ~= nil or kwAppearance.edgeWallId ~= nil then
+                    --fractal edges (kwAppearance.fractalEdge/fractalDetail) are
+                    --NOT stamped for now: the feature is reverted pending a
+                    --better look. The engine machinery stays dormant
+                    --(MarkupZoneVisuals.FractalizePolyTree); re-enabling is a
+                    --Lua-only change here + the dialog sliders.
+                    appearance = {
+                        mode = "floor",
+                        tileid = kwAppearance.tileid,
+                        edgeWallId = kwAppearance.edgeWallId,
+                        alpha = kwAppearance.alpha,
+                        seed = seed,
+                    }
+                end
+            elseif kwAppearance.mode == "sprites" then
+                local sprites = kwAppearance.sprites
+                if sprites ~= nil and #sprites > 0 then
+                    appearance = {
+                        mode = "sprites",
+                        sprites = dmhub.DeepCopy(sprites),
+                        spriteScale = kwAppearance.spriteScale,
+                        spriteAlpha = kwAppearance.spriteAlpha,
+                        seed = seed,
+                    }
+                end
+            end
+        end)
+    end
+
     --No casterid, no tokenAttached, no duration: a permanent, floor-scoped,
     --uncontrolled aura. guid = zoneid so triggers/entered-tracking key stably.
     return auraInstanceType.new{
@@ -2261,6 +2684,7 @@ local function BuildZoneAuraInstance(entry)
         iconid = iconid,
         display = display,
         area = shape,
+        appearance = appearance,
     }
 end
 
@@ -2429,6 +2853,8 @@ local function RebuildZoneCache()
     m_zoneOverlayZones = {}
     m_surfaceOverlayZones = {}
     m_footstepsOverlayZones = {}
+    m_holes.cache = {}
+    m_holes.overlayZones = {}
 
     --any active dispel suppression must re-derive against the fresh lists;
     --signature=false forces that on the next EnsureKeywordAuraZones.
@@ -2494,6 +2920,45 @@ local function RebuildZoneCache()
                         --stored here so the panel's swatch can match the map.
                         patternAngle = cond(surfaceId % 2 == 0, ZONE_ANGLE_B, ZONE_ANGLE_A),
                     }
+                elseif type(record) == "table" and record.category == "hole" then
+                    local locs = {}
+                    for _,l in ipairs(record.locs or {}) do
+                        if type(l) == "table" and l.x ~= nil and l.y ~= nil then
+                            locs[#locs+1] = { x = math.floor(l.x), y = math.floor(l.y) }
+                        end
+                    end
+
+                    --normalize each stored polygon to the structured form
+                    --{points = flat ring, holes = {flat ring, ...}}. Paint
+                    --writes flat rings (the v1 shape); the eraser's clip
+                    --rewrites write structured entries. A valid ring is a
+                    --flat array of at least three vertices.
+                    local polygons = {}
+                    for _,polygon in ipairs(record.polygons or {}) do
+                        if type(polygon) == "table" then
+                            if type(polygon[1]) == "number" then
+                                if #polygon >= 6 then
+                                    polygons[#polygons+1] = { points = polygon, holes = {} }
+                                end
+                            elseif type(polygon.points) == "table" and #polygon.points >= 6 then
+                                local holeRings = {}
+                                for _,holeRing in ipairs(polygon.holes or {}) do
+                                    if type(holeRing) == "table" and #holeRing >= 6 then
+                                        holeRings[#holeRings+1] = holeRing
+                                    end
+                                end
+                                polygons[#polygons+1] = { points = polygon.points, holes = holeRings }
+                            end
+                        end
+                    end
+
+                    m_holes.cache[#m_holes.cache+1] = {
+                        zoneid = zoneid,
+                        floorid = floorid,
+                        floorIndex = floorIndex,
+                        locs = locs,
+                        polygons = polygons,
+                    }
                 elseif type(record) == "table" and record.category == nil then
                     --resolve the keyword by id, healing dead ids by stored
                     --name (ids can be lost to the objectTable-creation race;
@@ -2553,6 +3018,7 @@ local function RebuildZoneCache()
                         altitude = record.altitude or 0,
                         height = record.height,
                         playerVisible = record.playerVisible == true,
+                        hideAppearance = record.hideAppearance == true,
                         patternColor = patternColor,
                         patternAngle = pattern.angle or ZONE_ANGLE_A,
                         ord = record.ord or 0,
@@ -2657,6 +3123,11 @@ local function RebuildZoneCache()
                 --the engine ignores this; the feed uses it to filter zones by
                 --the user's per-zone-type visibility preference.
                 keywordid = entry.keywordid,
+                --likewise ignored by the engine: the feed uses it to apply the
+                --Zones list's per-group opacity slider. Separate from
+                --keywordid because a record with an unresolvable keyword still
+                --belongs to a group (see m_zoneStripes.GroupKey).
+                zonegroup = m_zoneStripes.GroupKey(entry),
             }
             m_dispelState.overlaySources[#m_zoneOverlayZones] = entry
 
@@ -2664,6 +3135,39 @@ local function RebuildZoneCache()
             if instance ~= nil then
                 m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
                 m_dispelState.auraSources[#m_zoneAuraInstances] = entry
+            end
+        end
+    end
+
+    --Markup holes: one aura per record. No dispel bookkeeping (holes have no
+    --keyword): instances appended WITHOUT an auraSources entry pass through
+    --m_dispelState.RebuildLists untouched, which is exactly right. The overlay
+    --entries go in their own list; the feed appends them only while the panel
+    --is open (with it closed the engine renders the actual hole instead).
+    for _,entry in ipairs(m_holes.cache) do
+        if #entry.locs > 0 and entry.floorIndex >= 0 then
+            local locsUserdata = {}
+            for _,l in ipairs(entry.locs) do
+                locsUserdata[#locsUserdata+1] = core.Loc{
+                    x = l.x,
+                    y = l.y,
+                    floorIndex = entry.floorIndex,
+                }
+            end
+            entry.locsUserdata = locsUserdata
+
+            m_holes.overlayZones[#m_holes.overlayZones+1] = {
+                locs = locsUserdata,
+                color = ZoneOverlayColor(m_holes.color),
+                angleRadians = ZONE_ANGLE_A,
+                label = "Hole",
+                playerVisible = false,
+                floorIndex = entry.floorIndex,
+            }
+
+            local instance = m_holes.BuildAuraInstance(entry)
+            if instance ~= nil then
+                m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
             end
         end
     end
@@ -3140,8 +3644,8 @@ pcall(function()
         --a mode flip changes the zones list without any record changing, so
         --bump the revision to invalidate the overlay mesh - this is what
         --makes the swap take effect on engine builds old and new alike.
-        if footstepsMode ~= m_lastFeedFootstepsMode then
-            m_lastFeedFootstepsMode = footstepsMode
+        if footstepsMode ~= m_dispelState.feedFootstepsMode then
+            m_dispelState.feedFootstepsMode = footstepsMode
             m_zoneRevision = m_zoneRevision + 1
         end
 
@@ -3150,8 +3654,8 @@ pcall(function()
         --no record has changed when it flips (opening/closing the panel, or a
         --Lua reload re-deriving it). Bump the revision so the overlay mesh is
         --rebuilt rather than serving a cached empty layer.
-        if panelOpen ~= m_lastFeedPanelOpen then
-            m_lastFeedPanelOpen = panelOpen
+        if panelOpen ~= m_dispelState.feedPanelOpen then
+            m_dispelState.feedPanelOpen = panelOpen
             m_zoneRevision = m_zoneRevision + 1
         end
 
@@ -3210,6 +3714,84 @@ pcall(function()
                 end
             end
             zones = filtered
+        end
+
+        --Per-zone-type fade: the opacity slider on each group in the Zones
+        --list, applied to the colours here rather than to any record (see the
+        --m_zoneStripes.opacity block). Gated on the panel being open, so a
+        --slider left part-way down has no effect once the panel closes. A
+        --fade change is invisible to the engine's other cache signals, so the
+        --published seq drives a revision bump the same way the zone-type
+        --filter above does - including the whole feature switching off when
+        --the last slider returns to 100%.
+        local fadeSeq = 0
+        if panelOpen and m_zoneStripes.AnyFade() then
+            fadeSeq = m_zoneStripes.opacitySeq
+        end
+        if fadeSeq ~= m_zoneStripes.opacityFeedSeq then
+            m_zoneStripes.opacityFeedSeq = fadeSeq
+            m_zoneRevision = m_zoneRevision + 1
+        end
+        if fadeSeq ~= 0 then
+            local faded = {}
+            for _,zone in ipairs(zones) do
+                --keyword-aura zones (a monster's Darkness) carry no zonegroup
+                --but do carry a keyword, and fade with their painted kin.
+                local opacity = m_zoneStripes.Opacity(zone.zonegroup or zone.keywordid)
+                if opacity >= 1 then
+                    faded[#faded+1] = zone
+                else
+                    --the cached entry is shared with the aura/dispel lists and
+                    --must not be recoloured in place; the copy is shallow, so
+                    --the loc list is shared rather than rebuilt per poll.
+                    local copy = {}
+                    for k,v in pairs(zone) do
+                        copy[k] = v
+                    end
+                    copy.color = m_zoneStripes.FadeColor(zone.color, opacity)
+                    faded[#faded+1] = copy
+                end
+            end
+            zones = faded
+        end
+
+        --Markup holes stripe like zones while the panel is open (the actual
+        --cut renders too; the stripe overlay draws into the CURRENT floor's
+        --composite, above the punched art layer, so the stripes hover over
+        --the empty space), and outside the panel when opted in via the map
+        --overlay menu's Hole row -- stored as the reserved id "hole" in
+        --mapoverlay:shownbuiltins (opt-IN like the built-ins: the default
+        --with the panel closed stays "the map just has a hole in it"). The
+        --engine ignores unknown ids in that setting. Holes carry no
+        --keywordid/zonegroup, so the hidden-zones filter and the fade pass
+        --above both leave them alone -- right, they are not zone types;
+        --appended after both passes.
+        local holesShown = panelOpen
+        if not holesShown and #m_holes.overlayZones > 0 then
+            local shownStr = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
+            for id in string.gmatch(shownStr, "[^;]+") do
+                if id == "hole" then
+                    holesShown = true
+                    break
+                end
+            end
+        end
+        --a pref flip changes the list with no record write; bump the revision
+        --so the overlay mesh rebuilds (panelOpen flips already bump above,
+        --the redundant second bump is harmless).
+        if holesShown ~= m_dispelState.feedHolesShown then
+            m_dispelState.feedHolesShown = holesShown
+            m_zoneRevision = m_zoneRevision + 1
+        end
+        if holesShown and #m_holes.overlayZones > 0 then
+            local combined = {}
+            for _,zone in ipairs(zones) do
+                combined[#combined+1] = zone
+            end
+            for _,zone in ipairs(m_holes.overlayZones) do
+                combined[#combined+1] = zone
+            end
+            zones = combined
         end
 
         --"Entire Map" types draw nothing (that is the point - a blanket is
@@ -3331,6 +3913,30 @@ function MapMarkup.GetZoneTypesOnMap()
         return string.lower(a.name or "") < string.lower(b.name or "")
     end)
     return result
+end
+
+--Markup holes present on the current map, for the title bar's map overlay
+--menu: {color, angleRadians}, or nil when the map has none. The menu shows an
+--opt-IN row for it (reserved id "hole" in mapoverlay:shownbuiltins) -- with
+--the Map Markup panel closed the default is just the actual cut, no stripes.
+--DM-only: hole stripes are never player-visible, so players get no row.
+function MapMarkup.GetHoleTypeOnMap()
+    if not dmhub.isDM then
+        return nil
+    end
+    if not ZonesSupported() then
+        return nil
+    end
+    EnsureZoneCache()
+    for _,entry in ipairs(m_holes.cache) do
+        if entry.floorIndex ~= nil and entry.floorIndex >= 0 then
+            return {
+                color = m_holes.color,
+                angleRadians = ZONE_ANGLE_A,
+            }
+        end
+    end
+    return nil
 end
 
 --Keyword edits (refreshTables) change what zone auras contribute: invalidate
@@ -3585,6 +4191,53 @@ local function PolygonToLocs(points)
     return result
 end
 
+--Even-odd point-in-ring test against a flat {x1,y1,x2,y2,...} ring, matching
+--PolygonToLocs' fill rule.
+function m_holes.PointInRing(ring, px, py)
+    local n = #ring
+    local inside = false
+    local j = n - 1
+    for i = 1, n - 1, 2 do
+        local ax, ay = ring[i], ring[i+1]
+        local bx, by = ring[j], ring[j+1]
+        if (ay > py) ~= (by > py) then
+            local t = (py - ay) / (by - ay)
+            if px < ax + t * (bx - ax) then
+                inside = not inside
+            end
+        end
+        j = i
+    end
+    return inside
+end
+
+--Tiles covered by a hole's structured polygon list: each outer ring
+--rasterizes like a paint stroke, minus tiles whose center falls in one of
+--its clipped-out hole rings. Merged and deduplicated across entries.
+function m_holes.EntryLocs(polygons)
+    local seen = {}
+    local result = {}
+    for _,entry in ipairs(polygons or {}) do
+        for _,l in ipairs(PolygonToLocs(entry.points or {})) do
+            local inHole = false
+            for _,holeRing in ipairs(entry.holes or {}) do
+                if m_holes.PointInRing(holeRing, l.x, l.y) then
+                    inHole = true
+                    break
+                end
+            end
+            if not inHole then
+                local key = ZoneLocKey(l.x, l.y)
+                if not seen[key] then
+                    seen[key] = true
+                    result[#result+1] = { x = l.x, y = l.y }
+                end
+            end
+        end
+    end
+    return result
+end
+
 --A fresh storable record built from a cache entry with replacement fields.
 --Always build fresh tables for writes: the engine's markupZones getter hands
 --back the stored table itself, and mutating it in place corrupts undo.
@@ -3618,6 +4271,14 @@ local function BuildZoneRecord(entry, overrides)
         record.height = overrides.height
     else
         record.height = entry.height
+    end
+
+    --visuals: the shown state is the default and stays absent from the record.
+    if entry.hideAppearance == true then
+        record.hideAppearance = true
+    end
+    if overrides.hideAppearance ~= nil then
+        record.hideAppearance = (overrides.hideAppearance == true) or nil
     end
 
     if overrides.name ~= nil then record.name = overrides.name end
@@ -3718,6 +4379,22 @@ local function CreateZone(keywordid, locs, fallbackInfo)
         },
         ord = maxOrd + 1,
     }
+
+    --The zone TYPE's default height is stamped on at paint time; the zone owns
+    --it from here on (Edit Zone dialog), so re-defaulting the type later leaves
+    --zones already painted alone. nil = unlimited and stays off the record.
+    record.height = m_zoneHeight.Get(kw)
+
+    --Same deal for the type's "draw with visuals" toggle (the Visuals pill on
+    --the palette chip): pill off = the new zone starts with its visual
+    --representation hidden. The zone owns the flag from here on (the Visuals
+    --badge on its list row), so flipping the pill later leaves painted zones
+    --alone. Shown is the default and stays off the record.
+    pcall(function()
+        if kw ~= nil and kw:try_get("appearanceDefaultOff", false) == true then
+            record.hideAppearance = true
+        end
+    end)
 
     floor:SetMarkupZone(zoneid, record)
     return zoneid
@@ -4149,6 +4826,9 @@ local m_props = {
     editingId = nil,    --primary bound prop (single-value reads)
     editingIds = nil,   --the FULL bound selection; property edits hit all of them
     defaults = {},
+    --text defaults live in their own table: Light and Text both have a
+    --"color" field, so one shared per-asset table would cross-contaminate.
+    textDefaults = {},
 
     teleLink = nil,
     teleStyle = "teleport",
@@ -4542,11 +5222,17 @@ end
 --fields that are meaningless on an invisible wall.
 --============================================================================
 
-local function ShowMarkupWallDialog(wallid)
+--owner (optional) = the element the edit was invoked from; when it lives in
+--a popped-out Map Markup window the dialog shows inside that OS window
+--(gui.ShowModal owner routing). The dialog closes via the captured layer so
+--a palette rebuild destroying the owner cannot strand it open.
+local function ShowMarkupWallDialog(wallid, owner)
     local asset = assets.walls[wallid]
     if asset == nil then
         return
     end
+
+    local modalLayer = nil
 
     local originalValues = {
         description = asset.description,
@@ -4724,7 +5410,10 @@ local function ShowMarkupWallDialog(wallid)
     dialogPanel = gui.Panel{
         id = "MarkupWallDialog",
         classes = {"framedPanel"},
-        width = 460,
+        --94% of the modal layer, capped at the design width: full size in
+        --the main window, shrink-to-fit inside a small popout window.
+        width = "94%",
+        maxWidth = 460,
         height = "auto",
         pad = 16,
         borderBox = true,
@@ -4842,7 +5531,7 @@ local function ShowMarkupWallDialog(wallid)
                             --it sees the changes.
                             asset:Upload()
                         end
-                        gui.CloseModal()
+                        gui.CloseModalInLayer(modalLayer)
                     end,
                 },
             },
@@ -5118,7 +5807,7 @@ local function ShowMarkupWallDialog(wallid)
                         end,
                         escape = function()
                             RevertChanges()
-                            gui.CloseModal()
+                            gui.CloseModalInLayer(modalLayer)
                         end,
                     },
                 },
@@ -5141,7 +5830,7 @@ local function ShowMarkupWallDialog(wallid)
                             else
                                 asset:Upload()
                             end
-                            gui.CloseModal()
+                            gui.CloseModalInLayer(modalLayer)
                         end,
                     },
                 },
@@ -5155,7 +5844,7 @@ local function ShowMarkupWallDialog(wallid)
     dialogPanel:FireEventTree("refreshopenable")
     dialogPanel:FireEventTree("refreshscope")
 
-    gui.ShowModal(dialogPanel)
+    modalLayer = gui.ShowModal(dialogPanel, {owner = owner})
 end
 
 --============================================================================
@@ -5358,7 +6047,7 @@ local ZONE_TOOLS = {
         icon = "phosphor/eraser-fill.png",
         mapTool = "rectangle",
         erase = true,
-        help = "Eraser: drag a rectangle to remove zone tiles from every zone in the region.",
+        help = "Eraser: drag a rectangle to remove zone tiles from every zone in the region. Holes are clipped against the region.",
     },
 }
 
@@ -5616,17 +6305,58 @@ end
 --onto the screen, so opening toward a nearby screen edge would slide the
 --tooltip over the control itself (the old dock-class check missed
 --undocked/windowed hosts and did exactly that).
+--
+--In a POPOUT window there is no map to open over - the whole window is
+--panel, so a tooltip that FITS the window necessarily sits on the
+--controls. There the tooltip is pushed just past the window edge instead:
+--the engine's tooltip promote-on-overflow (popout Phase 5.2) lifts it into
+--a desktop-level child window BESIDE the OS window, vertically centered on
+--the control. Gated on child-window support; without it (old engine or
+--companion) the in-window clamp degrades this to today's behavior.
 local function SideTooltip(text)
     if text == nil then
         return nil
     end
     return function(element)
         local halign = "right"
-        --x1/x2 = screen room to the left/right of the element.
-        local distances = element.distancesToScreenEdge
-        if distances ~= nil and distances.x2 < distances.x1 then
-            halign = "left"
+
+        local dock = element:FindParentWithClass("dock")
+        local popoutHost = nil
+        if dock ~= nil and dock.data.nativeWindowRoot then
+            popoutHost = dock
         end
+
+        if popoutHost ~= nil and dmhub.popoutChildWindowsSupported and
+            dmhub.supportsPopoutTooltipPlacement then
+            --Popout window: the tooltip opens flush beside the hovered
+            --control exactly like in-app; when it does not fit the window,
+            --the engine's tooltip promote-on-overflow lifts it into a
+            --desktop-level child window at that same anchor-adjacent spot,
+            --so it extends past the window edge (partly over the window,
+            --partly over the desktop) instead of clamping onto the panel.
+            --Only the SIDE choice differs from in-app: the in-window rooms
+            --are all tiny in a small popout, so pick whichever side of the
+            --OS window has more DESKTOP room, with the app's own screen
+            --size as the best available desktop proxy. A wrong guess is
+            --not fatal - the OS clamps child windows back onto the display.
+            --Gated on placement-fixed engine builds: older ones return
+            --mirrored distances and mirrored promotion offsets (the popout
+            --canvas rect carries a -1 x scale).
+            local geo = popoutHost.data.popoutGeometry
+            local screenDim = dmhub.screenDimensions
+            local screenX = geo ~= nil and geo.x or nil
+            if screenX ~= nil and geo.width ~= nil and
+                screenX > screenDim.x - (screenX + geo.width) then
+                halign = "left"
+            end
+        else
+            --x1/x2 = screen room to the left/right of the element.
+            local distances = element.distancesToScreenEdge
+            if distances ~= nil and distances.x2 < distances.x1 then
+                halign = "left"
+            end
+        end
+
         element.tooltip = CreateTooltipPanel{
             text = text,
             halign = halign,
@@ -6195,7 +6925,7 @@ CreateMarkupEditor = function()
                 text = "Edit Wall...",
                 click = function()
                     element.popup = nil
-                    ShowMarkupWallDialog(entry.guid)
+                    ShowMarkupWallDialog(entry.guid, element)
                 end,
             }
         end
@@ -6660,6 +7390,7 @@ CreateMarkupEditor = function()
                         --quietly adding a plain wall.
                         if not OpenableWallsSupported() then
                             gui.ModalMessage{
+                                owner = element,
                                 title = "Door (Openable)",
                                 message = "Openable walls need an engine build with door support.",
                             }
@@ -6693,7 +7424,7 @@ CreateMarkupEditor = function()
                                 kind = "custom",
                                 guid = guid,
                             }
-                            ShowMarkupWallDialog(guid)
+                            ShowMarkupWallDialog(guid, element)
                         end
                     end,
                 }
@@ -6704,6 +7435,9 @@ CreateMarkupEditor = function()
             end,
 
             showlibrary = function(element)
+                --closes via the captured layer; shown owner-routed so a
+                --popped-out Map Markup gets the dialog in its own window.
+                local modalLayer = nil
                 --Markup is invisible-walls-only: visible art walls belong to
                 --the Building editor. Also skip walls already in the palette.
                 local paletteGuids = {}
@@ -6751,7 +7485,7 @@ CreateMarkupEditor = function()
                                 kind = "wall",
                                 guid = rowElement.data.wallid,
                             }
-                            gui.CloseModal()
+                            gui.CloseModalInLayer(modalLayer)
                         end,
 
                         gui.Panel{
@@ -6787,8 +7521,12 @@ CreateMarkupEditor = function()
                 local dialogPanel = gui.Panel{
                     id = "MarkupWallLibraryDialog",
                     classes = {"framedPanel"},
-                    width = 440,
-                    height = 620,
+                    --clamped to the modal layer: full design size in the
+                    --main window, shrink-to-fit inside a small popout.
+                    width = "94%",
+                    maxWidth = 440,
+                    height = "92%",
+                    maxHeight = 620,
                     pad = 16,
                     borderBox = true,
                     flow = "vertical",
@@ -6823,13 +7561,13 @@ CreateMarkupEditor = function()
                                 buttonElement:FireEvent("escape")
                             end,
                             escape = function()
-                                gui.CloseModal()
+                                gui.CloseModalInLayer(modalLayer)
                             end,
                         },
                     },
                 }
 
-                gui.ShowModal(dialogPanel)
+                modalLayer = gui.ShowModal(dialogPanel, {owner = element})
             end,
         },
     }
@@ -7812,7 +8550,231 @@ CreateMarkupEditor = function()
         keywordType.ShowEditDialog(keywordid)
     end
 
+    --"Set Amount..." prompt behind the chip's Default Height submenu. A typed
+    --number rather than a stepper: unlike wall height there is no small fixed
+    --range, and "Ground Only"/"Unlimited" (the two common answers) are already
+    --one click away in the menu. apply(height) does the writing, so this is
+    --shared by the per-type default and the per-zone override.
+    local ShowZoneHeightDialog = function(currentHeight, apply, owner)
+        local heightText = tostring(cond(currentHeight ~= nil and currentHeight >= 1, currentHeight, 2))
+
+        local modalLayer = nil
+        local dialogPanel
+        dialogPanel = gui.Panel{
+            id = "MarkupZoneHeightDialog",
+            classes = {"framedPanel"},
+            --94% of the modal layer, capped at the design width (see
+            --MarkupWallDialog).
+            width = "94%",
+            maxWidth = 380,
+            height = "auto",
+            pad = 16,
+            borderBox = true,
+            flow = "vertical",
+            styles = ThemeEngine.MergeStyles{
+                Styles.Panel,
+                MarkupChipStyles(),
+            },
+
+            gui.Label{
+                classes = {"dialogTitle"},
+                text = "Zone Height",
+            },
+
+            gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Label{
+                    classes = {"formStacked"},
+                    text = "Affects up to height:",
+                },
+                gui.Input{
+                    classes = {"formStacked"},
+                    text = heightText,
+                    width = 60,
+                    characterLimit = 3,
+                    numeric = true,
+                    selectAllOnFocus = true,
+                    change = function(element)
+                        heightText = element.text
+                    end,
+                },
+            },
+
+            gui.Label{
+                classes = {"fgMuted", "sizeXs"},
+                text = "Tiles above the ground the zone reaches. The height follows the terrain, so a zone that runs up onto a ledge still reaches this far above the ledge.",
+                width = "94%",
+                height = "auto",
+                halign = "center",
+                vmargin = 2,
+            },
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                vmargin = 8,
+
+                gui.Button{
+                    classes = {"sizeM"},
+                    text = "Cancel",
+                    halign = "center",
+                    captureEscape = true,
+                    escapePriority = EscapePriority.EXIT_DIALOG,
+                    events = {
+                        click = function(element)
+                            element:FireEvent("escape")
+                        end,
+                        escape = function()
+                            gui.CloseModalInLayer(modalLayer)
+                        end,
+                    },
+                },
+
+                gui.Button{
+                    classes = {"sizeM"},
+                    text = "Save",
+                    halign = "center",
+                    events = {
+                        click = function()
+                            --a blank or junk entry means "no limit"; 0 typed
+                            --here is the same answer as the menu's Ground Only.
+                            local n = tonumber(heightText)
+                            if n == nil or n < 0 then
+                                apply(nil)
+                            else
+                                apply(math.floor(n))
+                            end
+                            gui.CloseModalInLayer(modalLayer)
+                        end,
+                    },
+                },
+            },
+        }
+
+        modalLayer = gui.ShowModal(dialogPanel, {owner = owner})
+    end
+
+    --The built-in "Hole" chip: always last in the palette, not keyword-backed
+    --and not editable -- no right-click menu, no Entire Map pill, no dynamic
+    --light row. Painting with it cuts real holes in the map (see m_holes).
+    local CreateHoleZoneChip = function(index)
+        local summary = "Cuts a hole through the floor"
+        if not m_holes.Supported() then
+            summary = "Needs an engine update"
+        end
+
+        local gradient = m_zoneStripes.Gradient(m_holes.color, ZONE_ANGLE_A)
+        local swatchColor = m_holes.color
+        if gradient ~= nil then
+            swatchColor = "white"
+        end
+
+        return gui.Panel{
+            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+            width = "100%",
+            height = 36,
+            halign = "center",
+            flow = "vertical",
+            bgimage = true,
+            pad = 6,
+            borderBox = true,
+            vmargin = 1,
+
+            data = {
+                index = index,
+            },
+
+            press = function(element)
+                m_zoneSelectedType = element.data.index
+                --a fresh type selection paints new holes, not whatever zone
+                --was last targeted.
+                m_zoneTargetId = nil
+                zonePalettePanel:FireEvent("refreshchips")
+                RefreshZoneUI()
+                --picking the type must arm the paint tool by itself, exactly
+                --like the zone chips.
+                TakeMarkupFocus()
+            end,
+
+            gui.Panel{
+                width = "100%",
+                height = 24,
+                flow = "horizontal",
+
+                gui.Panel{
+                    --no Entire Map pill on this chip, so only the swatch
+                    --column comes off the width: this panel's own 4+4 hmargin
+                    --plus the swatch's 28 + 4+4. Get this wrong and the swatch
+                    --sits out of line with the keyword chips' swatches.
+                    width = "100%-44",
+                    height = "auto",
+                    valign = "center",
+                    flow = "vertical",
+                    hmargin = 4,
+
+                    gui.Label{
+                        classes = {"bold"},
+                        text = "Hole",
+                        width = "100%",
+                        height = "auto",
+                    },
+
+                    gui.Label{
+                        classes = {"fgMuted", "sizeXs"},
+                        text = summary,
+                        width = "100%",
+                        height = "auto",
+                        textWrap = false,
+                        textOverflow = "ellipsis",
+                    },
+                },
+
+                gui.Panel{
+                    width = 28,
+                    height = 28,
+                    hmargin = 4,
+                    valign = "center",
+                    bgimage = true,
+                    bgcolor = swatchColor,
+                    gradient = gradient,
+                    borderWidth = 1,
+                    borderColor = "@border",
+                },
+            },
+        }
+    end
+
+    --Whether the keyword carries a USABLE visual representation (the same
+    --test BuildZoneAuraInstance applies before stamping it on an aura): a
+    --floor appearance with a fill or edge asset, or a sprites appearance
+    --with at least one sprite. Gates the Visuals pill on palette chips and
+    --the Visuals badge on zone rows - a type with no art gets neither.
+    local ZoneTypeHasVisuals = function(kw)
+        if kw == nil then
+            return false
+        end
+        local has = false
+        pcall(function()
+            local appearance = kw:try_get("appearance")
+            if appearance == nil then
+                return
+            end
+            if appearance.mode == "floor" then
+                has = appearance.tileid ~= nil or appearance.edgeWallId ~= nil
+            elseif appearance.mode == "sprites" then
+                has = appearance.sprites ~= nil and #appearance.sprites > 0
+            end
+        end)
+        return has
+    end
+
     local CreateZoneChip = function(index, entry)
+        if entry.kind == "hole" then
+            return CreateHoleZoneChip(index)
+        end
+
         local kw = GetKeyword(entry.keywordid)
         local preset = nil
         if entry.kind == "preset" then
@@ -7867,6 +8829,68 @@ CreateMarkupEditor = function()
             gui.Label{
                 classes = {"markupEntireMapLabel", "sizeXs"},
                 text = "Entire Map",
+                fontSize = 10,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        }
+
+        --"Visuals": only for types with a visual representation (Edit
+        --Appearance art). Lit = zones drawn with this type display their
+        --art; unlit = they get stripes only. Only a DEFAULT stamped at
+        --paint time - each zone's art then toggles from the Visuals badge
+        --on its list row, so flipping this never disturbs painted zones.
+        --Always constructed and collapsed when ineligible: a nil positional
+        --child would hole the topRow constructor's array and drop the
+        --children after it.
+        local hasVisuals = ZoneTypeHasVisuals(kw)
+        local visualsOn = true
+        if hasVisuals then
+            pcall(function()
+                visualsOn = kw:try_get("appearanceDefaultOff", false) ~= true
+            end)
+        end
+        local visualsButton = gui.Panel{
+            classes = {"markupEntireMap", cond(visualsOn, "lit"), cond(not hasVisuals, "collapsed")},
+            width = 48,
+            height = 16,
+            hmargin = 2,
+            valign = "center",
+            bgimage = "panels/square.png",
+            hover = SideTooltip("This zone type has a visual representation. When lit, zones you draw display it on the map; when unlit, new zones show only their stripes. Each painted zone can still be toggled from its row in the zone list."),
+
+            click = function(element)
+                --the pill only shows for a resolved keyword (the
+                --appearance lives on it), so this is just the dead-id
+                --healing path, same as the Entire Map pill.
+                local keywordid = EnsureZoneTypeKeyword(index)
+                if keywordid == nil then
+                    return
+                end
+                local keyword = GetKeyword(keywordid)
+                if keyword == nil then
+                    return
+                end
+                local off = false
+                pcall(function()
+                    off = keyword:try_get("appearanceDefaultOff", false) == true
+                end)
+                if off then
+                    --shown is the default; nil-assign clears the field
+                    --(same idiom defaultHeight uses).
+                    keyword.appearanceDefaultOff = nil
+                else
+                    keyword.appearanceDefaultOff = true
+                end
+                dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, keyword)
+                element:SetClass("lit", off)
+            end,
+
+            gui.Label{
+                classes = {"markupEntireMapLabel", "sizeXs"},
+                text = "Visuals",
                 fontSize = 10,
                 width = "auto",
                 height = "auto",
@@ -7999,7 +9023,10 @@ CreateMarkupEditor = function()
             flow = "horizontal",
 
             gui.Panel{
-                width = "100%-104",
+                --the Visuals pill (48 + 2+2 hmargin) comes off the text
+                --column when present, on top of the standing 104 (label
+                --margins + Entire Map pill + swatch).
+                width = cond(hasVisuals, "100%-156", "100%-104"),
                 height = "auto",
                 valign = "center",
                 flow = "vertical",
@@ -8030,6 +9057,8 @@ CreateMarkupEditor = function()
                     end,
                 },
             },
+
+            visualsButton,
 
             entireMapButton,
 
@@ -8079,6 +9108,21 @@ CreateMarkupEditor = function()
             end,
 
             rightClick = function(element)
+                --"Default Height" writes to the KEYWORD, so a preset chip has
+                --to materialize its keyword first (same lazy-materialize the
+                --Entire Map pill does). Setting a default never touches zones
+                --already painted - it is only what the next one is stamped with.
+                local SetDefaultHeight = function(height)
+                    local keywordid = EnsureZoneTypeKeyword(element.data.index)
+                    if keywordid == nil then
+                        return
+                    end
+                    m_zoneHeight.Set(keywordid, height)
+                    zonePalettePanel:FireEvent("refreshzonepalette")
+                end
+
+                local currentHeight = m_zoneHeight.Get(GetKeyword(entry.keywordid))
+
                 element.popup = gui.ContextMenu{
                     entries = {
                         {
@@ -8087,6 +9131,33 @@ CreateMarkupEditor = function()
                                 element.popup = nil
                                 EditZoneTypeKeyword(element.data.index)
                             end,
+                        },
+                        {
+                            text = "Default Height",
+                            submenu = {
+                                {
+                                    text = cond(currentHeight == nil, "Unlimited (current)", "Unlimited"),
+                                    click = function()
+                                        element.popup = nil
+                                        SetDefaultHeight(nil)
+                                    end,
+                                },
+                                {
+                                    text = cond(currentHeight == 0, "Ground Only (current)", "Ground Only"),
+                                    click = function()
+                                        element.popup = nil
+                                        SetDefaultHeight(0)
+                                    end,
+                                },
+                                {
+                                    text = cond(currentHeight ~= nil and currentHeight > 0,
+                                        string.format("Set Amount... (%d)", currentHeight or 0), "Set Amount..."),
+                                    click = function()
+                                        element.popup = nil
+                                        ShowZoneHeightDialog(currentHeight, SetDefaultHeight, element)
+                                    end,
+                                },
+                            },
                         },
                         {
                             text = "Remove from Palette",
@@ -8137,6 +9208,10 @@ CreateMarkupEditor = function()
     --and have it replayed later if a chip context menu is open.
     local RebuildZonePalette = function(element)
         m_zonePaletteEntries = ParseZonePalette()
+        --the built-in Hole type is always present, after the user's zone
+        --types. SerializeZonePalette skips it (no kind "preset", no
+        --keywordid), so it never reaches the stored palette setting.
+        m_zonePaletteEntries[#m_zonePaletteEntries+1] = { kind = "hole" }
         if m_zoneSelectedType > #m_zonePaletteEntries then
             m_zoneSelectedType = #m_zonePaletteEntries
         end
@@ -8318,19 +9393,48 @@ CreateMarkupEditor = function()
     }
 
     --Per-zone edit dialog: name, height limit, player visibility.
-    local ShowZoneDialog = function(entry)
+    local ShowZoneDialog = function(entry, owner)
+        local modalLayer = nil
         local name = entry.name
-        local heightText = ""
-        if entry.height ~= nil then
-            heightText = string.format("%d", entry.height)
-        end
         local playerVisible = entry.playerVisible == true
+
+        --Height as a mode + amount, matching the zone type's Default Height.
+        --The amount box keeps a usable number even while hidden, so switching
+        --to Set Amount never lands on a value Save has to reject.
+        local heightMode = "infinite"
+        if entry.height ~= nil then
+            heightMode = cond(entry.height <= 0, "ground", "amount")
+        end
+        local heightText = tostring(cond(entry.height ~= nil and entry.height >= 1, entry.height, 2))
+
+        local heightAmountPanel
+        heightAmountPanel = gui.Panel{
+            classes = {"formStackedRow", cond(heightMode ~= "amount", "collapsed")},
+            gui.Label{
+                classes = {"formStacked"},
+                text = "Tiles above ground:",
+            },
+            gui.Input{
+                classes = {"formStacked"},
+                text = heightText,
+                width = 60,
+                characterLimit = 3,
+                numeric = true,
+                selectAllOnFocus = true,
+                change = function(element)
+                    heightText = element.text
+                end,
+            },
+        }
 
         local dialogPanel
         dialogPanel = gui.Panel{
             id = "MarkupZoneDialog",
             classes = {"framedPanel"},
-            width = 440,
+            --94% of the modal layer, capped at the design width (see
+            --MarkupWallDialog).
+            width = "94%",
+            maxWidth = 440,
             height = "auto",
             pad = 16,
             borderBox = true,
@@ -8365,28 +9469,35 @@ CreateMarkupEditor = function()
                 },
             },
 
+            --Same three-way vocabulary as the zone type's Default Height, so
+            --"Ground Only" is a named choice here rather than a 0 the user has
+            --to know to type. The amount box only shows for Set Amount.
             gui.Panel{
                 classes = {"formStackedRow"},
                 gui.Label{
                     classes = {"formStacked"},
-                    text = "Affects up to height:",
+                    text = "Height:",
                 },
-                gui.Input{
+                gui.Dropdown{
                     classes = {"formStacked"},
-                    text = heightText,
-                    width = 60,
-                    characterLimit = 3,
-                    numeric = true,
-                    selectAllOnFocus = true,
+                    idChosen = heightMode,
+                    options = {
+                        {id = "infinite", text = "Unlimited"},
+                        {id = "ground", text = "Ground Only"},
+                        {id = "amount", text = "Set Amount"},
+                    },
                     change = function(element)
-                        heightText = element.text
+                        heightMode = element.idChosen
+                        heightAmountPanel:SetClass("collapsed", heightMode ~= "amount")
                     end,
                 },
             },
 
+            heightAmountPanel,
+
             gui.Label{
                 classes = {"fgMuted", "sizeXs"},
-                text = "Height in tiles above the ground. Blank = unlimited, so the zone also affects flying creatures. With a height set, creatures above the zone (e.g. flyers over lava) are unaffected.",
+                text = "How far up the zone reaches, measured from the ground under it - so it follows the terrain over ledges and pits. Ground Only affects creatures standing in the zone but not flyers above it; Unlimited affects everything over it as well.",
                 width = "94%",
                 height = "auto",
                 halign = "center",
@@ -8421,7 +9532,7 @@ CreateMarkupEditor = function()
                             element:FireEvent("escape")
                         end,
                         escape = function()
-                            gui.CloseModal()
+                            gui.CloseModalInLayer(modalLayer)
                         end,
                     },
                 },
@@ -8438,31 +9549,43 @@ CreateMarkupEditor = function()
                                     name = name,
                                     playerVisible = playerVisible,
                                 }
-                                local n = tonumber(heightText)
-                                if n == nil or n < 0 then
+                                if heightMode == "infinite" then
                                     overrides.clearHeight = true
+                                elseif heightMode == "ground" then
+                                    overrides.height = 0
                                 else
-                                    overrides.height = math.floor(n)
+                                    --junk in the amount box falls back to
+                                    --unlimited rather than silently saving 0,
+                                    --which would read as Ground Only.
+                                    local n = tonumber(heightText)
+                                    if n == nil or n < 0 then
+                                        overrides.clearHeight = true
+                                    else
+                                        overrides.height = math.floor(n)
+                                    end
                                 end
                                 floor:SetMarkupZone(entry.zoneid, BuildZoneRecord(entry, overrides))
                                 RefreshZoneUI()
                             end
-                            gui.CloseModal()
+                            gui.CloseModalInLayer(modalLayer)
                         end,
                     },
                 },
             },
         }
 
-        gui.ShowModal(dialogPanel)
+        modalLayer = gui.ShowModal(dialogPanel, {owner = owner})
     end
 
     local CreateZoneRow = function(entry)
         local meta = {}
         meta[#meta+1] = string.format("%d tiles", #entry.locs)
-        if entry.height ~= nil then
-            meta[#meta+1] = string.format("height %d", entry.height)
-        end
+        --"height 0" would read as "no height"; describe the modes by name.
+        --Unlimited is spelled out here rather than left blank (Describe returns
+        --nil for it, which is right for chips and menus): on a row that already
+        --reads "N tiles", a silent height is indistinguishable from a zone whose
+        --height nobody has looked at.
+        meta[#meta+1] = string.lower(m_zoneHeight.Describe(entry.height) or "Unlimited height")
         if entry.playerVisible then
             meta[#meta+1] = "visible to players"
         end
@@ -8484,6 +9607,54 @@ CreateMarkupEditor = function()
         local rowSwatchColor = entry.patternColor
         if rowGradient ~= nil then
             rowSwatchColor = "white"
+        end
+
+        --"Visuals" badge: only for zones whose TYPE has a visual
+        --representation. Lit = this zone displays its art on the map;
+        --click toggles the zone's own hideAppearance flag (the record
+        --write triggers the aura rebuild that adds/removes the art).
+        local rowHasVisuals = ZoneTypeHasVisuals(entry.keywordInfo)
+        local visualsBadge = nil
+        if rowHasVisuals then
+            visualsBadge = gui.Panel{
+                classes = {"markupEntireMap", cond(entry.hideAppearance ~= true, "lit")},
+                width = 48,
+                height = 16,
+                hmargin = 2,
+                valign = "center",
+                bgimage = "panels/square.png",
+                hover = SideTooltip("This zone's type has a visual representation. When lit, this zone displays it on the map; click to show only the stripes for this zone."),
+
+                --MUST swallow the press. Without it the mouse-DOWN bubbles to
+                --the row, whose press selects the zone and calls RefreshZoneUI
+                ---- which replaces zoneListPanel.children, destroying this very
+                --badge before the mouse comes back up, so the click never
+                --fires and only the row's selection is seen. (The identical
+                --badge on the zone-TYPE chip needs no such guard: that chip's
+                --press only re-runs "refreshchips", which retags the selected
+                --class instead of rebuilding.)
+                swallowPress = true,
+
+                click = function(element)
+                    local floor = game.currentFloor
+                    if floor == nil then
+                        return
+                    end
+                    local hide = entry.hideAppearance ~= true
+                    floor:SetMarkupZone(entry.zoneid, BuildZoneRecord(entry, { hideAppearance = hide }))
+                    RefreshZoneUI()
+                end,
+
+                gui.Label{
+                    classes = {"markupEntireMapLabel", "sizeXs"},
+                    text = "Visuals",
+                    fontSize = 10,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                },
+            }
         end
 
         return gui.Panel{
@@ -8534,7 +9705,7 @@ CreateMarkupEditor = function()
                             text = "Edit Zone...",
                             click = function()
                                 element.popup = nil
-                                ShowZoneDialog(entry)
+                                ShowZoneDialog(entry, element)
                             end,
                         },
                         {
@@ -8567,7 +9738,10 @@ CreateMarkupEditor = function()
             },
 
             gui.Panel{
-                width = "100%-36",
+                --the Visuals badge (48 + 2+2 hmargin) comes off the text
+                --column when present, on top of the standing 36 (swatch +
+                --this column's margins).
+                width = cond(rowHasVisuals, "100%-88", "100%-36"),
                 height = "100%",
                 flow = "vertical",
                 hmargin = 4,
@@ -8585,6 +9759,107 @@ CreateMarkupEditor = function()
                     width = "100%",
                     height = "auto",
                 },
+            },
+
+            --last positional entry: may be nil (no visuals for this type),
+            --and a nil mid-constructor would hole the array.
+            visualsBadge,
+        }
+    end
+
+    --The floor's zones bucketed by zone TYPE, in the order the types first
+    --appear in the (ord-sorted) list, with each bucket's zones still in ord
+    --order. Grouping is what makes a long list legible - a floor with a dozen
+    --zones is nearly always three or four types painted several times over -
+    --and it is what the opacity slider hangs off, since fading is a property
+    --of the type, not of one painted region.
+    local GroupZonesOnFloor = function(floorid)
+        local groups = {}
+        local order = {}
+
+        for _,entry in ipairs(ZonesOnFloor(floorid)) do
+            local key = m_zoneStripes.GroupKey(entry)
+            local group = groups[key]
+            if group == nil then
+                group = {
+                    key = key,
+                    name = entry.keywordName or "Zone",
+                    --the first zone's swatch stands for the group: colour and
+                    --stripe angle are properties of the keyword, so every zone
+                    --in the group looks the same on the map anyway.
+                    patternColor = entry.patternColor,
+                    patternAngle = entry.patternAngle,
+                    entries = {},
+                }
+                groups[key] = group
+                order[#order+1] = group
+            end
+            group.entries[#group.entries+1] = entry
+        end
+
+        return order
+    end
+
+    --A group's header: the striped type swatch, the type name and how many
+    --zones of it are on this floor, and the opacity slider that fades the
+    --whole type on the map. Widths add up to exactly 100% (margins count in
+    --horizontal flow), so nothing wraps as the panel is resized.
+    local CreateZoneGroupHeader = function(group)
+        local gradient = m_zoneStripes.Gradient(group.patternColor, group.patternAngle)
+        local swatchColor = group.patternColor
+        if gradient ~= nil then
+            swatchColor = "white"
+        end
+
+        local ApplyOpacity = function(element)
+            m_zoneStripes.SetOpacity(group.key, element.value)
+        end
+
+        return gui.Panel{
+            width = "100%",
+            height = 20,
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 3,
+
+            --hmargin 4 lines the swatch up with the row swatches below, which
+            --are inset by the chip's own pad of 4.
+            gui.Panel{
+                width = 14,
+                height = 14,
+                hmargin = 4,
+                valign = "center",
+                bgimage = true,
+                bgcolor = swatchColor,
+                gradient = gradient,
+                borderWidth = 1,
+                borderColor = "@border",
+            },
+
+            gui.Label{
+                classes = {"markupSectionHeader"},
+                text = string.format("%s (%d)", group.name, #group.entries),
+                uppercase = true,
+                width = "100%-118",
+                height = "auto",
+                valign = "center",
+            },
+
+            --transient and local: nothing here is written to the map, a
+            --setting or the players' clients. See m_zoneStripes.opacity.
+            gui.PercentSlider{
+                width = 88,
+                hmargin = 4,
+                valign = "center",
+                styles = m_zoneStripes.OpacitySliderStyles(),
+                value = m_zoneStripes.Opacity(group.key),
+                hover = gui.Tooltip("Fades this zone type on the map so you can see what is under it. A local viewing aid only - it is not saved, and players never see it."),
+                --a drag fires 'preview' per frame and 'confirm' on release;
+                --a click on the bar fires 'confirm' alone. All three land on
+                --the same handler so the map tracks the bar live.
+                preview = ApplyOpacity,
+                change = ApplyOpacity,
+                confirm = ApplyOpacity,
             },
         }
     end
@@ -8748,6 +10023,17 @@ CreateMarkupEditor = function()
 
                 local locs = PolygonToLocs(points)
                 if #locs == 0 then
+                    return
+                end
+
+                --the built-in Hole type: keep the drawn polygon and cut a
+                --real hole instead of painting a keyword zone. None of the
+                --keyword machinery below (dispels, contiguity merging)
+                --applies to holes.
+                local selectedEntry = m_zonePaletteEntries[m_zoneSelectedType]
+                if selectedEntry ~= nil and selectedEntry.kind == "hole" then
+                    m_holes.Paint(floor, points, locs)
+                    RefreshZoneUI()
                     return
                 end
 
@@ -8960,7 +10246,65 @@ CreateMarkupEditor = function()
                     end
                 end
 
-                if #edits == 0 then
+                --holes erase by CLIPPING, like floor erasing: the erase
+                --region is subtracted from each touched hole's polygons
+                --(dmhub.ClipPolygons, Clipper-backed), so erasing across a
+                --hole trims or bisects the shape rather than deleting it. A
+                --rect erased from the middle leaves a donut ({points, holes}
+                --entries); a fully covered hole deletes its record. The
+                --stroke's own polygon is the clip region -- the geometric
+                --shape, not the rasterized tiles the zone edits use. The
+                --cache is fresh here (ZonesOnFloor ran EnsureZoneCache).
+                --Fallback on engines without ClipPolygons: delete any hole
+                --shape the region's tiles touch, whole.
+                local holeEdits = {}
+                local clipSupported = false
+                pcall(function()
+                    clipSupported = dmhub.ClipPolygons ~= nil
+                end)
+                if clipSupported then
+                    local eraseRing = {}
+                    for i = 1,#points do
+                        eraseRing[i] = points[i]
+                    end
+                    for _,entry in ipairs(m_holes.cache) do
+                        if entry.floorid == floor.floorid and #entry.polygons > 0 then
+                            local ok, touched = pcall(function()
+                                local inter = dmhub.ClipPolygons{
+                                    subjects = entry.polygons,
+                                    clips = { eraseRing },
+                                    operation = "intersection",
+                                }
+                                return #inter > 0
+                            end)
+                            if ok and touched then
+                                local okDiff, clipped = pcall(function()
+                                    return dmhub.ClipPolygons{
+                                        subjects = entry.polygons,
+                                        clips = { eraseRing },
+                                        operation = "difference",
+                                    }
+                                end)
+                                if okDiff and clipped ~= nil then
+                                    holeEdits[#holeEdits+1] = { entry = entry, polygons = clipped }
+                                end
+                            end
+                        end
+                    end
+                else
+                    for _,entry in ipairs(m_holes.cache) do
+                        if entry.floorid == floor.floorid then
+                            for _,l in ipairs(entry.locs) do
+                                if remove[ZoneLocKey(l.x, l.y)] then
+                                    holeEdits[#holeEdits+1] = { entry = entry, polygons = {} }
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if #edits == 0 and #holeEdits == 0 then
                     return
                 end
 
@@ -8971,6 +10315,17 @@ CreateMarkupEditor = function()
                     WriteZoneLocsSplitting(floor, edit.entry, edit.kept)
                     if #edit.kept == 0 and m_zoneTargetId == edit.entry.zoneid then
                         m_zoneTargetId = nil
+                    end
+                end
+                for _,edit in ipairs(holeEdits) do
+                    if #edit.polygons == 0 then
+                        floor:RemoveMarkupZone(edit.entry.zoneid)
+                    else
+                        floor:SetMarkupZone(edit.entry.zoneid, {
+                            category = "hole",
+                            polygons = edit.polygons,
+                            locs = m_holes.EntryLocs(edit.polygons),
+                        })
                     end
                 end
                 dmhub.EndTransaction()
@@ -9020,10 +10375,15 @@ CreateMarkupEditor = function()
                 element.data.seq = dmhub.markupZonesSeq
                 element.data.floorid = game.currentFloorId
 
+                --grouped by zone type, each group under its own header (which
+                --carries the type's opacity slider).
                 local children = {}
                 if element.data.floorid ~= nil then
-                    for _,entry in ipairs(ZonesOnFloor(element.data.floorid)) do
-                        children[#children+1] = CreateZoneRow(entry)
+                    for _,group in ipairs(GroupZonesOnFloor(element.data.floorid)) do
+                        children[#children+1] = CreateZoneGroupHeader(group)
+                        for _,entry in ipairs(group.entries) do
+                            children[#children+1] = CreateZoneRow(entry)
+                        end
                     end
                 end
 
@@ -10136,6 +11496,115 @@ CreateMarkupEditor = function()
         return nil
     end
 
+    --Session text defaults for one palette asset, seeded lazily from the
+    --asset's own Text component so a "Label" chip starts at the font, size
+    --and color it was authored with. Like the light defaults these then
+    --track the last values edited, so consecutive labels inherit the look
+    --(and the wording, which is usually a small edit of the last one).
+    local TextDefaultsFor = function(assetid)
+        if assetid == nil then
+            return nil
+        end
+        local d = m_props.textDefaults[assetid]
+        if d == nil then
+            d = { text = "", font = "", fontSize = 40, color = "#ffffff" }
+            local node = assets:GetObjectNode(assetid)
+            if node ~= nil then
+                local comp = NodeGetComponent(node, "Text")
+                if comp ~= nil then
+                    local v = GetComponentFieldValue(comp, "text")
+                    if v ~= nil then
+                        d.text = tostring(v)
+                    end
+                    v = GetComponentFieldValue(comp, "font")
+                    if v ~= nil then
+                        d.font = tostring(v)
+                    end
+                    v = tonumber(GetComponentFieldValue(comp, "fontSize"))
+                    if v ~= nil then
+                        d.fontSize = v
+                    end
+                    v = GetComponentFieldValue(comp, "color")
+                    if v ~= nil then
+                        d.color = v
+                    end
+                end
+            end
+            m_props.textDefaults[assetid] = d
+        end
+        return d
+    end
+
+    --Component awareness for text, mirroring the light editors: shown when
+    --ANY bound prop has a Text component, or (with nothing bound) when the
+    --selected palette asset does.
+    local TextEditorVisible = function()
+        local editing = GetEditingProps()
+        if #editing > 0 then
+            for _,obj in ipairs(editing) do
+                if obj:GetComponent("Text") ~= nil then
+                    return true
+                end
+            end
+            return false
+        end
+        if m_props.selected == nil then
+            return false
+        end
+        local node = assets:GetObjectNode(m_props.selected)
+        return node ~= nil and NodeGetComponent(node, "Text") ~= nil
+    end
+
+    --Apply a text property onto EVERY bound prop that has a Text component,
+    --updating each one's asset defaults; with nothing bound, into the
+    --session defaults for the selected asset (the next placement inherits
+    --them).
+    local ApplyTextProperty = function(id, value)
+        local applied = false
+        for _,obj in ipairs(GetEditingProps()) do
+            local comp = obj:GetComponent("Text")
+            if comp ~= nil then
+                comp:SetAndUploadProperties{ [id] = value }
+                local d = TextDefaultsFor(obj.assetid)
+                if d ~= nil then
+                    d[id] = value
+                end
+                applied = true
+            end
+        end
+        if applied then
+            return
+        end
+        local d = TextDefaultsFor(m_props.selected)
+        if d ~= nil then
+            d[id] = value
+        end
+    end
+
+    --The value feeding a text editor: the first bound Text component's, else
+    --the session default for the selected asset.
+    local ReadTextProperty = function(id)
+        for _,obj in ipairs(GetEditingProps()) do
+            local comp = obj:GetComponent("Text")
+            if comp ~= nil then
+                local value = GetComponentFieldValue(comp, id)
+                if value ~= nil then
+                    return value
+                end
+                local d = TextDefaultsFor(obj.assetid)
+                if d ~= nil then
+                    return d[id]
+                end
+                return nil
+            end
+        end
+        local d = TextDefaultsFor(m_props.selected)
+        if d ~= nil then
+            return d[id]
+        end
+        return nil
+    end
+
     --Every bound prop with a Teleporter component: {obj, comp, link} each.
     local EditingTeleporters = function()
         local result = {}
@@ -10360,6 +11829,26 @@ CreateMarkupEditor = function()
             end
         end
 
+        --the wording typed into the editors is what the new label says: for
+        --text props the panel doubles as the compose field, so a click on
+        --the map drops a finished label rather than a blank one to go back
+        --and fill in.
+        local textcomp = obj:GetComponent("Text")
+        if textcomp ~= nil then
+            local d = TextDefaultsFor(assetid)
+            if d ~= nil then
+                textcomp:SetProperty("text", tostring(d.text or ""))
+                if d.font ~= nil and tostring(d.font) ~= "" then
+                    textcomp:SetProperty("font", tostring(d.font))
+                end
+                local size = tonumber(d.fontSize)
+                if size ~= nil then
+                    textcomp:SetProperty("fontSize", size)
+                end
+                textcomp:SetProperty("color", ToColorValue(d.color))
+            end
+        end
+
         --Teleporters place as a PAIR sharing one link name and style: the
         --first placement arms the pending-partner state, the second completes
         --the pair and retires the link name so the next pair generates a
@@ -10404,6 +11893,9 @@ CreateMarkupEditor = function()
         local tip = tostring(node.description) .. ": click the map to place one."
         if NodeGetComponent(node, "Light") ~= nil then
             tip = tip .. " An invisible light source: players see the light it casts, never the marker."
+        end
+        if NodeGetComponent(node, "Text") ~= nil then
+            tip = tip .. " Type the wording below before placing it; every placed one can be re-edited by clicking it."
         end
 
         return gui.Panel{
@@ -10740,6 +12232,280 @@ CreateMarkupEditor = function()
         CreateLightSliderRow("Flicker:", "flicker", 0, 1),
     }
 
+    --The font picker's options. The ids gui.availableFonts hands back are
+    --lowercase while a component stores whatever case the asset was authored
+    --with ("Berling"); GameConfig.GetFont lowercases before looking up, so a
+    --lowercase id resolves to exactly the same face - just compare
+    --case-insensitively when reading the current value back.
+    --
+    --A font the build does not ship (the white-label font lists differ, so
+    --e.g. an asset authored as "Cambria" has no face here and renders in the
+    --fallback) gets a synthetic entry at the top rather than leaving the
+    --picker blank on a value that IS set.
+    local m_textFontOptions = nil
+    local TextFontOptions = function(current)
+        if m_textFontOptions == nil then
+            m_textFontOptions = {}
+            for _,f in ipairs(gui.availableFonts or {}) do
+                local name = tostring(f)
+                if name ~= "" then
+                    m_textFontOptions[#m_textFontOptions+1] = {
+                        id = string.lower(name),
+                        text = string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2),
+                    }
+                end
+            end
+        end
+
+        current = string.lower(tostring(current or ""))
+        if current == "" then
+            return m_textFontOptions
+        end
+        for _,opt in ipairs(m_textFontOptions) do
+            if opt.id == current then
+                return m_textFontOptions
+            end
+        end
+
+        local result = { { id = current, text = current .. " (missing)" } }
+        for _,opt in ipairs(m_textFontOptions) do
+            result[#result+1] = opt
+        end
+        return result
+    end
+
+    --Commit the text field. Enter submits and focus loss changes, so both
+    --events land here - lastApplied makes one edit upload once, and stops a
+    --refresh-driven re-push of the same wording from writing at all.
+    local ApplyEditedText = function(element)
+        local typed = tostring(element.text or "")
+        if element.data.lastApplied == typed then
+            return
+        end
+        element.data.lastApplied = typed
+        ApplyTextProperty("text", typed)
+        RefreshPropUI()
+    end
+
+    --The text editors: what the label actually says, plus the three fields
+    --that decide whether it reads at all on the map - font, size and color.
+    --Shown when the bound prop - or, unbound, the selected palette asset -
+    --has a Text component. Unbound the fields ARE the next placement: what
+    --is typed here is what the label says when it lands.
+    local propTextPanel = gui.Panel{
+        classes = {cond(not TextEditorVisible(), "collapsed")},
+        width = "96%",
+        height = "auto",
+        halign = "center",
+        flow = "vertical",
+
+        events = {
+            refreshprops = function(element)
+                element:SetClass("collapsed", not TextEditorVisible())
+            end,
+        },
+
+        gui.Panel{
+            width = "96%",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 2,
+
+            gui.Label{
+                classes = {"sizeXs"},
+                text = "Text:",
+                width = 80,
+                height = "auto",
+                valign = "center",
+                hover = gui.Tooltip("What this label says on the map. Enter applies it; shift+Enter starts a new line."),
+            },
+
+            gui.Input{
+                classes = {"sizeXs"},
+                text = "",
+                width = "100%-84",
+                height = 44,
+                valign = "center",
+                multiline = true,
+                lineType = "MultiLineSubmit",
+                textAlignment = "topleft",
+                characterLimit = 400,
+                placeholderText = "Label text",
+
+                data = {
+                    lastApplied = "",
+                },
+
+                refreshprops = function(element)
+                    --don't stomp the field while the user is typing in it.
+                    if element.hasInputFocus then
+                        return
+                    end
+                    --textNoNotify, NOT text: a plain assignment fires change,
+                    --and change re-refreshes, so the refresh that follows
+                    --every edit would bounce back into another upload.
+                    local value = tostring(ReadTextProperty("text") or "")
+                    element.textNoNotify = value
+                    element.data.lastApplied = value
+                end,
+
+                change = function(element)
+                    ApplyEditedText(element)
+                end,
+
+                submit = function(element)
+                    ApplyEditedText(element)
+                end,
+            },
+        },
+
+        gui.Panel{
+            width = "96%",
+            height = 26,
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 2,
+
+            gui.Label{
+                classes = {"sizeXs"},
+                text = "Font:",
+                width = 80,
+                height = "auto",
+                valign = "center",
+            },
+
+            gui.Dropdown{
+                --wider than the panel's other 150px controls: font names run
+                --long, and a wrapped two-line name in a 26px row is unreadable.
+                width = "100%-84",
+                height = 26,
+                valign = "center",
+                options = TextFontOptions(ReadTextProperty("font")),
+                idChosen = string.lower(tostring(ReadTextProperty("font") or "")),
+                data = {
+                    refreshing = false,
+                    optionsFor = string.lower(tostring(ReadTextProperty("font") or "")),
+                },
+
+                refreshprops = function(element)
+                    local font = string.lower(tostring(ReadTextProperty("font") or ""))
+                    if font ~= "" and element.idChosen ~= font then
+                        element.data.refreshing = true
+                        --a rebuild only when the list would actually differ:
+                        --reassigning options on every refresh churns the
+                        --dropdown for nothing.
+                        if element.data.optionsFor ~= font then
+                            element.data.optionsFor = font
+                            element.options = TextFontOptions(font)
+                        end
+                        element.idChosen = font
+                        element.data.refreshing = false
+                    end
+                end,
+
+                change = function(element)
+                    if element.data.refreshing then
+                        return
+                    end
+                    ApplyTextProperty("font", element.idChosen)
+                    RefreshPropUI()
+                end,
+            },
+        },
+
+        gui.Panel{
+            width = "96%",
+            height = 26,
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 2,
+
+            gui.Label{
+                classes = {"sizeXs"},
+                text = "Font Size:",
+                width = 80,
+                height = "auto",
+                valign = "center",
+            },
+
+            gui.Slider{
+                value = tonumber(ReadTextProperty("fontSize")) or 40,
+                minValue = 8,
+                maxValue = 160,
+                sliderWidth = 150,
+                labelWidth = 40,
+                --whole points: the default "%.2f" readout ("40.00") is noise
+                --at this range, and a fractional point size buys nothing.
+                labelFormat = "%d",
+                valign = "center",
+                data = {
+                    refreshing = false,
+                },
+                events = {
+                    --programmatically setting .value fires change; guard so
+                    --refreshes don't echo back into uploads.
+                    refreshprops = function(element)
+                        element.data.refreshing = true
+                        element.value = tonumber(ReadTextProperty("fontSize")) or 40
+                        element.data.refreshing = false
+                    end,
+                    change = function(element)
+                        if element.data.refreshing then
+                            return
+                        end
+                        ApplyTextProperty("fontSize", math.floor((tonumber(element.value) or 40) + 0.5))
+                    end,
+                },
+            },
+        },
+
+        gui.Panel{
+            width = "96%",
+            height = 26,
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 2,
+
+            gui.Label{
+                classes = {"sizeXs"},
+                text = "Color:",
+                width = 80,
+                height = "auto",
+                valign = "center",
+            },
+
+            gui.ColorPicker{
+                width = 24,
+                height = 18,
+                valign = "center",
+                borderWidth = 1,
+                borderColor = "@border",
+                value = ReadTextProperty("color") or "#ffffff",
+                data = {
+                    refreshing = false,
+                },
+                events = {
+                    refreshprops = function(element)
+                        local v = ReadTextProperty("color")
+                        if v ~= nil then
+                            element.data.refreshing = true
+                            element.value = v
+                            element.data.refreshing = false
+                        end
+                    end,
+                    change = function(element)
+                        if element.data.refreshing then
+                            return
+                        end
+                        ApplyTextProperty("color", ToColorValue(element.value))
+                        RefreshPropUI()
+                    end,
+                },
+            },
+        },
+    }
+
     --The teleporter editors: link name + trip styling. Shown when the bound
     --prop - or, unbound, the selected palette asset - has a Teleporter
     --component. Edits to either field keep both ends of a pair identical.
@@ -11013,6 +12779,31 @@ CreateMarkupEditor = function()
         end)
     end
 
+    --The wording a placed text prop shows, flattened to one line and cut to
+    --a row-sized length; nil for a prop with no Text component, "" for one
+    --whose text is blank. The cut backs off any UTF-8 continuation bytes so
+    --a multi-byte character never gets sliced in half into a garbage glyph.
+    local PropDisplayText = function(obj)
+        local comp = obj:GetComponent("Text")
+        if comp == nil then
+            return nil
+        end
+        local raw = tostring(GetComponentFieldValue(comp, "text") or "")
+        raw = trim((string.gsub(raw, "%s+", " ")))
+        if #raw > 40 then
+            local cut = 40
+            while cut > 1 do
+                local b = string.byte(raw, cut + 1)
+                if b == nil or b < 128 or b >= 192 then
+                    break
+                end
+                cut = cut - 1
+            end
+            raw = string.sub(raw, 1, cut) .. "..."
+        end
+        return raw
+    end
+
     --One row in the placed-props list. An entry is ONE prop - or one whole
     --TELEPORTER PAIR: both ends of a pair share a single row (entry.objs
     --holds each end on this floor, entry.link the pair's link name).
@@ -11027,6 +12818,22 @@ CreateMarkupEditor = function()
         local title = tostring(first.name)
         if entry.link ~= nil then
             title = string.format("%s '%s'", title, entry.link)
+        end
+
+        --a text prop is identified by WHAT IT SAYS: every one of them carries
+        --the same asset name (and the header above already names the type),
+        --so the wording replaces it as the row's label. A linked prop keeps
+        --its name+link and merely gains the wording, since the link is what
+        --identifies it there.
+        local shownText = PropDisplayText(first)
+        if shownText ~= nil then
+            if shownText == "" then
+                title = title .. " (blank)"
+            elseif entry.link ~= nil then
+                title = string.format("%s \"%s\"", title, shownText)
+            else
+                title = string.format("\"%s\"", shownText)
+            end
         end
 
         local areas = {}
@@ -11058,17 +12865,25 @@ CreateMarkupEditor = function()
 
         local swatch
         local light = first:GetComponent("Light")
-        local lightColor = nil
+        local swatchColor = nil
         if light ~= nil then
-            lightColor = GetComponentFieldValue(light, "color")
+            swatchColor = GetComponentFieldValue(light, "color")
         end
-        if lightColor ~= nil then
+        if swatchColor == nil then
+            --a text prop's color is the one thing distinguishing it at a
+            --glance; the thumbnail is identical across all of them.
+            local textcomp = first:GetComponent("Text")
+            if textcomp ~= nil then
+                swatchColor = GetComponentFieldValue(textcomp, "color")
+            end
+        end
+        if swatchColor ~= nil then
             swatch = gui.Panel{
                 width = 14,
                 height = 14,
                 valign = "center",
                 bgimage = true,
-                bgcolor = lightColor,
+                bgcolor = swatchColor,
                 borderWidth = 1,
                 borderColor = "@border",
             }
@@ -11334,6 +13149,18 @@ CreateMarkupEditor = function()
                                 end)
                             end
                         end
+                        --the wording and its color feed the row label and
+                        --swatch, so retyping a label rebuilds the rows.
+                        local textcomp = obj:GetComponent("Text")
+                        if textcomp ~= nil then
+                            extra = extra .. "|" .. tostring(GetComponentFieldValue(textcomp, "text") or "")
+                            local c = GetComponentFieldValue(textcomp, "color")
+                            if c ~= nil then
+                                pcall(function()
+                                    extra = extra .. "|" .. tostring(c.tostring)
+                                end)
+                            end
+                        end
                         parts[#parts+1] = string.format("%s:%.1f,%.1f:%s", tostring(obj.objid), obj.x, obj.y, extra)
                     end
                     if entry.link ~= nil then
@@ -11533,6 +13360,7 @@ CreateMarkupEditor = function()
             propPalettePanel,
             propStatusLabel,
             propPropertiesPanel,
+            propTextPanel,
             propTeleporterPanel,
             propDeleteButton,
             propListPanel,

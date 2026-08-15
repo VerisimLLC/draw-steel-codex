@@ -1356,6 +1356,37 @@ function AuraInstance:GetClimbable()
     return { climbersOnly = self.aura:try_get("climbersOnly", false) == true }
 end
 
+--Whether the aura's tiles are a HOLE in the map, like the excavate hole
+--object: the engine (AuraManager.AddAuraFromLua) turns this into
+--forceGameRules.hole -- no floor at those tiles, creatures fall through --
+--registers fall-through map geometry from the aura's area, and renders the
+--excavation visual from GetHolePolygons(). Map markup "Hole" zones set it.
+function AuraInstance:GetHole()
+    return self.aura:try_get("hole", false) == true
+end
+
+--The polygon outlines a hole aura was drawn with, in floor coordinates,
+--stored on the AuraInstance by the markup panel. Each entry is either a flat
+--{x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}}
+--table (the zone eraser clips holes, so an erased middle leaves a donut).
+--Shapes the smooth visual cut; gameplay uses the area tiles.
+function AuraInstance:GetHolePolygons()
+    return self:try_get("holePolygons")
+end
+
+--Optional visual representation of a markup zone, stored on the INSTANCE by
+--the markup panel (like holePolygons -- it is presentational, not part of the
+--aura definition). The engine (AuraManager.AddAuraFromLua) copies it onto
+--Aura.markupAppearance and MarkupZoneVisuals renders it: mode "floor" fills
+--the zone's tiles with a floor tilesheet ({mode="floor", tileid, edgeWallId,
+--alpha}, the optional edgeWallId drawing a decorative wall ring around the
+--boundary), mode "sprites" stamps one hash-picked square sprite per tile
+--({mode="sprites", sprites={imageids}, spriteScale, spriteAlpha, seed}).
+--Gameplay never reads it.
+function AuraInstance:GetAppearance()
+    return self:try_get("appearance")
+end
+
 --Whether the engine should extend this aura's area one tile outward (8-way),
 --marking the extension tiles as adjacent-only (AuraManager.AddAuraFromLua).
 --Adjacent tiles count as touching the aura for enter/start-of-turn trigger
@@ -1375,6 +1406,17 @@ end
 --with auraHeight). nil leaves the engine default of 0.
 function AuraInstance:GetAltitude()
     return self.aura:try_get("auraAltitude")
+end
+
+--When true, the vertical band is measured from the GROUND under each tile
+--tested rather than from the floor's zero altitude, and GetAltitude() becomes
+--an offset above that ground. Markup zones set this so a height-limited zone
+--follows the terrain: a "ground only" (auraHeight 0) lava pool affects a
+--creature standing in it whether the pool is on flat ground, in a pit, or on a
+--raised ledge. Auras anchored in absolute space (object auras, ability areas)
+--leave it false.
+function AuraInstance:GetGroundRelative()
+    return self.aura:try_get("auraGroundRelative", false) == true
 end
 
 function AuraInstance:GetDamageInfo()

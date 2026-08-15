@@ -4165,6 +4165,40 @@ Commands.RegisterMacro{
     end,
 }
 
+--Toggles the light-source loadout on a single token. Callers are responsible for
+--the game.Refresh -- the /light macro batches one refresh across the whole
+--selection, while single-token callers (the character panel's light button)
+--refresh just their own token.
+--
+--Shared rather than inlined in the macro because the macro reads the global
+--selection: UI that acts on a specific token must not go through it, or it
+--toggles whatever happens to be selected instead (or nothing at all, when a DM
+--with no primary token has nothing selected).
+function creature.ToggleLightSourceOnToken(tok)
+    if tok == nil or not tok.valid then
+        return
+    end
+
+    tok:ModifyProperties{
+        description = "Change Loadout to Light",
+        execute = function()
+            if tok.properties.selectedLoadout == 1 then
+                tok.properties.selectedLoadout = 0
+                audio.DispatchSoundEvent("Ability.Torch_Off")
+            else
+                if not tok.properties:try_get("initLight") then
+                    --set to our preferred light if we've never made a different explicit choice.
+                    local equipment = tok.properties:Equipment()
+                    equipment.mainhand1 = tok.properties:GetDefaultLightSource()
+                end
+
+                tok.properties.selectedLoadout = 1
+                audio.DispatchSoundEvent("Ability.Torch_On")
+            end
+        end,
+    }
+end
+
 Commands.RegisterMacro{
     name = "light",
     summary = "toggle light source",
@@ -4173,24 +4207,7 @@ Commands.RegisterMacro{
         local tokenids = {}
         for _,tok in ipairs(dmhub.selectedOrPrimaryTokens) do
             tokenids[#tokenids+1] = tok.charid
-            tok:ModifyProperties{
-                description = "Change Loadout to Light",
-                execute = function()
-                    if tok.properties.selectedLoadout == 1 then
-                        tok.properties.selectedLoadout = 0
-                        audio.DispatchSoundEvent("Ability.Torch_Off")
-                    else
-                        if not tok.properties:try_get("initLight") then
-                            --set to our preferred light if we've never made a different explicit choice.
-                            local equipment = tok.properties:Equipment()
-                            equipment.mainhand1 = tok.properties:GetDefaultLightSource()
-                        end
-
-                        tok.properties.selectedLoadout = 1
-                        audio.DispatchSoundEvent("Ability.Torch_On")
-                    end
-                end,
-            }
+            creature.ToggleLightSourceOnToken(tok)
         end
 
         --instantly refresh the token.

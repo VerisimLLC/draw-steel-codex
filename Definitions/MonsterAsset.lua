@@ -9,6 +9,13 @@ function MonsterAsset:RecordFork(upstream)
 	-- dummy implementation for documentation purposes only
 end
 
+--- RecordForkBasisFromUpstream
+--- @param upstream any
+--- @return boolean
+function MonsterAsset:RecordForkBasisFromUpstream(upstream)
+	-- dummy implementation for documentation purposes only
+end
+
 --- TryMergeFork
 --- @param upstream any
 --- @param mine any

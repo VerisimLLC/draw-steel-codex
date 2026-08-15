@@ -3053,28 +3053,43 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 end
 
 
---Creates the "Map Modifications" folder, which lists destructive map edits
---recorded from ability casts (pits dug, terrain changed - see
---game.GetMapModifications). Double-click an entry to jump to it; right-click
---to jump or revert. Returns nil on engine builds without the recording API.
-CharacterPanel.CreateMapModificationsFolder = function()
-    if game.GetMapModifications == nil then
-        return nil
-    end
-
+--Creates the "Map Effects" folder, which lists what has been left behind on the
+--current map: destructive map edits recorded from ability casts (pits dug,
+--terrain changed, walls built - see game.GetMapModifications), and the auras
+--anchored to the map rather than emanating from a creature (see
+--Aura.GetMapAnchoredAuras -- Goblin Malice's Swamp Stink is the canonical one).
+--Double-click an entry to jump to it; right-click to jump, revert a modification
+--or remove an aura. The folder hides itself entirely when there is nothing on
+--the map to list.
+CharacterPanel.CreateMapEffectsFolder = function()
     local collapsedKey = "mapmodifications"
     local isCollapsed = GetPartyCollapsed(collapsedKey, true)
 
     local folderPane
     local resultPanel
     local modPanels = {}
+    local auraPanels = {}
 
     local triangle
+
+    --Absent on engine builds that predate the modification-recording API. The
+    --aura half of the folder is pure Lua and works everywhere.
+    local GetModifications = function()
+        if game.GetMapModifications == nil then
+            return {}
+        end
+
+        return game.GetMapModifications()
+    end
+
+    local CountEffects = function()
+        return #GetModifications() + #Aura.GetMapAnchoredAuras()
+    end
 
     --Shared by the caret and a press anywhere on the header band, like the
     --party folders.
     local ToggleCollapsed = function()
-        if #game.GetMapModifications() == 0 then
+        if CountEffects() == 0 then
             return
         end
 
@@ -3100,10 +3115,10 @@ CharacterPanel.CreateMapModificationsFolder = function()
         events = {
             create = function(element)
                 element:SetClass("expanded", not isCollapsed)
-                element:SetClass("empty", #game.GetMapModifications() < 1)
+                element:SetClass("empty", CountEffects() < 1)
             end,
             refresh = function(element)
-                element:SetClass("empty", #game.GetMapModifications() < 1)
+                element:SetClass("empty", CountEffects() < 1)
             end,
             press = function(element)
                 if element:HasClass("collapsed") then
@@ -3240,6 +3255,122 @@ CharacterPanel.CreateMapModificationsFolder = function()
         }
     end
 
+    --One row per map-anchored aura. Same grammar as the modification rows, with
+    --an "(Aura)" suffix so a mixed list stays readable (the aura chips on the
+    --character panel label themselves the same way).
+    local CreateAuraEntry = function(auraEntry)
+        local clickTime = nil
+
+        local CanJump = function()
+            return auraEntry.x ~= nil and auraEntry.y ~= nil
+        end
+
+        local JumpToAura = function()
+            if not CanJump() then
+                return
+            end
+
+            dmhub.CenterOnLoc{
+                x = auraEntry.x,
+                y = auraEntry.y,
+                floorid = auraEntry.floorid,
+                smooth = true,
+            }
+        end
+
+        local BaseText = function()
+            if auraEntry.casterName ~= nil and auraEntry.casterName ~= "" then
+                return string.format("%s (%s)", auraEntry.name, auraEntry.casterName)
+            end
+
+            return auraEntry.name
+        end
+
+        local EntryText = function()
+            return string.format("%s (Aura)", BaseText())
+        end
+
+        local label = gui.Label{
+            text = EntryText(),
+            classes = { "bestiaryLabel" },
+        }
+
+        return gui.Panel{
+            classes = { "characterEntry" },
+            bgimage = true,
+            valign = "top",
+            halign = "left",
+            width = "100%",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+
+            events = {
+                --fired on refresh with the latest entry so a cached row picks up
+                --a changed caster or area without being rebuilt.
+                updateAura = function(element, entry)
+                    auraEntry = entry
+                    label.text = EntryText()
+                end,
+
+                press = function(element)
+                    if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
+                        --double-click
+                        clickTime = nil
+                        JumpToAura()
+                        return
+                    end
+
+                    clickTime = dmhub.Time()
+                end,
+
+                rightClick = function(element)
+                    local entries = {}
+
+                    if CanJump() then
+                        entries[#entries+1] = {
+                            text = "Jump to Location",
+                            click = function()
+                                element.popup = nil
+                                JumpToAura()
+                            end,
+                        }
+                    end
+
+                    entries[#entries+1] = {
+                        text = "Remove Aura",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Remove Aura?",
+                                message = string.format("This will remove %s from the map, along with anything it is doing to the creatures inside it.", BaseText()),
+                                options = {
+                                    {
+                                        text = "Remove",
+                                        execute = function()
+                                            Aura.RemoveMapAnchoredAura(auraEntry)
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
+                    }
+                end,
+            },
+
+            label,
+        }
+    end
+
     local headerPanel = gui.Panel{
         bgimage = true,
         classes = { "headerPanel" },
@@ -3262,39 +3393,79 @@ CharacterPanel.CreateMapModificationsFolder = function()
             end,
 
             rightClick = function(element)
-                if #game.GetMapModifications() == 0 then
+                local entries = {}
+
+                if #GetModifications() > 0 then
+                    entries[#entries+1] = {
+                        text = "Clear All Map Modifications",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Revert All Map Modifications?",
+                                message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
+                                options = {
+                                    {
+                                        text = "Revert All",
+                                        execute = function()
+                                            for _,m in ipairs(GetModifications()) do
+                                                game.DeleteMapModification(m.id)
+                                            end
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+                end
+
+                if #Aura.GetMapAnchoredAuras() > 0 then
+                    entries[#entries+1] = {
+                        text = "Remove All Auras",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Remove All Auras?",
+                                message = "This will remove every aura on this map that is not attached to a creature.",
+                                options = {
+                                    {
+                                        text = "Remove All",
+                                        execute = function()
+                                            --the list is rebuilt as auras go, so
+                                            --snapshot it before removing any.
+                                            local auras = {}
+                                            for _,auraEntry in ipairs(Aura.GetMapAnchoredAuras()) do
+                                                auras[#auras+1] = auraEntry
+                                            end
+
+                                            for _,auraEntry in ipairs(auras) do
+                                                Aura.RemoveMapAnchoredAura(auraEntry)
+                                            end
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+                end
+
+                if #entries == 0 then
                     return
                 end
 
                 element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Clear All Map Modifications",
-                            click = function()
-                                element.popup = nil
-                                gamehud:ModalMessage{
-                                    title = "Revert All Map Modifications?",
-                                    message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
-                                    options = {
-                                        {
-                                            text = "Revert All",
-                                            execute = function()
-                                                for _,m in ipairs(game.GetMapModifications()) do
-                                                    game.DeleteMapModification(m.id)
-                                                end
-                                                resultPanel:FireEventTree("refresh")
-                                            end,
-                                        },
-                                        {
-                                            text = "Cancel",
-                                            execute = function()
-                                            end,
-                                        },
-                                    },
-                                }
-                            end,
-                        },
-                    },
+                    entries = entries,
                 }
             end,
         },
@@ -3303,7 +3474,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
             triangle,
 
             gui.Label{
-                text = "Map Modifications",
+                text = "Map Effects",
                 classes = { "bestiaryLabel", "folder" },
             },
         },
@@ -3328,10 +3499,24 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 return
             end
 
-            local mods = game.GetMapModifications()
-            local newModPanels = {}
             local children = {}
-            for _,m in ipairs(mods) do
+
+            --auras first: they are live effects on the creatures standing in them,
+            --where the modifications below are already-applied terrain changes.
+            local newAuraPanels = {}
+            for _,auraEntry in ipairs(Aura.GetMapAnchoredAuras()) do
+                local entryPanel = auraPanels[auraEntry.guid]
+                if entryPanel ~= nil then
+                    entryPanel:FireEvent("updateAura", auraEntry)
+                else
+                    entryPanel = CreateAuraEntry(auraEntry)
+                end
+                newAuraPanels[auraEntry.guid] = entryPanel
+                children[#children+1] = entryPanel
+            end
+
+            local newModPanels = {}
+            for _,m in ipairs(GetModifications()) do
                 local entryPanel = modPanels[m.id]
                 if entryPanel ~= nil then
                     entryPanel:FireEvent("updateMod", m)
@@ -3342,6 +3527,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 children[#children+1] = entryPanel
             end
 
+            auraPanels = newAuraPanels
             modPanels = newModPanels
             element.children = children
         end,
@@ -3368,8 +3554,8 @@ CharacterPanel.CreateMapModificationsFolder = function()
         },
 
         refresh = function(element)
-            --hide the folder entirely when there are no modifications.
-            element:SetClass("collapsed", #game.GetMapModifications() == 0)
+            --hide the folder entirely when the map has nothing to show.
+            element:SetClass("collapsed", CountEffects() == 0)
         end,
 
         headerPanel,
@@ -3386,7 +3572,7 @@ end
 
 local CreateBestiaryAndPartyPanel = function(noBestiary)
     local partyPanels = {}
-    local mapModificationsPanel = nil
+    local mapEffectsPanel = nil
 
     local bestiaryPanel = nil
     if not noBestiary then
@@ -3422,13 +3608,13 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
 
             table.sort(children, function(a, b) return a.data.ord() < b.data.ord() end)
 
-            --the Map Modifications folder goes directly beneath the party folders
+            --the Map Effects folder goes directly beneath the party folders
             --(after the sort so it always lands below Dead Monsters).
-            if mapModificationsPanel == nil then
-                mapModificationsPanel = CharacterPanel.CreateMapModificationsFolder()
+            if mapEffectsPanel == nil then
+                mapEffectsPanel = CharacterPanel.CreateMapEffectsFolder()
             end
-            if mapModificationsPanel ~= nil then
-                children[#children + 1] = mapModificationsPanel
+            if mapEffectsPanel ~= nil then
+                children[#children + 1] = mapEffectsPanel
             end
 
             children[#children + 1] = gui.Panel {

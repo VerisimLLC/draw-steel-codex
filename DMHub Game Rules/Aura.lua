@@ -1965,6 +1965,196 @@ function Aura.CheckObjectAuraExpirationEndOfRound()
     end
 end
 
+--Map-anchored auras: every aura the aura system has on the current map that is
+--NOT an emanation of a creature. Two storage shapes feed the list:
+--  * ability-placed auras, which live in the CASTER's `auras` list and, when the
+--    aura definition names an objectid, also carry a spawned map object for the
+--    visual. Goblin Malice's Swamp Stink is one of these -- an aura over the whole
+--    map, parked on whichever goblin spent the malice.
+--  * auras that exist only as an object's Aura component: placed straight onto an
+--    object, or outliving their caster through aliveafterdeath.
+--Excluded on purpose: modifier-generated auras and the custom auras added from the
+--character panel, which carry tokenAttached and follow their creature (they are
+--removed on the creature, not here); child sub-auras, which have no lifetime of
+--their own; and markup zone auras, which are authored map content edited in the
+--Map Markup panel and never appear in either store above.
+--- @param auraInstance nil|AuraInstance
+--- @return boolean
+local function IsMapAnchoredAura(auraInstance)
+    if auraInstance == nil then
+        return false
+    end
+
+    if auraInstance:try_get("tokenAttached", false) then
+        return false
+    end
+
+    return auraInstance:try_get("isChildAura", false) == false
+end
+
+--The walk below touches every token and every object on every floor, and the UI
+--that displays it asks more than once per refresh (the caret, the header and the
+--list each need the count). One walk per game state is plenty: the underlying
+--data only changes when new data arrives from the cloud, and local removals
+--invalidate the cache explicitly.
+local g_mapAnchoredAuras = nil
+local g_mapAnchoredAurasUpdate = -1
+
+--- Discards the memoized map-anchored aura list so the next call rebuilds it.
+--- Call after changing an aura from code that must be reflected before the next
+--- game update lands.
+function Aura.InvalidateMapAnchoredAuras()
+    g_mapAnchoredAuras = nil
+    g_mapAnchoredAurasUpdate = -1
+end
+
+--- Every aura anchored to the current map rather than to a creature. Sorted by
+--- name (then guid) so the display order is stable across refreshes -- object
+--- iteration order is not.
+--- @return {guid: string, name: string, instance: AuraInstance, casterToken: nil|CharacterToken, casterName: nil|string, object: nil|LuaObjectInstance, floorid: nil|string, x: nil|number, y: nil|number}[]
+function Aura.GetMapAnchoredAuras()
+    if g_mapAnchoredAuras ~= nil and g_mapAnchoredAurasUpdate == dmhub.ngameupdate then
+        return g_mapAnchoredAuras
+    end
+
+    local result = {}
+    local byGuid = {}
+
+    local AddAura = function(auraInstance, casterToken, obj)
+        if not IsMapAnchoredAura(auraInstance) then
+            return
+        end
+
+        local guid = auraInstance:try_get("guid")
+        if guid == nil then
+            return
+        end
+
+        local entry = byGuid[guid]
+        if entry == nil then
+            entry = { guid = guid, instance = auraInstance }
+            byGuid[guid] = entry
+            result[#result + 1] = entry
+        end
+
+        --an object-backed aura is stored twice; the caster's copy is the one that
+        --removes cleanly (RemoveAura destroys the object too), so prefer it.
+        if casterToken ~= nil and entry.casterToken == nil then
+            entry.instance = auraInstance
+            entry.casterToken = casterToken
+            entry.casterName = creature.GetTokenDescription(casterToken)
+        end
+
+        if obj ~= nil and entry.object == nil then
+            entry.object = obj
+            entry.floorid = obj.floorid
+        end
+    end
+
+    for _, token in ipairs(dmhub.allTokens) do
+        if token.valid and token.properties ~= nil then
+            for _, auraInstance in ipairs(token.properties:try_get("auras", {})) do
+                AddAura(auraInstance, token, nil)
+            end
+        end
+    end
+
+    local map = game.currentMap
+    if map ~= nil then
+        for _, floor in ipairs(map.floors) do
+            for _, obj in pairs(floor.objects) do
+                local component = obj:GetComponent("Aura")
+                if component ~= nil and component.properties ~= nil then
+                    AddAura(component.properties:try_get("aura"), nil, obj)
+                end
+            end
+        end
+    end
+
+    for _, entry in ipairs(result) do
+        local instance = entry.instance
+
+        local name = instance:try_get("name")
+        if name == nil or name == "" then
+            local auraDef = instance:try_get("aura")
+            name = "Aura"
+            if auraDef ~= nil then
+                name = auraDef.name
+            end
+        end
+        entry.name = name
+
+        --an aura whose caster has left the map (aliveafterdeath) still names the
+        --caster on the instance; look it up so the row can still say who cast it.
+        if entry.casterName == nil then
+            local casterid = instance:try_get("casterid")
+            if casterid ~= nil and casterid ~= "" then
+                local casterToken = dmhub.GetTokenById(casterid)
+                if casterToken ~= nil and casterToken.valid then
+                    entry.casterName = creature.GetTokenDescription(casterToken)
+                end
+            end
+        end
+
+        local area = instance:GetArea()
+        if area ~= nil and area.origin ~= nil then
+            entry.x = area.origin.x
+            entry.y = area.origin.y
+
+            if entry.floorid == nil and map ~= nil then
+                local floor = map:GetFloorFromLoc(area.origin)
+                if floor ~= nil then
+                    entry.floorid = floor.floorid
+                end
+            end
+        end
+    end
+
+    table.sort(result, function(a, b)
+        if a.name ~= b.name then
+            return a.name < b.name
+        end
+
+        return a.guid < b.guid
+    end)
+
+    g_mapAnchoredAuras = result
+    g_mapAnchoredAurasUpdate = dmhub.ngameupdate
+    return result
+end
+
+--- Removes an aura listed by GetMapAnchoredAuras.
+--- @param entry nil|table An entry from Aura.GetMapAnchoredAuras.
+function Aura.RemoveMapAnchoredAura(entry)
+    if entry == nil then
+        return
+    end
+
+    local casterToken = entry.casterToken
+    if casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+        --RemoveAura destroys the aura's map object as well, so this covers both
+        --halves of an object-backed aura.
+        local guid = entry.guid
+        casterToken:ModifyProperties {
+            description = "Remove Aura",
+            execute = function()
+                casterToken.properties:RemoveAura(guid)
+            end,
+        }
+        casterToken:UpdateAuras()
+    elseif entry.object ~= nil and entry.object.valid then
+        --No caster copy to remove from: destroying the object unregisters the
+        --aura, and AuraComponent:Destroy clears any caster entry that does exist.
+        entry.object:Destroy()
+    end
+
+    Aura.InvalidateMapAnchoredAuras()
+
+    if dmhub.RefreshMapAuras ~= nil then
+        dmhub.RefreshMapAuras()
+    end
+end
+
 --Turn-boundary aura triggers: which aura trigger id each turn event fires.
 --"nextturn" is dispatched at the start of the caster's turn, "endturn" at the end.
 local g_turnEventToAuraTrigger = {

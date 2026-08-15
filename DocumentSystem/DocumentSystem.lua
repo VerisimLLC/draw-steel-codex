@@ -7675,8 +7675,10 @@ local function CreateCharacterCardVisual(charid)
             if resourceLabel ~= nil and resourceLabel.valid then
                 resourceLabel.text = tostring(hr)
             end
+            local surges = 0
+            pcall(function() surges = c:GetAvailableSurges() or 0 end)
             if surgeLabel ~= nil and surgeLabel.valid then
-                surgeLabel.text = tostring(c:try_get("surges", 0))
+                surgeLabel.text = tostring(surges)
             end
         end
     end

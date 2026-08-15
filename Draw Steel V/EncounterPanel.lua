@@ -63,6 +63,12 @@ if encounterBuilderSetting:Get() then
     DockablePanel.Register {
         name = "Encounters",
         icon = "icons/standard/Icon_App_EncounterCreator.png",
+        --Director-only: this lists the encounters the director has
+        --authored, monster counts and all, long before they are spawned.
+        --Players were seeing the whole roster (reports JA9XNYG3,
+        --8B4CZRUA, BUZ6SY69) because this flag was missing while every
+        --other director panel had it.
+        dmonly = true,
         minHeight = 200,
         vscroll = true,
         content = function()
@@ -2452,6 +2458,7 @@ local function CreateGroupCard(args)
 
             if AdjustedGroupCount(group, party.numHeroes) == 0 then
                 gui.ModalMessage {
+                    owner = element,
                     title = "Nothing to Stage",
                     message = "This group has no monsters at the current party size.",
                 }
@@ -4174,6 +4181,7 @@ function Encounter.Editor(self, options)
                         end
                         if count == 0 then
                             gui.ModalMessage {
+                                owner = button,
                                 title = "Nothing to Place",
                                 message = "Add monsters to the encounter before placing it on the map.",
                             }
@@ -4207,6 +4215,7 @@ function Encounter.Editor(self, options)
                     text = "Clear All",
                     press = function(button)
                         gui.ModalMessage {
+                            owner = button,
                             title = "Clear Encounter",
                             message = "Remove every group, wave, and monster from this encounter?",
                             options = {
@@ -4275,6 +4284,7 @@ function Encounter.Editor(self, options)
                         end
                         if count == 0 then
                             gui.ModalMessage {
+                                owner = button,
                                 title = "Nothing to Start",
                                 message = "Add monsters to the encounter before starting it.",
                             }
@@ -4376,6 +4386,7 @@ function Encounter.CreateEditorDialog(encounter, options)
                     end
 
                     gui.ModalMessage {
+                        owner = editorPanel,
                         title = "Staged Tokens on the Map",
                         message = subject .. " Save those positions before closing?",
                         options = {

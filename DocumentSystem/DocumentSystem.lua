@@ -7687,7 +7687,13 @@ local function CreateCharacterCardVisual(charid)
                 resourceLabel.text = tostring(hr)
             end
             if surgeLabel ~= nil and surgeLabel.valid then
-                surgeLabel.text = tostring(c:try_get("surges", 0))
+                --surges are not a creature field: they live in the
+                --unbounded resource table and are combat-scoped, so they
+                --have to come from the accessor. try_get("surges") always
+                --fell through to the default and pinned the label at 0.
+                local surges = 0
+                pcall(function() surges = c:GetAvailableSurges() or 0 end)
+                surgeLabel.text = tostring(surges)
             end
         end
     end

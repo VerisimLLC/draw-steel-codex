@@ -924,6 +924,24 @@ GameSystem.RegisterAbilityKeyword("Charge")
 GameSystem.RegisterAbilityKeyword("Telekinesis")
 GameSystem.RegisterAbilityKeyword("Chronopathy")
 
+--Feature tags; order here is display order. Hidden features are excluded
+--from sheet/panel feature lists unless the user filters to the Hidden tag.
+--Ability and Trigger are display-kind tags (not filter chips): they tell
+--consumers (sheet, panel, monster builder) how the feature renders --
+--no tag = trait, Ability = ability card, Trigger = triggered action,
+--Hidden = not shown. A feature with both renders as a Trigger. Core
+--Feature drives the pinned core-mechanic display and is filterable like
+--any other tag. The remaining tags are the game modes.
+GameSystem.RegisterFeatureTag{ name = "Hidden", defaultExcluded = true }
+GameSystem.RegisterFeatureTag{ name = "Ability", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Trigger", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Core Feature" }
+GameSystem.RegisterFeatureMode("Combat")
+GameSystem.RegisterFeatureMode("Exploration")
+GameSystem.RegisterFeatureMode("Montage")
+GameSystem.RegisterFeatureMode("Negotiation")
+GameSystem.RegisterFeatureMode("Respite")
+
 GameSystem.RegisterItemKeyword("Potion")
 GameSystem.RegisterItemKeyword("Neck")
 

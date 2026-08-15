@@ -38,25 +38,39 @@ local function CreateRulerPanel()
 	--Local overrides for the stock checkbox, which is the one control here
 	--that cannot shrink: its row is width = "auto" with minWidth = 200 and a
 	--flat 30px height, and its caption is width = "auto" too, so a long
-	--caption ("Display to others") runs straight out of a narrow panel and a
-	--large Font Size setting overflows the row. Pin the row to the panel
-	--width, size it in "sp" (pixels x the Font Size setting) so it grows with
-	--the text, and hand the caption whatever width is left after the check
-	--square, with a minFontSize floor so it shrinks to fit rather than
-	--overrunning. (Wrapping instead of shrinking is not an option here: an
-	--"auto" height on this row stretches to the parent extent rather than to
-	--its content, which is exactly why the stock rule pins 30px.)
+	--caption ("Display to others") runs straight out of a narrow panel. Pin
+	--the row to the panel width and hand the caption whatever width is left
+	--after the check square, with a minFontSize floor so it shrinks to fit
+	--rather than overrunning. (Wrapping instead of shrinking is not an option
+	--here: an "auto" height on this row stretches to the parent extent rather
+	--than to its content, which is exactly why the stock rule pins 30px.)
+	--
+	--DIMENSION FORMS: this engine build accepts only pixels, percentages, and
+	--the "100%-<pixels>" complement. The font-relative "sp"/"em" forms the
+	--Definitions stubs document are NOT implemented here -- "30sp" and "2em"
+	--both raise "Unrecognized dimension string" and fall back, so the row
+	--cannot be made to track the Font Size setting by that route. Worse,
+	--"100%-2em" fails SILENTLY (no error, wrong result), so do not reach for
+	--the em/sp family in this file without testing it in a live client first.
 	local rulerStyles = {
 		{
 			selectors = {"checkbox"},
 			width = "100%",
 			minWidth = 0,
-			height = "30sp",
+			height = 30,
 			borderBox = true,
 		},
 		{
 			selectors = {"checkboxLabel"},
-			width = "100% available",
+			--NOT "100% available": it resolves to zero inside this row and the
+			--caption renders one character per line, spilling vertically out of
+			--the row (the same trap DocumentSystem's find-row label documents).
+			--"auto" sizes to the text; the maxWidth complement is what bounds it
+			--so minFontSize has something to shrink against. 40px covers the
+			--check square (21px -- "100% height" of the 70%-tall row) plus its
+			--6px rmargin and the row's 4px hpad either side, with slack.
+			width = "auto",
+			maxWidth = "100%-40",
 			height = "100%",
 			minFontSize = 10,
 		},

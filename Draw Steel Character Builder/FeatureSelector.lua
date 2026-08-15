@@ -340,7 +340,18 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when nothing is mounted. This used to AddChild on
+                    --every single refresh: an option whose Panel() returns a stable
+                    --function reference rather than a fresh closure fails the guard
+                    --above, so nothing was destroyed and another full copy of the
+                    --card was appended -- once per builder refresh, unbounded, and
+                    --refreshBuilderState fans out several times a second in a live
+                    --session (report PZ8WG62M: ~392 panels leaked per refresh, FPS
+                    --60 -> 2). DestroySelf unparents synchronously, so the child
+                    --count is already 0 here when the panel did change.
+                    if element.data.panelFn ~= nil and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded
@@ -658,7 +669,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 markdown = true,
                 interactable = false,
                 updateDesc = function(element, text)
-                    print("TEXT:: UPDATE", text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
                 end,
@@ -679,7 +689,18 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when nothing is mounted. This used to AddChild on
+                    --every single refresh: an option whose Panel() returns a stable
+                    --function reference rather than a fresh closure fails the guard
+                    --above, so nothing was destroyed and another full copy of the
+                    --card was appended -- once per builder refresh, unbounded, and
+                    --refreshBuilderState fans out several times a second in a live
+                    --session (report PZ8WG62M: ~392 panels leaked per refresh, FPS
+                    --60 -> 2). DestroySelf unparents synchronously, so the child
+                    --count is already 0 here when the panel did change.
+                    if element.data.panelFn ~= nil and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded

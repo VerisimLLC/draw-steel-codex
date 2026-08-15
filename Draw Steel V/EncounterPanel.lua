@@ -62,13 +62,14 @@ if encounterBuilderSetting:Get() then
     --bug report meant.
     DockablePanel.Register {
         name = "Encounters",
-        icon = "icons/standard/Icon_App_EncounterCreator.png",
-        --Director-only: this lists the encounters the director has
-        --authored, monster counts and all, long before they are spawned.
-        --Players were seeing the whole roster (reports JA9XNYG3,
-        --8B4CZRUA, BUZ6SY69) because this flag was missing while every
-        --other director panel had it.
+        --Authored encounters are Director-only content: this lists the
+        --encounters the director has authored, monster counts and all,
+        --long before they are spawned. Players were seeing the whole
+        --roster (reports JA9XNYG3, 8B4CZRUA, BUZ6SY69) because this flag
+        --was missing while every other director panel had it. Same reason
+        --the encounters search provider below returns nothing to players.
         dmonly = true,
+        icon = "icons/standard/Icon_App_EncounterCreator.png",
         minHeight = 200,
         vscroll = true,
         content = function()

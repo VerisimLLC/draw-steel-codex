@@ -615,6 +615,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 							if mod.unloaded then return end
 							RefreshTiles()
 							gui.ModalMessage{
+								owner = tilesPanel,
 								title = "Error loading image",
 								message = text,
 							}
@@ -1940,12 +1941,14 @@ CreateLayersPanel = function()
 
 												if players then
 													gui.ModalMessage{
+														owner = element,
 														title = "Cannot Delete Players",
 														message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
 													}
 												else
 
 													gui.ModalMessage{
+														owner = element,
 														title = "Delete Floor?",
 														message = "This floor includes tokens on it. Do you really want to delete it?",
 														options = {
@@ -2821,12 +2824,14 @@ CreateLayersList = function(parentFloor)
 
 												if players then
 													gui.ModalMessage{
+														owner = element,
 														title = "Cannot Delete Players",
 														message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
 													}
 												else
 
 													gui.ModalMessage{
+														owner = element,
 														title = "Delete Layer?",
 														message = "This Layer includes tokens on it. Do you really want to delete it?",
 														options = {

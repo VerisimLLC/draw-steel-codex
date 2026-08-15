@@ -132,8 +132,23 @@ function GameHud:CreateSingleDock(params)
                     end,
 
                     monitor = function(element)
+                        local wasOffscreen = resultPanel:HasClass("offscreen")
                         resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
                         dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
+
+                        --Sliding the dock away leaves every panel in it alive and
+                        --still focused, just invisible. That is not harmless: a
+                        --panel that arms a mode off focus keeps it armed with
+                        --nothing on screen to say so (the Objects panel arms
+                        --object editing mode, which turns off regular play mode
+                        --and with it creature rectangle-select). hidepanel is the
+                        --same event a tab switch fires, and each panel's handler
+                        --already knows how to give up focus -- including the
+                        --focus-here-first dance the panels whose childdefocus
+                        --re-grabs a nil focus need.
+                        if resultPanel:HasClass("offscreen") and not wasOffscreen then
+                            resultPanel:FireEventTree("hidepanel")
+                        end
                     end,
 
                     create = function(element)

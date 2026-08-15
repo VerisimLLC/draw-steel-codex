@@ -7989,6 +7989,20 @@ local function CreatureTemplateDropdownOptions(creature)
     return choices
 end
 
+--Per-user "Show All" preference for the Features tab eye toggle: reveals
+--rows suppressed by their display-kind tag (Hidden / Ability / Trigger),
+--each labeled with the tag so the author can see why it was suppressed
+--and re-tag it. Off = the play view (suppressed rows dropped).
+local g_featuresShowAllSetting = setting{
+    id = "featuretags:showall",
+    description = "Show all features",
+    help = "Show features hidden from the Features list by their tags (Hidden, Ability, Trigger).",
+    storage = "preference",
+    section = "general",
+    default = false,
+    editor = "check",
+}
+
 local function FeaturesIndexPanel()
     local resultPanel
 
@@ -8047,11 +8061,25 @@ local function FeaturesIndexPanel()
             selectors = {"featureClearFilter"},
             bgcolor = "@fgMuted",
         },
+        {
+            selectors = {"featureShowAllEye"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureShowAllEye", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"featureShowAllEye", "on"},
+            bgcolor = "@accent",
+        },
     }
 
     local function entrySearchText(entry)
         if entry._searchText == nil then
-            local parts = {entry.name or "", FeatureEntryDescription(entry) or ""}
+            --subName keeps a Title's granted benefit findable now that the row
+            --leads with the title's own name (report GETSJ9FB).
+            local parts = {entry.name or "", entry.subName or "", FeatureEntryDescription(entry) or ""}
             --Chosen option features are folded into the slot entry, so the
             --filter must reach their names and descriptions too.
             for _,chosenFeature in ipairs(entry.chosen or {}) do
@@ -8087,6 +8115,15 @@ local function FeaturesIndexPanel()
             local desc = FeatureEntryDescription(entry)
             if desc ~= nil then
                 descs[#descs+1] = desc
+            end
+        end
+        --A Title row is named after the title, so its expansion leads with the
+        --title's own description, then the granted benefit's (report GETSJ9FB).
+        if entry.bucket == "title" and entry.origin ~= nil then
+            local originDesc = nil
+            pcall(function() originDesc = entry.origin:try_get("description") end)
+            if originDesc ~= nil and originDesc ~= "" then
+                table.insert(descs, 1, originDesc)
             end
         end
         for _,desc in ipairs(descs) do
@@ -8247,10 +8284,27 @@ local function FeaturesIndexPanel()
 
         local titleText = entry.name or "Feature"
         local subParts = {}
+        --What this row resolved to: the chosen options of a made choice slot,
+        --else the benefit a Title arrived as (the index's subName).
+        local grantedText = nil
         if entry.kind == "build" and (entry._unspent or 0) == 0 then
             local texts = FeatureChosenTexts(entry.feature, creature)
             if #texts > 0 then
-                titleText = table.concat(texts, ", ")
+                grantedText = table.concat(texts, ", ")
+            end
+        end
+        if grantedText == nil and entry.subName ~= nil and entry.subName ~= "" then
+            grantedText = entry.subName
+        end
+        if grantedText ~= nil then
+            --A Title keeps its own name in the lead: the title is what the
+            --player earned, and naming the row after the benefit hid it
+            --entirely (report GETSJ9FB). Other buckets still read better as
+            --"Forgettable Face" over a muted "Agent Perk".
+            if entry.bucket == "title" then
+                subParts[#subParts+1] = grantedText
+            else
+                titleText = grantedText
                 subParts[#subParts+1] = entry.name
             end
         end
@@ -8314,6 +8368,25 @@ local function FeaturesIndexPanel()
         --arrow keeps a fixed position on every row; the "Choose" pill sits to
         --its left rather than pushing the arrow inward.
         local rightChildren = {}
+        --Suppressed rows only render while the Show All eye toggle is on;
+        --the tag chip says WHY the row is normally hidden (Hidden / Ability
+        --/ Trigger) so the author can spot mis-tagged content at a glance.
+        if entry.displayKind ~= nil and entry.displayKind ~= "normal" then
+            local tagNames = { hidden = "Hidden", ability = "Ability", trigger = "Trigger" }
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                italics = true,
+                text = tagNames[entry.displayKind] or entry.displayKind,
+            }
+        end
         if (entry._unspent or 0) > 0 then
             rightChildren[#rightChildren+1] = gui.Label{
                 classes = {"featureChoiceBadge"},
@@ -8640,15 +8713,25 @@ local function FeaturesIndexPanel()
 
         local index = FeatureCategoriser.BuildIndex(creature)
 
+        --Rows whose display-kind tag suppresses them (Hidden / Ability /
+        --Trigger) are dropped unless the Show All eye toggle is on.
+        local showAll = g_featuresShowAllSetting:Get()
+
         local groupsChildren = {}
         local total = 0
         local matchedTotal = 0
+        local suppressedTotal = 0
         for _,bucketId in ipairs(index.order) do
             local group = index.groups[bucketId]
             local entries = {}
             for _,e in ipairs(group.items) do
-                e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
-                entries[#entries+1] = e
+                local suppressed = e.displayKind ~= nil and e.displayKind ~= "normal"
+                if suppressed and not showAll then
+                    suppressedTotal = suppressedTotal + 1
+                else
+                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                    entries[#entries+1] = e
+                end
             end
             if #entries > 0 then
                 total = total + #entries
@@ -8946,6 +9029,41 @@ local function FeaturesIndexPanel()
         m_groupsContainer,
     }
 
+    --Show All eye toggle: reveals tag-suppressed rows (Hidden / Ability /
+    --Trigger). Per-user preference; the sheet is simultaneously a play and
+    --an edit surface (monster sheets always, hero sheets for custom
+    --features), so this is the one reveal mechanism that keeps suppressed
+    --containers reachable for editing.
+    --Plain icon panel, NOT the settingsButton class: that class paints
+    --its own gear glyph over any bgimage. Tint comes from the tab's
+    --featureShowAllEye theme rules (@fgMuted / hover @fgStrong / on
+    --@accent) so it follows scheme switches.
+    local m_showAllButton
+    m_showAllButton = gui.Panel{
+        classes = {"featureShowAllEye", cond(g_featuresShowAllSetting:Get(), "on")},
+        bgimage = cond(g_featuresShowAllSetting:Get(), "phosphor/eye-light.png", "phosphor/eye-closed-light.png"),
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 4,
+        linger = function(element)
+            --Tooltip states the ACTION the click will take, from current state.
+            local text = "Show hidden features"
+            if g_featuresShowAllSetting:Get() then
+                text = "Hide hidden features"
+            end
+            gui.Tooltip(text)(element)
+        end,
+        press = function(element)
+            local newValue = not g_featuresShowAllSetting:Get()
+            g_featuresShowAllSetting:Set(newValue)
+            element.bgimage = cond(newValue, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
+            element:SetClass("on", newValue)
+            Rebuild()
+        end,
+    }
+
     --The filter/count/settings row is returned SEPARATELY so the tab can
     --pin it above the scroll area (it must survive scrolling).
     m_headerPanel = gui.Panel{
@@ -8955,6 +9073,7 @@ local function FeaturesIndexPanel()
         styles = styles,
         m_countLabel,
         m_filterInput,
+        m_showAllButton,
         m_gearButton,
     }
 

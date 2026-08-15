@@ -343,14 +343,15 @@ end
 --- Sets project status before adding or removing a progress item
 --- @param item DTRoll|DTAdjustment|DTProgressItem The progress item to be considered
 --- @param direction number The direction of progress: 1 if adding, -1 if removing
-function DTProject:_setStateFromProgressChange(item, direction)
+--- @param priorProgress number|nil Progress value to use as the baseline instead of the current cached/recomputed progress (used when the item has already been inserted into its list)
+function DTProject:_setStateFromProgressChange(item, direction, priorProgress)
     if type(direction) ~= "number" or math.abs(direction) ~= 1 then return end
 
     local function isRoll() return item.typeName == "DTRoll" end
     local function isAdjustment() return item.typeName == "DTAdjustment" end
 
     local STATUS = DTConstants.STATUS
-    local oldValue = self:GetProgress()
+    local oldValue = priorProgress or self:GetProgress()
     local newValue = oldValue + (direction * item:GetAmount())
     local currentStatus = self:GetStatus()
     local projectGoal = self:GetProjectGoal()
@@ -410,9 +411,14 @@ function DTProject:AddRoll(roll)
             self.projectRolls = {}
         end
 
+        -- Capture progress BEFORE inserting the roll: _setStateFromProgressChange
+        -- must compare against the pre-roll total, otherwise GetProgress() (which
+        -- re-sums projectRolls when the cache is dirty) already includes this roll
+        -- and the status check double-counts it.
+        local priorProgress = self:GetProgress()
         roll:SetCommitInfo()
         self.projectRolls[#self.projectRolls + 1] = roll
-        self:_setStateFromProgressChange(roll, 1)
+        self:_setStateFromProgressChange(roll, 1, priorProgress)
         self:_invalidateProgressCache()
 
     end

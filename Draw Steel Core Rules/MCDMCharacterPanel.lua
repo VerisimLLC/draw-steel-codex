@@ -3885,7 +3885,6 @@ function TacPanel.HealthBar()
                 r = m_animValue / totalAmount
             end
 
-            print("SEEK:: DELTA =", seekDelta, "diff =", math.abs(m_animTarget - m_animValue), "animValue =", m_animValue, "r =", r)
             fill.selfStyle.width = string.format("%f%%-2", r * 100)
 
             r = m_animTempValue / totalAmount
@@ -6044,6 +6043,17 @@ local function FeatureTacDescription(entry)
     if desc == nil or desc == "" then
         pcall(function() desc = entry.feature:try_get("description") end)
     end
+    --A Title chip is named after the title, so its popup leads with the title's
+    --own description and then names the benefit it granted (report GETSJ9FB).
+    if entry.subName ~= nil and entry.subName ~= "" then
+        local parts = {}
+        local originDesc = nil
+        pcall(function() originDesc = entry.origin:try_get("description") end)
+        if originDesc ~= nil and originDesc ~= "" then parts[#parts+1] = originDesc end
+        parts[#parts+1] = string.format("**%s**", entry.subName)
+        if desc ~= nil and desc ~= "" then parts[#parts+1] = desc end
+        return table.concat(parts, "\n\n")
+    end
     if (desc == nil or desc == "") and entry.chosen ~= nil then
         for _,c in ipairs(entry.chosen) do
             pcall(function()
@@ -6062,6 +6072,11 @@ end
 --when every entry shares one (e.g. "Class - Censor"), mirroring the sheet's
 --Features tab headers. Falls back to the bare bucket name on mixed origins.
 local function FeatureGroupHeaderText(group)
+    --The Title bucket's chips ARE the origin names, so appending the origin
+    --here would just repeat the single title back in its own header.
+    if group.bucket ~= nil and group.bucket.id == "title" then
+        return group.bucket.name
+    end
     local origin, mixed = nil, false
     for _,e in ipairs(group.items) do
         if e.originName ~= nil and e.originName ~= "" then
@@ -6202,10 +6217,11 @@ function TacPanel.Features()
         m_filterFromGlobal = false
     end
 
-    --Key a feature entry for reuse. The index dedupes by bucket|name, so a name
-    --is a stable, unique chip key within a single group/level.
+    --Key a feature entry for reuse. The index dedupes by bucket|name|subName, so
+    --that pair is a stable, unique chip key within a single group/level (two
+    --benefits of one title share a name and differ only in subName).
     local function entryKey(e)
-        return e.name or ""
+        return string.format("%s|%s", e.name or "", e.subName or "")
     end
 
     --Generic keyed child reconciliation (mirrors DTProjectEditor._reconcile-

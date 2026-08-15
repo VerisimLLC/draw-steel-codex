@@ -4156,7 +4156,6 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                     dialogPanel:MoveToNativeWindow {
                         scaling = 0.9,
                         resizeable = true,
-                        updateFrequencyDefocused = 30,
                     }
                     gui.CloseModal()
                 end,

@@ -5149,6 +5149,11 @@ function GameHud.CreateEmbeddedRollDialog()
         m_tableRoll_proceedButton.data.onclick = nil
 
         resultPanel:SetClass("hidden", false)
+        --See the note on the same call in ShowDialog: a table roll mounted in the
+        --ability card has to reveal that card too.
+        if CharacterPanel ~= nil and CharacterPanel.RevealAbilityCard ~= nil then
+            CharacterPanel.RevealAbilityCard(resultPanel)
+        end
         OnShowTable()
         gui.SetFocus(m_tableRoll_diceButton)
 
@@ -5389,6 +5394,13 @@ function GameHud.CreateEmbeddedRollDialog()
                 if resultPanel:HasClass('hidden') then
                     resultPanel:SetClass('hidden', false)
                     OnShow(richStatus)
+                end
+
+                --The ability card hosting this dialog may have been built invisible
+                --(CharacterPanel.AcquireAbilityRollDialog); this is the moment a roll
+                --is definitely going to be seen, so it is safe to fade the card in.
+                if CharacterPanel ~= nil and CharacterPanel.RevealAbilityCard ~= nil then
+                    CharacterPanel.RevealAbilityCard(resultPanel)
                 end
 
                 if not options.nofadein then

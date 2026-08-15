@@ -42,10 +42,19 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
 
             if OnBeginCast ~= nil then
                 local oldBeginCast = synth:try_get("OnBeginCast")
-                synth.OnBeginCast = function()
-                    OnBeginCast()
+                --MUST forward (synthAbility, castOptions): the invoke path's
+                --OnBeginCast wrapper (AbilityInvokeAbility ExecuteInvoke) uses
+                --castOptions to install its cast-finished handler into
+                --options.OnFinishCastHandlers -- the only finish signal that
+                --survives the ability's function fields being stripped mid-cast.
+                --Dropping the args here silently skipped that install and left
+                --the invoke waiting on casting=true forever once the fragile
+                --ability.OnFinishCast fallback was destroyed (the "triggered
+                --abilities all stop working" strand).
+                synth.OnBeginCast = function(synthAbility, castOptions)
+                    OnBeginCast(synthAbility, castOptions)
                     if oldBeginCast ~= nil then
-                        oldBeginCast()
+                        oldBeginCast(synthAbility, castOptions)
                     end
                 end
             end

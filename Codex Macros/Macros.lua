@@ -129,6 +129,36 @@ end
 
 print("SPLIT::", Commands.SplitArgs("(numheroes + 4) * 3"))
 
+Commands.RegisterMacro{
+    name = "popoutgpu",
+    summary = "toggle GPU rendering for popout windows",
+    doc = "Usage: /popoutgpu [on|off]\nToggles GPU rendering for popout windows, or explicitly enables/disables it.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {
+            {text = "on", summary = "use DXGI shared textures"},
+            {text = "off", summary = "use CPU shared memory"},
+        }
+    end,
+    command = function(str)
+        local value = string.lower(trim(str or ""))
+        local enabled
+        if value == "" then
+            enabled = not dmhub.GetSettingValue("popoutgpu")
+        elseif value == "on" or value == "true" or value == "1" then
+            enabled = true
+        elseif value == "off" or value == "false" or value == "0" then
+            enabled = false
+        else
+            dmhub.Log("Usage: /popoutgpu [on|off]")
+            return
+        end
+
+        dmhub.SetSettingValue("popoutgpu", enabled)
+        dmhub.Log(string.format("Popout GPU rendering: %s", cond(enabled, "enabled", "disabled (CPU mode)")))
+    end,
+}
+
 local function ongoingEffectCompletions(args, argIndex)
     if argIndex ~= 1 then return {} end
     local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")

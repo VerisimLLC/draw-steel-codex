@@ -44,6 +44,44 @@ setting{
     default = false,
 }
 
+setting{
+    id = "popoutgpu",
+    description = "Use GPU Rendering for Popout Windows",
+    help = "Shares popout frames with the companion app through DirectX. Disable this to use the slower CPU shared-memory path for troubleshooting or comparison.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsfocused",
+    description = "Popout Frame Rate (Focused)",
+    help = "Maximum frame rate for a popout window while it has focus. The actual rate cannot exceed DMHub's current frame rate.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 60,
+}
+
+setting{
+    id = "popoutfpsunfocused",
+    description = "Popout Frame Rate (Unfocused)",
+    help = "Maximum frame rate for a popout window while it does not have focus. Lower values reduce background rendering cost.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 2,
+}
+
 --The old single "Show Map Overlay" preference, superseded by the split
 --mapoverlay:* settings below. Kept registered (no editor/section, so it never
 --appears in the settings menus) so the one-time migration can still read the

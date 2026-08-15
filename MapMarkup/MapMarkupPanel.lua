@@ -8252,6 +8252,25 @@ CreateMarkupEditor = function()
         },
     }
 
+    --Adding a zone type selects it, mirroring what pressing its chip does.
+    --Without this the palette grows but m_zoneSelectedType stays put, so the
+    --new chip renders unselected and the next click on the map paints the
+    --PREVIOUS type. The rebuild triggered by SaveZonePalette restamps the
+    --chips, and CreateZoneChip reads m_zoneSelectedType at construction, so
+    --the new chip is born selected without an explicit refreshchips.
+    --Callers that also want the paint tool armed call TakeMarkupFocus()
+    --afterwards; the "New Zone Type..." path deliberately does not, because it
+    --opens a modal editor for the new keyword immediately.
+    local AppendZoneTypeAndSelect = function(entry)
+        m_zonePaletteEntries[#m_zonePaletteEntries+1] = entry
+        m_zoneSelectedType = #m_zonePaletteEntries
+        --a fresh type selection paints into that type's existing zone (or a
+        --new one), not whatever zone was last targeted.
+        m_zoneTargetId = nil
+        SaveZonePalette(m_zonePaletteEntries)
+        RefreshZoneUI()
+    end
+
     --Styled as one more palette row, like the walls tab's Add Wall Type.
     local zoneAddButton
     zoneAddButton = gui.Panel{
@@ -8290,11 +8309,11 @@ CreateMarkupEditor = function()
                         text = preset.name,
                         click = function()
                             element.popup = nil
-                            m_zonePaletteEntries[#m_zonePaletteEntries+1] = {
+                            AppendZoneTypeAndSelect{
                                 kind = "preset",
                                 key = preset.key,
                             }
-                            SaveZonePalette(m_zonePaletteEntries)
+                            TakeMarkupFocus()
                         end,
                     }
                 end
@@ -8324,11 +8343,11 @@ CreateMarkupEditor = function()
                     text = info.name,
                     click = function()
                         element.popup = nil
-                        m_zonePaletteEntries[#m_zonePaletteEntries+1] = {
+                        AppendZoneTypeAndSelect{
                             kind = "keyword",
                             keywordid = info.id,
                         }
-                        SaveZonePalette(m_zonePaletteEntries)
+                        TakeMarkupFocus()
                     end,
                 }
             end
@@ -8352,11 +8371,13 @@ CreateMarkupEditor = function()
                     kw.name = "New Zone Type"
                     kw.mapid = game.currentMapId
                     local keywordid = dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
-                    m_zonePaletteEntries[#m_zonePaletteEntries+1] = {
+                    AppendZoneTypeAndSelect{
                         kind = "keyword",
                         keywordid = keywordid,
                     }
-                    SaveZonePalette(m_zonePaletteEntries)
+                    --no TakeMarkupFocus here on purpose: ShowEditDialog opens a
+                    --modal editor for the brand-new keyword, and arming the map
+                    --paint tool underneath it fights the dialog for focus.
 
                     if rawget(keywordType, "ShowEditDialog") ~= nil then
                         keywordType.ShowEditDialog(keywordid)

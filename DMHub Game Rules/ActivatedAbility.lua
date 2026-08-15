@@ -2867,9 +2867,10 @@ end
 --teleport) so the remote player is not prompted to move a token that the
 --in-progress cast is still resolving a forced move against: riders resolve
 --"after the triggering effect resolves".
---Each entry: { casts = {co -> true}, fn = function }.
+--Each entry: { casts = {co -> true}, fn = function, time = enqueue time }.
 local g_deferredCastCompleteActions = {}
 local g_deferredCastSweepScheduled = false
+local g_lastDeferredStallLog = 0
 
 local function ScheduleDeferredCastSweep()
     --backstop in case a cast coroutine dies without its atexit running.
@@ -2908,6 +2909,7 @@ function ActivatedAbility.RunWhenCastsComplete(fn)
     g_deferredCastCompleteActions[#g_deferredCastCompleteActions+1] = {
         casts = casts,
         fn = fn,
+        time = dmhub.Time(),
     }
 
     ScheduleDeferredCastSweep()
@@ -2933,6 +2935,47 @@ function ActivatedAbility.FlushCastCompleteActions()
             end
         else
             i = i + 1
+        end
+    end
+
+    --Log-only staleness telemetry: when deferred actions have been blocked for
+    --a long time, name the live casts blocking them so a "triggered abilities
+    --stopped working" session shows its culprit in the bug-report log instead
+    --of failing silently (a stranded invoke here starves EVERY deferred
+    --trigger on the client for the rest of the session). No behavior change:
+    --the queue still waits indefinitely. Throttled to one line per minute.
+    if #g_deferredCastCompleteActions > 0 then
+        local now = dmhub.Time()
+        local oldest = nil
+        for _,entry in ipairs(g_deferredCastCompleteActions) do
+            if entry.time ~= nil and (oldest == nil or entry.time < oldest) then
+                oldest = entry.time
+            end
+        end
+        if oldest ~= nil and now - oldest > 60 and now - g_lastDeferredStallLog > 60 then
+            g_lastDeferredStallLog = now
+            local blockers = {}
+            local list = {}
+            for _,entry in ipairs(g_deferredCastCompleteActions) do
+                for co,_ in pairs(entry.casts) do
+                    local info = ActivatedAbility.coroutineStorage[co]
+                    if info ~= nil and coroutine.status(co) ~= "dead" and blockers[co] == nil then
+                        local age = "?"
+                        if info.startTime ~= nil then
+                            age = string.format("%d", math.floor(now - info.startTime))
+                        end
+                        local casterName = "?"
+                        if info.casterToken ~= nil and info.casterToken.valid then
+                            casterName = tostring(info.casterToken.name)
+                        end
+                        blockers[co] = true
+                        list[#list+1] = string.format("%s (caster=%s age=%ss)",
+                            tostring(info.ability ~= nil and info.ability.name or "?"), casterName, age)
+                    end
+                end
+            end
+            printf("CASTSTALL:: %d deferred action(s) blocked for %ds by %d live cast(s): %s",
+                #g_deferredCastCompleteActions, math.floor(now - oldest), #list, table.concat(list, "; "))
         end
     end
 end
@@ -3054,6 +3097,8 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
             casterToken = casterToken,
             targets = targets,
             options = options,
+            --for the CASTSTALL staleness log in FlushCastCompleteActions.
+            startTime = dmhub.Time(),
         }
     end
 

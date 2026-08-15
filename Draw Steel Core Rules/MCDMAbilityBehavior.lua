@@ -1230,7 +1230,11 @@ local g_rulePatterns = {
 
                 -- Set up the free strike damage from the caster's free strike value
                 local freeStrikeDamage = tostring(casterToken.properties:OpportunityAttack())
-                abilityClone.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+                --No *Charges factor: free strike damage is a flat number and never
+                --scales with charges. Multiplying by it zeroed the roll when the
+                --parent ability was channeled -- its Charges defaults to 0 and is
+                --forwarded below in symbols. See MCDMMonster:FillFreeStrikes.
+                abilityClone.behaviors[1].roll = freeStrikeDamage
 
                 local symbols = {
                     invoker = GenerateSymbols(casterToken.properties),

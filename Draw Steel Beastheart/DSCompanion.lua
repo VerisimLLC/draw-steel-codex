@@ -379,7 +379,11 @@ function AnimalCompanion:FillFreeStrikes(options, result)
     end
 
     local freeStrikeDamage = tostring(self:OpportunityAttack())
-    ability.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+    --No *Charges factor: free strike damage is a flat number and never scales
+    --with charges. Multiplying by it zeroed the roll whenever the strike was
+    --invoked from a channeled ability, whose Charges defaults to 0 and is
+    --forwarded across the invoke boundary. See MCDMMonster:FillFreeStrikes.
+    ability.behaviors[1].roll = freeStrikeDamage
     ability.behaviors[1].damageType = damageType
 
     if damageType == "untyped" then

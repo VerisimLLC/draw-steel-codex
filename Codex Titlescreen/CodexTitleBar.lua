@@ -92,6 +92,14 @@ local function TicketBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Closing/reopening a ticket from the client arrived after the ticket dialog
+--itself, so it gets its own probe: on an older engine the button is simply
+--absent rather than erroring on click.
+local function TicketStatusBridgeAvailable()
+    local ok, fn = pcall(function() return dmhub.SetTicketStatus end)
+    return ok and fn ~= nil
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -4071,8 +4079,14 @@ local function CreateTopBar()
                 end,
             }
 
+            local closed = (ticket.status == "closed")
+
             local closedNotice = nil
-            if ticket.status == "closed" then
+            if closed then
+                local noticeText = "This ticket has been closed by the developers. You can still add a message if you have more information."
+                if ticket.closedBy == "user" then
+                    noticeText = "You closed this ticket. You can reopen it if the problem comes back, or add a message with more information."
+                end
                 closedNotice = gui.Label{
                     fontSize = 14,
                     color = "#999999",
@@ -4081,9 +4095,76 @@ local function CreateTopBar()
                     halign = "left",
                     tmargin = 6,
                     textWrap = true,
-                    text = "This ticket has been closed by the developers. You can still add a message if you have more information.",
+                    text = noticeText,
                 }
             end
+
+            --The reporter can resolve their own ticket -- they worked it out,
+            --it was their own setup, it stopped happening -- and reopen it if
+            --the problem comes back. Both directions go through the same
+            --bridge call, which stamps closedBy so the team dashboard can tell
+            --a reporter-resolved ticket from a developer-resolved one.
+            local statusButton = nil
+            if TicketStatusBridgeAvailable() then
+                statusButton = gui.Button{
+                    classes = {"sizeM"},
+                    text = cond(closed, "Reopen Ticket", "Close Ticket"),
+                    width = 160,
+                    halign = "right",
+                    valign = "center",
+                    rmargin = 8,
+                    hover = gui.Tooltip(cond(closed,
+                        "Reopen this ticket if the problem is still happening.",
+                        "Close this ticket if you no longer need help with it. You can reopen it later.")),
+                    click = function(element)
+                        if m_sending then
+                            return
+                        end
+
+                        local newStatus = cond(closed, "open", "closed")
+
+                        m_sending = true
+                        sendStatus.text = cond(closed, "Reopening...", "Closing...")
+
+                        local ok = pcall(function()
+                            dmhub.SetTicketStatus{
+                                reportId = ticket.reportId,
+                                status = newStatus,
+                                complete = function()
+                                    m_sending = false
+                                    --mirror the server write locally: these
+                                    --records are the same tables the list page
+                                    --and the alert state read, so the chip and
+                                    --notice update without a refetch.
+                                    ticket.status = newStatus
+                                    ticket.closedBy = cond(newStatus == "closed", "user", nil)
+                                    ticket.updatedAt = os.time() * 1000
+                                    RefreshPage()
+                                end,
+                                error = function(message)
+                                    m_sending = false
+                                    if sendStatus.valid then
+                                        sendStatus.text = "Could not update the ticket: " .. message
+                                    end
+                                end,
+                            }
+                        end)
+
+                        if not ok then
+                            m_sending = false
+                            sendStatus.text = "Could not update the ticket."
+                        end
+                    end,
+                }
+            end
+
+            --explicit list: statusButton is nil on older engines, and a nil
+            --positional child would swallow the Send button after it.
+            local buttons = {}
+            if statusButton ~= nil then
+                buttons[#buttons+1] = statusButton
+            end
+            buttons[#buttons+1] = sendButton
 
             return gui.Panel{
                 width = "100%",
@@ -4162,7 +4243,15 @@ local function CreateTopBar()
                     tmargin = 6,
 
                     sendStatus,
-                    sendButton,
+
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "right",
+                        valign = "center",
+                        children = buttons,
+                    },
                 },
             }
         end

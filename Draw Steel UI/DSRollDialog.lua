@@ -1523,6 +1523,7 @@ function GameHud.CreateRollDialog(self)
     }
 
     alternateRollsBar = gui.Panel {
+        styles = Styles.AdvantageBar,
         classes = { "hideWhenMinimized", "advantage-bar" },
         prepare = function(element, options)
             if options.alternateOptions == nil or #options.alternateOptions <= 1 then

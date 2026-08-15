@@ -4046,6 +4046,56 @@ local m_paletteEntries = {}
 --"erase" / "delete" and the solid shape tools are custom map tools driven
 --from this panel. Reset to each mode's first tool when the panel is built.
 local m_toolId = "rectangle"
+
+--============================================================================
+--ARMED: whether this panel's tool is live, i.e. whether clicks on the map do
+--markup. EXPLICIT, and deliberately NOT derived from GUI focus any more.
+--
+--Focus used to BE the armed state, and it disarmed for reasons the user never
+--performed: focus parked on a chip died when a stroke rebuilt the chip list
+--(one stroke landed, every later one silently did nothing), and the Building
+--editor's palette stole focus a frame after a tool press (wall drawing simply
+--stopped, and the only way back was clicking a wall type). Both needed
+--defensive workarounds -- see TakeMarkupFocus's comment and the late
+--ReassertMarkupFocus -- and neither made the state predictable.
+--
+--Now arming is a verb: pressing a tool arms it, pressing the armed tool again
+--disarms, Escape disarms, closing the panel disarms, and NOTHING else does.
+--Focus is still taken so the panel keeps its keyboard routing, but losing it
+--no longer means anything, which is what makes the state worth showing.
+--ONE table, not a flag plus two functions: this file's main chunk is at Lua's
+--200-local ceiling, so three new locals will not compile. Everything arming
+--needs hangs off m_arm.
+local m_arm = {}
+m_arm.on = false
+
+--The one predicate every drawing path gates on. Also requires the hud to
+--exist: an armed flag with no panel behind it must not publish tools.
+function m_arm.Armed()
+    return m_arm.on and m_markupHud ~= nil and m_markupHud.valid
+end
+
+--Arm or disarm, and tell the panel. The `markuparmed` event already drives
+--the armed dot on the mode tab; firing `think` re-runs the tool registration
+--paths, which are gated on m_arm.Armed() and so register or unregister the
+--engine's custom map tools as the state flips.
+function m_arm.Set(on)
+    on = on == true
+    if m_arm.on == on then
+        return
+    end
+    m_arm.on = on
+    if m_markupHud ~= nil and m_markupHud.valid then
+        m_markupHud:FireEventTree("markuparmed", on)
+        --the tool strip lights its tool only while live (see refreshtools),
+        --so every arm change has to repaint it...
+        m_markupHud:FireEventTree("refreshtools")
+        --...and think re-runs the registration paths, which are gated on
+        --m_arm.Armed() and so hand the engine's custom map tools out or take
+        --them back as the state flips.
+        m_markupHud:FireEventTree("think")
+    end
+end
 --Draw mode, independent of which wall type is selected: false draws thin
 --walls (barriers on a tile boundary), true draws area-filling solid blocks
 --of the SAME wall type. Toggled by the Thin/Solid control by the tool strip.
@@ -4285,7 +4335,7 @@ local function GetMarkupObjectEditingFilter()
         return nil
     end
 
-    if m_markupHud == nil or not m_markupHud.valid or not gui.ChildHasFocus(m_markupHud) then
+    if not m_arm.Armed() then
         return nil
     end
 
@@ -4341,7 +4391,7 @@ local function MarkupHandleObjectsSelected(objects)
         return false
     end
 
-    if m_markupHud == nil or not m_markupHud.valid or not gui.ChildHasFocus(m_markupHud) then
+    if not m_arm.Armed() then
         return false
     end
 
@@ -4456,7 +4506,7 @@ local function GetMarkupHeightEditingInfo()
         return nil
     end
 
-    if m_markupHud == nil or (not m_markupHud.valid) or (not gui.ChildHasFocus(m_markupHud)) then
+    if not m_arm.Armed() then
         return nil
     end
 
@@ -4480,7 +4530,7 @@ local function GetMarkupSelectedWall()
 
     --erase/delete are custom map tools, not wall drawing: publish no wall so
     --the engine building tools stay inactive while they run.
-    if m_mode ~= "walls" or m_toolId == "erase" or m_toolId == "delete" or not gui.ChildHasFocus(m_markupHud) then
+    if m_mode ~= "walls" or m_toolId == "erase" or m_toolId == "delete" or not m_arm.Armed() then
         if dockPanel ~= nil then
             dockPanel:SetClass("highlightPanel", false)
         end
@@ -5927,9 +5977,6 @@ CreateMarkupEditor = function()
     --click after it silently does nothing. Forward-declared because it closes
     --over the per-mode tool panels, which are declared further down.
     local TakeMarkupFocus
-    --Companion for presses that write the SHARED building-tool settings; see
-    --its definition next to TakeMarkupFocus.
-    local ReassertMarkupFocus
 
     --Small uppercase section header used by every mode's sections, quieter
     --than the selectable content beneath it.
@@ -6132,13 +6179,12 @@ CreateMarkupEditor = function()
             SetDrawMode(false)
         end
 
-        --rearming a thin drawing tool wrote the shared building-tool setting,
-        --so the Building editor's palette re-presses its own chip on the next
-        --monitor poll and steals the focus TakeMarkupFocus just took. Take it
-        --back a beat later. (SetDrawMode does its own reassert.)
-        if rearmedTool ~= nil and rearmedTool.tool ~= nil then
-            ReassertMarkupFocus(m_toolId)
-        end
+        --(A focus steal used to matter here: rearming a thin drawing tool
+        --writes the shared building-tool setting, the Building editor's
+        --palette re-presses its own chip on the next monitor poll, and the
+        --focus TakeMarkupFocus had just taken went with it -- disarming the
+        --panel. Arming is explicit now and survives that entirely, so the
+        --re-grab is gone.)
 
         --the selection can flip between openable and plain types, which
         --hides/shows the Draw As toggle. The Wall Color swatches follow the
@@ -6887,26 +6933,29 @@ CreateMarkupEditor = function()
                     tool = toolInfo.tool,
                 },
                 press = function(element)
+                    --Pressing a tool ALWAYS arms it, including the one
+                    --already live. Deliberately not a toggle: a button that
+                    --disarms on its second press makes pressing your current
+                    --tool a coin flip between "keep drawing" and "stop", and
+                    --a mis-aimed re-press silently puts the panel down.
+                    --Escape is the way out.
                     m_toolId = element.data.toolid
                     if element.data.tool ~= nil then
                         dmhub.SetSettingValue("building:erase", false)
                         dmhub.SetSettingValue("buildingtool", element.data.tool)
                     end
                     toolsPanel:FireEvent("refreshtools")
-                    --Take focus (on contentPanel, NOT on this button: the
-                    --strip is rebuilt wholesale by rebuildtools, and focus
-                    --parked on a destroyed button leaves focus nil and the
-                    --panel silently disarmed). Also re-registers the custom
-                    --map tool immediately, since that think is focus-gated.
+                    --ARM. This is the whole state now: it survives whatever
+                    --happens to focus afterwards, so the Building editor's
+                    --palette stealing focus a frame later (the reason
+                    --ReassertMarkupFocus existed) no longer stops drawing.
+                    m_arm.Set(true)
+                    --Focus is still taken, but only so the panel keeps its
+                    --keyboard routing -- it no longer decides anything. Still
+                    --on contentPanel rather than this button: the strip is
+                    --rebuilt wholesale by rebuildtools and focus parked on a
+                    --destroyed button goes nil.
                     TakeMarkupFocus()
-                    --...and take it AGAIN a beat later. Setting monitors are
-                    --polled once per frame, not fired inline from
-                    --SetSettingValue, so the Building editor's palette does
-                    --not re-press + refocus its own wall chip until the frame
-                    --AFTER our write above - stealing the focus we just took
-                    --and disarming wall drawing until the user clicks a wall
-                    --type again.
-                    ReassertMarkupFocus(m_toolId)
                 end,
 
                 gui.Panel{
@@ -6976,8 +7025,15 @@ CreateMarkupEditor = function()
                     end
                 end
 
+                --A tool lights ONLY while the panel is armed. Disarmed, the
+                --whole strip goes dark: "nothing here is live right now" is
+                --the thing the user could not tell before, and showing a lit
+                --tool that does nothing when you click the map is precisely
+                --the lie this rework is removing. Pressing any tool (the same
+                --one included) arms it again.
+                local armed = m_arm.Armed()
                 for _,child in ipairs(element.children) do
-                    child:SetClass("selected", child.data.toolid == activeid)
+                    child:SetClass("selected", armed and child.data.toolid == activeid)
                 end
             end,
 
@@ -7035,8 +7091,7 @@ CreateMarkupEditor = function()
                 --overlay down promptly.
                 local wantDelete = m_mode == "walls"
                     and (m_toolId == "delete" or m_toolId == "retype")
-                    and m_markupHud ~= nil and m_markupHud.valid
-                    and gui.ChildHasFocus(m_markupHud)
+                    and m_arm.Armed()
 
                 if wantDelete then
                     if not element.mapfocus then
@@ -7064,7 +7119,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if m_markupHud == nil or not m_markupHud.valid or not gui.ChildHasFocus(m_markupHud) then
+                if not m_arm.Armed() then
                     return
                 end
 
@@ -7513,17 +7568,15 @@ CreateMarkupEditor = function()
             heightPanel:FireEventTree("refreshheight")
         end
 
-        --Solid mode draws with custom map tools, which need focus and expire
-        --after ~1s; register immediately instead of waiting for the think tick.
+        --Solid mode draws with custom map tools that expire after ~1s;
+        --register immediately instead of waiting for the think tick.
         if toolsPanel ~= nil and toolsPanel.valid then
             toolsPanel:FireEvent("think")
         end
-
-        --Landing on thin mode wrote buildingtool above, so the Building
-        --editor's palette will refocus its own chip on the next monitor poll;
-        --take focus back after that. No-op in solid mode (nothing was
-        --written) and whenever we still hold focus.
-        ReassertMarkupFocus(m_toolId)
+        --(No focus re-grab here any more. Landing on thin mode writes
+        --buildingtool, which used to make the Building editor's palette
+        --refocus its own chip and disarm this panel; explicit arming is
+        --immune to that.)
     end
 
     local CreateDrawModeChip = function(solid)
@@ -8688,7 +8741,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if m_markupHud == nil or not m_markupHud.valid or not gui.ChildHasFocus(m_markupHud) then
+                if not m_arm.Armed() then
                     return
                 end
 
@@ -9357,7 +9410,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if m_markupHud == nil or not m_markupHud.valid or not gui.ChildHasFocus(m_markupHud) then
+                if not m_arm.Armed() then
                     return
                 end
 
@@ -11420,8 +11473,7 @@ CreateMarkupEditor = function()
             think = function(element)
                 local want = m_mode == "props" and PropsSupported()
                     and m_props.selected ~= nil
-                    and m_markupHud ~= nil and m_markupHud.valid
-                    and gui.ChildHasFocus(m_markupHud)
+                    and m_arm.Armed()
 
                 if m_props.pendingPartnerId ~= nil then
                     if not want then
@@ -11625,38 +11677,16 @@ CreateMarkupEditor = function()
         end
     end
 
-    --Second half of the focus grab, for the presses that write the SHARED
-    --building-tool settings (the thin-wall tool strip and the Thin/Solid
-    --toggle). Setting monitors are POLLED - SheetPanel compares the
-    --variable's nupdates once per frame - so they do NOT run inline from
-    --dmhub.SetSettingValue. The Building editor's wall palette monitors
-    --buildingtool and re-presses + refocuses its own chip when it changes, so
-    --its steal lands the frame AFTER our press, undoing the TakeMarkupFocus
-    --the press just did: the panel silently disarms, wall drawing stops, and
-    --the only way back is clicking a wall type (which does not touch
-    --buildingtool, so nothing steals focus from it). Re-take focus once the
-    --monitor pass has run.
+    --(ReassertMarkupFocus lived here. It existed for one reason: presses that
+    --wrote the SHARED building-tool settings made the Building editor's
+    --palette re-press and refocus its own chip on the next polled monitor
+    --pass, one frame after our own TakeMarkupFocus -- and because focus WAS
+    --the armed state, that steal silently stopped wall drawing until the user
+    --clicked a wall type again. It scheduled a re-grab 0.1s later to paper
+    --over the race.
     --
-    --Guarded to stay polite: it does nothing if we still hold focus (nothing
-    --stole it), if the user has moved on to a different tool or mode in the
-    --meantime, or if the panel has gone away.
-    ReassertMarkupFocus = function(toolId)
-        dmhub.Schedule(0.1, function()
-            if mod.unloaded then
-                return
-            end
-            if contentPanel == nil or not contentPanel.valid or not contentPanel.enabled then
-                return
-            end
-            if m_mode ~= "walls" or m_toolId ~= toolId then
-                return
-            end
-            if gui.ChildHasFocus(contentPanel) then
-                return
-            end
-            TakeMarkupFocus()
-        end)
-    end
+    --Arming is explicit now and a focus steal changes nothing, so the race has
+    --no consequence to paper over and the workaround is gone.)
 
     contentPanel = gui.Panel{
         id = "MapMarkupPanel",
@@ -11675,15 +11705,42 @@ CreateMarkupEditor = function()
             TakeMarkupFocus()
         end,
 
+        --ESCAPE, first refusal. The host window offers the press to its
+        --active panel before closing itself (see DocumentSystem's escape
+        --handler): while a tool is live, Escape means "put it down", and
+        --claiming the press is what stops the same keystroke also closing
+        --the window. Disarmed, we do not claim it and Escape closes as
+        --usual.
+        --
+        --This is the path that actually runs for rail windows. The
+        --dmhub.CancelEditing chain lower down is a DIFFERENT route (sticky
+        --map focus) and never sees the press while the window has it.
+        panelEscape = function(element, claim)
+            if not m_arm.Armed() then
+                return
+            end
+            m_arm.Set(false)
+            if claim ~= nil then
+                claim.claimed = true
+            end
+        end,
+
         --openness is NOT tracked from these events -- MarkupPanelIsOpen reads
         --it from the live panel (see its comment); these only manage focus.
+        --Showing the panel does NOT arm it: arriving at a panel is not the
+        --same as asking to draw, and a tool that armed itself the moment the
+        --window opened is exactly the kind of surprise mode this rework is
+        --meant to remove. The user arms by pressing a tool.
         showpanel = function(element)
             if not gui.ChildHasFocus(element) then
                 gui.SetFocus(element)
             end
         end,
 
+        --Hiding it DOES disarm: a tool you cannot see must not keep eating
+        --map clicks.
         hidepanel = function(element)
+            m_arm.Set(false)
             if gui.ChildHasFocus(element) then
                 gui.SetFocus(nil)
             end
@@ -11692,14 +11749,16 @@ CreateMarkupEditor = function()
         --The dockablePanel ancestor can be nil: content can be hosted outside
         --the dock (PanelDocument bridge), and focus events can fire while the
         --panel is detached. Guard like Objects.lua does.
+        --
+        --These now only drive the host's focus HIGHLIGHT. They no longer
+        --touch `markuparmed`: focus is not the armed state any more, so a
+        --focus steal must not put the armed dot out while the tool is still
+        --live. m_arm.Set owns that event.
         childfocus = function(element)
             local dockPanel = element:FindParentWithClass("dockablePanel")
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", true)
             end
-            --the armed-state dot on the active mode tab: focus IS armed,
-            --since every drawing path is gated on gui.ChildHasFocus.
-            element:FireEventTree("markuparmed", true)
         end,
 
         childdefocus = function(element)
@@ -11707,7 +11766,6 @@ CreateMarkupEditor = function()
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", false)
             end
-            element:FireEventTree("markuparmed", false)
         end,
 
         children = {
@@ -11904,9 +11962,19 @@ if g_priorCancelEditing == MapMarkupHooks.cancelEditingWrapper or g_priorCancelE
 end
 MapMarkupHooks.priorCancelEditing = g_priorCancelEditing
 MapMarkupHooks.cancelEditingWrapper = function(sheet)
-    if m_props.pendingPartnerId ~= nil and m_mode == "props"
-        and m_markupHud ~= nil and m_markupHud.valid and gui.ChildHasFocus(m_markupHud) then
+    if m_props.pendingPartnerId ~= nil and m_mode == "props" and m_arm.Armed() then
         AbortPendingTeleporterPair()
+        return true
+    end
+    --ESCAPE PUTS THE TOOL DOWN. Ordered after the teleporter abort (that is
+    --the more specific half-finished thing to back out of) and before every
+    --other consumer: while a markup tool is live, Escape means "stop
+    --drawing", not "clear the selection" or "close the window". Consuming it
+    --is what stops the window's own escape handler closing the panel out from
+    --under a single keypress.
+    if m_arm.Armed() then
+        --m_arm.Set repaints the strip and unregisters the map tools.
+        m_arm.Set(false)
         return true
     end
     if g_priorCancelEditing ~= nil then

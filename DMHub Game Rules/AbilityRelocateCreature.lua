@@ -516,7 +516,20 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 
 			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast })
+
+			--freeMovement mirrors the _tmp_freeMovement flag set at the top of Cast: an
+			--ability-granted shift/move is not the creature's move action, so the engine must
+			--not clamp it to the creature's remaining strict:movement budget. Without it, a
+			--caster that already used its movement this turn has a negative budget and the
+			--engine rejects the move outright (report 7BE97X9P).
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true })
+
+            --A nil path means the engine refused the move outright (no route, or a budget/legality
+            --clamp). There is nothing to fall back on here, but the cast used to continue in total
+            --silence and look like the relocate had happened, so make the failure traceable.
+            if path == nil then
+                print("Relocate:: MOVE REFUSED -- caster did not move. movementType =", movementType, "dest =", targets[#targets].loc.str, "ability =", ability.name)
+            end
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)

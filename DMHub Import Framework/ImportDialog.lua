@@ -738,6 +738,10 @@ CreateMyContentImportPanel = function()
                 text = entry.name or "(unnamed)",
             },
 
+            --the subtitle is arbitrary-length text ("Level 1 Elf, Wode Virtuoso
+            --Troubadour", or a player's display name), so it must stay inside the
+            --150x168 tile: wrap within the tile width, cap at two lines so it
+            --can't push out the bottom, and ellipsize whatever still won't fit.
             gui.Label{
                 fontSize = 11,
                 color = "#aaaaaa",
@@ -745,7 +749,9 @@ CreateMyContentImportPanel = function()
                 height = "auto",
                 halign = "center",
                 textAlignment = "center",
-                textWrap = false,
+                textWrap = true,
+                maxVisibleLines = 2,
+                textOverflow = "ellipsis",
                 text = subtitle or "",
             },
         }

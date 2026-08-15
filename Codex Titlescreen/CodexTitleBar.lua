@@ -92,6 +92,14 @@ local function TicketBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Closing/reopening a ticket from the client arrived after the ticket dialog
+--itself, so it gets its own probe: on an older engine the button is simply
+--absent rather than erroring on click.
+local function TicketStatusBridgeAvailable()
+    local ok, fn = pcall(function() return dmhub.SetTicketStatus end)
+    return ok and fn ~= nil
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -1219,6 +1227,24 @@ function g_tileIndicator.ZoneTypesOnMap()
     return {}
 end
 
+--Markup holes present on the current map ({color, angleRadians}), or nil.
+--Holes get an opt-IN row like the built-ins (reserved id "hole" in
+--mapoverlay:shownbuiltins, which the engine ignores): the actual cut in the
+--map always shows, the stripes are an inspection aid that defaults off
+--outside the Map Markup panel. DM-only by construction (the markup side
+--returns nil for players).
+function g_tileIndicator.HoleTypeOnMap()
+    local markup = rawget(_G, "MapMarkup")
+    if markup == nil or markup.GetHoleTypeOnMap == nil then
+        return nil
+    end
+    local ok, info = pcall(markup.GetHoleTypeOnMap)
+    if ok and type(info) == "table" then
+        return info
+    end
+    return nil
+end
+
 function g_tileIndicator.CreateOverlayMenu()
     local checkStyle = {
         width = "100%",
@@ -1346,6 +1372,7 @@ function g_tileIndicator.CreateOverlayMenu()
 
     local zoneTypes = g_tileIndicator.ZoneTypesOnMap()
     local builtinTypes = g_tileIndicator.BuiltinTypesOnMap()
+    local holeType = g_tileIndicator.HoleTypeOnMap()
 
     local children = {}
 
@@ -1377,6 +1404,9 @@ function g_tileIndicator.CreateOverlayMenu()
                 local set = g_tileIndicator.ShownBuiltinSet()
                 for _,builtin in ipairs(g_tileIndicator.BuiltinTypesOnMap()) do
                     set[builtin.id] = true
+                end
+                if g_tileIndicator.HoleTypeOnMap() ~= nil then
+                    set["hole"] = true
                 end
                 g_tileIndicator.WriteShownBuiltinSet(set)
             end,
@@ -1410,7 +1440,7 @@ function g_tileIndicator.CreateOverlayMenu()
     --terrain rule types the map's TILES carry on their own (a rule only
     --derived from a defined zone gets no row - the zone's row is its
     --control).
-    if #zoneTypes > 0 or #builtinTypes > 0 then
+    if #zoneTypes > 0 or #builtinTypes > 0 or holeType ~= nil then
         children[#children+1] = gui.Label{
             classes = {"fgMuted", "sizeXs"},
             text = "Terrain on This Map",
@@ -1424,6 +1454,16 @@ function g_tileIndicator.CreateOverlayMenu()
         for _,builtin in ipairs(builtinTypes) do
             children[#children+1] = BuiltinRow(builtin)
         end
+        --markup holes: same opt-in storage as the built-ins. The row only
+        --toggles the STRIPES over the holes; the actual cut always shows.
+        if holeType ~= nil then
+            children[#children+1] = BuiltinRow({
+                id = "hole",
+                name = "Hole",
+                color = holeType.color,
+                angle = holeType.angleRadians,
+            })
+        end
     end
 
     return gui.Panel{
@@ -1434,10 +1474,40 @@ function g_tileIndicator.CreateOverlayMenu()
     }
 end
 
+--Opens (or dismisses) the map overlay menu beneath `element` -- the status
+--cluster plate the chip and the map name share. Same popup rig as the
+--player-status cluster's Heroes popout: click toggles, click-away dismisses.
+--Does nothing outside a real game, which is also when the plate stops
+--advertising itself as clickable.
+function g_tileIndicator.ShowOverlayMenu(element)
+    if element.popup ~= nil then
+        element.popup = nil
+        return
+    end
+    if (not dmhub.inGame) or dmhub.isLobbyGame then
+        return
+    end
+    element.popupsInheritStyles = true
+    element.popup = gui.Panel{
+        classes = {"bordered", "bg"},
+        width = 280,
+        height = "auto",
+        pad = 12,
+        borderBox = true,
+        halign = "left",
+        valign = "bottom",
+        flow = "vertical",
+        g_tileIndicator.CreateOverlayMenu(),
+    }
+end
+
 --The chip itself. Paints fully clear (no fill, no border) outside a
 --game rather than collapsing: a collapsed panel's think does not run,
 --so a self-collapse would be permanent (same trap the player-status
---cluster documents above). Clicking it opens the map overlay menu.
+--cluster documents above). It is interactable = false: the click that
+--opens the map overlay menu, and the tooltip, both live on the status
+--cluster plate it shares with the map name label (see CreateStatusBar),
+--so hovering either half lights the whole plate.
 function g_tileIndicator.CreatePanel()
     local function Clear(element)
         element.data.key = nil
@@ -1456,38 +1526,9 @@ function g_tileIndicator.CreatePanel()
         bgcolor = "clear",
         borderWidth = 0,
         borderColor = "@border",
+        interactable = false,
 
         data = { key = nil, name = nil },
-
-        linger = function(element)
-            if element.data.name ~= nil then
-                gui.Tooltip(string.format("Tile under cursor: %s\nClick to choose which map overlays are shown.", element.data.name))(element)
-            end
-        end,
-
-        --the map overlay menu. Same popup rig as the player-status
-        --cluster's Heroes popout: click toggles, click-away dismisses.
-        click = function(element)
-            if element.popup ~= nil then
-                element.popup = nil
-                return
-            end
-            if (not dmhub.inGame) or dmhub.isLobbyGame then
-                return
-            end
-            element.popupsInheritStyles = true
-            element.popup = gui.Panel{
-                classes = {"bordered", "bg"},
-                width = 280,
-                height = "auto",
-                pad = 12,
-                borderBox = true,
-                halign = "left",
-                valign = "bottom",
-                flow = "vertical",
-                g_tileIndicator.CreateOverlayMenu(),
-            }
-        end,
 
         multimonitor = {"showstatusbar"},
         monitor = function(element)
@@ -1526,6 +1567,108 @@ end
 
 local function CreateStatusBar()
     local resultPanel
+
+    --The hovered-tile chip and the map-name label are two halves of one
+    --control: both describe the current map, and clicking either opens the
+    --map overlay menu. They share a "menuItem" plate (see m_mapCluster
+    --below), which only advertises itself while that menu can actually open.
+    local m_tileChip
+    local m_mapNameLabel
+    local m_mapCluster
+
+    local function MapClusterAvailable()
+        return g_showStatusBarSetting:Get() and dmhub.inGame and (not dmhub.isLobbyGame)
+    end
+
+    local function RefreshMapClusterAffordance()
+        if m_mapCluster ~= nil and m_mapCluster.valid then
+            m_mapCluster:SetClass("menuItem", MapClusterAvailable())
+        end
+    end
+
+    -- Hovered-tile terrain chip: a zone-swatch-style square
+    -- characterizing the tile under the mouse (see g_tileIndicator).
+    m_tileChip = g_tileIndicator.CreatePanel()
+
+    -- Map name + engine status. Long map descriptions used to eat the bar,
+    -- so the box is capped (narrower than the old 420) and the text
+    -- ellipsizes rather than wrapping or shrinking away to nothing;
+    -- hovering shows the untruncated string (on the cluster's tooltip).
+    m_mapNameLabel = gui.Label{
+        --menuLabel is what flips the text to @bg when the plate fills on
+        --hover. It carries a 16px font for the main menu strip; this cluster
+        --runs at the default 14, so match the neighbours explicitly.
+        classes = {"menuLabel"},
+        fontSize = 14,
+        minFontSize = 10,
+        width = 380,
+        height = "100%",
+        hmargin = 0,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        interactable = false,
+        text = "",
+        data = { fullText = "" },
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+            element.data.fullText = ""
+            element.text = ""
+            RefreshMapClusterAffordance()
+        end,
+        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        think = function(element)
+            RefreshMapClusterAffordance()
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                element.data.fullText = ""
+                element.text = ""
+                return
+            end
+            local text = string.format("%s %s", game.currentMap.description, dmhub.status)
+            element.data.fullText = text
+            element.text = text
+        end,
+    }
+
+    --The shared plate. Structure follows the title bar's other menu items
+    --(and the initiative readout): the fill and the click live on the
+    --wrapper, both children are interactable = false so the hover lands
+    --here rather than on a half. hpad is inline rather than left to the
+    --menuItem style so the cluster does not shift sideways on the frames
+    --where the class is dropped.
+    m_mapCluster = gui.Panel{
+        classes = {cond(MapClusterAvailable(), "menuItem")},
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        hpad = 8,
+
+        linger = function(element)
+            local lines = {}
+            local mapText = m_mapNameLabel.data.fullText
+            if mapText ~= nil and mapText ~= "" then
+                lines[#lines+1] = mapText
+            end
+            local tileName = m_tileChip.data.name
+            if tileName ~= nil then
+                lines[#lines+1] = string.format("Tile under cursor: %s", tileName)
+            end
+            if #lines == 0 then
+                return
+            end
+            lines[#lines+1] = "Click to choose which map overlays are shown."
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+
+        click = function(element)
+            g_tileIndicator.ShowOverlayMenu(element)
+        end,
+
+        m_tileChip,
+        m_mapNameLabel,
+    }
 
     resultPanel = gui.Panel{
         flow = "horizontal",
@@ -1618,47 +1761,9 @@ local function CreateStatusBar()
         -- setting.
         CreateInitiativeStatusHost(),
 
-        -- Hovered-tile terrain chip: a zone-swatch-style square
-        -- characterizing the tile under the mouse (see g_tileIndicator).
-        g_tileIndicator.CreatePanel(),
-
-        -- Map name + engine status. Long map descriptions used to eat the bar,
-        -- so the box is capped (narrower than the old 420) and the text
-        -- ellipsizes rather than wrapping or shrinking away to nothing;
-        -- hovering shows the untruncated string.
-        gui.Label{
-            minFontSize = 10,
-            width = 380,
-            height = "100%",
-            textWrap = false,
-            textOverflow = "ellipsis",
-            text = "",
-            data = { fullText = "" },
-            linger = function(element)
-                local text = element.data.fullText
-                if text == nil or text == "" then
-                    return
-                end
-                gui.Tooltip(text)(element)
-            end,
-            multimonitor = {"showstatusbar"},
-            monitor = function(element)
-                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
-                element.data.fullText = ""
-                element.text = ""
-            end,
-            thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
-            think = function(element)
-                if (not dmhub.inGame) or dmhub.isLobbyGame then
-                    element.data.fullText = ""
-                    element.text = ""
-                    return
-                end
-                local text = string.format("%s %s", game.currentMap.description, dmhub.status)
-                element.data.fullText = text
-                element.text = text
-            end,
-        }
+        -- Hovered-tile terrain chip + map name/engine status, sharing one
+        -- clickable plate that opens the map overlay menu.
+        m_mapCluster,
     }
 
     return resultPanel
@@ -4071,8 +4176,14 @@ local function CreateTopBar()
                 end,
             }
 
+            local closed = (ticket.status == "closed")
+
             local closedNotice = nil
-            if ticket.status == "closed" then
+            if closed then
+                local noticeText = "This ticket has been closed by the developers. You can still add a message if you have more information."
+                if ticket.closedBy == "user" then
+                    noticeText = "You closed this ticket. You can reopen it if the problem comes back, or add a message with more information."
+                end
                 closedNotice = gui.Label{
                     fontSize = 14,
                     color = "#999999",
@@ -4081,9 +4192,76 @@ local function CreateTopBar()
                     halign = "left",
                     tmargin = 6,
                     textWrap = true,
-                    text = "This ticket has been closed by the developers. You can still add a message if you have more information.",
+                    text = noticeText,
                 }
             end
+
+            --The reporter can resolve their own ticket -- they worked it out,
+            --it was their own setup, it stopped happening -- and reopen it if
+            --the problem comes back. Both directions go through the same
+            --bridge call, which stamps closedBy so the team dashboard can tell
+            --a reporter-resolved ticket from a developer-resolved one.
+            local statusButton = nil
+            if TicketStatusBridgeAvailable() then
+                statusButton = gui.Button{
+                    classes = {"sizeM"},
+                    text = cond(closed, "Reopen Ticket", "Close Ticket"),
+                    width = 160,
+                    halign = "right",
+                    valign = "center",
+                    rmargin = 8,
+                    hover = gui.Tooltip(cond(closed,
+                        "Reopen this ticket if the problem is still happening.",
+                        "Close this ticket if you no longer need help with it. You can reopen it later.")),
+                    click = function(element)
+                        if m_sending then
+                            return
+                        end
+
+                        local newStatus = cond(closed, "open", "closed")
+
+                        m_sending = true
+                        sendStatus.text = cond(closed, "Reopening...", "Closing...")
+
+                        local ok = pcall(function()
+                            dmhub.SetTicketStatus{
+                                reportId = ticket.reportId,
+                                status = newStatus,
+                                complete = function()
+                                    m_sending = false
+                                    --mirror the server write locally: these
+                                    --records are the same tables the list page
+                                    --and the alert state read, so the chip and
+                                    --notice update without a refetch.
+                                    ticket.status = newStatus
+                                    ticket.closedBy = cond(newStatus == "closed", "user", nil)
+                                    ticket.updatedAt = os.time() * 1000
+                                    RefreshPage()
+                                end,
+                                error = function(message)
+                                    m_sending = false
+                                    if sendStatus.valid then
+                                        sendStatus.text = "Could not update the ticket: " .. message
+                                    end
+                                end,
+                            }
+                        end)
+
+                        if not ok then
+                            m_sending = false
+                            sendStatus.text = "Could not update the ticket."
+                        end
+                    end,
+                }
+            end
+
+            --explicit list: statusButton is nil on older engines, and a nil
+            --positional child would swallow the Send button after it.
+            local buttons = {}
+            if statusButton ~= nil then
+                buttons[#buttons+1] = statusButton
+            end
+            buttons[#buttons+1] = sendButton
 
             return gui.Panel{
                 width = "100%",
@@ -4162,7 +4340,15 @@ local function CreateTopBar()
                     tmargin = 6,
 
                     sendStatus,
-                    sendButton,
+
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "right",
+                        valign = "center",
+                        children = buttons,
+                    },
                 },
             }
         end

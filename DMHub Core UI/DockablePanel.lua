@@ -132,8 +132,23 @@ function GameHud:CreateSingleDock(params)
                     end,
 
                     monitor = function(element)
+                        local wasOffscreen = resultPanel:HasClass("offscreen")
                         resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
                         dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
+
+                        --Sliding the dock away leaves every panel in it alive and
+                        --still focused, just invisible. That is not harmless: a
+                        --panel that arms a mode off focus keeps it armed with
+                        --nothing on screen to say so (the Objects panel arms
+                        --object editing mode, which turns off regular play mode
+                        --and with it creature rectangle-select). hidepanel is the
+                        --same event a tab switch fires, and each panel's handler
+                        --already knows how to give up focus -- including the
+                        --focus-here-first dance the panels whose childdefocus
+                        --re-grabs a nil focus need.
+                        if resultPanel:HasClass("offscreen") and not wasOffscreen then
+                            resultPanel:FireEventTree("hidepanel")
+                        end
                     end,
 
                     create = function(element)
@@ -901,6 +916,21 @@ function FocusPanelContent(instance)
 	if root == nil or not root.valid then
 		return false
 	end
+
+	--Already ours: leave focus exactly where it is. Presses do not swallow
+	--by default, so a press on one of the panel's OWN controls bubbles up
+	--to the host and lands here too -- and re-grabbing to the content root
+	--wipes whatever the panel's controls were tracking through focus. The
+	--Objects palette reads "which entry was focused" inside its click
+	--handler to build a ctrl/shift multi-selection, and press runs before
+	--click, so the unguarded grab made every multi-select see the root
+	--instead of the previous entry (report YYDRFNXP). The panel is already
+	--armed in this case, so there is nothing to re-arm and no panelFocused
+	--to fire.
+	if gui.ChildHasFocus(root) then
+		return true
+	end
+
 	gui.SetFocus(root)
 	root:FireEventTree("panelFocused")
 	return true

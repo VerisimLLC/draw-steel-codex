@@ -521,7 +521,14 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 						return
 					end
 
-					element.dragging = false
+					--Arm the engine's placement mode and let OUR drag keep running to
+					--mouse-up, exactly as the Bestiary row does (CharacterPanel.lua's
+					--dragging -> dmhub.SetDraggingMonster). Cancelling the drag here
+					--(element.dragging = false) used to end it while button 0 was still
+					--held, and the engine then handed the live mouse-down to the nearest
+					--draggable ancestor -- the rail panel window, or the dock's drag
+					--ghost -- so the WINDOW followed the cursor and the object never got
+					--placed. Report 29MWMJ3X.
 					dmhub.SetDraggingObject()
 				end
 			end,
@@ -2272,6 +2279,26 @@ dmhub.GetSelectedObject = function()
 	return gui.GetFocus().data.objectid
 end
 
+--Focus alone is not proof the editor is on screen. A dock that is slid away
+--carries the "offscreen" class and a panel sitting behind another tab (or
+--minimized) carries "collapsed"; either way the children stay alive, keep
+--their focus, and are invisible. That matters more here than for a normal
+--panel: object editing mode turns OFF regular play mode, which stops
+--TokenController from starting a creature rectangle-select (the drag falls
+--through to ObjectTool's object rectangle instead), so an invisible panel
+--holding focus silently breaks dragging out a selection of creatures.
+local function ObjectEditorOnScreen(element)
+	local p = element
+	while p ~= nil do
+		if p:HasClass("offscreen") or p:HasClass("collapsed") then
+			return false
+		end
+		p = p.parent
+	end
+
+	return true
+end
+
 --This used to require a "dockablePanel" ANCESTOR, which doubled as the
 --liveness check and as the thing carrying the legacy highlight class. That
 --ancestor only exists in a DOCK, so hosted anywhere else -- notably an
@@ -2283,7 +2310,7 @@ dmhub.ObjectEditingEnabled = function()
 		return false
 	end
 
-	local focused = gui.ChildHasFocus(m_objectEditor)
+	local focused = gui.ChildHasFocus(m_objectEditor) and ObjectEditorOnScreen(m_objectEditor)
 
 	local dockPanel = m_objectEditor:FindParentWithClass("dockablePanel")
 	if dockPanel ~= nil then
@@ -2291,6 +2318,21 @@ dmhub.ObjectEditingEnabled = function()
 	end
 
 	return focused
+end
+
+--The object wiring overlay -- the trigger/action "plug" icons the engine draws
+--on map objects so you can wire an Action to a Trigger -- keys off the panel
+--being OPEN rather than focused. Focus is right for object editing MODE above
+--(it turns off regular play mode, so it must not latch), but as a gate on a
+--passive, DM-only overlay it meant that opening any other panel, or the
+--object's own properties dialog -- the very thing you use to add a trigger --
+--took every plug icon off the map. Report T45GPX6J.
+dmhub.ObjectPanelOpen = function()
+	if m_objectEditor == nil or (not m_objectEditor.valid) or m_objectEditor.parent == nil then
+		return false
+	end
+
+	return ObjectEditorOnScreen(m_objectEditor)
 end
 
 -- Live image editing dialog: appears (parented to the world dialog layer, like the vision

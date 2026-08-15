@@ -193,6 +193,15 @@ CreateWhiteboardPanel = function()
         clickpanel = function(element)
             element:FireEvent("showpanel")
         end,
+
+        --showpanel only fires on a dock TAB switch, so opening the whiteboard
+        --fresh (or hosting it in a rail window) never ran it and the panel sat
+        --there with no focus -- meaning GetActiveWhiteboardTool returned nil and
+        --nothing drew until the user clicked. Arm it on create as well.
+        create = function(element)
+            element:FireEvent("showpanel")
+        end,
+
         showpanel = function(element)
             if dmhub.isDM == false and not dmhub.GetSettingValue("whiteboardplayeraccess") then
                 if gui.ChildHasFocus(element) then
@@ -200,8 +209,15 @@ CreateWhiteboardPanel = function()
                 end
 
                 element:SetClassTree("forbidden", true)
-            else
-                element:SetClassTree("forbidden", false)
+                return
+            end
+
+            element:SetClassTree("forbidden", false)
+
+            if not gui.ChildHasFocus(element) then
+                --press the first (only) tool button rather than just focusing the
+                --panel: that selects the free draw tool and takes focus in one go.
+                toolPanel:FireEventTree("pressfirst")
             end
 
             if not gui.ChildHasFocus(element) then

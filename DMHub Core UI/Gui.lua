@@ -212,22 +212,43 @@ function gui.ShowDialogOverMap(mod, dialog)
 end
 
 
---- Show a modal dialog.
+--- Show a modal dialog. options.owner routes the modal: when the owner
+--- element lives in a native popout window, the modal appears inside THAT
+--- OS window (in the window's own modal layer) instead of the main app
+--- window. Returns the modal layer used -- a dialog that closes itself
+--- should capture it and close via gui.CloseModalInLayer, which stays
+--- correct even if the owner element is destroyed while the dialog is up
+--- (gui.CloseModal(owner) re-resolves through the owner and falls back to
+--- the global layer once the owner is gone).
 --- @param panel Panel
---- @options {nofade: nil|boolean}
+--- @options {nofade: nil|boolean, owner: nil|Panel}
+--- @return Panel
 function gui.ShowModal(panel, options)
-	gamehud:ShowModal(panel, options)
+	return gamehud:ShowModal(panel, options)
 end
 
---- Close the modal dialog that is currently displayed.
-function gui.CloseModal()
-	gamehud:CloseModal()
+--- Close the topmost modal in the given modal layer (as returned by
+--- gui.ShowModal). The layer-addressed twin of gui.CloseModal.
+--- @param layer nil|Panel
+function gui.CloseModalInLayer(layer)
+	gamehud:CloseModalInLayer(layer)
 end
 
---- Get the currently displayed modal dialog.
+--- Close the modal dialog that is currently displayed. owner (optional)
+--- routes the close the same way gui.ShowModal routes the open: pass the
+--- owner the modal was shown with to close a popout-window modal.
+--- @param owner nil|Panel
+function gui.CloseModal(owner)
+	gamehud:CloseModal(owner)
+end
+
+--- Get the currently displayed modal dialog. owner (optional) asks about
+--- the modal layer of the window that owner lives in; nil asks about the
+--- main window's global layer.
+--- @param owner nil|Panel
 --- @return nil|Panel
-function gui.GetModal()
-	return gamehud:GetModal()
+function gui.GetModal(owner)
+	return gamehud:GetModal(owner)
 end
 
 --- Display a modal message dialog.
@@ -3393,9 +3414,16 @@ function gui.AudioEditor(args)
 	args.autoplay = nil
 
 	local autoplayVolume = args.autoplayvolume
+	args.autoplayvolume = nil
 	if autoplayVolume == nil then
 		autoplayVolume = 1
 	end
+
+	--Optional mix group the autoplay preview is routed through (e.g. "anthem"), so the
+	--preview obeys the same personal fader / DM broadcast level / ducking as the real
+	--playback of that sound rather than sounding at raw master volume.
+	local autoplayMixGroup = args.autoplaymixgroup
+	args.autoplaymixgroup = nil
 
 	local StopAutoplay = function()
 		if autoplayInstance ~= nil then
@@ -3423,6 +3451,9 @@ function gui.AudioEditor(args)
 				autoplayInstance = asset:Play()
 				autoplayInstance.volume = autoplayVolume
                 autoplayInstance.solo = true
+				if autoplayMixGroup ~= nil then
+					autoplayInstance.mixGroupId = autoplayMixGroup
+				end
 				spectrumPanel:FireEvent("play")
 				resultPanel:SetClassTree("playing", true)
 			end

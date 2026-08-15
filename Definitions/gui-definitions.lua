@@ -14,6 +14,9 @@
 --- @field escape nil|(fun(panel:Panel):nil) @Fired when escape is set if the panel has captureEscape set
 --- @field refreshGame nil|(fun(panel:Panel):nil) If we are monitoring the game for changes, fires when the part of the game we are monitoring changes.
 --- @field imageLoaded nil|(fun(panel:Panel):nil) Fired when the background image this panel uses is loaded.
+--- @field dragfilesenter nil|(fun(panel:Panel, paths:string[]):nil) Fired when matching operating-system files are dragged over this panel.
+--- @field dragfilesleave nil|(fun(panel:Panel):nil) Fired when an operating-system file drag leaves this panel.
+--- @field dropfiles nil|(fun(panel:Panel, paths:string[]):nil) Fired when matching operating-system files are dropped on this panel.
 
 --- @class PanelEventArgs
 --- @field keybind nil|(fun(panel:Panel, bind:string):nil)
@@ -31,6 +34,9 @@
 --- @field escape nil|(fun(panel:Panel):nil) @Fired when escape is set if the panel has captureEscape set
 --- @field refreshGame nil|(fun(panel:Panel):nil) If we are monitoring the game for changes, fires when the part of the game we are monitoring changes.
 --- @field imageLoaded nil|(fun(panel:Panel):nil) Fired when the background image this panel uses is loaded.
+--- @field dragfilesenter nil|(fun(panel:Panel, paths:string[]):nil) Fired when matching operating-system files are dragged over this panel.
+--- @field dragfilesleave nil|(fun(panel:Panel):nil) Fired when an operating-system file drag leaves this panel.
+--- @field dropfiles nil|(fun(panel:Panel, paths:string[]):nil) Fired when matching operating-system files are dropped on this panel.
 
 --- @module DockablePanel
 --- DockablePanel = {}

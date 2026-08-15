@@ -69,6 +69,16 @@ setting{
 }
 
 setting{
+    id = "popoutattached",
+    description = "Attach Popout Windows to Main Window",
+    help = "Popped-out panels behave as part of the main app window: no separate taskbar button, they stay in front of it, and they minimize and restore together with it. Turn this off to make each popout a fully independent OS window.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
     id = "popoutfpsunfocused",
     description = "Popout Frame Rate (Unfocused)",
     help = "Maximum frame rate for a popout window while it does not have focus. Lower values reduce background rendering cost.",
@@ -2836,6 +2846,18 @@ setting{
 	storage = "preference",
 	editor = "check",
 	default = false,
+}
+
+--Read by the engine (NativeWindowManager.CanUseGpuBridge): when false,
+--popout windows use the CPU shared-memory transport instead of the DXGI
+--shared-texture bridge. Debug/test switch; takes effect per-frame, even
+--for windows that are already open.
+setting{
+	id = "popoutgpu",
+	description = "Popout windows use GPU rendering",
+	storage = "preference",
+	editor = "check",
+	default = true,
 }
 
 setting{

@@ -170,6 +170,28 @@ function assets:UploadImageAsset(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- UploadChatImage: Uploads a PNG, JPEG, or WebP as a uniquely-addressed disposable chat attachment. Pass path='CLIPBOARD' to read the system clipboard. The upload callback fires only after the cloud upload succeeds.
+--- @param options {path: string, error: nil|fun(message: string), progress: nil|fun(progress: number), upload: fun(blobid: string, width: number, height: number)}
+--- @return nil|string The disposable blob id, or nil if the upload could not start.
+function assets:UploadChatImage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadChatAttachment: Uploads a supported image, video, or audio file as a uniquely-addressed disposable chat attachment. Pass path='CLIPBOARD' to read a clipboard image. The upload callback fires only after the cloud upload succeeds.
+--- @param options {path: string, error: nil|fun(message: string), progress: nil|fun(progress: number), upload: fun(blobid: string, mediaType: string, width: number, height: number, extension: string)}
+--- @return nil|string The disposable blob id (or a pending marker for video), or nil if the upload could not start.
+function assets:UploadChatAttachment(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayChatAudio: Plays a disposable chat audio attachment locally.
+--- @param blobid string
+--- @param extension string
+--- @return nil|SoundEventInstanceLua
+function assets:PlayChatAudio(blobid, extension)
+	-- dummy implementation for documentation purposes only
+end
+
 --- PathSizeInBytes: Returns the file size in bytes for the given file path.
 --- @param path string
 --- @return number
@@ -188,6 +210,20 @@ end
 --- @param options table Upload options.
 --- @return nil|string The GUID of the created tilesheet, or nil on failure.
 function assets:CreateTilesheetFromFile(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateTilesheetFromImage: Creates a tilesheet asset from an already-uploaded image asset and returns its GUID synchronously (the image's bytes are already in the cloud, so there is no async registration gap). Dimension rules match CreateTilesheetFromFile (floor textures: multiples of 128px; terrain: square multiples of 128px), enforced when the image's dimensions are known.
+--- @param options {imageid: string, floor: nil|boolean, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created tilesheet, or nil on failure (after calling options.error, if given).
+function assets:CreateTilesheetFromImage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateWallFromImage: Creates a wall asset from an already-uploaded image asset and returns its GUID synchronously. Any image is accepted (no wall-strip dimension rules) and the wall renders at the default 1-unit thickness: this exists for decorative edge brushes, not authored wall strips.
+--- @param options {imageid: string, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created wall asset, or nil on failure (after calling options.error, if given).
+function assets:CreateWallFromImage(options)
 	-- dummy implementation for documentation purposes only
 end
 

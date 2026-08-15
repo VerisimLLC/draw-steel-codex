@@ -2520,6 +2520,49 @@ function CustomDocument.GetCurrentJournalDocId()
     return nil
 end
 
+--The tabbed viewer owns its whole style cascade while POPPED OUT into a
+--native OS window: nothing above it supplies Styles.Default (normally the
+--GameHud root) there. In-app the extra copy duplicates rules already
+--arriving from the hud root, which is harmless (the compendium popout and
+--the character-sheet harness use the same pattern). The rules table is a
+--stable local because MergeStyles caches by the table's identity.
+local g_viewerPopoutRules = {
+    {
+        selectors = {"journalTabbedViewer", "poppedOut"},
+        priority = 6,
+        --popped out, the panel IS the OS window surface: opaque (there is
+        --no app surface behind it to blur through) and square (rounded
+        --corners would show the companion's black clear color).
+        opacity = 1,
+        cornerRadius = 0,
+    },
+}
+
+--In-app the viewer hangs under the hud's documentsPanel, whose style
+--block opens with this unconditional selector-less default rule
+--(InfoDocument.lua, CreateDocumentsPanel) -- document content leans on
+--those defaults (e.g. the markdown toolbar's dropdowns declare no
+--valign and sit centered only because of it). Popped out the viewer is
+--its own cascade root, so the same rule must ride along, in the same
+--cascade position: after Styles.Default, before the theme.
+local g_viewerCascadeDefaults = {
+    {
+        width = "100%",
+        height = "100%",
+        valign = "center",
+        halign = "center",
+        bgcolor = "clear",
+    },
+}
+
+local function TabbedViewerStyles()
+    return {
+        Styles.Default,
+        g_viewerCascadeDefaults,
+        ThemeEngine.MergeStyles(g_viewerPopoutRules),
+    }
+end
+
 function CustomDocument.GetOrCreateTabbedViewer()
     if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
         return g_tabbedViewer
@@ -2592,6 +2635,100 @@ function CustomDocument.GetOrCreateTabbedViewer()
         halign = "left",
     }
 
+    --"Pop out": move the journal into its own native OS window (the
+    --companion-app mechanism the compendium and character sheet use).
+    --Hidden while popped (the pop-in button takes its place).
+    local popoutButton = gui.Button{
+        classes = {"sizeXs"},
+        icon = "drawsteel/Icons_Nav_MaxWindow.png",
+        borderWidth = 0,
+        valign = "center",
+        --the close-all X to our right pulls itself 4px left (hmargin -4),
+        --so leave enough right margin that it lands beside, not on, us.
+        lmargin = 4,
+        rmargin = 10,
+        linger = function(element)
+            gui.Tooltip("Pop out into its own window")(element)
+        end,
+        popout = function(element)
+            element:SetClass("collapsed", true)
+        end,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v ~= nil then
+                v:FireEvent("popoutJournal")
+            end
+        end,
+    }
+
+    --"Pop in": only visible while popped out. Closes the OS window and
+    --reopens the same document tabs in-app. The viewer is destroyed and
+    --rebuilt through the normal ShowDocument path, so the relaunch must
+    --wait a tick for the destroy to land (DestroySelf is end-of-frame).
+    local popinButton = gui.Button{
+        classes = {"sizeXs", "collapsed"},
+        icon = "drawsteel/Icons_Nav_MinWindow.png",
+        borderWidth = 0,
+        valign = "center",
+        lmargin = 4,
+        rmargin = 10,
+        linger = function(element)
+            gui.Tooltip("Return to the app")(element)
+        end,
+        popout = function(element)
+            element:SetClass("collapsed", false)
+        end,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            if v == nil or (not v.data.poppedOut) then
+                return
+            end
+
+            --capture the open tabs; a tab's doc member goes stale after
+            --in-tab navigation, so prefer the live table entry by docId
+            --and keep the in-memory doc only as the transient-doc fallback.
+            local docsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+            local reopen = {}
+            local activeDocId = nil
+            for _, tab in ipairs(v.data.tabs) do
+                local doc = docsTable[tab.docId] or tab.doc
+                if doc ~= nil then
+                    reopen[#reopen + 1] = doc
+                    if tab.tabId == v.data.activeTabId then
+                        activeDocId = tab.docId
+                    end
+                end
+            end
+
+            --destroying the popped viewer closes the OS window (the
+            --engine sweeps native windows whose panel died).
+            v:DestroySelf()
+            g_tabbedViewer = nil
+
+            dmhub.Schedule(0.1, function()
+                if mod.unloaded then
+                    return
+                end
+                for _, doc in ipairs(reopen) do
+                    doc:ShowDocument{skipRefresh = true}
+                end
+                local nv = g_tabbedViewer
+                if nv == nil or (not nv.valid) then
+                    return
+                end
+                local targetTabId = nil
+                for _, tab in ipairs(nv.data.tabs) do
+                    if targetTabId == nil or tab.docId == activeDocId then
+                        targetTabId = tab.tabId
+                    end
+                end
+                if targetTabId ~= nil then
+                    nv:FireEvent("switchToTab", targetTabId)
+                end
+            end)
+        end,
+    }
+
     local tabArrowsPanel = gui.Panel {
         width = "auto",
         height = TAB_BAR_HEIGHT,
@@ -2600,6 +2737,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
         flow = "horizontal",
         tabScrollLeft,
         tabScrollRight,
+        popoutButton,
+        popinButton,
         closeAllButton,
     }
 
@@ -3193,7 +3332,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     -- Outer Journal Panel
     viewer = gui.Panel {
-        styles = ThemeEngine.GetStyles(), --viewerStyles,
+        styles = TabbedViewerStyles(),
         classes = {"framedPanel", "journalViewer", "journalTabbedViewer"},
         border = 0,
         -- bgimage = true,
@@ -3206,11 +3345,21 @@ function CustomDocument.GetOrCreateTabbedViewer()
         valign = "top",
         draggable = true,
         drag = function(element)
+            --while popped out the OS window is what moves; a release of a
+            --(suppressed) drag must not teleport the panel inside it.
+            if element.data.poppedOut then
+                return
+            end
             element.x = element.xdrag
             element.y = element.ydrag
             element:SetAsLastSibling()
         end,
         click = function(element)
+            --raise above other in-app dialogs; meaningless (and an engine
+            --NRE) once the panel is the root of its own OS window.
+            if element.data.poppedOut then
+                return
+            end
             element:SetAsLastSibling()
         end,
 
@@ -3252,11 +3401,79 @@ function CustomDocument.GetOrCreateTabbedViewer()
             history = {},
             forwardHistory = {},
             shaded = false,
+            poppedOut = false,
         },
+
+        --pop the viewer out into its own native OS window (the
+        --companion-app mechanism the compendium and character sheet use).
+        popoutJournal = function(element)
+            if element.data.poppedOut then
+                return
+            end
+
+            --unshade first: the move measures the panel's rect to size
+            --the OS window, and a shaded window is just the tab strip.
+            if element.data.shaded then
+                element:FireEvent("toggleShade")
+            end
+
+            element.data.poppedOut = true
+            --owner-routed modals fired from inside the journal land in
+            --this window's own modal layer rather than the main window.
+            element.data.nativeWindowRoot = true
+
+            --the poppedOut rule pins opacity 1 / square corners; the
+            --theme's framedPanel rules keep painting the background.
+            element:SetClass("poppedOut", true)
+            element.selfStyle.opacity = 1
+
+            --the OS window owns moving and resizing now; the in-app
+            --affordances would fight it. dragMove (not draggable) so the
+            --press is still consumed rather than falling through.
+            element.dragMove = false
+            resizePanel:SetClass("collapsed", true)
+
+            --park far off-screen for the layout passes between here and
+            --MoveToNativeWindow: the move measures the panel's rect, so
+            --it must lay out in-hierarchy first, but must never be
+            --user-visible in the app.
+            element.x = -30000
+
+            element:FireEventTree("popout")
+            element:ScheduleEvent("popoutToNativeWindow", 0.15)
+        end,
+
+        popoutToNativeWindow = function(element)
+            if mod.unloaded or (not element.valid) or (not element.data.poppedOut) then
+                return
+            end
+            element:MoveToNativeWindow{
+                resizeable = true,
+                title = "Journal",
+            }
+        end,
+
+        --fired by the native-window canvas when the popped-out window is
+        --created and whenever the user resizes it (dims arrive in layout
+        --units): adopt the window's client size. The viewer's content is
+        --all percentages, so it reflows on its own.
+        resize = function(element, w, h)
+            if not element.data.poppedOut then
+                return
+            end
+            element.x = 0
+            element.y = 0
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+        end,
 
         --window-shade: roll the window up so only the tab strip remains,
         --or roll it back down. Toggled by double-clicking the tab strip.
         toggleShade = function(element)
+            --shading would shrink the panel out from under its OS window.
+            if element.data.poppedOut then
+                return
+            end
             --the engine can deliver a double-click to several overlapping
             --panels (a tab and the strip under it), each of which fires this
             --event; debounce so multi-delivery nets a single toggle.
@@ -3528,7 +3745,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             --UpdateStyle: assigning styles alone never marks the tree
             --style-dirty, so the recolor would wait for an unrelated
             --event. See the panel-window listener for the full note.
-            g_tabbedViewer.styles = ThemeEngine.GetStyles()
+            g_tabbedViewer.styles = TabbedViewerStyles()
             g_tabbedViewer:UpdateStyle()
         end
     end)
@@ -3928,7 +4145,12 @@ function CustomDocument:ShowDocument(args)
 
     local viewer = CustomDocument.GetOrCreateTabbedViewer()
 
-    if viewer.parent == nil then
+    if viewer.data.poppedOut then
+        --the viewer lives in its own native OS window; never re-adopt it
+        --into the hud tree -- just bring its window to the front. pcall
+        --for engines that predate RaiseNativeWindow.
+        pcall(function() viewer:RaiseNativeWindow() end)
+    elseif viewer.parent == nil then
         GameHud.instance.documentsPanel:AddChild(viewer)
     end
 
@@ -4508,8 +4730,51 @@ function PanelDocument.FindHostDialog(key)
     return nil
 end
 
+--Panels currently popped out into native OS windows (MoveToNativeWindow,
+--the PDF viewer's companion-app mechanism): key -> the host root panel.
+--Entries clear themselves in the host's destroy handler, which fires on
+--every close path alike -- the pop-in button, the OS window's close
+--button (the engine destroys the popped hierarchy), and the unload
+--sweep below (the engine then closes windows whose panel died).
+local g_panelPopouts = {}
+
+--A Lua reload rebuilds the hud but never reaches popped-out hosts: they
+--are unparented from the hud tree, so without this they would survive
+--the reload as orphans -- live windows running the OLD module instance,
+--invisible to the new instance's registry and rail bookkeeping. Destroy
+--them with the module; the engine closes their native windows, and the
+--rail's restore records reopen the panels in-app.
+mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
+    for _, host in pairs(g_panelPopouts) do
+        if host ~= nil and host.valid then
+            host:DestroySelf()
+        end
+    end
+    g_panelPopouts = {}
+
+    --the tabbed journal viewer, likewise, never survives a reload while
+    --popped out: it is unparented from the hud tree, so the hud rebuild
+    --cannot reach it. Destroy it and the engine closes its window.
+    if g_tabbedViewer ~= nil and g_tabbedViewer.valid and g_tabbedViewer.data.poppedOut then
+        g_tabbedViewer:DestroySelf()
+        g_tabbedViewer = nil
+    end
+end
+
+function PanelDocument.PopoutHost(key)
+    local host = g_panelPopouts[string.lower(key)]
+    if host ~= nil and host.valid then
+        return host
+    end
+    return nil
+end
+
+function PanelDocument.IsPoppedOut(key)
+    return PanelDocument.PopoutHost(key) ~= nil
+end
+
 function PanelDocument.IsPanelShown(key)
-    return PanelDocument.FindHostDialog(key) ~= nil
+    return PanelDocument.FindHostDialog(key) ~= nil or PanelDocument.IsPoppedOut(key)
 end
 
 --The registration describing this document's own panel content. The
@@ -4589,6 +4854,36 @@ function PanelDocument:CreateInterface(args)
     }
     if args.suppressCloseButton then
         closeButton:SetClass("collapsed", true)
+    end
+
+    --"Pop out": move this panel into its own native OS window (the
+    --companion-app mechanism the PDF viewer uses). Only offered when the
+    --hosting flow supplies the gesture (rail windows do; a panel hosted
+    --inside the journal viewer is the host's to manage). Pinned means
+    --locked in place, so the click is inert while pinned, matching the
+    --close x.
+    local popoutButton = nil
+    if args.popout ~= nil then
+        popoutButton = gui.Panel{
+            classes = {"panelDocumentCloseButton"},
+            bgimage = "drawsteel/Icons_Nav_MaxWindow.png",
+            width = 16,
+            height = 16,
+            floating = true,
+            halign = "right",
+            valign = "center",
+            x = -30,
+            swallowPress = true,
+            linger = function(element)
+                gui.Tooltip("Pop out into its own window")(element)
+            end,
+            click = function(element)
+                if Pinned() then
+                    return
+                end
+                args.popout()
+            end,
+        }
     end
 
     --The pin toggle: locks the window in place (no close, no drag, no
@@ -5243,8 +5538,9 @@ function PanelDocument:CreateInterface(args)
 
     tabStrip = gui.Panel{
         --leaves room for the right-side chrome: the floating pin's left
-        --edge sits at -22, so 28 clears it with a small gap.
-        width = "100%-28",
+        --edge sits at -22, so 28 clears it with a small gap. With the
+        --popout button present (left edge at -46), 52 clears that too.
+        width = cond(args.popout ~= nil, "100%-52", "100%-28"),
         height = "auto",
         flow = "horizontal",
         wrap = true,
@@ -5289,6 +5585,10 @@ function PanelDocument:CreateInterface(args)
 
         tabStrip,
         closeButton,
+        --last on purpose: popoutButton is nil when the host flow supplies
+        --no popout gesture, and a nil in the middle of a table constructor
+        --truncates the positional list.
+        popoutButton,
     }
 
     hairline = gui.Panel{
@@ -5681,6 +5981,32 @@ setting{
     id = "iconrailpins",
     storage = "pergamepreference",
     default = {},
+}
+
+--Which panels are popped out into native OS windows, and where:
+--{ [panelKey] = {x = ..., y = ..., width = ..., height = ..., session = ...} }.
+--x/y are the OS window's top-left in SCREEN pixels (reported by the
+--companion); width/height are panel units, same space as the iconrailpins
+--records. session identifies the app run that wrote the record (see
+--popoutsessionid below): the rails-up sweep only reopens records stamped
+--by THIS run and prunes the rest, so popouts survive a mid-session Lua
+--reload but deliberately do NOT come back when the app is relaunched.
+--Cleared by the deliberate close gestures (pop-in, escape, the OS close
+--button) and by the startup prune -- never by teardown (Lua reload).
+setting{
+    id = "popoutwindows",
+    storage = "pergamepreference",
+    default = {},
+}
+
+--This app run's identity stamp for popout records. Transient settings
+--live in engine memory: the value survives Lua reloads but dies with
+--the process, which is exactly the lifetime popout auto-restore should
+--have. Lazily minted by PopoutSessionId().
+setting{
+    id = "popoutsessionid",
+    storage = "transient",
+    default = "",
 }
 
 --Which rail each panel button lives on and in what order:
@@ -7049,6 +7375,11 @@ SyncDocksToRailMode = function()
     dmhub.UpdateScreenHudArea(cond(railOn, 0, 1))
 end
 
+--forward-declared: defined below OpenIconRailWindow (the two call each
+--other -- the window's popout button closes the window and opens the
+--popout; the popout's pop-in button does the reverse).
+local OpenPanelPopout
+
 --Open a rail window for the named panel. placement = {x=,y=,width=,
 --height=,tabs=} places and sizes it (and overrides the stored tab list);
 --nil lets PresentDocument use the session-remembered location and
@@ -7106,6 +7437,22 @@ local function OpenIconRailWindow(panelName, placement)
             doc:ClosePanel()
             RefreshRails()
         end,
+
+        --the header popout button: move this panel into its own native
+        --OS window. Closes the in-app window but keeps the rail's
+        --records -- the panel is still open, just living elsewhere -- and
+        --hands the popout the window's current size so the panel keeps
+        --its footprint across the transition.
+        popout = function()
+            local d = doc:try_get("_tmp_dialog")
+            local geometry = nil
+            if d ~= nil and d.valid then
+                geometry = { width = d.renderedWidth, height = d.renderedHeight }
+            end
+            doc:ClosePanel()
+            OpenPanelPopout(key, geometry)
+            RefreshRails()
+        end,
     }
     if placement ~= nil then
         args.x = placement.x
@@ -7117,6 +7464,406 @@ local function OpenIconRailWindow(panelName, placement)
     end
 
     doc:PresentPanel(args)
+end
+
+----------------------------------------------------------------------
+-- Panel popouts
+-- -------------
+-- A rail panel moved into its own native OS window via
+-- MoveToNativeWindow (the PDF viewer's companion-app mechanism). The
+-- host built here replaces the rail window: it owns the panel's whole
+-- style cascade -- a popped-out panel is the ROOT of its own hierarchy,
+-- so nothing above it supplies Styles.Default (normally the GameHud
+-- root) or the theme (normally the docks / the rail window root). Both
+-- ride here explicitly, plus the popout's own chrome rules.
+--
+-- Known Phase-1 limits (see POPOUT_PANELS_PLAN.md at the repo root):
+-- keyboard input beyond basic typing, escape/command routing, and
+-- modals still land in the main window; those are engine work.
+
+local function PopoutWindowStyles()
+    return {
+        Styles.Default,
+        DocumentWindowStyles(),
+        ThemeEngine.MergeTokens({
+            {
+                selectors = {"framedPanel", "popoutWindow"},
+                priority = 6,
+                --the panel IS the OS window: opaque (there is no app
+                --surface behind it to blur through) and square (rounded
+                --corners would cut into a rectangular window and show
+                --the companion's black clear color).
+                opacity = 1,
+                cornerRadius = 0,
+            },
+            --the same chrome vocabulary the rail window's interface
+            --defines locally (its MergeTokens extras do not travel with
+            --the panel, so the popout host restates the rules it uses).
+            {
+                selectors = {"panelDocumentHeader"},
+                bgcolor = "@bgAlt",
+            },
+            {
+                selectors = {"panelDocumentHairline"},
+                bgcolor = "@border",
+            },
+            {
+                selectors = {"label", "panelDocumentTitle"},
+                color = "@fgStrong",
+                fontSize = 12,
+                bold = true,
+            },
+            {
+                selectors = {"panelDocumentCloseButton"},
+                bgcolor = "@fg",
+                opacity = 0.7,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panelDocumentCloseButton", "hover"},
+                opacity = 1,
+                bgcolor = "@fgStrong",
+            },
+        }),
+    }
+end
+
+--The popout persistence record (see the "popoutwindows" setting above).
+local function PopoutRestoreRecords()
+    return dmhub.GetSettingValue("popoutwindows") or {}
+end
+
+--The stamp marking records written by THIS run of the app; minted on
+--first use, then stable across Lua reloads (transient storage).
+local function PopoutSessionId()
+    local id = dmhub.GetSettingValue("popoutsessionid")
+    if id == nil or id == "" then
+        id = dmhub.GenerateGuid()
+        dmhub.SetSettingValue("popoutsessionid", id)
+    end
+    return id
+end
+
+local function PopoutRememberWindow(key, geometry)
+    local records = PopoutRestoreRecords()
+    local prev = records[key]
+    if type(prev) == "table" then
+        --a record with no fresh value to offer keeps the recorded one
+        --(e.g. a resize arriving before the first move report).
+        geometry.x = geometry.x or prev.x
+        geometry.y = geometry.y or prev.y
+        geometry.width = geometry.width or prev.width
+        geometry.height = geometry.height or prev.height
+    end
+    geometry.session = PopoutSessionId()
+    records[key] = geometry
+    dmhub.SetSettingValue("popoutwindows", records)
+end
+
+local function PopoutForgetWindow(key)
+    local records = PopoutRestoreRecords()
+    if records[key] ~= nil then
+        records[key] = nil
+        dmhub.SetSettingValue("popoutwindows", records)
+    end
+end
+
+--Open the named panel in a native OS popout window. geometry (optional)
+--carries {width=,height=} -- the rail flow passes the in-app window's
+--size so the panel keeps its footprint across the transition -- and,
+--on a persistence restore, {x=,y=}: the remembered OS screen position.
+OpenPanelPopout = function(panelName, geometry)
+    local key = string.lower(panelName)
+    if PanelDocument.PopoutHost(key) ~= nil then
+        return
+    end
+    if not GameHud.instance then
+        return
+    end
+    local reg = DockablePanel.GetRegistration(panelName)
+    if reg == nil then
+        return
+    end
+
+    local width = (geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth
+    local height = PanelDocument.ClampHeight(panelName,
+        (geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight)
+
+    local host
+
+    --the content wrapper: BuildContentWrapper's essential contract
+    --(deferred build, 'refresh' priming for selection-following panels,
+    --forced top-left alignment, vscroll per registration) without the
+    --tab machinery -- a popout window is always exactly one panel.
+    local buildContent = function(element)
+        if mod.unloaded or (not element.valid) or element.data.contentRoot ~= nil then
+            return
+        end
+        local content = reg.content()
+        element.data.contentRoot = content
+        content.selfStyle.valign = "top"
+        content.selfStyle.halign = "left"
+        element:AddChild(content)
+        element:FireEventTree("refresh")
+    end
+
+    local wrapper
+    if reg.vscroll ~= false then
+        local hideObjectsOutOfScroll = reg.hideObjectsOutOfScroll
+        if hideObjectsOutOfScroll == nil then
+            hideObjectsOutOfScroll = true
+        end
+        wrapper = gui.Panel{
+            idprefix = "panelPopoutScrollParent",
+            width = "100%-4",
+            height = "100%",
+            pad = 2,
+            vscroll = true,
+            hideObjectsOutOfScroll = hideObjectsOutOfScroll,
+            data = {},
+            buildPanelContent = buildContent,
+        }
+    else
+        wrapper = gui.Panel{
+            idprefix = "panelPopoutNoScrollParent",
+            width = "100%",
+            height = "100%",
+            data = {},
+            buildPanelContent = buildContent,
+        }
+    end
+
+    local popInButton = gui.Panel{
+        classes = {"panelDocumentCloseButton"},
+        bgimage = "drawsteel/Icons_Nav_MinWindow.png",
+        width = 16,
+        height = 16,
+        floating = true,
+        halign = "right",
+        valign = "center",
+        x = -8,
+        swallowPress = true,
+        linger = function(element)
+            gui.Tooltip("Return to the app")(element)
+        end,
+        click = function(element)
+            --restore the in-app rail window first, then tear the popout
+            --down: destroying the host is what closes the OS window (the
+            --engine sweeps native windows whose panel died). The panel
+            --is back in the app, so the persistence record goes too.
+            PopoutForgetWindow(key)
+            OpenIconRailWindow(key)
+            if host ~= nil and host.valid then
+                host:DestroySelf()
+            end
+            RefreshRails()
+        end,
+    }
+
+    local header = gui.Panel{
+        classes = {"panelDocumentHeader"},
+        width = "100%",
+        height = g_panelDocumentHeaderHeight,
+        flow = "horizontal",
+        bgimage = true,
+
+        gui.Label{
+            classes = {"panelDocumentTitle"},
+            text = reg.name or panelName,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            lmargin = 10,
+        },
+        popInButton,
+    }
+
+    local hairline = gui.Panel{
+        classes = {"panelDocumentHairline"},
+        width = "100%",
+        height = 1,
+        bgimage = true,
+    }
+
+    local contentArea = gui.Panel{
+        width = "100%",
+        height = string.format("100%%-%d", g_panelDocumentHeaderHeight + 1),
+        flow = "none",
+        wrapper,
+    }
+
+    host = gui.Panel{
+        id = "panelPopout-" .. key,
+        --"dock" satisfies the dockable-panel content contract (content
+        --reaches up for an ancestor with that class and asks
+        --data.TooltipAlignment(); the class itself is style-inert --
+        --see the rail window's copy of this note).
+        classes = {"framedPanel", "popoutWindow", "dock"},
+        styles = PopoutWindowStyles(),
+        bgimage = true,
+        width = width,
+        height = height,
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        --parked far off-screen for the layout passes between AddChild
+        --and MoveToNativeWindow: the move measures the panel's rect to
+        --size the OS window, so it must lay out in-hierarchy first, but
+        --it must never be user-visible in the app.
+        x = -30000,
+        y = 0,
+
+        data = {
+            floating = true,
+            popoutPanelKey = key,
+            --marks this root as living in a native OS window: modals with
+            --an owner under this root route into the window's own modal
+            --layer (Hud.ResolveModalLayer) instead of the main window's.
+            nativeWindowRoot = true,
+            --the live geometry record: width/height in panel units, x/y
+            --in OS screen pixels once the companion reports them.
+            popoutGeometry = {
+                x = geometry ~= nil and geometry.x or nil,
+                y = geometry ~= nil and geometry.y or nil,
+                width = width,
+                height = height,
+            },
+            popoutSavePending = false,
+            TooltipAlignment = function()
+                --the popout is its own surface; tooltips clamp inside
+                --the window either way, so the side is cosmetic.
+                return "right"
+            end,
+        },
+
+        --fired by NativeWindowCanvas when the user resizes the OS window.
+        resize = function(element, w, h)
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+            element.data.popoutGeometry.width = w
+            element.data.popoutGeometry.height = h
+            element:FireEvent("queuePopoutSave")
+        end,
+
+        --fired by the engine when the OS window moves (and once at
+        --creation, with wherever the OS placed it). Screen pixels.
+        nativeWindowMoved = function(element, x, y)
+            element.data.popoutGeometry.x = x
+            element.data.popoutGeometry.y = y
+            element:FireEvent("queuePopoutSave")
+        end,
+
+        --debounce: moves stream at drag rate, and every event schedules
+        --nothing while a save is already pending.
+        queuePopoutSave = function(element)
+            if element.data.popoutSavePending then
+                return
+            end
+            element.data.popoutSavePending = true
+            element:ScheduleEvent("savePopoutGeometry", 1)
+        end,
+
+        savePopoutGeometry = function(element)
+            element.data.popoutSavePending = false
+            if mod.unloaded or (not element.valid) then
+                return
+            end
+            local geo = element.data.popoutGeometry
+            PopoutRememberWindow(key, {
+                x = geo.x, y = geo.y, width = geo.width, height = geo.height,
+            })
+        end,
+
+        --fired by the engine when the user closes the OS window with its
+        --own close button: the panel is deliberately closed, so it must
+        --not come back next session. (Teardown paths -- pop-in, reload,
+        --app exit -- never fire this.)
+        nativeWindowClosed = function(element)
+            PopoutForgetWindow(key)
+        end,
+
+        --Escape pressed IN the popout window (the engine routes it to this
+        --window's own escape chain; popups in the window outrank us via
+        --listener priority). Closing = destroying the host -- the engine
+        --closes the OS window, and the rail's records stay, same contract
+        --as the rail window's escape. A deliberate dismissal, so the
+        --persistence record goes too.
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function(element)
+            PopoutForgetWindow(key)
+            element:DestroySelf()
+        end,
+
+        --recolor on a theme / color-scheme switch, exactly like the rail
+        --window root: this host owns its cascade, so nothing else will.
+        --UpdateStyle() is required after the assignment (see the note on
+        --the rail window's create handler).
+        create = function(element)
+            element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+                if element.valid then
+                    element.styles = PopoutWindowStyles()
+                    element:UpdateStyle()
+                end
+            end)
+        end,
+
+        destroy = function(element)
+            if element.data.themeListener ~= nil then
+                element.data.themeListener:Deregister()
+                element.data.themeListener = nil
+            end
+            if g_panelPopouts[key] == element then
+                g_panelPopouts[key] = nil
+            end
+            if (not mod.unloaded) and GameHud.instance then
+                RefreshRails()
+            end
+        end,
+
+        --the two-step popout: content builds while the host is parked
+        --off-screen (so panels mount inside a normal hierarchy), then
+        --the whole tree moves to the native window once built.
+        popoutToNativeWindow = function(element)
+            if mod.unloaded or (not element.valid) then
+                return
+            end
+            element:FireEventTree("popout")
+            element:MoveToNativeWindow{
+                resizeable = true,
+                title = reg.name or panelName,
+                --a persistence restore reopens the window where it was;
+                --nil lets the OS place it (older engines ignore these).
+                x = element.data.popoutGeometry.x,
+                y = element.data.popoutGeometry.y,
+            }
+        end,
+
+        header,
+        hairline,
+        contentArea,
+    }
+
+    GameHud.instance.documentsPanel:AddChild(host)
+    g_panelPopouts[key] = host
+
+    --record the popout immediately so it survives a Lua reload that
+    --happens before the first move/resize report arrives.
+    PopoutRememberWindow(key, {
+        x = geometry ~= nil and geometry.x or nil,
+        y = geometry ~= nil and geometry.y or nil,
+        width = width,
+        height = height,
+    })
+
+    wrapper:ScheduleEvent("buildPanelContent", 0.01)
+    host:ScheduleEvent("popoutToNativeWindow", 0.15)
+end
+
+--public alias: other surfaces (and test tooling) can open a popout
+--without going through a rail window's header button.
+PanelDocument.OpenPopout = function(panelName, geometry)
+    OpenPanelPopout(panelName, geometry)
 end
 
 --Rail styling: the over-map scrim ladder from the B&W design system --
@@ -10397,7 +11144,21 @@ local function CreateIconRail(side, entries)
                     dmhub.FocusToken(charid)
                 end
 
-                if doc:PresentDocumentOpen() then
+                if PanelDocument.IsPoppedOut(key) then
+                    --the panel lives in its own OS window; its icon raises
+                    --that window (or flashes its taskbar button when the OS
+                    --denies the focus steal) rather than opening a copy.
+                    --It comes home via the popout's own pop-in button.
+                    --pcall: RaiseNativeWindow needs an engine build newer
+                    --than this file; on an older build the click is a no-op.
+                    local popoutHost = PanelDocument.PopoutHost(key)
+                    if popoutHost ~= nil and popoutHost.valid then
+                        pcall(function()
+                            popoutHost:RaiseNativeWindow()
+                        end)
+                    end
+                    CenterOnCharacter()
+                elseif doc:PresentDocumentOpen() then
                     --a PINNED window cannot be closed by its icon either;
                     --the icon just raises it (and re-arms a map-mode
                     --panel's tool -- you clicked it, you mean to use it).
@@ -11197,6 +11958,22 @@ function EnsureIconRail()
     --stale squeeze left from before the rail owned this.
     dmhub.UpdateScreenHudArea(1)
 
+    --restore popped-out panels first: a panel living in its own OS
+    --window must not also restore an in-app rail window below. Only
+    --records stamped by THIS app run reopen -- that is what brings
+    --popouts back after a Lua reload (the unload sweep destroys the
+    --hosts; the records survive it) without windows from a previous
+    --launch reappearing at startup; stale records are pruned.
+    local session = PopoutSessionId()
+    local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
+    for key, p in pairs(popouts) do
+        if p.session ~= session then
+            PopoutForgetWindow(key)
+        elseif not PanelDocument.IsPoppedOut(key) then
+            OpenPanelPopout(key, { x = p.x, y = p.y, width = p.width, height = p.height })
+        end
+    end
+
     --restore the recorded windows, plus any pinned panel that is not in
     --the record (a pinned window is always meant to be up).
     local restore = DeepCopy(RailRestoreWindows())
@@ -11206,7 +11983,7 @@ function EnsureIconRail()
         end
     end
     for key, p in pairs(restore) do
-        if PanelDocument.FindHostDialog(key) == nil then
+        if PanelDocument.FindHostDialog(key) == nil and not PanelDocument.IsPoppedOut(key) then
             OpenIconRailWindow(key, { x = p.x, y = p.y, width = p.width, height = p.height })
         end
     end
@@ -11454,28 +12231,33 @@ local g_viewBuiltins = {
     },
     --The Director rail with the Director-only panels taken out, same
     --items in the same order (David 2026-08-08). Three slots change:
-    --Bestiary is dmonly, so its slot is left to Encounters alone; Map
-    --Settings is dmonly so Maps keeps its slot but loses its group and
-    --rides alone; and Floors & Layers, Time of Day/Lighting and every
-    --panel in the map-editing group are all dmonly, so those two groups
-    --go entirely and the rail ends at Audio. Heroes has no entry -- not
-    --a registered panel any more (v3), hosted by the title bar's
-    --connectivity popout instead.
+    --Bestiary and Encounters are both dmonly, so that group goes
+    --entirely; Map Settings is dmonly so Maps keeps its slot but loses
+    --its group and rides alone; and Floors & Layers, Time of
+    --Day/Lighting and every panel in the map-editing group are all
+    --dmonly, so those two groups go too and the rail ends at Audio.
+    --Heroes has no entry -- not a registered panel any more (v3), hosted
+    --by the title bar's connectivity popout instead.
+    --
+    --v7: Encounters dropped. It shipped here at slot 2 because it was the
+    --one director panel missing `dmonly`, so players read the director's
+    --un-spawned encounter roster off their own rail (JA9XNYG3, 8B4CZRUA,
+    --BUZ6SY69). The flag is on the registration now; this drops the empty
+    --slot it would otherwise leave behind.
     {
         id = "builtin:player",
         name = "Player",
-        version = 6,
+        version = 7,
         dmonly = false,
         layout = {
             rail = {
                 ["character"] = { side = "left", slot = 0 },
                 ["maps"] = { side = "left", slot = 1 },
-                ["encounters"] = { side = "left", slot = 2 },
-                ["journal"] = { side = "left", slot = 3 },
-                ["dice"] = { side = "left", slot = 4 },
-                ["measuring tool"] = { side = "left", slot = 5 },
-                ["chat"] = { side = "left", slot = 6 },
-                ["audio"] = { side = "left", slot = 7 },
+                ["journal"] = { side = "left", slot = 2 },
+                ["dice"] = { side = "left", slot = 3 },
+                ["measuring tool"] = { side = "left", slot = 4 },
+                ["chat"] = { side = "left", slot = 5 },
+                ["audio"] = { side = "left", slot = 6 },
             },
             tabs = {
                 ["character"] = { "character", "triggers", "downtime projects" },

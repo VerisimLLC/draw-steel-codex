@@ -14,7 +14,14 @@ function CreateCharacterSheet(info)
 	local sheet
 	sheet = CharSheet.CreateCharacterSheet{
 		close = function(element)
-			sheet:SetClass("collapsed", true)
+			if element.data.poppedOut then
+				--popped out into its own OS window: closing destroys the
+				--sheet (the engine's dead-sheet sweep then closes the
+				--window). The next sheet open rebuilds it in-app.
+				element:DestroySelf()
+			else
+				sheet:SetClass("collapsed", true)
+			end
 		end,
 		destroy = function(element)
 			if element == CharacterSheet.instance then

@@ -4646,12 +4646,14 @@ function PanelDocument:CreateInterface(args)
     --SyncPinnedState can toggle its escape capture.
     local pinButton
     local SyncPinnedState
+    local SyncArmedState
     local resultPanel
 
     --The window's close x owns the header's top-right corner -- the
     --universal window convention (one close control only: two x's in
-    --one header read as a bug -- Venla 2026-08-12). Hidden entirely
-    --while pinned (SyncPinnedState): a pinned window cannot be closed.
+    --one header read as a bug -- Venla 2026-08-12). While pinned it
+    --stays exactly where it is and dims (SyncPinnedState): a pinned
+    --window cannot be closed, but the control must not move.
     --A plain panel with the phosphor x, NOT the legacy closeButton
     --widget: the old glyph read dated, its top-anchored offset sat
     --below the header's centre line, and the widget kind's default
@@ -4709,9 +4711,9 @@ function PanelDocument:CreateInterface(args)
     end
 
     --Both header controls ride in one floating right-anchored row, so
-    --the pin slides into the corner by ordinary reflow when the x
-    --collapses (pinned windows hide the x -- see SyncPinnedState) rather
-    --than needing a second hand-tuned offset.
+    --they share one corner anchor instead of two hand-tuned offsets.
+    --Neither ever leaves the row (a pinned window dims its x rather than
+    --hiding it), so the pair holds its position in every state.
     local headerControls = gui.Panel{
         width = "auto",
         height = "auto",
@@ -4739,6 +4741,14 @@ function PanelDocument:CreateInterface(args)
     local m_activeKey = nil
     local m_constructing = true
     local SyncChipCompaction
+
+    --The inline name belongs to the ACTIVE chip and only ever moves on a
+    --real tab switch. Hovering deliberately does NOT move it: a hovered
+    --chip that grew its name in place shifted every other chip 86px
+    --(measured, six-member folder), so sweeping the strip slid the chip
+    --you were aiming at out from under the cursor. Layout does not
+    --reflow under the pointer; the hover name is a separate floating
+    --label instead (see BuildChip).
     local tabStrip
     local contentArea
     local hairline
@@ -4747,6 +4757,10 @@ function PanelDocument:CreateInterface(args)
     local m_shaded = false
     local m_savedHeight = nil
     local m_lastShadeToggle = nil
+    --Set by a chip's double-click. The chip cannot swallow the event
+    --without costing the window its drag area, so instead it claims the
+    --shade the header is about to perform (see BuildChip).
+    local m_suppressShadeUntil = nil
 
     --The header's real rendered height: it grows when tab chips wrap to
     --extra rows, so anything sized against it must measure, not assume.
@@ -4783,6 +4797,11 @@ function PanelDocument:CreateInterface(args)
     --rolls it back down.
     local function ToggleShade()
         if dialog == nil or not dialog.valid or args.suppressCloseButton then
+            return
+        end
+        --a tab chip claimed this double-click (see BuildChip): switching
+        --tabs quickly must never roll the window up.
+        if m_suppressShadeUntil ~= nil and dmhub.Time() < m_suppressShadeUntil then
             return
         end
         --the engine can deliver a double-click to overlapping panels;
@@ -4925,6 +4944,19 @@ function PanelDocument:CreateInterface(args)
                     content:FireEventTree("slash")
                 end
             end
+
+            --the tab was switched to while this content did not exist yet,
+            --so the fade-in was held until now. Starting it at switch time
+            --would have run the ramp on an empty panel and then popped the
+            --content in at full strength -- a flash, not a fade.
+            element:SetClass("fading", false)
+        end
+
+        --Clears the fade for content that ALREADY existed when the tab was
+        --switched to (SwitchTab schedules this a tick out so the style
+        --system sees opacity 0 first and has something to animate from).
+        local revealContent = function(element)
+            element:SetClass("fading", false)
         end
 
         if reg.vscroll ~= false then
@@ -4934,6 +4966,8 @@ function PanelDocument:CreateInterface(args)
             end
             return gui.Panel{
                 idprefix = "panelDocumentScrollParent",
+                classes = {"panelDocumentTabContent"},
+                revealTabContent = revealContent,
                 width = "100%",
                 height = "100%",
                 pad = 2,
@@ -4951,6 +4985,8 @@ function PanelDocument:CreateInterface(args)
         end
         return gui.Panel{
             idprefix = "panelDocumentNoScrollParent",
+            classes = {"panelDocumentTabContent"},
+            revealTabContent = revealContent,
             width = "100%",
             height = "100%",
             buildPanelContent = buildContent,
@@ -4984,6 +5020,9 @@ function PanelDocument:CreateInterface(args)
         if tab.wrapper == nil then
             tab.wrapper = BuildContentWrapper(tab)
             tab.wrapper:SetClass("collapsed", true)
+            --starts transparent so its first appearance is a fade rather
+            --than a cut; buildContent clears this once content exists.
+            tab.wrapper:SetClass("fading", true)
             contentArea:AddChild(tab.wrapper)
             --the shell mounts this frame; the content itself builds a
             --tick later (see BuildContentWrapper).
@@ -5005,7 +5044,22 @@ function PanelDocument:CreateInterface(args)
         end
         for _, t in ipairs(m_tabs) do
             if t.wrapper ~= nil and t.wrapper.valid then
-                t.wrapper:SetClass("collapsed", t.key ~= key)
+                local hidden = t.key ~= key
+                t.wrapper:SetClass("collapsed", hidden)
+                if hidden then
+                    --a tab going away is left transparent, which is what
+                    --the NEXT activation animates up from. The fade-out
+                    --itself is unseen -- it collapses in the same frame --
+                    --so the transition never runs on the outgoing panel
+                    --and two tabs are never composited at once.
+                    t.wrapper:SetClass("fading", true)
+                elseif t.contentRoot ~= nil then
+                    --content is already built: reveal a tick out so the
+                    --style system registers opacity 0 first and has a
+                    --value to animate from. A tab whose content does NOT
+                    --exist yet is revealed by its build instead.
+                    t.wrapper:ScheduleEvent("revealTabContent", 0.01)
+                end
             end
             if t.chip ~= nil and t.chip.valid then
                 t.chip:SetClass("selected", t.key == key)
@@ -5153,11 +5207,13 @@ function PanelDocument:CreateInterface(args)
             end
         end
 
-        --the width one row needs in that form.
+        --the width one row needs in that form. Exactly one chip spells
+        --its name out: the active one.
+        local named = m_activeKey
         local needed = 0
         for _, t in ipairs(m_tabs) do
             if t.chip ~= nil and t.chip.valid then
-                if t.key == m_activeKey then
+                if t.key == named then
                     needed = needed + CHIP_FIXED + LabelWidthOf(t) + 2
                 else
                     needed = needed + CHIP_ICON_ONLY + 2
@@ -5169,7 +5225,7 @@ function PanelDocument:CreateInterface(args)
         for _, t in ipairs(m_tabs) do
             local lbl = t.chipLabel
             if lbl ~= nil and lbl.valid then
-                local hide = t.key ~= m_activeKey
+                local hide = t.key ~= named
                 if lbl:HasClass("collapsed") ~= hide then
                     lbl:SetClass("collapsed", hide)
                     changed = true
@@ -5177,13 +5233,13 @@ function PanelDocument:CreateInterface(args)
             end
         end
 
-        --the narrow-window stage: cap the active label into whatever
+        --the narrow-window stage: cap the named label into whatever
         --width remains. The 30px floor keeps a few characters legible.
         for _, t in ipairs(m_tabs) do
             local lbl = t.chipLabel
             if lbl ~= nil and lbl.valid then
                 local cap = nil
-                if t.key == m_activeKey then
+                if t.key == named then
                     local overflow = needed - avail
                     if overflow > 0 then
                         cap = math.max(30, math.ceil(LabelWidthOf(t) - overflow))
@@ -5203,6 +5259,23 @@ function PanelDocument:CreateInterface(args)
         return changed
     end
 
+    --ARMED = this window's active panel currently holds the GUI focus its
+    --tool gates on, i.e. clicks on the map go to IT. Carried by the armed
+    --panel's own NAME in the tab strip: with a folder's whole membership
+    --on the strip, "something in this window is armed" is not enough, it
+    --has to say WHICH.
+    --
+    --The hairline under the strip used to accent too and does not any
+    --more (Venla 2026-08-15) -- a full-width rule was a lot of line for
+    --the amount it said.
+    SyncArmedState = function(armed)
+        for _, t in ipairs(m_tabs) do
+            if t.chip ~= nil and t.chip.valid then
+                t.chip:SetClass("armed", armed and t.key == m_activeKey)
+            end
+        end
+    end
+
     --Keep every piece of pin-sensitive chrome in step with the current
     --pin state. Fired on construction and whenever the pin toggles.
     SyncPinnedState = function()
@@ -5210,9 +5283,15 @@ function PanelDocument:CreateInterface(args)
         if pinButton ~= nil and pinButton.valid then
             pinButton:SetClass("pinned", pinned)
         end
-        --a pinned window cannot be closed: its corner x hides entirely.
+        --A pinned window cannot be closed, and the x says so by DIMMING
+        --rather than disappearing: hiding it let the pin reflow into the
+        --corner, so pinning shuffled the header's controls around under
+        --the cursor. The x holds its place and reads as unavailable
+        --(Venla 2026-08-15). Only a host that suppresses it outright
+        --(a panel rendered inside the journal viewer) collapses it.
         if closeButton ~= nil and closeButton.valid then
-            closeButton:SetClass("collapsed", args.suppressCloseButton == true or pinned)
+            closeButton:SetClass("collapsed", args.suppressCloseButton == true)
+            closeButton:SetClass("disabled", pinned)
         end
         --a pinned window also stops listening for escape entirely -- the
         --press falls through to lower-priority handlers instead of being
@@ -5223,6 +5302,19 @@ function PanelDocument:CreateInterface(args)
     end
 
     local function BuildChip(tab)
+        --Acting on the chip dismisses its hover name: the pointer is
+        --still sitting on the chip after a click, so nothing else would
+        --take the name down, and the tab it just selected now spells its
+        --name out inline -- leaving the floating one up duplicates it.
+        --A later hover re-reveals it only if it is still worth showing
+        --(revealTabName's redundancy check).
+        local function DismissHoverName()
+            tab.hovering = false
+            if tab.hoverLabel ~= nil and tab.hoverLabel.valid then
+                tab.hoverLabel:SetClass("shown", false)
+            end
+        end
+
         return gui.Panel{
             classes = {"panelDocumentTab"},
             flow = "horizontal",
@@ -5235,24 +5327,56 @@ function PanelDocument:CreateInterface(args)
             vmargin = 3,
 
             click = function(element)
+                DismissHoverName()
                 SwitchTab(tab.key)
                 --switching TO a map-mode tab arms it. The dialog's own
                 --press already fired hostPanelPressed, but that ran
                 --before this click and so focused the PREVIOUS tab.
                 FocusActiveTab()
             end,
+            --A double-click on a TAB is two switches, not a window-shade.
+            --Chips deliberately do NOT swallow their events (the press
+            --has to reach the dialog's draggable, which is what lets the
+            --window be dragged by its whole bar, chips included), so the
+            --header's own shade handler still receives this -- and used
+            --to roll the window up when you double-clicked a tab
+            --impatiently or while switching quickly. Rather than break
+            --dragging, mark the shade that is about to arrive as spoken
+            --for; ToggleShade honours the window.
             doubleclick = function(element)
-                ToggleShade()
+                DismissHoverName()
+                m_suppressShadeUntil = dmhub.Time() + 0.3
+                SwitchTab(tab.key)
             end,
-            --an inactive (icon-only) chip, or an active one whose label
-            --is width-capped in a narrow window, names itself on hover.
-            --This is the only place a background tab's name appears, so
-            --it is not optional chrome.
+
+            --The hover name. DELAYED: the reveal waits out a short dwell
+            --so names do not strobe as the pointer sweeps the strip on
+            --its way somewhere else -- the same reason tooltips have a
+            --delay. Nothing about this moves the chips.
             hover = function(element)
-                local lbl = tab.chipLabel
-                if lbl ~= nil and lbl.valid and (lbl:HasClass("collapsed") or tab.labelCap ~= nil) then
-                    gui.Tooltip(tab.reg.name)(element)
+                tab.hovering = true
+                element:ScheduleEvent("revealTabName", 0.3)
+            end,
+            dehover = function(element)
+                tab.hovering = false
+                if tab.hoverLabel ~= nil and tab.hoverLabel.valid then
+                    tab.hoverLabel:SetClass("shown", false)
                 end
+            end,
+            revealTabName = function(element)
+                --the pointer may have left during the dwell.
+                if not tab.hovering then
+                    return
+                end
+                if tab.hoverLabel == nil or not tab.hoverLabel.valid then
+                    return
+                end
+                --the active chip already spells its name out inline, so
+                --naming it again is noise -- unless a narrow window has
+                --capped that inline label, where it may be ellipsized
+                --and the full name is genuinely not on screen.
+                local redundant = (tab.key == m_activeKey and tab.labelCap == nil)
+                tab.hoverLabel:SetClass("shown", not redundant)
             end,
 
             --The chip's horizontal insets live on its CHILDREN (it is an
@@ -5292,6 +5416,48 @@ function PanelDocument:CreateInterface(args)
                     textOverflow = "ellipsis",
                 }
                 return tab.chipLabel
+            end)(),
+
+            --The hover name, on a plate cut from the same cloth as the
+            --chips (see the panelDocumentTabLabel styles). NO
+            --textOutline: the engine draws textOutlineColor as a slab
+            --hugging the string, which would double up with the real
+            --background.
+            --
+            --BELOW the chip, not above. The chips sit in the window's TOP
+            --edge, so a label above always draws outside the window: over
+            --the app's menu bar for a window near its minimum y of 40,
+            --and over arbitrary map art, where the plate would float on
+            --nothing. Below, it lands on the window's own surface and can
+            --never leave the window. Browsers put tab tooltips below the
+            --tab strip for the same reason.
+            (function()
+                tab.hoverLabel = gui.Label{
+                    classes = {"panelDocumentTabLabel"},
+                    text = tab.reg.name,
+                    floating = true,
+                    --REQUIRED for the plate to paint at all: bgcolor
+                    --alone draws nothing without a background image.
+                    bgimage = true,
+                    --it draws over panel content, which is a sibling
+                    --subtree with its own draw order.
+                    renderOnTop = true,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "top",
+                    --the chip is g_panelDocumentHeaderHeight-6 (26) tall
+                    --and sits 3px down the header, so this clears the
+                    --chip, the header's lower edge and the hairline and
+                    --lands just inside the content area.
+                    y = 32,
+                    hpad = 8,
+                    vpad = 3,
+                    borderBox = true,
+                    textWrap = false,
+                    interactable = false,
+                }
+                return tab.hoverLabel
             end)(),
         }
     end
@@ -5433,32 +5599,14 @@ function PanelDocument:CreateInterface(args)
         flow = "none",
     }
 
-    --The FOCUS ring, the same one the docks carry. A panel is just as
-    --likely to be driving a map mode from a rail window as from a dock,
-    --so the window needs the indicator too -- in rail mode it is the ONLY
-    --place a panel ever appears.
-    --
-    --Two signals, matching the dock's: this window's content tree holding
-    --GUI focus (Map Markup's drawing tools and friends gate on it), or the
-    --panel declaring itself active by other means (the Measuring Tool
-    --arms on existing, never on focus). Polled for the same reason -- no
-    --focus-changed event exists to hang it on.
-    local focusOutline = gui.Panel{
-        classes = {"dockPanelFocusOutline"},
-        bgimage = true,
-        floating = true,
-        interactable = false,
-        width = "100%",
-        height = "100%",
-        halign = "center",
-        valign = "center",
-        --the focus edge's one-sided border is INLINE: a border TABLE in
-        --the styles list verifiably never reaches this panel (scalar
-        --properties do -- the old full ring worked; tested live), while
-        --selfStyle renders it. Color and opacity still come from the
-        --dockPanelFocusOutline style rules, so theming is intact.
-        border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
-    }
+    --ARMED indication lives in the HEADER now -- see SyncArmedState and
+    --the panelDocumentTitle "armed" style. The old
+    --4px accent edge down the window's left side is gone: it sat in
+    --peripheral vision, away from the identity the user reads a window
+    --by, and it lit for EVERY focused window even though only five
+    --registrations (Map Markup, Objects, the two Terrain panels, the
+    --Measuring Tool) gate any behavior on focus -- so most of the time it
+    --announced nothing and taught people to stop looking at it.
 
     --The window ROOT already rounds itself: it carries the `framedPanel`
     --class and its styles snapshot is the theme's, so a rounded theme's
@@ -5500,6 +5648,26 @@ function PanelDocument:CreateInterface(args)
             if Pinned() then
                 return
             end
+            --THE PANEL GETS FIRST REFUSAL. A panel holding a mode the user
+            --would expect Escape to leave -- an armed map tool, a half-made
+            --placement -- claims the press by setting claimed on the table
+            --it is handed, and the window stays open. Without this the
+            --window's own capture wins the race outright and a single
+            --Escape closes the whole thing out from under a user who only
+            --meant to put their tool down.
+            --
+            --A table rather than a return value because this travels as a
+            --FireEventTree, which fans out to every handler and discards
+            --what they return. Only the ACTIVE tab is asked: a background
+            --tab's mode is not on screen to be escaped from.
+            local tab = FindTab(m_activeKey)
+            if tab ~= nil and tab.contentRoot ~= nil and tab.contentRoot.valid then
+                local claim = {claimed = false}
+                tab.contentRoot:FireEventTree("panelEscape", claim)
+                if claim.claimed then
+                    return
+                end
+            end
             if args.escapeClose ~= nil then
                 args.escapeClose()
             elseif args.close ~= nil then
@@ -5526,12 +5694,21 @@ function PanelDocument:CreateInterface(args)
             end
             --GUI focus, and nothing else -- singular by construction, so
             --exactly one panel can be the active tool. See the dock's copy.
+            --
+            --GATED on the active tab actually CARING about focus: only a
+            --focusOnClick panel has behavior riding on this, so only those
+            --windows say anything about it. Lighting every focused window
+            --made the signal ambient and therefore unreadable.
             local active = gui.ChildHasFocus(element)
+            if active then
+                local tab = FindTab(m_activeKey)
+                if tab == nil or tab.reg == nil or not tab.reg.focusOnClick then
+                    active = false
+                end
+            end
             if element.data.hasPanelFocus ~= active then
                 element.data.hasPanelFocus = active
-                if focusOutline.valid then
-                    focusOutline:SetClass("panelActive", active)
-                end
+                SyncArmedState(active)
             end
         end,
 
@@ -5618,11 +5795,28 @@ function PanelDocument:CreateInterface(args)
                 color = "@fg",
                 fontSize = 12,
                 bold = false,
+                --the name slot animates: collapsing/uncollapsing this
+                --label is how a chip sheds or grows its name (on hover
+                --and on tab switch), and transitionTime is what makes
+                --that a slide out of the icon rather than a snap.
+                transitionTime = 0.15,
             },
             {
                 selectors = {"label", "panelDocumentTitle", "parent:selected"},
                 color = "@fgStrong",
                 bold = true,
+            },
+            --...and the armed panel's own NAME goes accent with the rule.
+            --Only the active chip is ever given "armed", so this names
+            --WHICH panel in the folder is taking map clicks -- "something
+            --in this window is armed" would not be enough with a whole
+            --folder on the strip. Priority outranks parent:selected,
+            --which sets the colour this has to win.
+            {
+                selectors = {"label", "panelDocumentTitle", "parent:armed"},
+                color = "@accent",
+                bold = true,
+                priority = 10,
             },
             --The focus ring. Repeated here rather than inherited from
             --DefaultStyles (where the docks' copy lives): panels on the
@@ -5630,30 +5824,6 @@ function PanelDocument:CreateInterface(args)
             --exactly why everything here carries its own `styles`. Without
             --these two rules the outline panel exists, sits in the right
             --place, and draws nothing at all.
-            --The state class sits on the RING ITSELF here ("panelActive"),
-            --where the dock's copy puts it on the ring's parent and keys
-            --off "parent:focused". Both work; this one is simply the
-            --fewer moving parts of the two. Worth knowing if you ever
-            --unify them.
-            {
-                selectors = {"dockPanelFocusOutline"},
-                bgcolor = "clear",
-                borderColor = "@accent",
-                --a single thick LEFT edge, not a full ring: the row
-                --grammar's selected-state vocabulary scaled to panel size,
-                --matching the dock copy in DefaultStyles (a ring around
-                --the whole window outshouted its content).
-                border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
-                --the edge hugs the window's frame, so it takes the same
-                --rounding the root got from the theme.
-                cornerRadius = themeCornerRadius,
-                opacity = 0,
-                transitionTime = 0.15,
-            },
-            {
-                selectors = {"dockPanelFocusOutline", "panelActive"},
-                opacity = 1,
-            },
             --the pin toggle: nearly invisible at rest so it does not
             --compete with the tabs, lifting on hover and staying lit
             --(and upright rather than tilted) while the window is pinned.
@@ -5688,6 +5858,71 @@ function PanelDocument:CreateInterface(args)
                 selectors = {"panelDocumentCloseButton", "hover"},
                 opacity = 1,
                 bgcolor = "@fgStrong",
+            },
+            --Tab content fades up when its tab is switched to, so the
+            --swap is not a hard cut while the chip beside it animates.
+            --Asymmetric on purpose: the transitionTime lives on the
+            --VISIBLE rule only, so going transparent is instantaneous
+            --(the outgoing tab collapses in the same frame -- animating
+            --it would just composite two panels for no benefit) while
+            --coming back is a ramp.
+            {
+                selectors = {"panelDocumentTabContent"},
+                opacity = 1,
+                transitionTime = 0.12,
+            },
+            {
+                selectors = {"panelDocumentTabContent", "fading"},
+                opacity = 0,
+                transitionTime = 0,
+            },
+            --The chip's hover name. It wears the CHIPS' own plate -- same
+            --cornerRadius and clear border, one step up the fill ladder
+            --(@bgAlt, what a selected chip uses) so it reads against the
+            --panel content it covers. Plain text alone lost its fight
+            --with whatever sat under it, and matching the chips keeps it
+            --from reading as a foreign tooltip.
+            --
+            --NO transitionTime: it appears outright. The dwell delay
+            --before it shows (see the chip's revealTabName) is what stops
+            --names strobing across a sweep; a fade on top of that just
+            --made the name feel slow to arrive.
+            --
+            --Driven by an explicit "shown" class rather than parent:hover
+            --because that dwell cannot be expressed as a style state.
+            {
+                selectors = {"label", "panelDocumentTabLabel"},
+                opacity = 0,
+                bgcolor = "@bgAlt",
+                border = 1,
+                borderColor = "clear",
+                cornerRadius = 4,
+                color = "@fgStrong",
+                fontSize = 12,
+                bold = true,
+            },
+            {
+                selectors = {"label", "panelDocumentTabLabel", "shown"},
+                opacity = 1,
+            },
+            --pinned: the window cannot be closed, so the x stays put and
+            --fades back to read as unavailable. @fgMuted rather than a
+            --dimmer @fg -- it is the token for de-emphasized/disabled
+            --foreground (DefaultStyles.md), and it is what dropdown
+            --options and other disabled chrome already dim to, so the
+            --state matches the rest of the app instead of just being
+            --faint. Listed AFTER the hover rule and repeating the muted
+            --values so hovering a pinned x does not light it up like a
+            --live control.
+            {
+                selectors = {"panelDocumentCloseButton", "disabled"},
+                opacity = 0.2,
+                bgcolor = "@fgMuted",
+            },
+            {
+                selectors = {"panelDocumentCloseButton", "disabled", "hover"},
+                opacity = 0.2,
+                bgcolor = "@fgMuted",
             },
         }),
 
@@ -5788,7 +6023,6 @@ function PanelDocument:CreateInterface(args)
         header,
         hairline,
         contentArea,
-        focusOutline,
     }
 
     --The window's tab set IS its folder: every panel filed under this
@@ -10344,7 +10578,12 @@ local function CreateIconRail(side, entries)
                     element:FireEvent("refreshRail")
                 end,
                 refreshRail = function(element)
-                    local panelShown = PanelDocument.IsPanelShown(key)
+                    --IsPanelActive, NOT IsPanelShown: a folder window
+                    --hosts every member as a tab, so "shown" is true for
+                    --panels filed in an open folder that you cannot see.
+                    --Marking those seen absorbed Chat's unread messages
+                    --while the window sat on a sibling tab.
+                    local panelShown = PanelDocument.IsPanelActive(key)
                     if panelShown and markContentSeen ~= nil then
                         markContentSeen()
                     end

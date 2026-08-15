@@ -1253,7 +1253,9 @@ function CharSheet.CharacterSheetAndAvatarPanel()
     local controllerDropdown
     if dmhub.isDM then
         controllerDropdown = gui.Dropdown {
-            width = 220,
+            --240 matches the default dropdown width, which is what the Titles
+            --multiselect below uses, so the two line up edge to edge.
+            width = 240,
             height = 26,
             vmargin = 4,
             fontSize = 15,
@@ -2142,6 +2144,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             -- Titles
             gui.Multiselect {
+                --Sized and centered to match the controller dropdown above
+                --instead of the default 98%-of-parent controller, which left
+                --the inner dropdown wider and offset from it.
+                width = 240,
+                halign = "center",
+                dropdown = { width = "100%" },
                 options = Title.GetDropdownList(),
                 addItemText = "Grant title...",
                 refreshToken = function(element, info)

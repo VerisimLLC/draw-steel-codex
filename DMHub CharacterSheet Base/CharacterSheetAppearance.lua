@@ -2708,7 +2708,17 @@ function CharSheet.AppearancePanel()
                     valign = "center",
                     hmargin = 32,
                     autoplay = true,
+                    --Route the audition through the anthem bus so it obeys the player's
+                    --Anthem volume setting (and the DM's anthem broadcast level) exactly
+                    --like real anthem playback in the initiative bar does.
+                    autoplaymixgroup = "anthem",
                     refreshAppearance = function(element, info)
+                        --Seed the preview volume with the token's own anthemVolume BEFORE
+                        --setting the value, since assigning the value is what starts
+                        --playback. Without this the audition always started at full
+                        --volume and only picked up the slider once it was dragged.
+                        local anthemVolume = CharacterSheet.instance.data.info.token.anthemVolume
+                        element:FireEvent("volume", anthemVolume or 1)
                         element.value = CharacterSheet.instance.data.info.token.anthem
                     end,
                     change = function(element)

@@ -6462,7 +6462,14 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties, first = not firedMoveThroughThisMove })
+                        ourToken.properties:DispatchEvent("movethrough", {
+                            path = PathMoved.new{
+                                path = path,
+                                size = ourTileSize,
+                            },
+                            target = otherToken.properties,
+                            first = not firedMoveThroughThisMove,
+                        })
                         movedThroughTokens[otherToken.charid] = true
                         firedMoveThroughThisMove = true
                     end

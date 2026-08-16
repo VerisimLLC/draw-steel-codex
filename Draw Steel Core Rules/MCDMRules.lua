@@ -1130,6 +1130,11 @@ TriggeredAbility.RegisterTrigger{
     id = "movethrough",
     text = "Move Through Creature",
     symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path taken by the creature during movement.",
+        },
         target = {
             name = "Target",
             type = "creature",

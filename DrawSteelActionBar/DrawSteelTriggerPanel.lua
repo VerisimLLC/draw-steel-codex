@@ -788,6 +788,14 @@ mod.shared.CreateTriggerPanel = function()
 									hover = gui.Tooltip(cond(option.unavailable == true, tostring(option.conditionReason or "") .. "\n\n" .. tostring(option.rules), option.rules)),
 									press = function(element)
 
+                                        --Strict action economy makes an unavailable mode truly
+                                        --unavailable: players cannot press it to override.
+                                        --Directors bypass this so they can still allow it,
+                                        --matching the action bar's strict:resources handling.
+                                        if option.unavailable == true and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
+                                            return
+                                        end
+
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
                                         if (not trigger.triggered) and #trigger.targets > 0 and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("changeTarget") and not trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
@@ -1466,6 +1474,14 @@ mod.shared.CreateTriggerPanel = function()
 
 
 									press = function(element)
+
+                                        --Strict action economy makes an unavailable mode truly
+                                        --unavailable: players cannot press it to override.
+                                        --Directors bypass this so they can still allow it,
+                                        --matching the action bar's strict:resources handling.
+                                        if unavailable and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
+                                            return
+                                        end
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 

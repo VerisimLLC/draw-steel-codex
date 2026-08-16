@@ -13550,13 +13550,20 @@ CreateMarkupEditor = function()
         flow = "vertical",
         styles = GetPanelStyles(),
 
-        --The host (dock container or rail window) fires this when a press
-        --lands anywhere on the panel that its own controls did not handle
-        --- the background, the title bar. It has already put focus on this
-        --element; TakeMarkupFocus additionally re-fires the current mode's
-        --tool think, without which the very next click can land before the
-        --0.3s poll re-registers the map tool and silently do nothing.
+        --The host (dock container or rail window) fires this on a
+        --user-initiated OPEN of the panel and when a press lands anywhere
+        --on the panel that its own controls did not handle -- the
+        --background, the title bar. It has already put focus on this
+        --element. Opening or clicking the panel is asking to use it, so it
+        --ARMS (agreed 2026-08-15: the explicit-arming rework first shipped
+        --arrive-disarmed, walked back so opening arms like the other
+        --map-mode panels; Escape and hiding still disarm, focus loss still
+        --does not). TakeMarkupFocus additionally re-fires the current
+        --mode's tool think, without which the very next click can land
+        --before the 0.3s poll re-registers the map tool and silently do
+        --nothing.
         panelFocused = function(element)
+            m_arm.Set(true)
             TakeMarkupFocus()
         end,
 
@@ -13575,18 +13582,29 @@ CreateMarkupEditor = function()
                 return
             end
             m_arm.Set(false)
+            --give up focus with the tool: both hosts skip the panelFocused
+            --nudge while focus is already here (ClaimTabFocus /
+            --FocusPanelContent guard on it), so keeping focus would mean
+            --the next click on the panel does NOT re-arm. Dropping it also
+            --puts the host's focus highlight out, which is the visible
+            --"tool down".
+            if gui.ChildHasFocus(element) then
+                gui.SetFocus(nil)
+            end
             if claim ~= nil then
                 claim.claimed = true
             end
         end,
 
         --openness is NOT tracked from these events -- MarkupPanelIsOpen reads
-        --it from the live panel (see its comment); these only manage focus.
-        --Showing the panel does NOT arm it: arriving at a panel is not the
-        --same as asking to draw, and a tool that armed itself the moment the
-        --window opened is exactly the kind of surprise mode this rework is
-        --meant to remove. The user arms by pressing a tool.
+        --it from the live panel (see its comment); these manage focus and
+        --arming. Showing the panel ARMS it: switching to this panel is
+        --asking to draw, matching the other map-mode panels (agreed
+        --2026-08-15 -- the explicit-arming rework first shipped
+        --arrive-disarmed and it was walked back). The rest of explicit
+        --arming stands: Escape and hiding disarm, focus loss does not.
         showpanel = function(element)
+            m_arm.Set(true)
             if not gui.ChildHasFocus(element) then
                 gui.SetFocus(element)
             end

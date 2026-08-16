@@ -104,6 +104,8 @@ Creates the floating trigger panel that appears above the trigger drawer when th
 - Buttons: Activate, Enhancement Options, Dismiss
 - "Dismiss Triggers" bar to dismiss all at once
 
+A mode whose `condition` is not currently met is still offered (`modes[i].unavailable`, set in `TriggeredAbility:Trigger`): its card is dimmed via the `unavailableMode` class and notes "Conditions not met - select to override", but stays pressable so the table can allow it. Keeping unavailable modes in the list is also load-bearing, not just cosmetic: `symbols.mode` is derived from the option's position (`trigger.triggered + 1`), and `modesSelected` on each behavior indexes `modeList`, so dropping a failed mode used to shift every later one onto the wrong `modeList` entry.
+
 Trigger activation either fires immediately or enters target-selection mode (via `chooseTarget` event on the ability controller) if the trigger supports retargeting.
 
 ## Integration

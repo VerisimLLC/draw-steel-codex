@@ -9933,7 +9933,7 @@ end
 --- @field rules string
 --- @field activateText string The name of mode 1 of a multi-mode trigger.
 --- @field activateRules string The rules text of mode 1 of a multi-mode trigger.
---- @field modes {text: string, rules: string}[]
+--- @field modes {text: string, rules: string, unavailable: boolean|nil}[] unavailable marks a mode whose condition is not currently met; it is still offered, greyed out, and may be overridden.
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
 --- @field abilityGuid false|string The guid of the TriggeredAbility that created this prompt.

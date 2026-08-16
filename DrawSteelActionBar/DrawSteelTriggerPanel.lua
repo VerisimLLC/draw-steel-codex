@@ -374,6 +374,35 @@ mod.shared.CreateTriggerPanel = function()
 					fontSize = 12,
 					maxWidth = 140,
 				},
+                --A mode whose condition is not currently met is still offered:
+                --it is dimmed and carries a note saying so, but remains
+                --pressable so the player can override it.
+                {
+                    selectors = {"triggerPanel", "unavailableMode"},
+                    bgcolor = "#141414",
+                    borderColor = "#4A4A4A",
+                },
+                {
+                    selectors = {"triggerTitle", "unavailableMode"},
+                    color = "#8C8C8C",
+                },
+                {
+                    selectors = {"triggerRules", "unavailableMode"},
+                    color = "#8C8C8C",
+                },
+                {
+                    selectors = {"triggerUnavailableNote"},
+                    width = "auto",
+                    height = "auto",
+                    maxWidth = 140,
+                    hmargin = 0,
+                    tmargin = 0,
+                    bmargin = 4,
+                    fontSize = 11,
+                    italics = true,
+                    color = g_forbiddenColor,
+                    textWrap = true,
+                },
 				{
 					selectors = {"triggerButton"},
 					halign = "left",
@@ -388,6 +417,11 @@ mod.shared.CreateTriggerPanel = function()
 					color = Styles.textColor,
 					borderColor = Styles.textColor,
 					bgcolor = Styles.backgroundColor,
+				},
+				{
+					selectors = {"triggerButton", "unavailableMode"},
+					color = "#8C8C8C",
+					borderColor = "#4A4A4A",
 				},
 				{
 					selectors = {"triggerButton", "hover"},
@@ -747,9 +781,9 @@ mod.shared.CreateTriggerPanel = function()
 							end
 							for index,option in ipairs(enhancementOptions) do
 								buttons[#buttons+1] = gui.Label{
-									classes = {"triggerButton"},
+									classes = {"triggerButton", cond(option.unavailable == true, "unavailableMode")},
 									text = option.text,
-									hover = gui.Tooltip(option.rules),
+									hover = gui.Tooltip(cond(option.unavailable == true, "Conditions not met - select to override.\n\n" .. tostring(option.rules), option.rules)),
 									press = function(element)
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
@@ -1326,8 +1360,13 @@ mod.shared.CreateTriggerPanel = function()
 								enhancementOptions = trigger:EnhancementOptions(g_token)
 							end
 							for index,option in ipairs(enhancementOptions) do
+								--A mode whose condition is not met is offered anyway,
+								--dimmed and annotated, and stays pressable: the table
+								--can always agree to allow it.
+								local unavailable = option.unavailable == true
+
 								children[#children+1] = gui.Panel{
-									classes = {"triggerPanel"},
+									classes = {"triggerPanel", cond(unavailable, "unavailableMode")},
 
                                     hover = function(element)
                                         triggerPanel:SetClass("pseudohover", true)
@@ -1363,13 +1402,18 @@ mod.shared.CreateTriggerPanel = function()
                                         height = "auto",
                                         width = "100%-36",
                                         gui.Label{
-                                            classes = {"triggerTitle"},
+                                            classes = {"triggerTitle", cond(unavailable, "unavailableMode")},
                                             text = option.text,
                                         },
                                         gui.Label{
-                                            classes = {"triggerRules"},
+                                            classes = {"triggerRules", cond(unavailable, "unavailableMode")},
                                             markdown = true,
                                             text = StringInterpolateGoblinScript(option.rules, g_token.properties:LookupSymbol{}),
+                                        },
+                                        gui.Label{
+                                            classes = {"triggerUnavailableNote", cond(not unavailable, "collapsed")},
+                                            interactable = false,
+                                            text = "Conditions not met - select to override",
                                         },
                                     },
 

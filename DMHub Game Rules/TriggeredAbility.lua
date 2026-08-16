@@ -1371,13 +1371,27 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                         end
                     end
 
-                    if passes then
-                        modes = modes or {}
-                        modes[#modes+1] = {
-                            text = modeEntry.text,
-                            rules = StringInterpolateGoblinScript(modeEntry.rules, casterSymbols),
-                        }
+                    --A mode whose condition fails is still offered: the panel
+                    --greys it out and says so, and the player may override it.
+                    --
+                    --Dropping it was also wrong. symbols.mode is derived from
+                    --the option's position in this list (see `symbols.mode =
+                    --trigger.triggered + 1` below), so every mode after a
+                    --dropped one addressed the wrong modeList entry -- pick
+                    --Shift with no Recovery available and the trigger ran Spend
+                    --Recovery's behaviors. Keeping the list dense with modeList
+                    --makes that mapping hold.
+                    local entry = {
+                        text = modeEntry.text,
+                        rules = StringInterpolateGoblinScript(modeEntry.rules, casterSymbols),
+                    }
+
+                    if not passes then
+                        entry.unavailable = true
                     end
+
+                    modes = modes or {}
+                    modes[#modes+1] = entry
                 end
             end
 

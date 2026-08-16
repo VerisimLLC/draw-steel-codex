@@ -8980,6 +8980,9 @@ local function CreateCharacterCardVisual(charid)
 
     local staminaFill
     local staminaLabel
+    local recoveryRow
+    local recoveryIcon
+    local recoveryLabel
     local heroRow
     local resourceLabel
     local surgeLabel
@@ -9012,6 +9015,23 @@ local function CreateCharacterCardVisual(charid)
                 color = "#c1731f"
             end
             staminaFill.selfStyle.bgcolor = color
+        end
+
+        --recoveries sit right under the stamina bar. They are a resource,
+        --not a creature field, so they come out of the resource table;
+        --creatures with no recoveries at all (most monsters) collapse the
+        --row rather than showing 0/0.
+        local recMax, recNow = 0, 0
+        pcall(function()
+            recMax = c:GetResources()[CharacterResource.recoveryResourceId] or 0
+            local used = c:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+            recNow = math.max(0, recMax - used)
+        end)
+        if recoveryRow ~= nil and recoveryRow.valid then
+            recoveryRow:SetClass("collapsed", recMax <= 0)
+        end
+        if recoveryLabel ~= nil and recoveryLabel.valid then
+            recoveryLabel.text = string.format("%d/%d", recNow, recMax)
         end
 
         local isHero = false
@@ -9057,6 +9077,42 @@ local function CreateCharacterCardVisual(charid)
         color = "#ffffff",
         interactable = false,
         text = "",
+    }
+
+    recoveryIcon = gui.Panel{
+        --NOT the Recovery resource's own compendium icon: that art is
+        --detailed and turns to mush at 9px. A solid phosphor glyph is the
+        --only thing that still reads at card size.
+        bgimage = "phosphor/heart-fill.png",
+        --the recovery green, matching the healthy stamina fill.
+        bgcolor = "#7cc489",
+        width = 9,
+        height = 9,
+        valign = "center",
+        rmargin = 3,
+        interactable = false,
+    }
+    recoveryLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 9,
+        bold = true,
+        color = "#7cc489",
+        interactable = false,
+        text = "",
+    }
+    recoveryRow = gui.Panel{
+        classes = {"collapsed"},
+        width = "auto",
+        height = 11,
+        flow = "horizontal",
+        halign = "center",
+        tmargin = 2,
+        interactable = false,
+
+        recoveryIcon,
+        recoveryLabel,
     }
 
     resourceLabel = gui.Label{
@@ -9147,6 +9203,7 @@ local function CreateCharacterCardVisual(charid)
             staminaLabel,
         },
 
+        recoveryRow,
         heroRow,
 
         refreshRail = function(element)

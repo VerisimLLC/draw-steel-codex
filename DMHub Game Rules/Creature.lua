@@ -10438,11 +10438,13 @@ end
 --called by dmhub when a creature enters an aura (adjacentOnly = it is only on
 --the adjacent extension of an includeAdjacent aura, not inside it), and from
 --BeginTurn for every aura the creature starts its turn touching (fromBeginTurn).
+--enteredViaShift is true only when the engine reports that this entry happened
+--during a Shift.
 --Adjacent-only contact triggers only at the start of a turn -- moving past an
 --extended aura neither prompts nor halts -- and rolls the simple power roll
 --with a bane. Stored onenter triggers never fire for adjacent-only contact.
 --returns true if the aura triggered something, false otherwise.
-function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
+function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 
     if info.auraInstance.aura:CreaturePassesFilter(self, info.auraInstance) == false then
         return
@@ -10460,28 +10462,10 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 	if self:EnterAuraHaltsMovement(info, level) == false then
 		return result
 	end
-
-	local turnid = self:GetTurnId()
-
-	if turnid ~= nil and info.token ~= nil and info.token.valid then
-		info.token:ModifyProperties{
-			description = "Enter Aura",
-			execute = function()
-				if self:try_get("aurasEnteredTurnId") ~= turnid then
-					self.aurasEnteredTurnId = turnid
-					self.aurasEntered = {}
-				end
-
-				local entered = self.aurasEntered[info.auraInstance.guid]
-				if entered == true then
-					entered = 2
-				end
-				if entered == nil or entered < level then
-					self.aurasEntered[info.auraInstance.guid] = level
-				end
-			end,
-		}
-	end
+	local auraGuid = info.auraInstance.guid
+	local ignoredShiftEntry = enteredViaShift == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
 
 	if not adjacentOnly then
 		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
@@ -10509,7 +10493,10 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 	--synthesizes an onenter trigger rather than storing one in aura.triggers,
 	--so the roll always reflects the aura's current fields. Adjacent-only
 	--contact rolls with a bane.
-	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger({adjacentOnly = adjacentOnly == true})
+	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
+		adjacentOnly = adjacentOnly == true,
+		enteredViaShift = enteredViaShift == true,
+	}
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
 		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
@@ -10517,6 +10504,34 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 		end
 		result = true
 		info.auraInstance:FireTriggeredAbility(simplePowerRollTrigger.ability, self, auraCasterToken)
+	end
+
+	--A shifted entry whose simple roll mode is "ignore" must leave a later
+	--ordinary re-entry available when the aura has no stored onenter trigger. If
+	--a combined aura does have a stored onenter trigger, that trigger still fires
+	--and consumes the shared aura-level record; the record cannot independently
+	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
+	--for every other kind of entry, including inert auras.
+	local turnid = self:GetTurnId()
+	local consumeEntry = result or not ignoredShiftEntry
+	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
+		info.token:ModifyProperties{
+			description = "Enter Aura",
+			execute = function()
+				if self:try_get("aurasEnteredTurnId") ~= turnid then
+					self.aurasEnteredTurnId = turnid
+					self.aurasEntered = {}
+				end
+
+				local entered = self.aurasEntered[auraGuid]
+				if entered == true then
+					entered = 2
+				end
+				if entered == nil or entered < level then
+					self.aurasEntered[auraGuid] = level
+				end
+			end,
+		}
 	end
 
 	return result

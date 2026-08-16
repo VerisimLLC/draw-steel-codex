@@ -21,6 +21,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the aura or starting its turn there (fires through the onenter trigger path as a free triggered action on the creature; see Aura:GetSimplePowerRollTrigger).
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+), executed by the Draw Steel command parser.
+--- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry.
 --- @field includeAdjacent boolean If true, the engine extends the aura's area one tile outward (8-way) and marks the extension tiles as adjacent-only. Creatures on those tiles count as touching the aura for enter/start-of-turn trigger contact (the simple power roll fires for them at the start of their turn, with a bane), but the tiles do not take the aura's terrain rules, move damage, or modifiers.
 --- @field damaging boolean Explicitly marks the aura as damaging terrain for movement advisories (the red "moving into damaging terrain" line on the drag tooltip). Only needed for auras whose damage comes from custom triggers: an entry power roll or per-tile move damage already implies it (see Aura:IsDamaging).
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
@@ -110,6 +111,22 @@ Aura.description = ""
 Aura.applyto = "all"
 Aura.hasCustomIcon = false
 Aura.includeAdjacent = false
+Aura.powerRollShiftEntryMode = "normal"
+
+Aura.PowerRollShiftEntryModeOptions = {
+    {
+        id = "normal",
+        text = "Normal",
+    },
+    {
+        id = "bane",
+        text = "One Bane",
+    },
+    {
+        id = "ignore",
+        text = "Ignore Power Roll",
+    },
+}
 
 function Aura.OnDeserialize(self)
     --we had to change id -> guid to match CharacterFeature.
@@ -213,12 +230,20 @@ end
 --- roll modifiers (their own modifiers do not apply to it). The prompt is
 --- hostile: environment rolls are never beneficial offers, so it renders red
 --- and never expires.
---- @param options nil|{adjacentOnly: boolean} adjacentOnly = the creature touches
---- the aura only via its adjacent extension (includeAdjacent), not any true aura
---- tile: the roll takes a bane.
+--- @param options nil|{adjacentOnly: boolean, enteredViaShift: boolean} adjacentOnly =
+--- the creature touches the aura only via its adjacent extension (includeAdjacent),
+--- not any true aura tile; enteredViaShift = the creature entered during a Shift.
+--- Adjacent-only always rolls with one bane. A shifted entry follows
+--- powerRollShiftEntryMode, with unknown values treated as normal.
 --- @return nil|{trigger: string, ability: TriggeredAbility}
 function Aura:GetSimplePowerRollTrigger(options)
     if not self:try_get("powerRollEnabled", false) then
+        return nil
+    end
+
+    local shiftedEntry = options ~= nil and options.enteredViaShift == true
+    local shiftEntryMode = self:try_get("powerRollShiftEntryMode", "normal")
+    if shiftedEntry and shiftEntryMode == "ignore" and not options.adjacentOnly then
         return nil
     end
 
@@ -257,16 +282,28 @@ function Aura:GetSimplePowerRollTrigger(options)
     }
 
     --Adjacent-only contact rolls with a bane (e.g. Lava: "If the target is
-    --adjacent to lava but not in it, this ability takes a bane"). The entry
+    --adjacent to lava but not in it, this ability takes a bane"). Some auras
+    --also apply a bane when entered by shifting (e.g. Quicksand). Adjacent-only
+    --takes precedence, so the two built-in reasons can never stack. The entry
     --shape matches the behavior's built-in modifiers list ({type, condition,
     --text}, see MCDMAbilityRollBehavior's "our behavior-builtin modifiers").
+    local baneText = nil
+    local baneDetails = nil
     if options ~= nil and options.adjacentOnly then
+        baneText = string.format("Adjacent to %s", self.name)
+        baneDetails = string.format("This roll takes a bane against a creature that is adjacent to the %s but not in it. You started your turn next to the area rather than inside it.", self.name)
+    elseif shiftedEntry and shiftEntryMode == "bane" then
+        baneText = string.format("Shifted into %s", self.name)
+        baneDetails = string.format("This roll takes a bane because the triggering creature shifted into the %s.", self.name)
+    end
+
+    if baneText ~= nil then
         behaviorFields.modifiers = {
             {
                 type = "bane",
                 condition = true,
-                text = string.format("Adjacent to %s", self.name),
-                details = string.format("This roll takes a bane against a creature that is adjacent to the %s but not in it. You started your turn next to the area rather than inside it.", self.name),
+                text = baneText,
+                details = baneDetails,
             },
         }
     end
@@ -504,6 +541,34 @@ function Aura.CreateSimplePowerRollEditor(options)
             height = "auto",
             fontSize = 13,
             bmargin = 4,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            hover = gui.Tooltip("Controls only the simple power roll when a creature enters during an actual Shift. Normal movement, forced movement, and start-of-turn rolls are unaffected. Adjacent-only rolls still take their existing single bane."),
+
+            gui.Label{
+                text = "When Entered by Shifting:",
+                width = 220,
+                height = 22,
+                fontSize = 16,
+                valign = "center",
+            },
+
+            gui.Dropdown{
+                width = 180,
+                height = 22,
+                fontSize = 16,
+                options = Aura.PowerRollShiftEntryModeOptions,
+                idChosen = obj:try_get("powerRollShiftEntryMode", "normal"),
+                change = function(element)
+                    obj.powerRollShiftEntryMode = element.idChosen
+                    onchange()
+                end,
+            },
         },
     }
 

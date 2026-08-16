@@ -51,7 +51,6 @@ TacPanelSizes.Panels = {
     summaryNames = 140,     -- Center name panel right of portrait
     stamBoxHeight = 40,
     stamBoxNarrow = 28,
-    stamBoxStam = 68,
     stamBoxRecoveries = 128,
     condChipHeight = 16,
 }
@@ -64,17 +63,24 @@ TacPanelSizes.Fonts = {
     -- The monster type ("SKELETON") sits under the token name as a
     -- subheading, so it reads below the name rather than competing with it.
     monsterType = 15,
+    -- Every line in the strip's right column -- EV, level/role, size, free
+    -- strike -- is the same order of information, so they all share one size
+    -- rather than the earlier ladder where EV shouted and the role whispered.
+    -- 12pt fits the longest role ("LEVEL 1 HORDE ARTILLERY") in the column.
+    identRight = 12,
 
     stamBoxTitle = 10,      -- Stamina panel
     stamBoxInput = 22,
-    currentStamina = 24,
-    maxStamina = 16,
     recoveryValue = 24,
     recoveryCount = 16,
 
     tempStamValue = 12,     -- Health bar: temp stam number
     tempStamLabel = 10,     -- Health bar: "TEMP" label
     tempStamClear = 8,      -- Health bar: clear button X
+
+    barAdjustBtn = 14,      -- Health bar: the - / + hover buttons
+    barAdjustTemp = 9,      -- Health bar: the TEMP hover button, and entry key
+    barAdjustInput = 12,    -- Health bar: the adjust entry box
 
     movePanelTitle = 12,
     movePanelValue = 24,
@@ -160,6 +166,23 @@ TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
         pad = 4,
         cornerRadius = 6,
     },
+    {   -- Quiet variant used by the monster portrait's button strip: no chrome
+        -- at all, just the glyph. Boxing them made three outlined chips compete
+        -- with the stat boxes beside them for a set of secondary controls.
+        --
+        -- Also tighter: tpOutline's pad of 4 put a 30px box around a 20px
+        -- glyph, which is most of why the strip ate so much width. pad 2
+        -- brings each button to 26 and lets the whole column narrow.
+        selectors = {"tpOutline", "tp-outline-quiet"},
+        bgcolor = "clear",
+        border = 0,
+        pad = 2,
+        cornerRadius = 0,
+    },
+    {
+        selectors = {"tpOutline", "tp-outline-quiet", "hover"},
+        brightness = 1.4,
+    },
     {
         selectors = {"tpOutline", "hover"},
         brightness = 2.0,
@@ -183,6 +206,12 @@ TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
     {
         selectors = {"panel", "tacpanel", "alt-bg"},
         bgcolor = TRANSPARENT_BG and "clear" or "@bgAlt",
+    },
+    {   -- Drops a section's own bottom rule, for when something around it draws
+        -- one instead. Used by the stamina section on monsters, whose column is
+        -- narrower than the block it sits in.
+        selectors = {"panel", "tacpanel", "no-rule"},
+        border = 0,
     },
     {
         selectors = {"panel", "container"},
@@ -349,6 +378,10 @@ TacPanelStyles.SummaryInfo = ThemeEngine.MergeTokens{
         --panel edge of 655. This also has to clear the vertical scrollbar,
         --which sits inside that edge and was eating the breathing room.
         rmargin = 38,
+        --The left column opens with a 28pt name, so its first line starts
+        --well below the strip's top edge. At 12pt this column began flush
+        --against it and read as crowded; drop it to sit nearer the name.
+        tmargin = 6,
     },
     {
         selectors = {"label", "ident-right"},
@@ -359,7 +392,7 @@ TacPanelStyles.SummaryInfo = ThemeEngine.MergeTokens{
         textAlignment = "right",
         textWrap = false,
         color = "@fgMuted",
-        fontSize = TacPanelSizes.Fonts.charLevel,
+        fontSize = TacPanelSizes.Fonts.identRight,
         minFontSize = 9,
     },
     {
@@ -385,8 +418,19 @@ TacPanelStyles.SummaryInfo = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"label", "summary-info", "monster-keywords"},
-        fontSize = TacPanelSizes.Fonts.charLevel,
+        fontSize = TacPanelSizes.Fonts.identRight,
         color = "@fgMuted",
+    },
+    {
+        selectors = {"label", "summary-info", "ident-captain"},
+        fontSize = TacPanelSizes.Fonts.identRight,
+        color = "@fgMuted",
+        textWrap = true,
+        tmargin = 2,
+    },
+    {   -- The squad actually has a captain, so the bonus is live right now.
+        selectors = {"label", "summary-info", "ident-captain", "captain-live"},
+        color = "@accent",
     },
 
 }
@@ -421,13 +465,16 @@ TacPanelStyles.ControlButtons = ThemeEngine.MergeTokens{
         bgcolor = "@accent",
     },
     {
+        --@fgMuted like the other two. This was @fgPending, which is the
+        --"provisional / not yet applied" token -- a different hue doing a job
+        --it does not mean, so the three glyphs never matched at rest.
         selectors = {"character-sheet-btn"},
-        bgimage = "ui-icons/character-sheet.png",
-        bgcolor = "@fgPending",
+        bgimage = "icons/icon_app/icon_app_33.png",
+        bgcolor = "@fgMuted",
     },
     {
         selectors = {"summoner-btn"},
-        bgimage = "drawsteel/hero-token.png",
+        bgimage = "icons/icon_app/icon_app_2.png",
         bgcolor = "@fgMuted",
     },
     {   --lit when the monster currently has a summoner assigned.
@@ -539,20 +586,8 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
     -- The stamina BAR is the only thing in this area that carries status
     -- colour. These boxes were tinted red/green permanently, regardless of
     -- state, so the colour was decoration rather than signal -- and it made
-    -- the one place that does signal (the bar) harder to read.
-    {
-        selectors = {"panel", "stamina-box", "harm"},
-        borderColor = "@border",
-    },
-    {
-        selectors = {"panel", "stamina-box", "stamina"},
-        width = TacPanelSizes.Panels.stamBoxStam,
-        borderColor = "@border",
-    },
-    {
-        selectors = {"panel", "stamina-box", "heal"},
-        borderColor = "@border",
-    },
+    -- the one place that does signal (the bar) harder to read. Recoveries are
+    -- all that is left of the row; everything else moved onto the bar.
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
@@ -568,10 +603,6 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         soundEvent = "Mouse.Click",
     },
     {
-        selectors = {"panel", "stamina-box", "temp"},
-        borderColor = "@accent",
-    },
-    {
         selectors = {"label", "stambox-title"},
         width = "98%",
         height = "auto",
@@ -580,63 +611,6 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         textAlignment = "center",
         fontSize = TacPanelSizes.Fonts.stamBoxTitle,
         color = "@fg",
-    },
-    {
-        selectors = {"label", "stambox-title", "temp"},
-        fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
-    },
-    {
-        selectors = {"input", "stambox-input"},
-        width = "98%",
-        height = "auto",
-        halign = "center",
-        valign = "center",
-        pad = 0,
-        margin = 0,
-        border = 0,
-        bgcolor = "clear",
-        fontFace = "@number",
-        textAlignment = "center",
-        fontSize = TacPanelSizes.Fonts.stamBoxInput,
-    },
-    {
-        selectors = {"stambox-input", "harm"},
-        color = "@fg",
-    },
-    {
-        selectors = {"stambox-input", "heal"},
-        color = "@fg",
-    },
-    {
-        selectors = {"stambox-input", "temp"},
-        color = "@fg",
-        fontFace = "@number",
-        fontSize = 20,
-    },
-    {
-        selectors = {"input", "stambox-stam", "current"},
-        height = "auto",
-        width = "auto",
-        valign = "center",
-        halign = "left",
-        pad = 0,
-        margin = 0,
-        border = 0,
-        bgcolor = "clear",
-        fontFace = "@number",
-        fontSize = TacPanelSizes.Fonts.currentStamina,
-        color = "@fg",
-        textAlignment = "center",
-    },
-    {
-        selectors = {"label", "stambox-stam", "max"},
-        height = "auto",
-        width = "auto",
-        valign = "center",
-        lmargin = 4,
-        fontFace = "@number",
-        fontSize = TacPanelSizes.Fonts.maxStamina,
-        color = "@fgPending",
     },
     {
         selectors = {"label", "recovery-value"},
@@ -889,6 +863,111 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         fontSize = TacPanelSizes.Fonts.tempStamClear,
         color = "@accent",
     },
+
+    -- Adjust controls on the stamina bar itself: - / + / TEMP, each opening a
+    -- small entry box in place. Hidden until the bar is hovered, so the bar
+    -- reads as a bar until you go looking for the controls.
+    {   -- Spans the bar so its three slots can sit left, centre and right. The
+        -- clusters inside float, so they place themselves by halign and none of
+        -- them pushes the others around.
+        selectors = {"panel", "bar-adjust"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        hidden = 1,
+    },
+    {
+        selectors = {"panel", "bar-adjust", "parent:hover"},
+        hidden = 0,
+    },
+    {   -- Stays up while an entry box is open, wherever the pointer has gone.
+        selectors = {"panel", "bar-adjust", "open"},
+        hidden = 0,
+    },
+    {
+        selectors = {"panel", "bar-adjust-row"},
+        width = "auto",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        flow = "horizontal",
+    },
+    {
+        selectors = {"panel", "bar-adjust-row", "left"},
+        halign = "left",
+        lmargin = 6,
+    },
+    {
+        selectors = {"panel", "bar-adjust-row", "right"},
+        halign = "right",
+        rmargin = 6,
+    },
+    {   -- A panel wrapping a label rather than a bare label, matching every
+        -- other small button in this panel.
+        selectors = {"panel", "bar-adjust-btn"},
+        width = 16,
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        hmargin = 2,
+        bgcolor = "clear",
+    },
+    {   -- "TEMP" is a word rather than a sign, so it sizes to its text.
+        selectors = {"panel", "bar-adjust-btn", "temp"},
+        width = "auto",
+        hmargin = 4,
+    },
+    {
+        selectors = {"label", "bar-adjust-glyph"},
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = TacPanelSizes.Fonts.barAdjustBtn,
+        color = "@fg",
+    },
+    {
+        selectors = {"label", "bar-adjust-glyph", "temp"},
+        width = "auto",
+        fontSize = TacPanelSizes.Fonts.barAdjustTemp,
+    },
+    {
+        selectors = {"label", "bar-adjust-glyph", "parent:hover"},
+        color = "@accent",
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "bar-adjust-glyph", "parent:press"},
+        brightness = 0.5,
+    },
+    {   -- The entry box that replaces the buttons once one is picked.
+        selectors = {"label", "bar-entry-key"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        rmargin = 3,
+        fontSize = TacPanelSizes.Fonts.barAdjustTemp,
+        color = "@fgMuted",
+    },
+    {
+        selectors = {"input", "bar-entry-input"},
+        width = 42,
+        height = 16,
+        valign = "center",
+        pad = 0,
+        margin = 0,
+        border = 1,
+        borderColor = "@border",
+        bgimage = true,
+        bgcolor = "@bg",
+        cornerRadius = 2,
+        fontFace = "@number",
+        fontSize = TacPanelSizes.Fonts.barAdjustInput,
+        textAlignment = "center",
+        color = "@fg",
+    },
 }
 TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     {
@@ -898,6 +977,10 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         valign = "top",
         halign = "left",
         flow = "horizontal",
+        --Inline label-and-value cells are wider than the stacked ones, so the
+        --five characteristics have to be able to fall to a second line at
+        --larger font sizes. Heroes' fixed 16% cells never reach the edge.
+        wrap = true,
         vpad = 6,
     },
     {
@@ -958,19 +1041,37 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         color = "@fg",
     },
 
-    -- Compact (monster) variant. The box keeps its press handler and its
-    -- hover/press feedback -- only its footprint changes. Height goes fixed
-    -- because the default is "100% width", i.e. square, which is what makes
-    -- these so tall.
+    -- Compact (monster) variant: no frame, label and value on one line, and
+    -- still pressable -- the press handler and hover/press feedback are
+    -- untouched, only the chrome goes. The default box is "100% width" tall,
+    -- i.e. square, which is what made these so big.
     {
         selectors = {"panel", "characteristic-box", "compact"},
-        height = 32,
-        pad = 1,
-        hmargin = 2,
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        bgcolor = "clear",
+        border = 0,
+        cornerRadius = 4,
+        hpad = 5,
+        vpad = 3,
+        hmargin = 1,
+        vmargin = 1,
+    },
+    {   -- hover wash carries the affordance the frame used to
+        selectors = {"panel", "characteristic-box", "compact", "hover"},
+        bgcolor = "@bgAlt",
+        brightness = 1,
     },
     {
+        --No halign: in a horizontal flow an explicit halign PINS the child to
+        --that edge instead of letting the flow sequence it, so label and value
+        --land on top of each other ("Might0").
         selectors = {"label", "char-title", "parent:compact"},
+        width = "auto",
+        valign = "center",
         tmargin = 0,
+        rmargin = 4,
         fontSize = TacPanelSizes.Fonts.charTitleCompact,
     },
     {
@@ -979,6 +1080,8 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"label", "char-value", "parent:compact"},
+        width = "auto",
+        valign = "center",
         fontSize = TacPanelSizes.Fonts.charValueCompact,
     },
 }
@@ -990,6 +1093,7 @@ TacPanelStyles.MovementPanel = ThemeEngine.MergeTokens{
         valign = "top",
         halign = "left",
         flow = "horizontal",
+        wrap = true,
         vpad = 0,
     },
     {
@@ -1035,23 +1139,32 @@ TacPanelStyles.MovementPanel = ThemeEngine.MergeTokens{
         color = "@danger",
     },
 
-    -- Compact (monster) variant, matching the characteristic boxes. The
-    -- altitude stepper inside AltitudeBox keeps working; it just has less
-    -- room around it.
+    -- Compact (monster) variant, matching the characteristic boxes: label and
+    -- value on one line, no fixed cell. The altitude stepper inside
+    -- AltitudeBox keeps working; it just has less room around it.
     {
         selectors = {"panel", "movement-box", "compact"},
-        height = 30,
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
         tmargin = 2,
-        rmargin = 4,
+        rmargin = 10,
         pad = 2,
     },
     {
+        --No halign here either -- same pinning trap as the characteristics.
         selectors = {"label", "movebox-title", "parent:compact"},
+        width = "auto",
+        valign = "center",
+        textAlignment = "left",
+        rmargin = 4,
         fontSize = TacPanelSizes.Fonts.movePanelTitleCompact,
     },
     {
         selectors = {"label", "movebox-value", "parent:compact"},
-        tmargin = -2,
+        width = "auto",
+        valign = "center",
+        tmargin = 0,
         fontSize = TacPanelSizes.Fonts.movePanelValueCompact,
     },
     {
@@ -1061,29 +1174,58 @@ TacPanelStyles.MovementPanel = ThemeEngine.MergeTokens{
         height = "auto",
     },
     {
+        --Compact (monsters): a full-width row here claimed a whole line of the
+        --wrapping movement panel, which is what pushed "On Ground" off the
+        --Speed / Disengage / Stability line and stranded its number out to the
+        --right. Sized to its contents it sits inline with the rest.
+        --
+        --Fixed rather than auto because the altitude stepper floats: it takes
+        --no room of its own, so an auto row shrinks to the number alone and the
+        --two buttons land on top of it. 44 is the 20-wide stepper on the right
+        --plus room for the number on the left.
+        selectors = {"panel", "altitude-row", "compact"},
+        width = 44,
+        valign = "center",
+    },
+    {
+        --Centred (the movebox default) would put the number under the stepper
+        --in the narrow compact row.
+        selectors = {"label", "altitude-value", "parent:compact"},
+        halign = "left",
+        lmargin = 2,
+    },
+    {
+        --A "+ / -" pair on one line rather than a stacked pair of chips: two
+        --outlined boxes stood taller than the stat line they sit on and read as
+        --the loudest thing in the section, which is not what a rarely-used
+        --altitude stepper is.
         selectors = {"panel", "altitude-btn-stack"},
-        flow = "vertical",
+        flow = "horizontal",
         width = "auto",
         height = "auto",
         valign = "center",
     },
     {
         selectors = {"label", "altitude-btn"},
-        bgimage = true,
-        width = 20,
-        height = 14,
-        fontSize = 12,
-        bold = true,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = TacPanelSizes.Fonts.movePanelValueCompact,
         textAlignment = "center",
-        cornerRadius = 2,
-        borderWidth = 1,
-        bgcolor = "@bgInverse",
-        borderColor = "@borderInverse",
-        color = "@fgInverse",
+        color = "@fg",
+    },
+    {   -- The slash between them; not pressable, so it stays muted.
+        selectors = {"label", "altitude-btn-sep"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        hmargin = 3,
+        fontSize = TacPanelSizes.Fonts.movePanelValueCompact,
+        color = "@fgMuted",
     },
     {
         selectors = {"label", "altitude-btn", "hover"},
-        brightness = 1.5,
+        color = "@accent",
         transitionTime = 0.2,
     },
     {
@@ -1747,8 +1889,13 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     -- ASCII-only, so the mock's glyphs cannot be literals -- and these are
     -- what the rest of the Codex already draws.
     {
+        --The widest dingbat (the middle tier's "12-16") renders wider than the
+        --30 this column used to be, so the outcome text started underneath the
+        --tail of the glyph. The column is sized to the widest glyph and the
+        --rmargin is the gap between the two.
         selectors = {"label", "ms-tier-k"},
-        width = 30,
+        width = 40,
+        rmargin = 6,
         height = "auto",
         halign = "left",
         valign = "top",
@@ -1758,7 +1905,7 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"label", "ms-tier-v"},
-        width = "100%-30",
+        width = "100%-46",
         height = "auto",
         halign = "left",
         valign = "center",
@@ -1790,15 +1937,48 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     -- Movement modes, sitting under the stat boxes. Muted and unbolded to
     -- match movebox-title: this is reference info, and the section's own
     -- grammar puts labels at @fgMuted rather than at full strength.
+    --
+    -- Sized and inset to match that row exactly: the compact title size, and a
+    -- 2px inset that is the compact movement-box's own padding, so "Movement"
+    -- starts on the same column as "Speed" above it.
     {
         selectors = {"label", "ms-profile"},
         width = "100%",
         height = "auto",
         halign = "left",
-        fontSize = TacPanelSizes.Fonts.movePanelTitle,
+        fontSize = TacPanelSizes.Fonts.movePanelTitleCompact,
         color = "@fgMuted",
         tmargin = 4,
-        lmargin = 4,
+        lmargin = 2,
+    },
+
+    -- The row that carries the portrait alongside the stamina column. Its bottom
+    -- border is the rule that closes the whole block off from STATISTICS below,
+    -- and it runs the full panel width -- stamina's own section border is only
+    -- as wide as its column, so on monsters that one is suppressed (see the
+    -- "no-rule" class) rather than stopping dead at the portrait.
+    --
+    -- It needs BOTH the bgimage here and the border on the monster rule below:
+    -- the engine draws no border around a panel with no background image.
+    {
+        selectors = {"panel", "vitals-row"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        valign = "top",
+        bgimage = true,
+        bgcolor = "clear",
+    },
+    {
+        --Monsters only: heroes have no portrait in this row, and their stamina
+        --panel keeps its own rule.
+        --Half the space that was sitting above the rule is moved below it, so
+        --the portrait is not jammed against the divider.
+        selectors = {"panel", "vitals-row", "monster"},
+        tmargin = 6,
+        bpad = 8,
+        borderColor = "@border",
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
     },
 
 }
@@ -1825,6 +2005,17 @@ TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
         valign = "top",
         tmargin = 6,
         flow = "horizontal",
+    },
+    {   -- Monsters: indent the row so CONDITIONS starts on the same column as
+        -- the WEAKNESS / IMMUNITIES line above it. It goes on the ROW because
+        -- neither padding nor margin on the key label moves that label's text
+        -- (they only inflate its box symmetrically). The 12 is measured, not
+        -- derived: res-box's own hpad 6 + hmargin 4 does not account for all of
+        -- the offset, so this was set by comparing the first inked pixel column
+        -- of each line on screen until they matched.
+        selectors = {"panel", "cond-chips", "flush"},
+        lmargin = 12,
+        width = "100%-12",
     },
     {   -- Individual condition chip
         selectors = {"panel", "cond-chip"},
@@ -2035,6 +2226,47 @@ TacPanelStyles.AddConditionMenu = ThemeEngine.MergeTokens{
 }
 TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
     -- Container: side-by-side
+    -- "CONDITIONS:" key on the conditions row, matched to the bold muted key
+    -- the resistance line uses so the two stack as a pair.
+    {
+        selectors = {"label", "cond-key"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontSize = TacPanelSizes.Fonts.resEntry,
+        bold = true,
+        color = "@fgMuted",
+        rmargin = 6,
+        hpad = 6,
+    },
+    {   -- Monsters: the key adds no inset of its own. The whole row is indented
+        -- instead -- see the "cond-chips flush" rule -- because padding and
+        -- margin on THIS label only inflate its box symmetrically and leave the
+        -- text where it was (measured both ways). rmargin is untouched: that is
+        -- the gap before the chips.
+        selectors = {"label", "cond-key", "parent:flush"},
+        hpad = 0,
+    },
+    {   -- The "add a condition" plus. Drawn as text rather than as the app-wide
+        -- addButton icon, which was a second, heavier plus a few lines below
+        -- the HEAL box's one. That box has since moved onto the bar, but the
+        -- size is still the one this panel's plus signs are cut at.
+        selectors = {"label", "cond-add"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontFace = "@number",
+        fontSize = TacPanelSizes.Fonts.stamBoxInput,
+        color = "@fg",
+    },
+    {
+        selectors = {"label", "cond-add", "hover"},
+        color = "@accent",
+        transitionTime = 0.2,
+    },
+
     {
         selectors = {"panel", "res-container"},
         width = "100%",
@@ -2080,6 +2312,10 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         vpad = 4,
         hmargin = 4,
     },
+    -- NOTE: a {res-box, <variant>, parent:flush} rule to zero these insets does
+    -- NOT win over the two rules above -- a "parent:" selector does not carry
+    -- the specificity its extra term suggests, so the pad and margin stay on.
+    -- The CONDITIONS row mirrors this inset instead; see the cond-key rule.
 }
 
 -- Health bar fill: grayscale shading (from the OOTB fillBarFill class) tinted
@@ -3199,7 +3435,9 @@ function TacPanel.GatedPortrait(forMonster)
         --Set directly rather than through style rules: the buttons panel
         --declares halign, valign and width INLINE, and inline args become
         --selfStyle, which no selector can override.
-        portrait.selfStyle.rmargin = 36
+        --30 reserves the strip: a 26px button (20 glyph + pad 2 + border 1
+        --each side) plus a little air off the portrait's edge.
+        portrait.selfStyle.rmargin = 30
         --Clearance so the next section's rule reads as a line under the
         --portrait rather than one running into its rounded bottom edge.
         portrait.selfStyle.bmargin = 8
@@ -3219,10 +3457,19 @@ function TacPanel.GatedPortrait(forMonster)
                 child.selfStyle.width = "auto"
                 --Floating, so this pushes the strip out past the frame's
                 --right edge into the room the rmargin above reserved.
-                child.selfStyle.rmargin = -34
+                child.selfStyle.rmargin = -28
                 child.selfStyle.bmargin = 0
                 for _, row in ipairs(child.children or {}) do
                     row.selfStyle.flow = "vertical"
+                    for _, btn in ipairs(row.children or {}) do
+                        --Quiet the button outlines down to match the DMG box.
+                        btn:SetClass("tp-outline-quiet", true)
+                        --Air between them. The portrait is a fixed 120px and
+                        --three 26px buttons only need 78, so the spacing is
+                        --free -- and these are small targets. Set here because
+                        --the wrapper declares vmargin inline.
+                        btn.selfStyle.vmargin = 4
+                    end
                 end
             end
         end
@@ -3247,6 +3494,33 @@ function TacPanel.GatedPortrait(forMonster)
         end,
         portrait,
     }
+end
+
+--- A minion's "With Captain" bonus text, or nil when there is nothing worth
+--- showing. Non-minions never carry the field at all, and 22 of the 181
+--- minions that do store a placeholder dash rather than a bonus -- "-" is
+--- truthy in Lua, so it has to be filtered out explicitly.
+---
+--- Declared up here rather than beside its other callers because the identity
+--- strip below is the first thing to need it; the monster TRAITS section, the
+--- hero FEATURES chip and the feature search matcher all come later in the
+--- file, so a query can never claim a hit on something the panel is not
+--- displaying.
+--- @param creature any
+--- @return nil|string
+local function WithCaptainText(creature)
+    if not creature.minion then
+        return nil
+    end
+    local raw = creature:try_get("withCaptain", false)
+    if type(raw) ~= "string" then
+        return nil
+    end
+    local trimmed = raw:match("^%s*(.-)%s*$")
+    if trimmed == "" or trimmed == "-" or trimmed == "--" then
+        return nil
+    end
+    return trimmed
 end
 
 --- Display the summary section with portrait, class, levels, etc.
@@ -3364,6 +3638,69 @@ function TacPanel.Summary()
                         local text = string.upper(token.properties:try_get("monster_type", "Monster"))
                         element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.monsterType, 14, #text)
                         element.text = text
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+
+                -- Monster keywords, e.g. "Soulless, Undead". Left column,
+                -- under the type, so the identity block reads top to bottom as
+                -- name -> what it is -> what it has, with the right column
+                -- carrying the numbers instead of a second stack of nouns.
+                gui.Label{
+                    classes = {"summary-info", "monster-keywords"},
+                    refreshCharacter = function(element, token)
+                        --This column is shared with heroes now that the label
+                        --has moved out of the monster-only right column, so it
+                        --collapses rather than rendering an empty line that
+                        --would push the hero's own rows down.
+                        local isMonster = false
+                        pcall(function() isMonster = token.properties:IsMonster() end)
+                        element:SetClass("collapsed", not isMonster)
+                        if not isMonster then
+                            element.text = ""
+                            return
+                        end
+                        local keywords = token.properties.keywords or {}
+                        local sorted = {}
+                        for k, _ in pairs(keywords) do
+                            sorted[#sorted+1] = ActivatedAbility.CanonicalKeyword(k)
+                        end
+                        table.sort(sorted)
+                        local text = string.join(sorted, ", ")
+                        --Fixed at the right column's size rather than fitted:
+                        --keywords and the level/size/free-strike lines are the
+                        --same order of information, and fitting made this line
+                        --shrink with its own length so the two halves of the
+                        --strip almost never matched.
+                        element.selfStyle.fontSize = TacPanelSizes.Fonts.identRight
+                        element.text = text
+                    end,
+                },
+
+                -- A minion's "With Captain" bonus, under the type block. It is
+                -- identity, not a trait: it says what this creature is worth
+                -- while its captain lives. Accented when the squad actually
+                -- HAS a captain (FillTemporalActiveModifiers in
+                -- MCDMMonster.lua), muted when it is merely possible.
+                gui.Label{
+                    classes = {"summary-info", "ident-captain"},
+                    refreshCharacter = function(element, token)
+                        local text = nil
+                        pcall(function() text = WithCaptainText(token.properties) end)
+                        if text == nil then
+                            element:SetClass("collapsed", true)
+                            element.text = ""
+                            return
+                        end
+                        element:SetClass("collapsed", false)
+                        local squad = token.properties:try_get("_tmp_minionSquad")
+                        element:SetClass("captain-live", squad ~= nil and squad.hasCaptain == true)
+                        element.text = string.format("With Captain: %s", text)
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
                     end,
                     setToken = function(element, token)
                         element:FireEvent("refreshCharacter", token)
@@ -3500,15 +3837,10 @@ function TacPanel.Summary()
                             else
                                 text = string.format("LEVEL %d", level)
                             end
-                            --Not _fitFontSize: that floors at 12pt, and
-                            --"LEVEL 1 HORDE ARTILLERY" is 23 characters that
-                            --have to sit inside 44% of the strip. Own floor
-                            --of 9 so the long roles actually fit.
-                            local size = TacPanelSizes.Fonts.charLevel
-                            if #text > 11 then
-                                size = math.max(9, math.floor(size * 11 / #text))
-                            end
-                            element.selfStyle.fontSize = size
+                            --No per-label sizing: the whole right column now
+                            --shares one size from the "ident-right" rule, and
+                            --shrinking just this line to fit was what made the
+                            --column read as a hierarchy it does not have.
                             element.text = text
                         end,
                         setToken = function(element, token)
@@ -3516,31 +3848,53 @@ function TacPanel.Summary()
                         end,
                     },
 
-                    -- Monster keywords, e.g. "Soulless, Undead". Right column
-                    -- under the level line. halign/textAlignment are inline
-                    -- rather than in a rule because the label also carries
-                    -- "summary-info", which left-aligns it.
+                    -- Size, at the foot of the strip. It used to sit down in
+                    -- STATISTICS with the movement numbers; up here it leaves
+                    -- that block as just the movement modes.
                     gui.Label{
-                        classes = {"summary-info", "monster-keywords"},
-                        halign = "right",
-                        textAlignment = "right",
+                        classes = {"ident-right", "ident-size"},
                         refreshCharacter = function(element, token)
-                            local text = ""
-                            if token.properties:IsMonster() then
-                                local keywords = token.properties.keywords or {}
-                                local sorted = {}
-                                for k, _ in pairs(keywords) do
-                                    sorted[#sorted+1] = ActivatedAbility.CanonicalKeyword(k)
-                                end
-                                table.sort(sorted)
-                                text = string.join(sorted, ", ")
+                            local isMonster = false
+                            pcall(function() isMonster = token.properties:IsMonster() end)
+                            if not isMonster then
+                                element.text = ""
+                                return
                             end
-                            --Was based on charClass (26). _fitFontSize returns
-                            --the BASE untouched when the text is short, so a
-                            --Ghoul's "Undead" -- 6 characters -- rendered at the
-                            --full 26pt, as large as the token's own name.
-                            element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.monsterType, 20, #text)
-                            element.text = text
+                            local size = nil
+                            pcall(function() size = token.properties:SizeDescription() end)
+                            if size == nil or size == "" then
+                                element.text = ""
+                                return
+                            end
+                            element.text = string.format("SIZE %s", tostring(size))
+                        end,
+                        setToken = function(element, token)
+                            element:FireEvent("refreshCharacter", token)
+                        end,
+                    },
+
+                    -- Free strike. It sat in STATISTICS as a stat box, but it
+                    -- is a fixed property of the creature rather than a number
+                    -- that moves in play, so it belongs with size and role.
+                    gui.Label{
+                        classes = {"ident-right", "ident-freestrike"},
+                        refreshCharacter = function(element, token)
+                            local isMonster = false
+                            pcall(function() isMonster = token.properties:IsMonster() end)
+                            if not isMonster then
+                                element.text = ""
+                                return
+                            end
+                            local freeStrike = nil
+                            pcall(function() freeStrike = token.properties:OpportunityAttack() end)
+                            if freeStrike == nil then
+                                element.text = ""
+                                return
+                            end
+                            element.text = string.format("FREE STRIKE %s", tostring(freeStrike))
+                        end,
+                        setToken = function(element, token)
+                            element:FireEvent("refreshCharacter", token)
                         end,
                     },
                 },
@@ -3597,261 +3951,6 @@ function TacPanel.Summary()
     }
 end
 
---- Display the damage / harm box
---- @return Panel
-function TacPanel.HarmBox()
-    return gui.Panel{
-        --pure action box (type damage to apply it): hidden entirely in
-        --read-only mode.
-        classes = {"stamina-box", "harm", "editOnly"},
-        gui.Label{
-            classes = {"stambox-title", "harm"},
-            text = "DMG",
-        },
-        gui.Input{
-            classes = {"stambox-input", "harm"},
-            text = "",
-            characterLimit = 8,
-            placeholderText = "-",
-            data = {
-                token = nil,
-            },
-            change = function(element)
-                if TacPanel.IsReadOnly(element) then
-                    element.textNoNotify = ""
-                    return
-                end
-                local n = tonum(element.text, 0)
-                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
-                    element.data.token:ModifyProperties{
-                        description = "Apply Damage",
-                        execute = function()
-                            element.data.token.properties:TakeDamage(element.text)
-                            element.text = ""
-                        end,
-                    }
-                end
-            end,
-            refreshCharacter = function(element, token)
-                element.data.token = token
-            end,
-            setToken = function(element, token)
-                element:FireEvent("refreshCharacter", token)
-            end,
-        },
-    }
-end
-
---- Display the heal box
---- @return Panel
-function TacPanel.HealBox()
-    return gui.Panel{
-        --pure action box (type healing to apply it): hidden entirely in
-        --read-only mode.
-        classes = {"stamina-box", "heal", "editOnly"},
-        gui.Label{
-            classes = {"stambox-title", "heal"},
-            text = "HEAL",
-        },
-        gui.Input{
-            classes = {"stambox-input", "heal"},
-            text = "",
-            characterLimit = 8,
-            placeholderText = "+",
-            data = {
-                token = nil,
-            },
-            change = function(element)
-                if TacPanel.IsReadOnly(element) then
-                    element.textNoNotify = ""
-                    return
-                end
-                local n = tonum(element.text, 0)
-                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
-                    element.data.token:ModifyProperties{
-                        description = "Apply Healing",
-                        execute = function()
-                            element.data.token.properties:Heal(n)
-                            element.text = ""
-                        end,
-                    }
-                end
-            end,
-            refreshCharacter = function(element, token)
-                element.data.token = token
-            end,
-            setToken = function(element, token)
-                element:FireEvent("refreshCharacter", token)
-            end,
-        },
-    }
-end
-
---- Display the temp stamina box
---- @return Panel
-function TacPanel.TempStamBox()
-    return gui.Panel{
-        classes = {"stamina-box", "temp"},
-        gui.Label{
-            classes = {"stambox-title", "temp"},
-            text = "TEMP",
-        },
-        gui.Input{
-            classes = {"stambox-input", "temp"},
-            text = "",
-            hoverCursor = "text",
-            characterLimit = 8,
-            placeholderText = TEMP_PLACEHOLDER,
-            selectAllOnFocus = true,
-            bgimage = true,
-            data = {
-                token = nil,
-            },
-            change = function(element)
-                if TacPanel.IsReadOnly(element) then
-                    if element.data.token ~= nil and element.data.token.valid then
-                        element:FireEvent("refreshCharacter", element.data.token)
-                    end
-                    return
-                end
-                local before = tonum(element.data.token.properties:TemporaryHitpointsStr(), 0)
-                local after = tonum(element.text, 0)
-                if element.text ~= "" and after ~= before and element.data.token ~= nil and element.data.token.properties ~= nil then
-                    element.data.token:ModifyProperties{
-                        description = "Apply Temp Stamina",
-                        execute = function()
-                            element.data.token.properties:SetTemporaryHitpoints(element.text)
-                            element.data.token.properties:DispatchEvent("gaintempstamina", {})
-                        end,
-                    }
-                end
-            end,
-            refreshCharacter = function(element, token)
-                element.data.token = token
-                element.editable = not TacPanel.IsReadOnly(element)
-                local tempHp = token.properties:TemporaryHitpoints()
-                if tempHp <= 0 then
-                    element.text = "0"
-                else
-                    element.text = string.format("%d", tempHp)
-                end
-
-            end,
-            setToken = function(element, token)
-                element:FireEvent("refreshCharacter", token)
-            end,
-        },
-    }
-end
-
---- Display the current stamina box
---- @return Panel
-function TacPanel.StaminaBox()
-    return gui.Panel{
-        classes = {"stamina-box", "stamina"},
-        halign = "center",
-        valign = "center",
-        data = { token = nil },
-
-        refreshCharacter = function(element, token)
-            element.data.token = token
-            element:FireEventTree("refreshValue", token)
-        end,
-        refreshToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-        setToken = function(element, token)
-            element:FireEvent("refreshCharacter", token)
-        end,
-
-        gui.Panel{
-            classes = {"container"},
-            flow = "horizontal",
-            valign = "center",
-            halign = "center",
-            gui.Input{
-                classes = {"stambox-stam", "current"},
-                hoverCursor = "text",
-                text = "0",
-                characterLimit = 4,
-                selectAllOnFocus = true,
-                placeholderText = "--",
-                numeric = true,
-                data = {
-                    token = nil,
-                },
-                linger = function(element)
-                    local token = element.data.token
-                    if token ~= nil and token.properties ~= nil then
-                        element.tooltip = gui.StatsHistoryTooltip{
-                            description = "stamina",
-                            entries = token.properties:GetStatHistory("stamina"):GetHistory()
-                        }
-                    end
-                end,
-                change = function(element)
-                    local token = element.data.token
-                    if TacPanel.IsReadOnly(element) then
-                        if token ~= nil and token.valid then
-                            element:FireEvent("refreshValue", token)
-                        end
-                        return
-                    end
-                    if token ~= nil and token.valid and token.properties ~= nil then
-                        local n = tonumber(element.text)
-                        if n ~= nil and (n >= 0 or token.properties:IsHero()) then
-                            token:ModifyProperties{
-                                description = "Set Stamina",
-                                execute = function()
-                                    token.properties:SetCurrentHitpoints(n)
-                                end,
-                            }
-                        end
-                    end
-                end,
-                refreshValue = function(element, token)
-                    element.data.token = token
-                    --a game update must not stomp on what the user is currently typing.
-                    if element.hasFocus then
-                        return
-                    end
-                    element.editable = not TacPanel.IsReadOnly(element)
-                    local text = tostring(token.properties:CurrentHitpoints())
-                    element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
-                    element.textNoNotify = text
-                end,
-                defocus = function(element)
-                    --catch up on anything we skipped while the field was being edited.
-                    local token = element.data.token
-                    if token ~= nil and token.valid then
-                        element:FireEvent("refreshValue", token)
-                    end
-                end,
-            },
-            gui.Label{
-                classes = {"stambox-stam", "max"},
-                text = "/ 0",
-                data = { token = nil },
-                refreshValue = function(element, token)
-                    element.data.token = token
-                    element.text = string.format("/ %d", token.properties:MaxHitpoints())
-                end,
-                linger = function(element)
-                    local token = element.data.token
-                    if token ~= nil and token.properties ~= nil then
-                        local baseValue = token.properties:BaseHitpoints()
-                        local modifications = token.properties:DescribeModifications("hitpoints", baseValue)
-                        local text = string.format("Base Stamina: %d", baseValue)
-                        for _, modification in ipairs(modifications) do
-                            text = text .. string.format("\n%s: %s", modification.key, modification.value)
-                        end
-                        element.tooltip = TacPanel.Tooltip(text)
-                    end
-                end,
-            },
-        },
-    }
-end
 
 --- Display-only recovery pips, split into rows of 10
 --- @param resolveRecovery fun(): string|nil, table|nil
@@ -4250,10 +4349,397 @@ function TacPanel.RecoveriesBox()
     }
 end
 
+--- How often the bar's adjust panel polls the mouse wheel. It only needs to
+--- while an entry box is open, so it idles at an interval that never fires in
+--- practice rather than ticking a hundred times a second for nothing.
+local BAR_ENTRY_THINK_IDLE = 3600
+local BAR_ENTRY_THINK_OPEN = 0.01
+
+--- How long the wheel has to be still before the value it landed on is applied.
+local BAR_ENTRY_WHEEL_SETTLE = 0.3
+
+--- The adjust controls that appear on the stamina bar while it is hovered:
+--- "-" and "+" at the left, "TEMP" at the right, and the number in the middle
+--- is itself a button. Picking one swaps that spot for a small entry box;
+--- typing a number and pressing enter applies it and closes.
+---
+--- These do exactly what the DMG / STAMINA / HEAL / TEMP boxes above the bar
+--- used to do -- the same TakeDamage / Heal / SetCurrentHitpoints /
+--- SetTemporaryHitpoints calls, wrapped the same way.
+--- @param labelPanel Panel The bar's own number, hidden while it is being edited
+--- @return Panel panel, fun(): nil openStamina
+function TacPanel.BarAdjustControls(labelPanel)
+    local m_token = nil
+    local m_tokenid = nil
+    local m_mode = nil          -- "harm"|"heal"|"temp"|"stamina", nil when closed
+    local m_focused = false     -- true once the entry field really has focus
+
+    --Forward-declared: the handlers below close over them, and in Lua a local
+    --is not in scope inside its own initializer.
+    local adjustPanel
+    local leftButtons
+    local rightButtons
+    local entryRow
+    local entryKey
+    local entryInput
+    local NudgeEntry
+    local ApplyValue
+
+    --Set by the wheel, applied once it stops. nil when there is nothing waiting.
+    local m_wheelPending = nil
+    local m_wheelIdle = 0
+
+    local function CloseEntry()
+        m_mode = nil
+        m_focused = false
+        m_wheelPending = nil
+        entryRow:SetClass("collapsed", true)
+        leftButtons:SetClass("collapsed", false)
+        rightButtons:SetClass("collapsed", false)
+        labelPanel:SetClass("collapsed", false)
+        adjustPanel:SetClass("open", false)
+        --Only claim escape while the box is actually up, so a stray escape
+        --anywhere else in the app still does what it always did.
+        entryInput.captureEscape = false
+        adjustPanel.thinkTime = BAR_ENTRY_THINK_IDLE
+    end
+
+    local function OpenEntry(mode)
+        m_mode = mode
+
+        local props = nil
+        if m_token ~= nil and m_token.valid then
+            props = m_token.properties
+        end
+
+        --The box opens where its control was, so the edit happens under the
+        --pointer rather than jumping across the bar.
+        if mode == "harm" then
+            entryKey.text = "DMG"
+            entryInput.text = ""
+            entryRow.selfStyle.halign = "left"
+        elseif mode == "heal" then
+            entryKey.text = "HEAL"
+            entryInput.text = ""
+            entryRow.selfStyle.halign = "left"
+        elseif mode == "temp" then
+            entryKey.text = "TEMP"
+            entryRow.selfStyle.halign = "right"
+            --Temp stamina is a value rather than a delta, so it opens on what
+            --the creature already has.
+            local cur = 0
+            if props ~= nil then
+                cur = props:TemporaryHitpoints() or 0
+            end
+            entryInput.text = tostring(cur)
+        else
+            --Stamina replaces the number in place, so it needs no key label.
+            entryKey.text = ""
+            entryRow.selfStyle.halign = "center"
+            local cur = 0
+            if props ~= nil then
+                cur = props:CurrentHitpoints()
+            end
+            entryInput.text = tostring(cur)
+        end
+
+        entryKey:SetClass("collapsed", mode == "stamina")
+        --Both button clusters go while an entry is up: one edit at a time, and
+        --a centred stamina box would otherwise run into them.
+        leftButtons:SetClass("collapsed", true)
+        rightButtons:SetClass("collapsed", true)
+        labelPanel:SetClass("collapsed", mode == "stamina")
+        entryRow:SetClass("collapsed", false)
+        adjustPanel:SetClass("open", true)
+        entryInput.captureEscape = true
+        adjustPanel.thinkTime = BAR_ENTRY_THINK_OPEN
+
+        --Focus a frame later: the field is still collapsed as far as the engine
+        --is concerned when this runs, so focusing it here does not stick.
+        m_focused = false
+        dmhub.Schedule(0.01, function()
+            if mod.unloaded then return end
+            if m_mode ~= nil and entryInput.valid then
+                gui.SetFocus(entryInput)
+            end
+        end)
+    end
+
+    --A wheel notch over an open entry nudges the value by one, which beats
+    --typing for the small adjustments most of these are. It only edits the
+    --field: enter still commits, so a wheel that overshoots costs nothing.
+    NudgeEntry = function(delta)
+        if m_mode == nil then return end
+        --Only the modes that hold an absolute value. DMG and HEAL hold a delta
+        --that is applied on commit, so a wheel that committed itself would keep
+        --stacking damage every time it paused.
+        if m_mode ~= "stamina" and m_mode ~= "temp" then return end
+
+        local props = nil
+        if m_token ~= nil and m_token.valid then
+            props = m_token.properties
+        end
+
+        --One notch is one point. When several land in the same frame the engine
+        --reports them together, so take them all rather than dropping the
+        --extras -- a fast spin should not lose half its travel.
+        local steps = cond(delta < 0, -1, 1)
+        if math.abs(delta) >= 2 then
+            steps = math.floor(math.abs(delta)) * cond(delta < 0, -1, 1)
+        end
+
+        local value = (tonumber(entryInput.text) or 0) + steps
+
+        --Damage, healing and temp are never negative. Stamina can be, but only
+        --for a hero, who keeps counting down while dying.
+        local allowNegative = false
+        if m_mode == "stamina" and props ~= nil then
+            allowNegative = props:IsHero()
+        end
+        if value < 0 and not allowNegative then
+            value = 0
+        end
+
+        --Nor can stamina be wheeled past the creature's maximum.
+        if m_mode == "stamina" and props ~= nil then
+            local maxHP = props:MaxHitpoints()
+            if value > maxHP then
+                value = maxHP
+            end
+        end
+
+        --NOT .text: that fires change, which would commit and close the box on
+        --every notch.
+        entryInput.textNoNotify = tostring(value)
+        m_wheelPending = tostring(value)
+        m_wheelIdle = 0
+    end
+
+    local function AdjustButton(mode, text, extraClass)
+        return gui.Panel{
+            classes = {"bar-adjust-btn", extraClass},
+            hoverCursor = "pressbutton",
+            --A panel with no background image is not a hit target at all, so
+            --clicks fell straight through it to the bar behind. bgimage is a
+            --panel property; a style rule that sets it is ignored.
+            bgimage = true,
+            press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
+                OpenEntry(mode)
+            end,
+            gui.Label{
+                classes = {"bar-adjust-glyph", extraClass},
+                text = text,
+                --Otherwise the label sits on top of its own button and eats the
+                --click, and the button's press never fires.
+                interactable = false,
+            },
+        }
+    end
+
+    entryKey = gui.Label{
+        classes = {"bar-entry-key"},
+        text = "DMG",
+    }
+
+    entryInput = gui.Input{
+        classes = {"bar-entry-input"},
+        text = "",
+        --Blank rather than the default "Enter text...", which is far wider than
+        --the field and spilled across the bar.
+        placeholderText = "",
+        characterLimit = 8,
+        selectAllOnFocus = true,
+        hoverCursor = "text",
+        captureEscape = false,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function(element)
+            CloseEntry()
+            gui.SetFocus(nil)
+        end,
+        focus = function(element)
+            m_focused = true
+        end,
+        defocus = function(element)
+            --Only a real focus loss closes the box. Without the guard, the
+            --defocus that fires while the field is still being opened shut it
+            --again immediately.
+            if not m_focused then return end
+            m_focused = false
+
+            --Closing is deferred a frame for two reasons. 'change' fires on
+            --focus loss too, and closing on the spot cleared the mode before it
+            --ran, so clicking away threw the edit away instead of committing
+            --it. And clicking INSIDE the box to move the caret defocuses and
+            --refocuses, which closed the box out from under the pointer.
+            dmhub.Schedule(0.01, function()
+                if mod.unloaded then return end
+                if not entryInput.valid then return end
+                --Focus came straight back, or the value already committed.
+                if m_focused or m_mode == nil then return end
+                CloseEntry()
+            end)
+        end,
+        change = function(element)
+            --Read everything BEFORE closing: change also fires when the field
+            --loses focus, and closing must not eat the value being committed.
+            local token = m_token
+            local mode = m_mode
+            local text = element.text
+            m_wheelPending = nil
+            CloseEntry()
+            ApplyValue(mode, token, text, element)
+        end,
+    }
+
+    --Shared by the enter/commit path and by the wheel, which applies on its own
+    --rather than waiting for enter: a value written with textNoNotify leaves the
+    --field looking unmodified to the engine, so enter fires no change event and
+    --a wheeled number could never be committed by hand.
+    ApplyValue = function(mode, token, text, element)
+            local n = tonum(text, 0)
+
+            if element ~= nil and TacPanel.IsReadOnly(element) then return end
+            if mode == nil then return end
+            if token == nil or not token.valid or token.properties == nil then return end
+
+            if mode == "harm" then
+                if n <= 0 then return end
+                token:ModifyProperties{
+                    description = "Apply Damage",
+                    execute = function()
+                        --A string, not the number: TakeDamage takes a formula.
+                        token.properties:TakeDamage(text)
+                    end,
+                }
+            elseif mode == "heal" then
+                if n <= 0 then return end
+                token:ModifyProperties{
+                    description = "Apply Healing",
+                    execute = function()
+                        token.properties:Heal(n)
+                    end,
+                }
+            elseif mode == "temp" then
+                if text == "" then return end
+                local before = tonum(token.properties:TemporaryHitpointsStr(), 0)
+                if n == before then return end
+                token:ModifyProperties{
+                    description = "Apply Temp Stamina",
+                    execute = function()
+                        token.properties:SetTemporaryHitpoints(text)
+                        token.properties:DispatchEvent("gaintempstamina", {})
+                    end,
+                }
+            elseif mode == "stamina" then
+                local value = tonumber(text)
+                if value == nil then return end
+                --Only heroes go below zero; they keep counting down while dying.
+                if value < 0 and not token.properties:IsHero() then return end
+                token:ModifyProperties{
+                    description = "Set Stamina",
+                    execute = function()
+                        token.properties:SetCurrentHitpoints(value)
+                    end,
+                }
+            end
+    end
+
+    leftButtons = gui.Panel{
+        classes = {"bar-adjust-row", "left"},
+        floating = true,
+        AdjustButton("harm", "-"),
+        AdjustButton("heal", "+"),
+    }
+
+    rightButtons = gui.Panel{
+        classes = {"bar-adjust-row", "right"},
+        floating = true,
+        AdjustButton("temp", "TEMP", "temp"),
+    }
+
+    entryRow = gui.Panel{
+        classes = {"bar-adjust-row", "collapsed"},
+        floating = true,
+        entryKey,
+        entryInput,
+    }
+
+    adjustPanel = gui.Panel{
+        --editOnly: these only apply changes, so they have no business showing
+        --while the panel is read-only.
+        classes = {"bar-adjust", "editOnly"},
+        floating = true,
+        leftButtons,
+        rightButtons,
+        entryRow,
+
+        --Polled rather than handled: the engine's 'wheel' event never reaches
+        --this subtree at all (verified at input, row and panel level), because
+        --the scroll container the character panel sits in claims it first.
+        --dmhub.mouseWheel reports the notch directly.
+        --
+        --Gated on the field having focus, so this only ever reads the wheel
+        --while an entry box is actually up and being typed into.
+        thinkTime = BAR_ENTRY_THINK_IDLE,
+        think = function(element)
+            if m_mode == nil then return end
+            if not entryInput.valid or not entryInput.hasFocus then return end
+
+            local notches = dmhub.mouseWheel
+            if notches ~= 0 then
+                NudgeEntry(notches)
+                return
+            end
+
+            --A whole spin of the wheel settles into one change rather than one
+            --per notch, so it is a single upload and a single undo step.
+            if m_wheelPending ~= nil then
+                m_wheelIdle = m_wheelIdle + BAR_ENTRY_THINK_OPEN
+                if m_wheelIdle >= BAR_ENTRY_WHEEL_SETTLE then
+                    local text = m_wheelPending
+                    m_wheelPending = nil
+                    ApplyValue(m_mode, m_token, text, element)
+                end
+            end
+        end,
+
+        refreshCharacter = function(element, token)
+            local charid = nil
+            if token ~= nil and token.valid then
+                charid = token.charid
+            end
+
+            --A different creature mid-edit would apply the number to the wrong
+            --one, so the entry closes rather than following along. Gated on the
+            --charid CHANGING: refreshCharacter fires on every panel refresh,
+            --not just on a new token, and closing unconditionally shut the box
+            --again in the same frame it was opened.
+            if m_mode ~= nil and charid ~= m_tokenid then
+                CloseEntry()
+            end
+
+            m_tokenid = charid
+            m_token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    return adjustPanel, function()
+        OpenEntry("stamina")
+    end
+end
+
 --- Display the health bar
 --- @return Panel
 function TacPanel.HealthBar()
     local m_tokenid = nil
+    local m_token = nil
 
     local m_animValue
     local m_animTarget
@@ -4270,6 +4756,10 @@ function TacPanel.HealthBar()
     local m_bloodied = nil
     local m_isHero = nil
     local m_windedVal = nil
+
+    --Resolved once: an inline token like this is not theme-reactive, matching
+    --the other inline ResolveTokens sites in this file.
+    local m_tempColor = ThemeEngine.ResolveTokens("@accent")
 
     local resultPanel
 
@@ -4292,6 +4782,10 @@ function TacPanel.HealthBar()
         classes = {"fillBarFill"},
     }
 
+    --Forward-declared: labelPanel's press handler needs it, and it is not built
+    --until the adjust controls are, which need labelPanel.
+    local m_openStamina
+
     local icon = gui.Panel{
         classes = {"bgInverse"},
         width = 12,
@@ -4300,6 +4794,9 @@ function TacPanel.HealthBar()
         halign = "left",
         hmargin = 4,
         lmargin = 50,
+        --The whole cluster is one button; a child left interactable would eat
+        --the press before its parent saw it.
+        interactable = false,
     }
     local label = gui.Label{
         classes = {"fg", "sizeS", "number", "bold"},
@@ -4308,6 +4805,7 @@ function TacPanel.HealthBar()
         width = "auto",
         height = "auto",
         minWidth = 80,
+        interactable = false,
     }
 
     local labelPanel = gui.Panel{
@@ -4317,9 +4815,34 @@ function TacPanel.HealthBar()
         valign = "center",
         flow = "horizontal",
         floating = true,
+        --Click the number to set stamina outright, which is what the STAMINA
+        --box used to be for. Needs a background image to be a hit target at
+        --all, kept clear so nothing changes visually.
+        bgimage = true,
+        bgcolor = "clear",
+        hoverCursor = "pressbutton",
+        press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
+            if m_openStamina ~= nil then
+                m_openStamina()
+            end
+        end,
+        --The stamina history the STAMINA box used to show on hover.
+        linger = function(element)
+            local token = m_token
+            if token ~= nil and token.valid and token.properties ~= nil then
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "stamina",
+                    entries = token.properties:GetStatHistory("stamina"):GetHistory()
+                }
+            end
+        end,
         icon,
         label,
     }
+
+    local adjustControls
+    adjustControls, m_openStamina = TacPanel.BarAdjustControls(labelPanel)
 
     resultPanel = gui.Panel{
         classes = {"bordered"},
@@ -4334,6 +4857,10 @@ function TacPanel.HealthBar()
         fill,
         tempFill,
         labelPanel,
+        --The adjust controls, revealed on hover. A direct child of the bar
+        --because their reveal rule is "parent:hover", which only ever matches
+        --the immediate parent.
+        adjustControls,
 
         thinkTime = 1,
 
@@ -4366,6 +4893,7 @@ function TacPanel.HealthBar()
 
             local newToken = token.charid ~= m_tokenid
             m_tokenid = token.charid
+            m_token = token
 
             local props = token.properties
 
@@ -4386,17 +4914,26 @@ function TacPanel.HealthBar()
             element:SetClass("borderWarning", m_bloodied and not m_dying)
             element:SetClass("borderDanger", m_dying)
 
+            --Temp stamina is shown here because the TEMP box that used to carry
+            --the number is gone. The bar's tempFill segment shows that there IS
+            --some, but not how much, and nothing else in the panel prints it.
+            local staminaText = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
+            if m_tempHP > 0 then
+                staminaText = string.format("%s <color=%s>+%d</color>",
+                    staminaText, m_tempColor, m_tempHP)
+            end
+
             if m_dead then
                 label.text = "DEAD"
                 icon.bgimage = "ui-icons/Pin_Boss.png"
             elseif m_dying then
-                label.text = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
+                label.text = staminaText
                 icon.bgimage = "drawsteel/Icon_STA_Dying.png"
             elseif m_bloodied then
-                label.text = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
+                label.text = staminaText
                 icon.bgimage = "drawsteel/Icon_STA_Winded.png"
             else
-                label.text = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
+                label.text = staminaText
                 icon.bgimage = "drawsteel/Icon_STA_Healthy.png"
             end
 
@@ -4506,6 +5043,18 @@ function TacPanel.Resistances()
                 return
             end
 
+            --Monsters left-align this row so IMMUNITIES and the CONDITIONS
+            --line beneath it share a left edge. Heroes keep it centred.
+            --
+            --"flush" additionally drops the res-box padding and margin, which
+            --between them pushed IMMUNITIES 10px in while CONDITIONS sat at
+            --6px -- close enough to read as a misalignment rather than an
+            --indent. Both now start on the DMG box's border.
+            local isMonster = false
+            pcall(function() isMonster = token.properties:IsMonster() end)
+            element.selfStyle.halign = cond(isMonster, "left", "center")
+            element:SetClass("flush", isMonster)
+
             local creature = token.properties
             local entries = creature:ResistanceEntries()
 
@@ -4593,16 +5142,49 @@ function TacPanel.Stamina()
     return TacPanel.CollapsiblePanel{
         title = "STAMINA",
         altBg = false,
+
+        --Monsters drop the section header entirely: the stamina box now
+        --carries its own STAMINA label like the boxes beside it, and losing
+        --the header moves the whole block up.
+        refreshCharacter = function(element, token)
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            local titleBar = element.children[1]
+            if titleBar ~= nil then
+                titleBar:SetClass("collapsed", isMonster)
+            end
+            element.selfStyle.tpad = cond(isMonster, 0, 8)
+
+            --Monsters drop this section's own bottom rule. It is only as wide
+            --as the stamina column, so it stopped at the portrait and cut
+            --across the middle of the block -- and the row around it already
+            --draws a full-width one at the block's bottom edge. Heroes have no
+            --portrait beside them, so theirs still spans and stays.
+            --
+            --A class, not a selfStyle write: assigning a border table to
+            --selfStyle at runtime does not take.
+            element:SetClass("no-rule", isMonster)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        --This row used to carry DMG, STAMINA, HEAL and TEMP as well. The three
+        --action boxes are the bar's hover controls now (see
+        --TacPanel.BarAdjustControls), and the bar itself prints the number, so
+        --only recoveries are left -- which monsters do not have, leaving the
+        --row empty for them.
         gui.Panel{
             classes = {"stamina-controls"},
-            TacPanel.HarmBox(),
-            TacPanel.StaminaBox(),
-            TacPanel.HealBox(),
             TacPanel.RecoveriesBox(),
-            TacPanel.TempStamBox(),
         },
         TacPanel.HealthBar(),
         TacPanel.Resistances(),
+        --Monsters only; collapses itself for heroes, who keep the
+        --AURAS, CONDITIONS & EFFECTS section instead.
+        TacPanel.MonsterConditions(),
     }
 end
 
@@ -4850,7 +5432,7 @@ function TacPanel.AltitudeBox()
         gui.Panel{
             classes = {"altitude-row"},
             gui.Label{
-                classes = {"movebox-value"},
+                classes = {"movebox-value", "altitude-value"},
                 text = "0",
                 refreshCharacter = function(element, token)
                     if token == nil or not token.valid then return end
@@ -4870,6 +5452,7 @@ function TacPanel.AltitudeBox()
                 gui.Label{
                     classes = {"altitude-btn", "editOnly"},
                     text = "+",
+                    hoverCursor = "pressbutton",
                     data = { token = nil },
                     press = function(element)
                         if TacPanel.IsReadOnly(element) then return end
@@ -4896,8 +5479,13 @@ function TacPanel.AltitudeBox()
                     end,
                 },
                 gui.Label{
+                    classes = {"altitude-btn-sep", "editOnly"},
+                    text = "/",
+                },
+                gui.Label{
                     classes = {"altitude-btn", "editOnly"},
                     text = "-",
+                    hoverCursor = "pressbutton",
                     data = { token = nil },
                     press = function(element)
                         if TacPanel.IsReadOnly(element) then return end
@@ -4943,6 +5531,35 @@ function TacPanel.SetCompactBoxes(element, token)
     end
     for _, child in ipairs(element.children) do
         child:SetClass("compact", compact)
+
+        --SpeedBox wraps its value labels in an inner container so the
+        --"hindered" variant can sit beside the base number. "parent:" matches
+        --the DIRECT parent only, so those labels never saw the compact rule
+        --and kept the 24pt full-size value while Disengage and Stability
+        --shrank -- which is why Speed's number looked oversized. Tag the
+        --wrapper too so the labels inside it match their neighbours.
+        for _, grandchild in ipairs(child.children or {}) do
+            if grandchild:HasClass("container") then
+                grandchild:SetClass("compact", compact)
+
+                --These wrappers declare valign="top" INLINE, and an inline arg
+                --becomes selfStyle that no selector can override. Stacked
+                --vertically (heroes) top is right; side by side (monsters) it
+                --pinned the small label to the top of the row while the larger
+                --value centred, which is why "+2" sat half a line below
+                --"Might". Set it directly, since a rule cannot.
+                grandchild.selfStyle.valign = cond(compact, "center", "top")
+            end
+
+            --AltitudeBox has the same problem one level deeper: its value sits
+            --inside altitude-row, so "parent:compact" never reached it and the
+            --altitude kept the 24pt hero-size number while everything beside it
+            --shrank. Tagging the row fixes the size and lets the row size to its
+            --contents so "On Ground" stays on the Speed line.
+            if grandchild:HasClass("altitude-row") then
+                grandchild:SetClass("compact", compact)
+            end
+        end
     end
 end
 
@@ -5069,7 +5686,10 @@ function TacPanel.MonsterProfile()
         height = "auto",
         halign = "left",
         flow = "vertical",
-        hpad = 4,
+        --No horizontal padding: the movement boxes above sit on the container's
+        --own left edge, and an inset here put "Movement" out of line with
+        --"Speed". The label's own 2px lmargin matches the boxes' padding.
+        hpad = 0,
         borderBox = true,
 
         refreshCharacter = function(element, token)
@@ -5087,32 +5707,8 @@ function TacPanel.MonsterProfile()
 
             local props = token.properties
 
-            local size = nil
-            pcall(function() size = props:SizeDescription() end)
-            local freeStrike = nil
-            pcall(function() freeStrike = props:OpportunityAttack() end)
-
-            --Same shape as SpeedBox / StabilityBox so these read as more of
-            --the section's own stat boxes rather than as a new kind of row:
-            --muted title over a value in the number face.
-            local function StatBox(title, value)
-                --"compact" is unconditional here: this row only ever exists
-                --for monsters, so it never needs the full-size variant.
-                return gui.Panel{
-                    classes = {"movement-box", "compact"},
-                    gui.Label{ classes = {"movebox-title"}, text = title },
-                    gui.Label{ classes = {"movebox-value"}, text = tostring(value) },
-                }
-            end
-
-            local boxes = {}
-            if size ~= nil and size ~= "" then
-                boxes[#boxes+1] = StatBox("Size", size)
-            end
-            if freeStrike ~= nil then
-                boxes[#boxes+1] = StatBox("Free Strike", freeStrike)
-            end
-
+            --Size and free strike both live in the header strip now, so this
+            --block is down to the movement modes alone.
             local modes = {}
             for mode, speed in pairs(props:try_get("movementSpeeds", {})) do
                 if speed > 0 then
@@ -5123,14 +5719,6 @@ function TacPanel.MonsterProfile()
             table.sort(modes)
 
             local children = {}
-            if #boxes > 0 then
-                --Its own row: the movement row already carries four boxes at
-                --20% each, so appending would overflow the panel.
-                children[#children+1] = gui.Panel{
-                    classes = {"movement-panel"},
-                    children = boxes,
-                }
-            end
             if #modes > 0 then
                 children[#children+1] = gui.Label{
                     classes = {"ms-profile"},
@@ -5160,6 +5748,7 @@ function TacPanel.Statistics()
         sectionId = "statistics",
         title = "STATISTICS",
         altBg = false,
+
         gui.Panel{
             classes = {"container"},
             width = "100%",
@@ -6066,31 +6655,6 @@ local function MonsterSheetAbilities(props)
     return abilities, triggers, villainActions
 end
 
---- A minion's "With Captain" bonus text, or nil when there is nothing worth
---- showing. Non-minions never carry the field at all, and 22 of the 181
---- minions that do store a placeholder dash rather than a bonus -- "-" is
---- truthy in Lua, so it has to be filtered out explicitly.
----
---- Shared by the monster TRAITS section, the hero FEATURES chip and the
---- feature search matcher, so a query can never claim a hit on something the
---- panel is not displaying.
---- @param creature any
---- @return nil|string
-local function WithCaptainText(creature)
-    if not creature.minion then
-        return nil
-    end
-    local raw = creature:try_get("withCaptain", false)
-    if type(raw) ~= "string" then
-        return nil
-    end
-    local trimmed = raw:match("^%s*(.-)%s*$")
-    if trimmed == "" or trimmed == "-" or trimmed == "--" then
-        return nil
-    end
-    return trimmed
-end
-
 --- Every trait the monster shows in print: group traits, its own features,
 --- monster notes, and a minion's With Captain bonus. Entries with no body are
 --- dropped -- monster:Render prints a bare "Monster Notes:" heading for those,
@@ -6114,15 +6678,9 @@ local function MonsterSheetTraits(props)
         add(note.title, note.text)
     end
 
-    --With Captain lives here for monsters. It used to be a chip in FEATURES,
-    --which monsters no longer show. It only APPLIES while the squad has a
-    --captain (see FillTemporalActiveModifiers in MCDMMonster.lua), so the card
-    --is marked when it is actually live rather than merely possible.
-    local captainText = WithCaptainText(props)
-    if captainText ~= nil then
-        local squad = props:try_get("_tmp_minionSquad")
-        add("With Captain", captainText, squad ~= nil and squad.hasCaptain == true)
-    end
+    --With Captain is NOT here: it moved up into the identity strip, under the
+    --monster type, because it describes what this creature is rather than
+    --something it can do. Listing it in both places would double it.
 
     return out
 end
@@ -7155,16 +7713,28 @@ end
 
 --- Display the Skills & Languages panel.
 ---
---- Monsters get a Languages-only section: titled LANGUAGES, with a count,
---- hidden when there is nothing to list. Heroes are untouched -- they keep
---- their skill proficiencies, the SKILLS & LANGUAGES title, and the section
---- stays put whether or not it has content.
+--- Monsters have no skills, so there is nothing here worth folding away: they
+--- get a bare "Languages: ..." line with no header and no expander, hidden
+--- entirely when they speak nothing. Heroes are untouched -- they keep their
+--- skill proficiencies, the SKILLS & LANGUAGES title, the collapse arrow, and
+--- the section stays put whether or not it has content.
 --- @return Panel
 function TacPanel.SkillLanguages()
     return TacPanel.CollapsiblePanel{
         sectionId = "skilllanguages",
         altBg = false,
         title = "SKILLS & LANGUAGES",
+
+        --Without these forwards the outer panel never refreshes: the sections
+        --are driven by setToken/refreshToken, not by a tree-wide
+        --refreshCharacter, so everything below ran only on the body panel
+        --(which has its own forwards) and this handler never fired at all.
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
 
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
@@ -7173,8 +7743,11 @@ function TacPanel.SkillLanguages()
 
             local isMonster = false
             pcall(function() isMonster = token.properties:IsMonster() end)
+            local titleBar = element.children[1]
+
             if not isMonster then
                 element:SetClass("collapsed", false)
+                if titleBar ~= nil then titleBar:SetClass("collapsed", false) end
                 SetSectionTitle(element, "SKILLS & LANGUAGES")
                 return
             end
@@ -7186,7 +7759,14 @@ function TacPanel.SkillLanguages()
             end
 
             element:SetClass("collapsed", false)
-            SetSectionTitle(element, string.format("LANGUAGES (%d)", #languages))
+            --No header and no expander for monsters: one line of content does
+            --not earn a section. The body has to be forced open as well as the
+            --bar hidden, or a section left collapsed by an earlier click would
+            --hide the line with no way to get it back.
+            if titleBar ~= nil then titleBar:SetClass("collapsed", true) end
+            element.data.collapsed = false
+            element:FireEventTree("setCollapse", false)
+            element.selfStyle.tpad = 0
         end,
 
         gui.Panel{
@@ -7230,13 +7810,10 @@ function TacPanel.SkillLanguages()
                     names[#names + 1] = language.name
                 end
                 if #names > 0 then
-                    --A monster's header already reads "LANGUAGES (n)", so the
-                    --inline "Languages:" prefix would just repeat it. A hero's
-                    --section holds skills too, so there it still earns its place.
-                    local text = string.join(names, ", ")
-                    if not isMonster then
-                        text = string.format("**<color=@fgMuted>Languages:</color>** %s", text)
-                    end
+                    --The prefix now carries the labelling for monsters too:
+                    --they have no header above this line to name it.
+                    local text = string.format("**<color=@fgMuted>Languages:</color>** %s",
+                        string.join(names, ", "))
                     children[#children + 1] = gui.Label{
                         classes = {"skillslangs"},
                         textWrap = true,
@@ -9945,6 +10522,107 @@ end
 
 --- Display the Conditions panel
 --- @return Panel
+--- Conditions for monsters: the same chips the AURAS, CONDITIONS & EFFECTS
+--- section builds, but as a bare row inside the stamina block under the
+--- immunity line, with no section header of its own. Monsters hide that
+--- section entirely; heroes still use it.
+--- @return Panel
+function TacPanel.MonsterConditions()
+    local m_token = nil
+
+    --Explicit halign: {iconButton} supplies valign only, and a horizontal-flow
+    --child with no alignment centres itself.
+    local m_addButton = gui.Label{
+        classes = {"cond-add", "editOnly"},
+        text = "+",
+        hoverCursor = "pressbutton",
+        press = function(element)
+            if TacPanel.IsReadOnly(element) then return end
+            TacPanel.AddConditionMenu{
+                tokens = {m_token},
+                button = element,
+            }
+        end,
+        linger = function(el)
+            gui.Tooltip("Add a condition or effect")(el)
+        end,
+    }
+
+    --Keyed the same way the resistance line reads ("IMMUNITIES: ..."), and
+    --left-aligned with it, so the two lines stack as a pair.
+    local m_label = gui.Label{
+        classes = {"cond-key"},
+        text = "CONDITIONS:",
+    }
+
+    return gui.Panel{
+        --"flush" strips the key label's padding so CONDITIONS starts on the
+        --same line as the DMG box's border, which is the column's real left
+        --edge. This panel is monster-only, so the class is unconditional.
+        classes = {"panel", "cond-chips", "flush", "collapsed"},
+        wrap = true,
+        width = "100%",
+        height = "auto",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            m_token = token
+            element.data.token = token
+
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            if not isMonster then
+                element:SetClass("collapsed", true)
+                element.children = {}
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            local creature = token.properties
+            local children = {m_label, m_addButton}
+
+            for condid, cond in pairs(creature:try_get("inflictedConditions", {})) do
+                children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
+            end
+
+            local ongoingTable = dmhub.GetTable("characterOngoingEffects")
+            for _, entry in ipairs(creature:ActiveOngoingEffects()) do
+                local effectInfo = ongoingTable[entry.ongoingEffectid]
+                if effectInfo ~= nil and effectInfo.statusEffect then
+                    children[#children + 1] = TacPanel.StatusEffectChip(entry, effectInfo, token)
+                end
+            end
+
+            for key, entry in pairs(creature:try_get("customConditions", {})) do
+                children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
+            end
+
+            for _, auraInfo in ipairs(creature:GetAurasAffecting(token) or {}) do
+                --our own auras come back here too, because we emit them.
+                if rawget(auraInfo.auraInstance, "casterid") ~= token.charid then
+                    children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+                end
+            end
+
+            FillAurasEmittingPanels(token, children)
+
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        m_label,
+        m_addButton,
+    }
+end
+
 function TacPanel.Conditions()
     local m_token = nil
 
@@ -9970,6 +10648,7 @@ function TacPanel.Conditions()
 
     return TacPanel.CollapsiblePanel{
         sectionId = "conditions",
+        classes = {"collapsed"},
         altBg = false,
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
@@ -9977,6 +10656,16 @@ function TacPanel.Conditions()
             m_token = token
             element.data.token = token
             if token == nil or not token.valid then
+                element:FireEventTree("setContent", {})
+                return
+            end
+
+            --Monsters carry their conditions inline under the immunity line
+            --instead (TacPanel.MonsterConditions), so this whole section goes.
+            local isMonster = false
+            pcall(function() isMonster = token.properties:IsMonster() end)
+            element:SetClass("collapsed", isMonster)
+            if isMonster then
                 element:FireEventTree("setContent", {})
                 return
             end
@@ -11627,24 +12316,20 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
         --is collapsed and the stamina column takes the whole width, which is
         --the original arrangement.
         gui.Panel{
-            classes = {"container"},
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            valign = "top",
-            --Half the space that was sitting above the rule is moved to
-            --below it, so the portrait is not jammed against the divider.
-            --Monsters only: heroes have no portrait in this row.
+            --See the "vitals-row" rules in TacPanelStyles.MonsterSheet. The rule
+            --that closes this block off is drawn by STATISTICS below it.
+            classes = {"container", "vitals-row"},
             refreshCharacter = function(element, token)
                 local isMonster = false
                 if token ~= nil and token.valid and token.properties ~= nil then
                     pcall(function() isMonster = token.properties:IsMonster() end)
                 end
-                element.selfStyle.tmargin = cond(isMonster, 6, 0)
+                element:SetClass("monster", isMonster)
             end,
             setToken = function(element, token)
                 element:FireEvent("refreshCharacter", token)
             end,
+
             TacPanel.GatedPortrait(true),
             gui.Panel{
                 classes = {"container"},
@@ -11653,7 +12338,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 flow = "vertical",
                 valign = "top",
                 --Leaves room for the portrait column on monsters only: the
-                --90px frame plus the 36px strip its rmargin reserves for the
+                --90px frame plus the 30px strip its rmargin reserves for the
                 --control buttons, plus slack. A wrapped row that fills to
                 --within ~3px phantom-wraps, reserving two lines to render one.
                 refreshCharacter = function(element, token)
@@ -11662,7 +12347,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                         pcall(function() isMonster = token.properties:IsMonster() end)
                     end
                     if isMonster then
-                        element.selfStyle.width = "100%-140"
+                        element.selfStyle.width = "100%-134"
                     else
                         element.selfStyle.width = "100%"
                     end
@@ -11673,6 +12358,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 TacPanel.Stamina(),
             },
         },
+
 	}
 
 	return RegisterRoot(characterDisplaySidebar)

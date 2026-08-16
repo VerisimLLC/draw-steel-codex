@@ -9933,7 +9933,7 @@ end
 --- @field rules string
 --- @field activateText string The name of mode 1 of a multi-mode trigger.
 --- @field activateRules string The rules text of mode 1 of a multi-mode trigger.
---- @field modes {text: string, rules: string, unavailable: boolean|nil}[] unavailable marks a mode whose condition is not currently met; it is still offered, greyed out, and may be overridden.
+--- @field modes {text: string, rules: string, modeIndex: number|nil, unavailable: boolean|nil, conditionReason: string|nil}[] modeIndex is the entry's position in the ability's modeList (see ModeIndexForTriggered). unavailable/conditionReason mark a mode whose condition is not met but which is offered anyway, greyed out, with that reason shown.
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
 --- @field abilityGuid false|string The guid of the TriggeredAbility that created this prompt.
@@ -10161,6 +10161,26 @@ end
 --This is only for mode-driven triggers. A powerRollModifier trigger's
 --"enhancement options" are extra resource spends rather than modes, so its
 --single card keeps the trigger's own name and rules.
+--The modeList index that a `triggered` value selects, which is what drives
+--symbols.mode and so which behaviors run. A mode whose condition fails and
+--carries no Condition Reason is never offered, leaving a hole in modes, so an
+--option's position here is not its position in modeList -- each entry records
+--the index it came from. Prompts serialized before modeIndex existed, and the
+--non-numeric `triggered == true` case (mode 1, the trigger's own card), fall
+--back to the positional reading.
+function ActiveTrigger:ModeIndexForTriggered(triggered)
+	if type(triggered) ~= "number" then
+		return 1
+	end
+
+	local entry = self.modes[triggered]
+	if entry ~= nil and entry.modeIndex ~= nil then
+		return entry.modeIndex
+	end
+
+	return triggered + 1
+end
+
 function ActiveTrigger:UsesModeHeading()
 	return (not self.powerRollModifier) and #self.modes > 0
 end

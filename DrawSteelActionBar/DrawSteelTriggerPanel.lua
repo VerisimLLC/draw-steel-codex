@@ -271,10 +271,12 @@ mod.shared.CreateTriggerPanel = function()
                     selectors = {"triggerPanel", "hover"},
                     borderColor = "white",
                 },
-                {
-                    selectors = {"triggerPanel", "pseudohover"},
-                    borderColor = "white",
-                },
+                --pseudohover deliberately has no highlight of its own. An option
+                --card sets it on the trigger's first card so that card's hover
+                --handler runs (ability preview + line-of-sight rays) and so its
+                --dehover knows an option is still hovered -- but the first card
+                --is a mode card like any other, so highlighting it while the
+                --pointer is on a sibling made two cards look hovered at once.
                 {
                     selectors = {"triggerPanel", "press"},
                     brightness = 2,

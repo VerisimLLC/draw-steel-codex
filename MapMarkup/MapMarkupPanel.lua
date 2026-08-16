@@ -34,8 +34,8 @@ end
 
 --============================================================================
 --"Fade Map": dims the whole map so the markup being drawn stands out instead
---of competing with busy map art. Purely a local viewing aid - a preference,
---not map data, and never seen by players.
+--of competing with busy map art. Purely a local viewing aid - not map data,
+--and never seen by players.
 --
 --The engine reads this setting DIRECTLY (SettingsManager.GetFloatOptional in
 --TileHeightOverlay.Update), so there is nothing to feed through
@@ -43,6 +43,14 @@ end
 --PreviewSettingValue during a drag is picked up on the very next frame.
 --MapFadeOverlay.cs applies it, gated on the panel actually being open, so a
 --value left on the slider cannot follow the Director back to the table.
+--
+--`transient`, deliberately, NOT a preference: a fade left near the top blacks
+--the map out with no on-screen explanation, and the only control that undoes
+--it is the last row of a panel that can run off the bottom of the screen.
+--Bug 327JQQFP was exactly that - a value set in some earlier session made the
+--map render as an unexplained void every time the panel was opened, session
+--after session. Runtime-only means the worst case now lasts until restart,
+--and every fresh launch starts unfaded.
 --
 --No `section`, so it stays out of the global Settings screen - it does
 --nothing with this panel closed, and CreateSettingsEditorsForSection only
@@ -52,7 +60,7 @@ setting{
     id = "markup:fade",
     description = "Fade Map",
     help = "Dims the map - terrain, walls, objects, tokens and all - so the markup you are drawing stands out. Only applies while this panel is open.",
-    storage = "preference",
+    storage = "transient",
     editor = "slider",
     default = 0,
     min = 0,

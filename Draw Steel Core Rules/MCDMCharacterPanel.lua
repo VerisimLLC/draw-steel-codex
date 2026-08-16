@@ -1967,15 +1967,23 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         flow = "horizontal",
         valign = "top",
         bgimage = true,
-        bgcolor = "clear",
+        --Same ground as the sections above and below. Left clear, this row was
+        --the one hole in the panel: the stamina column inside it paints its own
+        --@bg, but the portrait column and the gaps around it showed the map
+        --straight through. Follows TRANSPARENT_BG so it flips with the rest.
+        bgcolor = TRANSPARENT_BG and "clear" or "@bg",
     },
     {
         --Monsters only: heroes have no portrait in this row, and their stamina
         --panel keeps its own rule.
         --Half the space that was sitting above the rule is moved below it, so
         --the portrait is not jammed against the divider.
+        --
+        --Both are PADDING, not margin. As a tmargin the 6 sat outside the
+        --panel, so nothing painted it and a thin strip of map showed through
+        --between the header's rule and the top of this block.
         selectors = {"panel", "vitals-row", "monster"},
-        tmargin = 6,
+        tpad = 6,
         bpad = 8,
         borderColor = "@border",
         border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },

@@ -1349,10 +1349,17 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local casterSymbols = casterToken.properties:LookupSymbol{}
 
             local activateText = nil
+            local activateRules = nil
             local modes = nil
             if self.multipleModes then
                 local modeList = self:try_get("modeList", {})
-                activateText = modeList[1].text
+                --Mode 1 is carried separately from the modes list: it is the
+                --trigger's own card in the trigger panel, and the panel shows
+                --its name and rules there when other modes are present.
+                if modeList[1] ~= nil then
+                    activateText = modeList[1].text
+                    activateRules = StringInterpolateGoblinScript(modeList[1].rules or "", casterSymbols)
+                end
                 for i=2,#modeList do
                     local modeEntry = modeList[i]
                     local passes = true
@@ -1393,6 +1400,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			local trigger = ActiveTrigger.new{
 				id = guid,
                 activateText = activateText,
+                activateRules = activateRules,
 				text = text,
 				rules = StringInterpolateGoblinScript(self:try_get("triggerPrompt"), casterSymbols),
                 targets = targetids,

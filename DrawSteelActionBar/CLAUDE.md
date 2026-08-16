@@ -96,10 +96,11 @@ Creates the floating trigger panel that appears above the trigger drawer when th
 
 **Panel structure per trigger:**
 
+- Heading boxes above the group holding the trigger's name and its prompt -- only for a multi-mode trigger (`ActiveTrigger:UsesModeHeading()`). Such a trigger draws one card per mode, so its own name and prompt would otherwise displace the first mode's; with the headings present every card carries its own mode's name and rules. Mode 1 lives on the trigger as `activateText` / `activateRules` rather than in `modes`.
 - `!` icon (gold = normal, blue = free)
 - Title and markdown rules text
 - Target token images (with optional retarget arrow)
-- Cost diamond (if heroic-resource cost required)
+- Cost diamond (if heroic-resource cost required). A mode-driven trigger's option cards carry no cost of their own -- picking any mode costs the trigger's cost -- so they repeat the trigger's diamond. A `powerRollModifier` trigger's options are extra resource spends and price themselves.
 - Buttons: Activate, Enhancement Options, Dismiss
 - "Dismiss Triggers" bar to dismiss all at once
 

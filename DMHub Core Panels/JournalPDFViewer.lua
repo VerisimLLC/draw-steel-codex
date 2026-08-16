@@ -3359,6 +3359,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
         -- events. This fires for the whole active modal tree, so the always-present
         -- viewer root is the right place to handle it.
         command = function(element, cmd)
+            print("POPOUT:: pdf viewer received command:", cmd)
             if cmd == "pdfprevpage" then
                 AdvanceRow(-1)
                 m_searchResults = nil
@@ -4084,6 +4085,20 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
             element.selfStyle.height = height
         end,
 
+        --scheduled by the popout button: binds the PDF paging keys to the
+        --popout window once the native window exists. pdfContextActive is
+        --set HERE, in the same breath as the push, so the destroy handler's
+        --pop stays balanced even if the window closes before this fires.
+        armPopoutCommandContext = function(element)
+            print("POPOUT:: armPopoutCommandContext fired; alreadyActive =", element.data.pdfContextActive)
+            if element.data.pdfContextActive then
+                return
+            end
+            element.data.pdfContextActive = true
+            dmhub.PushCommandContextForPanel(PDF_COMMAND_CONTEXT, element)
+            print("POPOUT:: pushed window-owned pdf command context")
+        end,
+
         destroy = function(element)
             -- Balance the PushCommandContext from when this dialog opened. Keyed on a
             -- per-element flag (not g_pdfViewerDialog) so it pops exactly once for THIS
@@ -4144,7 +4159,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
             gui.Button {
                 classes = { "sizeXs" },
-                icon = "ui-icons/icon-scale.png",
+                icon = "drawsteel/Icons_Nav_MaxWindow.png",
                 valign = "center",
                 rmargin = 6,
                 linger = function(element)
@@ -4153,11 +4168,34 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 click = function(element)
                     dialogPanel:FireEvent("destroy")
                     dialogPanel:FireEventTree("popout")
+                    --owner-routed modals: anything shown with an owner
+                    --inside this dialog now lands in the popout window's
+                    --own modal layer (see Hud.ResolveModalLayer).
+                    dialogPanel.data.nativeWindowRoot = true
                     dialogPanel:MoveToNativeWindow {
                         scaling = 0.9,
                         resizeable = true,
+                        --the OS window title; engines predating it fall
+                        --back to the product name.
+                        title = doc.description,
                     }
                     gui.CloseModal()
+
+                    --Re-arm the PDF paging keys for the popped-out window.
+                    --The manual destroy above balanced the modal's context
+                    --push (returning the MAIN window's arrows to token
+                    --movement); the deferred push below binds them to the
+                    --popout window instead -- keys pressed there page, keys
+                    --pressed in the app do not. DEFERRED, not inline: the
+                    --panel cannot resolve its native window in the same call
+                    --stack that created it (the window canvas finishes
+                    --initializing after this handler returns), and a push
+                    --that resolves no window would bind the MAIN window's
+                    --keys. The real destroy pops it via pdfContextActive,
+                    --which the handler sets in the same breath as the push
+                    --so the pair stays balanced even if the window closes
+                    --before the event fires.
+                    dialogPanel:ScheduleEvent("armPopoutCommandContext", 0.1)
                 end,
             },
 

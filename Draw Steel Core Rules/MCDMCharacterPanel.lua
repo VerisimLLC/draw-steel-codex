@@ -2652,7 +2652,14 @@ function TacPanel.Portrait()
                 width = visionBtnSize,
                 height = visionBtnSize,
                 bgimage = "drawsteel/light-off.png",
+                --The token this panel is showing. Captured here because the press
+                --must act on it specifically: the /light macro (Commands.light)
+                --reads the global selection instead, so going through it toggled
+                --whatever token happened to be selected -- and did nothing at all
+                --when nothing was selected and the player has no primary token.
+                data = { token = nil },
                 refreshCharacter = function(element, token)
+                    element.data.token = token
                     local lightOn = token.properties.selectedLoadout == 1
                     element.selfStyle.bgimage = lightOn and "drawsteel/light-on.png" or "drawsteel/light-off.png"
                     element:SetClass("light-on", lightOn)
@@ -2662,7 +2669,14 @@ function TacPanel.Portrait()
                 end,
                 press = function(element)
                     if TacPanel.IsReadOnly(element) then return end
-                    Commands.light()
+                    local token = element.data.token
+                    if token == nil or not token.valid then return end
+                    creature.ToggleLightSourceOnToken(token)
+
+                    --instantly refresh the token.
+                    game.Refresh{
+                        tokens = {token.charid}
+                    }
                 end,
                 linger = function(element)
                     gui.Tooltip("Toggle Light")(element)

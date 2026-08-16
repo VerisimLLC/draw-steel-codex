@@ -17,7 +17,8 @@ end
 --- AppendGameRulesFromAura
 --- @param aura any
 --- @param scratchRules any
+--- @param climbableGrantHeight number?
 --- @return any
-function TileGameRules:AppendGameRulesFromAura(aura, scratchRules)
+function TileGameRules:AppendGameRulesFromAura(aura, scratchRules, climbableGrantHeight)
 	-- dummy implementation for documentation purposes only
 end

@@ -361,6 +361,7 @@ local function ImportPDFDialog(path)
                     end,
                     error = function(msg)
                         gui.ModalMessage {
+                            owner = element,
                             title = "Error importing PDF",
                             message = msg,
                         }
@@ -885,6 +886,7 @@ local function CreateFolderPanel(journalPanel, folderid)
                                 folder:Upload()
                             else
                                 gui.ModalMessage {
+                                    owner = element,
                                     title = "Folder Not Empty",
                                     message = "You cannot delete a folder that contains documents. Please move or delete the documents first.",
                                 }
@@ -2600,6 +2602,7 @@ CreateJournalPanel = function(options)
                                             end,
                                             error = function(msg)
                                                 gui.ModalMessage {
+                                                    owner = element,
                                                     title = "Error importing image",
                                                     message = msg,
                                                 }

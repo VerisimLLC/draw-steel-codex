@@ -115,6 +115,19 @@ local AppearanceStyles = {
         borderWidth = 2,
     },
 
+    -- Privacy (eye) toggle beside the character name.  Its bgimage comes from
+    -- the character sheet framework's {"privacyIcon"} rule, but its bgcolor
+    -- cannot: this panel's style set is the one carrying the theme cascade, and
+    -- the theme's generic {"panel"} rule paints bgcolor with @bg.  Sitting
+    -- closer to the icon than the framework's rule, it wins at equal
+    -- specificity -- which tinted the white eye PNG the exact colour of the
+    -- surface behind it.  Re-state the tint here so it resolves in the same set
+    -- and wins on order, matching what the Draw Steel sheet already uses.
+    {
+        selectors = { "privacyIcon" },
+        bgcolor = "@fgStrong",
+    },
+
     {
         selectors = { "framePanel" },
         halign = "left",
@@ -2708,7 +2721,17 @@ function CharSheet.AppearancePanel()
                     valign = "center",
                     hmargin = 32,
                     autoplay = true,
+                    --Route the audition through the anthem bus so it obeys the player's
+                    --Anthem volume setting (and the DM's anthem broadcast level) exactly
+                    --like real anthem playback in the initiative bar does.
+                    autoplaymixgroup = "anthem",
                     refreshAppearance = function(element, info)
+                        --Seed the preview volume with the token's own anthemVolume BEFORE
+                        --setting the value, since assigning the value is what starts
+                        --playback. Without this the audition always started at full
+                        --volume and only picked up the slider once it was dragged.
+                        local anthemVolume = CharacterSheet.instance.data.info.token.anthemVolume
+                        element:FireEvent("volume", anthemVolume or 1)
                         element.value = CharacterSheet.instance.data.info.token.anthem
                     end,
                     change = function(element)

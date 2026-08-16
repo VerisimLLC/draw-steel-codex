@@ -637,6 +637,7 @@ local CreateMapNode = function(map)
 
 						if map.id ~= game.currentMapId then
 							gui.ModalMessage{
+								owner = element,
 								title = "Enter Map",
 								message = "You must enter the map before duplicating it.",
 							}
@@ -664,6 +665,7 @@ local CreateMapNode = function(map)
 
 					if map.id == game.currentMapId then
 						gui.ModalMessage{
+							owner = element,
 							title = "Cannot Delete Current Map",
 							message = "You cannot delete the map you are currently in. Switch to a different map first.",
 						}

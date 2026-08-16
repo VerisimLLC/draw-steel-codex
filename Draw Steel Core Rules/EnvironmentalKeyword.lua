@@ -29,7 +29,11 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the area or starting its turn there. Same field names as Aura; copied onto zone auras.
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
+--- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
+--- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
+--- @field appearance table|nil Optional visual representation drawn on the map for zones of this keyword (beyond the overlay stripes), edited in the Edit Appearance dialog. mode = "floor": {mode, tileid = tilesheet asset id filling the tiles, edgeWallId = wall asset id drawn as a decorative ring around the boundary (nil = none), alpha = fill opacity, fractalEdge = deterministic organic-boundary strength from 0 to 1 (nil = 0), edgeFade = inward fill fade in tiles from 0 to 0.35 (nil = 0), tileImageId/edgeImageId = source image asset ids shown in the dialog's IconEditors (nil when the asset was copied from an existing tilesheet/wall), tileOwned/edgeOwned = true when the asset was created/forked for this keyword (replaced assets are Delete()d)}. Floor fills force the private tilesheet asset to oneLargeTile so the whole image is the repeating unit. mode = "sprites": {mode, sprites = image asset ids, spriteScale = quad size within the tile, spriteAlpha}. Texture scale/hue/saturation/brightness live on the referenced ASSETS, exactly like real floors and walls. MapMarkupPanel stamps this onto zone aura instances (AuraInstance:GetAppearance); the engine's MarkupZoneVisuals renders it resting on the ground, terrain-conformed and parallax-correct. No class default: absent = no visual.
+--- @field appearanceDefaultOff boolean|nil When true, new zones painted with this keyword from the Map Markup panel start with their visual representation hidden (record field hideAppearance; stripes only). Toggled by the "Visuals" pill on the zone palette chip. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Visuals badge on its zone-list row), so flipping this never disturbs existing zones. Only meaningful when appearance is set. No class default: absent = visuals shown.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
 
@@ -49,6 +53,7 @@ EnvironmentalKeyword.damage = 0
 EnvironmentalKeyword.movementDamageFilter = "all"
 EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
+EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
 EnvironmentalKeyword.includeAdjacent = false
 
 --Index of keywords by lower-case name, rebuilt whenever tables refresh. Used by
@@ -144,6 +149,11 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 		--this is additive-safe like the other flags).
 		if keyword:try_get("includeAdjacent", false) == true then
 			auraDef.includeAdjacent = true
+		end
+		local keywordShiftEntryMode = keyword:try_get("powerRollShiftEntryMode", "normal")
+		local auraShiftEntryMode = auraDef:try_get("powerRollShiftEntryMode", "normal")
+		if (keywordShiftEntryMode == "bane" or keywordShiftEntryMode == "ignore") and auraShiftEntryMode == "normal" then
+			auraDef.powerRollShiftEntryMode = keywordShiftEntryMode
 		end
 	end)
 
@@ -266,6 +276,899 @@ end
 local UploadKeywordWithId = function(id)
 	local dataTable = dmhub.GetTable(EnvironmentalKeyword.tableName) or {}
 	dmhub.SetAndUploadTableItem(EnvironmentalKeyword.tableName, dataTable[id])
+end
+
+--=== Zone appearance (visual representation) =================================
+--Zones of a keyword can optionally draw a real visual on the map beyond the
+--overlay stripes: either a floor-texture fill with an optional wall "edge
+--brush" around the boundary (drawn exactly like floors and walls, resting on
+--the ground and following the terrain), or one pseudo-randomly chosen square
+--sprite per tile. The config lives on the keyword as `appearance`;
+--MapMarkupPanel stamps it onto each zone's aura instance and the engine's
+--MarkupZoneVisuals renders it.
+--
+--The floor/edge appearance knobs (texture scale, hue shift, saturation,
+--brightness) live on tilesheet/wall ASSETS owned by this keyword: uploading a
+--texture creates a private asset, and picking an existing floor tile or wall
+--forks a private copy first (assets:DuplicateTilesheet/DuplicateWall, the
+--markup-wall-types pattern), so slider edits never disturb art that real
+--floors or walls are drawn with. Owned assets are Delete()d (hidden) when
+--replaced.
+
+local DescribeAppearance = function(keyword)
+	local appearance = keyword:try_get("appearance")
+	if appearance == nil or appearance.mode == nil or appearance.mode == "none" then
+		return "None"
+	end
+	if appearance.mode == "floor" then
+		if appearance.tileid ~= nil and appearance.edgeWallId ~= nil then
+			return "Floor texture with edge"
+		end
+		if appearance.edgeWallId ~= nil then
+			return "Edge brush only"
+		end
+		if appearance.tileid ~= nil then
+			return "Floor texture"
+		end
+		return "Floor (no texture chosen)"
+	end
+	if appearance.mode == "sprites" then
+		local numSprites = 0
+		if appearance.sprites ~= nil then
+			numSprites = #appearance.sprites
+		end
+		if numSprites == 1 then
+			return "1 sprite"
+		end
+		return string.format("%d sprites", numSprites)
+	end
+	return "None"
+end
+
+--Opens the appearance editor in its own modal layer (the keyword editor may
+--itself be inside ShowEditDialog's modal when opened from the Map Markup
+--panel's zone chips -- same dialog-over-dialog pattern as the markup panel's
+--zone height dialog). Changes save as they are made; Close just dismisses.
+local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
+	--work on the keyword's stored table directly, creating it on first edit.
+	--Mode "none" removes the field entirely (nil-assignment drops it from
+	--serialization).
+	local appearance = keyword:try_get("appearance")
+	if appearance == nil then
+		appearance = { mode = "none", alpha = 1, fractalEdge = 0, edgeFade = 0, spriteScale = 1, spriteAlpha = 1 }
+	end
+
+	local modalLayer = nil
+	local dialogPanel = nil
+
+	local Commit = function()
+		--Remove the retired midpoint-displacement detail setting from any
+		--appearance authored while that prototype was being tested.
+		appearance.fractalDetail = nil
+		if appearance.mode == nil or appearance.mode == "none" then
+			keyword.appearance = nil
+		else
+			keyword.appearance = appearance
+		end
+		UploadKeyword()
+		if onChanged ~= nil then
+			onChanged()
+		end
+	end
+
+	local GetFillAsset = function()
+		if appearance.tileid == nil then
+			return nil
+		end
+		return assets.tilesheets[appearance.tileid]
+	end
+
+	local GetEdgeAsset = function()
+		if appearance.edgeWallId == nil then
+			return nil
+		end
+		return assets.walls[appearance.edgeWallId]
+	end
+
+	local EnsureFillUsesOneLargeTile = function()
+		local asset = GetFillAsset()
+		if asset ~= nil and asset.oneLargeTile ~= true then
+			--Zone floor textures use the same tiling mode as the terrain
+			--editor's "One Large Tile" option: the complete image is one
+			--repeating unit rather than an atlas of 128px tiles.
+			asset.oneLargeTile = true
+			asset:Upload()
+		end
+	end
+
+	--Migrate private fill assets saved by older versions when their appearance
+	--is next edited. Never mutate a legacy shared asset that this keyword does
+	--not explicitly own.
+	if appearance.tileOwned == true then
+		EnsureFillUsesOneLargeTile()
+	end
+
+	--when replacing an asset this keyword owns (uploaded or forked here), hide
+	--the old one so the floor/wall palettes don't accumulate orphans.
+	local ReleaseFillAsset = function()
+		if appearance.tileOwned == true then
+			local old = GetFillAsset()
+			if old ~= nil then
+				old:Delete()
+			end
+		end
+		appearance.tileid = nil
+		appearance.tileOwned = nil
+	end
+
+	local ReleaseEdgeAsset = function()
+		if appearance.edgeOwned == true then
+			local old = GetEdgeAsset()
+			if old ~= nil then
+				old:Delete()
+			end
+		end
+		appearance.edgeWallId = nil
+		appearance.edgeOwned = nil
+	end
+
+	--adoption can arrive from an async upload callback after the dialog was
+	--closed; the commit still applies, only the visual refresh is skipped.
+	local AdoptFillAsset = function(tileid, owned)
+		ReleaseFillAsset()
+		appearance.tileid = tileid
+		appearance.tileOwned = cond(owned, true)
+		EnsureFillUsesOneLargeTile()
+		Commit()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEventTree("refreshAppearance")
+		end
+	end
+
+	local AdoptEdgeAsset = function(wallid, owned)
+		ReleaseEdgeAsset()
+		appearance.edgeWallId = wallid
+		appearance.edgeOwned = cond(owned, true)
+		Commit()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEventTree("refreshAppearance")
+		end
+	end
+
+	--pick an existing floor tile / wall: fork a private copy so the sliders
+	--below never edit art that real floors/walls use.
+	local PickExistingFill = function(tileid)
+		local forkid = assets:DuplicateTilesheet(tileid)
+		if forkid == nil then
+			return
+		end
+		local fork = assets.tilesheets[forkid]
+		if fork ~= nil then
+			fork.description = string.format("%s Zone", keyword.name)
+		end
+		--a copied tilesheet has no single source image; the icon editor
+		--shows empty for it.
+		appearance.tileImageId = nil
+		AdoptFillAsset(forkid, true)
+	end
+
+	local PickExistingEdge = function(wallid)
+		local forkid = assets:DuplicateWall(wallid)
+		if forkid == nil then
+			return
+		end
+		local fork = assets.walls[forkid]
+		if fork ~= nil then
+			fork.description = string.format("%s Zone Edge", keyword.name)
+			fork:Upload()
+		end
+		appearance.edgeImageId = nil
+		AdoptEdgeAsset(forkid, true)
+	end
+
+	local FillPickerOptions = function()
+		local options = {}
+		for tileid,tilesheet in pairs(assets.tilesheets) do
+			local include = false
+			pcall(function()
+				include = tilesheet.isfloor and tilesheet.hidden ~= true
+			end)
+			if include then
+				options[#options+1] = { id = tileid, text = tilesheet.description }
+			end
+		end
+		table.sort(options, function(a, b)
+			return string.lower(a.text or "") < string.lower(b.text or "")
+		end)
+		table.insert(options, 1, { id = "none", text = "Copy Existing Floor Tile..." })
+		return options
+	end
+
+	local EdgePickerOptions = function()
+		local options = {}
+		for wallid,wall in pairs(assets.walls) do
+			local include = false
+			pcall(function()
+				include = wall.hidden ~= true and wall.invisible ~= true
+			end)
+			if include then
+				options[#options+1] = { id = wallid, text = wall.description }
+			end
+		end
+		table.sort(options, function(a, b)
+			return string.lower(a.text or "") < string.lower(b.text or "")
+		end)
+		table.insert(options, 1, { id = "none", text = "Copy Existing Wall..." })
+		return options
+	end
+
+	--explicit pixel height: the slider's drag handle sizes itself to 100% of
+	--the slider's height, and these rows are auto-height under ThemeEngine --
+	--a percentage here resolves against the wrong ancestor and blows the
+	--handle up to fill the dialog (the Tilesheet dialog this styling came
+	--from gives its rows fixed heights, which is why '50%' worked there).
+	local sliderStyle = {
+		fontSize = '80%',
+		valign = 'center',
+		halign = 'right',
+		height = 26,
+		width = '100%',
+		borderWidth = 0,
+	}
+
+	--A labeled slider bound to an asset/appearance value through get/set
+	--closures. change = live preview on the in-memory value; confirm (drag
+	--released) additionally persists. Hidden while getAsset() is nil.
+	local AppearanceSlider = function(args)
+		return gui.Panel{
+			classes = {"formStackedRow"},
+			refreshAppearance = function(element)
+				element:SetClass("collapsed", args.visible ~= nil and not args.visible())
+			end,
+			gui.Label{
+				classes = {"formStacked"},
+				text = args.text,
+			},
+			gui.Slider{
+				value = args.get(),
+				minValue = args.minValue,
+				maxValue = args.maxValue,
+				sliderWidth = 200,
+				labelWidth = 50,
+				formatFunction = args.formatFunction,
+				deformatFunction = args.deformatFunction,
+				refreshAppearance = function(element)
+					element.value = args.get()
+				end,
+				change = function(element)
+					args.set(element.value, false)
+				end,
+				confirm = function(element)
+					args.set(element.value, true)
+				end,
+				style = sliderStyle,
+			},
+		}
+	end
+
+	local percentFormat = function(num)
+		return string.format('%d%%', round(num*100))
+	end
+	local percentDeformat = function(num)
+		return num*0.01
+	end
+
+	--=== floor mode section ===
+
+	local fillNameLabel = gui.Label{
+		classes = {"formStacked"},
+		text = "No texture chosen",
+		refreshAppearance = function(element)
+			local asset = GetFillAsset()
+			if asset ~= nil then
+				element.text = asset.description
+			elseif appearance.tileid ~= nil then
+				element.text = "(texture missing)"
+			else
+				element.text = "No texture chosen"
+			end
+		end,
+	}
+
+	--The standard image widget (gui.IconEditor, Zone Art library) owns
+	--browse/upload/paste for the fill and edge textures. Picking an image
+	--builds a private tilesheet/wall asset from it via
+	--assets:CreateTilesheetFromImage / CreateWallFromImage -- synchronous,
+	--since the image is already uploaded (no async-registration gap like the
+	--old file-based flow). appearance.tileImageId/edgeImageId remember the
+	--source image so the widget shows the current choice; assets adopted from
+	--the Copy Existing dropdowns have no source image and show empty.
+	--
+	--NOTE: IconEditor value ASSIGNMENT fires change on a real difference
+	--(unlike gui.Slider), so both the refresh sync and the change handler
+	--carry echo guards against loops and duplicate asset creation.
+	local fillIconEditor
+	fillIconEditor = gui.IconEditor{
+		library = "zoneart",
+		allowNone = true,
+		allowPaste = true,
+		width = 64,
+		height = 64,
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		value = appearance.tileImageId,
+		refreshAppearance = function(element)
+			if element.value ~= appearance.tileImageId then
+				element.value = appearance.tileImageId
+			end
+		end,
+		change = function(element)
+			local imageid = element.value
+			if imageid == "" then
+				imageid = nil
+			end
+			if imageid == appearance.tileImageId then
+				return
+			end
+			if imageid == nil then
+				--cleared from the picker: drop the fill texture.
+				ReleaseFillAsset()
+				appearance.tileImageId = nil
+				Commit()
+				if dialogPanel ~= nil and dialogPanel.valid then
+					dialogPanel:FireEventTree("refreshAppearance")
+				end
+				return
+			end
+
+			local tileid = assets:CreateTilesheetFromImage{
+				imageid = imageid,
+				floor = true,
+				description = string.format("%s Zone", keyword.name),
+				error = function(text)
+					gui.ModalMessage{
+						title = "Error creating zone texture",
+						message = text,
+					}
+				end,
+			}
+			if tileid == nil then
+				--invalid image: snap the picker back.
+				element.value = appearance.tileImageId
+				return
+			end
+
+			appearance.tileImageId = imageid
+			AdoptFillAsset(tileid, true)
+		end,
+	}
+
+	local edgeIconEditor
+	edgeIconEditor = gui.IconEditor{
+		library = "zoneart",
+		allowNone = true,
+		allowPaste = true,
+		width = 64,
+		height = 64,
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		value = appearance.edgeImageId,
+		refreshAppearance = function(element)
+			if element.value ~= appearance.edgeImageId then
+				element.value = appearance.edgeImageId
+			end
+		end,
+		change = function(element)
+			local imageid = element.value
+			if imageid == "" then
+				imageid = nil
+			end
+			if imageid == appearance.edgeImageId then
+				return
+			end
+			if imageid == nil then
+				ReleaseEdgeAsset()
+				appearance.edgeImageId = nil
+				Commit()
+				if dialogPanel ~= nil and dialogPanel.valid then
+					dialogPanel:FireEventTree("refreshAppearance")
+				end
+				return
+			end
+
+			local wallid = assets:CreateWallFromImage{
+				imageid = imageid,
+				description = string.format("%s Zone Edge", keyword.name),
+				error = function(text)
+					gui.ModalMessage{
+						title = "Error creating zone edge",
+						message = text,
+					}
+				end,
+			}
+			if wallid == nil then
+				element.value = appearance.edgeImageId
+				return
+			end
+
+			appearance.edgeImageId = imageid
+			AdoptEdgeAsset(wallid, true)
+		end,
+	}
+
+	local floorSection = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		refreshAppearance = function(element)
+			element:SetClass("collapsed", appearance.mode ~= "floor")
+		end,
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Fill Texture:",
+			},
+			fillIconEditor,
+			fillNameLabel,
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Dropdown{
+				classes = {"formStacked"},
+				idChosen = "none",
+				options = FillPickerOptions(),
+				change = function(element)
+					if element.idChosen ~= "none" then
+						PickExistingFill(element.idChosen)
+						element.idChosen = "none"
+					end
+				end,
+			},
+		},
+
+		AppearanceSlider{
+			text = "Texture Scale:",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = -4,
+			maxValue = 4,
+			get = function()
+				local asset = GetFillAsset()
+				return cond(asset ~= nil, -(asset or {scale=0}).scale, 0)
+			end,
+			set = function(value, upload)
+				local asset = GetFillAsset()
+				if asset ~= nil then
+					asset.scale = -value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+			formatFunction = function(num)
+				return string.format('%d%%', round((2^num)*100))
+			end,
+			deformatFunction = function(num)
+				local n = num*0.01
+				return math.log(n)/math.log(2)
+			end,
+		},
+
+		AppearanceSlider{
+			text = "Hue Shift:",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 1,
+			get = function()
+				local asset = GetFillAsset()
+				return cond(asset ~= nil, (asset or {hueshift=0}).hueshift, 0)
+			end,
+			set = function(value, upload)
+				local asset = GetFillAsset()
+				if asset ~= nil then
+					asset.hueshift = value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+		},
+
+		AppearanceSlider{
+			text = "Saturation:",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = -1,
+			maxValue = 1,
+			get = function()
+				local asset = GetFillAsset()
+				return cond(asset ~= nil, (asset or {saturation=0}).saturation, 0)
+			end,
+			set = function(value, upload)
+				local asset = GetFillAsset()
+				if asset ~= nil then
+					asset.saturation = value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+		},
+
+		AppearanceSlider{
+			text = "Brightness:",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = -1,
+			maxValue = 1,
+			get = function()
+				local asset = GetFillAsset()
+				return cond(asset ~= nil, (asset or {brightness=0}).brightness, 0)
+			end,
+			set = function(value, upload)
+				local asset = GetFillAsset()
+				if asset ~= nil then
+					asset.brightness = value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+		},
+
+		AppearanceSlider{
+			text = "Opacity:",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = 0.05,
+			maxValue = 1,
+			get = function()
+				return appearance.alpha or 1
+			end,
+			set = function(value, upload)
+				appearance.alpha = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = percentFormat,
+			deformatFunction = percentDeformat,
+		},
+
+		AppearanceSlider{
+			text = "Organic Edge:",
+			visible = function() return GetFillAsset() ~= nil or GetEdgeAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 1,
+			get = function()
+				return appearance.fractalEdge or 0
+			end,
+			set = function(value, upload)
+				appearance.fractalEdge = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = percentFormat,
+			deformatFunction = percentDeformat,
+		},
+
+		AppearanceSlider{
+			text = "Edge Fade (tiles):",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 0.35,
+			get = function()
+				return appearance.edgeFade or 0
+			end,
+			set = function(value, upload)
+				appearance.edgeFade = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = function(num)
+				return string.format('%.2f', num)
+			end,
+			deformatFunction = function(num)
+				return num
+			end,
+		},
+
+		--edge brush: a wall drawn around the boundary of each zone.
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Edge Brush:",
+			},
+			edgeIconEditor,
+			gui.Label{
+				classes = {"formStacked"},
+				text = "None",
+				refreshAppearance = function(element)
+					local asset = GetEdgeAsset()
+					if asset ~= nil then
+						element.text = asset.description
+					elseif appearance.edgeWallId ~= nil then
+						element.text = "(edge missing)"
+					else
+						element.text = "None"
+					end
+				end,
+			},
+			gui.Button{
+				classes = {"sizeM", cond(appearance.edgeWallId == nil, "collapsed")},
+				text = "Remove",
+				refreshAppearance = function(element)
+					element:SetClass("collapsed", appearance.edgeWallId == nil)
+				end,
+				click = function(element)
+					ReleaseEdgeAsset()
+					appearance.edgeImageId = nil
+					Commit()
+					dialogPanel:FireEventTree("refreshAppearance")
+				end,
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Dropdown{
+				classes = {"formStacked"},
+				idChosen = "none",
+				options = EdgePickerOptions(),
+				change = function(element)
+					if element.idChosen ~= "none" then
+						PickExistingEdge(element.idChosen)
+						element.idChosen = "none"
+					end
+				end,
+			},
+		},
+
+		AppearanceSlider{
+			text = "Edge Scale:",
+			visible = function() return GetEdgeAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 2,
+			get = function()
+				local asset = GetEdgeAsset()
+				return cond(asset ~= nil, (asset or {scale=1}).scale, 1)
+			end,
+			set = function(value, upload)
+				local asset = GetEdgeAsset()
+				if asset ~= nil then
+					asset.scale = value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+		},
+
+		AppearanceSlider{
+			text = "Edge Hue Shift:",
+			visible = function() return GetEdgeAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 1,
+			get = function()
+				local asset = GetEdgeAsset()
+				return cond(asset ~= nil, (asset or {hueshift=0}).hueshift, 0)
+			end,
+			set = function(value, upload)
+				local asset = GetEdgeAsset()
+				if asset ~= nil then
+					asset.hueshift = value
+					if upload then
+						asset:Upload()
+					end
+				end
+			end,
+		},
+	}
+
+	--=== sprites mode section ===
+
+	--one gui.IconEditor chip per sprite (browse/upload/paste all built in),
+	--plus a trailing empty chip that appends a new sprite when set. The grid
+	--rebuilds its children on every refreshAppearance, so the chips are
+	--always constructed with their current values (no assignment echoes) and
+	--the add-chip resets naturally after an append.
+	local spriteGrid = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "horizontal",
+		wrap = true,
+		halign = "left",
+		refreshAppearance = function(element)
+			local children = {}
+			local sprites = appearance.sprites or {}
+			for i,imageid in ipairs(sprites) do
+				children[#children+1] = gui.IconEditor{
+					library = "zoneart",
+					allowNone = true,
+					allowPaste = true,
+					width = 48,
+					height = 48,
+					margin = 4,
+					value = imageid,
+					hover = gui.Tooltip("Click to change this sprite; choose None to remove it"),
+					change = function(child)
+						if child.value == nil or child.value == "" then
+							table.remove(appearance.sprites, i)
+						else
+							appearance.sprites[i] = child.value
+						end
+						Commit()
+						dialogPanel:FireEventTree("refreshAppearance")
+					end,
+				}
+			end
+
+			children[#children+1] = gui.IconEditor{
+				library = "zoneart",
+				allowPaste = true,
+				width = 48,
+				height = 48,
+				margin = 4,
+				value = nil,
+				hover = gui.Tooltip("Add a sprite"),
+				change = function(child)
+					if child.value ~= nil and child.value ~= "" then
+						appearance.sprites = appearance.sprites or {}
+						appearance.sprites[#appearance.sprites+1] = child.value
+						Commit()
+						dialogPanel:FireEventTree("refreshAppearance")
+					end
+				end,
+			}
+
+			element.children = children
+		end,
+	}
+
+	local spritesSection = gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		refreshAppearance = function(element)
+			element:SetClass("collapsed", appearance.mode ~= "sprites")
+		end,
+
+		gui.Label{
+			classes = {"formStacked", "fgMuted"},
+			width = "94%",
+			height = "auto",
+			text = "Each tile of a zone shows one of these sprites, chosen and rotated pseudo-randomly but consistently: the same tile always shows the same sprite, on every screen.",
+		},
+
+		spriteGrid,
+
+		AppearanceSlider{
+			text = "Sprite Size:",
+			minValue = 0.3,
+			maxValue = 1.5,
+			get = function()
+				return appearance.spriteScale or 1
+			end,
+			set = function(value, upload)
+				appearance.spriteScale = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = percentFormat,
+			deformatFunction = percentDeformat,
+		},
+
+		AppearanceSlider{
+			text = "Opacity:",
+			minValue = 0.05,
+			maxValue = 1,
+			get = function()
+				return appearance.spriteAlpha or 1
+			end,
+			set = function(value, upload)
+				appearance.spriteAlpha = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = percentFormat,
+			deformatFunction = percentDeformat,
+		},
+	}
+
+	--=== dialog shell ===
+
+	local children = {
+		gui.Label{
+			classes = {"dialogTitle"},
+			text = "Zone Appearance",
+		},
+	}
+
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Appearance:",
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			idChosen = cond(appearance.mode == nil, "none", appearance.mode),
+			options = {
+				{ id = "none", text = "None" },
+				{ id = "floor", text = "Floor Texture" },
+				{ id = "sprites", text = "Sprites" },
+			},
+			change = function(element)
+				appearance.mode = element.idChosen
+				Commit()
+				dialogPanel:FireEventTree("refreshAppearance")
+			end,
+		},
+	}
+
+	children[#children+1] = gui.Panel{
+		width = "100%",
+		height = "100%-140",
+		flow = "vertical",
+		vscroll = true,
+		floorSection,
+		spritesSection,
+	}
+
+	children[#children+1] = gui.Button{
+		classes = {"sizeM"},
+		text = "Close",
+		halign = "center",
+		valign = "bottom",
+		vmargin = 8,
+		click = function(element)
+			dialogPanel:FireEvent("escape")
+		end,
+	}
+
+	dialogPanel = gui.Panel{
+		id = "ZoneAppearanceDialog",
+		classes = {"framedPanel"},
+		styles = ThemeEngine.GetStyles(),
+		width = 700,
+		height = "85%",
+		pad = 16,
+		borderBox = true,
+		flow = "vertical",
+		halign = "center",
+		valign = "center",
+
+		captureEscape = true,
+		escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+		escape = function(element)
+			--persist any slider edits that only previewed (change without a
+			--confirm, e.g. keyboard-nudged values) before dismissing.
+			if appearance.tileOwned == true then
+				local fill = GetFillAsset()
+				if fill ~= nil then
+					fill:Upload()
+				end
+			end
+			if appearance.edgeOwned == true then
+				local edge = GetEdgeAsset()
+				if edge ~= nil then
+					edge:Upload()
+				end
+			end
+			gui.CloseModalInLayer(modalLayer)
+		end,
+
+		children = children,
+	}
+
+	modalLayer = gui.ShowModal(dialogPanel)
+	dialogPanel:FireEventTree("refreshAppearance")
 end
 
 local SetData = function(tableName, keywordPanel, keyid)
@@ -494,6 +1397,109 @@ local SetData = function(tableName, keywordPanel, keyid)
 			end,
 		},
 		climbersOnlyCheck,
+	}
+
+	--How far up a zone painted with this keyword reaches, by default. Zone bands
+	--are ground-relative (AuraInstance:GetGroundRelative), so this follows the
+	--terrain: "Ground Only" covers a creature standing in the zone whether the
+	--zone is on flat ground, in a pit, or up on a ledge, and excludes anything
+	--flying over it. Only a DEFAULT -- it is stamped onto zones as they are
+	--painted (MapMarkupPanel CreateZone), and each zone keeps its own height
+	--afterwards, editable in the Edit Zone dialog. Changing it here does not
+	--touch zones already on a map.
+	local defaultHeightMode = "infinite"
+	local storedDefaultHeight = keyword:try_get("defaultHeight")
+	if storedDefaultHeight ~= nil then
+		defaultHeightMode = cond(storedDefaultHeight <= 0, "ground", "amount")
+	end
+
+	--the amount box keeps a usable number even in the modes that hide it, so
+	--switching to Set Amount never lands on a value the change handler rejects.
+	--Its units caption collapses with it: "tiles above the ground" reads as a
+	--claim about the mode when it is left hanging next to Unlimited/Ground Only.
+	local defaultHeightUnits = gui.Label{
+		classes = {"formStacked", "fgMuted", cond(defaultHeightMode ~= "amount", "collapsed")},
+		text = "tiles above the ground",
+	}
+
+	local defaultHeightAmount
+	defaultHeightAmount = gui.Input{
+		classes = {"formStacked", cond(defaultHeightMode ~= "amount", "collapsed")},
+		text = tostring(cond(storedDefaultHeight ~= nil and storedDefaultHeight >= 1, storedDefaultHeight, 2)),
+		characterLimit = 3,
+		change = function(element)
+			local num = tonumber(element.text)
+			if num == nil or num < 1 then
+				element.text = tostring(math.max(1, keyword:try_get("defaultHeight", 2)))
+			else
+				keyword.defaultHeight = math.floor(num)
+				UploadKeyword()
+			end
+		end,
+	}
+
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Default Height:",
+		},
+		gui.Dropdown{
+			classes = {"formStacked"},
+			idChosen = defaultHeightMode,
+			options = {
+				{id = "infinite", text = "Unlimited"},
+				{id = "ground", text = "Ground Only"},
+				{id = "amount", text = "Set Amount"},
+			},
+			change = function(element)
+				if element.idChosen == "infinite" then
+					keyword.defaultHeight = nil
+				elseif element.idChosen == "ground" then
+					keyword.defaultHeight = 0
+				else
+					local num = tonumber(defaultHeightAmount.text)
+					if num == nil or num < 1 then
+						num = 2
+						defaultHeightAmount.text = "2"
+					end
+					keyword.defaultHeight = math.floor(num)
+				end
+				defaultHeightAmount:SetClass("collapsed", element.idChosen ~= "amount")
+				defaultHeightUnits:SetClass("collapsed", element.idChosen ~= "amount")
+				UploadKeyword()
+			end,
+		},
+		defaultHeightAmount,
+		defaultHeightUnits,
+	}
+
+	--optional visual representation drawn on the map for zones of this type:
+	--a floor-texture fill with an optional edge brush, or per-tile sprites.
+	--Configured in its own dialog; the label summarizes what is set up.
+	local appearanceSummary = gui.Label{
+		classes = {"formStacked", "fgMuted"},
+		text = DescribeAppearance(keyword),
+	}
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Appearance:",
+		},
+		appearanceSummary,
+		gui.Button{
+			classes = {"sizeM"},
+			halign = "left",
+			text = "Edit Appearance...",
+			click = function(element)
+				ShowAppearanceDialog(keyword, UploadKeyword, function()
+					if appearanceSummary ~= nil and appearanceSummary.valid then
+						appearanceSummary.text = DescribeAppearance(keyword)
+					end
+				end)
+			end,
+		},
 	}
 
 	--the area extends one tile outward: creatures adjacent to it count as
@@ -944,7 +1950,20 @@ local function AuraBandCoversAltitude(auraInstance, refAltitude)
 	if height == nil then
 		return true
 	end
+
 	local base = auraInstance:GetAltitude() or 0
+
+	--A ground-relative aura (markup zones) measures its band from the ground
+	--under each tile, so GetAltitude() is an offset above the square's ground
+	--rather than an absolute floor-relative altitude. Own pcall: aura instances
+	--that predate the method (or do not implement the interface) must fall back
+	--to the absolute reading rather than drop out of the Environment entirely.
+	local groundRelative = false
+	pcall(function() groundRelative = auraInstance:GetGroundRelative() == true end)
+	if groundRelative then
+		base = refAltitude + base
+	end
+
 	return refAltitude >= base and refAltitude <= base + height
 end
 

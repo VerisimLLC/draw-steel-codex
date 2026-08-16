@@ -6454,6 +6454,7 @@ local function BuildSoundPanelContent()
 				vmargin = 4,
 				press = function()
 					gui.ModalMessage{
+						owner = wallPenSlider,
 						title = "Remove this map sound?",
 						message = "Remove this map sound?",
 						options = {
@@ -9583,6 +9584,7 @@ local CreateAudioLibraryTree = function()
 							element.popup = nil
 							if not empty then
 								gui.ModalMessage{
+									owner = element,
 									title = "Folder Not Empty",
 									message = "Move or delete its contents before deleting this folder.",
 								}
@@ -10203,6 +10205,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 							click = function()
 								element.popup = nil
 								gui.ModalMessage{
+									owner = element,
 									title = "Delete Playlist?",
 									message = string.format('Are you sure you want to delete "%s"? Its tracks stay in your library.', pl.name),
 									options = {
@@ -10891,6 +10894,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 			click = function(element)
 				if #VariantPools.Members(poolid) > 0 then
 					gui.ModalMessage{
+						owner = element,
 						title = "Delete Variant Pool?",
 						message = "Delete this variant pool? Clips stay in the library.",
 						options = {

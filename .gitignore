@@ -63,3 +63,13 @@ docs/superpowers/
 # Tooling caches
 .superpowers/
 .understand-anything/
+
+# Agent scratch and local working files
+.agents/
+.claude/acolyte-source.txt
+biglua.txt
+emmylua_patch.py
+*_tactician_raw.txt
+
+# Source rulebook PDFs -- large and not ours to redistribute
+*.pdf

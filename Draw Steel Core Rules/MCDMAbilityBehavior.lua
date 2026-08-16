@@ -1230,7 +1230,11 @@ local g_rulePatterns = {
 
                 -- Set up the free strike damage from the caster's free strike value
                 local freeStrikeDamage = tostring(casterToken.properties:OpportunityAttack())
-                abilityClone.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+                --No *Charges factor: free strike damage is a flat number and never
+                --scales with charges. Multiplying by it zeroed the roll when the
+                --parent ability was channeled -- its Charges defaults to 0 and is
+                --forwarded below in symbols. See MCDMMonster:FillFreeStrikes.
+                abilityClone.behaviors[1].roll = freeStrikeDamage
 
                 local symbols = {
                     invoker = GenerateSymbols(casterToken.properties),
@@ -3760,4 +3764,58 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
         LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
     end
+end
+
+--Forced-movement type conversion (ModifierForcedMovement, e.g. the Fury Reaver's
+--push -> slide): which "Forced Movement: X" standard ability gets invoked is decided
+--by the tier text ("push 2" -> the Push ability) BEFORE the player ever sees the
+--push/slide chips in the action bar -- those only set symbols.forcedmovement on the
+--invoked clone's cast symbols. That symbol redirects the DIRECTION filter
+--(ActivatedAbility:TargetLocPassesFilterPredicate reads it ahead of the ability's
+--own forcedMovement field), but the clone keeps the Push ability's behavior list: a
+--bare relocate. The multi-segment machinery -- remember the distance already moved,
+--then a "Continue sliding" self-invoke for the remainder, because a slide does not
+--have to be a straight line -- lives only in the SLIDE standard ability's behaviors.
+--So a converted slide moved in any direction but never offered "Continue sliding".
+--
+--Fix: at cast time (the first central point that sees the player's final chip
+--choice), when the chosen type differs from the clone's native type, swap in the
+--behavior list of the standard ability matching the chosen type, re-substituting
+--<<range>> with this clone's already-adjusted range (stability, Big Versus Little,
+--etc. are baked in by the tier executor above). The swap is gated on the shared
+--family guid of the "Forced Movement: X" standard abilities so ordinary content
+--abilities can never have their behaviors replaced. `self` here is always a
+--temporary DeepCopy clone (every invoke path copies before casting), so mutating
+--it is safe.
+local g_forcedMovementFamilyGuid = "6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68"
+local g_forcedMovementStandardAbilityNames = {
+    push = "Forced Movement: Push",
+    pull = "Forced Movement: Pull",
+    slide = "Forced Movement: Slide",
+}
+
+local g_baseActivatedAbilityCast = ActivatedAbility.Cast
+function ActivatedAbility:Cast(casterToken, targets, options)
+    local chosenType = options ~= nil and options.symbols ~= nil and options.symbols.forcedmovement or nil
+    if chosenType ~= nil and self:try_get("guid") == g_forcedMovementFamilyGuid then
+        --The slide standard ability deliberately never declares forcedMovement;
+        --"slide" is its implied native type (see ActivatedAbility:ForcedMovementType).
+        local nativeType = self:try_get("forcedMovement", "slide")
+        local templateName = g_forcedMovementStandardAbilityNames[chosenType]
+        if templateName ~= nil and chosenType ~= nativeType then
+            local template = MCDMUtils.GetStandardAbility(templateName)
+            local range = tonumber(self:try_get("range"))
+            if template ~= nil and range ~= nil then
+                local behaviors = DeepCopy(template.behaviors)
+                MCDMUtils.DeepReplace(behaviors, "<<range>>", string.format("%d", math.floor(range)))
+                self.behaviors = behaviors
+                self.forcedMovement = chosenType
+            else
+                print(string.format("ForcedMovement:: could not convert %s to %s (template=%s range=%s)",
+                    nativeType, chosenType, tostring(template ~= nil), tostring(self:try_get("range"))))
+            end
+        end
+    end
+
+    return g_baseActivatedAbilityCast(self, casterToken, targets, options)
 end

@@ -1,5 +1,26 @@
 local mod = dmhub.GetModLoading()
 
+--The shape picker's icon grid. Mirrors the enum on the "measure:shape"
+--setting (Settings.lua) -- value and bind MUST stay in step with it; the
+--bind is display-only here (the engine owns the actual keybinding), it just
+--means the shortcut is discoverable without opening a dropdown.
+--
+--Icons are Phosphor, which the client bundles whole (verified live: any
+--phosphor/<name>.png resolves, and an unknown name renders blank rather than
+--erroring). "selection" -- a dashed marquee -- is deliberately NOT
+--"rectangle": Phosphor's rectangle is a rounded square and is indistinguishable
+--from "square" at icon size, and those are two different tools.
+local g_measureShapes = {
+	{value = "ruler",        text = "Ruler",         bind = "alt+r",  icon = "phosphor/ruler.png"},
+	{value = "circle",       text = "Circle",        bind = "alt+c",  icon = "phosphor/circle.png"},
+	{value = "square",       text = "Square",        bind = "alt+s",  icon = "phosphor/square.png"},
+	{value = "cone",         text = "Cone",          bind = "alt+o",  icon = "phosphor/triangle.png"},
+	{value = "line",         text = "Line",          bind = "alt+l",  icon = "phosphor/line-segment.png"},
+	{value = "rectangle",    text = "Rectangle",     bind = "ctrl+r", icon = "phosphor/selection.png"},
+	{value = "polygon",      text = "Custom Shape",  bind = "ctrl+p", icon = "phosphor/polygon.png"},
+	{value = "crosssection", text = "Cross Section", bind = "alt+x",  icon = "phosphor/mountains.png"},
+}
+
 local function CreateRulerPanel()
 	local hud = gamehud
 	-- Every form-style setting in this panel uses the stacked (label-above-
@@ -35,30 +56,196 @@ local function CreateRulerPanel()
 		persistentSetting = Setting("measure:persistent", stackedCheckOpts)
 	end
 
+	--Shape picker: one click and all eight shapes visible, replacing a dropdown
+	--that cost two clicks and showed none of them. Selection is driven off the
+	--setting rather than off the click, so the alt+r / ctrl+p style keybinds
+	--(which the engine applies directly to the setting) keep the grid in step.
+	local function CreateShapeGrid()
+		local buttons = {}
+		for _, shape in ipairs(g_measureShapes) do
+			buttons[#buttons + 1] = gui.Panel{
+				classes = {"shapeButton"},
+				data = {shapeid = shape.value},
+
+				click = function(element)
+					dmhub.SetSettingValue("measure:shape", shape.value)
+				end,
+
+				--the keybind lives in the tooltip because the grid has no room
+				--for it inline; the dropdown used to spell it out in the label.
+				linger = function(element)
+					gui.Tooltip(string.format("%s (%s)", shape.text, shape.bind))(element)
+				end,
+
+				gui.Panel{
+					classes = {"shapeIcon"},
+					bgimage = shape.icon,
+				},
+			}
+		end
+
+		--Fixed rows of four rather than a wrapping flow. Wrapping adapts to the
+		--panel width, but with eight items it orphans: at the default width it
+		--fitted seven and dropped one onto a row of its own. 4+4 always reads as
+		--a balanced block, and four 44px buttons still fit the 240px minimum
+		--width, so it never clips either.
+		local rows = {}
+		local perRow = 4
+		for i = 1, #buttons, perRow do
+			local rowButtons = {}
+			for j = i, math.min(i + perRow - 1, #buttons) do
+				rowButtons[#rowButtons + 1] = buttons[j]
+			end
+			rows[#rows + 1] = gui.Panel{
+				classes = {"shapeGridRow"},
+				children = rowButtons,
+			}
+		end
+
+		--Iterates the captured button list, NOT element.children -- the grid's
+		--direct children are rows now, so walking children would only ever see
+		--the row panels and never set the selected class.
+		local function SyncSelection(element)
+			local current = dmhub.GetSettingValue("measure:shape")
+			for _, button in ipairs(buttons) do
+				button:SetClass("selected", button.data.shapeid == current)
+			end
+		end
+
+		return gui.Panel{
+			classes = {"shapeGrid"},
+			multimonitor = {"measure:shape"},
+			create = SyncSelection,
+			monitor = SyncSelection,
+			children = rows,
+		}
+	end
+
+	--A conditional setting row that keeps its height when hidden.
+	--
+	--CreateSettingsEditor collapses a row whose `visible` predicate is false
+	--(SettingsGui.lua sets the "collapsed" class), which is what made the panel
+	--jump: switching shape added or removed a ~64px row and shoved everything
+	--below it. Reserving the slot costs some blank space on the shapes that use
+	--neither modifier, which this panel has to spare.
+	--
+	--minHeight rather than a fixed height so the row can still grow at a large
+	--Font Size setting instead of clipping -- it degrades to a shift at big
+	--fonts rather than to lost content. (A font-relative "sp"/"em" height would
+	--express this properly but is not implemented on this engine build -- see
+	--the DIMENSION FORMS note above.)
+	local function ReservedRow(...)
+		return gui.Panel{
+			width = "100%",
+			height = "auto",
+			--68 = the measured height of a stacked label+control row at the
+			--default Font Size (checked against both the Cone Angle dropdown
+			--and the Line Width slider). 64 left a visible 4px twitch.
+			minHeight = 68,
+			flow = "vertical",
+			halign = "left",
+			children = {...},
+		}
+	end
+
 	--Local overrides for the stock checkbox, which is the one control here
 	--that cannot shrink: its row is width = "auto" with minWidth = 200 and a
 	--flat 30px height, and its caption is width = "auto" too, so a long
-	--caption ("Display to others") runs straight out of a narrow panel and a
-	--large Font Size setting overflows the row. Pin the row to the panel
-	--width, size it in "sp" (pixels x the Font Size setting) so it grows with
-	--the text, and hand the caption whatever width is left after the check
-	--square, with a minFontSize floor so it shrinks to fit rather than
-	--overrunning. (Wrapping instead of shrinking is not an option here: an
-	--"auto" height on this row stretches to the parent extent rather than to
-	--its content, which is exactly why the stock rule pins 30px.)
+	--caption ("Display to others") runs straight out of a narrow panel. Pin
+	--the row to the panel width and hand the caption whatever width is left
+	--after the check square, with a minFontSize floor so it shrinks to fit
+	--rather than overrunning. (Wrapping instead of shrinking is not an option
+	--here: an "auto" height on this row stretches to the parent extent rather
+	--than to its content, which is exactly why the stock rule pins 30px.)
+	--
+	--DIMENSION FORMS: this engine build accepts only pixels, percentages, and
+	--the "100%-<pixels>" complement. The font-relative "sp"/"em" forms the
+	--Definitions stubs document are NOT implemented here -- "30sp" and "2em"
+	--both raise "Unrecognized dimension string" and fall back, so the row
+	--cannot be made to track the Font Size setting by that route. Worse,
+	--"100%-2em" fails SILENTLY (no error, wrong result), so do not reach for
+	--the em/sp family in this file without testing it in a live client first.
 	local rulerStyles = {
 		{
 			selectors = {"checkbox"},
 			width = "100%",
 			minWidth = 0,
-			height = "30sp",
+			height = 30,
 			borderBox = true,
 		},
 		{
 			selectors = {"checkboxLabel"},
-			width = "100% available",
+			--NOT "100% available": it resolves to zero inside this row and the
+			--caption renders one character per line, spilling vertically out of
+			--the row (the same trap DocumentSystem's find-row label documents).
+			--"auto" sizes to the text; the maxWidth complement is what bounds it
+			--so minFontSize has something to shrink against. 40px covers the
+			--check square (21px -- "100% height" of the 70%-tall row) plus its
+			--6px rmargin and the row's 4px hpad either side, with slack.
+			width = "auto",
+			maxWidth = "100%-40",
 			height = "100%",
 			minFontSize = 10,
+		},
+
+		--Shape picker: a vertical stack of fixed rows (see CreateShapeGrid for
+		--why fixed rather than wrapping).
+		{
+			selectors = {"shapeGrid"},
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			halign = "left",
+			vmargin = 2,
+		},
+		{
+			selectors = {"shapeGridRow"},
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			halign = "left",
+		},
+		{
+			selectors = {"shapeButton"},
+			width = 44,
+			height = 44,
+			margin = 2,
+			bgimage = true,
+			bgcolor = "@bg",
+			borderWidth = 1,
+			borderColor = "@border",
+			halign = "left",
+			valign = "top",
+		},
+		{
+			selectors = {"shapeButton", "hover"},
+			bgcolor = "@bgAlt",
+			borderColor = "@fg",
+			transitionTime = 0.1,
+		},
+		--Selected state carries THREE signals -- fill, a doubled border, and a
+		--brightened icon -- so it never depends on colour alone.
+		{
+			selectors = {"shapeButton", "selected"},
+			bgcolor = "@bgAlt",
+			borderColor = "@fg",
+			borderWidth = 2,
+		},
+		{
+			selectors = {"shapeIcon"},
+			width = 24,
+			height = 24,
+			halign = "center",
+			valign = "center",
+			bgcolor = "@fgMuted",
+		},
+		{
+			selectors = {"shapeIcon", "parent:hover"},
+			bgcolor = "@fg",
+		},
+		{
+			selectors = {"shapeIcon", "parent:selected"},
+			bgcolor = "@fg",
 		},
 	}
 
@@ -131,23 +318,39 @@ local function CreateRulerPanel()
 			dmhub.rulerToolActive = false
 		end,
 
-		--width/height are relative + auto so the title wraps rather than
-		--overruns at a narrow width or a large Font Size setting.
+		--No in-panel title: the dock tab / floating window chrome already
+		--names this panel "Measuring Tool", so a heading here just repeats it.
+		--
+		--Three groups, in the order you actually work: pick a shape, decide how
+		--it snaps, then decide who sees the result. The previous order
+		--interleaved them -- "Display to others" sat directly beneath Cone
+		--Angle, reading as a cone option -- and left the two checkboxes
+		--stranded apart from each other at opposite ends of the panel.
+
+		--1. Shape (+ the modifier belonging to the selected shape).
 		gui.Label{
-			text = "Measuring Tool",
-			classes = {"sizeXl", "bold"},
-			width = "100%",
-			height = "auto",
-			textAlignment = "center",
-			textWrap = true,
-			vmargin = 2,
+			classes = {"formStacked", "sizeXs"},
+			width = "98%",
+			text = "Shape:",
 		},
-		Setting("measure:shape"),
-		Setting("measure:coneangle"),
-		Setting("measure:linewidth", stackedSliderOpts),
-		Setting("measure:share", stackedCheckOpts),
+		CreateShapeGrid(),
+		--Cone Angle and Line Width are mutually exclusive, so they share one
+		--reserved slot; each collapses itself when its shape is not selected.
+		ReservedRow(
+			Setting("measure:coneangle"),
+			Setting("measure:linewidth", stackedSliderOpts)
+		),
+
+		gui.MCDMDivider{},
+
+		--2. Snap (+ Distances, which only applies while snapping).
 		Setting("measure:snap"),
-		Setting("measure:distances"),
+		ReservedRow(Setting("measure:distances")),
+
+		gui.MCDMDivider{},
+
+		--3. What happens to the measurement.
+		Setting("measure:share", stackedCheckOpts),
 		persistentSetting,
 
 	}

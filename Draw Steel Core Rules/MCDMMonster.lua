@@ -153,7 +153,14 @@ function monster:FillFreeStrikes(options, result)
         else
             ability.range = defaultRange
         end
-        ability.behaviors[1].roll = freeStrikeDamage .. "*Charges*Cast.NumAttackers(Target)"
+        --No *Charges factor: a free strike's damage is a flat statblock number
+        --and never scales with charges. It used to be multiplied by Charges,
+        --which broke whenever the free strike was invoked from a channeled
+        --ability -- Charges defaults to 0 there (see ActivatedAbility:DefaultCharges)
+        --and is forwarded across the invoke boundary, zeroing the whole roll
+        --(e.g. the Undead malice feature Dread March). Multi-attacker squads are
+        --handled by Cast.NumAttackers(Target), not by Charges.
+        ability.behaviors[1].roll = freeStrikeDamage .. "*Cast.NumAttackers(Target)"
         ability.behaviors[1].damageType = damageType
         --Force per-target roll evaluation so Cast.NumAttackers(Target)
         --resolves against the actual target being damaged.

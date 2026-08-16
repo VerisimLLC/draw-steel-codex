@@ -9931,6 +9931,8 @@ end
 --- @field text string
 --- @field retargetid false|string
 --- @field rules string
+--- @field activateText string The name of mode 1 of a multi-mode trigger.
+--- @field activateRules string The rules text of mode 1 of a multi-mode trigger.
 --- @field modes {text: string, rules: string}[]
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
@@ -9962,7 +9964,11 @@ ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
 ActiveTrigger.retargetid = false
 ActiveTrigger.text = "Trigger"
+--A multi-mode trigger (a TriggeredAbility with multipleModes) keeps mode 1 out
+--of the modes list: activateText/activateRules are its name and rules, and
+--modes holds the remaining modes whose conditions passed. See UsesModeHeading.
 ActiveTrigger.activateText = "Activate"
+ActiveTrigger.activateRules = ""
 ActiveTrigger.rules = ""
 ActiveTrigger.modes = {}
 ActiveTrigger.casterid = false
@@ -10144,6 +10150,19 @@ function ActiveTrigger:GetRulesText()
 	end
 
 	return self.rules
+end
+
+--A multi-mode trigger prompt draws one card per mode: mode 1 is the trigger's
+--own card and the rest are the enhancement-option cards below it. When there
+--are additional modes the trigger's name and prompt go into heading boxes above
+--the whole group and every card carries its own mode's name and rules, so mode
+--1 is not anonymised by the trigger's name/prompt -- see DrawSteelTriggerPanel.
+--
+--This is only for mode-driven triggers. A powerRollModifier trigger's
+--"enhancement options" are extra resource spends rather than modes, so its
+--single card keeps the trigger's own name and rules.
+function ActiveTrigger:UsesModeHeading()
+	return (not self.powerRollModifier) and #self.modes > 0
 end
 
 function ActiveTrigger:IsFreeTriggeredAbility()

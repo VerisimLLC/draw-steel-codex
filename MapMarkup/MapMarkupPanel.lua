@@ -2635,10 +2635,11 @@ local function BuildZoneAuraInstance(entry)
             if kwAppearance == nil or kwAppearance.mode == nil or kwAppearance.mode == "none" then
                 return
             end
-            --hash seed derived from the keyword id: sprite layout and fractal
-            --edge displacement key on absolute world coords + this seed, so
+            --hash seed derived from the keyword id: sprite layout and organic
+            --edge noise key on absolute world coords + this seed, so
             --every zone of a keyword renders identically on every client and
-            --every rebuild, and painting/erasing never reshuffles survivors.
+            --every rebuild. Sprite choices never reshuffle on surviving tiles;
+            --organic noise remains anchored to its world-space coordinates.
             local keywordid = entry.keywordid or ""
             local seed = 0
             for i = 1, #keywordid do
@@ -2647,16 +2648,13 @@ local function BuildZoneAuraInstance(entry)
 
             if kwAppearance.mode == "floor" then
                 if kwAppearance.tileid ~= nil or kwAppearance.edgeWallId ~= nil then
-                    --fractal edges (kwAppearance.fractalEdge/fractalDetail) are
-                    --NOT stamped for now: the feature is reverted pending a
-                    --better look. The engine machinery stays dormant
-                    --(MarkupZoneVisuals.FractalizePolyTree); re-enabling is a
-                    --Lua-only change here + the dialog sliders.
                     appearance = {
                         mode = "floor",
                         tileid = kwAppearance.tileid,
                         edgeWallId = kwAppearance.edgeWallId,
                         alpha = kwAppearance.alpha,
+                        fractalEdge = kwAppearance.fractalEdge or 0,
+                        edgeFade = kwAppearance.edgeFade or 0,
                         seed = seed,
                     }
                 end

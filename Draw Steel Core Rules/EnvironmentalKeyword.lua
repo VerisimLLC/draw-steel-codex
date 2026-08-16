@@ -335,13 +335,16 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 	--serialization).
 	local appearance = keyword:try_get("appearance")
 	if appearance == nil then
-		appearance = { mode = "none", alpha = 1, spriteScale = 1, spriteAlpha = 1 }
+		appearance = { mode = "none", alpha = 1, fractalEdge = 0, edgeFade = 0, spriteScale = 1, spriteAlpha = 1 }
 	end
 
 	local modalLayer = nil
 	local dialogPanel = nil
 
 	local Commit = function()
+		--Remove the retired midpoint-displacement detail setting from any
+		--appearance authored while that prototype was being tested.
+		appearance.fractalDetail = nil
 		if appearance.mode == nil or appearance.mode == "none" then
 			keyword.appearance = nil
 		else
@@ -365,6 +368,24 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 			return nil
 		end
 		return assets.walls[appearance.edgeWallId]
+	end
+
+	local EnsureFillUsesOneLargeTile = function()
+		local asset = GetFillAsset()
+		if asset ~= nil and asset.oneLargeTile ~= true then
+			--Zone floor textures use the same tiling mode as the terrain
+			--editor's "One Large Tile" option: the complete image is one
+			--repeating unit rather than an atlas of 128px tiles.
+			asset.oneLargeTile = true
+			asset:Upload()
+		end
+	end
+
+	--Migrate private fill assets saved by older versions when their appearance
+	--is next edited. Never mutate a legacy shared asset that this keyword does
+	--not explicitly own.
+	if appearance.tileOwned == true then
+		EnsureFillUsesOneLargeTile()
 	end
 
 	--when replacing an asset this keyword owns (uploaded or forked here), hide
@@ -397,6 +418,7 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 		ReleaseFillAsset()
 		appearance.tileid = tileid
 		appearance.tileOwned = cond(owned, true)
+		EnsureFillUsesOneLargeTile()
 		Commit()
 		if dialogPanel ~= nil and dialogPanel.valid then
 			dialogPanel:FireEventTree("refreshAppearance")
@@ -423,7 +445,6 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 		local fork = assets.tilesheets[forkid]
 		if fork ~= nil then
 			fork.description = string.format("%s Zone", keyword.name)
-			fork:Upload()
 		end
 		--a copied tilesheet has no single source image; the icon editor
 		--shows empty for it.
@@ -813,6 +834,46 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 			end,
 			formatFunction = percentFormat,
 			deformatFunction = percentDeformat,
+		},
+
+		AppearanceSlider{
+			text = "Organic Edge:",
+			visible = function() return GetFillAsset() ~= nil or GetEdgeAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 1,
+			get = function()
+				return appearance.fractalEdge or 0
+			end,
+			set = function(value, upload)
+				appearance.fractalEdge = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = percentFormat,
+			deformatFunction = percentDeformat,
+		},
+
+		AppearanceSlider{
+			text = "Edge Fade (tiles):",
+			visible = function() return GetFillAsset() ~= nil end,
+			minValue = 0,
+			maxValue = 0.35,
+			get = function()
+				return appearance.edgeFade or 0
+			end,
+			set = function(value, upload)
+				appearance.edgeFade = value
+				if upload then
+					Commit()
+				end
+			end,
+			formatFunction = function(num)
+				return string.format('%.2f', num)
+			end,
+			deformatFunction = function(num)
+				return num
+			end,
 		},
 
 		--edge brush: a wall drawn around the boundary of each zone.

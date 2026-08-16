@@ -104,7 +104,9 @@ Creates the floating trigger panel that appears above the trigger drawer when th
 - Buttons: Activate, Enhancement Options, Dismiss
 - "Dismiss Triggers" bar to dismiss all at once
 
-A mode whose `condition` is not currently met is still offered (`modes[i].unavailable`, set in `TriggeredAbility:Trigger`): its card is dimmed via the `unavailableMode` class and notes "Conditions not met - select to override", but stays pressable so the table can allow it. Keeping unavailable modes in the list is also load-bearing, not just cosmetic: `symbols.mode` is derived from the option's position (`trigger.triggered + 1`), and `modesSelected` on each behavior indexes `modeList`, so dropping a failed mode used to shift every later one onto the wrong `modeList` entry.
+A mode whose `condition` is not met is hidden, unless the author filled in its **Condition Reason** (`modeList[i].conditionReason`, edited under Mode Condition in the ability editor's Modes section). With a reason set, the mode is offered anyway: the card is dimmed via the `unavailableMode` class and carries the reason in `triggerUnavailableNote`, but stays pressable so the table can allow it. Blank -- the default -- keeps the original hide behaviour.
+
+Because hidden modes leave holes in `modes`, an option's position there is **not** its position in `modeList`. Each entry records `modeIndex`, and `ActiveTrigger:ModeIndexForTriggered` resolves it; `symbols.mode` (which selects behaviors via their `modesSelected`) must go through that helper rather than the old `trigger.triggered + 1`, or every mode after a hidden one runs the wrong entry's behaviors. Prompts serialized before `modeIndex` existed fall back to the positional reading.
 
 Trigger activation either fires immediately or enters target-selection mode (via `chooseTarget` event on the ability controller) if the trigger supports retargeting.
 

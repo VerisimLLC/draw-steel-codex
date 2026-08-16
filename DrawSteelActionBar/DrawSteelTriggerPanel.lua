@@ -783,7 +783,7 @@ mod.shared.CreateTriggerPanel = function()
 								buttons[#buttons+1] = gui.Label{
 									classes = {"triggerButton", cond(option.unavailable == true, "unavailableMode")},
 									text = option.text,
-									hover = gui.Tooltip(cond(option.unavailable == true, "Conditions not met - select to override.\n\n" .. tostring(option.rules), option.rules)),
+									hover = gui.Tooltip(cond(option.unavailable == true, tostring(option.conditionReason or "") .. "\n\n" .. tostring(option.rules), option.rules)),
 									press = function(element)
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
@@ -1413,7 +1413,8 @@ mod.shared.CreateTriggerPanel = function()
                                         gui.Label{
                                             classes = {"triggerUnavailableNote", cond(not unavailable, "collapsed")},
                                             interactable = false,
-                                            text = "Conditions not met - select to override",
+                                            markdown = true,
+                                            text = tostring(option.conditionReason or ""),
                                         },
                                     },
 

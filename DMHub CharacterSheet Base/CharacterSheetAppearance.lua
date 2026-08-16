@@ -115,6 +115,19 @@ local AppearanceStyles = {
         borderWidth = 2,
     },
 
+    -- Privacy (eye) toggle beside the character name.  Its bgimage comes from
+    -- the character sheet framework's {"privacyIcon"} rule, but its bgcolor
+    -- cannot: this panel's style set is the one carrying the theme cascade, and
+    -- the theme's generic {"panel"} rule paints bgcolor with @bg.  Sitting
+    -- closer to the icon than the framework's rule, it wins at equal
+    -- specificity -- which tinted the white eye PNG the exact colour of the
+    -- surface behind it.  Re-state the tint here so it resolves in the same set
+    -- and wins on order, matching what the Draw Steel sheet already uses.
+    {
+        selectors = { "privacyIcon" },
+        bgcolor = "@fgStrong",
+    },
+
     {
         selectors = { "framePanel" },
         halign = "left",

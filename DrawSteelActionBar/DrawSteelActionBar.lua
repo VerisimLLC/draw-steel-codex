@@ -862,6 +862,113 @@ local NOVEL_MARKER_RULES = {
 }
 
 
+--Director multi-monster overview column footer (slice (d)); see the
+--OverviewColumnFooter block above ActionSubMenu for the design notes.
+--Merged into the action bar root's cascade like NOVEL_MARKER_RULES so
+--the rules resolve on columns inside an open action menu.
+local OVERVIEW_FOOTER_ROWS = 3
+
+local OVERVIEW_FOOTER_RULES = {
+    {
+        selectors = { "overviewFooter" },
+        width = 205,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        bgimage = true,
+        bgcolor = "#1D1D1D",
+        borderColor = "#606060",
+        borderWidth = 1.5,
+        pad = 4,
+        borderBox = true,
+    },
+    {
+        selectors = { "overviewFooter", "hover" },
+        borderColor = "white",
+        brightness = 1.2,
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewFooterHeader" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewFooterText" },
+        width = "100%-40",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "center",
+        lmargin = 6,
+    },
+    {
+        selectors = { "overviewFooterName" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "left",
+        textWrap = false,
+    },
+    {
+        selectors = { "overviewFooterLine" },
+        width = "100%",
+        height = "auto",
+        fontSize = 11,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = false,
+    },
+    {
+        selectors = { "overviewFooterRow" },
+        width = "100%",
+        height = 20,
+        flow = "horizontal",
+        halign = "left",
+        tmargin = 3,
+        bgimage = true,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewFooterRow", "hover" },
+        bgcolor = "#ffffff22",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewFooterRowLabel" },
+        width = "100%-24",
+        height = "auto",
+        fontSize = 11,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = false,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+    },
+    {
+        selectors = { "overviewFooterMore" },
+        width = "100%",
+        height = "auto",
+        fontSize = 11,
+        color = Styles.textColor,
+        textAlignment = "left",
+        tmargin = 3,
+        lmargin = 24,
+    },
+    --Whole-column acted greying (Decision 50): the chips dim but stay
+    --discoverable and clickable (Decision 4; opacity floor per X3).
+    {
+        selectors = { "abilityHeading", "parent:acted" },
+        opacity = 0.5,
+    },
+}
+
 local function ActionBarDrawer(args)
     local m_resourceid
     local m_resourceInfo
@@ -1837,7 +1944,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) },
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES), ThemeEngine.MergeTokens(OVERVIEW_FOOTER_RULES) },
         width = "100%",
         height = 50,
         halign = "center",
@@ -1850,7 +1957,7 @@ local function CreateActionBar()
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) }
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES), ThemeEngine.MergeTokens(OVERVIEW_FOOTER_RULES) }
                 end
             end)
         end,
@@ -2617,18 +2724,378 @@ local function PowerRollTriggersSubmenu(args)
     return resultPanel
 end
 
-local function ActionSubMenu(args)
-    local m_children = {
-        gui.Label {
-            classes = { "submenuHeading" },
-            abilities = function(element, abilities, grouping)
-                if grouping == "Triggers" then
-                    grouping = "Manual Use Triggers"
+--Director multi-monster overview: the column FOOTER BAR (slice (d)).
+--
+--An overview column (see BuildOverviewColumns / the "unique" menu branch)
+--replaces the ordinary "submenuHeading" text label at the foot of the column
+--with a bar in the same visual position and palette (solid #1D1D1D, gold
+--text) that carries the statblock's identity and per-round SIGNALS - never
+--a verdict (Decision 48): the representative token's real portrait, the
+--statblock name (+ " xN"), the stat-block role line ("Level 1 Horde
+--Harrier", from monster.cr/.role exactly as the stat block header prints it;
+--nothing is fabricated when that data is missing), a qualitative STAMINA
+--BAND (Low <= 1/3, Moderate <= 2/3, High) and the ACTED state from the live
+--initiative queue (InitiativeQueue:HasHadTurn). Everything is text; colour
+--is never the only channel (Decision 51/X12); text >= 11px (X11).
+--
+--When a column has more than one member (Goblin Warrior x2), the footer grows
+--one compact MINI-ROW per member - per SQUAD for minions, since a squad is one
+--actor sharing one initiative slot and one stamina pool - each with a tiny
+--portrait, the member's name, its stamina band and its acted tag (X7). At
+--most three rows are shown, then "+N more".
+--
+--Clicking the bar LOCATES the column: dmhub.CenterOnToken on the
+--representative and dmhub.PulseHighlightToken on every member; clicking a
+--mini-row locates that member. NEVER dmhub.FocusToken (it selects, which
+--collapses the overview scope - Decision 51/X5); dmhub.selectedTokens is not
+--touched.
+--
+--When EVERY member of a column has acted this round the whole column is
+--dimmed (class "acted" on the abilitySubMenu -> chips at 0.5 opacity, still
+--clickable/discoverable per Decision 4); nothing else dims a column.
+--
+--Pooled-panel rule (Field test log): the footer and its mini-rows are created
+--ONCE per ActionSubMenu and updated through the "overviewColumn" event; no
+--children list is ever reassigned after construction.
+--
+--Styling lives in OVERVIEW_FOOTER_RULES (next to NOVEL_MARKER_RULES, merged
+--into the action bar root's cascade).
+
+--Qualitative stamina band for a token: "Low" (<= 1/3), "Moderate" (<= 2/3)
+--or "High"; nil when the creature has no usable stamina numbers. For a
+--minion, CurrentHitpoints/MaxHitpoints already report the SQUAD pool
+--(MCDMCreature.lua ~:172/:4710), so the band is the squad's state.
+local function OverviewStaminaBand(tok)
+    local cur, max = nil, nil
+    pcall(function()
+        cur = tok.properties:CurrentHitpoints()
+        max = tok.properties:MaxHitpoints()
+    end)
+    if type(cur) ~= "number" or type(max) ~= "number" or max <= 0 then
+        return nil
+    end
+    if cur <= max / 3 then
+        return "Low"
+    elseif cur <= max * 2 / 3 then
+        return "Moderate"
+    end
+    return "High"
+end
+
+--Acted-this-round from the live initiative queue: true / false, or nil when
+--there is no (visible) queue or the token has no entry in it.
+local function OverviewActedState(q, tok)
+    if q == nil then
+        return nil
+    end
+    local acted = nil
+    pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) end)
+    if acted == true or acted == false then
+        return acted
+    end
+    return nil
+end
+
+--The stat block's own role line ("Level 1 Horde Harrier", "Level 2 Harrier
+--minion") built from monster.cr / monster.role exactly as the stat block
+--header does (MCDMMonster.lua ~:637). nil for anything without role data.
+local function OverviewRoleLine(tok)
+    local props = tok.properties
+    local role = nil
+    local level = nil
+    local isMinion = false
+    pcall(function()
+        if props:IsMonster() then
+            role = props:try_get("role")
+            level = tonumber(props:try_get("cr"))
+            isMinion = props.minion == true
+        end
+    end)
+    if role == nil or role == "" then
+        return nil
+    end
+    local text = role
+    if level ~= nil then
+        text = string.format("Level %d %s", round(level), role)
+    end
+    if isMinion and string.find(string.lower(role), "minion", 1, true) == nil then
+        text = text .. " minion"
+    end
+    return text
+end
+
+--Reduce a column record ({tokens, token, name, label}) to its signals:
+--  members   = one entry per actor: { token, name, tokens, stamina, acted }
+--              (minions of one squad fold into a single entry, its name the
+--              squad id, tokens = every selected minion of that squad);
+--  actedCount / freshCount over members; allActed = every member acted;
+--  inCombat  = a live, non-hidden initiative queue exists.
+local function OverviewColumnSignals(column)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+
+    local members = {}
+    local byKey = {}
+    for _, tok in ipairs(column.tokens or {}) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            local squad = nil
+            pcall(function() squad = tok.properties:MinionSquad() end)
+            local key = squad or tok.charid
+            local member = byKey[key]
+            if member == nil then
+                member = {
+                    token = tok,
+                    name = squad or tok.name or column.name or "Creature",
+                    tokens = {},
+                    stamina = OverviewStaminaBand(tok),
+                    acted = OverviewActedState(q, tok),
+                }
+                byKey[key] = member
+                members[#members + 1] = member
+            end
+            member.tokens[#member.tokens + 1] = tok
+        end
+    end
+
+    local actedCount = 0
+    for _, member in ipairs(members) do
+        if member.acted == true then
+            actedCount = actedCount + 1
+        end
+    end
+
+    return {
+        members = members,
+        actedCount = actedCount,
+        freshCount = #members - actedCount,
+        allActed = #members > 0 and actedCount == #members,
+        inCombat = q ~= nil,
+    }
+end
+
+--Locate on the map without selecting (Decision 51/X5): pan to one token,
+--pulse a set. Never dmhub.FocusToken.
+local function OverviewLocate(centerToken, pulseTokens)
+    if centerToken == nil or not centerToken.valid then
+        return
+    end
+    dmhub.CenterOnToken(centerToken.charid, { smooth = true })
+    for _, tok in ipairs(pulseTokens or { centerToken }) do
+        if tok ~= nil and tok.valid then
+            dmhub.PulseHighlightToken(tok.charid)
+        end
+    end
+end
+
+--"Stamina: High - acted" style signal text for one member.
+local function OverviewSignalText(member, inCombat)
+    local parts = {}
+    if member.stamina ~= nil then
+        parts[#parts + 1] = "Stamina: " .. member.stamina
+    end
+    if inCombat then
+        if member.acted == true then
+            parts[#parts + 1] = "acted"
+        elseif member.acted == false then
+            parts[#parts + 1] = "fresh"
+        end
+    end
+    return table.concat(parts, " - ")
+end
+
+--One pooled footer bar. Populate/refresh via FireEvent("overviewColumn",
+--column, signals) where signals = OverviewColumnSignals(column).
+local function OverviewColumnFooter()
+    local m_column = nil
+    local m_signals = nil
+
+    local portrait = gui.CreateTokenImage(nil, {
+        width = 34,
+        height = 34,
+        halign = "left",
+        valign = "center",
+        interactable = false,
+    })
+
+    local nameLabel = gui.Label {
+        classes = { "overviewFooterName" },
+        text = "",
+    }
+    local roleLabel = gui.Label {
+        classes = { "overviewFooterLine" },
+        text = "",
+    }
+    local signalLabel = gui.Label {
+        classes = { "overviewFooterLine" },
+        text = "",
+    }
+
+    local header = gui.Panel {
+        classes = { "overviewFooterHeader" },
+        portrait,
+        gui.Panel {
+            classes = { "overviewFooterText" },
+            nameLabel,
+            roleLabel,
+            signalLabel,
+        },
+    }
+
+    --Fixed pool of member mini-rows plus the overflow line; created once,
+    --collapsed when unused, never re-listed.
+    local rows = {}
+    for i = 1, OVERVIEW_FOOTER_ROWS do
+        local rowPortrait = gui.CreateTokenImage(nil, {
+            width = 18,
+            height = 18,
+            halign = "left",
+            valign = "center",
+            interactable = false,
+        })
+        local rowLabel = gui.Label {
+            classes = { "overviewFooterRowLabel" },
+            text = "",
+        }
+        local row
+        row = gui.Panel {
+            classes = { "overviewFooterRow", "collapsed" },
+            data = { member = nil },
+            rowPortrait,
+            rowLabel,
+
+            press = function(element)
+                local member = element.data.member
+                if member ~= nil then
+                    OverviewLocate(member.token, member.tokens)
                 end
-                element.text = grouping
+            end,
+
+            setMember = function(element, member, inCombat)
+                element.data.member = member
+                if member == nil then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                rowPortrait:FireEventTree("token", member.token)
+                local text = member.name
+                if #member.tokens > 1 then
+                    text = string.format("%s (%d)", text, #member.tokens)
+                end
+                local signal = OverviewSignalText(member, inCombat)
+                if signal ~= "" then
+                    text = text .. " - " .. signal
+                end
+                rowLabel.text = text
             end,
         }
+        rows[i] = row
+    end
+
+    local moreLabel = gui.Label {
+        classes = { "overviewFooterMore", "collapsed" },
+        text = "",
     }
+
+    local children = { header }
+    for _, row in ipairs(rows) do
+        children[#children + 1] = row
+    end
+    children[#children + 1] = moreLabel
+
+    local resultPanel
+    resultPanel = gui.Panel {
+        classes = { "overviewFooter", "collapsed" },
+        children = children,
+
+        press = function(element)
+            if m_column == nil or m_signals == nil then
+                return
+            end
+            local pulse = {}
+            for _, member in ipairs(m_signals.members) do
+                for _, tok in ipairs(member.tokens) do
+                    pulse[#pulse + 1] = tok
+                end
+            end
+            OverviewLocate(m_column.token, pulse)
+        end,
+
+        overviewColumn = function(element, column, signals)
+            m_column = column
+            m_signals = signals
+            if column == nil or signals == nil or column.token == nil or not column.token.valid then
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+
+            portrait:FireEventTree("token", column.token)
+            nameLabel.text = column.label or column.name or ""
+
+            local roleText = OverviewRoleLine(column.token)
+            roleLabel.text = roleText or ""
+            roleLabel:SetClass("collapsed", roleText == nil)
+
+            local members = signals.members
+            if #members <= 1 then
+                --Single actor: its own signals on the header line.
+                local member = members[1]
+                local text = ""
+                if member ~= nil then
+                    text = OverviewSignalText(member, signals.inCombat)
+                end
+                signalLabel.text = text
+                signalLabel:SetClass("collapsed", text == "")
+                for _, row in ipairs(rows) do
+                    row:FireEvent("setMember", nil)
+                end
+                moreLabel:SetClass("collapsed", true)
+            else
+                --Several actors: header carries the fresh count, one
+                --mini-row per actor below.
+                local text = ""
+                if signals.inCombat then
+                    text = string.format("%d of %d fresh", signals.freshCount, #members)
+                end
+                signalLabel.text = text
+                signalLabel:SetClass("collapsed", text == "")
+                for i, row in ipairs(rows) do
+                    row:FireEvent("setMember", members[i], signals.inCombat)
+                end
+                local overflow = #members - #rows
+                if overflow > 0 then
+                    moreLabel.text = string.format("+%d more", overflow)
+                    moreLabel:SetClass("collapsed", false)
+                else
+                    moreLabel:SetClass("collapsed", true)
+                end
+            end
+        end,
+    }
+
+    return resultPanel
+end
+
+local function ActionSubMenu(args)
+    --The column's foot: the ordinary text heading (every legacy menu) and,
+    --for a director-overview column, the identity/signals footer bar (slice
+    --(d)) which takes the heading's place. Both are pooled for the life of
+    --the column and always sit at the END of m_children, after the chips.
+    local m_heading = gui.Label {
+        classes = { "submenuHeading" },
+        abilities = function(element, abilities, grouping)
+            if grouping == "Triggers" then
+                grouping = "Manual Use Triggers"
+            end
+            element.text = grouping
+        end,
+    }
+    local m_footer = OverviewColumnFooter()
+
+    local m_children = { m_heading, m_footer }
 
     local resultPanel
 
@@ -2637,7 +3104,11 @@ local function ActionSubMenu(args)
     --statblock's representative token). nil = the bar's bound token, exactly
     --as before. Set via the "setCasterToken" event BEFORE "abilities", since
     --the chips compute suppression/cost from their caster when populated.
+    --m_column is the overview column record ({tokens, token, name, label})
+    --passed alongside; nil for every ordinary menu, which keeps the plain
+    --heading and no footer/greying.
     local m_casterToken = nil
+    local m_column = nil
 
     resultPanel = gui.Panel {
 
@@ -2647,8 +3118,9 @@ local function ActionSubMenu(args)
         classes = { "abilitySubMenu" },
         blurBackground = true,
 
-        setCasterToken = function(element, casterToken)
+        setCasterToken = function(element, casterToken, column)
             m_casterToken = casterToken
+            m_column = column
         end,
 
         abilities = function(element, abilities)
@@ -2679,7 +3151,8 @@ local function ActionSubMenu(args)
 
             local startChildCount = #m_children
 
-            local heading = m_children[#m_children]
+            --Pop the two tail panels (heading, footer); re-appended below.
+            m_children[#m_children] = nil
             m_children[#m_children] = nil
 
             for i = 1, #abilities do
@@ -2695,7 +3168,24 @@ local function ActionSubMenu(args)
                 m_children[i]:SetClass("collapsed", true)
             end
 
-            m_children[#m_children + 1] = heading
+            m_children[#m_children + 1] = m_heading
+            m_children[#m_children + 1] = m_footer
+
+            --Overview column: footer bar instead of the text heading, and
+            --dim the whole column when every member has acted this round
+            --(Decision 50). Ordinary menus: heading shown, footer collapsed,
+            --never dimmed - unchanged from before slice (d).
+            local overview = m_column ~= nil and m_casterToken ~= nil
+            local allActed = false
+            if overview then
+                local signals = OverviewColumnSignals(m_column)
+                allActed = signals.allActed
+                m_footer:FireEvent("overviewColumn", m_column, signals)
+            else
+                m_footer:FireEvent("overviewColumn", nil, nil)
+            end
+            m_heading:SetClass("collapsed", overview)
+            element:SetClass("acted", overview and allActed)
 
             if #m_children ~= startChildCount then
                 element.children = m_children
@@ -2999,7 +3489,10 @@ ActionMenu = function()
                 for i, column in ipairs(columns) do
                     m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}
                     local submenu = m_uniqueColumns[i]
-                    submenu:FireEvent("setCasterToken", column.token)
+                    --The column record rides along so the footer bar can
+                    --show the portrait/name/signals and the column can
+                    --grey itself when every member has acted (slice (d)).
+                    submenu:FireEvent("setCasterToken", column.token, column)
                     submenu:FireEventTree("abilities", column.abilities, column.label)
                     if #column.abilities > 0 then
                         populated = populated + 1

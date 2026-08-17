@@ -2872,6 +2872,13 @@ local function RebuildZoneCache()
 
     local map = game.currentMap
     if map == nil then
+        --no map = no zone instances: any running zone scripts must get their
+        --exit routine. (EnvironmentalKeyword loads after this file, so it is
+        --resolved at call time, rawget-guarded like the other keyword refs.)
+        local keywordType = rawget(_G, "EnvironmentalKeyword")
+        if keywordType ~= nil and rawget(keywordType, "SyncZoneScripts") ~= nil then
+            keywordType.SyncZoneScripts({})
+        end
         return
     end
 
@@ -3213,6 +3220,19 @@ local function RebuildZoneCache()
         if overlayZone.water then
             m_footstepsOverlayZones[#m_footstepsOverlayZones+1] = overlayZone
         end
+    end
+
+    --Zone scripts: one instance of a keyword's Lua script per zone of that
+    --keyword on the map, Entire Map blankets included. The runtime lives in
+    --EnvironmentalKeyword.lua; it diffs against the previous rebuild, so
+    --zones that appeared here instantiate and zones that vanished run their
+    --guaranteed exit routine. Runs LAST so every entry's locsUserdata (the
+    --active tiles - dynamic light already applied) is in place.
+    --(EnvironmentalKeyword loads after this file: resolve at call time,
+    --rawget-guarded like the other keyword refs.)
+    local keywordType = rawget(_G, "EnvironmentalKeyword")
+    if keywordType ~= nil and rawget(keywordType, "SyncZoneScripts") ~= nil then
+        keywordType.SyncZoneScripts({m_zoneCache, m_entireMap.entries})
     end
 end
 

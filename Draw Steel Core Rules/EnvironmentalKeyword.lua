@@ -34,6 +34,7 @@ local mod = dmhub.GetModLoading()
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
 --- @field appearance table|nil Optional visual representation drawn on the map for zones of this keyword (beyond the overlay stripes), edited in the Edit Appearance dialog. mode = "floor": {mode, tileid = tilesheet asset id filling the tiles, edgeWallId = wall asset id drawn as a decorative ring around the boundary (nil = none), alpha = fill opacity, fractalEdge = deterministic organic-boundary strength from 0 to 1 (nil = 0), edgeFade = inward fill fade in tiles from 0 to 0.35 (nil = 0), tileImageId/edgeImageId = source image asset ids shown in the dialog's IconEditors (nil when the asset was copied from an existing tilesheet/wall), tileOwned/edgeOwned = true when the asset was created/forked for this keyword (replaced assets are Delete()d)}. Floor fills force the private tilesheet asset to oneLargeTile so the whole image is the repeating unit. mode = "sprites": {mode, sprites = image asset ids, spriteScale = quad size within the tile, spriteAlpha}. Texture scale/hue/saturation/brightness live on the referenced ASSETS, exactly like real floors and walls. MapMarkupPanel stamps this onto zone aura instances (AuraInstance:GetAppearance); the engine's MarkupZoneVisuals renders it resting on the ground, terrain-conformed and parallax-correct. No class default: absent = no visual.
 --- @field appearanceDefaultOff boolean|nil When true, new zones painted with this keyword from the Map Markup panel start with their visual representation hidden (record field hideAppearance; stripes only). Toggled by the "Visuals" pill on the zone palette chip. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Visuals badge on its zone-list row), so flipping this never disturbs existing zones. Only meaningful when appearance is set. No class default: absent = visuals shown.
+--- @field script string|nil Optional Lua zone-script source, edited in the Edit Script dialog. When set, one instance of the script runs on EVERY client for each zone of this keyword on the current map (Entire Map blankets included). The source must RETURN a table of handlers, all optional: create(zone), destroy(zone), locsChanged(zone), think(zone), and thinkInterval (seconds between think calls, default 1). destroy is guaranteed to run when the zone is de-instantiated: erased or deleted, its keyword deleted, the map changed, the script edited, or mods reloaded. If locsChanged is absent the script is restarted (destroy then create) whenever the zone's tiles change. The zone object passed to handlers carries zoneid/floorid/floorIndex/mapid, name, keyword (type name), keywordid, color, altitude, height (nil = unlimited), entireMap, locs (list of Loc userdata, ready for e.g. dmhub.CreateWorldDistortion), locsAndAdjacent (locs plus every tile 8-way adjacent to the zone; computed lazily on first read and refreshed when the zone's tiles change) and data (an empty scratch table for script state). No class default: absent = no script.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
 
@@ -1171,6 +1172,596 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 	dialogPanel:FireEventTree("refreshAppearance")
 end
 
+--=== Zone scripts ===========================================================
+--A keyword may carry Lua source (keyword.script) that runs once per zone of
+--that keyword on the current map, on every client - the zone-visuals of code.
+--The source RETURNS a table of handlers (the AbilityScript/EncounterScript
+--load-with-env precedent): create/destroy/locsChanged/think + thinkInterval.
+--
+--MapMarkupPanel calls EnvironmentalKeyword.SyncZoneScripts at the end of
+--every zone-cache rebuild (which runs on every client via the map-aura feed,
+--panel open or not). The manager diffs the rebuilt zone list against its
+--running instances: zones that appeared instantiate, zones that vanished run
+--their exit routine. destroy is HARD-GUARANTEED at de-instantiation through
+--three layered mechanisms:
+--  1. the sync diff - erasing/deleting the zone, deleting its keyword,
+--     breaking or editing the script, hiding the floor, and map changes all
+--     land here, because every one of them triggers a cache rebuild;
+--  2. a heartbeat (which also drives think) that destroys any instance whose
+--     map is no longer the current map, for teardowns whose rebuild the feed
+--     never polled;
+--  3. mod.unloadHandlers, for Lua reloads.
+--Every handler call is pcall-wrapped: a script error is reported (once per
+--handler per instance) and never breaks the zone cache or another script.
+
+local ZoneScripts = {
+	--key "mapid|floorid|zoneid" -> running instance {key, code, def, zone,
+	--locsSig, created, destroyed, nextThink, errorReported}
+	instances = {},
+	heartbeatActive = false,
+	--compiled-definition cache keyed by the exact source string. Definitions
+	--are pure (no side effects at load), so identical source always yields
+	--the same definition; treat cached defs as read-only.
+	definitionCache = {},
+}
+
+ZoneScripts.starterTemplate = [[--Zone script: runs on every client, one instance per zone of this type
+--on the current map. Return a table of handlers; all are optional.
+--
+--Handlers receive the zone object:
+--  zone.locs        the Loc tiles the zone currently covers
+--  zone.locsAndAdjacent  zone.locs plus every tile adjacent to it (8-way)
+--  zone.color       the zone type's color, e.g. "#3373d9"
+--  zone.name        this zone's display name
+--  zone.keyword     the zone type's name
+--  zone.zoneid, zone.floorid, zone.floorIndex, zone.mapid
+--  zone.altitude    tiles above the ground the zone starts at
+--  zone.height      tiles of vertical extent, or nil for unlimited
+--  zone.entireMap   true for an "Entire Map" blanket
+--  zone.data        an empty table for your own state
+--
+--destroy is guaranteed to run when the zone is erased, the map changes,
+--the script is edited, or mods reload. If locsChanged is omitted, the
+--script restarts (destroy then create) whenever the zone's tiles change.
+--think(zone) runs every thinkInterval seconds while the zone exists.
+
+local def = {}
+
+def.create = function(zone)
+	--example: shimmer the air over the zone for as long as it exists.
+	zone.data.heat = dmhub.CreateWorldDistortion{
+		type = "heatwave",
+		locs = zone.locs,
+		strength = 4,
+		speed = 0.9,
+		fadeIn = 0.5,
+		fadeOut = 0.5,
+	}
+end
+
+def.locsChanged = function(zone)
+	if zone.data.heat ~= nil then
+		zone.data.heat:SetLocs(zone.locs)
+	end
+end
+
+def.destroy = function(zone)
+	if zone.data.heat ~= nil then
+		zone.data.heat:Stop()
+	end
+end
+
+return def]]
+
+--Compile zone-script source into a normalized definition table, or nil plus
+--an error string. Follows EncounterScript.CompileDefinition: load(code, name,
+--"t", env) with an environment that reads globals but keeps writes local to
+--the chunk.
+ZoneScripts.Compile = function(code)
+	if code == nil or code == "" then
+		return nil, "The script is empty"
+	end
+
+	local cached = ZoneScripts.definitionCache[code]
+	if cached ~= nil then
+		return cached.def, cached.error
+	end
+
+	local result = { def = nil, error = nil }
+	ZoneScripts.definitionCache[code] = result
+
+	local env = setmetatable({}, { __index = _G })
+	local chunk, err = load(code, "ZoneScript", "t", env)
+	if chunk == nil then
+		result.error = "Compile error: " .. tostring(err)
+		return nil, result.error
+	end
+
+	local ok, def = pcall(chunk)
+	if not ok then
+		result.error = "Error running script: " .. tostring(def)
+		return nil, result.error
+	end
+	if type(def) ~= "table" then
+		result.error = "The script must return a table of handlers"
+		return nil, result.error
+	end
+
+	local norm = {}
+	for _,handler in ipairs({"create", "destroy", "locsChanged", "think"}) do
+		local fn = def[handler]
+		if fn ~= nil and type(fn) ~= "function" then
+			result.error = string.format("Invalid definition: %s must be a function", handler)
+			return nil, result.error
+		end
+		norm[handler] = fn
+	end
+
+	local interval = tonumber(def.thinkInterval) or 1
+	if interval < 0.25 then
+		interval = 0.25
+	end
+	norm.thinkInterval = interval
+
+	result.def = norm
+	return norm, nil
+end
+
+--Human-readable summary for editor status rows.
+ZoneScripts.DescribeDefinition = function(def)
+	local handlers = {}
+	for _,handler in ipairs({"create", "think", "locsChanged", "destroy"}) do
+		if def[handler] ~= nil then
+			handlers[#handlers+1] = handler
+		end
+	end
+	if #handlers == 0 then
+		return "Script OK (declares no handlers yet)"
+	end
+	return "Runs " .. table.concat(handlers, ", ")
+end
+
+ZoneScripts.Describe = function(keyword)
+	local code = keyword:try_get("script")
+	if code == nil or code == "" then
+		return "None"
+	end
+	local def, err = ZoneScripts.Compile(code)
+	if def == nil then
+		return "Script has errors"
+	end
+	return ZoneScripts.DescribeDefinition(def)
+end
+
+--Report a handler error once per handler per instance: a broken think would
+--otherwise spam an error every tick. The flag doubles as the "stop calling
+--think" gate below.
+ZoneScripts.ReportError = function(instance, handler, err)
+	if instance.errorReported[handler] then
+		return
+	end
+	instance.errorReported[handler] = true
+	dmhub.CloudError(string.format("Zone script (%s, zone %s): error in %s: %s",
+		tostring(instance.zone.keyword), tostring(instance.zone.name), handler, tostring(err)))
+end
+
+--Order-independent signature of a zone's active tiles, used to detect
+--geometry changes across rebuilds. locs are Loc userdata built from integer
+--tile coords; round defensively like the dispel carve does.
+ZoneScripts.LocsSignature = function(locs)
+	local parts = {}
+	for _,loc in ipairs(locs or {}) do
+		parts[#parts+1] = string.format("%d,%d", math.floor(loc.x + 0.5), math.floor(loc.y + 0.5))
+	end
+	table.sort(parts)
+	return table.concat(parts, ";")
+end
+
+--zone.locs dilated one tile outward, 8-way: the zone plus its adjacent ring,
+--deduped. The ring tiles are fresh core.Loc userdata on the zone's floor;
+--coords are rounded defensively like LocsSignature.
+ZoneScripts.DilateLocs = function(locs, floorIndex)
+	local seen = {}
+	local result = {}
+	for _,loc in ipairs(locs or {}) do
+		local x = math.floor(loc.x + 0.5)
+		local y = math.floor(loc.y + 0.5)
+		local key = x .. "," .. y
+		if seen[key] == nil then
+			seen[key] = true
+			result[#result+1] = loc
+		end
+	end
+
+	--walk only the original tiles; result grows past numOriginal as the ring
+	--is appended.
+	local numOriginal = #result
+	for i = 1,numOriginal do
+		local loc = result[i]
+		local x = math.floor(loc.x + 0.5)
+		local y = math.floor(loc.y + 0.5)
+		for dy = -1,1 do
+			for dx = -1,1 do
+				if dx ~= 0 or dy ~= 0 then
+					local key = (x+dx) .. "," .. (y+dy)
+					if seen[key] == nil then
+						seen[key] = true
+						result[#result+1] = core.Loc{
+							x = x + dx,
+							y = y + dy,
+							floorIndex = floorIndex,
+						}
+					end
+				end
+			end
+		end
+	end
+	return result
+end
+
+ZoneScripts.BuildZoneObject = function(entry)
+	local zone = {
+		zoneid = entry.zoneid,
+		floorid = entry.floorid,
+		floorIndex = entry.floorIndex,
+		mapid = game.currentMapId,
+		name = entry.name,
+		keyword = entry.keywordName,
+		keywordid = entry.keywordid,
+		color = entry.patternColor,
+		altitude = entry.altitude or 0,
+		height = entry.height,
+		entireMap = entry.entireMap == true,
+		locs = entry.locsUserdata,
+		data = {},
+		destroyed = false,
+	}
+	--zone.locsAndAdjacent computes lazily on first read and then caches as a
+	--real field, so blanket-sized zones never pay for a dilation no script
+	--asks for. UpdateInstance nil-assigns the field when locs change, which
+	--routes the next read back through here against the fresh locs.
+	setmetatable(zone, {
+		__index = function(t, key)
+			if key == "locsAndAdjacent" then
+				local value = ZoneScripts.DilateLocs(rawget(t, "locs"), rawget(t, "floorIndex"))
+				rawset(t, "locsAndAdjacent", value)
+				return value
+			end
+			return nil
+		end,
+	})
+	return zone
+end
+
+--Runs the exit routine and unregisters the instance. Reentrant-safe: the
+--destroyed flag is set BEFORE the handler runs, so a destroy that somehow
+--triggers a sync cannot double-fire.
+ZoneScripts.DestroyInstance = function(instance)
+	if instance.destroyed then
+		return
+	end
+	instance.destroyed = true
+	instance.zone.destroyed = true
+	ZoneScripts.instances[instance.key] = nil
+	if instance.created and instance.def.destroy ~= nil then
+		local ok, err = pcall(instance.def.destroy, instance.zone)
+		if not ok then
+			ZoneScripts.ReportError(instance, "destroy", err)
+		end
+	end
+end
+
+ZoneScripts.CreateInstance = function(key, entry, code, def)
+	local instance = {
+		key = key,
+		code = code,
+		def = def,
+		zone = ZoneScripts.BuildZoneObject(entry),
+		locsSig = ZoneScripts.LocsSignature(entry.locsUserdata),
+		--created is set before create runs: if create errors partway it may
+		--already hold resources, so destroy must still fire for it.
+		created = true,
+		destroyed = false,
+		nextThink = dmhub.Time() + def.thinkInterval,
+		errorReported = {},
+	}
+	ZoneScripts.instances[key] = instance
+	if def.create ~= nil then
+		local ok, err = pcall(def.create, instance.zone)
+		if not ok then
+			ZoneScripts.ReportError(instance, "create", err)
+		end
+	end
+	ZoneScripts.EnsureHeartbeat()
+end
+
+--Reconciles a retained instance with its freshly rebuilt cache entry: name
+--and color updates apply in place; a floor or vertical-band change restarts
+--the script; a tile change goes to locsChanged when the script declares it
+--and restarts the script otherwise.
+ZoneScripts.UpdateInstance = function(instance, entry)
+	local zone = instance.zone
+	zone.name = entry.name
+	zone.keyword = entry.keywordName
+	zone.keywordid = entry.keywordid
+	zone.color = entry.patternColor
+
+	local altitude = entry.altitude or 0
+	if zone.floorIndex ~= entry.floorIndex or zone.altitude ~= altitude or zone.height ~= entry.height then
+		ZoneScripts.DestroyInstance(instance)
+		ZoneScripts.CreateInstance(instance.key, entry, instance.code, instance.def)
+		return
+	end
+
+	local sig = ZoneScripts.LocsSignature(entry.locsUserdata)
+	if sig == instance.locsSig then
+		return
+	end
+	instance.locsSig = sig
+	zone.locs = entry.locsUserdata
+	--drop the cached dilation; the next locsAndAdjacent read recomputes it
+	--against the fresh locs via the zone metatable.
+	zone.locsAndAdjacent = nil
+	if instance.def.locsChanged ~= nil then
+		local ok, err = pcall(instance.def.locsChanged, zone)
+		if not ok then
+			ZoneScripts.ReportError(instance, "locsChanged", err)
+		end
+	else
+		ZoneScripts.DestroyInstance(instance)
+		ZoneScripts.CreateInstance(instance.key, entry, instance.code, instance.def)
+	end
+end
+
+ZoneScripts.StopAll = function()
+	local all = {}
+	for _,instance in pairs(ZoneScripts.instances) do
+		all[#all+1] = instance
+	end
+	for _,instance in ipairs(all) do
+		ZoneScripts.DestroyInstance(instance)
+	end
+end
+
+--The heartbeat runs only while instances exist: it destroys any instance
+--whose map is no longer current (the backstop for teardowns whose cache
+--rebuild never got polled) and drives think handlers.
+ZoneScripts.EnsureHeartbeat = function()
+	if ZoneScripts.heartbeatActive then
+		return
+	end
+	ZoneScripts.heartbeatActive = true
+
+	local Tick
+	Tick = function()
+		if mod.unloaded then
+			ZoneScripts.heartbeatActive = false
+			ZoneScripts.StopAll()
+			return
+		end
+		if next(ZoneScripts.instances) == nil then
+			ZoneScripts.heartbeatActive = false
+			return
+		end
+
+		local mapid = game.currentMapId
+		local now = dmhub.Time()
+		local stale = nil
+		for _,instance in pairs(ZoneScripts.instances) do
+			if instance.zone.mapid ~= mapid then
+				stale = stale or {}
+				stale[#stale+1] = instance
+			elseif instance.def.think ~= nil and (not instance.errorReported.think) and now >= instance.nextThink then
+				instance.nextThink = now + instance.def.thinkInterval
+				local ok, err = pcall(instance.def.think, instance.zone)
+				if not ok then
+					ZoneScripts.ReportError(instance, "think", err)
+				end
+			end
+		end
+		for _,instance in ipairs(stale or {}) do
+			ZoneScripts.DestroyInstance(instance)
+		end
+
+		dmhub.Schedule(0.25, Tick)
+	end
+
+	dmhub.Schedule(0.25, Tick)
+end
+
+mod.unloadHandlers[#mod.unloadHandlers+1] = function()
+	ZoneScripts.StopAll()
+end
+
+--- Called by MapMarkupPanel at the end of every zone-cache rebuild with the
+--- rebuilt entry lists (painted zones and Entire Map blankets); {} tears
+--- everything down (no map). Instances are keyed by mapid|floorid|zoneid, so
+--- a map change naturally retires the old map's instances. Only entries that
+--- are live on a visible floor (non-empty locsUserdata) and whose keyword
+--- carries a compilable script are instantiated; everything else - including
+--- an instance whose script broke or changed - is destroyed, with the exit
+--- routine run.
+--- @param entryLists table[] lists of zone-cache entries
+function EnvironmentalKeyword.SyncZoneScripts(entryLists)
+	if mod.unloaded then
+		ZoneScripts.StopAll()
+		return
+	end
+
+	local mapid = game.currentMapId
+	local desired = {}
+	for _,entries in ipairs(entryLists or {}) do
+		for _,entry in ipairs(entries) do
+			if entry.floorIndex ~= nil and entry.floorIndex >= 0
+				and entry.locsUserdata ~= nil and #entry.locsUserdata > 0
+				and entry.keywordInfo ~= nil then
+
+				local code = entry.keywordInfo:try_get("script")
+				if code ~= nil and code ~= "" then
+					local def = ZoneScripts.Compile(code)
+					if def ~= nil then
+						local key = string.format("%s|%s|%s", tostring(mapid), tostring(entry.floorid), tostring(entry.zoneid))
+						desired[key] = { entry = entry, code = code, def = def }
+					end
+				end
+			end
+		end
+	end
+
+	--destroy first, in a collected list (DestroyInstance mutates instances):
+	--anything not desired anymore, and anything whose script text changed
+	--(the edit restarts the instance against the new definition).
+	local stale = nil
+	for key,instance in pairs(ZoneScripts.instances) do
+		local want = desired[key]
+		if want == nil or want.code ~= instance.code then
+			stale = stale or {}
+			stale[#stale+1] = instance
+		end
+	end
+	for _,instance in ipairs(stale or {}) do
+		ZoneScripts.DestroyInstance(instance)
+	end
+
+	for key,want in pairs(desired) do
+		local instance = ZoneScripts.instances[key]
+		if instance == nil then
+			ZoneScripts.CreateInstance(key, want.entry, want.code, want.def)
+		else
+			ZoneScripts.UpdateInstance(instance, want.entry)
+		end
+	end
+end
+
+--Opens the script editor in its own modal layer (dialog-over-dialog, same as
+--the appearance dialog above). The script saves on commit (deselect/close);
+--an unedited starter template is never saved.
+ZoneScripts.ShowDialog = function(keyword, UploadKeyword, onChanged)
+	local modalLayer = nil
+	local dialogPanel = nil
+
+	local Commit = function(text)
+		if text == nil or text:match("^%s*$") ~= nil then
+			--nil-assignment removes the field from serialization.
+			keyword.script = nil
+		else
+			keyword.script = text
+		end
+		UploadKeyword()
+		if onChanged ~= nil then
+			onChanged()
+		end
+	end
+
+	local initialText = keyword:try_get("script")
+	if initialText == nil or initialText == "" then
+		initialText = ZoneScripts.starterTemplate
+	end
+
+	local statusLabel = gui.Label{
+		classes = {"formLabel"},
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		vmargin = 6,
+		refreshStatus = function(element, text)
+			if text == nil or text:match("^%s*$") ~= nil then
+				element.text = "No script."
+				return
+			end
+			local def, err = ZoneScripts.Compile(text)
+			if def == nil then
+				element.text = tostring(err)
+			else
+				element.text = ZoneScripts.DescribeDefinition(def)
+			end
+		end,
+	}
+
+	local codeInput = gui.Input{
+		width = "100%",
+		height = "auto",
+		minHeight = 420,
+		fontFace = "Courier",
+		fontSize = 14,
+		multiline = true,
+		textAlignment = "topleft",
+		characterLimit = 20000,
+		text = initialText,
+		--keep the compile status live while typing, coalesced by editlag.
+		editlag = 0.25,
+		edit = function(element)
+			statusLabel:FireEvent("refreshStatus", element.text)
+		end,
+		change = function(element)
+			statusLabel:FireEvent("refreshStatus", element.text)
+			Commit(element.text)
+		end,
+	}
+
+	local children = {
+		gui.Label{
+			classes = {"dialogTitle"},
+			text = "Zone Script",
+		},
+
+		gui.Panel{
+			width = "100%",
+			height = "100%-140",
+			flow = "vertical",
+			vscroll = true,
+			codeInput,
+		},
+
+		statusLabel,
+
+		gui.Button{
+			classes = {"sizeM"},
+			text = "Close",
+			halign = "center",
+			valign = "bottom",
+			vmargin = 8,
+			click = function(element)
+				dialogPanel:FireEvent("escape")
+			end,
+		},
+	}
+
+	dialogPanel = gui.Panel{
+		id = "ZoneScriptDialog",
+		classes = {"framedPanel"},
+		styles = ThemeEngine.GetStyles(),
+		width = 780,
+		height = "85%",
+		pad = 16,
+		borderBox = true,
+		flow = "vertical",
+		halign = "center",
+		valign = "center",
+
+		captureEscape = true,
+		escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+		escape = function(element)
+			--commit any edit still sitting uncommitted in the input, but
+			--never save a starter template the user did not touch.
+			local stored = keyword:try_get("script")
+			local baseline = stored
+			if baseline == nil or baseline == "" then
+				baseline = ZoneScripts.starterTemplate
+			end
+			if codeInput.text ~= baseline then
+				Commit(codeInput.text)
+			end
+			gui.CloseModalInLayer(modalLayer)
+		end,
+
+		children = children,
+	}
+
+	modalLayer = gui.ShowModal(dialogPanel)
+	statusLabel:FireEvent("refreshStatus", initialText)
+end
+
 local SetData = function(tableName, keywordPanel, keyid)
 	local dataTable = dmhub.GetTable(tableName) or {}
 	local keyword = dataTable[keyid]
@@ -1496,6 +2087,34 @@ local SetData = function(tableName, keywordPanel, keyid)
 				ShowAppearanceDialog(keyword, UploadKeyword, function()
 					if appearanceSummary ~= nil and appearanceSummary.valid then
 						appearanceSummary.text = DescribeAppearance(keyword)
+					end
+				end)
+			end,
+		},
+	}
+
+	--optional Lua script: one instance runs on every client for each zone of
+	--this type on the map, with a guaranteed exit routine when the zone goes
+	--away. Edited in its own dialog; the label summarizes what is declared.
+	local scriptSummary = gui.Label{
+		classes = {"formStacked", "fgMuted"},
+		text = ZoneScripts.Describe(keyword),
+	}
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Script:",
+		},
+		scriptSummary,
+		gui.Button{
+			classes = {"sizeM"},
+			halign = "left",
+			text = "Edit Script...",
+			click = function(element)
+				ZoneScripts.ShowDialog(keyword, UploadKeyword, function()
+					if scriptSummary ~= nil and scriptSummary.valid then
+						scriptSummary.text = ZoneScripts.Describe(keyword)
 					end
 				end)
 			end,

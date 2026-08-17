@@ -3016,6 +3016,26 @@ ActionMenu = function()
 
                 element:SetClass("hidden", false)
 
+                --Assigning m_containerPanel.children re-parents: any pooled
+                --panel left OUT of the list is orphaned and destroyed by the
+                --engine, and the next menu that reaches for it crashes on a
+                --dead panel (its .data is nil). The ordinary menu path keeps
+                --every pooled submenu in the list and merely collapses the
+                --unused ones; do the same here so the two menu kinds can be
+                --opened alternately without poisoning each other's pools.
+                for _, submenu in pairs(m_submenus) do
+                    submenu:SetClass("collapsed", true)
+                    children[#children + 1] = submenu
+                end
+                if m_commonSignatureWrapper ~= nil then
+                    m_commonSignatureWrapper:SetClass("collapsed", true)
+                    children[#children + 1] = m_commonSignatureWrapper
+                end
+                if element.data.triggerPanel ~= nil then
+                    element.data.triggerPanel:SetClass("collapsed", true)
+                    children[#children + 1] = element.data.triggerPanel
+                end
+
                 m_containerPanel.children = children
 
                 local actionBar = element:FindParentWithClass("actionBar")
@@ -3191,6 +3211,14 @@ ActionMenu = function()
                 element.data.triggerPanel:FireEventTree("triggers", triggers)
             else
                 element.data.triggerPanel:SetClass("collapsed", true)
+            end
+
+            --Keep the overview's pooled columns parented (collapsed) so an
+            --ordinary menu opened after a Unique Abilities menu does not
+            --destroy them. Mirror of the same rule in the "unique" branch.
+            for _, submenu in ipairs(m_uniqueColumns) do
+                submenu:SetClass("collapsed", true)
+                children[#children + 1] = submenu
             end
 
             m_containerPanel.children = children

@@ -1889,6 +1889,7 @@ end
 --- @type {mod: table, checked: boolean}[]
 local m_activeImprovements = {}
 
+--- @param args nil|{casterToken: nil|CharacterToken, ability: nil|ActivatedAbility, instantCast: nil|boolean, targets: nil|table, cast: nil|table, symbols: nil|table}
 local function AbilityHeading(args)
     local args = args or {}
 
@@ -1898,6 +1899,23 @@ local function AbilityHeading(args)
     local m_suppressed = false
 
     local resultPanel
+
+    --The token this chip represents an ability OF. Normally that is the bar's
+    --bound token (g_token), but the director's multi-monster overview shows
+    --chips for tokens that are NOT the selected one, so an optional
+    --args.casterToken overrides it. Resolved through a function rather than
+    --captured once: g_token changes on every refresh while this panel is
+    --pooled and reused, and args.casterToken can be re-pointed via the
+    --"setCasterToken" event below. A caster that has since died/despawned
+    --(.valid == false) falls back to g_token so the chip never dereferences a
+    --nil .properties.
+    local function CasterToken()
+        local caster = args.casterToken
+        if caster ~= nil and caster.valid then
+            return caster
+        end
+        return g_token
+    end
 
     local SetCannotAfford = function(cannotAffordResourceCost, expended)
         if cannotAffordResourceCost ~= m_cannotAfford then
@@ -1921,9 +1939,16 @@ local function AbilityHeading(args)
     resultPanel = gui.Panel {
         classes = { "abilityHeading" },
 
+        --Re-point a pooled chip at a different owner. Fire this BEFORE the
+        --"ability" event, since "ability" computes suppression/cost from the
+        --caster. Pass nil to restore the g_token default.
+        setCasterToken = function(element, casterToken)
+            args.casterToken = casterToken
+        end,
+
         ability = function(element, ability)
             local suppressMessage = ability:try_get("suppressExplanation") or
-                ability:AbilityFilterFailureMessage(g_token.properties)
+                ability:AbilityFilterFailureMessage(CasterToken().properties)
             m_suppressed = suppressMessage ~= nil
             element:SetClassTree("suppressed", m_suppressed)
 
@@ -1941,7 +1966,7 @@ local function AbilityHeading(args)
                 text = 'Share to Chat',
                 click = function()
                     element.popup = nil
-                    chat.ShareObjectInfo(nil, nil, { charid = g_token.charid, ability = m_ability })
+                    chat.ShareObjectInfo(nil, nil, { charid = CasterToken().charid, ability = m_ability })
                 end,
             }
 
@@ -2001,8 +2026,9 @@ local function AbilityHeading(args)
                     end
                 end
 
-                if not addedEditEntry and g_token ~= nil and g_token.properties ~= nil then
-                    local innateAbility = g_token.properties:IsActivatedAbilityInnate(m_ability)
+                local casterToken = CasterToken()
+                if not addedEditEntry and casterToken ~= nil and casterToken.properties ~= nil then
+                    local innateAbility = casterToken.properties:IsActivatedAbilityInnate(m_ability)
                     if innateAbility then
                         entries[#entries + 1] = {
                             text = 'Edit Ability',
@@ -2011,10 +2037,12 @@ local function AbilityHeading(args)
 
                                 element.root:AddChild(innateAbility:ShowEditActivatedAbilityDialog{
                                     close = function()
-                                        g_token:ModifyProperties{
+                                        --resolved at close time, as the original g_token read was.
+                                        local tok = CasterToken()
+                                        tok:ModifyProperties{
                                             description = "Edit Innate Ability",
                                             execute = function()
-                                                g_token.properties.innateActivatedAbilities = g_token.properties.innateActivatedAbilities
+                                                tok.properties.innateActivatedAbilities = tok.properties.innateActivatedAbilities
                                             end,
                                         }
                                     end,
@@ -2038,10 +2066,10 @@ local function AbilityHeading(args)
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 print("MENU:: SHOW ABILITY")
-                menu:FireEvent("showability", m_ability)
+                menu:FireEvent("showability", m_ability, CasterToken())
             else
                 print("MENU:: DIRECT ABILITY")
-                m_showingAbility = CharacterPanel.DisplayAbility(g_token, m_ability)
+                m_showingAbility = CharacterPanel.DisplayAbility(CasterToken(), m_ability)
             end
         end,
 
@@ -2086,17 +2114,41 @@ local function AbilityHeading(args)
                 m_ability.castImmediately = true
             end
 
+            --Casting on behalf of a token that is not the bar's bound token
+            --(director multi-monster overview). Mirrors the invokeAbility path
+            --(see "invokeAbility" on the ability controller): PushCasterToken
+            --rebinds g_token/g_creature and pushes the engine's selected-token
+            --override, then a refresh rebinds g_abilities/resources to the
+            --caster. The matching pop is NOT done here: every cast ends through
+            --cancelCasting (finishCasting, Skip, Esc, menu open, disable,
+            --restoreFromBackup all funnel there), and cancelCasting calls
+            --TryPopCasterToken exactly once. If a cast is already in flight we
+            --cancel it first so its own pushed caster (if any) is popped before
+            --ours goes on; otherwise the stack would end one deeper than the
+            --number of casts and the bar would stay bound to a stale token
+            --(refresh only re-reads the selection while the stack is empty).
+            local casterToken = CasterToken()
+            if casterToken ~= nil and (g_token == nil or casterToken.charid ~= g_token.charid) then
+                if g_currentAbility ~= nil then
+                    g_abilityController:FireEvent("cancelCasting")
+                end
+                PushCasterToken(casterToken)
+                if g_actionBar ~= nil then
+                    g_actionBar:FireEvent("refresh")
+                end
+            end
+
             if menu == nil then
                 print("MENU:: DISPLAY ABILITY NEW")
-                CharacterPanel.DisplayAbility(g_token, m_ability, { targets = args.targets, cast = args.cast })
+                CharacterPanel.DisplayAbility(casterToken, m_ability, { targets = args.targets, cast = args.cast })
                 m_showingAbility = false
             end
 
                 print("MENU:: HIGHLIGHT")
             -- Collect applicable ability improvements from the caster.
             m_activeImprovements = {}
-            if g_token ~= nil then
-                for _, activeMod in ipairs(g_token.properties:GetActiveModifiers()) do
+            if casterToken ~= nil then
+                for _, activeMod in ipairs(casterToken.properties:GetActiveModifiers()) do
                     if activeMod.mod.behavior == "abilityimprovement" then
                         local improvMod = activeMod.mod
                         local passes = true
@@ -2120,7 +2172,7 @@ local function AbilityHeading(args)
                         if passes then
                             local abilityFilter = improvMod:try_get("abilityFilter", "")
                             if abilityFilter ~= "" then
-                                local symbols = g_token.properties:LookupSymbol{ability = m_ability}
+                                local symbols = casterToken.properties:LookupSymbol{ability = m_ability}
                                 passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
                             end
                         end
@@ -2136,7 +2188,7 @@ local function AbilityHeading(args)
             end
             CharacterPanel.HighlightAbilitySection{
                 ability = m_ability,
-                caster = g_token,
+                caster = casterToken,
                 section = "target",
                 improvements = m_activeImprovements,
             }
@@ -2252,7 +2304,7 @@ local function AbilityHeading(args)
                 classes = { "abilityInfoLabel" },
                 text = "Ability Info",
                 ability = function(element, ability)
-                    local costInfo = ability:GetCost(g_token)
+                    local costInfo = ability:GetCost(CasterToken())
 
                     --look for heroic resource or malice cost and see if we can afford it.
                     local cannotAfford = false
@@ -2580,9 +2632,12 @@ ActionMenu = function()
 
         g_manualSetResourcePanel,
 
-        showability = function(element, ability)
+        --casterToken is optional: an AbilityHeading with an args.casterToken
+        --override passes its owner so the card renders for that token; every
+        --other caller omits it and gets the bar's bound token as before.
+        showability = function(element, ability, casterToken)
             element:FireEvent("dehover")
-            local result = CharacterPanel.DisplayAbility(g_token, ability)
+            local result = CharacterPanel.DisplayAbility(casterToken or g_token, ability)
             if result then
                 m_showingAbility = ability
             end

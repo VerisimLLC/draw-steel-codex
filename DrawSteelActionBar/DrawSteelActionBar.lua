@@ -90,6 +90,57 @@ local g_token
 --- @type nil|Creature
 local g_creature
 
+--The WHOLE current selection (every selected token that has properties), in
+--selection order, captured alongside g_token in the root refresh. g_token stays
+--bound to selectedOrPrimaryTokens[1] exactly as before; this list only feeds
+--the director's multi-monster overview ("Unique Abilities" drawer).
+--- @type CharacterToken[]
+local g_selectedTokens = {}
+
+--Identity of the current selection (charids in selection order). The engine
+--only re-fires the bar's "refresh" when the PRIMARY selected token changes;
+--adding or removing other tokens behind the same primary is silent (verified
+--live 2026-08-17). The root panel compares this at a low poll rate and
+--refreshes itself when the set changes, so overview mode tracks the whole
+--selection.
+local function SelectionSignature()
+    local parts = {}
+    for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+        if tok ~= nil and tok.valid then
+            parts[#parts + 1] = tok.charid
+        end
+    end
+    return table.concat(parts, ",")
+end
+
+--Overview mode = the local user is the director AND more than one token is
+--selected AND the selection is not just one minion squad (a squad is a single
+--actor, so it keeps the ordinary single-creature strip; Decision 43). In this
+--mode the strip shows Trigger | Unique Abilities | Malice: the Main Action /
+--Maneuver / Move drawers are identical across creatures so they are hidden.
+local function InOverviewMode()
+    if not dmhub.isDM then
+        return false
+    end
+    if #g_selectedTokens < 2 then
+        return false
+    end
+    local squad = g_selectedTokens[1].properties:MinionSquad()
+    if squad ~= nil then
+        local sameSquad = true
+        for i = 2, #g_selectedTokens do
+            if g_selectedTokens[i].properties:MinionSquad() ~= squad then
+                sameSquad = false
+                break
+            end
+        end
+        if sameSquad then
+            return false
+        end
+    end
+    return true
+end
+
 --Minion squad coordinated strike: the minion->target assignment is automatic,
 --but the player can hard-lock a specific minion to a specific target by
 --clicking the minion and then the target. Locks live in MCDMActivatedAbility
@@ -1035,6 +1086,9 @@ local function ActionBarDrawer(args)
         --pass.
     elseif args.type == "respite" then
         --pass. Respite drawer has no resource counter; it just opens its menu.
+    elseif args.type == "unique" then
+        --pass. The director's multi-monster "Unique Abilities" drawer spans
+        --several tokens, so no single resource counter applies.
     else
         local m_segments = {}
         local m_margin = 2
@@ -1286,6 +1340,31 @@ local function ActionBarDrawer(args)
             local newToken = g_token.charid ~= element.data.lastcharid
 
             element.data.lastcharid = g_token.charid
+
+            --Director multi-monster overview: the "unique" drawer exists only
+            --in overview mode, and while it is up the per-creature Main
+            --Action / Maneuver / Move drawers step aside (Decision 43). All
+            --other drawers (Trigger, Malice, Respite) behave exactly as usual.
+            local overview = InOverviewMode()
+            if args.type == "unique" then
+                resultPanel:SetClass("collapsed", not overview)
+                if not overview then
+                    return
+                end
+
+                if newToken then
+                    resultPanel:SetClassTreeImmediate("available", true)
+                else
+                    resultPanel:SetClassTree("available", true)
+                end
+
+                return
+            elseif args.type == "action" or args.type == "maneuver" or args.type == "move" then
+                resultPanel:SetClass("collapsed", overview)
+                if overview then
+                    return
+                end
+            end
 
             if args.type == "respite" then
                 --Only show the respite drawer while the game is in respite mode.
@@ -1721,6 +1800,17 @@ local function CreateActionBar()
 
     local m_malicePanel
 
+    --Director multi-monster overview drawer. Built with the same factory as
+    --every other drawer so it is visually identical (Decision 40); it hides
+    --itself unless InOverviewMode() (see the drawer's refresh), so the
+    --single-selection strip is unchanged. Sits where Main Action sits today,
+    --so in overview mode the strip reads Trigger | Unique Abilities | Malice.
+    --Created for everyone (players simply never leave the collapsed state,
+    --since overview mode requires dmhub.isDM) so the children list below has
+    --no extra nil hole.
+    local m_uniquePanel = ActionBarDrawer { name = "Unique Abilities", type = "unique", panel = {
+        classes = { "actionBarDrawer", "collapsed" },
+    } }
 
     if dmhub.isDM then
         m_malicePanel = ActionBarDrawer { name = "Malice", type = "malice", panel = {
@@ -1772,9 +1862,39 @@ local function CreateActionBar()
             end
         end,
 
+        --Director only: poll the selection so the overview drawer tracks
+        --tokens joining/leaving behind an unchanged primary (see
+        --SelectionSignature). Not while a caster is pushed or a cast is in
+        --flight -- the strip stays put until the cast pops, as it does for
+        --invoke prompts today. Players never enter overview mode, so no poll.
+        thinkTime = cond(dmhub.isDM, 0.2, nil),
+        think = function(element)
+            if mod.unloaded or #g_casterTokenStack ~= 0 or g_currentAbility ~= nil then
+                return
+            end
+            if SelectionSignature() ~= element.data.selectionSignature then
+                element:FireEventTree("refresh")
+            end
+        end,
+
         refresh = function(element)
             if #g_casterTokenStack == 0 then
                 g_token = dmhub.selectedOrPrimaryTokens[1]
+            end
+
+            --Capture the whole selection for the director overview. Only
+            --while no caster is pushed: during an invoked/overview cast the
+            --engine's selection override makes selectedOrPrimaryTokens report
+            --the caster, and the strip should stay put until the cast pops.
+            if #g_casterTokenStack == 0 then
+                local selected = {}
+                for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+                    if tok ~= nil and tok.valid and tok.properties ~= nil then
+                        selected[#selected + 1] = tok
+                    end
+                end
+                g_selectedTokens = selected
+                element.data.selectionSignature = SelectionSignature()
             end
 
             if g_token == nil or not g_token.valid then
@@ -1787,6 +1907,15 @@ local function CreateActionBar()
             end
 
             g_creature = g_token.properties
+
+            --Entering or leaving overview mode swaps which drawers are on the
+            --strip; an open menu belonging to a drawer that is about to
+            --collapse would otherwise linger. Close it, as a token change does.
+            local overview = InOverviewMode()
+            if element.data.overviewMode ~= overview then
+                element.data.overviewMode = overview
+                element:FireEventTree("closemenu")
+            end
 
             --Hide the bar when the selected token is a fixture/object, EXCEPT
             --while an invoked cast is driving us (g_casterTokenStack non-empty).
@@ -1856,6 +1985,7 @@ local function CreateActionBar()
         m_respitePanel,
 
         m_triggerDrawerContainer,
+        m_uniquePanel,
         m_actionPanel,
         m_maneuverPanel,
         m_movementPanel,
@@ -2502,6 +2632,13 @@ local function ActionSubMenu(args)
 
     local resultPanel
 
+    --Optional owner override for every chip in this column (director
+    --multi-monster overview: one column per statblock, chips cast for that
+    --statblock's representative token). nil = the bar's bound token, exactly
+    --as before. Set via the "setCasterToken" event BEFORE "abilities", since
+    --the chips compute suppression/cost from their caster when populated.
+    local m_casterToken = nil
+
     resultPanel = gui.Panel {
 
         vpad = -4,
@@ -2509,6 +2646,11 @@ local function ActionSubMenu(args)
         children = m_children,
         classes = { "abilitySubMenu" },
         blurBackground = true,
+
+        setCasterToken = function(element, casterToken)
+            m_casterToken = casterToken
+        end,
+
         abilities = function(element, abilities)
             if abilities == nil or #abilities == 0 then
                 element:SetClass("collapsed", true)
@@ -2542,6 +2684,9 @@ local function ActionSubMenu(args)
 
             for i = 1, #abilities do
                 m_children[i] = m_children[i] or AbilityHeading()
+                --Re-point the pooled chip at this column's owner (nil restores
+                --the g_token default) before it computes cost/suppression.
+                m_children[i]:FireEvent("setCasterToken", m_casterToken)
                 m_children[i]:FireEventTree("ability", abilities[i])
                 m_children[i]:SetClass("collapsed", false)
             end
@@ -2569,8 +2714,122 @@ local g_categorizationMapping = {
     ["Basic Attack"] = "Skill",
 }
 
+--Director multi-monster overview: does this ability belong in a statblock's
+--"unique kit" column? The kit comes from GetActivatedAbilities{excludeGlobal =
+--true}, which already drops free strikes, band malice features (MonsterGroup
+--maliceAbilities) and every global-modifier ability (Charge/Defend/Grab/Hide,
+--Dig, Disengage/Jump...). What remains is filtered again here so the column
+--holds ONLY the monster's own turn kit -- signature/heroic/"Ability" main
+--actions and maneuvers together (Decision 13):
+--  * Trigger / Villain Action are off-turn (Decision 16) and any ability whose
+--    action resource is the triggered action goes with them;
+--  * Malice-categorized abilities stay in the Malice drawer;
+--  * Common Ability / Basic Attack / Move / Hidden are the noise the overview
+--    exists to remove (belt-and-braces: excludeGlobal already removes them for
+--    every stock monster).
+local function IsUniqueKitAbility(ability)
+    local cat = ability.categorization
+    if cat == "Trigger" or cat == "Villain Action" or cat == "Malice"
+        or cat == "Common Ability" or cat == "Basic Attack" or cat == "Move" or cat == "Hidden" then
+        return false
+    end
+    if ability.actionResourceId == CharacterResource.triggerResourceId then
+        return false
+    end
+    return true
+end
+
+--Group g_selectedTokens by statblock and build one column description per
+--statblock, in order of first appearance in the selection (stable across
+--refreshes for as long as the selection stands). Renamed tokens of one
+--statblock ("Sneaky"/"Dizzy" Goblin Assassin) share a column. Returns a list
+--of { key, label, tokens, token, abilities }:
+--  key      = the statblock key (GetMonsterType(), else the token id);
+--  label    = statblock name plus " xN" when N > 1 (slice (d) replaces this
+--             with the portrait/signals footer bar);
+--  tokens   = every selected token of that statblock, selection order;
+--  token    = the representative token every chip casts for: the first
+--             member that has NOT acted this round (initiative queue
+--             HasHadTurn on its initiative id), else the first member;
+--  abilities= the representative's unique kit (see IsUniqueKitAbility),
+--             melee/ranged bifurcated like g_abilities is.
+local function BuildOverviewColumns()
+    local columns = {}
+    local byKey = {}
+
+    for _, tok in ipairs(g_selectedTokens) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            local statblock = nil
+            pcall(function() statblock = tok.properties:GetMonsterType() end)
+            local key = statblock or tok.id
+            local column = byKey[key]
+            if column == nil then
+                column = {
+                    key = key,
+                    name = statblock or tok.name or "Creature",
+                    tokens = {},
+                }
+                byKey[key] = column
+                columns[#columns + 1] = column
+            end
+            column.tokens[#column.tokens + 1] = tok
+        end
+    end
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+
+    for _, column in ipairs(columns) do
+        --Representative: prefer a member whose turn is still to come.
+        local rep = column.tokens[1]
+        if q ~= nil then
+            for _, tok in ipairs(column.tokens) do
+                local acted = false
+                pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) == true end)
+                if not acted then
+                    rep = tok
+                    break
+                end
+            end
+        end
+        column.token = rep
+
+        if #column.tokens > 1 then
+            column.label = string.format("%s x%d", column.name, #column.tokens)
+        else
+            column.label = column.name
+        end
+
+        local abilities = {}
+        local kit = rep.properties:GetActivatedAbilities { excludeGlobal = true, bindCaster = true }
+        for _, ability in ipairs(kit or {}) do
+            if IsUniqueKitAbility(ability) then
+                --Mirror the root refresh: melee/ranged bifurcations show as
+                --two chips.
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    if variation ~= nil and ((not variation:try_get("hideWhenFiltered")) or variation:AbilityFilterFailureMessage(rep.properties) == nil) then
+                        abilities[#abilities + 1] = variation
+                    end
+                end
+            end
+        end
+        column.abilities = abilities
+    end
+
+    return columns
+end
+
 ActionMenu = function()
     local m_submenus = {}
+    --Pooled per-statblock columns for the director overview ("unique"
+    --drawer); reused across opens like m_submenus, never rebuilt per frame.
+    local m_uniqueColumns = {}
     local m_args
     local resultPanel
     local m_showingAbility = false
@@ -2726,6 +2985,47 @@ ActionMenu = function()
             args.drawer:AddChild(element)
 
             m_args = args
+
+            --Director multi-monster overview: one column per statblock in
+            --the selection, each chip casting for that statblock's
+            --representative token (AbilityHeading casterToken override).
+            --Nothing here claims a turn; a chip press goes through the
+            --ordinary AbilityHeading press path (PushCasterToken +
+            --beginCasting).
+            if args.type == "unique" then
+                local columns = BuildOverviewColumns()
+                local children = {}
+                local populated = 0
+                for i, column in ipairs(columns) do
+                    m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}
+                    local submenu = m_uniqueColumns[i]
+                    submenu:FireEvent("setCasterToken", column.token)
+                    submenu:FireEventTree("abilities", column.abilities, column.label)
+                    if #column.abilities > 0 then
+                        populated = populated + 1
+                    end
+                    children[#children + 1] = submenu
+                end
+
+                if populated == 0 then
+                    element:SetClass("hidden", true)
+                    element:HaltEventPropagation()
+                    element:FindParentWithClass("actionBar"):FireEventTree("menuStatus")
+                    return
+                end
+
+                element:SetClass("hidden", false)
+
+                m_containerPanel.children = children
+
+                local actionBar = element:FindParentWithClass("actionBar")
+                actionBar:FireEventTree("menuStatus", args)
+                actionBar:FireEventTree("refreshNovelAbilities")
+
+                element:SetClassTree("malice", g_token.properties:IsMonster())
+                return
+            end
+
             local abilities = {}
             if args.type == "malice" then
                 for _, ability in ipairs(g_abilities) do

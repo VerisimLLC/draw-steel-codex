@@ -141,6 +141,85 @@ local function InOverviewMode()
     return true
 end
 
+--Director overview, slice (e): the implicit claim-turn-at-target-confirm.
+--
+--A chip press in an overview column records WHO the cast is for here
+--({token, initiativeid}); nothing is claimed at that point (Decision 47 -
+--claiming is a broadcast and irreversible, see MCDMInitiativeQueue.ClaimTurn).
+--OverviewClaimBeforeCast, called from the ONE pre-Cast hook the two Cast
+--sites share (right after FireCastControlsOnCommit), consumes the record and
+--claims the entry's turn only if that is legal at that instant
+--(OverviewClaimGate); otherwise the cast proceeds without touching the queue,
+--exactly as an off-turn cast does today (Decision 24). The record is one-shot
+--(consumed by the first commit) and is cleared by cancelCasting, which every
+--exit funnels through (finishCasting, Skip, Esc, opening another menu,
+--controller disable, restoreFromBackup), so a later unrelated cast can never
+--claim by accident. Ordinary single-token menus never set it.
+local g_overviewCastPending = nil
+
+--Is a claim of this initiative entry legal for the Director right now?
+--Returns ok, reason (reason is the newcomer-facing text shown inline on the
+--disabled button / tooltip). Stricter than InitiativeQueue.CanClaimTurn on
+--purpose: the Director CAN force any turn from the initiative bar, but the
+--overview only offers a claim at the genuine start-of-a-director-turn juncture
+--(Phase 0 resolution: ChoosingTurn, not the heroes' side, entry unmoved).
+local function OverviewClaimGate(initiativeid)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false, "No initiative running"
+    end
+    if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
+        return false, "Not in the initiative order"
+    end
+    if q.currentTurn == initiativeid then
+        return false, "Turn taken - acting now"
+    end
+    if q:HasHadTurn(initiativeid) then
+        return false, "Already acted this round"
+    end
+    if not q:ChoosingTurn() then
+        return false, "Another creature's turn is in progress"
+    end
+    if q:IsPlayersTurn() then
+        return false, "It's the heroes' turn - browse only"
+    end
+    if not InitiativeQueue.CanClaimTurn(initiativeid, { canControlInitiative = dmhub.isDM }) then
+        return false, "Cannot take turns right now"
+    end
+    return true, nil
+end
+
+--Perform the claim through the shared helper. Returns true if the turn was
+--taken. Never called from a browse/preview click.
+local function OverviewClaimTurn(initiativeid)
+    local ok = OverviewClaimGate(initiativeid)
+    if not ok then
+        return false
+    end
+    print("OVERVIEW:: claiming turn for", initiativeid)
+    return InitiativeQueue.ClaimTurn(initiativeid, { canControlInitiative = dmhub.isDM }) == true
+end
+
+--The pre-Cast hook (see g_overviewCastPending). casterToken is the g_token the
+--Cast is about to run for; the pending record must name the same token so a
+--caster swap between chip press and confirm can never claim for the wrong
+--creature.
+local function OverviewClaimBeforeCast(casterToken)
+    local pending = g_overviewCastPending
+    g_overviewCastPending = nil
+    if pending == nil or pending.token == nil then
+        return
+    end
+    if casterToken == nil or not casterToken.valid or not pending.token.valid or pending.token.charid ~= casterToken.charid then
+        return
+    end
+    local initiativeid = InitiativeQueue.GetInitiativeId(casterToken)
+    if initiativeid == nil or initiativeid ~= pending.initiativeid then
+        return
+    end
+    OverviewClaimTurn(initiativeid)
+end
+
 --Minion squad coordinated strike: the minion->target assignment is automatic,
 --but the player can hard-lock a specific minion to a specific target by
 --clicking the minion and then the target. Locks live in MCDMActivatedAbility
@@ -867,6 +946,10 @@ local NOVEL_MARKER_RULES = {
 --Merged into the action bar root's cascade like NOVEL_MARKER_RULES so
 --the rules resolve on columns inside an open action menu.
 local OVERVIEW_FOOTER_ROWS = 3
+--Pooled row count: the signals view shows OVERVIEW_FOOTER_ROWS then "+N
+--more"; the owner-selection prompt (slice (e)) may show up to this many
+--selectable members before its own "+N more".
+local OVERVIEW_FOOTER_ROW_POOL = 6
 
 local OVERVIEW_FOOTER_RULES = {
     {
@@ -966,6 +1049,74 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "abilityHeading", "parent:acted" },
         opacity = 0.5,
+    },
+    --Slice (e): owner-selection prompt (instruction line + selectable member
+    --rows) and the "Take <Creature>'s turn" button with its inline reason.
+    {
+        selectors = { "overviewFooterPrompt" },
+        width = "100%",
+        height = "auto",
+        fontSize = 11,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 4,
+    },
+    {
+        selectors = { "overviewFooterRow", "promptOption" },
+        bgcolor = "#ffffff11",
+        borderColor = "#606060",
+        borderWidth = 1,
+    },
+    {
+        selectors = { "overviewFooterRow", "promptOption", "hover" },
+        bgcolor = "#ffffff33",
+        borderColor = "white",
+    },
+    {
+        selectors = { "overviewTakeTurn" },
+        width = "100%",
+        height = 22,
+        tmargin = 6,
+        bgimage = true,
+        bgcolor = "#2A2A2A",
+        borderColor = Styles.Ability.goldColor,
+        borderWidth = 1,
+        fontSize = 11,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "center",
+        textWrap = false,
+        borderBox = true,
+        hpad = 4,
+    },
+    {
+        selectors = { "overviewTakeTurn", "hover" },
+        bgcolor = "#3A3A3A",
+        borderColor = "white",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewTakeTurn", "disabled" },
+        opacity = 0.5,
+        color = Styles.textColor,
+        borderColor = "#606060",
+    },
+    {
+        selectors = { "overviewTakeTurn", "disabled", "hover" },
+        bgcolor = "#2A2A2A",
+        borderColor = "#606060",
+    },
+    {
+        selectors = { "overviewTakeTurnReason" },
+        width = "100%",
+        height = "auto",
+        fontSize = 11,
+        color = Styles.textColor,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 2,
     },
 }
 
@@ -2179,8 +2330,12 @@ local function AbilityHeading(args)
         --Re-point a pooled chip at a different owner. Fire this BEFORE the
         --"ability" event, since "ability" computes suppression/cost from the
         --caster. Pass nil to restore the g_token default.
-        setCasterToken = function(element, casterToken)
+        --overviewPress (slice (e)) is the column's preview-on-click hook,
+        --function(ability, casterToken, commit) -> handled; nil (every
+        --ordinary menu) leaves the press path exactly as it was.
+        setCasterToken = function(element, casterToken, overviewPress)
             args.casterToken = casterToken
+            args.overviewPress = overviewPress
         end,
 
         ability = function(element, ability)
@@ -2364,73 +2519,101 @@ local function AbilityHeading(args)
             --ours goes on; otherwise the stack would end one deeper than the
             --number of casts and the bar would stay bound to a stale token
             --(refresh only re-reads the selection while the stack is empty).
-            local casterToken = CasterToken()
-            if casterToken ~= nil and (g_token == nil or casterToken.charid ~= g_token.charid) then
-                if g_currentAbility ~= nil then
-                    g_abilityController:FireEvent("cancelCasting")
+            --The commit tail of the press: (optionally) rebind the bar to
+            --the caster, then hand the ability to the controller. Split out
+            --so the overview's preview-on-click hook can defer it until the
+            --Director has picked WHICH member acts (slice (e)); an ordinary
+            --menu (no hook) runs it immediately with the chip's own caster and
+            --ability, exactly as before.
+            local function commit(casterToken, ability)
+                ability = ability or m_ability
+                if casterToken ~= nil and (g_token == nil or casterToken.charid ~= g_token.charid) then
+                    if g_currentAbility ~= nil then
+                        g_abilityController:FireEvent("cancelCasting")
+                    end
+                    PushCasterToken(casterToken)
+                    if g_actionBar ~= nil then
+                        g_actionBar:FireEvent("refresh")
+                    end
                 end
-                PushCasterToken(casterToken)
-                if g_actionBar ~= nil then
-                    g_actionBar:FireEvent("refresh")
+
+                --Overview chip: remember who this cast is for so the pre-Cast
+                --hook can claim their turn at target confirm (only if legal
+                --then). Set AFTER any in-flight cancel above (which clears
+                --it) and before beginCasting. Ordinary chips never set it.
+                if args.overviewPress ~= nil and casterToken ~= nil and casterToken.valid then
+                    local initiativeid = nil
+                    pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(casterToken) end)
+                    g_overviewCastPending = { token = casterToken, initiativeid = initiativeid }
+                else
+                    g_overviewCastPending = nil
                 end
-            end
 
-            if menu == nil then
-                print("MENU:: DISPLAY ABILITY NEW")
-                CharacterPanel.DisplayAbility(casterToken, m_ability, { targets = args.targets, cast = args.cast })
-                m_showingAbility = false
-            end
+                if menu == nil then
+                    print("MENU:: DISPLAY ABILITY NEW")
+                    CharacterPanel.DisplayAbility(casterToken, ability, { targets = args.targets, cast = args.cast })
+                    m_showingAbility = false
+                end
 
-                print("MENU:: HIGHLIGHT")
-            -- Collect applicable ability improvements from the caster.
-            m_activeImprovements = {}
-            if casterToken ~= nil then
-                for _, activeMod in ipairs(casterToken.properties:GetActiveModifiers()) do
-                    if activeMod.mod.behavior == "abilityimprovement" then
-                        local improvMod = activeMod.mod
-                        local passes = true
+                    print("MENU:: HIGHLIGHT")
+                -- Collect applicable ability improvements from the caster.
+                m_activeImprovements = {}
+                if casterToken ~= nil then
+                    for _, activeMod in ipairs(casterToken.properties:GetActiveModifiers()) do
+                        if activeMod.mod.behavior == "abilityimprovement" then
+                            local improvMod = activeMod.mod
+                            local passes = true
 
-                        -- Keyword filter: if any keywords set, ability must have at least one match.
-                        local keywords = improvMod:try_get("keywords", {})
-                        local hasKeywords = false
-                        for _ in pairs(keywords) do hasKeywords = true; break end
-                        if hasKeywords then
-                            local abilityMatch = false
-                            for keyword, _ in pairs(keywords) do
-                                if m_ability.keywords ~= nil and m_ability.keywords[keyword] then
-                                    abilityMatch = true
-                                    break
+                            -- Keyword filter: if any keywords set, ability must have at least one match.
+                            local keywords = improvMod:try_get("keywords", {})
+                            local hasKeywords = false
+                            for _ in pairs(keywords) do hasKeywords = true; break end
+                            if hasKeywords then
+                                local abilityMatch = false
+                                for keyword, _ in pairs(keywords) do
+                                    if ability.keywords ~= nil and ability.keywords[keyword] then
+                                        abilityMatch = true
+                                        break
+                                    end
+                                end
+                                if not abilityMatch then passes = false end
+                            end
+
+                            -- Ability condition filter.
+                            if passes then
+                                local abilityFilter = improvMod:try_get("abilityFilter", "")
+                                if abilityFilter ~= "" then
+                                    local symbols = casterToken.properties:LookupSymbol{ability = ability}
+                                    passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
                                 end
                             end
-                            if not abilityMatch then passes = false end
-                        end
 
-                        -- Ability condition filter.
-                        if passes then
-                            local abilityFilter = improvMod:try_get("abilityFilter", "")
-                            if abilityFilter ~= "" then
-                                local symbols = casterToken.properties:LookupSymbol{ability = m_ability}
-                                passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
+                            if passes then
+                                m_activeImprovements[#m_activeImprovements + 1] = {
+                                    mod = improvMod,
+                                    checked = false,
+                                }
                             end
-                        end
-
-                        if passes then
-                            m_activeImprovements[#m_activeImprovements + 1] = {
-                                mod = improvMod,
-                                checked = false,
-                            }
                         end
                     end
                 end
-            end
-            CharacterPanel.HighlightAbilitySection{
-                ability = m_ability,
-                caster = casterToken,
-                section = "target",
-                improvements = m_activeImprovements,
-            }
+                CharacterPanel.HighlightAbilitySection{
+                    ability = ability,
+                    caster = casterToken,
+                    section = "target",
+                    improvements = m_activeImprovements,
+                }
 
-            g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, symbols = args.symbols, fromui = true })
+                g_abilityController:FireEventTree("beginCasting", ability, { targets = args.targets, cast = args.cast, symbols = args.symbols, fromui = true })
+            end
+
+            local casterToken = CasterToken()
+            if args.overviewPress ~= nil and args.casterToken ~= nil then
+                if args.overviewPress(m_ability, casterToken, commit) then
+                    return
+                end
+            end
+            commit(casterToken)
         end,
 
         gui.Label {
@@ -2851,7 +3034,13 @@ local function OverviewColumnSignals(column)
                     tokens = {},
                     stamina = OverviewStaminaBand(tok),
                     acted = OverviewActedState(q, tok),
+                    --Slice (e): mid-turn (HasHadTurn only flips at turn
+                    --end), so the signal line can read "acting now".
+                    acting = false,
                 }
+                if q ~= nil then
+                    pcall(function() member.acting = q.currentTurn == InitiativeQueue.GetInitiativeId(tok) end)
+                end
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -2896,7 +3085,9 @@ local function OverviewSignalText(member, inCombat)
         parts[#parts + 1] = "Stamina: " .. member.stamina
     end
     if inCombat then
-        if member.acted == true then
+        if member.acting == true then
+            parts[#parts + 1] = "acting now"
+        elseif member.acted == true then
             parts[#parts + 1] = "acted"
         elseif member.acted == false then
             parts[#parts + 1] = "fresh"
@@ -2905,11 +3096,104 @@ local function OverviewSignalText(member, inCombat)
     return table.concat(parts, " - ")
 end
 
+--Slice (e): the members of a column that could still take a turn, one per
+--DISTINCT initiative entry (a minion squad is one member already; several
+--tokens sharing an initiativeGrouping fold into one). Each entry is the
+--signals member record plus .initiativeid. Empty when no queue is running or
+--everyone has acted.
+local function OverviewFreshCandidates(signals)
+    local result = {}
+    if signals == nil or not signals.inCombat then
+        return result
+    end
+    local seen = {}
+    for _, member in ipairs(signals.members) do
+        if member.acted == false and member.acting ~= true and member.token ~= nil and member.token.valid then
+            local initiativeid = nil
+            pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(member.token) end)
+            if initiativeid ~= nil and not seen[initiativeid] then
+                seen[initiativeid] = true
+                member.initiativeid = initiativeid
+                result[#result + 1] = member
+            end
+        end
+    end
+    return result
+end
+
+--Slice (e): a column's chips carry the REPRESENTATIVE member's bound copy of
+--each ability. When the owner prompt hands the cast to a different member,
+--fetch that member's own bound copy of the same ability (same guid, same
+--melee/ranged variation) so cost/range/GoblinScript resolve against the
+--actual caster. Falls back to the chip's ability if no match is found.
+local function OverviewMemberAbility(memberToken, ability)
+    if memberToken == nil or not memberToken.valid or memberToken.properties == nil or ability == nil then
+        return ability
+    end
+    local wanted = NovelAbilityKey(ability)
+    if wanted == nil then
+        return ability
+    end
+    local found = nil
+    pcall(function()
+        local kit = memberToken.properties:GetActivatedAbilities { excludeGlobal = true, bindCaster = true }
+        for _, candidate in ipairs(kit or {}) do
+            local variations = { candidate }
+            if candidate.meleeAndRanged then
+                variations = { candidate.meleeVariation, candidate.rangedVariation }
+            end
+            for _, variation in ipairs(variations) do
+                if variation ~= nil and NovelAbilityKey(variation) == wanted then
+                    found = variation
+                    return
+                end
+            end
+        end
+    end)
+    return found or ability
+end
+
+--"Take <Name>'s turn" (single actor) / "Take a <Name>'s turn" (several
+--members share the statblock). Falls back to "Take turn" when the name would
+--not fit the 205px footer; the full text always goes in the tooltip.
+local function OverviewTakeTurnText(column, memberCount)
+    local name = column.name or "Creature"
+    local full
+    if memberCount > 1 then
+        full = string.format("Take a %s's turn", name)
+    else
+        full = string.format("Take %s's turn", name)
+    end
+    local short = full
+    if #full > 32 then
+        short = "Take turn"
+    end
+    return short, full
+end
+
 --One pooled footer bar. Populate/refresh via FireEvent("overviewColumn",
 --column, signals) where signals = OverviewColumnSignals(column).
+--
+--Slice (e) additions, all pooled and created once here:
+--  * takeTurnButton + reasonLabel: "Take <Creature>'s turn", enabled only
+--    when OverviewClaimGate passes for the representative's entry; when
+--    disabled it stays visible, greyed, with the reason inline and in the
+--    tooltip. Press: one fresh member -> OverviewClaimTurn directly; several
+--    distinct-initiative fresh members -> arm the owner prompt below.
+--  * owner-selection prompt (Decisions 32/36): FireEvent("armOwnerPrompt",
+--    prompt) with prompt = { members = OverviewFreshCandidates(...), ability
+--    = ActivatedAbility|nil, choose = function(member) }, or nil to disarm.
+--    While armed the mini-rows list ONLY the fresh members by token name,
+--    hovering a row pulses that token, pressing it calls prompt.choose. Esc /
+--    click-away close the menu, which disarms (ActionMenu closemenu/toggle),
+--    and any repopulate ("overviewColumn") disarms too.
 local function OverviewColumnFooter()
     local m_column = nil
     local m_signals = nil
+    local m_prompt = nil
+    local m_claimId = nil
+    local m_claimReason = nil
+    local m_takeTurnTooltip = nil
 
     local portrait = gui.CreateTokenImage(nil, {
         width = 34,
@@ -2943,10 +3227,17 @@ local function OverviewColumnFooter()
         },
     }
 
+    --Instruction line of the owner-selection prompt; collapsed until armed.
+    local promptLabel = gui.Label {
+        classes = { "overviewFooterPrompt", "collapsed" },
+        text = "",
+    }
+
     --Fixed pool of member mini-rows plus the overflow line; created once,
-    --collapsed when unused, never re-listed.
+    --collapsed when unused, never re-listed. The signals view uses the first
+    --OVERVIEW_FOOTER_ROWS; the owner prompt may use the whole pool.
     local rows = {}
-    for i = 1, OVERVIEW_FOOTER_ROWS do
+    for i = 1, OVERVIEW_FOOTER_ROW_POOL do
         local rowPortrait = gui.CreateTokenImage(nil, {
             width = 18,
             height = 18,
@@ -2967,8 +3258,32 @@ local function OverviewColumnFooter()
 
             press = function(element)
                 local member = element.data.member
-                if member ~= nil then
-                    OverviewLocate(member.token, member.tokens)
+                if member == nil then
+                    return
+                end
+                if m_prompt ~= nil then
+                    --Owner prompt armed: this row IS the choice.
+                    local prompt = m_prompt
+                    element:FindParentWithClass("overviewFooter"):FireEvent("armOwnerPrompt", nil)
+                    if prompt.choose ~= nil then
+                        prompt.choose(member)
+                    end
+                    return
+                end
+                OverviewLocate(member.token, member.tokens)
+            end,
+
+            --Decision 36: while the prompt is armed, hovering a member pulses
+            --that creature on the map so the Director sees who they are about
+            --to activate.
+            hover = function(element)
+                local member = element.data.member
+                if m_prompt ~= nil and member ~= nil then
+                    for _, tok in ipairs(member.tokens) do
+                        if tok ~= nil and tok.valid then
+                            dmhub.PulseHighlightToken(tok.charid)
+                        end
+                    end
                 end
             end,
 
@@ -2976,9 +3291,11 @@ local function OverviewColumnFooter()
                 element.data.member = member
                 if member == nil then
                     element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
                     return
                 end
                 element:SetClass("collapsed", false)
+                element:SetClass("promptOption", m_prompt ~= nil)
                 rowPortrait:FireEventTree("token", member.token)
                 local text = member.name
                 if #member.tokens > 1 then
@@ -2999,11 +3316,169 @@ local function OverviewColumnFooter()
         text = "",
     }
 
-    local children = { header }
+    --"Take <Creature>'s turn" and its inline reason when disabled.
+    local takeTurnButton = gui.Label {
+        classes = { "overviewTakeTurn", "disabled" },
+        text = "Take turn",
+
+        hover = function(element)
+            if m_takeTurnTooltip ~= nil then
+                gui.Tooltip(m_takeTurnTooltip)(element)
+            end
+        end,
+
+        press = function(element)
+            if m_column == nil or m_signals == nil then
+                return
+            end
+            local footer = element:FindParentWithClass("overviewFooter")
+            if m_prompt ~= nil then
+                --Second press while the prompt is up backs out of it.
+                footer:FireEvent("armOwnerPrompt", nil)
+                return
+            end
+            if element:HasClass("disabled") or m_claimId == nil then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+
+            local candidates = OverviewFreshCandidates(m_signals)
+            if #candidates > 1 then
+                --Several distinct initiative entries share this column
+                --(two Goblin Warriors, Sneaky/Dizzy): the Director picks the
+                --member whose turn is taken (Decisions 32/36).
+                footer:FireEvent("armOwnerPrompt", {
+                    members = candidates,
+                    ability = nil,
+                    choose = function(member)
+                        if OverviewClaimTurn(member.initiativeid) then
+                            local menu = footer:FindParentWithClass("actionMenu")
+                            if menu ~= nil then
+                                menu:FireEvent("refreshOverview")
+                            end
+                        end
+                    end,
+                })
+                return
+            end
+
+            --One actor (single monster or a whole minion squad, which shares
+            --one initiative id): take the turn now.
+            if OverviewClaimTurn(m_claimId) then
+                --Confirmation: the column repopulates from the live queue, so
+                --the button now reads "Turn taken - acting now" and the
+                --signals line flips to acted.
+                local menu = footer:FindParentWithClass("actionMenu")
+                if menu ~= nil then
+                    menu:FireEvent("refreshOverview")
+                end
+            end
+        end,
+    }
+    local reasonLabel = gui.Label {
+        classes = { "overviewTakeTurnReason", "collapsed" },
+        text = "",
+    }
+
+    local children = { header, promptLabel }
     for _, row in ipairs(rows) do
         children[#children + 1] = row
     end
     children[#children + 1] = moreLabel
+    children[#children + 1] = takeTurnButton
+    children[#children + 1] = reasonLabel
+
+    --Lay the mini-rows out for the current mode: the signals view (first
+    --OVERVIEW_FOOTER_ROWS members, "+N more") or the armed owner prompt
+    --(fresh candidates only, whole pool).
+    local function LayoutRows()
+        if m_signals == nil then
+            for _, row in ipairs(rows) do
+                row:FireEvent("setMember", nil)
+            end
+            moreLabel:SetClass("collapsed", true)
+            return
+        end
+
+        local list = nil
+        local cap = OVERVIEW_FOOTER_ROWS
+        if m_prompt ~= nil then
+            list = m_prompt.members
+            cap = #rows
+        elseif #m_signals.members > 1 then
+            list = m_signals.members
+        end
+
+        if list == nil then
+            for _, row in ipairs(rows) do
+                row:FireEvent("setMember", nil)
+            end
+            moreLabel:SetClass("collapsed", true)
+            return
+        end
+
+        for i, row in ipairs(rows) do
+            if i <= cap then
+                row:FireEvent("setMember", list[i], m_signals.inCombat)
+            else
+                row:FireEvent("setMember", nil)
+            end
+        end
+        local overflow = #list - cap
+        if overflow > 0 then
+            moreLabel.text = string.format("+%d more", overflow)
+            moreLabel:SetClass("collapsed", false)
+        else
+            moreLabel:SetClass("collapsed", true)
+        end
+    end
+
+    --Recompute the take-turn button from the live queue.
+    local function LayoutTakeTurn()
+        if m_column == nil or m_signals == nil then
+            takeTurnButton:SetClass("collapsed", true)
+            reasonLabel:SetClass("collapsed", true)
+            m_claimId = nil
+            return
+        end
+        takeTurnButton:SetClass("collapsed", false)
+
+        --The entry the button acts on: the representative's, unless several
+        --members are still fresh (then the press arms the owner prompt and
+        --the button is enabled if ANY of them may claim).
+        local candidates = OverviewFreshCandidates(m_signals)
+        local ok, reason
+        if #candidates > 1 then
+            ok = false
+            for _, member in ipairs(candidates) do
+                local memberOk, memberReason = OverviewClaimGate(member.initiativeid)
+                if memberOk then
+                    ok = true
+                    reason = nil
+                    break
+                end
+                reason = reason or memberReason
+            end
+            m_claimId = candidates[1].initiativeid
+        else
+            m_claimId = nil
+            pcall(function() m_claimId = InitiativeQueue.GetInitiativeId(m_column.token) end)
+            ok, reason = OverviewClaimGate(m_claimId)
+        end
+
+        local short, full = OverviewTakeTurnText(m_column, #m_signals.members)
+        takeTurnButton.text = short
+        takeTurnButton:SetClass("disabled", not ok)
+        m_claimReason = reason
+        if ok then
+            m_takeTurnTooltip = full
+            reasonLabel:SetClass("collapsed", true)
+        else
+            m_takeTurnTooltip = string.format("%s: %s", full, reason or "unavailable")
+            reasonLabel.text = reason or ""
+            reasonLabel:SetClass("collapsed", reason == nil)
+        end
+    end
 
     local resultPanel
     resultPanel = gui.Panel {
@@ -3023,11 +3498,54 @@ local function OverviewColumnFooter()
             OverviewLocate(m_column.token, pulse)
         end,
 
+        --Arm (prompt ~= nil) or disarm (nil) the owner-selection prompt.
+        armOwnerPrompt = function(element, prompt)
+            if prompt ~= nil and (m_column == nil or m_signals == nil or prompt.members == nil or #prompt.members == 0) then
+                prompt = nil
+            end
+            m_prompt = prompt
+            if prompt == nil then
+                promptLabel:SetClass("collapsed", true)
+                takeTurnButton:SetClass("collapsed", m_column == nil)
+                LayoutRows()
+                if m_column ~= nil then
+                    LayoutTakeTurn()
+                end
+                return
+            end
+
+            local name = m_column.name or "creature"
+            if prompt.ability ~= nil then
+                promptLabel.text = string.format("Choose which %s uses %s", name, prompt.ability.name)
+            else
+                promptLabel.text = string.format("Choose which %s takes the turn", name)
+            end
+            promptLabel:SetClass("collapsed", false)
+            takeTurnButton.text = "Cancel"
+            takeTurnButton:SetClass("disabled", false)
+            m_takeTurnTooltip = "Back out without choosing"
+            reasonLabel:SetClass("collapsed", true)
+            LayoutRows()
+
+            --Show every candidate on the map at once.
+            for _, member in ipairs(prompt.members) do
+                for _, tok in ipairs(member.tokens) do
+                    if tok ~= nil and tok.valid then
+                        dmhub.PulseHighlightToken(tok.charid)
+                    end
+                end
+            end
+        end,
+
         overviewColumn = function(element, column, signals)
             m_column = column
             m_signals = signals
+            m_prompt = nil
+            promptLabel:SetClass("collapsed", true)
             if column == nil or signals == nil or column.token == nil or not column.token.valid then
                 element:SetClass("collapsed", true)
+                LayoutRows()
+                LayoutTakeTurn()
                 return
             end
             element:SetClass("collapsed", false)
@@ -3040,39 +3558,23 @@ local function OverviewColumnFooter()
             roleLabel:SetClass("collapsed", roleText == nil)
 
             local members = signals.members
+            local text = ""
             if #members <= 1 then
                 --Single actor: its own signals on the header line.
                 local member = members[1]
-                local text = ""
                 if member ~= nil then
                     text = OverviewSignalText(member, signals.inCombat)
                 end
-                signalLabel.text = text
-                signalLabel:SetClass("collapsed", text == "")
-                for _, row in ipairs(rows) do
-                    row:FireEvent("setMember", nil)
-                end
-                moreLabel:SetClass("collapsed", true)
-            else
+            elseif signals.inCombat then
                 --Several actors: header carries the fresh count, one
-                --mini-row per actor below.
-                local text = ""
-                if signals.inCombat then
-                    text = string.format("%d of %d fresh", signals.freshCount, #members)
-                end
-                signalLabel.text = text
-                signalLabel:SetClass("collapsed", text == "")
-                for i, row in ipairs(rows) do
-                    row:FireEvent("setMember", members[i], signals.inCombat)
-                end
-                local overflow = #members - #rows
-                if overflow > 0 then
-                    moreLabel.text = string.format("+%d more", overflow)
-                    moreLabel:SetClass("collapsed", false)
-                else
-                    moreLabel:SetClass("collapsed", true)
-                end
+                --mini-row per actor below (LayoutRows).
+                text = string.format("%d of %d fresh", signals.freshCount, #members)
             end
+            signalLabel.text = text
+            signalLabel:SetClass("collapsed", text == "")
+
+            LayoutRows()
+            LayoutTakeTurn()
         end,
     }
 
@@ -3110,6 +3612,66 @@ local function ActionSubMenu(args)
     local m_casterToken = nil
     local m_column = nil
 
+    --Slice (e): preview-on-click for an overview chip. Installed on every
+    --chip of an overview column (nil for ordinary menus, whose press path is
+    --byte-for-byte the old one). Called from AbilityHeading's press with the
+    --ability, the chip's caster and a commit(casterToken) continuation that
+    --runs the ordinary push-caster + beginCasting tail. Returns true when it
+    --took over the press.
+    --
+    --  * Always LOCATE the owner first (CenterOnToken + pulse; never
+    --    FocusToken, selection untouched) so the Director sees who is about
+    --    to act; the targeting overlay beginCasting draws is the reach
+    --    preview for now.
+    --  * If several DISTINCT initiative entries in this column are still
+    --    fresh (two Goblin Warriors, Sneaky/Dizzy), arm the footer's owner
+    --    prompt with the ability remembered: pressing a member re-points the
+    --    column at that member and commits the cast for it. Nothing is
+    --    claimed here; the claim happens at target confirm if legal
+    --    (g_overviewCastPending / OverviewClaimBeforeCast).
+    --  * One member (or a minion squad, one initiative id) commits at once.
+    local function OverviewChipPress(ability, casterToken, commit)
+        if m_column == nil or m_casterToken == nil then
+            return false
+        end
+        local signals = OverviewColumnSignals(m_column)
+        local candidates = OverviewFreshCandidates(signals)
+        print("OVERVIEW:: chip press", ability and ability.name, "candidates", #candidates)
+        if #candidates > 1 then
+            m_footer:FireEvent("armOwnerPrompt", {
+                members = candidates,
+                ability = ability,
+                choose = function(member)
+                    if member == nil or member.token == nil or not member.token.valid then
+                        return
+                    end
+                    m_column.token = member.token
+                    m_casterToken = member.token
+                    OverviewLocate(member.token, member.tokens)
+                    commit(member.token, OverviewMemberAbility(member.token, ability))
+                end,
+            })
+            return true
+        end
+
+        --One (or no) fresh entry: cast for the chip's own caster - the
+        --representative, which BuildOverviewColumns already points at the
+        --first fresh member - unless the queue moved on since the menu was
+        --populated, in which case follow the fresh member.
+        local owner = casterToken
+        local memberAbility = ability
+        local fresh = candidates[1]
+        if fresh ~= nil and fresh.token ~= nil and fresh.token.valid and (owner == nil or fresh.token.charid ~= owner.charid) then
+            owner = fresh.token
+            memberAbility = OverviewMemberAbility(owner, ability)
+        end
+        if owner ~= nil and owner.valid then
+            OverviewLocate(owner, { owner })
+        end
+        commit(owner, memberAbility)
+        return true
+    end
+
     resultPanel = gui.Panel {
 
         vpad = -4,
@@ -3123,9 +3685,20 @@ local function ActionSubMenu(args)
             m_column = column
         end,
 
+        --Forwarded to the footer (slice (e) owner prompt); no-op for ordinary
+        --menus, whose footer is collapsed and has no column.
+        armOwnerPrompt = function(element, prompt)
+            m_footer:FireEvent("armOwnerPrompt", prompt)
+        end,
+
         abilities = function(element, abilities)
             if abilities == nil or #abilities == 0 then
                 element:SetClass("collapsed", true)
+                --A pooled overview column parked with no kit drops its
+                --footer state too (disarms any prompt).
+                if m_column == nil then
+                    m_footer:FireEvent("overviewColumn", nil, nil)
+                end
                 element:HaltEventPropagation()
                 return
             end
@@ -3159,7 +3732,12 @@ local function ActionSubMenu(args)
                 m_children[i] = m_children[i] or AbilityHeading()
                 --Re-point the pooled chip at this column's owner (nil restores
                 --the g_token default) before it computes cost/suppression.
-                m_children[i]:FireEvent("setCasterToken", m_casterToken)
+                --The overview press hook rides along (nil for ordinary menus).
+                local pressHook = nil
+                if m_column ~= nil and m_casterToken ~= nil then
+                    pressHook = OverviewChipPress
+                end
+                m_children[i]:FireEvent("setCasterToken", m_casterToken, pressHook)
                 m_children[i]:FireEventTree("ability", abilities[i])
                 m_children[i]:SetClass("collapsed", false)
             end
@@ -3364,6 +3942,44 @@ ActionMenu = function()
         flow = "horizontal",
     }
 
+    --Slice (e): back out of any armed owner-selection prompt (Esc, click-away
+    --and menu switches all land here). Cheap no-op when none is armed.
+    local function DisarmOverviewPrompts()
+        for _, submenu in ipairs(m_uniqueColumns) do
+            submenu:FireEvent("armOwnerPrompt", nil)
+        end
+    end
+
+    --Populate the pooled overview columns from the current selection and
+    --the live initiative queue. Returns the column list and how many have a
+    --non-empty kit. Shared by the "unique" menu open and by refreshOverview
+    --(after a take-turn press) so the acted/fresh state, representative and
+    --take-turn buttons all follow the queue.
+    local function PopulateUniqueColumns()
+        local columns = BuildOverviewColumns()
+        local populated = 0
+        for i, column in ipairs(columns) do
+            m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}
+            local submenu = m_uniqueColumns[i]
+            --The column record rides along so the footer bar can show the
+            --portrait/name/signals, the take-turn button and the owner
+            --prompt, and the column can grey itself when every member has
+            --acted (slices (d)/(e)).
+            submenu:FireEvent("setCasterToken", column.token, column)
+            submenu:FireEventTree("abilities", column.abilities, column.label)
+            if #column.abilities > 0 then
+                populated = populated + 1
+            end
+        end
+        --Any pooled column beyond this selection's count stays parented but
+        --collapsed (and unbound).
+        for i = #columns + 1, #m_uniqueColumns do
+            m_uniqueColumns[i]:FireEvent("setCasterToken", nil, nil)
+            m_uniqueColumns[i]:FireEventTree("abilities", nil, "")
+        end
+        return columns, populated
+    end
+
 
     resultPanel = gui.Panel {
         styles = Styles.ActionMenu,
@@ -3421,12 +4037,24 @@ ActionMenu = function()
         closemenu = function(element)
             g_triggerPanel:SetClass("hidden", false)
             ClearAcknowledgedNovelAbilities()
+            DisarmOverviewPrompts()
+        end,
+
+        --Slice (e): re-read the queue into the open Unique Abilities menu
+        --(after a take-turn press). No-op unless that menu is up.
+        refreshOverview = function(element)
+            if element:HasClass("hidden") or m_args == nil or m_args.type ~= "unique" then
+                return
+            end
+            PopulateUniqueColumns()
         end,
 
         menu = function(element, args)
             if element.data.shownMenuTime == dmhub.Time() or g_token == nil then
                 return
             end
+
+            DisarmOverviewPrompts()
 
             --Any menu interaction retires the previously acknowledged novel
             --set: those rows have been shown to the player, so they stop being
@@ -3483,20 +4111,12 @@ ActionMenu = function()
             --ordinary AbilityHeading press path (PushCasterToken +
             --beginCasting).
             if args.type == "unique" then
-                local columns = BuildOverviewColumns()
+                local columns, populated = PopulateUniqueColumns()
                 local children = {}
-                local populated = 0
-                for i, column in ipairs(columns) do
-                    m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}
-                    local submenu = m_uniqueColumns[i]
-                    --The column record rides along so the footer bar can
-                    --show the portrait/name/signals and the column can
-                    --grey itself when every member has acted (slice (d)).
-                    submenu:FireEvent("setCasterToken", column.token, column)
-                    submenu:FireEventTree("abilities", column.abilities, column.label)
-                    if #column.abilities > 0 then
-                        populated = populated + 1
-                    end
+                --EVERY pooled column goes in the list (the ones past this
+                --selection's count are collapsed by PopulateUniqueColumns);
+                --leaving one out would orphan it - see the pooled-panel rule.
+                for _, submenu in ipairs(m_uniqueColumns) do
                     children[#children + 1] = submenu
                 end
 
@@ -6215,6 +6835,10 @@ CreateAbilityController = function()
         end,
 
         cancelCasting = function(element)
+            --Director overview (slice (e)): whatever ended this cast, the
+            --pending implicit-claim record dies with it.
+            g_overviewCastPending = nil
+
             ClearCastingTriggers()
 
             ClearCastingDurationEffects()
@@ -8163,6 +8787,12 @@ CreateAbilityController = function()
                 FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
                 local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
 
+                --Director overview (slice (e)): the cast is now irreversible,
+                --so take the owner's turn first if that is legal (no-op for
+                --every ordinary cast). Same hook as the CalculateSpellTargeting
+                --commit below.
+                OverviewClaimBeforeCast(g_token)
+
                 RecordPartnerBurstRetargets(targets)
 
                 g_currentAbility:Cast(g_token, targets, {
@@ -8573,6 +9203,10 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             --resource adjustments) post-commit cleanly.
             FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
             local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
+
+            --Director overview (slice (e)): implicit claim at target confirm,
+            --only when legal; see g_overviewCastPending. No-op otherwise.
+            OverviewClaimBeforeCast(g_token)
 
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,

@@ -449,6 +449,95 @@ Next: Phase 1.5 / Phase 2 per the rows above.
 - Live state left behind: the Goblin Stinker entry's turn was claimed (and
   left in progress) as the one authorised claim of this session.
 
+**2026-08-15, second user field test (Ricky, live A5 game, after Phase 1 complete).**
+Triaged; each item carries a proposed disposition. Nothing below is implemented yet.
+
+- **F2-1 BUG (scope): the overview fires for multi-selected HEROES too.** Overview
+  mode is gated on `dmhub.isDM and #selected > 1`, not on the tokens being
+  director-controlled, so a DM selecting several player characters gets columns.
+  Heroes are far more complex than monsters and the design was never for them;
+  followers/retainers are monster-like and might fit, but not now.
+  DISPOSITION: gate overview mode on ALL selected tokens being non-player
+  (`not tok.playerControlled`, or the creature not being a hero); mixed
+  selections fall back to the classic strip. Small fix; do first.
+- **F2-2 REGRESSION (must fix first): single-monster selection lost its unique
+  abilities.** Selecting one monster (e.g. the Monarch) no longer shows its
+  signature/heroic abilities where they used to be. Root cause hypothesis: the
+  drawer refresh collapses/hides Main Action/Maneuver based on overview state OR
+  the categorization filter (`IsUniqueKitAbility`) leaked into the ordinary
+  path. The intent (Decision 43) was ALWAYS that single selection is
+  byte-for-byte unchanged. DISPOSITION: reproduce with one token, compare to
+  the committed slice-(c) behaviour, fix, and add "single token shows
+  Signature/Common columns exactly as before" to the standing regression check.
+- **F2-3 QUESTION answered by data: "which Assassin does the take-turn button
+  activate?"** Live check: Sneaky and Dizzy SHARE ONE initiative entry
+  (`initiativeGrouping` = same id), so in this game they act as one entry and
+  the button legitimately claims that entry for both - there is no choice to
+  make. When two same-statblock monsters have DISTINCT entries the footer's
+  owner prompt (slice e) asks which one. DISPOSITION: no code change; but the
+  button copy should say "Take the Goblin Assassins' turn" (plural) when the
+  column's members share one entry, so the Director is not surprised.
+- **F2-4 BUG (layout): footer mini-row label overflows the chip border**
+  ("Goblin Warrior 1 - Stamina: High - fresh", class overviewFooterRowLabel,
+  ~:3248). DISPOSITION: constrain width, ellipsize, and shorten the copy (see
+  F2-5); also raise the size - user reports it is very small on a laptop
+  screen (X11 floors: 11px glance / 12px read).
+- **F2-5 COPY + CONCEPT: "Stamina: High - fresh" is not understood.** "fresh"
+  (= has not acted this round) is our jargon; "High" is relative to the
+  monster's own max, so a 15-max Warrior and an 80-max Monarch both read
+  "High" - the user correctly notes that tells him nothing about survivability.
+  Live: 25 of 28 director tokens are at full stamina, so every footer says
+  "High". DISPOSITION: (a) replace "fresh"/"acted" with "Not yet acted" /
+  "Acted"; (b) DROP the qualitative band as a headline signal and show the raw
+  "13/15" (cheap, unambiguous - Decision 9's "show raw numbers" spirit);
+  (c) the survivability signal the user actually wants - "if the heroes target
+  this creature, will it likely die before it acts?" - depends on hero damage
+  output (level, abilities, items) and is a Phase-2 THREAT ESTIMATE, not a
+  stamina band. Design it explicitly (e.g. compare max stamina to the party's
+  typical tier-2 damage x reachable heroes); until then show the number.
+- **F2-6 BUG (pre-existing?): the novel-ability diamond pip on a drawer
+  disappears after opening and closing the menu even when nothing was used**
+  (novelMarkerInner ~:873, seen on Trigger and Main Action for HEROES).
+  DISPOSITION: this is the documented novel-abilities lifecycle (opening a
+  drawer ACKNOWLEDGES its pips; closing retires them - see
+  DrawSteelActionBar/CLAUDE.md "Novel abilities"), i.e. probably NOT caused by
+  this project. Verify against the pre-project commit (0e67503b^) before
+  touching it; if it reproduces there, file separately, do not fix here.
+- **F2-7 REQUEST (accepted, aligns with Decision 4/50): grey ALL of a
+  monster's chips once it has acted this round**, not just the footer, so
+  "do not use these" is unmistakable. Slice (d) dims the column via an
+  `acted` class - check it actually applies to the chips visually; if the dim
+  is too subtle, strengthen it (keep chips discoverable per Decision 4).
+- **F2-8 REQUEST (new, good): an "x" on each column to DISMISS that monster**
+  from the overview - removes the column AND deselects the token on the map.
+  Use case: the Monarch has acted, or the Director has decided against a
+  monster this turn; dismissing declutters and refocuses. DISPOSITION: accept
+  for Phase 2; implement as a small close affordance on the footer bar
+  (top-right of the column), calling into the selection (remove that token
+  from `dmhub.selectedTokens`) - the existing selection poll then repopulates.
+- **F2-9 REQUEST: show the creature's ROLE prominently** (controller / support /
+  brute ...) so the Director can pick which column to read first. Slice (d)
+  already prints the stat block role line ("Level 1 Horde Controller") in the
+  footer, so this is a VISIBILITY problem: it is small and buried under the
+  name. DISPOSITION: promote the role word - larger, first, or as a chip on
+  the footer - and add the role's one-line play pattern on hover (Decision 15;
+  role prose table still needs adding as data).
+- **From the previous message (same session): (i) signature-first row order is
+  reliable (categorization sort) but cross-column alignment is coincidental -
+  make signature-slot alignment deliberate; (ii) "Get in Here!" is filed
+  categorization="Signature Ability" IN THE DATA (its action type is correctly
+  Maneuver) - a data/ fix on the Goblin Monarch, not a UI bug; (iii) ACTION
+  TYPE must be visible on chips at a glance - "Maneuver" / "Free Maneuver" /
+  "Free Action" as legible text (>= 12px, not an 8px tag; main action stays
+  unmarked) AND main actions grouped above a hairline with maneuvers below,
+  so "Monarch = one above + one below, Warrior = two above" reads structurally
+  (this answers the "can this monster do two unique things this turn?"
+  comparison, which is core to the activation decision).**
+
+SUGGESTED ORDER FOR THE NEXT SESSION: F2-2 (regression) -> F2-1 (hero gate)
+-> F2-4/F2-5 (footer copy/size/raw numbers) -> action-type visibility ->
+F2-7 -> F2-8 -> F2-9/role prominence -> Get in Here! data fix. Then Phase 2.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

@@ -96,12 +96,17 @@ Creates the floating trigger panel that appears above the trigger drawer when th
 
 **Panel structure per trigger:**
 
+- Heading boxes above the group holding the trigger's name and its prompt -- only for a multi-mode trigger (`ActiveTrigger:UsesModeHeading()`). Such a trigger draws one card per mode, so its own name and prompt would otherwise displace the first mode's; with the headings present every card carries its own mode's name and rules. Mode 1 lives on the trigger as `activateText` / `activateRules` rather than in `modes`.
 - `!` icon (gold = normal, blue = free)
 - Title and markdown rules text
 - Target token images (with optional retarget arrow)
-- Cost diamond (if heroic-resource cost required)
+- Cost diamond (if heroic-resource cost required). A mode-driven trigger's option cards carry no cost of their own -- picking any mode costs the trigger's cost -- so they repeat the trigger's diamond. A `powerRollModifier` trigger's options are extra resource spends and price themselves.
 - Buttons: Activate, Enhancement Options, Dismiss
 - "Dismiss Triggers" bar to dismiss all at once
+
+A mode whose `condition` is not met is hidden, unless the author filled in its **Condition Reason** (`modeList[i].conditionReason`, edited under Mode Condition in the ability editor's Modes section). With a reason set, the mode is offered anyway: the card is dimmed via the `unavailableMode` class and carries the reason in `triggerUnavailableNote`, but stays pressable so the table can allow it. Blank -- the default -- keeps the original hide behaviour. Under "Strictly Enforce Action Economy and Resource Costs" (`strict:resources`), the override is withheld from players: the greyed card and its reason still show, but a player's press is silently ignored. Directors can still press it, matching the action bar's strict:resources handling.
+
+Because hidden modes leave holes in `modes`, an option's position there is **not** its position in `modeList`. Each entry records `modeIndex`, and `ActiveTrigger:ModeIndexForTriggered` resolves it; `symbols.mode` (which selects behaviors via their `modesSelected`) must go through that helper rather than the old `trigger.triggered + 1`, or every mode after a hidden one runs the wrong entry's behaviors. Prompts serialized before `modeIndex` existed fall back to the positional reading.
 
 Trigger activation either fires immediately or enters target-selection mode (via `chooseTarget` event on the ability controller) if the trigger supports retargeting.
 

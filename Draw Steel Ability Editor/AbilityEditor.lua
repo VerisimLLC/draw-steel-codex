@@ -2355,6 +2355,31 @@ _buildModesBlock = function(ability, fireChange)
                     }
                 )
 
+                -- Mode Condition Reason. Blank (the default) keeps the original
+                -- behaviour: a mode whose condition fails is not offered at all.
+                -- Fill it in and the mode is offered anyway, greyed out and
+                -- annotated with this text, so the player can see what they are
+                -- missing and the table can still allow it.
+                modeChildren[#modeChildren + 1] = gui.Panel{
+                    classes = {"nae-field-row"},
+                    children = {
+                        gui.Label{
+                            classes = {"nae-field-label"},
+                            text = "Condition Reason",
+                        },
+                        gui.Input{
+                            classes = {"nae-field-input"},
+                            characterLimit = 200,
+                            placeholderText = "Blank: hide the mode when unavailable",
+                            text = entry.conditionReason or "",
+                            change = function(el)
+                                entry.conditionReason = el.text
+                                fireChange()
+                            end,
+                        },
+                    },
+                }
+
                 -- "Has Ability" checkbox + Edit button (variations only)
                 modeChildren[#modeChildren + 1] = gui.Panel{
                     classes = {"nae-field-row",

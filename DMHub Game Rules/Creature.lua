@@ -6300,6 +6300,15 @@ function creature:OnMove(path)
         }
     })
 
+    --Aura triggers marked "Forced Movement Only" ("force moved into or within the area").
+    --Hooked here rather than on the forced-movement ability path because this is the one
+    --place EVERY kind of movement arrives: a Director ALT-dragging a token is forced
+    --movement that casts no ability at all. path.forced is the engine's own verdict
+    --(an ALT-drag reports forced=true, movementType="pushed").
+    if path.forced then
+        Aura.FireForcedMovementTriggersForPath(self, ourToken, path)
+    end
+
     --floorAltitude
 
     -- Forced movement no longer short-circuits the per-step processing -- we
@@ -9931,7 +9940,9 @@ end
 --- @field text string
 --- @field retargetid false|string
 --- @field rules string
---- @field modes {text: string, rules: string}[]
+--- @field activateText string The name of mode 1 of a multi-mode trigger.
+--- @field activateRules string The rules text of mode 1 of a multi-mode trigger.
+--- @field modes {text: string, rules: string, modeIndex: number|nil, unavailable: boolean|nil, conditionReason: string|nil}[] modeIndex is the entry's position in the ability's modeList (see ModeIndexForTriggered). unavailable/conditionReason mark a mode whose condition is not met but which is offered anyway, greyed out, with that reason shown.
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
 --- @field abilityGuid false|string The guid of the TriggeredAbility that created this prompt.
@@ -9962,7 +9973,11 @@ ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
 ActiveTrigger.retargetid = false
 ActiveTrigger.text = "Trigger"
+--A multi-mode trigger (a TriggeredAbility with multipleModes) keeps mode 1 out
+--of the modes list: activateText/activateRules are its name and rules, and
+--modes holds the remaining modes whose conditions passed. See UsesModeHeading.
 ActiveTrigger.activateText = "Activate"
+ActiveTrigger.activateRules = ""
 ActiveTrigger.rules = ""
 ActiveTrigger.modes = {}
 ActiveTrigger.casterid = false
@@ -10144,6 +10159,39 @@ function ActiveTrigger:GetRulesText()
 	end
 
 	return self.rules
+end
+
+--A multi-mode trigger prompt draws one card per mode: mode 1 is the trigger's
+--own card and the rest are the enhancement-option cards below it. When there
+--are additional modes the trigger's name and prompt go into heading boxes above
+--the whole group and every card carries its own mode's name and rules, so mode
+--1 is not anonymised by the trigger's name/prompt -- see DrawSteelTriggerPanel.
+--
+--This is only for mode-driven triggers. A powerRollModifier trigger's
+--"enhancement options" are extra resource spends rather than modes, so its
+--single card keeps the trigger's own name and rules.
+--The modeList index that a `triggered` value selects, which is what drives
+--symbols.mode and so which behaviors run. A mode whose condition fails and
+--carries no Condition Reason is never offered, leaving a hole in modes, so an
+--option's position here is not its position in modeList -- each entry records
+--the index it came from. Prompts serialized before modeIndex existed, and the
+--non-numeric `triggered == true` case (mode 1, the trigger's own card), fall
+--back to the positional reading.
+function ActiveTrigger:ModeIndexForTriggered(triggered)
+	if type(triggered) ~= "number" then
+		return 1
+	end
+
+	local entry = self.modes[triggered]
+	if entry ~= nil and entry.modeIndex ~= nil then
+		return entry.modeIndex
+	end
+
+	return triggered + 1
+end
+
+function ActiveTrigger:UsesModeHeading()
+	return (not self.powerRollModifier) and #self.modes > 0
 end
 
 function ActiveTrigger:IsFreeTriggeredAbility()
@@ -10390,11 +10438,13 @@ end
 --called by dmhub when a creature enters an aura (adjacentOnly = it is only on
 --the adjacent extension of an includeAdjacent aura, not inside it), and from
 --BeginTurn for every aura the creature starts its turn touching (fromBeginTurn).
+--enteredViaShift is true only when the engine reports that this entry happened
+--during a Shift.
 --Adjacent-only contact triggers only at the start of a turn -- moving past an
 --extended aura neither prompts nor halts -- and rolls the simple power roll
 --with a bane. Stored onenter triggers never fire for adjacent-only contact.
 --returns true if the aura triggered something, false otherwise.
-function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
+function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 
     if info.auraInstance.aura:CreaturePassesFilter(self, info.auraInstance) == false then
         return
@@ -10412,32 +10462,18 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 	if self:EnterAuraHaltsMovement(info, level) == false then
 		return result
 	end
-
-	local turnid = self:GetTurnId()
-
-	if turnid ~= nil and info.token ~= nil and info.token.valid then
-		info.token:ModifyProperties{
-			description = "Enter Aura",
-			execute = function()
-				if self:try_get("aurasEnteredTurnId") ~= turnid then
-					self.aurasEnteredTurnId = turnid
-					self.aurasEntered = {}
-				end
-
-				local entered = self.aurasEntered[info.auraInstance.guid]
-				if entered == true then
-					entered = 2
-				end
-				if entered == nil or entered < level then
-					self.aurasEntered[info.auraInstance.guid] = level
-				end
-			end,
-		}
-	end
+	local auraGuid = info.auraInstance.guid
+	local ignoredShiftEntry = enteredViaShift == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
 
 	if not adjacentOnly then
 		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
-			if triggerInfo.trigger == "onenter" then
+			--"Forced Movement Only" triggers are NOT resolved here. This runs identically for a
+			--shove and a walk-in, it runs during path PLANNING rather than during the move, and
+			--it is gated to once per aura per turn -- all three are wrong for "force moved into
+			--the area". Aura.FireForcedMovementTriggersForPath owns them instead.
+			if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter ~= "forced" then
 				local auraCasterToken = info.token
 				if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
 					auraCasterToken = dmhub.LookupToken(self)
@@ -10457,7 +10493,10 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 	--synthesizes an onenter trigger rather than storing one in aura.triggers,
 	--so the roll always reflects the aura's current fields. Adjacent-only
 	--contact rolls with a bane.
-	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger({adjacentOnly = adjacentOnly == true})
+	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
+		adjacentOnly = adjacentOnly == true,
+		enteredViaShift = enteredViaShift == true,
+	}
 	if simplePowerRollTrigger ~= nil then
 		local auraCasterToken = info.token
 		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
@@ -10465,6 +10504,34 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn)
 		end
 		result = true
 		info.auraInstance:FireTriggeredAbility(simplePowerRollTrigger.ability, self, auraCasterToken)
+	end
+
+	--A shifted entry whose simple roll mode is "ignore" must leave a later
+	--ordinary re-entry available when the aura has no stored onenter trigger. If
+	--a combined aura does have a stored onenter trigger, that trigger still fires
+	--and consumes the shared aura-level record; the record cannot independently
+	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
+	--for every other kind of entry, including inert auras.
+	local turnid = self:GetTurnId()
+	local consumeEntry = result or not ignoredShiftEntry
+	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
+		info.token:ModifyProperties{
+			description = "Enter Aura",
+			execute = function()
+				if self:try_get("aurasEnteredTurnId") ~= turnid then
+					self.aurasEnteredTurnId = turnid
+					self.aurasEntered = {}
+				end
+
+				local entered = self.aurasEntered[auraGuid]
+				if entered == true then
+					entered = 2
+				end
+				if entered == nil or entered < level then
+					self.aurasEntered[auraGuid] = level
+				end
+			end,
+		}
 	end
 
 	return result

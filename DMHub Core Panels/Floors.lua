@@ -191,9 +191,15 @@ end
 --Move the active floor up (offset +1) or down (offset -1) among the top-level floors,
 --clamping at the top and bottom. Applies the auto-hide behaviour when the setting is on.
 --Used by the floor up/down keybinds. Moving the active floor is a director tool; for players
---the same keybind instead adjusts the "look up" view (see LookRelative above).
+--the same keybind instead adjusts the "look up" view (see LookRelative above). A director
+--currently previewing a token's vision (dmhub.tokenVision, the "Show Token Vision" keybind)
+--is treated the same as a player here: the engine keeps the rendered floor locked to the
+--previewed token's actual floor while vision preview is active, so moving the active floor
+--out from under it just gets silently reverted -- it looks like the keybind is glitching.
+--CharacterPanel.CreateLookupPanel applies the same isDM-and-tokenVision check for the
+--equivalent "look up" slider on the character panel.
 function FloorNavigation.ChangeFloorRelative(offset)
-	if not dmhub.isDM then
+	if (not dmhub.isDM) or dmhub.tokenVision ~= nil then
 		FloorNavigation.LookRelative(offset)
 		return
 	end

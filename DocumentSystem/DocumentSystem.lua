@@ -5928,6 +5928,31 @@ function PanelDocument:CreateInterface(args)
         flow = "none",
     }
 
+    --The FOCUS EDGE: a bright accent line down the window's left side
+    --while this window's content holds the GUI focus -- the docks'
+    --dockPanelFocusOutline treatment, restored to the rail windows
+    --(David 2026-08-15). It was removed with the tab-strip rework in
+    --favor of the header chip's "armed" accent; both live now -- the
+    --chip names WHICH tab is armed, the edge is the at-a-glance "this
+    --window is the active one" a name cannot give from peripheral
+    --vision. A floating child rather than a border on the window root:
+    --the root's border is set inline and selfStyle beats class styles.
+    local focusEdge = gui.Panel{
+        classes = {"panelWindowFocusEdge"},
+        bgimage = true,
+        floating = true,
+        interactable = false,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        --the one-sided border is INLINE: a border TABLE in a styles list
+        --verifiably never reaches the panel (scalar properties do; see
+        --the dock's copy in DockablePanel.lua). Color and opacity still
+        --come from the panelWindowFocusEdge rules, so theming is intact.
+        border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+    }
+
     --ARMED indication lives in the HEADER now -- see SyncArmedState and
     --the panelDocumentTitle "armed" style. The old
     --4px accent edge down the window's left side is gone: it sat in
@@ -6024,11 +6049,18 @@ function PanelDocument:CreateInterface(args)
             --GUI focus, and nothing else -- singular by construction, so
             --exactly one panel can be the active tool. See the dock's copy.
             --
-            --GATED on the active tab actually CARING about focus: only a
-            --focusOnClick panel has behavior riding on this, so only those
-            --windows say anything about it. Lighting every focused window
-            --made the signal ambient and therefore unreadable.
-            local active = gui.ChildHasFocus(element)
+            --The focus EDGE lights for ANY focused window, matching the
+            --dock's behavior: it answers "which window is active", not
+            --"which panel is armed".
+            local focused = gui.ChildHasFocus(element)
+            if focusEdge.valid then
+                focusEdge:SetClass("focused", focused)
+            end
+            --The chip accent stays GATED on the active tab actually CARING
+            --about focus: only a focusOnClick panel has a map mode riding
+            --on it, and naming an armed tool on a window with no tool made
+            --the signal ambient and therefore unreadable.
+            local active = focused
             if active then
                 local tab = FindTab(m_activeKey)
                 if tab == nil or tab.reg == nil or not tab.reg.focusOnClick then
@@ -6147,12 +6179,23 @@ function PanelDocument:CreateInterface(args)
                 bold = true,
                 priority = 10,
             },
-            --The focus ring. Repeated here rather than inherited from
+            --The focus edge. Repeated here rather than inherited from
             --DefaultStyles (where the docks' copy lives): panels on the
             --documents layer do NOT get that global cascade, which is
             --exactly why everything here carries its own `styles`. Without
-            --these two rules the outline panel exists, sits in the right
+            --these two rules the edge panel exists, sits in the right
             --place, and draws nothing at all.
+            {
+                selectors = {"panelWindowFocusEdge"},
+                bgcolor = "clear",
+                borderColor = "@accent",
+                opacity = 0,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panelWindowFocusEdge", "focused"},
+                opacity = 1,
+            },
             --the pin toggle: nearly invisible at rest so it does not
             --compete with the tabs, lifting on hover and staying lit
             --(and upright rather than tilted) while the window is pinned.
@@ -6352,6 +6395,7 @@ function PanelDocument:CreateInterface(args)
         header,
         hairline,
         contentArea,
+        focusEdge,
     }
 
     --The window's tab set IS its folder: every panel filed under this
@@ -9080,6 +9124,9 @@ local function CreateCharacterCardVisual(charid)
 
     local staminaFill
     local staminaLabel
+    local recoveryRow
+    local recoveryIcon
+    local recoveryLabel
     local heroRow
     local resourceLabel
     local surgeLabel
@@ -9112,6 +9159,23 @@ local function CreateCharacterCardVisual(charid)
                 color = "#c1731f"
             end
             staminaFill.selfStyle.bgcolor = color
+        end
+
+        --recoveries sit right under the stamina bar. They are a resource,
+        --not a creature field, so they come out of the resource table;
+        --creatures with no recoveries at all (most monsters) collapse the
+        --row rather than showing 0/0.
+        local recMax, recNow = 0, 0
+        pcall(function()
+            recMax = c:GetResources()[CharacterResource.recoveryResourceId] or 0
+            local used = c:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+            recNow = math.max(0, recMax - used)
+        end)
+        if recoveryRow ~= nil and recoveryRow.valid then
+            recoveryRow:SetClass("collapsed", recMax <= 0)
+        end
+        if recoveryLabel ~= nil and recoveryLabel.valid then
+            recoveryLabel.text = string.format("%d/%d", recNow, recMax)
         end
 
         local isHero = false
@@ -9157,6 +9221,42 @@ local function CreateCharacterCardVisual(charid)
         color = "#ffffff",
         interactable = false,
         text = "",
+    }
+
+    recoveryIcon = gui.Panel{
+        --NOT the Recovery resource's own compendium icon: that art is
+        --detailed and turns to mush at 9px. A solid phosphor glyph is the
+        --only thing that still reads at card size.
+        bgimage = "phosphor/heart-fill.png",
+        --the recovery green, matching the healthy stamina fill.
+        bgcolor = "#7cc489",
+        width = 9,
+        height = 9,
+        valign = "center",
+        rmargin = 3,
+        interactable = false,
+    }
+    recoveryLabel = gui.Label{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontSize = 9,
+        bold = true,
+        color = "#7cc489",
+        interactable = false,
+        text = "",
+    }
+    recoveryRow = gui.Panel{
+        classes = {"collapsed"},
+        width = "auto",
+        height = 11,
+        flow = "horizontal",
+        halign = "center",
+        tmargin = 2,
+        interactable = false,
+
+        recoveryIcon,
+        recoveryLabel,
     }
 
     resourceLabel = gui.Label{
@@ -9247,6 +9347,7 @@ local function CreateCharacterCardVisual(charid)
             staminaLabel,
         },
 
+        recoveryRow,
         heroRow,
 
         refreshRail = function(element)

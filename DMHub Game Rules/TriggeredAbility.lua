@@ -1349,10 +1349,17 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local casterSymbols = casterToken.properties:LookupSymbol{}
 
             local activateText = nil
+            local activateRules = nil
             local modes = nil
             if self.multipleModes then
                 local modeList = self:try_get("modeList", {})
-                activateText = modeList[1].text
+                --Mode 1 is carried separately from the modes list: it is the
+                --trigger's own card in the trigger panel, and the panel shows
+                --its name and rules there when other modes are present.
+                if modeList[1] ~= nil then
+                    activateText = modeList[1].text
+                    activateRules = StringInterpolateGoblinScript(modeList[1].rules or "", casterSymbols)
+                end
                 for i=2,#modeList do
                     local modeEntry = modeList[i]
                     local passes = true
@@ -1364,12 +1371,32 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                         end
                     end
 
-                    if passes then
-                        modes = modes or {}
-                        modes[#modes+1] = {
+                    --A failed condition hides the mode, as it always has, unless
+                    --the author gave it a Condition Reason: then it is offered
+                    --anyway, greyed out and annotated with that reason, and the
+                    --player may override it.
+                    local reason = trim(modeEntry.conditionReason or "")
+
+                    if passes or reason ~= "" then
+                        --modeIndex is what selects the behaviors to run.
+                        --Hidden modes leave holes in this list, so an option's
+                        --position in it is not its position in modeList -- the
+                        --index has to be carried rather than inferred, or every
+                        --mode after a hidden one runs the wrong modeList
+                        --entry's behaviors.
+                        local entry = {
                             text = modeEntry.text,
                             rules = StringInterpolateGoblinScript(modeEntry.rules, casterSymbols),
+                            modeIndex = i,
                         }
+
+                        if not passes then
+                            entry.unavailable = true
+                            entry.conditionReason = StringInterpolateGoblinScript(reason, casterSymbols)
+                        end
+
+                        modes = modes or {}
+                        modes[#modes+1] = entry
                     end
                 end
             end
@@ -1393,6 +1420,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			local trigger = ActiveTrigger.new{
 				id = guid,
                 activateText = activateText,
+                activateRules = activateRules,
 				text = text,
 				rules = StringInterpolateGoblinScript(self:try_get("triggerPrompt"), casterSymbols),
                 targets = targetids,
@@ -1594,9 +1622,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     return
                 end
 
-                if accepted and type(trigger.triggered) == "number" then
+                if accepted then
                     --the first mode is just the 'activate' which will show up as true.
-                    symbols.mode = trigger.triggered + 1
+                    symbols.mode = trigger:ModeIndexForTriggered(trigger.triggered)
                 else
                     symbols.mode = 1
                 end
@@ -2005,12 +2033,8 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 			return
 		end
 
-		if type(record.triggered) == "number" then
-			--the first mode is just the 'activate' which shows up as true.
-			symbols.mode = record.triggered + 1
-		else
-			symbols.mode = 1
-		end
+		--the first mode is just the 'activate' which shows up as true.
+		symbols.mode = record:ModeIndexForTriggered(record.triggered)
 
 		--Mirror TriggeredAbilityRemoteExecution:Invoke: install per-modifier
 		--context symbols, then apply the creature's Modify Abilities pass.

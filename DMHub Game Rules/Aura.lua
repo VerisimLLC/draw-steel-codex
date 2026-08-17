@@ -6,7 +6,9 @@ local mod = dmhub.GetModLoading()
 --- @field canrelocate boolean If true, the caster can spend an action to move the aura.
 --- @field relocateResource string Action resource id used to relocate the aura.
 --- @field relocateRange number Maximum range in world units for relocating the aura.
---- @field triggers table[] List of trigger definitions {trigger: string, ability: TriggeredAbility, destroyaura: boolean}.
+--- @field triggers table[] List of trigger definitions {trigger: string, ability: TriggeredAbility, destroyaura: boolean, movementFilter: string}.
+--- movementFilter ("all" or "forced", default "all") restricts an onenter trigger to entries made
+--- by forced movement; see Aura.TriggerMovementFilters and the stash helpers further down.
 --- @field name string Display name.
 --- @field source string Source description string.
 --- @field description string Rules text.
@@ -19,6 +21,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the aura or starting its turn there (fires through the onenter trigger path as a free triggered action on the creature; see Aura:GetSimplePowerRollTrigger).
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+), executed by the Draw Steel command parser.
+--- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry.
 --- @field includeAdjacent boolean If true, the engine extends the aura's area one tile outward (8-way) and marks the extension tiles as adjacent-only. Creatures on those tiles count as touching the aura for enter/start-of-turn trigger contact (the simple power roll fires for them at the start of their turn, with a bane), but the tiles do not take the aura's terrain rules, move damage, or modifiers.
 --- @field damaging boolean Explicitly marks the aura as damaging terrain for movement advisories (the red "moving into damaging terrain" line on the drag tooltip). Only needed for auras whose damage comes from custom triggers: an entry power roll or per-tile move damage already implies it (see Aura:IsDamaging).
 --- @field environmentalKeywordId string|nil Id in the environmentalKeywords table of the Environmental Keyword this aura is marked with. Set on map-markup zone auras (see MapMarkup BuildZoneAuraInstance) and settable on any hand-authored aura definition. When an aura is created, EnvironmentalKeyword.ApplyToAura folds the keyword's effects (terrain flags, modifiers, move damage, entry power roll) into the definition; the id is also read by the creature and Loc "Environment" GoblinScript symbols and by creature:HasConcealmentIgnoringDarkness.
@@ -74,6 +77,22 @@ Aura.ApplyOptions = {
     },
 }
 
+--Which kind of movement into the aura may fire an "onenter" trigger. Deliberately
+--offers fewer options than movementDamageFilter: move damage is filtered by the
+--engine, which sees the movement type, whereas creature:EnterAura is called
+--identically for a shove and for a walk-in, so "forced" is the only distinction
+--Lua can honour (see the stash helpers below).
+Aura.TriggerMovementFilters = {
+    {
+        id = "all",
+        text = "Any Movement",
+    },
+    {
+        id = "forced",
+        text = "Forced Movement Only",
+    },
+}
+
 Aura.TriggerIdToCondition = {}
 for i, cond in ipairs(Aura.TriggerConditions) do
     Aura.TriggerIdToCondition[cond.id] = cond
@@ -92,6 +111,22 @@ Aura.description = ""
 Aura.applyto = "all"
 Aura.hasCustomIcon = false
 Aura.includeAdjacent = false
+Aura.powerRollShiftEntryMode = "normal"
+
+Aura.PowerRollShiftEntryModeOptions = {
+    {
+        id = "normal",
+        text = "Normal",
+    },
+    {
+        id = "bane",
+        text = "One Bane",
+    },
+    {
+        id = "ignore",
+        text = "Ignore Power Roll",
+    },
+}
 
 function Aura.OnDeserialize(self)
     --we had to change id -> guid to match CharacterFeature.
@@ -195,12 +230,20 @@ end
 --- roll modifiers (their own modifiers do not apply to it). The prompt is
 --- hostile: environment rolls are never beneficial offers, so it renders red
 --- and never expires.
---- @param options nil|{adjacentOnly: boolean} adjacentOnly = the creature touches
---- the aura only via its adjacent extension (includeAdjacent), not any true aura
---- tile: the roll takes a bane.
+--- @param options nil|{adjacentOnly: boolean, enteredViaShift: boolean} adjacentOnly =
+--- the creature touches the aura only via its adjacent extension (includeAdjacent),
+--- not any true aura tile; enteredViaShift = the creature entered during a Shift.
+--- Adjacent-only always rolls with one bane. A shifted entry follows
+--- powerRollShiftEntryMode, with unknown values treated as normal.
 --- @return nil|{trigger: string, ability: TriggeredAbility}
 function Aura:GetSimplePowerRollTrigger(options)
     if not self:try_get("powerRollEnabled", false) then
+        return nil
+    end
+
+    local shiftedEntry = options ~= nil and options.enteredViaShift == true
+    local shiftEntryMode = self:try_get("powerRollShiftEntryMode", "normal")
+    if shiftedEntry and shiftEntryMode == "ignore" and not options.adjacentOnly then
         return nil
     end
 
@@ -239,16 +282,28 @@ function Aura:GetSimplePowerRollTrigger(options)
     }
 
     --Adjacent-only contact rolls with a bane (e.g. Lava: "If the target is
-    --adjacent to lava but not in it, this ability takes a bane"). The entry
+    --adjacent to lava but not in it, this ability takes a bane"). Some auras
+    --also apply a bane when entered by shifting (e.g. Quicksand). Adjacent-only
+    --takes precedence, so the two built-in reasons can never stack. The entry
     --shape matches the behavior's built-in modifiers list ({type, condition,
     --text}, see MCDMAbilityRollBehavior's "our behavior-builtin modifiers").
+    local baneText = nil
+    local baneDetails = nil
     if options ~= nil and options.adjacentOnly then
+        baneText = string.format("Adjacent to %s", self.name)
+        baneDetails = string.format("This roll takes a bane against a creature that is adjacent to the %s but not in it. You started your turn next to the area rather than inside it.", self.name)
+    elseif shiftedEntry and shiftEntryMode == "bane" then
+        baneText = string.format("Shifted into %s", self.name)
+        baneDetails = string.format("This roll takes a bane because the triggering creature shifted into the %s.", self.name)
+    end
+
+    if baneText ~= nil then
         behaviorFields.modifiers = {
             {
                 type = "bane",
                 condition = true,
-                text = string.format("Adjacent to %s", self.name),
-                details = string.format("This roll takes a bane against a creature that is adjacent to the %s but not in it. You started your turn next to the area rather than inside it.", self.name),
+                text = baneText,
+                details = baneDetails,
             },
         }
     end
@@ -487,6 +542,34 @@ function Aura.CreateSimplePowerRollEditor(options)
             fontSize = 13,
             bmargin = 4,
         },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            hover = gui.Tooltip("Controls only the simple power roll when a creature enters during an actual Shift. Normal movement, forced movement, and start-of-turn rolls are unaffected. Adjacent-only rolls still take their existing single bane."),
+
+            gui.Label{
+                text = "When Entered by Shifting:",
+                width = 220,
+                height = 22,
+                fontSize = 16,
+                valign = "center",
+            },
+
+            gui.Dropdown{
+                width = 180,
+                height = 22,
+                fontSize = 16,
+                options = Aura.PowerRollShiftEntryModeOptions,
+                idChosen = obj:try_get("powerRollShiftEntryMode", "normal"),
+                change = function(element)
+                    obj.powerRollShiftEntryMode = element.idChosen
+                    onchange()
+                end,
+            },
+        },
     }
 
     for _,tierPanel in ipairs(tierPanels) do
@@ -589,6 +672,20 @@ function Aura:GenerateEditor(options)
                         value = (trigger.destroyaura or false),
                         change = function(element)
                             trigger.destroyaura = element.value
+                            resultPanel:FireEventTree("refreshAura")
+                        end,
+                    },
+
+                    --Only entering the aura can be attributed to a kind of movement;
+                    --the end-of-turn trigger has no movement to filter.
+                    gui.Dropdown {
+                        styles = ThemeEngine.GetStyles(),
+                        classes = { "formDropdown", cond(trigger.trigger ~= "onenter", "collapsed") },
+                        halign = "left",
+                        options = Aura.TriggerMovementFilters,
+                        idChosen = trigger.movementFilter or "all",
+                        change = function(element)
+                            trigger.movementFilter = element.idChosen
                             resultPanel:FireEventTree("refreshAura")
                         end,
                     },
@@ -1211,6 +1308,134 @@ function AuraInstance:FireTriggeredAbility(ability, castingCreature, targetToken
         debugLog = {}
     }
     ability:Trigger(temporaryModifier, castingCreature, symbols, targetToken, nil, options)
+end
+
+--"Forced Movement Only" aura triggers are resolved from the engine's own move
+--notification (creature:OnMove), NOT from creature:EnterAura. Three findings from tracing
+--real movement forced this:
+--
+-- 1. EnterAura runs BEFORE a relocate behavior's Cast. The engine walks the prospective
+--    path while planning the move (that is what EnterAuraHaltsMovement answers), so
+--    anything hooked around the Cast is out of step with it.
+--
+-- 2. EnterAura is gated to once per aura per turn, and -- worse -- the PLANNING pass is
+--    what consumes the gate, so the real movement's entries are reported with the gate
+--    already closed. "Force moved into the area" has no such limit: a creature shoved in,
+--    cleared, and shoved in again on the same turn takes the effect both times.
+--
+-- 3. Hooking the forced-movement ABILITY path only covers scripted pushes. A Director
+--    ALT-dragging a token is forced movement that casts no ability at all, and was
+--    silently missed. OnMove is the one place every kind of movement arrives.
+--
+--OnMove hands over the real LuaPath, so the squares entered are the engine's own steps
+--rather than a reconstructed straight line -- rebounds and collision-shortened pushes
+--come out right for free.
+
+--- Index every object-hosted aura carrying a "forced" trigger, keyed by "floor,x,y".
+--- Object auras are positioned by their object (their stored area shape is authored data
+--- and does not track the spawn location), which is also how the engine places them.
+--- @return table<string, AuraInstance[]>
+local function CollectForcedTriggerAurasByLoc()
+    local result = {}
+
+    for _, floor in ipairs(game.currentMap.floors) do
+        for _, obj in pairs(floor.objects) do
+            if obj.valid then
+                local component = obj:GetComponent("Aura")
+                local auraInstance = nil
+                if component ~= nil and component.properties ~= nil then
+                    auraInstance = component.properties:try_get("aura")
+                end
+
+                if auraInstance ~= nil then
+                    local key = string.format("%d,%d,%d",
+                        obj.floorIndex, math.floor(obj.x + 0.5), math.floor(obj.y + 0.5))
+                    local list = result[key]
+                    if list == nil then
+                        list = {}
+                        result[key] = list
+                    end
+                    list[#list + 1] = auraInstance
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--- Call fn(instance, triggerInfo) for each "forced" onenter trigger on this aura,
+--- including those carried by its sub-auras (a split aura normally keeps its triggers on
+--- the child payload). Child triggers fire through the child view so the trigger sees the
+--- child's own payload.
+local function ForEachForcedTrigger(auraInstance, fn)
+    for _, triggerInfo in ipairs(auraInstance.aura:try_get("triggers", {})) do
+        if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter == "forced" then
+            fn(auraInstance, triggerInfo)
+        end
+    end
+
+    for _, child in ipairs(auraInstance:GetChildInstances() or {}) do
+        for _, triggerInfo in ipairs(child.aura:try_get("triggers", {})) do
+            if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter == "forced" then
+                fn(child, triggerInfo)
+            end
+        end
+    end
+end
+
+--- Fire the "Forced Movement Only" triggers of every aura whose squares a creature entered
+--- during a forced move. Fires every time, with no per-turn dedupe -- see the note above.
+--- Called from creature:OnMove for any path flagged `forced`, whatever produced it.
+--- @param c nil|creature The creature that was force moved.
+--- @param token nil|CharacterToken That creature's token.
+--- @param path nil|LuaPath The path the engine actually moved it along.
+--- @return nil
+function Aura.FireForcedMovementTriggersForPath(c, token, path)
+    if c == nil or token == nil or (not token.valid) or path == nil then
+        return
+    end
+
+    --steps[1] is where the move STARTED; a square is only "entered" from steps[2] on.
+    --A shove that went nowhere therefore has nothing to fire.
+    local steps = path.steps
+    if steps == nil or #steps < 2 then
+        return
+    end
+
+    local aurasByLoc = CollectForcedTriggerAurasByLoc()
+
+    --Mirrors the caster-token fallback in creature:EnterAura: a non-uploadable token
+    --cannot own the triggered cast, so fall back to the creature's own token.
+    local auraCasterToken = token
+    if auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+        auraCasterToken = dmhub.LookupToken(c)
+    end
+
+    --One firing per aura instance per move: a path can re-enter a square it already
+    --crossed (a rebound), and a creature larger than one square reports overlaps.
+    local fired = {}
+
+    for i = 2, #steps do
+        local loc = steps[i]
+        local key = string.format("%d,%d,%d", loc.floor, loc.x, loc.y)
+        for _, auraInstance in ipairs(aurasByLoc[key] or {}) do
+            ForEachForcedTrigger(auraInstance, function(instance, triggerInfo)
+                if fired[instance.guid] then
+                    return
+                end
+                if instance.aura:CreaturePassesFilter(c, instance) == false then
+                    return
+                end
+
+                fired[instance.guid] = true
+                instance:FireTriggeredAbility(triggerInfo.ability, c, auraCasterToken)
+                if triggerInfo.destroyaura then
+                    instance:DestroyAura(c)
+                end
+            end)
+        end
+    end
 end
 
 --creates a temporary triggered ability copy and populates it with our spellcasting feature making it ready to use.

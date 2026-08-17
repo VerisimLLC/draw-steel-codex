@@ -34,8 +34,8 @@ end
 
 --============================================================================
 --"Fade Map": dims the whole map so the markup being drawn stands out instead
---of competing with busy map art. Purely a local viewing aid - a preference,
---not map data, and never seen by players.
+--of competing with busy map art. Purely a local viewing aid - not map data,
+--and never seen by players.
 --
 --The engine reads this setting DIRECTLY (SettingsManager.GetFloatOptional in
 --TileHeightOverlay.Update), so there is nothing to feed through
@@ -43,6 +43,14 @@ end
 --PreviewSettingValue during a drag is picked up on the very next frame.
 --MapFadeOverlay.cs applies it, gated on the panel actually being open, so a
 --value left on the slider cannot follow the Director back to the table.
+--
+--`transient`, deliberately, NOT a preference: a fade left near the top blacks
+--the map out with no on-screen explanation, and the only control that undoes
+--it is the last row of a panel that can run off the bottom of the screen.
+--Bug 327JQQFP was exactly that - a value set in some earlier session made the
+--map render as an unexplained void every time the panel was opened, session
+--after session. Runtime-only means the worst case now lasts until restart,
+--and every fresh launch starts unfaded.
 --
 --No `section`, so it stays out of the global Settings screen - it does
 --nothing with this panel closed, and CreateSettingsEditorsForSection only
@@ -52,7 +60,7 @@ setting{
     id = "markup:fade",
     description = "Fade Map",
     help = "Dims the map - terrain, walls, objects, tokens and all - so the markup you are drawing stands out. Only applies while this panel is open.",
-    storage = "preference",
+    storage = "transient",
     editor = "slider",
     default = 0,
     min = 0,
@@ -2635,10 +2643,11 @@ local function BuildZoneAuraInstance(entry)
             if kwAppearance == nil or kwAppearance.mode == nil or kwAppearance.mode == "none" then
                 return
             end
-            --hash seed derived from the keyword id: sprite layout and fractal
-            --edge displacement key on absolute world coords + this seed, so
+            --hash seed derived from the keyword id: sprite layout and organic
+            --edge noise key on absolute world coords + this seed, so
             --every zone of a keyword renders identically on every client and
-            --every rebuild, and painting/erasing never reshuffles survivors.
+            --every rebuild. Sprite choices never reshuffle on surviving tiles;
+            --organic noise remains anchored to its world-space coordinates.
             local keywordid = entry.keywordid or ""
             local seed = 0
             for i = 1, #keywordid do
@@ -2647,16 +2656,13 @@ local function BuildZoneAuraInstance(entry)
 
             if kwAppearance.mode == "floor" then
                 if kwAppearance.tileid ~= nil or kwAppearance.edgeWallId ~= nil then
-                    --fractal edges (kwAppearance.fractalEdge/fractalDetail) are
-                    --NOT stamped for now: the feature is reverted pending a
-                    --better look. The engine machinery stays dormant
-                    --(MarkupZoneVisuals.FractalizePolyTree); re-enabling is a
-                    --Lua-only change here + the dialog sliders.
                     appearance = {
                         mode = "floor",
                         tileid = kwAppearance.tileid,
                         edgeWallId = kwAppearance.edgeWallId,
                         alpha = kwAppearance.alpha,
+                        fractalEdge = kwAppearance.fractalEdge or 0,
+                        edgeFade = kwAppearance.edgeFade or 0,
                         seed = seed,
                     }
                 end
@@ -13544,13 +13550,20 @@ CreateMarkupEditor = function()
         flow = "vertical",
         styles = GetPanelStyles(),
 
-        --The host (dock container or rail window) fires this when a press
-        --lands anywhere on the panel that its own controls did not handle
-        --- the background, the title bar. It has already put focus on this
-        --element; TakeMarkupFocus additionally re-fires the current mode's
-        --tool think, without which the very next click can land before the
-        --0.3s poll re-registers the map tool and silently do nothing.
+        --The host (dock container or rail window) fires this on a
+        --user-initiated OPEN of the panel and when a press lands anywhere
+        --on the panel that its own controls did not handle -- the
+        --background, the title bar. It has already put focus on this
+        --element. Opening or clicking the panel is asking to use it, so it
+        --ARMS (agreed 2026-08-15: the explicit-arming rework first shipped
+        --arrive-disarmed, walked back so opening arms like the other
+        --map-mode panels; Escape and hiding still disarm, focus loss still
+        --does not). TakeMarkupFocus additionally re-fires the current
+        --mode's tool think, without which the very next click can land
+        --before the 0.3s poll re-registers the map tool and silently do
+        --nothing.
         panelFocused = function(element)
+            m_arm.Set(true)
             TakeMarkupFocus()
         end,
 
@@ -13569,18 +13582,29 @@ CreateMarkupEditor = function()
                 return
             end
             m_arm.Set(false)
+            --give up focus with the tool: both hosts skip the panelFocused
+            --nudge while focus is already here (ClaimTabFocus /
+            --FocusPanelContent guard on it), so keeping focus would mean
+            --the next click on the panel does NOT re-arm. Dropping it also
+            --puts the host's focus highlight out, which is the visible
+            --"tool down".
+            if gui.ChildHasFocus(element) then
+                gui.SetFocus(nil)
+            end
             if claim ~= nil then
                 claim.claimed = true
             end
         end,
 
         --openness is NOT tracked from these events -- MarkupPanelIsOpen reads
-        --it from the live panel (see its comment); these only manage focus.
-        --Showing the panel does NOT arm it: arriving at a panel is not the
-        --same as asking to draw, and a tool that armed itself the moment the
-        --window opened is exactly the kind of surprise mode this rework is
-        --meant to remove. The user arms by pressing a tool.
+        --it from the live panel (see its comment); these manage focus and
+        --arming. Showing the panel ARMS it: switching to this panel is
+        --asking to draw, matching the other map-mode panels (agreed
+        --2026-08-15 -- the explicit-arming rework first shipped
+        --arrive-disarmed and it was walked back). The rest of explicit
+        --arming stands: Escape and hiding disarm, focus loss does not.
         showpanel = function(element)
+            m_arm.Set(true)
             if not gui.ChildHasFocus(element) then
                 gui.SetFocus(element)
             end

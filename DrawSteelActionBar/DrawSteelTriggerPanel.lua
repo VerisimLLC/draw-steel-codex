@@ -12,6 +12,15 @@ local g_blurColorHighlight = "srgb:#000000ee"
 local g_borderColor = "srgb:#A48B74"
 local g_forbiddenColor = "srgb:#C73131"
 
+--Geometry shared by a trigger's card and the heading boxes stacked on top of
+--it, so the two line up exactly. triggerPanel declares its width without
+--borderBox, so its padding sits outside the declared width and its outer width
+--is the sum; the heading boxes use borderBox and declare that outer width
+--directly.
+local g_triggerCardWidth = 178
+local g_triggerCardHPad = 6
+local g_triggerCardOuterWidth = g_triggerCardWidth + g_triggerCardHPad*2
+
 -- Build the candidate retarget list for a triggered ability that changes its
 -- target. Every token passing the all-inclusive changeTargetFilter is returned
 -- in `targets`. A token that additionally fails one of the "reasoned" filters is
@@ -243,11 +252,11 @@ mod.shared.CreateTriggerPanel = function()
                 },
 				{
 					selectors = {"triggerPanel"},
-                    width = 178,
+                    width = g_triggerCardWidth,
                     minHeight = 44,
                     height = "auto",
                     vpad = 6,
-                    hpad = 6,
+                    hpad = g_triggerCardHPad,
                     vmargin = 0,
                     halign = "center",
                     valign = "bottom",
@@ -262,10 +271,12 @@ mod.shared.CreateTriggerPanel = function()
                     selectors = {"triggerPanel", "hover"},
                     borderColor = "white",
                 },
-                {
-                    selectors = {"triggerPanel", "pseudohover"},
-                    borderColor = "white",
-                },
+                --pseudohover deliberately has no highlight of its own. An option
+                --card sets it on the trigger's first card so that card's hover
+                --handler runs (ability preview + line-of-sight rays) and so its
+                --dehover knows an option is still hovered -- but the first card
+                --is a mode card like any other, so highlighting it while the
+                --pointer is on a sibling made two cards look hovered at once.
                 {
                     selectors = {"triggerPanel", "press"},
                     brightness = 2,
@@ -278,6 +289,65 @@ mod.shared.CreateTriggerPanel = function()
 					selectors = {"triggerPanel", "ping", "pong"},
 					brightness = 2,
 				},
+                --The heading boxes above a multi-mode trigger's cards: one for
+                --the trigger's own name and one for its prompt, both of which
+                --would otherwise displace the name and rules of the first
+                --mode's card. They read as the top of the stack of cards rather
+                --than as separate floating boxes, so they take the card's outer
+                --width and no bottom margin -- the boxes and the first card butt
+                --together exactly as the cards do against each other.
+                {
+                    selectors = {"triggerHeadingPanel"},
+                    width = g_triggerCardOuterWidth,
+                    height = "auto",
+                    halign = "center",
+                    valign = "bottom",
+                    vpad = 4,
+                    hpad = g_triggerCardHPad,
+                    vmargin = 0,
+                    borderBox = true,
+                    flow = "vertical",
+                    bgimage = true,
+                    bgcolor = "#1D1D1D",
+                    borderColor = "#606060",
+                    --per-edge widths only, no borderWidth: a blanket borderWidth
+                    --overrides them and re-draws all four edges.
+                    border = {x1 = 2, y1 = 2, x2 = 2, y2 = 2},
+                },
+                --The title and prompt are one header block, so a hairline
+                --divides them instead of the doubled 2px seam that separates one
+                --mode card from the next.
+                {
+                    selectors = {"triggerHeadingPanel", "triggerHeadingJoined"},
+                    border = {x1 = 2, y1 = 1, x2 = 2, y2 = 2},
+                },
+                {
+                    selectors = {"triggerHeadingPanel", "triggerPromptBox"},
+                    border = {x1 = 2, y1 = 2, x2 = 2, y2 = 0},
+                },
+                {
+                    selectors = {"triggerHeadingLabel"},
+                    width = "100%",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    fontSize = 14,
+                    bold = true,
+                    color = Styles.textColor,
+                    textWrap = true,
+                },
+                {
+                    selectors = {"triggerPromptLabel"},
+                    width = "100%",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    fontSize = 12,
+                    color = Styles.textColor,
+                    textWrap = true,
+                },
                 {
                     selectors = {"triggerTitle"},
                     fontSize = 14,
@@ -306,6 +376,35 @@ mod.shared.CreateTriggerPanel = function()
 					fontSize = 12,
 					maxWidth = 140,
 				},
+                --A mode whose condition is not currently met is still offered:
+                --it is dimmed and carries a note saying so, but remains
+                --pressable so the player can override it.
+                {
+                    selectors = {"triggerPanel", "unavailableMode"},
+                    bgcolor = "#141414",
+                    borderColor = "#4A4A4A",
+                },
+                {
+                    selectors = {"triggerTitle", "unavailableMode"},
+                    color = "#8C8C8C",
+                },
+                {
+                    selectors = {"triggerRules", "unavailableMode"},
+                    color = "#8C8C8C",
+                },
+                {
+                    selectors = {"triggerUnavailableNote"},
+                    width = "auto",
+                    height = "auto",
+                    maxWidth = 140,
+                    hmargin = 0,
+                    tmargin = 0,
+                    bmargin = 4,
+                    fontSize = 11,
+                    italics = true,
+                    color = g_forbiddenColor,
+                    textWrap = true,
+                },
 				{
 					selectors = {"triggerButton"},
 					halign = "left",
@@ -320,6 +419,11 @@ mod.shared.CreateTriggerPanel = function()
 					color = Styles.textColor,
 					borderColor = Styles.textColor,
 					bgcolor = Styles.backgroundColor,
+				},
+				{
+					selectors = {"triggerButton", "unavailableMode"},
+					color = "#8C8C8C",
+					borderColor = "#4A4A4A",
 				},
 				{
 					selectors = {"triggerButton", "hover"},
@@ -419,6 +523,23 @@ mod.shared.CreateTriggerPanel = function()
 						local panel = m_activeTriggerPanels[key]
 						
 						if panel == nil then
+							--A trigger with several modes draws one card per mode. The
+							--trigger's own name and prompt then move to heading boxes
+							--above the group, so that this first card can carry the
+							--first mode's name and rules rather than being anonymised
+							--by the trigger's.
+							local usesModeHeading = trigger:UsesModeHeading()
+							local cardTitle = trigger:GetText()
+							local cardRules = trigger:GetRulesText()
+							if usesModeHeading then
+								cardTitle = trigger.activateText
+								cardRules = trigger.activateRules
+							end
+
+							--The trigger's own resource cost, shown in the diamond on
+							--the edge of its card.
+							local resourceCost = trigger.heroicResourceCost ~= 0 and trigger.heroicResourceCost or trigger.epicResourceCost
+
 							local targetPanels = {}
 							for _,target in ipairs(trigger.targets) do
 								local token = dmhub.GetTokenById(target)
@@ -662,10 +783,18 @@ mod.shared.CreateTriggerPanel = function()
 							end
 							for index,option in ipairs(enhancementOptions) do
 								buttons[#buttons+1] = gui.Label{
-									classes = {"triggerButton"},
+									classes = {"triggerButton", cond(option.unavailable == true, "unavailableMode")},
 									text = option.text,
-									hover = gui.Tooltip(option.rules),
+									hover = gui.Tooltip(cond(option.unavailable == true, tostring(option.conditionReason or "") .. "\n\n" .. tostring(option.rules), option.rules)),
 									press = function(element)
+
+                                        --Strict action economy makes an unavailable mode truly
+                                        --unavailable: players cannot press it to override.
+                                        --Directors bypass this so they can still allow it,
+                                        --matching the action bar's strict:resources handling.
+                                        if option.unavailable == true and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
+                                            return
+                                        end
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 
@@ -1111,9 +1240,7 @@ mod.shared.CreateTriggerPanel = function()
                                     end,
                                 },
 
-        (function()
-            local resourceCost = trigger.heroicResourceCost ~= 0 and trigger.heroicResourceCost or trigger.epicResourceCost
-            return gui.Panel{
+        gui.Panel{
             classes = {"costDiamond", cond(resourceCost == 0, "hidden")},
             floating = true,
             rotate = 135,
@@ -1142,8 +1269,7 @@ mod.shared.CreateTriggerPanel = function()
                     end,
                 },
             },
-        }
-        end)(),
+        },
 
         --icon panel.
         gui.Label{
@@ -1174,12 +1300,12 @@ mod.shared.CreateTriggerPanel = function()
 								gui.Label{
 									classes = {"triggerTitle"},
                                     interactable = false,
-									text = trigger:GetText(),
+									text = cardTitle,
 								},
 								gui.Label{
 									classes = {"triggerRules"},
                                     markdown = true,
-									text = StringInterpolateGoblinScript(trigger:GetRulesText(), g_token.properties:LookupSymbol{}),
+									text = StringInterpolateGoblinScript(cardRules, g_token.properties:LookupSymbol{}),
 								},
 								gui.Panel{
 									width = "100%",
@@ -1199,7 +1325,40 @@ mod.shared.CreateTriggerPanel = function()
                             }
 							}
 
-                            local children = {triggerPanel}
+                            local children = {}
+
+                            if usesModeHeading then
+                                local promptText = StringInterpolateGoblinScript(trigger:GetRulesText(), g_token.properties:LookupSymbol{})
+                                local hasPrompt = trim(promptText or "") ~= ""
+
+                                --The title only gives up its full bottom edge to a
+                                --prompt box below it; standing alone it meets the
+                                --first mode card and keeps the card seam.
+                                children[#children+1] = gui.Panel{
+                                    classes = {"triggerHeadingPanel", cond(hasPrompt, "triggerHeadingJoined")},
+                                    blurBackground = true,
+                                    interactable = false,
+                                    gui.Label{
+                                        classes = {"triggerHeadingLabel"},
+                                        text = trigger:GetText(),
+                                    },
+                                }
+
+                                if hasPrompt then
+                                    children[#children+1] = gui.Panel{
+                                        classes = {"triggerHeadingPanel", "triggerPromptBox"},
+                                        blurBackground = true,
+                                        interactable = false,
+                                        gui.Label{
+                                            classes = {"triggerPromptLabel"},
+                                            markdown = true,
+                                            text = promptText,
+                                        },
+                                    }
+                                end
+                            end
+
+                            children[#children+1] = triggerPanel
 
 							--hideEnhancementOptions (on the powertabletrigger modifier) is an
 							--opt-in for triggers whose outcome is decided by a nested
@@ -1211,8 +1370,13 @@ mod.shared.CreateTriggerPanel = function()
 								enhancementOptions = trigger:EnhancementOptions(g_token)
 							end
 							for index,option in ipairs(enhancementOptions) do
+								--A mode whose condition is not met is offered anyway,
+								--dimmed and annotated, and stays pressable: the table
+								--can always agree to allow it.
+								local unavailable = option.unavailable == true
+
 								children[#children+1] = gui.Panel{
-									classes = {"triggerPanel"},
+									classes = {"triggerPanel", cond(unavailable, "unavailableMode")},
 
                                     hover = function(element)
                                         triggerPanel:SetClass("pseudohover", true)
@@ -1248,29 +1412,43 @@ mod.shared.CreateTriggerPanel = function()
                                         height = "auto",
                                         width = "100%-36",
                                         gui.Label{
-                                            classes = {"triggerTitle"},
+                                            classes = {"triggerTitle", cond(unavailable, "unavailableMode")},
                                             text = option.text,
                                         },
                                         gui.Label{
-                                            classes = {"triggerRules"},
+                                            classes = {"triggerRules", cond(unavailable, "unavailableMode")},
                                             markdown = true,
                                             text = StringInterpolateGoblinScript(option.rules, g_token.properties:LookupSymbol{}),
                                         },
+                                        gui.Label{
+                                            classes = {"triggerUnavailableNote", cond(not unavailable, "collapsed")},
+                                            interactable = false,
+                                            markdown = true,
+                                            text = tostring(option.conditionReason or ""),
+                                        },
                                     },
 
-        gui.Panel{
-            classes = {"costDiamond", cond(option.cost == 0, "hidden")},
+        --A mode-driven trigger's options carry no cost of their own: choosing any
+        --one of the modes costs the trigger's own resource cost, so every card
+        --shows the same diamond as the first one. A powerRollModifier trigger's
+        --options are extra resource spends, so they price themselves.
+        (function()
+            local optionCost = option.cost
+            local optionIsEpic = false
+            if optionCost == nil then
+                optionCost = resourceCost
+                optionIsEpic = trigger.epicResourceCost ~= 0
+            end
+            return gui.Panel{
+            classes = {"costDiamond", cond(optionCost == 0, "hidden")},
             floating = true,
             rotate = 135,
             gui.Panel{
-                classes = {"costInnerDiamond"},
+                classes = {"costInnerDiamond", cond(optionIsEpic, "epicCost")},
                 gui.Label{
                     classes = {"abilityCostLabel"},
                     rotate = -135,
-                    text = option.cost,
-                    create = function(element)
-                        print("TARGETS:: OPTION", option)
-                    end,
+                    text = optionCost,
 
                     ability = function(element, ability)
 --[[
@@ -1290,11 +1468,20 @@ mod.shared.CreateTriggerPanel = function()
                     end,
                 },
             },
-        },
+        }
+        end)(),
 
 
 
 									press = function(element)
+
+                                        --Strict action economy makes an unavailable mode truly
+                                        --unavailable: players cannot press it to override.
+                                        --Directors bypass this so they can still allow it,
+                                        --matching the action bar's strict:resources handling.
+                                        if unavailable and (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
+                                            return
+                                        end
 
                                         audio.DispatchSoundEvent("Notify.TriggerUse", {})
 

@@ -4850,6 +4850,19 @@ function PanelDocument.IsPoppedOut(key)
     return PanelDocument.PopoutHost(key) ~= nil
 end
 
+--Popped-out panels are unparented from the hud tree (MoveToNativeWindow
+--reroots them into their own native-window hierarchy), so hud-wide
+--FireEventTree broadcasts never reach them. Callers that fan an event
+--across the whole hud (GameHud.Refresh's 'refresh') use this to extend
+--the broadcast to every popout window's tree.
+function PanelDocument.FireEventTreeOnPopouts(eventName, ...)
+    for _, host in pairs(g_panelPopouts) do
+        if host ~= nil and host.valid then
+            host:FireEventTree(eventName, ...)
+        end
+    end
+end
+
 function PanelDocument.IsPanelShown(key)
     return PanelDocument.FindHostDialog(key) ~= nil or PanelDocument.IsPoppedOut(key)
 end
@@ -14589,4 +14602,3 @@ function ViewsSaveAsDialog()
         input,
     }
 end
-

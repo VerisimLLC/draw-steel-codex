@@ -42,6 +42,14 @@ end
 
 function GameHud.Refresh(self)
 	self.dialog.sheet:FireEventTree('refresh')
+
+	--panels popped out into native OS windows are unparented from the hud
+	--tree, so the broadcast above never reaches them; extend it to each
+	--popout window so selection-following panels (Character, Triggers)
+	--stay live there too.
+	if PanelDocument ~= nil and PanelDocument.FireEventTreeOnPopouts ~= nil then
+		PanelDocument.FireEventTreeOnPopouts('refresh')
+	end
 end
 
 --function which can be called by dmhub to present a tooltip on the map.

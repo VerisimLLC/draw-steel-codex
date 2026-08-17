@@ -386,6 +386,28 @@ Syntax-check every Lua edit before reload: `luac -p <file>` (Lua 5.4).
 | Phase 2 | Lenses + sub-filters (WalkParsedSegments cache), "Everyone can:" line, reach estimate, per-lens sort keys on chips, copy pass (X13), select-all button, Suggested overlay opt-in. | not started | |
 | Phase 1.5 | Compare tray, condition icons, band-malice columns, drawer rationalization details. | not started | Decisions 43-46. |
 
+## Field test log
+
+**2026-08-14, first user test of slice (c) (Ricky, live A5 game):**
+- BUG (fixed, commit fa2053b7): pressing Unique Abilities did nothing after any
+  ordinary drawer menu had been opened. Root cause: the unique branch assigned
+  ONLY its own columns to `m_containerPanel.children`, which orphaned - and the
+  engine then destroyed - the ordinary pooled `m_submenus`; the next open crashed
+  on a dead panel (`submenu.data` nil) so the click appeared inert. Both menu
+  paths now keep every pooled panel parented and collapse the unused ones. Rule
+  for anyone touching the action menu: NEVER assign a children list that omits a
+  pooled panel you intend to reuse.
+- NOT A BUG (user perception): "warrior + assassin didn't do anything" - the
+  Goblin Assassins in A5 are horde monsters, not minions, so that selection WAS
+  overview mode; it was hit by the same crash above. Squad exception is
+  separately verified (4 runners of one squad -> classic strip).
+- Debugging trap (record for the future): DMHub's Lua tracebacks report line
+  numbers of the CHUNK AS LOADED; after editing a file, stale tracebacks keep
+  showing pre-edit numbers until reload, and a reload CLEARS the token
+  selection, so a "press" right after reload is a no-op (g_token nil). Always
+  re-select tokens after reload_lua before testing menu behaviour, and read the
+  console's sequence numbers, not the entry list, to know if an error is new.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

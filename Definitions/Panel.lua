@@ -101,10 +101,10 @@
 --- @field mapfocus boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, `dragfilesenter(paths)` and `dragfilesleave()` are fired; releasing them fires `dropfiles(paths)`.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
---- @field distancesToScreenEdge Vector4 The distances to the edge of the screen from the edges of this panel (x1 left, y1 bottom, x2 right, y2 top). For panels in a popout window on placement-fixed builds (dmhub.supportsPopoutTooltipPlacement) this is measured against the WINDOW in window pixels with correct left/right sides; older builds return screen-scaled, horizontally mirrored values there.
+--- @field distancesToScreenEdge Vector4 The distances to the edge of the screen from the edges of this panel.
 --- @field keybinds nil|{id: string, defaultBind: string}[] When set, binds this panel to the given 'defaultBind' keybindings. (Note: currently the defaultBind cannot be changed, in the future the user may be able to configure the binding). When the keybind is pressed, the panel will receive the 'keybind' event, which takes the id of the keybind as its argument.
 --- @field positionInScreenSpace Vector2 The position of the panel in screen space.
 --- @field positionInWorldSpace Vector2 The position of the panel in world space.
@@ -168,16 +168,24 @@ function Panel:Unparent()
 	-- dummy implementation for documentation purposes only
 end
 
---- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native Windows window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window. args fields (all optional): resizeable (boolean) makes the OS window resizeable; scaling (number) scales the render target; title (string) sets the OS window title (defaults to the product name); x/y (integers) place the window's top-left at that screen position (defaults to OS placement); updateFrequencyFocused/updateFrequencyDefocused (integers) are legacy frame divisors. Child surfaces (Phase 5): windowType ("tooltip"|"popupmenu"|"modalchild") plus parentPanel (a panel living in an existing popout window) create a borderless desktop-level CHILD of that window instead of a toplevel -- x/y are then parent-relative offsets (default 0,0), and title/resizeable/x-y-screen semantics do not apply. Gate on dmhub.popoutChildWindowsSupported: without companion support the request is demoted to a normal toplevel window.
---- @param args {resizeable: boolean|nil, scaling: number|nil, title: string|nil, x: integer|nil, y: integer|nil, windowType: string|nil, parentPanel: Panel|nil}
+--- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native Windows window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window.
+--- @param args any
 --- @return nil
 function Panel:MoveToNativeWindow(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), raises that OS window -- or flashes its taskbar button when the OS denies the focus steal. Returns false if the panel is not in a native window.
+--- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), raise that OS window -- or flash its taskbar button when the OS denies the focus steal. Returns false if the panel is not in a native window.
 --- @return boolean
 function Panel:RaiseNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetInheritedNativeWindowUIScale
+--- @param sourcePanel any
+--- @param panelLocalScale any
+--- @return any
+function Panel.GetInheritedNativeWindowUIScale(sourcePanel, panelLocalScale)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -473,7 +481,7 @@ end
 --- @field mapfocus nil|boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll nil|boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest nil|boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, `dragfilesenter(paths)` and `dragfilesleave()` are fired; releasing them fires `dropfiles(paths)`.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos nil|Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands nil|string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
 --- @field distancesToScreenEdge nil|Vector4 The distances to the edge of the screen from the edges of this panel.

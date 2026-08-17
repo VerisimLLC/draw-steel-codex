@@ -27,7 +27,6 @@
 --- @field ObjectsSelected fun(objects: LuaObjectInstance[]): nil A function that is called when objects are selected on the map, receiving a list of object instances (see DMSheetHud.Update: each entry is a LuaObjectInstance with floorid/objid set). An empty list means the selection was cleared.
 --- @field GetLightingInfo fun(floorid: string): {cacheable: boolean, indoors: Color, outdoors: Color, illumination: number, shadow: {dir: Vector2, color: Color} } A function that can be set to tell the engine what the current lighting looks like. It will be called every frame to set the lighting.
 --- @field ObjectEditingEnabled fun(): boolean A function that returns whether object editing mode is currently enabled in the UI.
---- @field ObjectPanelOpen fun(): boolean A function that returns whether the Objects panel is currently open and on screen, regardless of whether it holds UI focus. This drives the object wiring overlay (the trigger/action plug icons drawn on the map); ObjectEditingEnabled, which is focus-derived, still governs object editing mode itself.
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
 --- @field GetActiveClipboardItem fun(): ClipboardItem A function that returns the currently active clipboard item, if any.
 --- @field TokenVisionUpdated fun(): nil A function that is called when token vision has been recalculated and updated.
@@ -72,6 +71,7 @@
 --- @field GetMarkupZones fun(): {panelOpen: boolean, terrainZones: boolean, footstepsMode: boolean, wallsMode: boolean, elevationMode: boolean, revision: number, zones: {locs: Loc[], color: string, angleRadians: number, label: string, labelIcon: string|nil, playerVisible: boolean, difficultTerrain: boolean, water: boolean, concealment: boolean, floorIndex: number}[]}|nil Editor callback function: the Map Markup panel's zone overlay feed. Returns the markup zones to render as diagonal stripes + labels on the tile height overlay, or nil for none. The feed should already have filtered the zones by the user's per-zone-type visibility preferences - the engine renders whatever arrives (player clients additionally only render zones with playerVisible set). revision must change whenever the zone data changes (or the returned list is swapped) so the overlay mesh rebuilds. panelOpen forces the wall cover lines on regardless of the mapoverlay:walls preference; wallsMode (Walls tab) additionally forces the solid-block interiors; elevationMode (Elevation tab) forces the height contours + number labels regardless of mapoverlay:elevation; terrainZones (Zones tab) forces all four built-in terrain-rule stripe types regardless of the mapoverlay:shownbuiltins preference; footstepsMode instead restricts the built-in terrain-rule stripes to WATER ONLY (set while the Footsteps tab is open, when the feed returns the footstep-surface regions - plus any water rules zones - instead of the full rules zones; water stays visible because water tiles play water sounds over painted footstep surfaces). labelIcon is an optional icon id (e.g. 'phosphor/footprints-fill.png') drawn beside the zone's label, tinted like the label text.
 --- @field GetMapAuras fun(): AuraInstance[]|nil Callback function: map-level aura instances (e.g. markup zones) to register with the aura system, re-polled on every aura rebuild. Each entry must be an AuraInstance whose GetArea() returns a shape (use dmhub.CalculateShape{shape='locations'} for arbitrary tile sets). Call dmhub.RefreshMapAuras() after changing the underlying data to force a rebuild.
 --- @field GetObjectEditingFilter fun(): string|nil Editor callback function: keyword filter for markup-prop editing. When this returns a keyword, objects whose Core keywords include it are shown (even locked, invisible-to-players ones, DM only) and become the only objects the mouse can select or drag - locked filtered objects drag as if unlocked, and everything else on the map is inert to object selection. The Map Markup panel's Props tab sets this while it has focus. Return nil for normal object interaction rules.
+--- @field ObjectPanelOpen fun(): boolean A function that returns whether the Objects panel is currently open and on screen, regardless of whether it holds UI focus. This drives the object wiring overlay (the trigger/action plug icons drawn on the map); ObjectEditingEnabled, which is focus-derived, still governs object editing mode itself.
 --- @field supportsObjectEditingFilter boolean True when this engine build honors the dmhub.GetObjectEditingFilter callback (markup-prop keyword filtering of object visibility, selection and dragging). Callers must gate on this: on older builds the callback is accepted but never polled, so filtered props would be placed but stay invisible and unselectable.
 --- @field supportsMarkupHoles boolean True when this engine build supports markup Hole zones: map auras whose AuraInstance reports GetHole() cut a real hole in the map (tile rules, fall-through map geometry, and the excavation visual). Callers must gate hole painting on this; on older builds the aura registers but no hole appears.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
@@ -80,7 +80,10 @@
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
---- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate child-surface promotion on this; false or nil (older engines) means keep the in-window fallback.
+--- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua. Probe this before calling it on older clients.
+--- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua. Probe this before calling it on older clients.
+--- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
+--- @field supportsPopoutTooltipPlacement boolean (read-only) True on engine builds where popout-panel tooltip placement is mirror-correct: panel.distancesToScreenEdge returns true WINDOW pixels with correct left/right sides for panels in popout windows, and tooltip promote-on-overflow places the child window at visually-correct offsets. Gate SideTooltip-style popout placement (window-edge x offsets) on this AND popoutChildWindowsSupported; on older builds the values are screen-scaled and horizontally mirrored.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
 --- @field uploadQuotaTotal number The amount of data this user can upload each month, in bytes.
@@ -239,6 +242,13 @@ end
 --- @param instanceGuid string
 --- @return nil
 function dmhub.UnloadMod(instanceGuid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClipPolygons: Performs a polygon boolean operation (Clipper, even-odd fill -- the same library the floor editing pipeline uses). Each subject/clip polygon is either a flat {x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}} table; coordinates are in whatever space the caller uses (e.g. tile coordinates) and come back in the same space. operation defaults to 'difference' (subjects minus clips). Returns a list of structured {points, holes} polygons; islands nested inside holes come back as separate entries.
+--- @param args {subjects: (number[]|{points: number[], holes: number[][]})[], clips: (number[]|{points: number[], holes: number[][]})[], operation: nil|"difference"|"intersection"|"union"|"xor"}
+--- @return {points: number[], holes: number[][]}[]
+function dmhub.ClipPolygons(argsVal)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -459,13 +469,6 @@ function dmhub.GetTileRulesAtLoc(loc)
 	-- dummy implementation for documentation purposes only
 end
 
---- ClipPolygons: Performs a polygon boolean operation (Clipper, even-odd fill -- the same library the floor editing pipeline uses). Each subject/clip polygon is either a flat {x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}} table; coordinates are in whatever space the caller uses (e.g. tile coordinates) and come back in the same space. operation defaults to "difference" (subjects minus clips). Returns a list of structured {points, holes} polygons; islands nested inside holes come back as separate entries. First client: the Map Markup zone eraser clipping hole shapes.
---- @param args {subjects: (number[]|{points: number[], holes: number[][]})[], clips: (number[]|{points: number[], holes: number[][]})[], operation: nil|"difference"|"intersection"|"union"|"xor"}
---- @return {points: number[], holes: number[][]}[]
-function dmhub.ClipPolygons(args)
-	-- dummy implementation for documentation purposes only
-end
-
 --- IsLocDifficultTerrain: Returns true if the given location is difficult terrain. Checks both tile rules and auras.
 --- @param loc Loc The location to query.
 --- @return boolean
@@ -597,13 +600,13 @@ function dmhub.DumpRenderTextures()
 end
 
 --- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
----
---- Options:
----   token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
----   filename: default filename suggested in the save dialog (default: token name + .png).
----   padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
----   resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
----   error: optional callback invoked with a string message on failure.
+
+Options:
+  token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
+  filename: default filename suggested in the save dialog (default: token name + .png).
+  padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
+  resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
+  error: optional callback invoked with a string message on failure.
 --- @field options {token: LuaCharacterToken, filename: string?, padding: number?, resolution: number?, error: (fun(message: string): nil)?}
 function dmhub.ExportTokenImage(options)
 	-- dummy implementation for documentation purposes only
@@ -883,6 +886,20 @@ end
 --- @param style nil|'solid'|'dashed'|'dotted' border line style; nil keeps the legacy strip with inner fade
 --- @return LuaMultiObjectReference
 function dmhub.MarkLocs(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateWorldDistortion: Creates a client-local distortion of the rendered map and tokens. heatwave uses exact logical tile polygons in locs and rising, irregular plumes controlled by direction, plumeWidth, plumeHeight, turbulence, and shimmer; strength and haze are screen pixels, speed is tiles per second, frequency is fine-detail cycles per tile, and edgeFade feathers inward from exposed edges. haze is a plume-masked three-tap blur clamped to 0..4 and defaults to zero. Radial types use loc (or center) plus radius in tiles; pinch/bulge use fractional radial strength, vortex uses radians, ripple uses fractional strength, and radial accepts strength plus swirl. duration=0 (the default) lasts until Stop(), and changing maps removes the effect. This API does not network effects; call it on every client that should see one.
+--- @param options {type: 'heatwave'|'pinch'|'bulge'|'vortex'|'ripple'|'radial', locs: Loc[]|nil, loc: Loc|nil, center: Loc|nil, strength: number|nil, edgeFade: number|nil, radius: number|nil, frequency: number|nil, speed: number|nil, phase: number|nil, swirl: number|nil, direction: Vector2Arg|nil, plumeWidth: number|nil, plumeHeight: number|nil, turbulence: number|nil, shimmer: number|nil, haze: number|nil, duration: number|nil, fadeIn: number|nil, fadeOut: number|nil}
+--- @return WorldDistortionHandleLua|nil
+function dmhub.CreateWorldDistortion(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateParticleSystem: Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
+--- @param options ParticleSystemOptions
+--- @return ParticleSystemHandleLua|nil
+function dmhub.CreateParticleSystem(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1789,7 +1806,7 @@ function dmhub.PreviewSettingValue(settingid, val)
 	-- dummy implementation for documentation purposes only
 end
 
---- KeyPressed: Returns true if the given key is currently depressed.
+--- KeyPressed: Returns true if the given key is currently depressed. Keys held in native popout windows count: their keystrokes go to the companion process, so Unity's Input polling alone would report them as up.
 --- @param keycode KeyCode
 --- @return boolean
 function dmhub.KeyPressed(keycode)

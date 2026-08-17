@@ -956,7 +956,9 @@ end
 --    altitude = 0,                   -- base altitude of the vertical range
 --    height = 2,                     -- affects up to this many tiles above
 --                                    -- altitude; ABSENT = unlimited height
---    playerVisible = false,          -- players see the overlay stripes
+--    playerVisible = true,           -- players see the overlay stripes
+--                                    -- (new zones default to true; the Edit
+--                                    -- Zone dialog turns it off per zone)
 --    pattern = { color = "#rrggbb", angle = <radians> },
 --    ord = 1,                        -- creation order (stable list sorting)
 --  }
@@ -983,7 +985,9 @@ end
 --
 --Rendering: dmhub.GetMarkupZones feeds the tile height overlay, which draws
 --each zone as diagonal stripes + a name label. DM-only unless the zone is
---marked playerVisible.
+--marked playerVisible - which new zones are, so a painted hazard reads to the
+--table without the DM remembering to publish each one. A zone the DM wants
+--kept secret is turned off individually in the Edit Zone dialog.
 --
 --This file loads before EnvironmentalKeyword.lua (main.lua order), so every
 --reference to the EnvironmentalKeyword global is runtime + rawget-guarded.
@@ -4398,7 +4402,10 @@ local function CreateZone(keywordid, locs, fallbackInfo)
         keywordName = kwName,
         locs = locs or {},
         altitude = 0,
-        playerVisible = false,
+        --new zones are player-visible: a painted zone is nearly always terrain
+        --the table is meant to see (and players still have to turn the tile
+        --overlay on). Secret zones are turned off in the Edit Zone dialog.
+        playerVisible = true,
         pattern = {
             color = color,
             angle = angle,
@@ -9607,7 +9614,7 @@ CreateMarkupEditor = function()
             gui.Check{
                 classes = {"formCheck"},
                 text = "Visible to players",
-                tooltip = "Players see this zone's stripes and name on their map when they turn on the tile overlay. Off by default: the map art usually already shows the hazard.",
+                tooltip = "Players see this zone's stripes and name on their map when they turn on the tile overlay. On by default; turn it off for a zone the players are not meant to know about.",
                 value = playerVisible,
                 change = function(element)
                     playerVisible = element.value
@@ -9686,8 +9693,10 @@ CreateMarkupEditor = function()
         --reads "N tiles", a silent height is indistinguishable from a zone whose
         --height nobody has looked at.
         meta[#meta+1] = string.lower(m_zoneHeight.Describe(entry.height) or "Unlimited height")
-        if entry.playerVisible then
-            meta[#meta+1] = "visible to players"
+        --player-visible is the default now, so the row calls out the exception:
+        --a zone the DM has deliberately kept to themselves.
+        if not entry.playerVisible then
+            meta[#meta+1] = "hidden from players"
         end
 
         --Rows read as "<type> -- <where>": the collapsed type/custom name

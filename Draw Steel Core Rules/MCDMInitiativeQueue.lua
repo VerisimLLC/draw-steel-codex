@@ -586,6 +586,79 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 	return entry.round > self.round
 end
 
+--Claim-turn helpers.
+--
+--Historically the whole "claim this entry's turn" sequence lived inline in the
+--initiative bar's per-entry click closure (MCDMInitiativeBar selectinitiative),
+--so nothing else could reuse it. It is pulled out here so other surfaces (e.g.
+--the Director's multi-monster overview) can gate and perform a claim through
+--one code path. The bar now calls these; the observable behaviour is unchanged.
+--
+--Claiming is a BROADCAST and is not reversible: it uploads the queue to every
+--client, runs BeginTurn (start-of-turn triggers) for every token in the entry,
+--and posts a player-visible start-of-turn chat card. Callers must therefore only
+--claim at a genuine commit point, never from a browse/preview click.
+--
+--CanClaimTurn(initiativeid, options): true when a claim of this entry is legal
+--right now. Mirrors the bar's gate exactly: with control of initiative the
+--claim is always allowed; without it, the queue must be choosing a turn, it must
+--be the players' side to act, the entry must be unmoved this round, and the
+--entry must be a player entry. options.canControlInitiative lets the caller
+--supply the control check (the bar's setting-backed one); it defaults to
+--dmhub.isDM.
+function InitiativeQueue.CanClaimTurn(initiativeid, options)
+	local q = dmhub.initiativeQueue
+	if q == nil or q.hidden then
+		return false
+	end
+
+	local canControl = dmhub.isDM
+	if options ~= nil and options.canControlInitiative ~= nil then
+		canControl = options.canControlInitiative
+	end
+
+	if canControl == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[initiativeid]) or (not q:IsEntryPlayer(initiativeid))) then
+		return false
+	end
+
+	return true
+end
+
+--ClaimTurn(initiativeid, options): performs the claim. Returns true if the claim
+--was carried out, false if CanClaimTurn refused it. Uses the live queue
+--(dmhub.initiativeQueue), never a captured one, because a captured queue can be
+--stale after a turn transition and would make SelectTurn a silent no-op.
+--options.canControlInitiative is forwarded to CanClaimTurn.
+function InitiativeQueue.ClaimTurn(initiativeid, options)
+	if not InitiativeQueue.CanClaimTurn(initiativeid, options) then
+		return false
+	end
+
+	local q = dmhub.initiativeQueue
+	q:SelectTurn(initiativeid)
+	dmhub:UploadInitiativeQueue()
+
+	--Every token sharing this initiative id begins its turn (a minion squad or
+	--monster group claims as one). Use the initiative id itself rather than any
+	--per-entry initiativeid field: group entries do not populate the latter.
+	local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid, dmhub.allTokens)
+	local tokenIds = {}
+	for _,tok in ipairs(tokens) do
+		if tok.properties ~= nil then
+			tok.properties:BeginTurn()
+			tokenIds[#tokenIds+1] = tok.charid
+		end
+	end
+
+	if #tokenIds > 0 and StartOfTurnChatMessage ~= nil then
+		chat.SendCustom(StartOfTurnChatMessage.new{
+			tokenids = tokenIds,
+		})
+	end
+
+	return true
+end
+
 function InitiativeQueue:CurrentInitiativeId()
 	if self.hidden or self:ChoosingTurn() then
 		return nil

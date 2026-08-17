@@ -4569,37 +4569,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				else
 					newEntries[k] = self:CreateInitiativeEntry(info, k, {
 						selectinitiative = function(element)
-
-							--Use the live queue (dmhub.initiativeQueue), not the closure-
-							--captured initiativeQueue from when refresh ran -- the latter
-							--can be stale after a turn transition, which made SelectTurn a
-							--silent no-op for drag-to-claim after ending the previous turn.
-							local q = dmhub.initiativeQueue
-							if q == nil or q.hidden then return end
-
-							if CanControlInitiative() == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[k]) or (not q:IsEntryPlayer(k))) then
-								return
-							end
-							q:SelectTurn(k)
-							dmhub:UploadInitiativeQueue()
-
-							--Use the loop key (the initiative id) rather than v.initiativeid;
-							--group entries don't populate v.initiativeid, which left BeginTurn
-							--unfired and the drag-to-claim a no-op for monster groups.
-							local tokens = self:GetTokensForInitiativeId(info, k)
-							local tokenIds = {}
-							for i,tok in ipairs(tokens) do
-								if tok.properties ~= nil then
-									tok.properties:BeginTurn()
-									tokenIds[#tokenIds+1] = tok.charid
-								end
-							end
-
-							if #tokenIds > 0 then
-								chat.SendCustom(StartOfTurnChatMessage.new{
-									tokenids = tokenIds,
-								})
-							end
+							--The whole claim sequence (gate, SelectTurn, upload, BeginTurn
+							--per token, start-of-turn chat card) lives in
+							--InitiativeQueue.ClaimTurn so other surfaces can reuse it. It
+							--reads the LIVE queue and uses the loop key k as the initiative
+							--id (group entries do not populate v.initiativeid).
+							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanControlInitiative()})
 						end,
 					})
 					newEntries[k]:SetClass("player", isplayer)

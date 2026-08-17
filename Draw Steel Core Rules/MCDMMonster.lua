@@ -1843,7 +1843,30 @@ creature.RegisterFeatureCalculation{
             return
         end
 
-        local org, role = MCDMMonsterScaling.ParseOrgRole(c:try_get("role", ""), c:try_get("minion", false))
+        --For a monster promoted by the Make Solo button, read the deltas from the
+        --organization it was authored as, NOT from Solo. The creature's authored
+        --Stamina/EV are still on the pre-conversion curve; the Instant Solo
+        --template is what lifts them onto the Solo curve, and it runs AFTER this
+        --calculation (templates are filled after custom feature calculations in
+        --creature:FillBaseActiveModifiers). Reading the Solo rows here applies a
+        --post-multiply delta to a pre-multiply baseline, which drives Stamina and
+        --EV negative on a level-down (report TFCBW9MC: a solo'd Force of Earth at
+        --level 1 landed on 80 Stamina / -12 EV instead of 230 / 36).
+        --
+        --This is exact, not an approximation: within a tier the elite/leader rows
+        --step by 20 Stamina per level and the solo rows by 50 = 2.5 x 20 (EV: 4
+        --and 12 = 3 x 4), so the pre-conversion delta multiplied by the template
+        --is identical to the solo delta added after it.
+        local roleString = c:try_get("role", "")
+        local minionFlag = c:try_get("minion", false)
+        local isSoloConversion = false
+        pcall(function() isSoloConversion = c:HasSoloConversion() end)
+        if isSoloConversion then
+            roleString = c:try_get("soloConversionPriorRole", roleString)
+            minionFlag = c:try_get("soloConversionPriorMinion", minionFlag)
+        end
+
+        local org, role = MCDMMonsterScaling.ParseOrgRole(roleString, minionFlag)
         local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, base, target)
 
         -- Resolve the characteristic bump. Read the highest characteristic from

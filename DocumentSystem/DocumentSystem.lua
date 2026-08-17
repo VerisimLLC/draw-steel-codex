@@ -8496,6 +8496,13 @@ local function IconRailStyles()
             selectors = {"iconRailButton", "hover"},
             bgcolor = "#000000ee",
         },
+        --a script button whose chunk just errored: the stop-button red,
+        --cleared on a short timer by the runner.
+        {
+            selectors = {"iconRailButton", "scriptError"},
+            bgcolor = "#8c1d2bcc",
+            transitionTime = 0.15,
+        },
         --a freshly dropped button lands slightly oversized and settles
         --to rest through the transition when the class clears.
         {
@@ -8715,6 +8722,122 @@ local function IconRailStyles()
         --then red to signal the destructive drop. priority 6 outranks
         --the global drag-target styles (priority 5 in DefaultStyles),
         --which would otherwise accent-tint it like any drop target.
+        --The + button's picker. Carries the rail's own scrim palette
+        --(these rules ride in IconRailStyles, which the popup takes as its
+        --styles root) so it reads as part of the rail rather than as a
+        --themed dialog that happened to open next to it.
+        {
+            selectors = {"railPicker"},
+            bgcolor = "#000000ee",
+            border = 1,
+            borderColor = "#ffffff22",
+            cornerRadius = 8,
+            vpad = 6,
+            borderBox = true,
+        },
+        {
+            selectors = {"label", "railPickerHeader"},
+            color = "#ffffff66",
+            fontSize = 11,
+            bold = true,
+            hmargin = 10,
+            tmargin = 8,
+            bmargin = 2,
+        },
+        {
+            selectors = {"railPickerRow"},
+            bgcolor = "#00000000",
+            cornerRadius = 4,
+            hmargin = 4,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"railPickerRow", "hover"},
+            bgcolor = "#ffffff1a",
+        },
+        {
+            selectors = {"railPickerRowIcon"},
+            bgcolor = "#ffffffcc",
+        },
+        {
+            selectors = {"railPickerRowIcon", "parent:hover"},
+            bgcolor = "#ffffff",
+        },
+        {
+            selectors = {"label", "railPickerRowLabel"},
+            color = "#ffffffcc",
+            fontSize = 14,
+        },
+        {
+            selectors = {"label", "railPickerRowLabel", "parent:hover"},
+            color = "#ffffff",
+        },
+        --The + affordance: absent until the rail is hovered, and quiet
+        --even then -- it is an authoring control sitting among the panels
+        --you actually use, so it should never compete with them. It keeps
+        --its layout slot at rest (opacity, not collapsed) so revealing it
+        --moves nothing.
+        --transitionTime is repeated on EVERY state, not just the rest
+        --rule: the engine takes the duration from the state being moved
+        --TO, so a rest-only duration faded out gracefully and snapped
+        --back in. A control that appears near the pointer has to arrive
+        --softly -- popping reads as a glitch rather than an invitation.
+        {
+            selectors = {"iconRailAddButton"},
+            opacity = 0,
+            bgcolor = "#00000000",
+            transitionTime = 0.18,
+        },
+        {
+            selectors = {"iconRailAddButton", "shown"},
+            opacity = 0.55,
+            bgcolor = "#000000cc",
+            transitionTime = 0.18,
+        },
+        --brightening under the pointer is a response to something the
+        --user just did, so it wants to feel immediate rather than languid.
+        {
+            selectors = {"iconRailAddButton", "shown", "hover"},
+            opacity = 1,
+            bgcolor = "#000000ee",
+            transitionTime = 0.1,
+        },
+        --HELD OPEN: its list is up, so the button stays at full strength
+        --whether or not the pointer is still on it -- the pointer is off
+        --in the picker, and a source control that dims while its own menu
+        --is open loses the thread between the two. priority outranks the
+        --plain shown rule, which would otherwise pull it back to 0.55.
+        {
+            selectors = {"iconRailAddButton", "open"},
+            opacity = 1,
+            bgcolor = "#000000ee",
+            transitionTime = 0.1,
+            priority = 10,
+        },
+        --The glyph hides and shows on its own. Parent opacity does not
+        --cascade to children in this engine, so without these the + kept
+        --drawing over the map while its button was fully transparent --
+        --and it needs its own durations for the same reason, or the plate
+        --fades while the + inside it blinks.
+        {
+            selectors = {"iconRailAddIcon"},
+            opacity = 0,
+            transitionTime = 0.18,
+        },
+        {
+            selectors = {"iconRailAddIcon", "parent:shown"},
+            opacity = 1,
+            transitionTime = 0.18,
+        },
+        --...and the + steps aside for the whole time the list is up, not
+        --just while hovered: the x IS the button's glyph in that state, so
+        --the two must never be drawn at once or they smudge into one mark.
+        {
+            selectors = {"iconRailAddIcon", "parent:open"},
+            opacity = 0,
+            transitionTime = 0.1,
+            priority = 20,
+        },
         {
             selectors = {"iconRailTrash"},
             bgcolor = "#000000cc",
@@ -8795,6 +8918,15 @@ local function IconRailStyles()
             opacity = 0,
             priority = 10,
         },
+        --Same reasoning for the + once its picker is up: acting on a
+        --control dismisses that control's label, and the list now sitting
+        --beside the rail says what the + does far better than the word
+        --does. Only the + is ever given "open", so this is scoped to it.
+        {
+            selectors = {"label", "iconRailLabel", "parent:open"},
+            opacity = 0,
+            priority = 10,
+        },
         --The flyout strip's name slot. No textOutline -- the engine draws
         --it as a plate hugging the text, not a glyph stroke (see the
         --iconRailLabel note).
@@ -8819,6 +8951,18 @@ local function IconRailStyles()
         {
             selectors = {"iconRailCloseHint", "parent:active", "parent:hover"},
             opacity = 1,
+        },
+        --The + shows the same hint while ITS thing -- the picker -- is up,
+        --and unlike the rail's buttons it shows it WITHOUT waiting for
+        --hover. The rail's version is a hint about what a click would do,
+        --so it only appears under the pointer; this one is the button's
+        --actual state while its list is up, and a glyph that swaps only
+        --when the pointer happens to be over it reads as flickery rather
+        --than informative (Venla 2026-08-15).
+        {
+            selectors = {"iconRailAddCloseHint", "parent:open"},
+            opacity = 1,
+            priority = 20,
         },
     })
 end
@@ -10126,6 +10270,21 @@ end
 --background's context menu (it used to hang off the dock/tray button,
 --which is gone) and is the door to the ~40 registered panels beyond the
 --curated defaults.
+--Forward-declared: the + button is built above the picker that it opens.
+local RailShowAddPicker
+
+--Report pointer-on-rail from anywhere inside the column. Every rail child
+--calls this because hovering a child does NOT hover the rail root, so the
+--root cannot see the pointer by itself. The root owns the dwell and the
+--grace period; this only reports.
+local function RailNotifyProximity(element, near)
+    local rail = element:FindParentWithClass("iconRail")
+    if rail == nil or not rail.valid then
+        return
+    end
+    rail:FireEvent("railProximity", near)
+end
+
 local function RailAddPanelEntries(element, side)
     local onRail = {}
     local sides = RailLayout()
@@ -10219,6 +10378,44 @@ end
 --it in place.
 local HideToolkitStrip
 local ShowToolkitStrip
+
+--forward-declared: summoned from the strip's + menu, but built on the
+--icon picker defined further down with the toolkit dialogs.
+local RailScriptButtonDialog
+
+--Run a script button's Lua chunk. Plain chunk, standard global
+--environment, full engine access -- the same trust posture as mods and
+--dice scripts (PANEL_LIBRARY_BRIEF.md, "Script button action
+--contract"). Failures are LOUD: the button flashes the error state and
+--the message opens in a dialog; a broken button must never fail
+--silently.
+local function RunToolkitScriptButton(item, element)
+    local chunk, loadErr = load(item.script or "", "script-button:" .. (item.name or "button"))
+    local ok, err
+    if chunk == nil then
+        ok, err = false, loadErr
+    else
+        ok, err = pcall(chunk)
+    end
+    if ok then
+        return
+    end
+    if element ~= nil and element.valid then
+        element:SetClass("scriptError", true)
+        dmhub.Schedule(1.2, function()
+            if mod.unloaded then
+                return
+            end
+            if element.valid then
+                element:SetClass("scriptError", false)
+            end
+        end)
+    end
+    gui.ModalMessage{
+        title = "Script button error",
+        message = tostring(err),
+    }
+end
 
 --Toggle a panel from a toolkit button: the same open/close/raise the
 --panel's own rail button performs (transient-window rule included),
@@ -10454,6 +10651,97 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                 },
             }
             buttonPanels[#buttonPanels + 1] = button
+        elseif item.type == "script" then
+            --a custom script button: click runs the stored Lua chunk.
+            local idx = i
+            local itemRef = item
+            local itemName = item.name or "Script"
+            local button
+            button = gui.Panel{
+                classes = {"iconRailButton"},
+                bgimage = true,
+                blurBackground = true,
+                width = ICON_RAIL_BUTTON,
+                height = ICON_RAIL_BUTTON,
+                flow = "none",
+                hmargin = 2,
+                swallowPress = true,
+
+                hover = function(element)
+                    RailButtonSound("hover")
+                    gui.Tooltip(string.upper(itemName))(element)
+                end,
+                dehover = function(element)
+                    RailButtonSound("dehover")
+                end,
+                press = function(element)
+                    RailButtonSound("press")
+                end,
+                click = function(element)
+                    RunToolkitScriptButton(itemRef, element)
+                end,
+                rightClick = function(element)
+                    local entries = {
+                        {
+                            text = "Run",
+                            click = function()
+                                element.popup = nil
+                                RunToolkitScriptButton(itemRef, element)
+                            end,
+                        },
+                        {
+                            text = "Edit Script...",
+                            click = function()
+                                element.popup = nil
+                                RailScriptButtonDialog(id, idx)
+                            end,
+                        },
+                    }
+                    if idx > 1 then
+                        entries[#entries + 1] = {
+                            text = "Move left",
+                            click = function()
+                                element.popup = nil
+                                EditToolkit(function(rec)
+                                    rec.items[idx], rec.items[idx - 1] = rec.items[idx - 1], rec.items[idx]
+                                end)
+                            end,
+                        }
+                    end
+                    if idx < #(tk.items or {}) then
+                        entries[#entries + 1] = {
+                            text = "Move right",
+                            click = function()
+                                element.popup = nil
+                                EditToolkit(function(rec)
+                                    rec.items[idx], rec.items[idx + 1] = rec.items[idx + 1], rec.items[idx]
+                                end)
+                            end,
+                        }
+                    end
+                    entries[#entries + 1] = {
+                        text = "Remove from Toolkit",
+                        click = function()
+                            element.popup = nil
+                            EditToolkit(function(rec)
+                                table.remove(rec.items, idx)
+                            end)
+                        end,
+                    }
+                    element.popup = gui.ContextMenu{ entries = entries }
+                end,
+
+                gui.Panel{
+                    classes = {"iconRailIcon"},
+                    bgimage = item.icon or "phosphor/lightning.png",
+                    width = 20,
+                    height = 20,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            }
+            buttonPanels[#buttonPanels + 1] = button
         end
     end
 
@@ -10469,14 +10757,19 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         swallowPress = true,
         hover = function(element)
             RailButtonSound("hover")
-            gui.Tooltip("Add a panel to this toolkit")(element)
+            gui.Tooltip("Add to this toolkit")(element)
         end,
         press = function(element)
             RailButtonSound("press")
             local entries = AddPanelEntries(element)
-            if #entries > 0 then
-                element.popup = gui.ContextMenu{ entries = entries }
-            end
+            entries[#entries + 1] = {
+                text = "New script button...",
+                click = function()
+                    element.popup = nil
+                    RailScriptButtonDialog(id, nil)
+                end,
+            }
+            element.popup = gui.ContextMenu{ entries = entries }
         end,
         gui.Panel{
             classes = {"iconRailIcon"},
@@ -10615,12 +10908,13 @@ local function ToggleToolkitStrip(id, anchorX, anchorY)
     end
 end
 
---Create a toolkit, give it a rail button on `side`, and open its strip
---beside that button so the + affordance is immediately in reach.
-local function RailCreateToolkit(side)
+--Create a toolkit with the given name and icon, give it a rail button on
+--`side`, and open its strip beside that button so the + affordance is
+--immediately in reach.
+local function RailCreateToolkitNamed(side, name, icon)
     local toolkits = RailToolkits()
     local id = string.lower(dmhub.GenerateGuid())
-    toolkits[id] = { name = "Toolkit", items = {} }
+    toolkits[id] = { name = name, icon = icon, items = {} }
     RailWriteToolkits(toolkits)
     RailAddPanel("toolkit:" .. id, side)
     local bside, slot = RailFindButton("toolkit:" .. id)
@@ -10632,13 +10926,1099 @@ local function RailCreateToolkit(side)
     RefreshRails()
 end
 
+--The icons offered for a toolkit's rail button: a curated slice of the
+--Phosphor pack (the icon set the rest of the rail chrome draws from), so
+--a custom toolkit sits on the rail in the same visual language as the
+--built-in buttons. Curated rather than searchable-all-9k because the
+--picker's job is "make this button recognizably mine" and a screenful of
+--themed choices answers that faster than a search box. Ordered in rough
+--themes: tools/authoring, combat, exploration, story/lore, people,
+--treasure, nature, time/misc.
+local g_toolkitIconOptions = {
+    "toolbox", "wrench", "hammer", "gear", "sliders-horizontal", "paint-brush", "palette", "pencil-simple",
+    "ruler", "compass", "map-trifold", "map-pin", "sword", "shield", "crosshair-simple", "skull",
+    "dice-six", "target", "strategy", "cards", "flag-banner", "campfire", "tent", "horse",
+    "book-open-text", "books", "scroll", "bookmark-simple", "folder", "image", "film-slate", "music-notes",
+    "users-three", "handshake", "chat-circle", "crown", "ghost", "eye", "heart", "star",
+    "treasure-chest", "coins", "backpack", "key", "lock", "flask", "magic-wand", "sparkle",
+    "fire", "lightning", "sun", "moon", "tree-evergreen", "mountains", "castle-turret", "paw-print",
+    "bell", "clock", "calendar", "lightbulb",
+}
+
+--Shared width of the icon grid, so the name input row in both dialogs
+--can align its edges to the grid exactly (10 cells at 36px pitch).
+local TOOLKIT_ICON_GRID_WIDTH = 10 * 36
+
+--A grid of the curated icons, one click to select. Exposes .value like
+--gui.IconEditor did so the dialogs' save paths stay unchanged. An icon
+--from before this picker existed (e.g. an ability-library image) simply
+--has no cell selected; the value is kept unless a cell is clicked.
+local function RailToolkitIconPicker(initialValue)
+    local m_value = initialValue
+    local cells = {}
+    for _, name in ipairs(g_toolkitIconOptions) do
+        local iconid = "phosphor/" .. name .. ".png"
+        cells[#cells + 1] = gui.Panel{
+            classes = {"toolkitIconCell", cond(iconid == m_value, "selected")},
+            width = 34,
+            height = 34,
+            margin = 1,
+            bgimage = true,
+            data = {icon = iconid},
+            click = function(element)
+                m_value = iconid
+                for _, cell in ipairs(cells) do
+                    cell:SetClass("selected", cell.data.icon == m_value)
+                end
+            end,
+            gui.Panel{
+                classes = {"toolkitIconGlyph"},
+                bgimage = iconid,
+                width = 22,
+                height = 22,
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+        }
+    end
+
+    return gui.Panel{
+        flow = "horizontal",
+        wrap = true,
+        width = TOOLKIT_ICON_GRID_WIDTH,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        vmargin = 6,
+        styles = ThemeEngine.MergeStyles({
+            {
+                selectors = {"toolkitIconCell"},
+                bgcolor = "clear",
+                cornerRadius = 4,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"toolkitIconCell", "hover"},
+                bgcolor = "@bgAlt",
+            },
+            {
+                selectors = {"toolkitIconCell", "selected"},
+                bgcolor = "@bgAlt",
+                border = 2,
+                borderColor = "@accent",
+            },
+            {
+                selectors = {"toolkitIconGlyph"},
+                bgcolor = "@fg",
+            },
+            {
+                selectors = {"toolkitIconGlyph", "parent:hover"},
+                bgcolor = "@fgStrong",
+            },
+            {
+                selectors = {"toolkitIconGlyph", "parent:selected"},
+                bgcolor = "@fgStrong",
+            },
+        }),
+        GetValue = function(element)
+            return m_value
+        end,
+        SetValue = function(element, val)
+            m_value = val
+            for _, cell in ipairs(cells) do
+                cell:SetClass("selected", cell.data.icon == m_value)
+            end
+        end,
+        children = cells,
+    }
+end
+
+--The same two fields, for a toolkit that already exists. Shares its shape
+--with the create dialog on purpose: the thing you are editing is the same
+--thing you were asked for when you made it.
+local function RailEditToolkit(id)
+    local toolkits = RailToolkits()
+    local tk = toolkits[id]
+    if tk == nil then
+        return
+    end
+
+    --the input theme class pads additively (hpad 10): subtract it so the
+    --rendered box spans exactly the grid width below.
+    local nameInput = gui.Input{
+        text = tk.name or "Toolkit",
+        placeholderText = "Toolkit name",
+        width = TOOLKIT_ICON_GRID_WIDTH - 20,
+        height = 28,
+        halign = "center",
+        valign = "center",
+    }
+
+    local iconEditor = RailToolkitIconPicker(tk.icon or "phosphor/toolbox.png")
+
+    gamehud:ModalDialog{
+        title = "Edit tool panel",
+        width = 480,
+        height = 470,
+        buttonsHalign = "center",
+        flow = "vertical",
+        --ModalDialog strips width/height from its client-panel args to size
+        --the dialog frame, leaving the client panel at the 100x100 default
+        --with our taller content centered on -- and overflowing -- it.
+        --selfStyle passes through, so size the client panel to its content.
+        selfStyle = {
+            width = "100%",
+            height = "auto",
+        },
+        buttons = {
+            {
+                text = "Save",
+                click = function()
+                    local current = RailToolkits()
+                    local entry = current[id]
+                    if entry == nil then
+                        return
+                    end
+                    local name = nameInput.text
+                    if name == nil or name == "" then
+                        name = "Toolkit"
+                    end
+                    entry.name = name
+                    local icon = nil
+                    pcall(function() icon = iconEditor.value end)
+                    if icon == "" then
+                        icon = nil
+                    end
+                    entry.icon = icon
+                    RailWriteToolkits(current)
+                    RefreshRails()
+                end,
+            },
+            {
+                text = "Cancel",
+                escapeActivates = true,
+            },
+        },
+
+        nameInput,
+        iconEditor,
+    }
+end
+
+--Ask for a name and an icon FIRST, then create. A toolkit is a thing the
+--user is making rather than a panel they are summoning, and the two
+--things that make it theirs -- what it is called and what it looks like
+--on the rail -- are exactly what a wall of identical unnamed toolboxes
+--would cost them. Both are optional: dismissing the fields still yields a
+--usable toolkit with the old defaults.
+local function RailCreateToolkit(side)
+    --fills the row up to the info icon (24px + 8px gap), so the input's
+    --left edge and the icon's right edge align with the grid below. The
+    --input theme class pads ADDITIVELY (hpad 10, deliberately no
+    --borderBox -- see DefaultStyles' input rule), so the rendered box is
+    --20 wider than asked: subtract it here or the icon overshoots.
+    local nameInput = gui.Input{
+        text = "",
+        placeholderText = "Toolkit name",
+        width = TOOLKIT_ICON_GRID_WIDTH - 32 - 20,
+        height = 28,
+        valign = "center",
+    }
+
+    --seeded with the rail's own toolbox so the preview is never empty and
+    --"just press Create" still gives a sensible button.
+    local iconEditor = RailToolkitIconPicker("phosphor/toolbox.png")
+
+    gamehud:ModalDialog{
+        title = "New tool panel",
+        width = 480,
+        height = 470,
+        buttonsHalign = "center",
+        flow = "vertical",
+        --see RailEditToolkit: size the client panel to its content, since
+        --ModalDialog strips width/height and would leave it 100x100.
+        selfStyle = {
+            width = "100%",
+            height = "auto",
+        },
+        buttons = {
+            {
+                text = "Create",
+                click = function()
+                    local name = nameInput.text
+                    if name == nil or name == "" then
+                        name = "Toolkit"
+                    end
+                    local icon = nil
+                    pcall(function() icon = iconEditor.value end)
+                    if icon == "" then
+                        icon = nil
+                    end
+                    RailCreateToolkitNamed(side, name, icon)
+                end,
+            },
+            {
+                text = "Cancel",
+                escapeActivates = true,
+            },
+        },
+
+        gui.Panel{
+            flow = "horizontal",
+            width = TOOLKIT_ICON_GRID_WIDTH,
+            height = "auto",
+            halign = "center",
+            vmargin = 4,
+            nameInput,
+            gui.Panel{
+                classes = {"iconButton"},
+                bgimage = "phosphor/info.png",
+                lmargin = 8,
+                valign = "center",
+                linger = gui.Tooltip("Name and icon can be changed later from the toolkit's right-click menu."),
+            },
+        },
+        iconEditor,
+    }
+end
+
+--Create (idx == nil) or edit (idx set) a script button on a toolkit.
+--Assigned to the forward declaration next to the strip code, which
+--summons this from the strip's + menu and each button's context menu.
+RailScriptButtonDialog = function(toolkitid, idx)
+    local toolkits = RailToolkits()
+    local existing = nil
+    if toolkitid ~= nil then
+        local tk = toolkits[toolkitid]
+        if tk == nil then
+            return
+        end
+        if idx ~= nil then
+            existing = (tk.items or {})[idx]
+            if existing == nil or existing.type ~= "script" then
+                return
+            end
+        end
+    end
+
+    --LIBRARY MODE (no toolkit named -- the Panel Library's "New button"
+    --tile): the dialog grows an "Add to" dropdown of the user's
+    --toolkits plus "New toolkit", which creates a "My Buttons" toolkit
+    --on save. Defaults to the first toolkit by name.
+    local targetDropdown = nil
+    if toolkitid == nil then
+        local sorted = {}
+        for tid, rec in pairs(toolkits) do
+            sorted[#sorted + 1] = { id = tid, name = rec.name or "Toolkit" }
+        end
+        table.sort(sorted, function(a, b) return a.name < b.name end)
+        local options = {}
+        for _, e in ipairs(sorted) do
+            options[#options + 1] = { id = e.id, text = e.name }
+        end
+        options[#options + 1] = { id = "__new", text = "New toolkit" }
+        local defaultChoice = "__new"
+        if #sorted > 0 then
+            defaultChoice = sorted[1].id
+        end
+        targetDropdown = gui.Dropdown{
+            options = options,
+            idChosen = defaultChoice,
+            width = 200,
+            height = 26,
+            valign = "center",
+        }
+    end
+
+    local nameInput = gui.Input{
+        text = (existing ~= nil and existing.name) or "",
+        placeholderText = "Button name",
+        width = TOOLKIT_ICON_GRID_WIDTH - 20,
+        height = 28,
+        halign = "center",
+        valign = "center",
+    }
+
+    local iconEditor = RailToolkitIconPicker((existing ~= nil and existing.icon) or "phosphor/lightning.png")
+
+    --pure Lua, nothing between the author and the engine (Option A --
+    --see the ledger's amended action-contract decision).
+    local codeInput = gui.Input{
+        text = (existing ~= nil and existing.script) or "",
+        placeholderText = "-- Lua code, runs when the button is clicked",
+        multiline = true,
+        width = TOOLKIT_ICON_GRID_WIDTH - 20,
+        height = 150,
+        halign = "center",
+        valign = "center",
+    }
+
+    gamehud:ModalDialog{
+        title = cond(existing == nil, "New script button", "Edit script button"),
+        width = 480,
+        height = 620,
+        buttonsHalign = "center",
+        flow = "vertical",
+        --see RailEditToolkit: size the client panel to its content, since
+        --ModalDialog strips width/height and would leave it 100x100.
+        selfStyle = {
+            width = "100%",
+            height = "auto",
+        },
+        buttons = {
+            {
+                text = cond(existing == nil, "Create", "Save"),
+                click = function()
+                    local name = nameInput.text
+                    if name == nil or name == "" then
+                        name = "Script"
+                    end
+                    local icon = nil
+                    pcall(function() icon = iconEditor.value end)
+                    if icon == nil or icon == "" then
+                        icon = "phosphor/lightning.png"
+                    end
+                    local t = RailToolkits()
+                    local target = toolkitid
+                    if target == nil then
+                        local choice = "__new"
+                        pcall(function() choice = targetDropdown.idChosen end)
+                        if choice ~= "__new" and t[choice] ~= nil then
+                            target = choice
+                        else
+                            target = string.lower(dmhub.GenerateGuid())
+                            t[target] = { name = "My Buttons", icon = "phosphor/lightning.png", items = {} }
+                        end
+                    end
+                    local rec = t[target]
+                    if rec == nil then
+                        return
+                    end
+                    rec.items = rec.items or {}
+                    local item = { type = "script", name = name, icon = icon, script = codeInput.text or "" }
+                    if idx ~= nil and rec.items[idx] ~= nil then
+                        rec.items[idx] = item
+                    else
+                        rec.items[#rec.items + 1] = item
+                    end
+                    RailWriteToolkits(t)
+                    if toolkitid == nil then
+                        --from the library: make the result visible. The
+                        --toolkit gets its rail button (no-op if already
+                        --there) and its strip opens beside it.
+                        RailAddPanel("toolkit:" .. target, "left")
+                        local bside, slot = RailFindButton("toolkit:" .. target)
+                        local ax, ay
+                        if bside ~= nil then
+                            ax, ay = RailAnchor(bside, slot)
+                        end
+                        HideToolkitStrip(target)
+                        ShowToolkitStrip(target, ax, ay)
+                        RefreshRails()
+                    else
+                        --rebuild the strip in place if it is open.
+                        local strip = g_railToolkitStrips[target]
+                        local x, y = nil, nil
+                        if strip ~= nil and strip.valid then
+                            x = strip.x
+                            y = strip.y
+                        end
+                        HideToolkitStrip(target)
+                        ShowToolkitStrip(target, x, y)
+                        RefreshRails()
+                    end
+                end,
+            },
+            {
+                text = "Cancel",
+                escapeActivates = true,
+            },
+        },
+
+        gui.Panel{
+            classes = {cond(targetDropdown == nil, "collapsed")},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            vmargin = 2,
+            gui.Label{
+                text = "Add to:",
+                fontSize = 13,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                rmargin = 8,
+            },
+            targetDropdown,
+        },
+        nameInput,
+        codeInput,
+        iconEditor,
+    }
+end
+
 --Delete a toolkit: its strip, its definition, and its rail button.
+--The layout entry is purged outright rather than RailMovePanel("remove"):
+--with the definition already deleted, RailLayout files the entry under
+--inert, where RailMovePanel cannot find it -- it early-returned without
+--rebuilding, leaving a stale button on the rail until the next rebuild.
+--And unlike "Remove from rail", deletion should not park an entry for a
+--toolkit that no longer exists.
 local function RailDeleteToolkit(id)
     HideToolkitStrip(id)
     local toolkits = RailToolkits()
     toolkits[id] = nil
     RailWriteToolkits(toolkits)
-    RailMovePanel("toolkit:" .. id, "remove")
+
+    local key = "toolkit:" .. id
+    local sides, inert = RailLayout()
+    for _, list in pairs(sides) do
+        for i, e in ipairs(list) do
+            if e.key == key then
+                table.remove(list, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
+--The + button's target: the PANEL LIBRARY (see PANEL_LIBRARY_BRIEF.md).
+--A large floating themed window rather than the old anchored menu: rail
+--adds are rare configuration acts, so the surface optimizes for
+--discovery -- recommended buttons, a searchable list of every panel,
+--the user's toolkits with creation, and (phased later) community
+--content. The Recommended and toolkit sections render faithful
+--rail-button REPLICAS -- the exact 40px face, glyph size, and tints --
+--so what you click is literally what lands on the rail.
+--
+--Still summoned through element.popup: the popup layer supplies
+--click-outside dismissal and captureEscape supplies esc, which together
+--are the library's dismiss grammar. A single add auto-closes.
+--
+--("Community buttons" is the deliberate absence now: a custom action
+--button needs a decision about what an action IS before it can be
+--offered. The toolkit item schema already carries an explicit `type`
+--for it, and the COMMUNITY section below is its reserved landing spot.)
+RailShowAddPicker = function(element, side)
+    --"already got it" is BOTH senses: a panel with its own rail button,
+    --and a panel filed inside somebody's folder. A folder member has no
+    --button by design -- its owner's window hosts it as a tab -- so it
+    --never appears in the rail layout, and a naive layout-only filter
+    --offers you panels you already have. It then "adds" them to no
+    --visible effect, because the member still has no button of its own.
+    local onRail = {}
+    for _, l in pairs(RailLayout()) do
+        for _, e in ipairs(l) do
+            onRail[e.key] = true
+        end
+    end
+    for memberKey in pairs(PanelDocument.GroupOwners()) do
+        onRail[memberKey] = true
+    end
+
+    --RECOMMENDED is the curated rail order filtered to what is not
+    --already on a rail; ALL PANELS is every available panel (curated
+    --ones included -- the library's list is complete, so search always
+    --finds a panel by name), alphabetical.
+    local recommended, all = {}, {}
+    for _, name in ipairs(g_iconRailPanels) do
+        local key = string.lower(name)
+        if not onRail[key] and PanelDocument.Get(name) ~= nil then
+            recommended[#recommended + 1] = name
+        end
+    end
+    local items = DockablePanel.GetMenuItems(true)
+    table.sort(items, function(a, b) return (a.text or "") < (b.text or "") end)
+    for _, item in ipairs(items) do
+        local name = item.text
+        if name ~= nil then
+            local key = string.lower(name)
+            if not onRail[key] and PanelDocument.Get(name) ~= nil then
+                all[#all + 1] = name
+            end
+        end
+    end
+
+    --the user's toolkits that are not currently on a rail: clicking one
+    --puts its button back. On-rail toolkits are omitted (this is an
+    --"add" surface, same rule as the panel lists).
+    local toolkits = {}
+    for id, tk in pairs(RailToolkits()) do
+        if not onRail["toolkit:" .. id] then
+            toolkits[#toolkits + 1] = { id = id, name = tk.name or "Toolkit", icon = tk.icon or "phosphor/toolbox.png" }
+        end
+    end
+    table.sort(toolkits, function(a, b) return a.name < b.name end)
+
+    local function CloseLibrary()
+        if element ~= nil and element.valid then
+            element.popup = nil
+            element:SetClass("open", false)
+        end
+    end
+
+    --a faithful rail-button replica (the rail's 40px #000000cc rounded
+    --face, 20px @fg glyph) with its name beneath: an honest preview of
+    --exactly what lands on the rail.
+    local function ButtonReplica(icon, text, opts)
+        opts = opts or {}
+        return gui.Panel{
+            flow = "vertical",
+            width = 72,
+            height = "auto",
+            hmargin = 5,
+            bgimage = true,
+            click = opts.click,
+            gui.Panel{
+                classes = {"libButtonFace", cond(opts.create, "create")},
+                width = 40,
+                height = 40,
+                bgimage = true,
+                halign = "center",
+                gui.Panel{
+                    classes = {"libButtonIcon"},
+                    bgimage = icon,
+                    width = 20,
+                    height = 20,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            },
+            gui.Label{
+                classes = {"libButtonLabel"},
+                text = text,
+                width = "100%",
+                height = "auto",
+                textAlignment = "center",
+                halign = "center",
+                tmargin = 6,
+                textWrap = false,
+                interactable = false,
+            },
+        }
+    end
+
+    local function SectionHeader(text)
+        return gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            tmargin = 20,
+            bmargin = 10,
+            gui.Label{
+                classes = {"libSection"},
+                text = text,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+            },
+            gui.Panel{
+                classes = {"libRule"},
+                bgimage = true,
+                width = "100%",
+                height = 1,
+                tmargin = 5,
+            },
+        }
+    end
+
+    --ALL PANELS rows, collected so the search box can filter them.
+    local searchRows = {}
+    local function PanelRow(name)
+        local reg = DockablePanel.GetRegistration(string.lower(name))
+        local row = gui.Panel{
+            classes = {"libRow"},
+            width = 420,
+            height = 32,
+            bgimage = true,
+            flow = "horizontal",
+            data = { searchText = string.lower(name) },
+            click = function()
+                RailAddPanel(name, side)
+                CloseLibrary()
+            end,
+            gui.Panel{
+                classes = {"libRowIcon"},
+                bgimage = (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png",
+                width = 18,
+                height = 18,
+                valign = "center",
+                lmargin = 10,
+                rmargin = 10,
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"libRowLabel"},
+                text = name,
+                --fills the rest of the row: a horizontal flow centres its
+                --children as a group, so the label eating the remaining
+                --width is what pins each icon+label pair to the left.
+                width = "100%-38",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                valign = "center",
+                textWrap = false,
+                interactable = false,
+            },
+        }
+        searchRows[#searchRows + 1] = row
+        return row
+    end
+
+    local recTiles = {}
+    for _, name in ipairs(recommended) do
+        local reg = DockablePanel.GetRegistration(string.lower(name))
+        recTiles[#recTiles + 1] = ButtonReplica(
+            (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png", name,
+            { click = function()
+                RailAddPanel(name, side)
+                CloseLibrary()
+            end })
+    end
+
+    local allRows = {}
+    for _, name in ipairs(all) do
+        allRows[#allRows + 1] = PanelRow(name)
+    end
+    if #allRows == 0 then
+        allRows[1] = gui.Label{
+            classes = {"libSection"},
+            text = "Every panel is already on a rail.",
+            width = "100%",
+            height = "auto",
+            tmargin = 8,
+        }
+    end
+
+    --create first: the answers to "build me something" lead the section
+    --of things you have built -- a new toolkit, or a new script button
+    --straight into one.
+    local tkTiles = {
+        ButtonReplica("phosphor/plus-bold.png", "New tool panel", {
+            create = true,
+            click = function()
+                CloseLibrary()
+                RailCreateToolkit(side)
+            end,
+        }),
+        ButtonReplica("phosphor/lightning.png", "New button", {
+            create = true,
+            click = function()
+                CloseLibrary()
+                RailScriptButtonDialog(nil, nil)
+            end,
+        }),
+    }
+    for _, tk in ipairs(toolkits) do
+        tkTiles[#tkTiles + 1] = ButtonReplica(tk.icon, tk.name, {
+            click = function()
+                RailAddPanel("toolkit:" .. tk.id, side)
+                CloseLibrary()
+            end,
+        })
+    end
+
+    local libraryStyles = ThemeEngine.MergeStyles({
+        {
+            selectors = {"label", "libSection"},
+            color = "@fgMuted",
+            fontSize = 11,
+            bold = true,
+        },
+        {
+            selectors = {"libRule"},
+            bgcolor = "@border",
+        },
+        --the replica face mirrors the rail's iconRailButton rules; the
+        --hex is deliberate (it must match the rail's own scrim exactly).
+        {
+            selectors = {"libButtonFace"},
+            bgcolor = "#000000cc",
+            cornerRadius = 8,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"libButtonFace", "parent:hover"},
+            bgcolor = "#000000ee",
+        },
+        {
+            selectors = {"libButtonFace", "create"},
+            bgcolor = "#00000066",
+            border = 1,
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"libButtonIcon"},
+            bgcolor = "@fg",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"libButtonIcon", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "libButtonLabel"},
+            color = "@fg",
+            fontSize = 12,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"label", "libButtonLabel", "parent:hover"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"libRow"},
+            bgcolor = "clear",
+            cornerRadius = 6,
+            transitionTime = 0.1,
+        },
+        --scheme-independent hover lift, matching the rail picker's own
+        --translucent-white grammar.
+        {
+            selectors = {"libRow", "hover"},
+            bgcolor = "#ffffff0d",
+        },
+        {
+            selectors = {"libRowIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"libRowIcon", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "libRowLabel"},
+            color = "@fg",
+            fontSize = 13,
+        },
+        {
+            selectors = {"label", "libRowLabel", "parent:hover"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"libCommunityCard"},
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+        },
+    })
+
+    --The popup root is an AUTO-sized wrapper that only positions; the
+    --sized, styled panel is its child (the working pattern is the
+    --journal's -- see the popup at the top of this file).
+    --constrainToScreen keeps the window on screen regardless of where
+    --the + sits in the column. The library carries its own explicit
+    --theme root (NOT popupsInheritStyles): it is a self-contained themed
+    --window, not part of the rail's scrim.
+    element.popupsInheritStyles = false
+    --centered on SCREEN, not on the +: popups position relative to their
+    --owner by default, which with halign center parks the window at the
+    --left edge. Anchoring to the full-screen documents layer makes
+    --center mean the middle of the screen -- the library is a
+    --destination surface, not a flyout of the + button.
+    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil then
+        element.popupPositioning = GameHud.instance.documentsPanel
+    end
+    element.popup = gui.Panel{
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        constrainToScreen = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function(pickerElement)
+            CloseLibrary()
+        end,
+        styles = libraryStyles,
+
+        gui.Panel{
+            classes = {"framedPanel", "toplevel"},
+            width = 900,
+            height = "auto",
+            flow = "vertical",
+            pad = 28,
+            borderBox = true,
+            bgimage = true,
+
+            --header: title, live search, close.
+            gui.Panel{
+                flow = "horizontal",
+                width = "100%",
+                height = 40,
+                gui.Label{
+                    classes = {"modalTitle"},
+                    text = "Panel Library",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    halign = "left",
+                },
+                gui.SearchInput{
+                    placeholderText = "Search panels...",
+                    width = 260,
+                    height = 28,
+                    halign = "right",
+                    valign = "center",
+                    hmargin = 44,
+                    hasFocus = true,
+                    editlag = 0.15,
+                    edit = function(searchElement)
+                        local filter = string.lower(searchElement.text or "")
+                        for _, row in ipairs(searchRows) do
+                            row:SetClass("collapsed", #filter > 0 and not string.find(row.data.searchText, filter, 1, true))
+                        end
+                    end,
+                    change = function(searchElement)
+                        searchElement:FireEvent("edit")
+                    end,
+                },
+                gui.Panel{
+                    bgimage = "phosphor/x-bold.png",
+                    width = 16,
+                    height = 16,
+                    halign = "right",
+                    valign = "center",
+                    bgcolor = "#ffffff88",
+                    styles = {
+                        {
+                            selectors = {"hover"},
+                            bgcolor = "#ffffff",
+                            transitionTime = 0.1,
+                        },
+                    },
+                    click = function()
+                        CloseLibrary()
+                    end,
+                },
+            },
+
+            --the recommended section COLLAPSES entirely when empty (an
+            --always-present-but-empty recommendation row trains people
+            --to ignore it).
+            gui.Panel{
+                classes = {cond(#recTiles == 0, "collapsed")},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                SectionHeader("RECOMMENDED"),
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    children = recTiles,
+                },
+            },
+
+            SectionHeader("ALL PANELS"),
+            gui.Panel{
+                width = "100%",
+                height = 220,
+                vscroll = true,
+                gui.Panel{
+                    flow = "horizontal",
+                    wrap = true,
+                    width = "100%",
+                    height = "auto",
+                    valign = "top",
+                    children = allRows,
+                },
+            },
+
+            SectionHeader("YOUR TOOL PANELS"),
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                children = tkTiles,
+            },
+
+            SectionHeader("COMMUNITY"),
+            gui.Panel{
+                classes = {"libCommunityCard"},
+                bgimage = true,
+                width = "100%",
+                height = 44,
+                borderBox = true,
+                flow = "horizontal",
+                gui.Panel{
+                    classes = {"libRowIcon"},
+                    bgimage = "phosphor/users-three.png",
+                    width = 18,
+                    height = 18,
+                    valign = "center",
+                    lmargin = 14,
+                    rmargin = 10,
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libSection"},
+                    text = "Buttons made by other players -- coming soon.",
+                    fontSize = 13,
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                },
+            },
+        },
+    }
+end
+
+--The rail's + button. Hidden at rest; the rail root reveals it after a
+--short dwell (see the root's hover handlers) so a pointer merely crossing
+--the rail on its way elsewhere does not flash it.
+--
+--`shown` is a real class rather than a bare parent:hover style rule
+--because it does two jobs: it fades the glyph in, and it gates the click.
+--The + holds its layout slot while invisible (that is what keeps the rail
+--from reshuffling as it appears), so without the gate an invisible button
+--would sit there swallowing clicks in the empty column below the rail.
+local function CreateRailAddButton(side)
+    --Reachable when the + is up OR when the pointer is simply on the rail.
+    --The `shown` class alone was too strict: it only turns on after the
+    --reveal dwell, so a click arriving in the same input event as the
+    --pointer -- before the engine has processed hover on this button --
+    --was thrown away. Asking the rail whether the pointer is anywhere in
+    --the column answers the real question ("is the user working the rail
+    --right now?") without depending on the order two events are delivered.
+    local function Reachable(element)
+        if element:HasClass("shown") then
+            return true
+        end
+        local rail = element:FindParentWithClass("iconRail")
+        return rail ~= nil and rail.valid and (rail.data.railInside or 0) > 0
+    end
+
+    local button
+    button = gui.Panel{
+        classes = {"iconRailButton", "iconRailAddButton"},
+        bgimage = true,
+        --NO blurBackground, unlike every other rail button. A blurred
+        --backdrop paints whether or not the panel is transparent, so with
+        --it the + stayed visible as a ghostly pane at opacity 0 -- an
+        --always-visible control, which is the design we rejected. Losing
+        --the blur costs this one button a little depth; keeping it cost
+        --the entire hover-reveal.
+        width = ICON_RAIL_BUTTON,
+        height = ICON_RAIL_BUTTON,
+        flow = "none",
+        halign = "center",
+        tmargin = ICON_RAIL_GAP,
+        swallowPress = true,
+        data = {},
+
+        --The + reports its OWN proximity like every other rail child.
+        --Without this, stepping off the last panel button and onto the +
+        --decremented the count to zero with nothing to put it back, so
+        --the button vanished the instant the pointer arrived on it: the
+        --reveal region has to include the thing being revealed, or you
+        --can never reach it.
+        hover = function(element)
+            RailNotifyProximity(element, true)
+        end,
+        dehover = function(element)
+            RailNotifyProximity(element, false)
+        end,
+
+        press = function(element)
+            if not Reachable(element) then
+                return
+            end
+            RailButtonSound("press")
+        end,
+
+        click = function(element)
+            --invisible and untouched means not there: a click in the empty
+            --column below the rail must not open anything.
+            if not Reachable(element) then
+                return
+            end
+            --Already open? Then the x the user is looking at is what they
+            --clicked, so close. Reading the popup rather than tracking a
+            --flag keeps this honest if the list was dismissed some other
+            --way in between.
+            local menuOpen = false
+            pcall(function() menuOpen = element.popup ~= nil end)
+            if menuOpen then
+                element.popup = nil
+                element:SetClass("open", false)
+                return
+            end
+            RailShowAddPicker(element, side)
+            --Held open (and held DARK) for as long as its menu is up. The
+            --pointer's next move is into the picker, which is off the
+            --rail, so the proximity count drops to zero and the ordinary
+            --fade-out would pull the button out from under its own open
+            --list. hideRailAdd defers to the popup instead.
+            element:SetClass("open", true)
+        end,
+
+        --Carries iconRailAddIcon as well as the shared icon class: a
+        --parent's opacity does NOT reach its children here (measured --
+        --the button's own fill vanished at opacity 0 while this glyph
+        --kept painting), so the glyph has to be hidden by its own rule
+        --keyed on the parent's shown state.
+        gui.Panel{
+            classes = {"iconRailIcon", "iconRailAddIcon"},
+            bgimage = "phosphor/plus-bold.png",
+            width = 18,
+            height = 18,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        },
+
+        --The close hint, exactly as the rail's own buttons carry it: an x
+        --that takes over the glyph while you hover a button whose thing is
+        --already open. Here "already open" is the picker rather than a
+        --panel window, so it keys on `open` instead of `active`. Offering
+        --the x and then not closing on click would be a lie, so the click
+        --handler toggles.
+        gui.Panel{
+            classes = {"iconRailCloseHint", "iconRailAddCloseHint"},
+            floating = true,
+            bgimage = "phosphor/x-bold.png",
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        },
+
+        gui.Label{
+            classes = {"iconRailLabel"},
+            floating = true,
+            renderOnTop = true,
+            x = cond(side == "left", ICON_RAIL_BUTTON + 10, -(ICON_RAIL_BUTTON + 10)),
+            halign = cond(side == "left", "left", "right"),
+            valign = "center",
+            interactable = false,
+            --no bgimage: see the main hover label's note.
+            text = "ADD TO RAIL",
+            width = "auto",
+            height = "auto",
+            hpad = 8,
+            vpad = 4,
+            borderBox = true,
+            textWrap = false,
+        },
+    }
+    return button
 end
 
 local function CreateIconRail(side, entries)
@@ -10739,7 +12119,14 @@ local function CreateIconRail(side, entries)
         local buttonIconTint = nil
         local buttonIconRect = nil
         if toolkitid ~= nil then
+            --the user's chosen icon, falling back to the toolbox for
+            --toolkits made before icons existed (and for anyone who left
+            --the picker alone).
             buttonIcon = "phosphor/toolbox.png"
+            local tk = (dmhub.GetSettingValue("iconrailtoolkits") or {})[toolkitid]
+            if tk ~= nil and tk.icon ~= nil and tk.icon ~= "" then
+                buttonIcon = tk.icon
+            end
         elseif charid ~= nil then
             buttonIcon = "icons/standard/Icon_App_Character.png"
             local token = dmhub.GetCharacterById(charid)
@@ -11189,6 +12576,22 @@ local function CreateIconRail(side, entries)
                     --slot -- see stripLabel -- rather than as a floating
                     --label of its own.)
 
+                    --A strip member is still "the pointer is on the rail"
+                    --as far as the + is concerned. Without this, reaching
+                    --into a folder's flyout dropped the proximity count to
+                    --zero -- the owner button had been left, and nothing
+                    --in the strip reported taking over -- so the + faded
+                    --out and back in every time you moved along a folder's
+                    --members. The engine only marks the panel directly
+                    --under the pointer (see groupHoverPanels' note), so
+                    --every hoverable piece has to say so itself.
+                    hover = function(element)
+                        RailNotifyProximity(element, true)
+                    end,
+                    dehover = function(element)
+                        RailNotifyProximity(element, false)
+                    end,
+
                     --the click sound still goes on PRESS: it acknowledges
                     --the mouse going down, which is when the gesture reads
                     --as committed even though the open waits for the click.
@@ -11526,7 +12929,15 @@ local function CreateIconRail(side, entries)
                 --hovered when the pointer is actually on it.
                 swallowPress = true,
 
+                --the strip's own background counts as rail proximity too,
+                --so sweeping across the GAPS between members does not blink
+                --the + the way crossing the members themselves used to.
+                hover = function(element)
+                    RailNotifyProximity(element, true)
+                end,
+
                 dehover = function(element)
+                    RailNotifyProximity(element, false)
                     if g_railRearranging then
                         return
                     end
@@ -11810,6 +13221,14 @@ local function CreateIconRail(side, entries)
             --from the button into the strip never shuts it mid-reach.
             hover = function(element)
                 RailButtonSound("hover")
+                --Tell the rail the pointer is on it, so the + reveals.
+                --Hovering a CHILD does not deliver hover to the rail root
+                --(measured: the root's handler never fired while the
+                --pointer sat on a button), so the buttons have to report
+                --it or the + would only ever appear when you were already
+                --on top of it -- which is the whole thing this affordance
+                --exists to avoid.
+                RailNotifyProximity(element, true)
                 --Arriving anywhere on the rail shuts whatever strip is
                 --open, right now -- including on buttons that have no
                 --strip of their own. The neighbour's deferred close would
@@ -11880,6 +13299,9 @@ local function CreateIconRail(side, entries)
             end,
             dehover = function(element)
                 RailButtonSound("dehover")
+                --the rail's own grace period decides whether this actually
+                --hides the + (travelling between buttons must not).
+                RailNotifyProximity(element, false)
                 if groupMembers == nil or g_railRearranging then
                     return
                 end
@@ -12458,6 +13880,13 @@ local function CreateIconRail(side, entries)
                         end,
                     })
                     entries[#entries + 1] = {
+                        text = "Rename / Change Icon...",
+                        click = function()
+                            element.popup = nil
+                            RailEditToolkit(toolkitid)
+                        end,
+                    }
+                    entries[#entries + 1] = {
                         text = "Delete Toolkit",
                         click = function()
                             element.popup = nil
@@ -12689,6 +14118,36 @@ local function CreateIconRail(side, entries)
         buttons[#buttons + 1] = groupFlyout
     end
 
+    --The ADD (+) affordance, last in the column.
+    --
+    --Everything it opens -- add a panel, new toolkit -- has been reachable
+    --by right-clicking the rail all along, and essentially undiscoverable
+    --there: customising your rail is the one activity where the people who
+    --want it are the people who do not know the menu exists.
+    --
+    --Revealed by hovering the RAIL rather than sitting there permanently.
+    --Hover-on-the-container is the standard pattern for "add to this
+    --collection" (Notion's block handles, GitHub's line +), and it works
+    --here because the rail is somewhere the user already goes constantly
+    --to open panels -- unlike a screen corner, which nobody visits by
+    --accident, and where a hover-revealed control would be no more
+    --findable than the right-click it replaces.
+    --
+    --LAST in the flow on purpose: revealing it can then never displace a
+    --button somebody is aiming at. It also keeps its slot in the layout
+    --while invisible, so nothing moves when it appears -- and because the
+    --rail root's own hit area grows to include that slot, travelling
+    --towards the + keeps the rail hovered instead of dismissing the thing
+    --you are reaching for.
+    --
+    --Suppressed in rearrange mode: that is the trash zone's territory, and
+    --the two verbs never apply at once.
+    local addButton = nil
+    if not g_railRearranging then
+        addButton = CreateRailAddButton(side)
+        buttons[#buttons + 1] = addButton
+    end
+
     return gui.Panel{
         classes = {"iconRail"},
         halign = side,
@@ -12720,6 +14179,94 @@ local function CreateIconRail(side, entries)
         data = {
             side = side,
         },
+
+        --Reveal the + on hovering ANYWHERE on the rail, not just on the +
+        --itself. The root's hit area spans the whole column including the
+        --+'s slot, so this covers the buttons, the gaps between them, and
+        --the approach to the + -- which is what stops it vanishing as the
+        --pointer travels toward it.
+        --
+        --Dwell before showing so sweeping past the rail on the way
+        --somewhere else does not flash it. Hiding is immediate: by then
+        --the pointer has left the column entirely.
+        --Pointer entered or left the rail. Fired by the root's own
+        --hover/dehover (the gaps and background) AND by every child via
+        --RailNotifyProximity, because a child's hover never reaches here.
+        --A COUNT of how many rail elements currently hold the pointer, not
+        --a boolean. Crossing from one button to the next delivers the new
+        --element's hover BEFORE the old element's dehover, so a flag gets
+        --set true and then immediately stamped back to false by the
+        --dehover that arrives late -- and the + went dark exactly as you
+        --walked to it, with the click gate then discarding your click.
+        --Counting is order-independent: enter/leave pairs net out and the
+        --total only reaches zero when the pointer has genuinely left the
+        --column. (The tab chips hit this same trap earlier today; there
+        --the fix was to check who still owned the state.)
+        railProximity = function(element, near)
+            if addButton == nil or not addButton.valid then
+                return
+            end
+            local inside = element.data.railInside or 0
+            if near then
+                element.data.railInside = inside + 1
+                --already up: leave it alone. Re-arming the dwell on every
+                --crossing would restart the delay forever.
+                if addButton:HasClass("shown") then
+                    return
+                end
+                element:ScheduleEvent("revealRailAdd", 0.25)
+                return
+            end
+            inside = inside - 1
+            if inside < 0 then
+                inside = 0
+            end
+            element.data.railInside = inside
+            --LAZY hide even at zero: a pointer that clips the edge of the
+            --column for a frame should not have to re-earn the dwell.
+            element:ScheduleEvent("hideRailAdd", 0.4)
+        end,
+        hover = function(element)
+            element:FireEvent("railProximity", true)
+        end,
+        dehover = function(element)
+            element:FireEvent("railProximity", false)
+        end,
+        revealRailAdd = function(element)
+            --the pointer may have left during the dwell.
+            if (element.data.railInside or 0) <= 0 then
+                return
+            end
+            if addButton ~= nil and addButton.valid then
+                addButton:SetClass("shown", true)
+            end
+        end,
+        hideRailAdd = function(element)
+            if addButton == nil or not addButton.valid then
+                return
+            end
+            --The picker is the authority while it is up: the button stays
+            --visible and dark until the list closes, whether that is by
+            --choosing something, pressing escape, or clicking away. The
+            --popup lives ON the button, so its presence IS the state --
+            --nothing extra to keep in sync, and no way for a flag to be
+            --left set by a close path nobody remembered to hook.
+            --
+            --Re-arms itself rather than giving up: this is the only clock
+            --running while the pointer is off the rail using the menu.
+            local menuOpen = false
+            pcall(function() menuOpen = addButton.popup ~= nil end)
+            if menuOpen then
+                element:ScheduleEvent("hideRailAdd", 0.3)
+                return
+            end
+            addButton:SetClass("open", false)
+            --still somewhere on the rail (or came back during the grace).
+            if (element.data.railInside or 0) > 0 then
+                return
+            end
+            addButton:SetClass("shown", false)
+        end,
 
         --right-click the rail background: add a panel to this rail. This
         --menu used to hang off the dock/tray button at the top of the

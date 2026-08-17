@@ -1151,7 +1151,13 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "teleport",
     text = "Teleport",
-    symbols = {}
+    symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path from the creature's origin to its teleport destination.",
+        },
+    }
 }
 
 TriggeredAbility.RegisterTrigger{

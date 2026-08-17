@@ -6197,11 +6197,25 @@ function creature:GetUnboundedResourceQuantity(resourceid)
 end
 
 --called by dmhub when a creature teleports.
-function creature:OnTeleport()
+function creature:OnTeleport(path)
 	if self:try_get("_tmp_suppressTeleportEvent") then
 		return
 	end
-	self:DispatchEvent("teleport")
+
+    local eventArgs = {}
+    if path ~= nil then
+        local ourToken = dmhub.LookupToken(self)
+        local tokenSize = 1
+        if ourToken ~= nil then
+            tokenSize = ourToken.tileSize
+        end
+        eventArgs.path = PathMoved.new{
+            path = path,
+            size = tokenSize,
+        }
+    end
+
+	self:DispatchEvent("teleport", eventArgs)
 end
 
 --Teleport opportunity-attack support. A teleport places the token directly at its

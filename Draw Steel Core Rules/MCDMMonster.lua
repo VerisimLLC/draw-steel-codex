@@ -40,7 +40,9 @@ function monster:MonsterGroup()
             return MonsterGroup.Get(self.groupid)
         end
         for id, group in unhidden_pairs(GetTableCached(MonsterGroup.tableName)) do
-            if string.lower(group.name) == string.lower(cat) then
+            --Skip rows with no name, as in MCDMUtils.GetStandardAbility.
+            local groupName = group.name
+            if type(groupName) == "string" and string.lower(groupName) == string.lower(cat) then
                 return MonsterGroup.Get(id)
             end
         end

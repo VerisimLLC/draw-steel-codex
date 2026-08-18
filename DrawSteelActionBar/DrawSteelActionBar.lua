@@ -113,17 +113,46 @@ local function SelectionSignature()
     return table.concat(parts, ",")
 end
 
+--Is this token one the director's overview is designed for: a monster the
+--director runs. Heroes are far more complex than monsters and the overview
+--was never designed for them (field test F2-1); followers and hero summons
+--are player-side creatures and stay out for now too (they may fit later).
+--- @param tok CharacterToken
+--- @return boolean
+local function IsOverviewCreatureToken(tok)
+    if tok == nil or (not tok.valid) or tok.properties == nil then
+        return false
+    end
+    if tok.playerControlled then
+        return false
+    end
+    local props = tok.properties
+    local ok = false
+    pcall(function()
+        ok = props:IsMonster() and (not props:IsFollower()) and (not props:IsHeroSummon())
+    end)
+    return ok
+end
+
 --Overview mode = the local user is the director AND more than one token is
---selected AND the selection is not just one minion squad (a squad is a single
---actor, so it keeps the ordinary single-creature strip; Decision 43). In this
---mode the strip shows Trigger | Unique Abilities | Malice: the Main Action /
---Maneuver / Move drawers are identical across creatures so they are hidden.
+--selected AND every selected token is a director-run monster (a selection
+--that includes any hero, follower or hero summon falls back to the classic
+--strip; F2-1) AND the selection is not just one minion squad (a squad is a
+--single actor, so it keeps the ordinary single-creature strip; Decision 43).
+--In this mode the strip shows Trigger | Unique Abilities | Malice: the Main
+--Action / Maneuver / Move drawers are identical across creatures so they are
+--hidden.
 local function InOverviewMode()
     if not dmhub.isDM then
         return false
     end
     if #g_selectedTokens < 2 then
         return false
+    end
+    for _, tok in ipairs(g_selectedTokens) do
+        if not IsOverviewCreatureToken(tok) then
+            return false
+        end
     end
     local squad = g_selectedTokens[1].properties:MinionSquad()
     if squad ~= nil then
@@ -4299,6 +4328,13 @@ ActionMenu = function()
             m_abilitiesSubmenu:FireEventTree("abilities", abilitiesByGrouping["Abilities"], "Abilities")
             m_signatureSubmenu:FireEventTree("abilities", abilitiesByGrouping["Signature Abilities"], "Signature Abilities")
             m_spacer:SetClass("collapsed", abilitiesByGrouping["Signature Abilities"] == nil)
+            --The overview ("unique") branch parks this wrapper collapsed; the
+            --two submenus inside re-open themselves on their "abilities"
+            --event but the wrapper is a plain panel and does not, so it must
+            --be re-opened here or a single-token Main Action menu opened after
+            --any overview menu loses its Abilities / Signature Abilities
+            --column (field test F2-2).
+            m_commonSignatureWrapper:SetClass("collapsed", false)
 
             local wrapperOrd = GameSystem.ActionBarGroupings["Signature Abilities"] or 1000
             local inserted = false

@@ -538,6 +538,49 @@ SUGGESTED ORDER FOR THE NEXT SESSION: F2-2 (regression) -> F2-1 (hero gate)
 -> F2-4/F2-5 (footer copy/size/raw numbers) -> action-type visibility ->
 F2-7 -> F2-8 -> F2-9/role prominence -> Get in Here! data fix. Then Phase 2.
 
+**2026-08-18, F2-2 + F2-1 fixed (agent, live A5 game, launched fresh into
+`LargeStoutExpedientBruxer` / Castle Andreas map; zero codex console errors).**
+- **F2-2 FIXED - root cause was neither hypothesis.** The "unique" menu branch
+  parks every ordinary pooled panel collapsed so it stays parented (the
+  fa2053b7 rule). `ActionSubMenu` and the power-roll trigger submenu re-open
+  themselves on their next `abilities` / `triggers` event, but
+  `m_commonSignatureWrapper` - the plain vertical panel that stacks the
+  Abilities and Signature Abilities submenus into one column - is not an
+  ActionSubMenu and nothing ever set it back, so after the FIRST overview open
+  every later single-token Main Action menu lost that whole column (only
+  Common Abilities / Free Maneuvers etc. survived). That is exactly "the
+  Monarch lost its signature abilities". Fix: the ordinary menu path now does
+  `m_commonSignatureWrapper:SetClass("collapsed", false)` right after it
+  repopulates the two submenus (~:4310). Slice (e)'s check (5) had passed only
+  because it ran before any overview open in that reload.
+  Live: monarch + 2 warriors -> Unique menu opened (5 chips) and closed ->
+  Monarch alone -> Main Action = Signature Abilities (Handaxe melee, Handaxe
+  ranged) + Common Abilities, 7 chips, screenshot confirmed.
+  STANDING REGRESSION CHECK (add to every future slice): open a Unique menu,
+  close it, select ONE monster, open Main Action - the Signature/Abilities
+  column must be present.
+- **F2-1 FIXED.** New file-local `IsOverviewCreatureToken(tok)` (~:116) =
+  valid token with properties, `not tok.playerControlled`, and (pcall-guarded)
+  `props:IsMonster() and not props:IsFollower() and not props:IsHeroSummon()`
+  - the same "director monster" notion the Malice drawer uses. `InOverviewMode`
+  requires it of EVERY selected token, so any hero, follower or hero summon in
+  the selection falls back to the classic strip. Live: 2 heroes -> `trigger |
+  action | maneuver | move`; Monarch + Polder Elementalist -> classic strip
+  with malice; Monarch + Warrior 1 + Warrior 2 -> `trigger | unique | malice`.
+- Harness notes for the future: reach the bar with
+  `GameHud.instance.actionBarPanel:GetChildrenWithClassRecursive("actionBarDrawer")`
+  and pick a drawer by `d.data.drawerType`; `FireEvent("press")` on it toggles
+  its menu; the menu is the single `actionMenu` panel; count chips/headings
+  only after walking the parent chain up to the menu with no `collapsed` /
+  `hidden` ancestor. Setting `dmhub.selectedTokens` takes effect on the NEXT
+  execute_lua call (the poll/refresh has to run), so set in one call and read
+  in the next. On this Mac the app is the Steam depot binary
+  `~/Library/Application Support/Steam/steamapps/common/Draw Steel Codex/Contents/MacOS/Codex --gameid <id>`
+  (start_dmhub's Windows path does not exist); the bridge came up ~100 s later.
+
+NEXT: F2-4/F2-5 (footer copy/size/raw numbers) -> action-type visibility ->
+F2-7 -> F2-8 -> F2-9/role prominence -> Get in Here! data fix. Then Phase 2.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

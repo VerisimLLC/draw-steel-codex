@@ -464,8 +464,10 @@ DockablePanel.Register {
 	icon = "icons/standard/Icon_App_Bestiary.png",
     minHeight = 140,
     dmonly = true,
-    vscroll = true,
-    hideObjectsOutOfScroll = false,
+    --no host scroll: the panel builds its own scroll region below a
+    --pinned header (search + new folder/entry), so the header stays put
+    --while the tree scrolls under it.
+    vscroll = false,
     content = function()
         track("panel_open", {
             panel = "Bestiary",
@@ -1704,7 +1706,7 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     --Assigns the folder's children: header, root UI (if any), then
     --whichever child panels currently exist, in display order.
     local AssembleChildren = function(element)
-        local newChildren = { headerPanel, rootPanel }
+        local newChildren = { headerPanel }
 
         local newNodes = {}
         for _, v in ipairs(node.children) do
@@ -1764,6 +1766,13 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         classes = { cond(parentCollapsed, "collapsed-anim"), "bestiaryPanel", "ignoreDrag" },
 
         data = {
+            --The root folder's header (search box, new-folder and
+            --new-entry buttons). Published rather than parented:
+            --CreateBestiaryPanel pins it above its scroll region so it
+            --stays put while the tree scrolls under it. nil on every
+            --non-root folder.
+            rootUIPanel = rootPanel,
+
             ord = function()
                 return "a" .. node.description
             end,
@@ -2044,7 +2053,6 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         children = {
             headerPanel,
-            rootPanel,
         }
     })
 
@@ -4055,13 +4063,35 @@ CreateBestiaryPanel = function()
     --registered so the Bestiary registration's markContentSeen can retire
     --the records of rows on display while the panel is shown.
     g_bestiaryPanelRoots[#g_bestiaryPanelRoots + 1] = bestiaryPanel
+
+    --The search / new-folder / new-entry row, lifted out of the tree so it
+    --can sit above the scroll region rather than inside it. The panel
+    --registers with vscroll = false and scrolls the tree itself, which is
+    --what keeps this header pinned to the top.
+    local headerPanel = bestiaryPanel.data.rootUIPanel
+
+    --The tree scrolls; "100% available" takes whatever height the header
+    --leaves, so the header growing (the "showing the first N matches"
+    --note appearing) shrinks the scroll region instead of overflowing the
+    --panel.
+    local scrollPanel = gui.Panel {
+        id = "BestiaryScrollPanel",
+        width = "100%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+        vscroll = true,
+        hideObjectsOutOfScroll = false,
+        bestiaryPanel,
+    }
+
     local resultPanel
     resultPanel = gui.Panel {
         styles = ThemeEngine.MergeStyles(g_sidebarExtras),
 
         flow = "vertical",
         width = "100%",
-        height = "auto",
+        height = "100%",
         monitorAssets = cond(bestiaryPanel ~= nil, "Monsters"),
         refreshAssets = function(element)
             if bestiaryPanel ~= nil then
@@ -4072,7 +4102,8 @@ CreateBestiaryPanel = function()
 
         end,
 
-        bestiaryPanel,
+        headerPanel,
+        scrollPanel,
     }
 
     ThemeEngine.OnThemeChanged(mod, function()

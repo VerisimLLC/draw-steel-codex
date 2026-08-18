@@ -1235,7 +1235,7 @@ TokenHud.RegisterPanel{
             classes = {"characterPanelLauncher"},
             floating = true,
             interactable = false, --interactable only while shown.
-            halign = "left",
+            halign = "right",
             valign = "bottom",
             hmargin = 4,
             vmargin = 4,

@@ -4850,6 +4850,19 @@ function PanelDocument.IsPoppedOut(key)
     return PanelDocument.PopoutHost(key) ~= nil
 end
 
+--Popped-out panels are unparented from the hud tree (MoveToNativeWindow
+--reroots them into their own native-window hierarchy), so hud-wide
+--FireEventTree broadcasts never reach them. Callers that fan an event
+--across the whole hud (GameHud.Refresh's 'refresh') use this to extend
+--the broadcast to every popout window's tree.
+function PanelDocument.FireEventTreeOnPopouts(eventName, ...)
+    for _, host in pairs(g_panelPopouts) do
+        if host ~= nil and host.valid then
+            host:FireEventTree(eventName, ...)
+        end
+    end
+end
+
 function PanelDocument.IsPanelShown(key)
     return PanelDocument.FindHostDialog(key) ~= nil or PanelDocument.IsPoppedOut(key)
 end
@@ -6848,6 +6861,11 @@ local g_railJustDropped = nil
 --DestroyIconRails so a rebuild under the cursor does not tick (see
 --RailButtonSound).
 local g_railSoundQuietUntil = nil
+--set while a rebuild triggered from inside a refreshRail sweep is waiting
+--on its deferred call. The sweep runs over every button, so without this
+--one deleted token would queue a rebuild per pass until the first one
+--lands.
+local g_railRebuildPending = false
 --The one group strip currently slid open, as {owner = <button panel>,
 --close = <fn>}. Leaving a button closes its strip on a short deferred
 --timer (the grace period that lets the pointer reach INTO the strip
@@ -7167,6 +7185,9 @@ local function RailLayout()
         --"button:<id>" entries are standalone script buttons;
         --anything else is a registered panel.
         local available
+        --a character shortcut whose token has been DELETED: still rendered,
+        --but as a skull that dismisses itself. See the branch below.
+        local missing = false
         local docid = string.match(key, "^doc:(.+)$")
         local charid = string.match(key, "^character:(.+)$")
         local toolkitid = string.match(key, "^toolkit:(.+)$")
@@ -7181,9 +7202,21 @@ local function RailLayout()
             end
         elseif charid ~= nil then
             local token = dmhub.GetCharacterById(charid)
-            available = token ~= nil
-            if available then
+            --A deleted token does NOT make its shortcut inert. Inert is for
+            --entries that are merely unavailable HERE (absent mod, wrong
+            --role) and may come back; a deleted token is gone for good, and
+            --filing it inert was the bug -- the button already on screen
+            --survives until some unrelated rebuild, and "Remove from rail"
+            --cannot reach it, because RailMovePanel only searches `sides`
+            --and early-returns (the same trap RailDeleteToolkit documents).
+            --So the entry stays visible, flagged, and renders as a skull the
+            --user can dismiss with a click.
+            available = true
+            if token ~= nil then
                 displayName = token.name or "Character"
+            else
+                missing = true
+                displayName = "Removed Character"
             end
         elseif toolkitid ~= nil then
             local tk = (dmhub.GetSettingValue("iconrailtoolkits") or {})[toolkitid]
@@ -7216,13 +7249,15 @@ local function RailLayout()
         --script buttons can ask for extra slots via the @slots directive.
         --span is derived here, never persisted: the stored layout stays
         --{side, slot} for every entry.
+        --a missing character has no card to draw, so it shrinks back to a
+        --one-slot icon button rather than reserving two slots for a skull.
         local span = 1
-        if charid ~= nil then
+        if charid ~= nil and not missing then
             span = 2
         elseif sbuttonid ~= nil then
             span = sbuttonSpan
         end
-        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, sbuttonid = sbuttonid, span = span }
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, sbuttonid = sbuttonid, span = span, missing = missing }
     end
 
     --curated panels first: they carry the first-run default ordering.
@@ -7686,6 +7721,13 @@ local function TokenWindowPlacement(token, width, height)
     return { x = ClampX(horiz[1].x), y = ClampY(tokenY - height / 2) }
 end
 
+--forward-declared: defined below, next to the popout machinery.
+--Declared up here because the character window's flow (just below) hands
+--the same popout gesture to its header, and because OpenIconRailWindow
+--and it call each other -- the window's popout button closes the window
+--and opens the popout; the popout's pop-in button does the reverse.
+local OpenPanelPopout
+
 --Toggle a character's panel window: open it if closed, close it if
 --open. The token-corner launcher's entry point. Mirrors the rail icons'
 --click semantics -- a PINNED window is raised rather than closed, a
@@ -7702,6 +7744,22 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         return
     end
     local key = string.lower(doc.panelName)
+
+    --already living in its own OS window: the launcher raises that
+    --window rather than opening a second copy in the app, the same
+    --contract the rail's icons follow. It comes home via the popout's
+    --own pop-in button.
+    --pcall: RaiseNativeWindow needs an engine build newer than this
+    --file; on an older build the click is a no-op.
+    if PanelDocument.IsPoppedOut(key) then
+        local popoutHost = PanelDocument.PopoutHost(key)
+        if popoutHost ~= nil and popoutHost.valid then
+            pcall(function()
+                popoutHost:RaiseNativeWindow()
+            end)
+        end
+        return
+    end
 
     if doc:PresentDocumentOpen() then
         if PanelDocument.IsPinned(key) then
@@ -7767,6 +7825,24 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
             doc:ClosePanel()
             RefreshRails()
         end
+    end
+
+    --the header popout button: move this character's panel into its own
+    --native OS window, exactly as a rail window's does. Offered whether
+    --or not the rail is hosting windows -- a character window is a
+    --window like any other -- and the popout's pop-in button brings it
+    --back through OpenIconRailWindow, which resolves character keys.
+    --The in-app window's current size rides along so the panel keeps its
+    --footprint across the transition.
+    presentArgs.popout = function()
+        local d = doc:try_get("_tmp_dialog")
+        local geometry = nil
+        if d ~= nil and d.valid then
+            geometry = { width = d.renderedWidth, height = d.renderedHeight }
+        end
+        doc:ClosePanel()
+        OpenPanelPopout(key, geometry)
+        RefreshRails()
     end
 
     doc:PresentPanel(presentArgs)
@@ -8083,11 +8159,6 @@ SyncDocksToRailMode = function()
     dmhub.UpdateScreenHudArea(cond(railOn, 0, 1))
 end
 
---forward-declared: defined below OpenIconRailWindow (the two call each
---other -- the window's popout button closes the window and opens the
---popout; the popout's pop-in button does the reverse).
-local OpenPanelPopout
-
 --Open a rail window for the named panel. placement = {x=,y=,width=,
 --height=} places and sizes it; nil lets PresentDocument use the
 --session-remembered location and size. (There is no `tabs` override any
@@ -8299,7 +8370,18 @@ OpenPanelPopout = function(panelName, geometry)
     if not GameHud.instance then
         return
     end
+    --the panel's content description. Registered dockable panels answer
+    --directly; keys with no registration (character windows, keyed
+    --"character:<charid>") are asked through their panel document, which
+    --supplies a synthetic registration -- so a character panel pops out
+    --on exactly the same machinery as every other panel.
     local reg = DockablePanel.GetRegistration(panelName)
+    if reg == nil then
+        local doc = RailPanelDocument(key)
+        if doc ~= nil then
+            reg = doc:GetHostRegistration()
+        end
+    end
     if reg == nil then
         return
     end
@@ -9594,6 +9676,32 @@ end
 --Non-drag rearrangement (accessibility parity, Views brief A9a): the
 --same moves dragging performs, driven from the rail-button context menu.
 --op: "up" | "down" | "side" | "remove".
+--Erase a layout entry outright -- from the rails AND from inert -- so
+--nothing is left parked in storage. This is NOT "Remove from rail" (which
+--parks the entry off-rail so it can be restored): it is for keys whose
+--subject no longer exists, where parking would preserve a shortcut to
+--nothing. Callers: toolkit deletion, and dismissing a deleted character's
+--skull button.
+local function RailPurgeKey(key)
+    local sides, inert = RailLayout()
+    for _, list in pairs(sides) do
+        for i, e in ipairs(list) do
+            if e.key == key then
+                table.remove(list, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
 local function RailMovePanel(key, op)
     local sides, inert = RailLayout()
     local entry, sideName, list, idx
@@ -11775,24 +11883,7 @@ local function RailDeleteToolkit(id)
     toolkits[id] = nil
     RailWriteToolkits(toolkits)
 
-    local key = "toolkit:" .. id
-    local sides, inert = RailLayout()
-    for _, list in pairs(sides) do
-        for i, e in ipairs(list) do
-            if e.key == key then
-                table.remove(list, i)
-                break
-            end
-        end
-    end
-    for i, e in ipairs(inert) do
-        if e.key == key then
-            table.remove(inert, i)
-            break
-        end
-    end
-    SaveRailLayout(sides, inert)
-    RebuildIconRails()
+    RailPurgeKey("toolkit:" .. id)
 end
 
 --Delete a standalone script button: its definition and its rail button.
@@ -14020,6 +14111,10 @@ local function CreateIconRail(side, entries)
         local charid = entry.charid
         local toolkitid = entry.toolkitid
         local sbuttonid = entry.sbuttonid
+        --this shortcut's token has been deleted (see RailLayout): the
+        --button becomes a tombstone -- skull face, no window to open, and
+        --a click that erases it from the layout.
+        local missing = entry.missing == true
 
         --panel buttons draw their registration icon; document shortcuts
         --draw the doc's semantic-type icon; character shortcuts draw the
@@ -14048,6 +14143,13 @@ local function CreateIconRail(side, entries)
             --the author's @bgcolor/@opacity directives (span was already
             --resolved in RailLayout; the face styling applies below).
             sbuttonStyle = ScriptButtonStyle(def)
+        elseif missing then
+            --the tombstone face. Tinted rather than left at default so it
+            --reads as an inert marker, not another live panel icon.
+            --(BEFORE the charid branch: a missing entry still carries its
+            --charid, and the portrait lookup must not claim it.)
+            buttonIcon = "phosphor/skull-fill.png"
+            buttonIconTint = "#c8b8b0"
         elseif charid ~= nil then
             buttonIcon = "icons/standard/Icon_App_Character.png"
             local token = dmhub.GetCharacterById(charid)
@@ -14275,6 +14377,11 @@ local function CreateIconRail(side, entries)
         --(Defined up here, before the flyout strip: the strip's name slot
         --shows this text while the owner is hovered.)
         local function HoverLabelText()
+            --the tombstone says what it is and what clicking it does: the
+            --button's only verb is "dismiss me".
+            if missing then
+                return "REMOVED CHARACTER  (CLICK TO DISMISS)"
+            end
             if docid == nil and charid == nil and toolkitid == nil then
                 local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
                 if bind ~= nil and bind ~= "" then
@@ -14879,7 +14986,11 @@ local function CreateIconRail(side, entries)
         --current without its own polling. The face itself is shared with
         --the drag-preview ghost (CreateCharacterCardVisual).
         local buttonContent
-        if charid ~= nil then
+        --`not missing`: the card reads stamina and hero resources off the
+        --token, so with the token gone there is nothing to draw. The
+        --tombstone falls through to the plain icon path, which the skull
+        --face above has already been chosen for.
+        if charid ~= nil and not missing then
             buttonContent = CreateCharacterCardVisual(charid)
         elseif sbuttonStyle ~= nil and sbuttonStyle.label ~= nil then
             --@label: a live value instead of the icon. The directive is a
@@ -15180,6 +15291,31 @@ local function CreateIconRail(side, entries)
             --baseMargin are for the live drag reflow (ShowRailGhost).
             dragTarget = true,
             data = { slot = index, key = key, baseMargin = buttonMargin },
+
+            --A token can be deleted while its shortcut's button is on
+            --screen, and the rail gets no event for that -- so a character
+            --button checks on the refresh cadence and rebuilds the rails
+            --the one time the answer changes (`missing` is baked in at
+            --build time, so the rebuilt button no longer disagrees and the
+            --check goes quiet). DEFERRED: this runs inside the rail root's
+            --FireEventTree, and rebuilding destroys the very panels that
+            --sweep is walking.
+            refreshRail = function(element)
+                if charid == nil or g_railRebuildPending then
+                    return
+                end
+                if (dmhub.GetCharacterById(charid) == nil) == missing then
+                    return
+                end
+                g_railRebuildPending = true
+                dmhub.Schedule(0.01, function()
+                    g_railRebuildPending = false
+                    if mod.unloaded then
+                        return
+                    end
+                    RebuildIconRails()
+                end)
+            end,
 
             --the group flyout opens on hover and closes when the pointer
             --leaves BOTH the button and the strip. The close is deferred a
@@ -15483,9 +15619,14 @@ local function CreateIconRail(side, entries)
 
                 --dropped on the trash: take the button off the rail
                 --(parks the layout entry inert, exactly like the
-                --context menu's "Remove from rail").
+                --context menu's "Remove from rail"). A tombstone is
+                --erased instead -- there is nothing left to restore.
                 if target ~= nil and target.valid and target:HasClass("iconRailTrash") then
-                    RailMovePanel(key, "remove")
+                    if missing then
+                        RailPurgeKey(key)
+                    else
+                        RailMovePanel(key, "remove")
+                    end
                     return
                 end
 
@@ -15668,6 +15809,15 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
+                --tombstone: there is no panel behind it any more, so the
+                --only thing a click can mean is "get rid of this". Purged
+                --rather than parked off-rail -- a shortcut to a token that
+                --no longer exists is not worth remembering.
+                if missing then
+                    RailPurgeKey(key)
+                    return
+                end
+
                 --document shortcut: open the doc in the journal viewer.
                 if docid ~= nil then
                     local docs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -15819,6 +15969,25 @@ local function CreateIconRail(side, entries)
                 --rearrange mode has exactly two verbs -- drag and stop --
                 --so no menus over the wiggling buttons.
                 if g_railRearranging then
+                    return
+                end
+
+                --tombstone: nothing to open, pin, or reposition, so the
+                --menu is the one verb that applies. Kept as a right-click
+                --route as well as the click, because the click is a
+                --destructive act and a menu is where users look for one.
+                if missing then
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Remove from rail",
+                                click = function()
+                                    element.popup = nil
+                                    RailPurgeKey(key)
+                                end,
+                            },
+                        },
+                    }
                     return
                 end
 
@@ -18195,4 +18364,3 @@ function ViewsSaveAsDialog()
         input,
     }
 end
-

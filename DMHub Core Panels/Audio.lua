@@ -290,8 +290,16 @@ DockablePanel.Register{
 	name = "Audio",
 	icon = "icons/standard/Icon_App_Audio.png",
 	vscroll = false,
-	minHeight = 470,
-	maxHeight = 470,
+	--Freely resizable (was pinned min == max == 470, which locked the rail
+	--window's vertical resize). The content root fills the host and the body
+	--scroll region absorbs whatever height is left after the pinned
+	--now-playing section (height = "100% available"), so any height in these
+	--bounds lays out correctly. minWidth covers the fixed 342px soundboard
+	--grid plus margins; maxWidth keeps faders from stretching absurdly wide.
+	minHeight = 360,
+	maxHeight = 900,
+	minWidth = 364,
+	maxWidth = 700,
 	content = function()
 		track("panel_open", {
 			panel = "Audio",
@@ -352,14 +360,6 @@ local defaultFolder = "-MyddEFnH5IOto7qCx-3"
 --being rebuilt while the app stays open, so reopening the dock mid-session restores
 --the last choice.
 local g_dockControlsSelected = nil
-
---Max height of the dock's scrollable body (everything below the pinned now-playing
---strip + view toggle). The dock host is a fixed 470px (minHeight=maxHeight in the
---registration, vscroll=false); the pinned top eats ~100px, leaving ~360 for the
---body. With nothing selected in the segmented selector the content is shorter than
---this so it never scrolls; an expanded section (esp. Anthems with many heroes)
---scrolls past it instead of clipping.
-local audioScrollMaxHeight = 360
 
 --Unified soundboard button builder (chunk F1a), forward-declared here since the dock
 --grid (CreatePlayerGrid, below) is defined before the helpers (DisplayNameForAsset,
@@ -5404,6 +5404,11 @@ local function BuildSoundPanelContent()
 	--writes audio.masterVolume live. A gui element has one parent, so master lives
 	--here and NOT in categoryFaders below.
 	local masterRow = MakeFaderRow("Master", masterVolumeSlider, false)
+	--Even breathing room around the always-visible Master row: the shared
+	--MakeFaderRow default (vmargin 1) left it hugging the divider above it,
+	--reading cramped next to the roomier selector row below. Dock-only tweak;
+	--the Levels/Studio fader stacks keep the tight shared default.
+	masterRow.selfStyle.vmargin = 6
 
 	--Category broadcast faders -- the body of the "Levels" section. These write the
 	--shared "audio mix" doc (the GroupShared table-mix layer). The segmented
@@ -6947,7 +6952,11 @@ local function BuildSoundPanelContent()
 		halign = 'left',
 		valign = 'top',
 		width = "100%",
-		height = "auto",
+		--Fill the host (dock slot or rail window) so the body scroll region
+		--below can size itself to the actual remaining space. The old
+		--height="auto" + fixed-maxHeight scroll body overflowed the host
+		--whenever the pinned now-playing section grew past its assumed ~100px.
+		height = "100%",
 		flow = "vertical",
 
 		refreshAudio = function(element)
@@ -6980,27 +6989,43 @@ local function BuildSoundPanelContent()
 				}
 			end
 
-			--Pinned top: the now-playing section stays put. Everything below scrolls so
-			--an expanded section (esp. Anthems with many heroes) scrolls rather than
-			--clipping the fixed 470px dock. With nothing selected in the segmented
-			--selector the body is short (now-playing + master only) and does not scroll.
+			--Pinned top: the now-playing section stays put. Everything below scrolls
+			--rather than clipping. With nothing selected in the segmented selector
+			--the body is short (now-playing + master only) and does not scroll.
 			kids[#kids+1] = nowPlayingSection
 
 			kids[#kids+1] = gui.Panel{
 				vscroll = true,
 				width = "100%",
-				height = "auto",
-				maxHeight = audioScrollMaxHeight,
+				--Absorb exactly the height the host leaves after the pinned
+				--auto-height siblings above, however tall they are and however
+				--the user resizes the panel. Replaces a fixed maxHeight = 360
+				--that assumed a ~100px pinned top and drew past the host's
+				--bottom edge whenever that assumption broke.
+				height = "100% available",
 				flow = "vertical",
 				halign = "center",
 
-				--A divider under the now-playing "Player" sets it off as its own area.
-				gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+				--Single top-aligned column: the scroll region is sized to the
+				--host's leftover space, so loose children would center-pack in
+				--any surplus -- short sections (Map Sounds) floated down while
+				--tall ones (Soundboard) pinned to the top, making the selector
+				--row jump between tabs. One valign="top" wrapper pins the
+				--content to the top regardless of the selected section's height.
+				gui.Panel{
+					flow = "vertical",
+					width = "100%",
+					height = "auto",
+					valign = "top",
 
-				--Master is always visible above the segmented selector.
-				masterRow,
-				dockSectionSelectorRow,
-				dockSectionBodies,
+					--A divider under the now-playing "Player" sets it off as its own area.
+					gui.MCDMDivider{ width = "100%", halign = "left", vmargin = 4 },
+
+					--Master is always visible above the segmented selector.
+					masterRow,
+					dockSectionSelectorRow,
+					dockSectionBodies,
+				},
 			}
 			return kids
 		end)()
@@ -7021,7 +7046,9 @@ CreateSoundPanel = function()
 	return gui.Panel{
 		flow = "vertical",
 		width = "100%",
-		height = "auto",
+		--100% (not auto): the whole chain from the host down must be sized for
+		--mainPanel's body scroll region to know its real available height.
+		height = "100%",
 		monitorGame = AudioDelegatesPath(),
 		refreshGame = function(element)
 			--Signature-gate on THIS client's own control state: a grant/revoke for

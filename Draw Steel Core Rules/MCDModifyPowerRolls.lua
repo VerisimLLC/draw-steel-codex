@@ -352,6 +352,11 @@ CharacterModifier.TypeInfo.power = {
     hintPowerRoll = function(self, creature, rollType, options)
         options = options or {}
 
+        --Imported/YAML-authored modifiers may lack activationCondition
+        --entirely (only the editor's init path sets it); treat missing
+        --as false, matching the init default.
+        local activationCondition = self:try_get("activationCondition", false)
+
         if type(self:try_get("activationAfterRoll", false)) == "string" then
             return {
                 result = false,
@@ -367,7 +372,7 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
+        if (activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
             return {
                 result = false,
                 justification = {}
@@ -411,7 +416,7 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        if self.activationCondition == true then
+        if activationCondition == true then
             return {
                 result = true,
                 justification = {}
@@ -443,7 +448,7 @@ CharacterModifier.TypeInfo.power = {
         print("POWER ROLL:: OPTIONS:", options)
 
         return {
-            result = GoblinScriptTrue(ExecuteGoblinScript(self.activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
+            result = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
             justification = {},
         }
     end,

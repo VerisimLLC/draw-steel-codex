@@ -392,10 +392,17 @@ TriggeredAbility.triggers = {
             },
 		}
     },
-    {
-        id = "teleport",
-        text = "Teleports",
-    },
+	{
+		id = "teleport",
+		text = "Teleports",
+		symbols = {
+			path = {
+				name = "Path",
+				type = "path",
+				desc = "The path from the creature's origin to its teleport destination.",
+			},
+		},
+	},
 	{
 		id = "beginturn",
 		text = "Start of Turn",

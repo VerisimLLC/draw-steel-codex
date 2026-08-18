@@ -6197,11 +6197,25 @@ function creature:GetUnboundedResourceQuantity(resourceid)
 end
 
 --called by dmhub when a creature teleports.
-function creature:OnTeleport()
+function creature:OnTeleport(path)
 	if self:try_get("_tmp_suppressTeleportEvent") then
 		return
 	end
-	self:DispatchEvent("teleport")
+
+    local eventArgs = {}
+    if path ~= nil then
+        local ourToken = dmhub.LookupToken(self)
+        local tokenSize = 1
+        if ourToken ~= nil then
+            tokenSize = ourToken.tileSize
+        end
+        eventArgs.path = PathMoved.new{
+            path = path,
+            size = tokenSize,
+        }
+    end
+
+	self:DispatchEvent("teleport", eventArgs)
 end
 
 --Teleport opportunity-attack support. A teleport places the token directly at its
@@ -6462,7 +6476,14 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties, first = not firedMoveThroughThisMove })
+                        ourToken.properties:DispatchEvent("movethrough", {
+                            path = PathMoved.new{
+                                path = path,
+                                size = ourTileSize,
+                            },
+                            target = otherToken.properties,
+                            first = not firedMoveThroughThisMove,
+                        })
                         movedThroughTokens[otherToken.charid] = true
                         firedMoveThroughThisMove = true
                     end

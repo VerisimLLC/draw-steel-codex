@@ -80,8 +80,6 @@
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
---- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua. Probe this before calling it on older clients.
---- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua. Probe this before calling it on older clients.
 --- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
 --- @field supportsPopoutTooltipPlacement boolean (read-only) True on engine builds where popout-panel tooltip placement is mirror-correct: panel.distancesToScreenEdge returns true WINDOW pixels with correct left/right sides for panels in popout windows, and tooltip promote-on-overflow places the child window at visually-correct offsets. Gate SideTooltip-style popout placement (window-edge x offsets) on this AND popoutChildWindowsSupported; on older builds the values are screen-scaled and horizontally mirrored.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
@@ -164,6 +162,8 @@
 --- @field inCoroutine boolean Returns true if we are currently running in a coroutine.
 --- @field PlaceholderNil any A stand-in for nil when we want to put it in a table.
 --- @field debugPropertyOutput string Engine debugging and performance information.
+--- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua.
+--- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua.
 dmhub = {}
 
 --- TestFunction
@@ -886,20 +886,6 @@ end
 --- @param style nil|'solid'|'dashed'|'dotted' border line style; nil keeps the legacy strip with inner fade
 --- @return LuaMultiObjectReference
 function dmhub.MarkLocs(args)
-	-- dummy implementation for documentation purposes only
-end
-
---- CreateWorldDistortion: Creates a client-local distortion of the rendered map and tokens. heatwave uses exact logical tile polygons in locs and rising, irregular plumes controlled by direction, plumeWidth, plumeHeight, turbulence, and shimmer; strength and haze are screen pixels, speed is tiles per second, frequency is fine-detail cycles per tile, and edgeFade feathers inward from exposed edges. haze is a plume-masked three-tap blur clamped to 0..4 and defaults to zero. Radial types use loc (or center) plus radius in tiles; pinch/bulge use fractional radial strength, vortex uses radians, ripple uses fractional strength, and radial accepts strength plus swirl. duration=0 (the default) lasts until Stop(), and changing maps removes the effect. This API does not network effects; call it on every client that should see one.
---- @param options {type: 'heatwave'|'pinch'|'bulge'|'vortex'|'ripple'|'radial', locs: Loc[]|nil, loc: Loc|nil, center: Loc|nil, strength: number|nil, edgeFade: number|nil, radius: number|nil, frequency: number|nil, speed: number|nil, phase: number|nil, swirl: number|nil, direction: Vector2Arg|nil, plumeWidth: number|nil, plumeHeight: number|nil, turbulence: number|nil, shimmer: number|nil, haze: number|nil, duration: number|nil, fadeIn: number|nil, fadeOut: number|nil}
---- @return WorldDistortionHandleLua|nil
-function dmhub.CreateWorldDistortion(options)
-	-- dummy implementation for documentation purposes only
-end
-
---- CreateParticleSystem: Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
---- @param options ParticleSystemOptions
---- @return ParticleSystemHandleLua|nil
-function dmhub.CreateParticleSystem(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -2251,5 +2237,19 @@ end
 --- @param enabled boolean
 --- @return nil
 function dmhub.PoolSetEnabled(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateWorldDistortion: Creates a client-local distortion of the rendered map and tokens. heatwave uses exact logical tile polygons in locs and rising, irregular plumes controlled by direction, plumeWidth, plumeHeight, turbulence, and shimmer; strength and haze are screen pixels, speed is tiles per second, frequency is fine-detail cycles per tile, and edgeFade feathers inward from exposed edges. haze is a plume-masked three-tap blur clamped to 0..4 and defaults to zero. Radial types use loc (or center) plus radius in tiles; pinch/bulge use fractional radial strength, vortex uses radians, ripple uses fractional strength, and radial accepts strength plus swirl. duration=0 (the default) lasts until Stop(), and changing maps removes the effect. This API does not network effects; call it on every client that should see one.
+--- @param options {type: 'heatwave'|'pinch'|'bulge'|'vortex'|'ripple'|'radial', locs: Loc[]|nil, loc: Loc|nil, center: Loc|nil, strength: number|nil, edgeFade: number|nil, radius: number|nil, frequency: number|nil, speed: number|nil, phase: number|nil, swirl: number|nil, direction: Vector2Arg|nil, plumeWidth: number|nil, plumeHeight: number|nil, turbulence: number|nil, shimmer: number|nil, haze: number|nil, duration: number|nil, fadeIn: number|nil, fadeOut: number|nil}
+--- @return WorldDistortionHandleLua|nil
+function dmhub.CreateWorldDistortion(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateParticleSystem: Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
+--- @param options {locs: Loc[]|nil, loc: Loc|nil, position: Vector2Arg|nil, pos: Vector2Arg|nil, floorIndex: number|nil, image: string|nil, rate: number|nil, lifetime: ParticleSystemValueArg|nil, speed: ParticleSystemValueArg|nil, verticalSpeed: number|nil, opacity: number|nil, fadein: number|nil, fadeout: number|nil, birthColor: Color|nil, deathColor: Color|nil, birthSize: number|nil, deathSize: number|nil, producerShape: 'Circle'|'Edge'|'Rectangle'|'Box'|'Sprite'|'Mesh'|nil, producerAssetId: string|nil, shape: LuaMapPath|Vector2Arg[]|nil, producerRadius: number|nil, producerRotate: number|nil, producerArc: number|nil, producerScale: Vector3Arg|nil, type: 'Default'|'Lighting'|'Darkness'|'Emissive'|nil, rotation: ParticleSystemValueArg|nil, rotationOverLifetime: ParticleSystemValueArg|nil, position_x: number|nil, position_y: number|nil, rotateToVelocity: boolean|nil, worldSpace: boolean|nil, dampenSpeed: number|nil, gravity: Vector3Arg|nil, noiseStrength: ParticleSystemValueArg|nil, noiseFrequency: number|nil, noiseScroll: ParticleSystemValueArg|nil, maxParticles: number|nil, renderQueue: number|nil, parallax: number|nil, ignoreParallax: boolean|nil, sortingOrder: number|nil, duration: number|nil}
+--- @return ParticleSystemHandleLua|nil
+function dmhub.CreateParticleSystem(options)
 	-- dummy implementation for documentation purposes only
 end

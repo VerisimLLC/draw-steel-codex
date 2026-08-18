@@ -6553,6 +6553,19 @@ setting{
     default = {},
 }
 
+--Standalone script BUTTONS: single custom buttons living directly on
+--the rail ("button:<id>" layout keys), no toolkit required (owner
+--decision 2026-08-17: "you shouldn't have to create a new tool panel
+--just to create a new button"). Keyed by id:
+--{ [id] = { type = "script", name, icon, script, description,
+--  pack? (community pack it was added FROM),
+--  packid? (pack it is shared TO -- minted by Share Your Buttons) } }
+setting{
+    id = "iconrailscriptbuttons",
+    storage = "pergamepreference",
+    default = {},
+}
+
 --g_iconRailPanels (the curated panel list) is declared above the
 --PanelDocument interface.
 
@@ -6869,6 +6882,24 @@ end
 --buttons exist (grouping), rebuild the rails.
 local RebuildIconRails
 
+--DEV GATE for the entire Panel Library feature: the rail's + button
+--and everything only it opens (the library window, community
+--spotlight/browser, and the Share Your Buttons dialog). The + shipped
+--WITH the library (commit 142fa78e), so gating the button gates the
+--whole surface; the rail's right-click menu is older and stays. No
+--`editor`, so it appears on no settings screen -- flip it from the
+--console: dmhub.SetSettingValue("dev:panellibrary", true).
+setting{
+    id = "dev:panellibrary",
+    storage = "preference",
+    default = false,
+    onchange = function()
+        if RebuildIconRails ~= nil then
+            RebuildIconRails()
+        end
+    end,
+}
+
 --The open-window record (see the "iconrailpins" setting above): which
 --panel windows to restore, and where. Named for what it does, not for
 --the legacy setting id -- "pinned" now means locked in place, which is
@@ -7000,6 +7031,89 @@ end
 --every droppable slot clear of the trash zone at the column's foot.
 local ICON_RAIL_MAX_SLOT = 16
 
+--Style directives a script button's Lua code can carry (they are shown
+--to authors in SCRIPT_BUTTON_TEMPLATE): comment lines of the form
+--"-- @directive value", each at the START of its line -- anchoring is
+--what keeps the template's indented example lines inert. Parsed with
+--string matching only, never executed, so buttons downloaded from
+--community packs style safely. Unknown directives and out-of-range
+--values are ignored.
+--  @slots N               rail slots the button spans, like a character card (1-4)
+--  @bgcolor #rrggbb       the button face's background color (also #rrggbbaa)
+--  @bggradient #c1 #c2    top-to-bottom background gradient
+--  @opacity 0..1          the button's overall opacity
+--  @label <goblinscript>  a live value shown INSTEAD of the icon,
+--                         evaluated against the player's current
+--                         character (a formula, not Lua -- which is
+--                         what keeps render-time evaluation safe)
+local function ScriptButtonHexColor(c)
+    return c ~= nil and (string.match(c, "^#%x%x%x%x%x%x$") ~= nil or string.match(c, "^#%x%x%x%x%x%x%x%x$") ~= nil)
+end
+
+local function ScriptButtonStyle(def)
+    local style = { slots = 1 }
+    if type(def) ~= "table" or type(def.script) ~= "string" then
+        return style
+    end
+    for line in string.gmatch(def.script, "[^\r\n]+") do
+        local key, value = string.match(line, "^%s*%-%-%s*@(%w+)%s+(.-)%s*$")
+        if key == nil then
+            --the BARE form, matching the engine's own @if preprocessor
+            --style; ScriptButtonCode comments these lines out before the
+            --code reaches the Lua parser.
+            key, value = string.match(line, "^%s*@(%w+)%s+(.-)%s*$")
+        end
+        --value is the whole rest of the line; single-token directives
+        --take its first word so trailing commentary stays harmless.
+        local tok = nil
+        if value ~= nil then
+            tok = string.match(value, "^%S+")
+        end
+        if key == "slots" then
+            local n = tonumber(tok)
+            if n ~= nil then
+                style.slots = math.max(1, math.min(4, math.floor(n)))
+            end
+        elseif key == "bgcolor" then
+            if ScriptButtonHexColor(tok) then
+                style.bgcolor = tok
+            end
+        elseif key == "bggradient" then
+            local c1, c2 = string.match(value, "^(%S+)%s+(%S+)")
+            if ScriptButtonHexColor(c1) and ScriptButtonHexColor(c2) then
+                style.gradient = { c1, c2 }
+            end
+        elseif key == "opacity" then
+            local o = tonumber(tok)
+            if o ~= nil then
+                style.opacity = math.max(0.05, math.min(1, o))
+            end
+        elseif key == "label" then
+            if value ~= nil and value ~= "" then
+                style.label = value
+            end
+        end
+    end
+    return style
+end
+
+--A script button's code as the Lua parser should see it: BARE directive
+--lines ("@slots 2" with no leading --) are commented out, the same way
+--LuaPreprocessor.cs handles the engine's @if directives. Line count is
+--preserved, so error line numbers still match the author's file. The
+--comment form needs no help; every load of a button's script must go
+--through here so the bare form never reaches the parser as syntax.
+local function ScriptButtonCode(script)
+    if type(script) ~= "string" then
+        return script
+    end
+    --[ \t] rather than %s: %s matches newlines, so with a blank line
+    --before a directive the "--" landed on the blank line instead.
+    script = string.gsub(script, "^([ \t]*@%w+)", "--%1")
+    script = string.gsub(script, "\n([ \t]*@%w+)", "\n--%1")
+    return script
+end
+
 --The current button layout. Returns TWO values:
 --  sides: available panels partitioned onto the two rails -- each a list
 --    of {key, name, slot} sorted by slot (holes allowed = blank spots).
@@ -7049,12 +7163,15 @@ local function RailLayout()
 
         --"doc:<id>" entries are journal document shortcuts,
         --"character:<charid>" entries are character panels,
-        --"toolkit:<id>" entries are user-defined toolkit strips;
+        --"toolkit:<id>" entries are user-defined toolkit strips,
+        --"button:<id>" entries are standalone script buttons;
         --anything else is a registered panel.
         local available
         local docid = string.match(key, "^doc:(.+)$")
         local charid = string.match(key, "^character:(.+)$")
         local toolkitid = string.match(key, "^toolkit:(.+)$")
+        local sbuttonid = string.match(key, "^button:(.+)$")
+        local sbuttonSpan = 1
         if docid ~= nil then
             local docs = dmhub.GetTable(CustomDocument.tableName) or {}
             local doc = docs[docid]
@@ -7074,6 +7191,13 @@ local function RailLayout()
             if available then
                 displayName = tk.name or "Toolkit"
             end
+        elseif sbuttonid ~= nil then
+            local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+            available = type(def) == "table"
+            if available then
+                displayName = def.name or "Button"
+                sbuttonSpan = ScriptButtonStyle(def).slots
+            end
         else
             available = PanelDocument.Get(displayName) ~= nil
         end
@@ -7089,13 +7213,16 @@ local function RailLayout()
         local list = sides[side]
         --character entries render as a CARD spanning two slots (portrait +
         --stamina + hero resources) rather than a one-slot icon button.
+        --script buttons can ask for extra slots via the @slots directive.
         --span is derived here, never persisted: the stored layout stays
         --{side, slot} for every entry.
         local span = 1
         if charid ~= nil then
             span = 2
+        elseif sbuttonid ~= nil then
+            span = sbuttonSpan
         end
-        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, span = span }
+        list[#list + 1] = { key = key, name = displayName, slot = slot, ord = ord, docid = docid, charid = charid, toolkitid = toolkitid, sbuttonid = sbuttonid, span = span }
     end
 
     --curated panels first: they carry the first-run default ordering.
@@ -10370,17 +10497,83 @@ local ShowToolkitStrip
 --icon picker defined further down with the toolkit dialogs.
 local RailScriptButtonDialog
 
+--Kill-switch cache for community button packs: packid -> message for
+--every remotely disabled pack (PANEL_LIBRARY_BRIEF.md). Fetched once
+--the first time it is needed and refreshed whenever the Panel Library
+--opens; checked before any PACK-sourced button runs. nil = not yet
+--fetched (a fetch is kicked off and the check errs on the side of
+--running -- the cache converges within seconds of first use).
+local g_buttonPackKilled = nil
+local function RefreshButtonPackKilled()
+    --older engine builds have no buttonpack bridge; everything
+    --pack-related degrades to absent.
+    if rawget(_G, "buttonpack") == nil then
+        return
+    end
+    buttonpack.QueryKilled{
+        success = function(killed)
+            if mod.unloaded then
+                return
+            end
+            g_buttonPackKilled = killed
+        end,
+        failure = function(err)
+            --keep whatever cache we had; a transient failure must not
+            --unkill anything.
+        end,
+    }
+end
+
+--How many VM instructions a pack button may execute per click before
+--the watchdog kills it: generous for real work, fatal for infinite
+--loops. Local buttons are exempt (the author's own machine).
+local SCRIPT_BUTTON_INSTRUCTION_BUDGET = 20000000
+
 --Run a script button's Lua chunk. Plain chunk, standard global
 --environment, full engine access -- the same trust posture as mods and
 --dice scripts (PANEL_LIBRARY_BRIEF.md, "Script button action
 --contract"). Failures are LOUD: the button flashes the error state and
 --the message opens in a dialog; a broken button must never fail
 --silently.
+--
+--Buttons that came from a community pack (item.pack = packid) run
+--INSULATED: the kill switch is checked first, and the chunk executes
+--under an instruction-count watchdog so a runaway script cannot wedge
+--the app.
 local function RunToolkitScriptButton(item, element)
-    local chunk, loadErr = load(item.script or "", "script-button:" .. (item.name or "button"))
+    local packid = item.pack
+    if packid ~= nil then
+        if g_buttonPackKilled == nil then
+            RefreshButtonPackKilled()
+        end
+        local killedMessage = nil
+        if g_buttonPackKilled ~= nil then
+            killedMessage = g_buttonPackKilled[packid]
+        end
+        if killedMessage ~= nil then
+            local message = "This button's pack has been disabled."
+            if type(killedMessage) == "string" and killedMessage ~= "" then
+                message = message .. "\n\n" .. killedMessage
+            end
+            gui.ModalMessage{
+                title = "Button disabled",
+                message = message,
+            }
+            return
+        end
+    end
+
+    local chunk, loadErr = load(ScriptButtonCode(item.script or ""), "script-button:" .. (item.name or "button"))
     local ok, err
     if chunk == nil then
         ok, err = false, loadErr
+    elseif packid ~= nil then
+        debug.sethook(function()
+            debug.sethook()
+            error("this button exceeded its execution budget and was stopped", 2)
+        end, "", SCRIPT_BUTTON_INSTRUCTION_BUDGET)
+        ok, err = pcall(chunk)
+        debug.sethook()
     else
         ok, err = pcall(chunk)
     end
@@ -11170,13 +11363,68 @@ local function RailCreateToolkit(side)
     }
 end
 
+--Seed for a brand-new script button's Lua file (see Edit code in the
+--dialog below): a working example plus a short tour of favorite APIs.
+--Script buttons run with the full engine API (RunToolkitScriptButton),
+--so everything shown here is real and clickable as-is.
+local SCRIPT_BUTTON_TEMPLATE = [[-- Hello! Here is a guide on custom buttons.
+--
+-- The code you write here runs every time you click your button.
+-- Replace the example below with your own code.
+-- Save this file and the button picks up the change instantly.
+
+
+
+chat.Send("Hello from my new button!")
+
+
+-- The full DMHub Lua API is available. Some examples you can use:
+--
+--   chat.Send("Hello, table!")                        -- post to chat
+--   dmhub.Roll{ roll = "2d6", description = "Luck" }  -- roll dice on screen
+--
+--   local token = dmhub.currentToken                  -- your character
+--   if token ~= nil then
+--       chat.Send(token.name .. " waves!")
+--   end
+--
+-- You can also style the rail button itself with directives: comment
+-- lines like the ones below, each at the START of its own line.
+-- (The examples here are indented so they stay switched off.)
+--
+--   -- @slots 2            take two rail spots, like a character card
+--   -- @bgcolor #2244aa    tint the button's background
+--   -- @bggradient #88bbee #224466   top-to-bottom gradient background
+--   -- @opacity 0.5        make the button see-through
+--   -- @label Recoveries Available To Spend
+--                          show a live value (a GoblinScript formula,
+--                          evaluated on your character) instead of the icon
+--
+-- A bare form works too ("@slots 2" on its own line, no leading --),
+-- but your editor's Lua checker will underline it; the -- form keeps
+-- your editor quiet.
+--
+]]
+
 --Create (idx == nil) or edit (idx set) a script button on a toolkit.
 --Assigned to the forward declaration next to the strip code, which
 --summons this from the strip's + menu and each button's context menu.
 RailScriptButtonDialog = function(toolkitid, idx)
     local toolkits = RailToolkits()
     local existing = nil
+
+    --"button:<id>" targets edit a STANDALONE rail button rather than a
+    --toolkit item.
+    local sbuttonEditId = nil
     if toolkitid ~= nil then
+        sbuttonEditId = string.match(toolkitid, "^button:(.+)$")
+    end
+    if sbuttonEditId ~= nil then
+        existing = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonEditId]
+        if type(existing) ~= "table" then
+            return
+        end
+    elseif toolkitid ~= nil then
         local tk = toolkits[toolkitid]
         if tk == nil then
             return
@@ -11189,29 +11437,30 @@ RailScriptButtonDialog = function(toolkitid, idx)
         end
     end
 
-    --LIBRARY MODE (no toolkit named -- the Panel Library's "New button"
-    --tile): the dialog grows an "Add to" dropdown of the user's
-    --toolkits plus "New toolkit", which creates a "My Buttons" toolkit
-    --on save. Defaults to the first toolkit by name.
+    --LIBRARY MODE (no target named -- the Panel Library's "New button"
+    --tile): the dialog grows an "Add to" dropdown. The DEFAULT is a
+    --standalone button directly on the rail -- no tool panel required
+    --(owner decision 2026-08-17); toolkits and "New tool panel" remain
+    --as destinations for people organizing buttons into strips.
     local targetDropdown = nil
     if toolkitid == nil then
         local sorted = {}
         for tid, rec in pairs(toolkits) do
-            sorted[#sorted + 1] = { id = tid, name = rec.name or "Toolkit" }
+            if type(rec) == "table" then
+                sorted[#sorted + 1] = { id = tid, name = rec.name or "Toolkit" }
+            end
         end
         table.sort(sorted, function(a, b) return a.name < b.name end)
-        local options = {}
+        local options = {
+            { id = "__rail", text = "On the rail" },
+        }
         for _, e in ipairs(sorted) do
             options[#options + 1] = { id = e.id, text = e.name }
         end
-        options[#options + 1] = { id = "__new", text = "New toolkit" }
-        local defaultChoice = "__new"
-        if #sorted > 0 then
-            defaultChoice = sorted[1].id
-        end
+        options[#options + 1] = { id = "__new", text = "New tool panel" }
         targetDropdown = gui.Dropdown{
             options = options,
-            idChosen = defaultChoice,
+            idChosen = "__rail",
             width = 200,
             height = 26,
             valign = "center",
@@ -11227,24 +11476,144 @@ RailScriptButtonDialog = function(toolkitid, idx)
         valign = "center",
     }
 
+    --a one-line description: shown on the community card if this button
+    --is ever published.
+    local buttonDescInput = gui.Input{
+        text = (existing ~= nil and existing.description) or "",
+        placeholderText = "Short description (shown when shared)",
+        width = TOOLKIT_ICON_GRID_WIDTH - 20,
+        height = 28,
+        halign = "center",
+        valign = "center",
+    }
+
     local iconEditor = RailToolkitIconPicker((existing ~= nil and existing.icon) or "phosphor/lightning.png")
 
     --pure Lua, nothing between the author and the engine (Option A --
-    --see the ledger's amended action-contract decision).
-    local codeInput = gui.Input{
-        text = (existing ~= nil and existing.script) or "",
-        placeholderText = "-- Lua code, runs when the button is clicked",
-        multiline = true,
+    --see the ledger's amended action-contract decision) -- but authored
+    --in the user's own editor rather than an inline text box: Edit code
+    --opens a watched .lua file (seeded from SCRIPT_BUTTON_TEMPLATE when
+    --the button has no code yet) and every save in the editor flows
+    --back here; Create/Save then commits it like before. Same rig as
+    --the Dice Studio's script section.
+    local m_script = (existing ~= nil and existing.script) or ""
+    local m_watcher = nil
+    local scriptStatusLabel
+    local scriptSnippetLabel
+
+    local function DestroyScriptWatcher()
+        if m_watcher ~= nil then
+            m_watcher:Destroy()
+            m_watcher = nil
+        end
+    end
+
+    local function RefreshScriptStatus()
+        if scriptStatusLabel == nil or not scriptStatusLabel.valid then
+            return
+        end
+        if m_script == "" then
+            scriptStatusLabel.text = "No code yet. Edit code opens a Lua file in your text editor; every save lands here."
+            scriptStatusLabel.selfStyle.color = "#bbbbbbff"
+        else
+            --syntax check only: load compiles without executing. Bare
+            --@directive lines are commented out first, exactly as the
+            --click path does.
+            local chunk, err = load(ScriptButtonCode(m_script), "script-button")
+            if chunk == nil then
+                scriptStatusLabel.text = "Syntax error: " .. tostring(err)
+                scriptStatusLabel.selfStyle.color = "#ff8888ff"
+            else
+                scriptStatusLabel.text = "Code OK."
+                scriptStatusLabel.selfStyle.color = "#88ff88ff"
+            end
+        end
+        if scriptSnippetLabel ~= nil and scriptSnippetLabel.valid then
+            local snippet = m_script
+            if snippet == "" then
+                snippet = "(no code attached)"
+            elseif #snippet > 240 then
+                snippet = string.sub(snippet, 1, 240) .. "..."
+            end
+            scriptSnippetLabel.text = snippet
+        end
+    end
+
+    scriptStatusLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        vmargin = 4,
+        fontSize = 13,
+        color = "#bbbbbbff",
+        text = "",
+    }
+
+    scriptSnippetLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        fontSize = 12,
+        color = "#888888ff",
+        bgimage = "panels/square.png",
+        bgcolor = "#00000055",
+        pad = 6,
+        borderBox = true,
+        text = "(no code attached)",
+    }
+
+    local codeSection = gui.Panel{
+        flow = "vertical",
         width = TOOLKIT_ICON_GRID_WIDTH - 20,
-        height = 150,
+        height = "auto",
         halign = "center",
-        valign = "center",
+        destroy = function()
+            DestroyScriptWatcher()
+        end,
+        create = function()
+            RefreshScriptStatus()
+        end,
+        gui.Button{
+            text = "Edit code...",
+            width = 160,
+            height = 28,
+            halign = "left",
+            fontSize = 16,
+            click = function()
+                DestroyScriptWatcher()
+
+                local seed = m_script
+                if seed == "" then
+                    seed = SCRIPT_BUTTON_TEMPLATE
+                end
+
+                --OpenTextFileInConnectedEditor caps filenames at 48
+                --chars: "railbutton-" (11) + up to 33 of the name + ".lua".
+                local base = string.gsub(nameInput.text or "", "[^%w%-]", "")
+                if base == "" then
+                    base = "button"
+                end
+                local filename = string.sub("railbutton-" .. base, 1, 44) .. ".lua"
+                m_watcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+                    m_script = contents or ""
+                    RefreshScriptStatus()
+                end)
+                if m_watcher == nil then
+                    gui.ModalMessage{
+                        title = "Could not open editor",
+                        message = "Could not open an external text editor for the button's code.",
+                    }
+                end
+            end,
+        },
+        scriptStatusLabel,
+        scriptSnippetLabel,
     }
 
     gamehud:ModalDialog{
         title = cond(existing == nil, "New script button", "Edit script button"),
         width = 480,
-        height = 620,
+        height = 660,
         buttonsHalign = "center",
         flow = "vertical",
         --see RailEditToolkit: size the client panel to its content, since
@@ -11266,13 +11635,47 @@ RailScriptButtonDialog = function(toolkitid, idx)
                     if icon == nil or icon == "" then
                         icon = "phosphor/lightning.png"
                     end
+                    local item = { type = "script", name = name, icon = icon, script = m_script or "" }
+                    local desc = buttonDescInput.text
+                    if desc ~= nil and desc ~= "" then
+                        item.description = desc
+                    end
+
+                    --standalone edit: update the definition in place and
+                    --redraw the rail (name/icon may have changed). pack
+                    --(came from the community) and packid (shared BY the
+                    --user) both survive the rebuild.
+                    if sbuttonEditId ~= nil then
+                        item.pack = existing.pack
+                        item.packid = existing.packid
+                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+                        defs[sbuttonEditId] = item
+                        dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+                        RebuildIconRails()
+                        return
+                    end
+
+                    --library mode with "On the rail" chosen: mint a
+                    --standalone button, no toolkit involved.
+                    local railChoice = nil
+                    if toolkitid == nil then
+                        railChoice = "__rail"
+                        pcall(function() railChoice = targetDropdown.idChosen end)
+                    end
+                    if railChoice == "__rail" then
+                        local id = string.lower(dmhub.GenerateGuid())
+                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+                        defs[id] = item
+                        dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+                        RailAddPanel("button:" .. id, "left")
+                        return
+                    end
+
                     local t = RailToolkits()
                     local target = toolkitid
                     if target == nil then
-                        local choice = "__new"
-                        pcall(function() choice = targetDropdown.idChosen end)
-                        if choice ~= "__new" and t[choice] ~= nil then
-                            target = choice
+                        if railChoice ~= "__new" and t[railChoice] ~= nil then
+                            target = railChoice
                         else
                             target = string.lower(dmhub.GenerateGuid())
                             t[target] = { name = "My Buttons", icon = "phosphor/lightning.png", items = {} }
@@ -11283,8 +11686,10 @@ RailScriptButtonDialog = function(toolkitid, idx)
                         return
                     end
                     rec.items = rec.items or {}
-                    local item = { type = "script", name = name, icon = icon, script = codeInput.text or "" }
                     if idx ~= nil and rec.items[idx] ~= nil then
+                        --a shared toolkit item keeps its packid through
+                        --the rebuild, so Update still targets its pack.
+                        item.packid = rec.items[idx].packid
                         rec.items[idx] = item
                     else
                         rec.items[#rec.items + 1] = item
@@ -11341,10 +11746,21 @@ RailScriptButtonDialog = function(toolkitid, idx)
             targetDropdown,
         },
         nameInput,
-        codeInput,
+        buttonDescInput,
+        codeSection,
         iconEditor,
     }
 end
+
+--Publishing moved BUTTON-first (owner decision 2026-08-18: "you aren't
+--supposed to be able to publish toolkits -- it's just for buttons").
+--The old toolkit right-click "Publish..." (RailPublishToolkitDialog)
+--is gone; sharing now happens per button through the SHARE YOUR
+--BUTTONS dialog (RailShareButtonsDialog, defined after the community
+--fetch pipeline it sits beside), reached from the library's COMMUNITY
+--section. Under the hood each shared button is its own single-button
+--pack -- the pack stays the backend unit of versioning, kill, and
+--stats, exactly as before.
 
 --Delete a toolkit: its strip, its definition, and its rail button.
 --The layout entry is purged outright rather than RailMovePanel("remove"):
@@ -11377,6 +11793,1391 @@ local function RailDeleteToolkit(id)
     end
     SaveRailLayout(sides, inert)
     RebuildIconRails()
+end
+
+--Delete a standalone script button: its definition and its rail button.
+--Same purge-the-layout-entry logic as RailDeleteToolkit, and for the
+--same reason: with the definition gone RailLayout files the entry under
+--inert, where RailMovePanel cannot find it, and a deleted button should
+--not leave a parked entry behind.
+local function RailDeleteScriptButton(id)
+    local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+    defs[id] = nil
+    dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+
+    local key = "button:" .. id
+    local sides, inert = RailLayout()
+    for _, list in pairs(sides) do
+        for i, e in ipairs(list) do
+            if e.key == key then
+                table.remove(list, i)
+                break
+            end
+        end
+    end
+    for i, e in ipairs(inert) do
+        if e.key == key then
+            table.remove(inert, i)
+            break
+        end
+    end
+    SaveRailLayout(sides, inert)
+    RebuildIconRails()
+end
+
+--A pack's buttons as a clean 1..n list. Defensive about the shape the
+--JSON round-trip hands back: a Firebase array normally returns as a
+--list-style table, but numeric-string keys appear when the array was
+--stored sparse; both normalize here.
+local function ButtonPackButtonsList(pack)
+    local buttons = pack.buttons
+    if type(buttons) ~= "table" then
+        return {}
+    end
+    if #buttons > 0 then
+        return buttons
+    end
+    local keyed = {}
+    for k, v in pairs(buttons) do
+        local n = tonumber(k)
+        if n ~= nil and type(v) == "table" then
+            keyed[#keyed + 1] = { n = n, v = v }
+        end
+    end
+    table.sort(keyed, function(a, b) return a.n < b.n end)
+    local result = {}
+    for _, e in ipairs(keyed) do
+        result[#result + 1] = e.v
+    end
+    return result
+end
+
+--Theme rules shared by the Panel Library and the Community Browser, so
+--the two surfaces render identically.
+local function PanelLibraryStyles()
+    return ThemeEngine.MergeStyles({
+        {
+            selectors = {"label", "libSection"},
+            color = "@fgMuted",
+            fontSize = 11,
+            bold = true,
+        },
+        {
+            selectors = {"libRule"},
+            bgcolor = "@border",
+        },
+        --the replica face mirrors the rail's iconRailButton rules; the
+        --hex is deliberate (it must match the rail's own scrim exactly).
+        {
+            selectors = {"libButtonFace"},
+            bgcolor = "#000000cc",
+            cornerRadius = 8,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"libButtonFace", "parent:hover"},
+            bgcolor = "#000000ee",
+        },
+        {
+            selectors = {"libButtonFace", "create"},
+            bgcolor = "#00000066",
+            border = 1,
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"libButtonIcon"},
+            bgcolor = "@fg",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"libButtonIcon", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "libButtonLabel"},
+            color = "@fg",
+            fontSize = 12,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"label", "libButtonLabel", "parent:hover"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"libRow"},
+            bgcolor = "clear",
+            cornerRadius = 6,
+            transitionTime = 0.1,
+        },
+        --scheme-independent hover lift, matching the rail picker's own
+        --translucent-white grammar.
+        {
+            selectors = {"libRow", "hover"},
+            bgcolor = "#ffffff0d",
+        },
+        {
+            selectors = {"libRowIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"libRowIcon", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "libRowLabel"},
+            color = "@fg",
+            fontSize = 13,
+        },
+        {
+            selectors = {"label", "libRowLabel", "parent:hover"},
+            color = "@fgStrong",
+        },
+        {
+            selectors = {"libCommunityCard"},
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+        },
+        --community button cards: module-style card chrome around the
+        --replica face -- name, description, author, downloads, hearts.
+        {
+            selectors = {"libPackCard"},
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"libPackCard", "hover"},
+            bgcolor = "#ffffff08",
+            borderColor = "@accent",
+        },
+        --an added card is inert: no hover response, or the card would
+        --promise a click it refuses to honor.
+        {
+            selectors = {"libPackCard", "added", "hover"},
+            bgcolor = "@bg",
+            borderColor = "@border",
+        },
+        {
+            selectors = {"label", "libCardName"},
+            color = "@fgStrong",
+            fontSize = 13,
+            bold = true,
+        },
+        {
+            selectors = {"label", "libCardMeta"},
+            color = "@fgMuted",
+            fontSize = 11,
+        },
+        {
+            selectors = {"libCardStatIcon"},
+            bgcolor = "@fgMuted",
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"libCardStatIcon", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        --a hearted heart glows danger-red, the one deliberate splash of
+        --color on the card.
+        {
+            selectors = {"libCardStatIcon", "hearted"},
+            bgcolor = "@danger",
+        },
+        --the SHARE YOUR BUTTONS dialog's rows and their Share/Update
+        --control (RailShareButtonsDialog). Defined here rather than on
+        --the dialog's own subtree: a nested MergeStyles sheet REPLACES
+        --the inherited one, which would strip the libButtonFace/Icon
+        --and card rules from the rows.
+        {
+            selectors = {"libShareRow"},
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"libShareButton"},
+            bgcolor = "clear",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 6,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"libShareButton", "hover"},
+            bgcolor = "#ffffff0d",
+            borderColor = "@accent",
+        },
+        {
+            selectors = {"label", "libShareButtonLabel"},
+            color = "@fg",
+            fontSize = 12,
+            bold = true,
+        },
+        {
+            selectors = {"label", "libShareButtonLabel", "parent:hover"},
+            color = "@fgStrong",
+        },
+    })
+end
+
+--Distinct users behind a stats mark table ({uid = true, ...}).
+local function CountStatMarks(t)
+    local n = 0
+    if type(t) == "table" then
+        for k in pairs(t) do
+            if k ~= "_luaTable" then
+                n = n + 1
+            end
+        end
+    end
+    return n
+end
+
+--Does the user already have this community button? Standalone buttons
+--(the modern add path) and legacy materialized pack toolkits both count.
+local function CommunityButtonIsAdded(packid, buttonName)
+    if buttonName == nil then
+        return false
+    end
+    for _, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
+        if type(def) == "table" and def.pack == packid and def.name == buttonName then
+            return true
+        end
+    end
+    for _, rec in pairs(RailToolkits()) do
+        if type(rec) == "table" and rec.pack == packid then
+            for _, item in ipairs(rec.items or {}) do
+                if item.name == buttonName then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--SEAMLESS ADD, standalone edition (owner decision 2026-08-17: community
+--adds land in YOUR BUTTONS): the button becomes a standalone rail
+--button, pack-stamped so it runs insulated, kill-checked, and keeps its
+--update semantics. Re-adding the same button refreshes its definition
+--in place rather than duplicating.
+local function CommunityAddButton(pack, button, side)
+    local packid = pack.id
+    local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+    local id = nil
+    for existingId, def in pairs(defs) do
+        if type(def) == "table" and def.pack == packid and def.name == button.name then
+            id = existingId
+        end
+    end
+    if id == nil then
+        id = string.lower(dmhub.GenerateGuid())
+    end
+    defs[id] = {
+        type = button.type or "script",
+        name = button.name,
+        icon = button.icon,
+        script = button.script,
+        panel = button.panel,
+        description = button.description,
+        pack = packid,
+        packVersion = pack.version,
+    }
+    dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+    --per-user download mark for the pack's card counts (pcall: engine
+    --builds without the stats API just skip the mark).
+    pcall(function()
+        buttonpack.RecordDownload{ packid = packid }
+    end)
+    RailAddPanel("button:" .. id, side)
+    RebuildIconRails()
+end
+
+--One community button as a module-style card, shared by the library's
+--COMMUNITY SPOTLIGHT and the Community Browser: replica face, name,
+--description, author, the pack's download/heart counts, a toggleable
+--heart, and the ADDED overlay for buttons the user already owns.
+--opts: side (which rail an add lands on), onAdded (host callback after
+--a successful add -- close the surface, typically).
+local function CommunityButtonCard(pack, button, packStats, opts)
+    opts = opts or {}
+    local packid = pack.id
+    if type(packStats) ~= "table" then
+        packStats = {}
+    end
+    local downloads = CountStatMarks(packStats.downloads)
+    local hearts = CountStatMarks(packStats.hearts)
+    local myid = dmhub.loginUserid
+    local hearted = type(packStats.hearts) == "table" and myid ~= nil and packStats.hearts[myid] ~= nil
+
+    local description = button.description
+    if description == nil or description == "" then
+        description = pack.description or ""
+    end
+    local author = pack.authorName or "unknown"
+    local isAdded = CommunityButtonIsAdded(packid, button.name)
+
+    local heartIcon
+    local heartCount
+    heartCount = gui.Label{
+        classes = {"libCardMeta"},
+        text = tostring(hearts),
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        lmargin = 4,
+        interactable = false,
+    }
+    heartIcon = gui.Panel{
+        classes = {"libCardStatIcon", cond(hearted, "hearted")},
+        bgimage = cond(hearted, "phosphor/heart-fill.png", "phosphor/heart.png"),
+        width = 14,
+        height = 14,
+        valign = "center",
+        --its own click target: hearting must not add the button.
+        swallowPress = true,
+        click = function(element)
+            hearted = not hearted
+            hearts = hearts + cond(hearted, 1, -1)
+            if hearts < 0 then
+                hearts = 0
+            end
+            element:SetClass("hearted", hearted)
+            element.bgimage = cond(hearted, "phosphor/heart-fill.png", "phosphor/heart.png")
+            heartCount.text = tostring(hearts)
+            pcall(function()
+                buttonpack.SetHeart{ packid = packid, heart = hearted }
+            end)
+        end,
+    }
+
+    --the ADDED overlay: darkens the card and labels it, so it reads as
+    --done rather than clickable. interactable = false so the heart
+    --beneath still receives its clicks; the add-click gate is in the
+    --card's own handler.
+    local addedOverlay = nil
+    if isAdded then
+        addedOverlay = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "#000000a6",
+            cornerRadius = 8,
+            interactable = false,
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                interactable = false,
+                gui.Panel{
+                    classes = {"libCardStatIcon"},
+                    bgimage = "phosphor/check-circle-fill.png",
+                    width = 16,
+                    height = 16,
+                    valign = "center",
+                    rmargin = 6,
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardName"},
+                    text = "Added",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    interactable = false,
+                },
+            },
+        }
+    end
+
+    return gui.Panel{
+        classes = {"libPackCard", cond(isAdded, "added")},
+        width = 410,
+        height = 70,
+        bgimage = true,
+        borderBox = true,
+        flow = "horizontal",
+        margin = 4,
+        click = function()
+            if isAdded then
+                return
+            end
+            CommunityAddButton(pack, button, opts.side or "left")
+            if opts.onAdded ~= nil then
+                opts.onAdded()
+            end
+        end,
+
+        --the true rail-button face.
+        gui.Panel{
+            classes = {"libButtonFace"},
+            width = 40,
+            height = 40,
+            bgimage = true,
+            valign = "center",
+            lmargin = 10,
+            interactable = false,
+            gui.Panel{
+                classes = {"libButtonIcon"},
+                bgimage = button.icon or "phosphor/lightning.png",
+                width = 20,
+                height = 20,
+                halign = "center",
+                valign = "center",
+                interactable = false,
+            },
+        },
+
+        --name, description, author.
+        gui.Panel{
+            flow = "vertical",
+            width = "100%-140",
+            height = "auto",
+            valign = "center",
+            lmargin = 10,
+            interactable = false,
+            gui.Label{
+                classes = {"libCardName"},
+                text = button.name or "Button",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                textWrap = false,
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"libCardMeta"},
+                text = description,
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                textWrap = false,
+                tmargin = 2,
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"libCardMeta"},
+                text = "by " .. author,
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                textWrap = false,
+                tmargin = 2,
+                interactable = false,
+            },
+        },
+
+        --stats: downloads (informational) and the heart toggle.
+        gui.Panel{
+            flow = "vertical",
+            width = 60,
+            height = "auto",
+            valign = "center",
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                gui.Panel{
+                    classes = {"libCardStatIcon"},
+                    bgimage = "phosphor/download-simple.png",
+                    width = 14,
+                    height = 14,
+                    valign = "center",
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = tostring(downloads),
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 4,
+                    interactable = false,
+                },
+            },
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                tmargin = 6,
+                heartIcon,
+                heartCount,
+            },
+        },
+
+        --nil when not added; last so it draws over the whole card.
+        addedOverlay,
+    }
+end
+
+--Fetch everything the community surfaces need -- kill switch, index,
+--stats, and every live pack -- then cb(packs, stats). Packs arrive
+--sorted by heart count (then downloads, then name), so the SPOTLIGHT
+--is simply the front of the list. cb(nil) on failure or when the
+--engine has no buttonpack bridge.
+local function CommunityFetchRemote(cb)
+    if rawget(_G, "buttonpack") == nil then
+        cb(nil)
+        return
+    end
+    RefreshButtonPackKilled()
+    buttonpack.QueryIndex{
+        success = function(index)
+            if mod.unloaded then
+                return
+            end
+            local packids = {}
+            for packid, entry in pairs(index) do
+                if type(entry) == "table" and string.sub(tostring(packid), 1, 1) ~= "_" then
+                    --killed packs are not offered.
+                    if g_buttonPackKilled == nil or g_buttonPackKilled[packid] == nil then
+                        packids[#packids + 1] = packid
+                    end
+                end
+            end
+
+            local packs = {}
+            local stats = {}
+            local ncomplete = 0
+            local npending = #packids + 1
+            local function OneComplete()
+                ncomplete = ncomplete + 1
+                if ncomplete < npending then
+                    return
+                end
+                if mod.unloaded then
+                    return
+                end
+                table.sort(packs, function(a, b)
+                    local sa = stats[a.id] or {}
+                    local sb = stats[b.id] or {}
+                    if type(sa) ~= "table" then sa = {} end
+                    if type(sb) ~= "table" then sb = {} end
+                    local ha = CountStatMarks(sa.hearts)
+                    local hb = CountStatMarks(sb.hearts)
+                    if ha ~= hb then
+                        return ha > hb
+                    end
+                    local da = CountStatMarks(sa.downloads)
+                    local db = CountStatMarks(sb.downloads)
+                    if da ~= db then
+                        return da > db
+                    end
+                    return (a.name or "") < (b.name or "")
+                end)
+                cb(packs, stats)
+            end
+
+            --stats API may not exist on older engine builds; count it
+            --complete immediately then.
+            local statsDispatched = pcall(function()
+                buttonpack.QueryStats{
+                    success = function(result)
+                        stats = result or {}
+                        OneComplete()
+                    end,
+                    failure = function(err)
+                        OneComplete()
+                    end,
+                }
+            end)
+            if not statsDispatched then
+                OneComplete()
+            end
+
+            for _, packid in ipairs(packids) do
+                buttonpack.Download{
+                    packid = packid,
+                    success = function(pack)
+                        packs[#packs + 1] = pack
+                        OneComplete()
+                    end,
+                    failure = function(err)
+                        --a pack that fails to download is simply not
+                        --offered.
+                        OneComplete()
+                    end,
+                }
+            end
+        end,
+        failure = function(err)
+            if mod.unloaded then
+                return
+            end
+            cb(nil)
+        end,
+    }
+end
+
+--Session cache over CommunityFetchRemote. The first fetch of the session
+--is live; afterwards surfaces render instantly from the cache (no loading
+--flash, no reflow when the network answers) while a fresh fetch runs
+--behind. The callback fires a SECOND time only when the fresh result
+--actually differs from what was rendered, so an unchanged catalog never
+--replaces -- and never reflows -- the panels it drew.
+local g_communityCache = nil
+
+local function CommunitySignature(packs, stats)
+    local parts = {}
+    for _, pack in ipairs(packs) do
+        local s = stats[pack.id]
+        if type(s) ~= "table" then
+            s = {}
+        end
+        parts[#parts + 1] = string.format("%s:%s:%d:%d:%d",
+            tostring(pack.id), tostring(pack.mtime or 0),
+            #ButtonPackButtonsList(pack),
+            CountStatMarks(s.hearts), CountStatMarks(s.downloads))
+    end
+    return table.concat(parts, "|")
+end
+
+local function CommunityFetch(cb)
+    if g_communityCache == nil then
+        CommunityFetchRemote(function(packs, stats)
+            if packs ~= nil then
+                g_communityCache = { packs = packs, stats = stats, sig = CommunitySignature(packs, stats) }
+            end
+            cb(packs, stats)
+        end)
+        return
+    end
+
+    cb(g_communityCache.packs, g_communityCache.stats)
+    CommunityFetchRemote(function(packs, stats)
+        --a failed refresh keeps the cached render: failure is not worth
+        --replacing content the user is already looking at.
+        if packs == nil then
+            return
+        end
+        local sig = CommunitySignature(packs, stats)
+        local changed = sig ~= g_communityCache.sig
+        g_communityCache = { packs = packs, stats = stats, sig = sig }
+        if changed then
+            cb(packs, stats)
+        end
+    end)
+end
+
+--The COMMUNITY BROWSER: the full catalog of community buttons in its
+--own window -- search, sort, every card -- opened from the library's
+--spotlight (owner decision 2026-08-17: the library shows a SPOTLIGHT;
+--the browser is where you go to see everything).
+local g_communityBrowser = nil
+--opts.onBack, when given, puts a back arrow in the header that closes
+--the browser and returns to the surface that opened it (the library).
+local function RailShowCommunityBrowser(side, opts)
+    opts = opts or {}
+    if g_communityBrowser ~= nil and g_communityBrowser.valid then
+        g_communityBrowser:SetAsLastSibling()
+        return
+    end
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return
+    end
+
+    local m_packs = nil
+    local m_stats = nil
+    local m_search = ""
+    local m_sort = "hearts"
+
+    local window
+    local cardsPanel
+
+    local function CloseBrowser()
+        if window ~= nil and window.valid then
+            window:DestroySelf()
+        end
+        g_communityBrowser = nil
+    end
+
+    local function RenderCards()
+        if cardsPanel == nil or not cardsPanel.valid then
+            return
+        end
+        if m_packs == nil then
+            cardsPanel.children = {
+                gui.Label{
+                    classes = {"libSection"},
+                    text = "Could not load community buttons.",
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 8,
+                },
+            }
+            return
+        end
+
+        local flattened = {}
+        for _, pack in ipairs(m_packs) do
+            for _, button in ipairs(ButtonPackButtonsList(pack)) do
+                if type(button) == "table" then
+                    flattened[#flattened + 1] = { pack = pack, button = button }
+                end
+            end
+        end
+
+        if m_search ~= "" then
+            local filter = string.lower(m_search)
+            local filtered = {}
+            for _, e in ipairs(flattened) do
+                local hay = string.lower(table.concat({
+                    e.button.name or "",
+                    e.button.description or "",
+                    e.pack.name or "",
+                    e.pack.description or "",
+                    e.pack.authorName or "",
+                }, " "))
+                if string.find(hay, filter, 1, true) then
+                    filtered[#filtered + 1] = e
+                end
+            end
+            flattened = filtered
+        end
+
+        --packs arrive hearts-sorted from CommunityFetch; the other sorts
+        --reorder here.
+        if m_sort == "downloads" then
+            table.sort(flattened, function(a, b)
+                local sa = (m_stats or {})[a.pack.id]
+                local sb = (m_stats or {})[b.pack.id]
+                if type(sa) ~= "table" then sa = {} end
+                if type(sb) ~= "table" then sb = {} end
+                local da = CountStatMarks(sa.downloads)
+                local db = CountStatMarks(sb.downloads)
+                if da ~= db then
+                    return da > db
+                end
+                return (a.button.name or "") < (b.button.name or "")
+            end)
+        elseif m_sort == "newest" then
+            table.sort(flattened, function(a, b)
+                local ma = a.pack.mtime or 0
+                local mb = b.pack.mtime or 0
+                if ma ~= mb then
+                    return ma > mb
+                end
+                return (a.button.name or "") < (b.button.name or "")
+            end)
+        end
+
+        local cards = {}
+        for _, e in ipairs(flattened) do
+            cards[#cards + 1] = CommunityButtonCard(e.pack, e.button, (m_stats or {})[e.pack.id], {
+                side = side,
+                onAdded = CloseBrowser,
+            })
+        end
+        if #cards == 0 then
+            cardsPanel.children = {
+                gui.Label{
+                    classes = {"libSection"},
+                    text = cond(m_search ~= "", "No buttons match your search.", "No community buttons published yet."),
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 8,
+                },
+            }
+            return
+        end
+        cardsPanel.children = {
+            gui.Panel{
+                flow = "horizontal",
+                wrap = true,
+                width = "100%",
+                height = "auto",
+                valign = "top",
+                children = cards,
+            },
+        }
+    end
+
+    cardsPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "100%-56",
+        vscroll = true,
+        gui.Label{
+            classes = {"libSection"},
+            text = "Loading community buttons...",
+            width = "100%",
+            height = "auto",
+            tmargin = 8,
+        },
+    }
+
+    window = gui.Panel{
+        classes = {"framedPanel", "toplevel"},
+        styles = PanelLibraryStyles(),
+        floating = true,
+        halign = "center",
+        valign = "center",
+        width = 900,
+        height = 700,
+        pad = 28,
+        borderBox = true,
+        flow = "vertical",
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function()
+            CloseBrowser()
+        end,
+        destroy = function(element)
+            if g_communityBrowser == element then
+                g_communityBrowser = nil
+            end
+        end,
+
+        --header: back (when opened from the library), title, search,
+        --sort, close.
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 40,
+            opts.onBack ~= nil and gui.Panel{
+                bgimage = "phosphor/arrow-left-bold.png",
+                width = 18,
+                height = 18,
+                halign = "left",
+                valign = "center",
+                rmargin = 12,
+                bgcolor = "#ffffff88",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#ffffff",
+                        transitionTime = 0.1,
+                    },
+                },
+                click = function()
+                    CloseBrowser()
+                    opts.onBack()
+                end,
+            } or nil,
+            gui.Label{
+                classes = {"modalTitle"},
+                text = "Community Buttons",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                halign = "left",
+            },
+            gui.SearchInput{
+                placeholderText = "Search buttons...",
+                width = 220,
+                height = 28,
+                halign = "right",
+                valign = "center",
+                hmargin = 12,
+                hasFocus = true,
+                editlag = 0.15,
+                edit = function(searchElement)
+                    m_search = searchElement.text or ""
+                    RenderCards()
+                end,
+                change = function(searchElement)
+                    searchElement:FireEvent("edit")
+                end,
+            },
+            gui.Dropdown{
+                options = {
+                    { id = "hearts", text = "Most hearted" },
+                    { id = "downloads", text = "Most downloaded" },
+                    { id = "newest", text = "Newest" },
+                },
+                idChosen = "hearts",
+                width = 160,
+                height = 26,
+                halign = "right",
+                valign = "center",
+                rmargin = 32,
+                change = function(dropdownElement)
+                    m_sort = dropdownElement.idChosen or "hearts"
+                    RenderCards()
+                end,
+            },
+            gui.Panel{
+                bgimage = "phosphor/x-bold.png",
+                width = 16,
+                height = 16,
+                halign = "right",
+                valign = "center",
+                bgcolor = "#ffffff88",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#ffffff",
+                        transitionTime = 0.1,
+                    },
+                },
+                click = function()
+                    CloseBrowser()
+                end,
+            },
+        },
+
+        cardsPanel,
+    }
+
+    layer:AddChild(window)
+    g_communityBrowser = window
+
+    CommunityFetch(function(packs, stats)
+        if window == nil or not window.valid then
+            return
+        end
+        m_packs = packs
+        m_stats = stats
+        RenderCards()
+    end)
+end
+
+--Every button the user can share: their own standalone rail buttons
+--plus the script buttons inside their toolkits. Buttons that CAME from
+--the community (def.pack set) and legacy materialized pack toolkits
+--are excluded -- you share your own work, not someone else's.
+local function ShareableButtons()
+    local entries = {}
+    for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
+        if type(def) == "table" and def.type == "script" and def.pack == nil then
+            entries[#entries + 1] = { kind = "standalone", id = id, item = def, source = "On the rail" }
+        end
+    end
+    for tid, rec in pairs(RailToolkits()) do
+        if type(rec) == "table" and rec.pack == nil then
+            for idx, item in ipairs(rec.items or {}) do
+                if type(item) == "table" and item.type == "script" and item.pack == nil then
+                    entries[#entries + 1] = { kind = "toolkit", toolkitid = tid, idx = idx, item = item, source = rec.name or "Toolkit" }
+                end
+            end
+        end
+    end
+    table.sort(entries, function(a, b)
+        local na = string.lower(a.item.name or "")
+        local nb = string.lower(b.item.name or "")
+        if na ~= nb then
+            return na < nb
+        end
+        return a.source < b.source
+    end)
+    return entries
+end
+
+--The SHARE YOUR BUTTONS dialog: the discoverable path to the publish
+--flow (PANEL_LIBRARY_BRIEF.md -- endorsed 2026-08-17, built
+--2026-08-18). Sharing is BUTTON-first: each of the user's own script
+--buttons publishes as its own single-button pack via the buttonpack
+--bridge (the pack stays the backend unit of versioning, kill, and
+--stats), so the community only ever sees buttons. The minted packid is
+--remembered on the button's definition, so Share becomes Update and
+--republishing refreshes the same pack instead of minting a duplicate.
+--opts.onBack, when given, puts a back arrow in the header that returns
+--to the surface that opened it (the library).
+local g_shareButtonsDialog = nil
+local function RailShareButtonsDialog(opts)
+    opts = opts or {}
+    if g_shareButtonsDialog ~= nil and g_shareButtonsDialog.valid then
+        g_shareButtonsDialog:SetAsLastSibling()
+        return
+    end
+    if rawget(_G, "buttonpack") == nil then
+        gui.ModalMessage{
+            title = "Not available",
+            message = "This build does not support sharing buttons yet.",
+        }
+        return
+    end
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return
+    end
+
+    local window
+    local rowsPanel
+    local statusLabel
+    local RenderRows
+
+    local function CloseDialog()
+        if window ~= nil and window.valid then
+            window:DestroySelf()
+        end
+        g_shareButtonsDialog = nil
+    end
+
+    --write the minted packid back onto the LIVE definition, so the next
+    --share of this button updates the same pack.
+    local function RememberPackid(entry, packid)
+        if entry.kind == "standalone" then
+            local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+            local def = defs[entry.id]
+            if type(def) == "table" then
+                def.packid = packid
+                dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            end
+        else
+            local toolkits = RailToolkits()
+            local rec = toolkits[entry.toolkitid]
+            local item = nil
+            if type(rec) == "table" then
+                item = (rec.items or {})[entry.idx]
+            end
+            if type(item) == "table" then
+                item.packid = packid
+                RailWriteToolkits(toolkits)
+            end
+        end
+    end
+
+    --publish one button as its own single-button pack. Re-reads the
+    --LIVE definition at click time -- the dialog's snapshot may be
+    --stale (an edit or delete can land while it is open).
+    local function ShareEntry(entry)
+        local item = nil
+        if entry.kind == "standalone" then
+            item = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[entry.id]
+        else
+            local rec = RailToolkits()[entry.toolkitid]
+            if type(rec) == "table" then
+                item = (rec.items or {})[entry.idx]
+            end
+        end
+        if type(item) ~= "table" then
+            --the button vanished under us; re-render to match reality.
+            RenderRows()
+            return
+        end
+        local buttonName = item.name or "Button"
+        local firstShare = (item.packid == nil)
+        buttonpack.Publish{
+            pack = {
+                id = item.packid,
+                name = buttonName,
+                description = item.description or "",
+                icon = item.icon,
+                buttons = {
+                    {
+                        type = item.type,
+                        name = item.name,
+                        icon = item.icon,
+                        script = item.script,
+                        panel = item.panel,
+                        description = item.description,
+                    },
+                },
+            },
+            success = function(packid)
+                if mod.unloaded then
+                    return
+                end
+                RememberPackid(entry, packid)
+                if statusLabel ~= nil and statusLabel.valid then
+                    if firstShare then
+                        statusLabel.text = string.format("%s is now shared with the community.", buttonName)
+                    else
+                        statusLabel.text = string.format("%s has been updated.", buttonName)
+                    end
+                end
+                RenderRows()
+            end,
+            failure = function(err)
+                if mod.unloaded then
+                    return
+                end
+                gui.ModalMessage{
+                    title = "Could not share",
+                    message = tostring(err),
+                }
+            end,
+        }
+    end
+
+    --one shareable button as a card row: replica face, name,
+    --description, where it lives, and the Share / Update control.
+    local function ShareRow(entry)
+        local item = entry.item
+        local shared = (item.packid ~= nil)
+        local description = item.description
+        if description == nil or description == "" then
+            description = "No description -- edit the button to add one."
+        end
+        local sharedMark = nil
+        if shared then
+            sharedMark = gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+                rmargin = 10,
+                interactable = false,
+                gui.Panel{
+                    classes = {"libCardStatIcon"},
+                    bgimage = "phosphor/check-circle-fill.png",
+                    width = 14,
+                    height = 14,
+                    valign = "center",
+                    rmargin = 4,
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = "Shared",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    interactable = false,
+                },
+            }
+        end
+        return gui.Panel{
+            classes = {"libShareRow"},
+            width = "100%",
+            height = 64,
+            bgimage = true,
+            borderBox = true,
+            flow = "horizontal",
+            vmargin = 4,
+
+            --the true rail-button face, same grammar as the community
+            --cards.
+            gui.Panel{
+                classes = {"libButtonFace"},
+                width = 40,
+                height = 40,
+                bgimage = true,
+                valign = "center",
+                lmargin = 10,
+                interactable = false,
+                gui.Panel{
+                    classes = {"libButtonIcon"},
+                    bgimage = item.icon or "phosphor/lightning.png",
+                    width = 20,
+                    height = 20,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            },
+
+            gui.Panel{
+                flow = "vertical",
+                width = "100%-230",
+                height = "auto",
+                valign = "center",
+                lmargin = 10,
+                interactable = false,
+                gui.Label{
+                    classes = {"libCardName"},
+                    text = item.name or "Button",
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    textAlignment = "left",
+                    textWrap = false,
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = description,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    textAlignment = "left",
+                    textWrap = false,
+                    tmargin = 2,
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = entry.source,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    textAlignment = "left",
+                    textWrap = false,
+                    tmargin = 2,
+                    interactable = false,
+                },
+            },
+
+            sharedMark,
+
+            gui.Panel{
+                classes = {"libShareButton"},
+                width = 90,
+                height = 30,
+                bgimage = true,
+                borderBox = true,
+                halign = "right",
+                valign = "center",
+                rmargin = 12,
+                click = function()
+                    ShareEntry(entry)
+                end,
+                gui.Label{
+                    classes = {"libShareButtonLabel"},
+                    text = cond(shared, "Update", "Share"),
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
+            },
+        }
+    end
+
+    rowsPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "100%-110",
+        vscroll = true,
+    }
+
+    RenderRows = function()
+        if rowsPanel == nil or not rowsPanel.valid then
+            return
+        end
+        local rows = {}
+        for _, entry in ipairs(ShareableButtons()) do
+            rows[#rows + 1] = ShareRow(entry)
+        end
+        if #rows == 0 then
+            rows = {
+                gui.Label{
+                    classes = {"libSection"},
+                    text = "No buttons to share yet. Create one from the Panel Library's New button tile.",
+                    width = "100%",
+                    height = "auto",
+                    tmargin = 8,
+                },
+            }
+        end
+        --a single auto-height child inside the fixed-height scroll
+        --panel, so the rows stack instead of distributing over it (the
+        --community browser's cardsPanel does the same).
+        rowsPanel.children = {
+            gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                valign = "top",
+                children = rows,
+            },
+        }
+    end
+
+    statusLabel = gui.Label{
+        classes = {"libCardMeta"},
+        text = "",
+        width = "100%",
+        height = 16,
+        halign = "left",
+        tmargin = 6,
+    }
+
+    window = gui.Panel{
+        classes = {"framedPanel", "toplevel"},
+        styles = PanelLibraryStyles(),
+        floating = true,
+        halign = "center",
+        valign = "center",
+        width = 560,
+        height = 620,
+        pad = 28,
+        borderBox = true,
+        flow = "vertical",
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function()
+            CloseDialog()
+        end,
+        destroy = function(element)
+            if g_shareButtonsDialog == element then
+                g_shareButtonsDialog = nil
+            end
+        end,
+
+        --header: back (when opened from the library), title, close.
+        gui.Panel{
+            flow = "horizontal",
+            width = "100%",
+            height = 40,
+            opts.onBack ~= nil and gui.Panel{
+                bgimage = "phosphor/arrow-left-bold.png",
+                width = 18,
+                height = 18,
+                halign = "left",
+                valign = "center",
+                rmargin = 12,
+                bgcolor = "#ffffff88",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#ffffff",
+                        transitionTime = 0.1,
+                    },
+                },
+                click = function()
+                    CloseDialog()
+                    opts.onBack()
+                end,
+            } or nil,
+            gui.Label{
+                classes = {"modalTitle"},
+                text = "Share Your Buttons",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                halign = "left",
+            },
+            gui.Panel{
+                bgimage = "phosphor/x-bold.png",
+                width = 16,
+                height = 16,
+                halign = "right",
+                valign = "center",
+                bgcolor = "#ffffff88",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#ffffff",
+                        transitionTime = 0.1,
+                    },
+                },
+                click = function()
+                    CloseDialog()
+                end,
+            },
+        },
+        gui.Label{
+            classes = {"libCardMeta"},
+            text = "Sharing publishes a button for every Codex player to add from Community Buttons. Update pushes your latest edits to a button you have already shared.",
+            width = "100%",
+            height = "auto",
+            bmargin = 8,
+        },
+        rowsPanel,
+        statusLabel,
+    }
+
+    layer:AddChild(window)
+    g_shareButtonsDialog = window
+    RenderRows()
 end
 
 --The + button's target: the PANEL LIBRARY (see PANEL_LIBRARY_BRIEF.md).
@@ -11441,11 +13242,21 @@ RailShowAddPicker = function(element, side)
     --"add" surface, same rule as the panel lists).
     local toolkits = {}
     for id, tk in pairs(RailToolkits()) do
-        if not onRail["toolkit:" .. id] then
+        if type(tk) == "table" and not onRail["toolkit:" .. id] then
             toolkits[#toolkits + 1] = { id = id, name = tk.name or "Toolkit", icon = tk.icon or "phosphor/toolbox.png" }
         end
     end
     table.sort(toolkits, function(a, b) return a.name < b.name end)
+
+    --likewise the user's standalone script buttons parked off the rail:
+    --without this they would have no way back on.
+    local standaloneButtons = {}
+    for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
+        if type(def) == "table" and not onRail["button:" .. id] then
+            standaloneButtons[#standaloneButtons + 1] = { id = id, name = def.name or "Button", icon = def.icon or "phosphor/lightning.png" }
+        end
+    end
+    table.sort(standaloneButtons, function(a, b) return a.name < b.name end)
 
     local function CloseLibrary()
         if element ~= nil and element.valid then
@@ -11466,6 +13277,7 @@ RailShowAddPicker = function(element, side)
             hmargin = 5,
             bgimage = true,
             click = opts.click,
+            linger = cond(opts.tooltip ~= nil, gui.Tooltip(opts.tooltip or "")),
             gui.Panel{
                 classes = {"libButtonFace", cond(opts.create, "create")},
                 width = 40,
@@ -11589,22 +13401,15 @@ RailShowAddPicker = function(element, side)
         }
     end
 
-    --create first: the answers to "build me something" lead the section
-    --of things you have built -- a new toolkit, or a new script button
-    --straight into one.
+    --each user section leads with its own create tile: tool panels are
+    --one kind of thing, buttons another (owner decision 2026-08-17 --
+    --"new button can't be under tool panels").
     local tkTiles = {
         ButtonReplica("phosphor/plus-bold.png", "New tool panel", {
             create = true,
             click = function()
                 CloseLibrary()
                 RailCreateToolkit(side)
-            end,
-        }),
-        ButtonReplica("phosphor/lightning.png", "New button", {
-            create = true,
-            click = function()
-                CloseLibrary()
-                RailScriptButtonDialog(nil, nil)
             end,
         }),
     }
@@ -11617,91 +13422,25 @@ RailShowAddPicker = function(element, side)
         })
     end
 
-    local libraryStyles = ThemeEngine.MergeStyles({
-        {
-            selectors = {"label", "libSection"},
-            color = "@fgMuted",
-            fontSize = 11,
-            bold = true,
-        },
-        {
-            selectors = {"libRule"},
-            bgcolor = "@border",
-        },
-        --the replica face mirrors the rail's iconRailButton rules; the
-        --hex is deliberate (it must match the rail's own scrim exactly).
-        {
-            selectors = {"libButtonFace"},
-            bgcolor = "#000000cc",
-            cornerRadius = 8,
-            transitionTime = 0.15,
-        },
-        {
-            selectors = {"libButtonFace", "parent:hover"},
-            bgcolor = "#000000ee",
-        },
-        {
-            selectors = {"libButtonFace", "create"},
-            bgcolor = "#00000066",
-            border = 1,
-            borderColor = "@accent",
-        },
-        {
-            selectors = {"libButtonIcon"},
-            bgcolor = "@fg",
-            transitionTime = 0.15,
-        },
-        {
-            selectors = {"libButtonIcon", "parent:hover"},
-            bgcolor = "@fgStrong",
-        },
-        {
-            selectors = {"label", "libButtonLabel"},
-            color = "@fg",
-            fontSize = 12,
-            transitionTime = 0.15,
-        },
-        {
-            selectors = {"label", "libButtonLabel", "parent:hover"},
-            color = "@fgStrong",
-        },
-        {
-            selectors = {"libRow"},
-            bgcolor = "clear",
-            cornerRadius = 6,
-            transitionTime = 0.1,
-        },
-        --scheme-independent hover lift, matching the rail picker's own
-        --translucent-white grammar.
-        {
-            selectors = {"libRow", "hover"},
-            bgcolor = "#ffffff0d",
-        },
-        {
-            selectors = {"libRowIcon"},
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"libRowIcon", "parent:hover"},
-            bgcolor = "@fgStrong",
-        },
-        {
-            selectors = {"label", "libRowLabel"},
-            color = "@fg",
-            fontSize = 13,
-        },
-        {
-            selectors = {"label", "libRowLabel", "parent:hover"},
-            color = "@fgStrong",
-        },
-        {
-            selectors = {"libCommunityCard"},
-            bgcolor = "@bg",
-            border = 1,
-            borderColor = "@border",
-            cornerRadius = 8,
-        },
-    })
+    local buttonTiles = {
+        ButtonReplica("phosphor/lightning.png", "New button", {
+            create = true,
+            click = function()
+                CloseLibrary()
+                RailScriptButtonDialog(nil, nil)
+            end,
+        }),
+    }
+    for _, b in ipairs(standaloneButtons) do
+        buttonTiles[#buttonTiles + 1] = ButtonReplica(b.icon, b.name, {
+            click = function()
+                RailAddPanel("button:" .. b.id, side)
+                CloseLibrary()
+            end,
+        })
+    end
+
+    local libraryStyles = PanelLibraryStyles()
 
     --The popup root is an AUTO-sized wrapper that only positions; the
     --sized, styled panel is its child (the working pattern is the
@@ -11735,7 +13474,11 @@ RailShowAddPicker = function(element, side)
         gui.Panel{
             classes = {"framedPanel", "toplevel"},
             width = 900,
-            height = "auto",
+            --FIXED height, matching the community browser exactly: the two
+            --windows read as the same surface, so navigating between them
+            --must not change the frame (owner decision 2026-08-17). The
+            --ALL PANELS scroll region absorbs the slack via "available".
+            height = 700,
             flow = "vertical",
             pad = 28,
             borderBox = true,
@@ -11814,7 +13557,13 @@ RailShowAddPicker = function(element, side)
             SectionHeader("ALL PANELS"),
             gui.Panel{
                 width = "100%",
-                height = 220,
+                --fills whatever the fixed window leaves over, so variable
+                --sections below (spotlight rows, recommendations) squeeze
+                --this list instead of growing the window. No minHeight: a
+                --min clamp counts toward occupancy before the engine hands
+                --out the leftover, so any leftover smaller than the min
+                --becomes a dead gap at the window bottom instead of growth.
+                height = "100% available",
                 vscroll = true,
                 gui.Panel{
                     flow = "horizontal",
@@ -11835,32 +13584,206 @@ RailShowAddPicker = function(element, side)
                 children = tkTiles,
             },
 
-            SectionHeader("COMMUNITY"),
+            SectionHeader("YOUR BUTTONS"),
             gui.Panel{
-                classes = {"libCommunityCard"},
-                bgimage = true,
-                width = "100%",
-                height = 44,
-                borderBox = true,
                 flow = "horizontal",
-                gui.Panel{
-                    classes = {"libRowIcon"},
-                    bgimage = "phosphor/users-three.png",
-                    width = 18,
-                    height = 18,
-                    valign = "center",
-                    lmargin = 14,
-                    rmargin = 10,
-                    interactable = false,
-                },
-                gui.Label{
-                    classes = {"libSection"},
-                    text = "Buttons made by other players -- coming soon.",
-                    fontSize = 13,
-                    width = "auto",
-                    height = "auto",
-                    valign = "center",
-                },
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                children = buttonTiles,
+            },
+
+            SectionHeader("COMMUNITY SPOTLIGHT"),
+            --no scroll region: the spotlight is bounded at four cards by
+            --design, so the section just takes the height it needs.
+            --minHeight reserves the loaded one-row footprint (card row 78
+            --incl margins + browse row 32 + its tmargin 4 + share row 32
+            --+ its tmargin 4) while the "Loading..." label is up, so the
+            --async fill does not reflow the library. (minHeight is safe
+            --on this auto child; it is only the "available" sibling it
+            --must never be put on.)
+            gui.Panel{
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                minHeight = 150,
+                create = function(communityElement)
+                    --older engine builds have no buttonpack bridge:
+                    --keep the reserved-section card.
+                    if rawget(_G, "buttonpack") == nil then
+                        communityElement.children = {
+                            gui.Label{
+                                classes = {"libSection"},
+                                text = "Buttons made by other players -- coming soon.",
+                                fontSize = 13,
+                                width = "100%",
+                                height = "auto",
+                                tmargin = 4,
+                            },
+                        }
+                        return
+                    end
+
+                    communityElement.children = {
+                        gui.Label{
+                            classes = {"libSection"},
+                            text = "Loading community buttons...",
+                            width = "100%",
+                            height = "auto",
+                            tmargin = 4,
+                        },
+                    }
+
+                    --the SPOTLIGHT: the four most-hearted community
+                    --buttons (CommunityFetch pre-sorts by hearts), plus
+                    --the door to the full browser.
+                    CommunityFetch(function(packs, stats)
+                        if mod.unloaded or communityElement == nil or not communityElement.valid then
+                            return
+                        end
+
+                        --the discoverable path to the publish flow
+                        --(endorsed 2026-08-17, built 2026-08-18): share
+                        --your own buttons with the community. Present
+                        --even when the index fetch failed -- sharing
+                        --does not depend on browsing.
+                        local shareRow = gui.Panel{
+                            classes = {"libRow"},
+                            width = "100%",
+                            height = 32,
+                            bgimage = true,
+                            flow = "horizontal",
+                            tmargin = 4,
+                            click = function()
+                                CloseLibrary()
+                                RailShareButtonsDialog{
+                                    --back returns to the library, same
+                                    --contract as the browser row below.
+                                    onBack = function()
+                                        if element ~= nil and element.valid then
+                                            RailShowAddPicker(element, side)
+                                            element:SetClass("open", true)
+                                        end
+                                    end,
+                                }
+                            end,
+                            gui.Panel{
+                                classes = {"libRowIcon"},
+                                bgimage = "phosphor/share-network.png",
+                                width = 18,
+                                height = 18,
+                                valign = "center",
+                                lmargin = 10,
+                                rmargin = 10,
+                                interactable = false,
+                            },
+                            gui.Label{
+                                classes = {"libRowLabel"},
+                                text = "Share your buttons...",
+                                width = "100%-38",
+                                height = "auto",
+                                halign = "left",
+                                valign = "center",
+                                textAlignment = "left",
+                                textWrap = false,
+                                interactable = false,
+                            },
+                        }
+
+                        if packs == nil then
+                            communityElement.children = {
+                                gui.Label{
+                                    classes = {"libSection"},
+                                    text = "Could not load community buttons.",
+                                    width = "100%",
+                                    height = "auto",
+                                    tmargin = 4,
+                                },
+                                shareRow,
+                            }
+                            return
+                        end
+
+                        local cards = {}
+                        for _, pack in ipairs(packs) do
+                            for _, button in ipairs(ButtonPackButtonsList(pack)) do
+                                if type(button) == "table" and #cards < 4 then
+                                    cards[#cards + 1] = CommunityButtonCard(pack, button, stats[pack.id], {
+                                        side = side,
+                                        onAdded = CloseLibrary,
+                                    })
+                                end
+                            end
+                        end
+
+                        local children = {}
+                        if #cards > 0 then
+                            children[#children + 1] = gui.Panel{
+                                flow = "horizontal",
+                                wrap = true,
+                                width = "100%",
+                                height = "auto",
+                                valign = "top",
+                                children = cards,
+                            }
+                        else
+                            children[#children + 1] = gui.Label{
+                                classes = {"libSection"},
+                                text = "No community buttons published yet. Be the first -- share yours below!",
+                                width = "100%",
+                                height = "auto",
+                                tmargin = 4,
+                            }
+                        end
+                        --the door to everything else.
+                        children[#children + 1] = gui.Panel{
+                            classes = {"libRow"},
+                            width = "100%",
+                            height = 32,
+                            bgimage = true,
+                            flow = "horizontal",
+                            tmargin = 4,
+                            click = function()
+                                CloseLibrary()
+                                RailShowCommunityBrowser(side, {
+                                    --back returns to the library: reopen
+                                    --the picker popup on the same + button,
+                                    --held open exactly as its own click
+                                    --handler does.
+                                    onBack = function()
+                                        if element ~= nil and element.valid then
+                                            RailShowAddPicker(element, side)
+                                            element:SetClass("open", true)
+                                        end
+                                    end,
+                                })
+                            end,
+                            gui.Panel{
+                                classes = {"libRowIcon"},
+                                bgimage = "phosphor/users-three.png",
+                                width = 18,
+                                height = 18,
+                                valign = "center",
+                                lmargin = 10,
+                                rmargin = 10,
+                                interactable = false,
+                            },
+                            gui.Label{
+                                classes = {"libRowLabel"},
+                                text = "Browse all community buttons...",
+                                width = "100%-38",
+                                height = "auto",
+                                halign = "left",
+                                valign = "center",
+                                textAlignment = "left",
+                                textWrap = false,
+                                interactable = false,
+                            },
+                        }
+                        children[#children + 1] = shareRow
+                        communityElement.children = children
+                    end)
+                end,
             },
         },
     }
@@ -12096,15 +14019,17 @@ local function CreateIconRail(side, entries)
         local docid = entry.docid
         local charid = entry.charid
         local toolkitid = entry.toolkitid
+        local sbuttonid = entry.sbuttonid
 
         --panel buttons draw their registration icon; document shortcuts
         --draw the doc's semantic-type icon; character shortcuts draw the
         --character's portrait (untinted, cropped square); toolkits draw
-        --the toolbox.
+        --the toolbox; standalone script buttons draw their chosen icon.
         local reg = nil
         local buttonIcon = "icons/icon_app/icon_app_107.png"
         local buttonIconTint = nil
         local buttonIconRect = nil
+        local sbuttonStyle = nil
         if toolkitid ~= nil then
             --the user's chosen icon, falling back to the toolbox for
             --toolkits made before icons existed (and for anyone who left
@@ -12114,6 +14039,15 @@ local function CreateIconRail(side, entries)
             if tk ~= nil and tk.icon ~= nil and tk.icon ~= "" then
                 buttonIcon = tk.icon
             end
+        elseif sbuttonid ~= nil then
+            buttonIcon = "phosphor/lightning.png"
+            local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+            if type(def) == "table" and def.icon ~= nil and def.icon ~= "" then
+                buttonIcon = def.icon
+            end
+            --the author's @bgcolor/@opacity directives (span was already
+            --resolved in RailLayout; the face styling applies below).
+            sbuttonStyle = ScriptButtonStyle(def)
         elseif charid ~= nil then
             buttonIcon = "icons/standard/Icon_App_Character.png"
             local token = dmhub.GetCharacterById(charid)
@@ -12947,6 +14881,47 @@ local function CreateIconRail(side, entries)
         local buttonContent
         if charid ~= nil then
             buttonContent = CreateCharacterCardVisual(charid)
+        elseif sbuttonStyle ~= nil and sbuttonStyle.label ~= nil then
+            --@label: a live value instead of the icon. The directive is a
+            --GoblinScript formula (data, never Lua code) evaluated against
+            --the player's current character, re-checked on the rail's
+            --refreshRail cadence like the character card's numbers.
+            local labelFormula = sbuttonStyle.label
+            local function LabelText()
+                local token = dmhub.currentToken
+                if token == nil or token.properties == nil then
+                    return "-"
+                end
+                local value = nil
+                pcall(function()
+                    value = ExecuteGoblinScript(labelFormula, token.properties:LookupSymbol{}, 0, "rail button label")
+                end)
+                if value == nil then
+                    return "-"
+                end
+                local n = tonumber(value)
+                if n ~= nil then
+                    if n == math.floor(n) then
+                        return string.format("%d", n)
+                    end
+                    return string.format("%.1f", n)
+                end
+                return tostring(value)
+            end
+            buttonContent = gui.Label{
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                fontSize = 18,
+                bold = true,
+                color = "#ffffffee",
+                interactable = false,
+                text = LabelText(),
+                refreshRail = function(element)
+                    element.text = LabelText()
+                end,
+            }
         else
             buttonContent = gui.Panel{
                 classes = {"iconRailIcon"},
@@ -13186,7 +15161,11 @@ local function CreateIconRail(side, entries)
         buttons[#buttons + 1] = gui.Panel{
             classes = buttonClasses,
             bgimage = true,
-            blurBackground = true,
+            --a blurred backdrop paints at full strength whatever the
+            --panel's own opacity (the + button learned this the hard
+            --way), so a button whose author asked for @opacity drops
+            --the blur -- otherwise the transparency never reads.
+            blurBackground = not (sbuttonStyle ~= nil and sbuttonStyle.opacity ~= nil),
             width = ICON_RAIL_BUTTON,
             --a character card spans several slots; ordinary buttons are
             --one slot tall.
@@ -13313,6 +15292,34 @@ local function CreateIconRail(side, entries)
 
             create = function(element)
                 ownerButton = element
+                --the author's style directives land as selfStyle
+                --overrides: they win over the theme's class rules
+                --(including hover's bgcolor -- a custom-colored button
+                --keeps its color under the pointer).
+                if sbuttonStyle ~= nil then
+                    if sbuttonStyle.bgcolor ~= nil then
+                        element.selfStyle.bgcolor = sbuttonStyle.bgcolor
+                    end
+                    if sbuttonStyle.gradient ~= nil then
+                        --the gradient multiplies against bgcolor, so
+                        --default the base to white for true stop colors;
+                        --an explicit @bgcolor still tints.
+                        if sbuttonStyle.bgcolor == nil then
+                            element.selfStyle.bgcolor = "#ffffff"
+                        end
+                        element.selfStyle.gradient = gui.Gradient{
+                            point_a = {x = 0, y = 1},
+                            point_b = {x = 0, y = 0},
+                            stops = {
+                                { position = 0, color = sbuttonStyle.gradient[1] },
+                                { position = 1, color = sbuttonStyle.gradient[2] },
+                            },
+                        }
+                    end
+                    if sbuttonStyle.opacity ~= nil then
+                        element.selfStyle.opacity = sbuttonStyle.opacity
+                    end
+                end
                 if element:HasClass("justDropped") then
                     element:ScheduleEvent("settleDrop", 0.05)
                 end
@@ -13644,6 +15651,23 @@ local function CreateIconRail(side, entries)
             --Open/close this button's window. Fired by the press handler
             --and by the context menu's "Open" entry.
             activateRailButton = function(element)
+                --standalone script button: clicking IS the action --
+                --run the stored chunk (insulated + kill-checked when it
+                --came from a pack). A pack button of type "panel" is a
+                --panel shortcut rather than a script: open that panel.
+                if sbuttonid ~= nil then
+                    local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+                    if type(def) == "table" then
+                        if def.type == "panel" and def.panel ~= nil then
+                            DockablePanel.ShowPanelByName(def.panel)
+                            RefreshRails()
+                        else
+                            RunToolkitScriptButton(def, element)
+                        end
+                    end
+                    return
+                end
+
                 --document shortcut: open the doc in the journal viewer.
                 if docid ~= nil then
                     local docs = dmhub.GetTable(CustomDocument.tableName) or {}
@@ -13853,6 +15877,36 @@ local function CreateIconRail(side, entries)
                             end,
                         },
                     }
+                end
+
+                --standalone script buttons: run + edit + moves + delete.
+                if sbuttonid ~= nil then
+                    local entries = moveEntries()
+                    table.insert(entries, 1, {
+                        text = "Run",
+                        click = function()
+                            element.popup = nil
+                            element:FireEvent("activateRailButton")
+                        end,
+                    })
+                    entries[#entries + 1] = {
+                        text = "Edit Script...",
+                        click = function()
+                            element.popup = nil
+                            RailScriptButtonDialog("button:" .. sbuttonid, nil)
+                        end,
+                    }
+                    entries[#entries + 1] = {
+                        text = "Delete Button",
+                        click = function()
+                            element.popup = nil
+                            RailDeleteScriptButton(sbuttonid)
+                        end,
+                    }
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
+                    }
+                    return
                 end
 
                 --toolkits: open/close + rename + moves + delete. No pin
@@ -14129,8 +16183,13 @@ local function CreateIconRail(side, entries)
     --
     --Suppressed in rearrange mode: that is the trash zone's territory, and
     --the two verbs never apply at once.
+    --
+    --Suppressed entirely while the dev:panellibrary gate is off: the +
+    --exists to open the Panel Library, so without the feature there is
+    --nothing for it to do. Every later addButton reference is already
+    --nil-guarded (rearrange mode leaves it nil the same way).
     local addButton = nil
-    if not g_railRearranging then
+    if not g_railRearranging and dmhub.GetSettingValue("dev:panellibrary") then
         addButton = CreateRailAddButton(side)
         buttons[#buttons + 1] = addButton
     end

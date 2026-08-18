@@ -208,15 +208,67 @@ Three phases, each independently shippable:
    unchanged (validate rule), same as Module.cs does for deprecated.
 2. **Engine bridge (C#)**: ButtonPackLua -- Publish / QueryIndex /
    Download -- plus Definitions/ stubs. First testable milestone.
+   STATUS 2026-08-17: WRITTEN -- Assets/Scripts/ButtonPackLua.cs
+   (+.meta), registered as the `buttonpack` global in ScriptEngine.cs
+   beside `module`, LuaLS stub at Definitions/buttonpack.lua. Rules are
+   DEPLOYED and verified (index/killed publicly readable via REST,
+   locked paths still deny). API: Publish{pack,success,failure} (stamps
+   id/owner/auto-incremented version/mtime, refuses foreign or killed
+   ids BEFORE writing, writes record then index), QueryIndex, Download,
+   QueryKilled. Publish never writes the killed field: an admin-set
+   kill freezes the record via the validate rule by design. NOT yet
+   compile-verified -- no Unity build on this machine; every API call
+   was checked against real signatures (DataStore delegates,
+   ScriptSerialize JsonStyle, LuaValue factories, ScriptEngine
+   CreateTable/Call), so a build should be clean or trivially fixable.
+   The codex publish/add flows (steps 3-4) can be written now but only
+   TESTED against an engine build that includes this bridge.
 3. **Publish flow (codex)**: toolkit right-click "Publish..." dialog,
-   payload built from the toolkit's items.
+   payload built from the toolkit's items. STATUS 2026-08-17: WRITTEN
+   (RailPublishToolkitDialog + menu entry, gated on the buttonpack
+   bridge existing). Pack = name/description/icon + ALL toolkit items
+   (panel shortcuts included -- they resolve on any client and unknown
+   types already degrade). The minted packid is remembered on the
+   toolkit record (per-game), so republishing from the same game
+   updates the same pack.
 4. **Seamless add (codex)**: COMMUNITY section renders pack cards from
    the index; clicking a button just adds it -- auto-download, per-game
    per-user preference record, button on the rail. No ceremony.
+   STATUS 2026-08-17: WRITTEN. Community section queries the index on
+   library open (killed packs filtered out), rows show icon/name/count/
+   description; click downloads and MATERIALIZES the pack as a toolkit
+   in iconrailtoolkits (per-game preference), each item stamped with
+   pack = packid; re-clicking updates the same materialized toolkit.
+   Falls back to the coming-soon card on engine builds without the
+   bridge.
 5. **Insulated runner**: pack buttons run with the FULL engine API (the
    API itself is the sandbox -- owner decision), wrapped in pcall, with
    the instruction-count watchdog against runaway scripts, gated by the
-   kill switch check.
+   kill switch check. STATUS 2026-08-17: WRITTEN. Kill-switch cache
+   (g_buttonPackKilled) fetched lazily + refreshed on library open;
+   pack-sourced buttons (item.pack set) check it before running and
+   execute under a 20M-instruction debug.sethook watchdog; local
+   buttons keep plain pcall. ALL of steps 3-5 are UNTESTED until an
+   engine build with the bridge exists -- see the build blocker below.
+
+**END-TO-END VERIFIED 2026-08-17** (build succeeded after the owner
+activated the Unity license; ButtonPackLua compiled clean first try):
+published the first real pack -- "Quick Rolls", id
+5eb99075-648f-4803-8e01-b8890c8d6fc6 -- from the live app via the
+bridge; verified the record and index landed in Firebase via REST;
+republish auto-incremented to v2/v3; QueryIndex read it back; the
+library's COMMUNITY section listed it; clicking it seamlessly
+materialized the toolkit on the rail (and a later click UPDATED the
+same toolkit in place to the new version); both pack buttons ran
+through the insulated path -- real dice physics (DiceScaleDiag roll
+START/END, atRest=2/2) and a chat message.
+
+**Roll-macro gotcha for pack authors** (worth docs later): a bare
+`dmhub.Roll{roll=...}` creates a PENDING roll awaiting the hurl
+gesture, and `chat.Send("/roll ...")` does not roll. The quick-macro
+form that hurls immediately is
+`dmhub.Roll{ roll = "2d6", ["local"] = true, silent = true, ... }`
+(the shop's Try Dice pattern). The Quick Rolls pack uses it.
 6. **Kill switch + rating system**: a remotely-set killed flag checked
    before running pack buttons (modeled on /ModuleDeprecated), and a
    pack rating/validation surface.
@@ -228,8 +280,148 @@ Three phases, each independently shippable:
    explicitly load-bearing; audit it as its own effort.
 
 Remaining design rounds before their steps: publish metadata (before
-3), add-per-button vs add-whole-pack (before 4), watchdog budget and
-kill-switch data shape (before 5/6).
+3), watchdog budget and kill-switch data shape (before 5/6).
+(Add-per-button vs add-whole-pack: DECIDED 2026-08-17 -- see below.)
+
+- **2026-08-17 -- COMMUNITY becomes COMMUNITY SPOTLIGHT + a full
+  Community Browser (owner decision), and community adds land in YOUR
+  BUTTONS as standalone rail buttons.** The library section shows the
+  four most-hearted community buttons (CommunityFetch pre-sorts by
+  hearts, then downloads, then name -- the spotlight earns its name
+  honestly) plus a "Browse all community buttons..." row that closes
+  the library and opens the COMMUNITY BROWSER: a dedicated 900x700
+  window with live search (matches button name/description and pack
+  name/author), a sort dropdown (Most hearted / Most downloaded /
+  Newest), and every button as a card. Both surfaces share one card
+  renderer, one fetch pipeline, and one add path
+  (CommunityAddButton): adds now create a pack-stamped STANDALONE
+  button (insulated, kill-checked, refresh-on-re-add) instead of
+  materializing a per-pack toolkit; legacy materialized toolkits still
+  count toward the Added state. VERIFIED live: spotlight renders with
+  the browse door; browser opens with search/sort working (search
+  matches pack names too -- "roll" matches both Quick Rolls buttons,
+  "hello" isolates Say hello); cards show Added overlays. The
+  standalone-add path itself is exercised by the same code the
+  standalone create flow verified.
+
+- **2026-08-17 -- The vocabulary, in the owner's words: "the
+  difference between buttons and panels is that buttons can DO things
+  without showing a panel."** A PANEL is a surface you open and look
+  at; a BUTTON is an action that just happens. This is the test for
+  every future what-goes-where question in the library -- and for what
+  a community item is (actions, not surfaces).
+
+- **2026-08-17 -- Library taxonomy: buttons get their own section
+  (owner decision: "new button can't be under tool panels").** The
+  library's user sections are now kind-pure, each led by its create
+  tile: YOUR TOOL PANELS ("New tool panel" + off-rail toolkits), YOUR
+  BUTTONS ("New button" + off-rail standalone buttons), COMMUNITY
+  (other people's buttons). Discussed and endorsed but NOT yet built: a
+  "Share your buttons..." entry in COMMUNITY as the discoverable path
+  to the publish flow (currently only reachable via toolkit
+  right-click); creation stays out of the compendium -- buttons are
+  personal tools, not game content.
+
+- **2026-08-17 -- STANDALONE rail buttons (owner decision: "you
+  shouldn't have to create a new tool panel just to create a new
+  button").** Script buttons are now first-class rail citizens:
+  "button:<id>" layout keys backed by the iconrailscriptbuttons
+  per-game preference. The library's "New button" dialog defaults its
+  "Add to" dropdown to "On the rail" (toolkits and "New tool panel"
+  remain as destinations); the created button sits directly on the
+  rail, click runs the script (same insulation rules), right-click
+  gives Run / Rearrange / moves / Remove from rail / Edit Script... /
+  Delete Button (delete purges the layout entry, same fix pattern as
+  RailDeleteToolkit). Off-rail standalone buttons appear as re-add
+  tiles in YOUR TOOL PANELS so parking one never strands it. VERIFIED
+  live end-to-end: create-on-rail -> click runs (chat post) ->
+  context menu -> delete purges definition and layout.
+
+- **2026-08-17 -- Community entries are module-style CARDS (owner
+  request): each button card shows the replica face, name, short
+  description, author, download count, and a heart count with a
+  toggleable heart.** Implementation: per-button `description` field
+  (new input in the script-button editor, carried through publish);
+  `authorName` denormalized onto pack + index at publish time from the
+  account display name; engagement stats at
+  /ButtonPackStats/{packid}/{downloads|hearts}/{uid} = true -- per-user
+  marks so re-adds/re-hearts cannot inflate counts, own-uid writes
+  only, public read (RULES UPDATED in cloud-functions -- NEEDS DEPLOY);
+  bridge additions QueryStats / RecordDownload / SetHeart (+ stubs);
+  AddSingleButton records a download; the heart is its own swallowPress
+  click target with optimistic UI. Stats are PER PACK, shown on each of
+  the pack's button cards (the pack stays the unit of publishing, kill,
+  and versioning). VERIFIED live post-rebuild: cards render with
+  description / "by Venla" / counts; heart toggles optimistically and
+  does not trigger the add; server write denied gracefully pending the
+  rules deploy (logged, no user-facing error).
+
+- **2026-08-17 -- Already-added community buttons show a darkening
+  ADDED overlay (owner request).** A card whose button already exists
+  in the user's materialized pack toolkit (matched pack id + button
+  name) darkens under a floating #000000a6 overlay with a centered
+  check-circle + "Added" label, and its add-click is gated off -- so
+  nobody keeps pressing a button they already own. The overlay is
+  non-interactable, so the heart beneath it still toggles. Recomputed
+  each library open. VERIFIED live: both Quick Rolls cards darken with
+  the marker; clicking the card body does nothing; hearting still
+  works. (Hover suppression added same day at owner request: an added
+  card shows NO hover response -- rule {libPackCard, added, hover}
+  holds the rest palette, because a hover glow would promise a click
+  the card refuses to honor. Verified: hovering an added card leaves it
+  flat.)
+
+- **2026-08-17 -- The COMMUNITY tab shows BUTTONS only (owner
+  decision: "for now the community tab has only space for buttons").**
+  Every button from every published pack renders as a rail-button
+  replica tile (the same grammar as RECOMMENDED and YOUR TOOL PANELS),
+  tooltip naming its pack; clicking adds JUST that button. Behind the
+  scenes the button lands in a materialized per-pack toolkit
+  (kill-switch and update semantics stay per-pack); re-adding a button
+  refreshes it in place rather than duplicating. Implementation note:
+  the index carries pack metadata only, so the section downloads each
+  pack to surface its buttons -- fine at today's pack counts; when the
+  index grows, move button {name, icon} metadata into the index
+  entries (bridge change). VERIFIED live: two replica tiles rendered
+  from the Quick Rolls pack; per-button add updated the existing
+  materialized toolkit without duplicating.
+
+- **2026-08-18 -- Publishing goes BUTTON-first: SHARE YOUR BUTTONS
+  replaces toolkit publishing (owner decision: "you aren't supposed to
+  be able to publish toolkits -- it's just for buttons").** The
+  endorsed-but-unbuilt discoverable path is now built: a "Share your
+  buttons..." row in the library's COMMUNITY section (present even when
+  the index fetch fails -- sharing does not depend on browsing) opens
+  the SHARE YOUR BUTTONS dialog (RailShareButtonsDialog): every one of
+  the user's own script buttons -- standalone rail buttons and toolkit
+  items alike, community-sourced ones excluded -- as a card row (face,
+  name, description, where it lives) with a Share control. Sharing
+  publishes the button as its own SINGLE-BUTTON pack via
+  buttonpack.Publish; the minted packid is remembered on the button's
+  definition (`packid`, distinct from `pack` = added-from-community),
+  so the control reads Update afterwards and republishing refreshes
+  the same pack. The button editor's save paths carry `packid` through
+  their item rebuild so editing a shared button does not orphan its
+  pack. The toolkit right-click "Publish..." entry and
+  RailPublishToolkitDialog are REMOVED; the pack remains the backend
+  unit of versioning, kill, and stats, now at one button per pack.
+  Migration note: packs published earlier from a multi-button toolkit
+  (e.g. Quick Rolls) keep working for consumers, but their toolkit's
+  remembered `packid` no longer has a publish surface -- sharing those
+  buttons individually mints fresh single-button packs.
+
+- **2026-08-18 -- The whole Panel Library surface goes behind a dev
+  gate (owner request).** The hidden `dev:panellibrary` setting
+  (preference storage, default false, no editor so it appears on no
+  settings screen) gates creation of the rail's + button -- and with
+  it everything only the + opens: the library window, the community
+  spotlight/browser, and the Share Your Buttons dialog. The rail's
+  older right-click menu (add panel / New Toolkit / Rearrange) stays,
+  as do toolkits and buttons already on the rail. Toggling the setting
+  rebuilds the rails live: enable with
+  `dmhub.SetSettingValue("dev:panellibrary", true)` in the console.
+  VERIFIED live both ways: + absent at default false, back
+  immediately after flipping true.
 
 ### Phase 2/3 viability research (verified against code, 2026-08-17)
 

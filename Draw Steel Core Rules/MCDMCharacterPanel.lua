@@ -5166,6 +5166,7 @@ function TacPanel.HealthBar()
     local m_tempHP = nil
     local m_bloodied = nil
     local m_isHero = nil
+    local m_isMonster = false
     local m_windedVal = nil
 
     --Resolved once: an inline token like this is not theme-reactive, matching
@@ -5320,6 +5321,8 @@ function TacPanel.HealthBar()
             m_tempHP = props:TemporaryHitpoints() or 0
             m_bloodied = m_currentHP <= props:BloodiedThreshold()
             m_isHero = props:IsHero()
+            m_isMonster = false
+            pcall(function() m_isMonster = props:IsMonster() end)
             m_windedVal = math.floor(m_maxHP / 2)
             m_dying = props:IsDying()
             m_dead = props:IsDead()
@@ -5332,11 +5335,13 @@ function TacPanel.HealthBar()
             element:SetClass("borderWarning", m_bloodied and not m_dying)
             element:SetClass("borderDanger", m_dying)
 
-            --Temp stamina is shown here because the TEMP box that used to carry
-            --the number is gone. The bar's tempFill segment shows that there IS
-            --some, but not how much, and nothing else in the panel prints it.
+            --MONSTERS ONLY. Their TEMP box is gone -- it is a hover control on
+            --this bar now -- so the bar's tempFill segment would show that there
+            --IS temp stamina but not how much, and nothing else in the panel
+            --prints it. Heroes still have the TEMP box, which is the readout,
+            --and printing it here too said the same number twice.
             local staminaText = string.format("<b>%d/%d</b>", m_currentHP, m_maxHP)
-            if m_tempHP > 0 then
+            if m_isMonster and m_tempHP > 0 then
                 staminaText = string.format("%s <color=%s>+%d</color>",
                     staminaText, m_tempColor, m_tempHP)
             end

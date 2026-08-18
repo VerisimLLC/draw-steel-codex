@@ -3323,9 +3323,27 @@ local function OverviewColumnFooter()
                     element:SetClass("promptOption", false)
                     return
                 end
+                --The member list is snapshotted into m_signals when the column
+                --is populated, and LayoutRows re-runs from that cache on every
+                --menu open/close (DisarmOverviewPrompts fans out to parked
+                --columns too). A member's token can be gone by then (a killed
+                --minion cleaned up), and the engine's portraitFrame getter NREs
+                --on such a token, so drop the row instead of updating it.
+                if member.token == nil or not member.token.valid then
+                    element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
+                    return
+                end
                 element:SetClass("collapsed", false)
                 element:SetClass("promptOption", m_prompt ~= nil)
-                rowPortrait:FireEventTree("token", member.token)
+                local ok = pcall(function()
+                    rowPortrait:FireEventTree("token", member.token)
+                end)
+                if not ok then
+                    element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
+                    return
+                end
                 local text = member.name
                 if #member.tokens > 1 then
                     text = string.format("%s (%d)", text, #member.tokens)
@@ -3579,7 +3597,9 @@ local function OverviewColumnFooter()
             end
             element:SetClass("collapsed", false)
 
-            portrait:FireEventTree("token", column.token)
+            pcall(function()
+                portrait:FireEventTree("token", column.token)
+            end)
             nameLabel.text = column.label or column.name or ""
 
             local roleText = OverviewRoleLine(column.token)

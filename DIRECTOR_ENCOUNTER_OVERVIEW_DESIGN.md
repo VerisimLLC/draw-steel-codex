@@ -581,6 +581,33 @@ F2-7 -> F2-8 -> F2-9/role prominence -> Get in Here! data fix. Then Phase 2.
 NEXT: F2-4/F2-5 (footer copy/size/raw numbers) -> action-type visibility ->
 F2-7 -> F2-8 -> F2-9/role prominence -> Get in Here! data fix. Then Phase 2.
 
+**2026-08-18, play observation (Ricky, live A5 game) - evidence for the F2-5(c)
+threat estimate and Phase 1.5 condition icons.** The activation choice was
+Goblin Runners vs Goblin Cursespitter, on the theory that whichever did not act
+would die before its turn. Runners went; the Cursespitter's turn went unused.
+The Tactician then Marked the Cursespitter, used Two Shot on the Runners AND the
+Cursespitter, rolled a CRITICAL, spent the Mark benefit trigger (+4 damage to a
+marked target) - Cursespitter dead - then Protective Attack on the Runner squad,
+tier 2 was enough - squad dead. Theory confirmed: the creature that did not act
+first never got to act.
+Design consequences:
+- The funnel's core question ("who goes first, because the other one dies") is
+  real in play, not just in the brief.
+- Neither death came from ONE ability's tier-2 damage: it was crit + a
+  triggered-action rider stacked in one hero turn, then a second ability. A
+  threat estimate keyed to "one hero's tier-2 hit" would have said SAFE for
+  both. It must reason about a hero's WHOLE turn (main action + triggered
+  action + follow-up) and present itself as a risk band with reasons, never a
+  yes/no verdict (crits are luck).
+- The cheapest high-value signal was already on the board: "Marked by the
+  Tactician" on the Cursespitter - deterministic, no damage model, and it says
+  who the heroes intend to kill. Promote Phase 1.5 condition icons (marks,
+  ongoing effects) toward the front of the queue; a mark should read as a
+  threat flag on the column, not a generic status pip.
+- Raw stamina numbers (F2-5b) would have made the Runner squad's "finishable
+  by one tier-2 hit" obvious; "High" hides it. Role prominence (F2-9) frames
+  the Controller-vs-minions trade-off faster.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

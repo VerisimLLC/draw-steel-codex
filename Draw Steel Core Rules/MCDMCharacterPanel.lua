@@ -10964,28 +10964,37 @@ function TacPanel.MonsterConditions()
 
     --Explicit halign: {iconButton} supplies valign only, and a horizontal-flow
     --child with no alignment centres itself.
-    local m_addButton = gui.Label{
-        classes = {"cond-add", "editOnly"},
-        text = "+",
-        hoverCursor = "pressbutton",
-        press = function(element)
-            if TacPanel.IsReadOnly(element) then return end
-            TacPanel.AddConditionMenu{
-                tokens = {m_token},
-                button = element,
-            }
-        end,
-        linger = function(el)
-            gui.Tooltip("Add a condition or effect")(el)
-        end,
-    }
+    --Built fresh per rebuild, never stashed: the non-monster branch below wipes
+    --the row with children = {}, and a child dropped from a children assignment
+    --is destroyed a frame later. Held references would be re-added dead on every
+    --later refresh -- silently, so one look at a hero would strip the label and
+    --the + from every monster for the rest of the session.
+    local function MakeAddButton()
+        return gui.Label{
+            classes = {"cond-add", "editOnly"},
+            text = "+",
+            hoverCursor = "pressbutton",
+            press = function(element)
+                if TacPanel.IsReadOnly(element) then return end
+                TacPanel.AddConditionMenu{
+                    tokens = {m_token},
+                    button = element,
+                }
+            end,
+            linger = function(el)
+                gui.Tooltip("Add a condition or effect")(el)
+            end,
+        }
+    end
 
     --Keyed the same way the resistance line reads ("IMMUNITIES: ..."), and
     --left-aligned with it, so the two lines stack as a pair.
-    local m_label = gui.Label{
-        classes = {"cond-key"},
-        text = "CONDITIONS:",
-    }
+    local function MakeLabel()
+        return gui.Label{
+            classes = {"cond-key"},
+            text = "CONDITIONS:",
+        }
+    end
 
     return gui.Panel{
         --"flush" strips the key label's padding so CONDITIONS starts on the
@@ -11014,7 +11023,7 @@ function TacPanel.MonsterConditions()
             element:SetClass("collapsed", false)
 
             local creature = token.properties
-            local children = {m_label, m_addButton}
+            local children = {MakeLabel(), MakeAddButton()}
 
             for condid, cond in pairs(creature:try_get("inflictedConditions", {})) do
                 children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
@@ -11050,8 +11059,8 @@ function TacPanel.MonsterConditions()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        m_label,
-        m_addButton,
+        MakeLabel(),
+        MakeAddButton(),
     }
 end
 

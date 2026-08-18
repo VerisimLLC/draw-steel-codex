@@ -51,6 +51,7 @@ TacPanelSizes.Panels = {
     summaryNames = 140,     -- Center name panel right of portrait
     stamBoxHeight = 40,
     stamBoxNarrow = 28,
+    stamBoxStam = 68,
     stamBoxRecoveries = 128,
     condChipHeight = 16,
 }
@@ -71,6 +72,8 @@ TacPanelSizes.Fonts = {
 
     stamBoxTitle = 10,      -- Stamina panel
     stamBoxInput = 22,
+    currentStamina = 24,
+    maxStamina = 16,
     recoveryValue = 24,
     recoveryCount = 16,
 
@@ -586,8 +589,24 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
     -- The stamina BAR is the only thing in this area that carries status
     -- colour. These boxes were tinted red/green permanently, regardless of
     -- state, so the colour was decoration rather than signal -- and it made
-    -- the one place that does signal (the bar) harder to read. Recoveries are
-    -- all that is left of the row; everything else moved onto the bar.
+    -- the one place that does signal (the bar) harder to read.
+    --
+    -- HEROES ONLY. Monsters fold these four into the bar's hover controls
+    -- (TacPanel.BarAdjustControls) and collapse the boxes; heroes keep the
+    -- row. See the gates in each builder below.
+    {
+        selectors = {"panel", "stamina-box", "harm"},
+        borderColor = "@border",
+    },
+    {
+        selectors = {"panel", "stamina-box", "stamina"},
+        width = TacPanelSizes.Panels.stamBoxStam,
+        borderColor = "@border",
+    },
+    {
+        selectors = {"panel", "stamina-box", "heal"},
+        borderColor = "@border",
+    },
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
@@ -603,6 +622,10 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         soundEvent = "Mouse.Click",
     },
     {
+        selectors = {"panel", "stamina-box", "temp"},
+        borderColor = "@accent",
+    },
+    {
         selectors = {"label", "stambox-title"},
         width = "98%",
         height = "auto",
@@ -611,6 +634,63 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         textAlignment = "center",
         fontSize = TacPanelSizes.Fonts.stamBoxTitle,
         color = "@fg",
+    },
+    {
+        selectors = {"label", "stambox-title", "temp"},
+        fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
+    },
+    {
+        selectors = {"input", "stambox-input"},
+        width = "98%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
+        fontFace = "@number",
+        textAlignment = "center",
+        fontSize = TacPanelSizes.Fonts.stamBoxInput,
+    },
+    {
+        selectors = {"stambox-input", "harm"},
+        color = "@fg",
+    },
+    {
+        selectors = {"stambox-input", "heal"},
+        color = "@fg",
+    },
+    {
+        selectors = {"stambox-input", "temp"},
+        color = "@fg",
+        fontFace = "@number",
+        fontSize = 20,
+    },
+    {
+        selectors = {"input", "stambox-stam", "current"},
+        height = "auto",
+        width = "auto",
+        valign = "center",
+        halign = "left",
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
+        fontFace = "@number",
+        fontSize = TacPanelSizes.Fonts.currentStamina,
+        color = "@fg",
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "stambox-stam", "max"},
+        height = "auto",
+        width = "auto",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "@number",
+        fontSize = TacPanelSizes.Fonts.maxStamina,
+        color = "@fgPending",
     },
     {
         selectors = {"label", "recovery-value"},
@@ -3974,6 +4054,304 @@ function TacPanel.Summary()
 end
 
 
+--- Collapse one of the stamina row's action boxes when the token is a monster.
+---
+--- Monsters fold DMG / STAMINA / HEAL / TEMP into the health bar's hover
+--- controls (TacPanel.BarAdjustControls), which is all the room their column
+--- beside the portrait has. Heroes keep the boxes.
+---
+--- Each box has to forward setToken/refreshToken to refreshCharacter itself:
+--- the panel tree is driven by setToken, and refreshCharacter only fires where
+--- an element re-fires it.
+--- @param element Panel
+--- @param token CharacterToken
+local function SetHeroOnlyBox(element, token)
+    local isMonster = false
+    if token ~= nil and token.valid and token.properties ~= nil then
+        pcall(function() isMonster = token.properties:IsMonster() end)
+    end
+    element:SetClass("collapsed", isMonster)
+end
+
+--- Display the damage / harm box. Heroes only; see SetHeroOnlyBox.
+--- @return Panel
+function TacPanel.HarmBox()
+    return gui.Panel{
+        --pure action box (type damage to apply it): hidden entirely in
+        --read-only mode.
+        classes = {"stamina-box", "harm", "editOnly"},
+        refreshCharacter = SetHeroOnlyBox,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"stambox-title", "harm"},
+            text = "DMG",
+        },
+        gui.Input{
+            classes = {"stambox-input", "harm"},
+            text = "",
+            characterLimit = 8,
+            placeholderText = "-",
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    element.textNoNotify = ""
+                    return
+                end
+                local n = tonum(element.text, 0)
+                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Damage",
+                        execute = function()
+                            element.data.token.properties:TakeDamage(element.text)
+                            element.text = ""
+                        end,
+                    }
+                end
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the heal box. Heroes only; see SetHeroOnlyBox.
+--- @return Panel
+function TacPanel.HealBox()
+    return gui.Panel{
+        --pure action box (type healing to apply it): hidden entirely in
+        --read-only mode.
+        classes = {"stamina-box", "heal", "editOnly"},
+        refreshCharacter = SetHeroOnlyBox,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"stambox-title", "heal"},
+            text = "HEAL",
+        },
+        gui.Input{
+            classes = {"stambox-input", "heal"},
+            text = "",
+            characterLimit = 8,
+            placeholderText = "+",
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    element.textNoNotify = ""
+                    return
+                end
+                local n = tonum(element.text, 0)
+                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Healing",
+                        execute = function()
+                            element.data.token.properties:Heal(n)
+                            element.text = ""
+                        end,
+                    }
+                end
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the temp stamina box. Heroes only; see SetHeroOnlyBox.
+--- @return Panel
+function TacPanel.TempStamBox()
+    return gui.Panel{
+        classes = {"stamina-box", "temp"},
+        refreshCharacter = SetHeroOnlyBox,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"stambox-title", "temp"},
+            text = "TEMP",
+        },
+        gui.Input{
+            classes = {"stambox-input", "temp"},
+            text = "",
+            hoverCursor = "text",
+            characterLimit = 8,
+            placeholderText = TEMP_PLACEHOLDER,
+            selectAllOnFocus = true,
+            bgimage = true,
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                if TacPanel.IsReadOnly(element) then
+                    if element.data.token ~= nil and element.data.token.valid then
+                        element:FireEvent("refreshCharacter", element.data.token)
+                    end
+                    return
+                end
+                local before = tonum(element.data.token.properties:TemporaryHitpointsStr(), 0)
+                local after = tonum(element.text, 0)
+                if element.text ~= "" and after ~= before and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Temp Stamina",
+                        execute = function()
+                            element.data.token.properties:SetTemporaryHitpoints(element.text)
+                            element.data.token.properties:DispatchEvent("gaintempstamina", {})
+                        end,
+                    }
+                end
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+                element.editable = not TacPanel.IsReadOnly(element)
+                local tempHp = token.properties:TemporaryHitpoints()
+                if tempHp <= 0 then
+                    element.text = "0"
+                else
+                    element.text = string.format("%d", tempHp)
+                end
+
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the current stamina box. Heroes only; see SetHeroOnlyBox.
+--- @return Panel
+function TacPanel.StaminaBox()
+    return gui.Panel{
+        classes = {"stamina-box", "stamina"},
+        halign = "center",
+        valign = "center",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            SetHeroOnlyBox(element, token)
+            element.data.token = token
+            element:FireEventTree("refreshValue", token)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            flow = "horizontal",
+            valign = "center",
+            halign = "center",
+            gui.Input{
+                classes = {"stambox-stam", "current"},
+                hoverCursor = "text",
+                text = "0",
+                characterLimit = 4,
+                selectAllOnFocus = true,
+                placeholderText = "--",
+                numeric = true,
+                data = {
+                    token = nil,
+                },
+                linger = function(element)
+                    local token = element.data.token
+                    if token ~= nil and token.properties ~= nil then
+                        element.tooltip = gui.StatsHistoryTooltip{
+                            description = "stamina",
+                            entries = token.properties:GetStatHistory("stamina"):GetHistory()
+                        }
+                    end
+                end,
+                change = function(element)
+                    local token = element.data.token
+                    if TacPanel.IsReadOnly(element) then
+                        if token ~= nil and token.valid then
+                            element:FireEvent("refreshValue", token)
+                        end
+                        return
+                    end
+                    if token ~= nil and token.valid and token.properties ~= nil then
+                        local n = tonumber(element.text)
+                        if n ~= nil and (n >= 0 or token.properties:IsHero()) then
+                            token:ModifyProperties{
+                                description = "Set Stamina",
+                                execute = function()
+                                    token.properties:SetCurrentHitpoints(n)
+                                end,
+                            }
+                        end
+                    end
+                end,
+                refreshValue = function(element, token)
+                    element.data.token = token
+                    --a game update must not stomp on what the user is currently typing.
+                    if element.hasFocus then
+                        return
+                    end
+                    element.editable = not TacPanel.IsReadOnly(element)
+                    local text = tostring(token.properties:CurrentHitpoints())
+                    element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
+                    element.textNoNotify = text
+                end,
+                defocus = function(element)
+                    --catch up on anything we skipped while the field was being edited.
+                    local token = element.data.token
+                    if token ~= nil and token.valid then
+                        element:FireEvent("refreshValue", token)
+                    end
+                end,
+            },
+            gui.Label{
+                classes = {"stambox-stam", "max"},
+                text = "/ 0",
+                data = { token = nil },
+                refreshValue = function(element, token)
+                    element.data.token = token
+                    element.text = string.format("/ %d", token.properties:MaxHitpoints())
+                end,
+                linger = function(element)
+                    local token = element.data.token
+                    if token ~= nil and token.properties ~= nil then
+                        local baseValue = token.properties:BaseHitpoints()
+                        local modifications = token.properties:DescribeModifications("hitpoints", baseValue)
+                        local text = string.format("Base Stamina: %d", baseValue)
+                        for _, modification in ipairs(modifications) do
+                            text = text .. string.format("\n%s: %s", modification.key, modification.value)
+                        end
+                        element.tooltip = TacPanel.Tooltip(text)
+                    end
+                end,
+            },
+        },
+    }
+end
+
+
 --- Display-only recovery pips, split into rows of 10
 --- @param resolveRecovery fun(): string|nil, table|nil
 --- @return Panel
@@ -4732,12 +5110,23 @@ function TacPanel.BarAdjustControls(labelPanel)
                 charid = token.charid
             end
 
+            --MONSTERS ONLY. Heroes get the DMG / STAMINA / HEAL / TEMP boxes in
+            --the row above instead, which is the arrangement they have always
+            --had; these controls exist because a monster's stamina column is
+            --too narrow beside its portrait to carry five boxes.
+            local isMonster = false
+            if token ~= nil and token.valid and token.properties ~= nil then
+                pcall(function() isMonster = token.properties:IsMonster() end)
+            end
+            element:SetClass("collapsed", not isMonster)
+
             --A different creature mid-edit would apply the number to the wrong
             --one, so the entry closes rather than following along. Gated on the
             --charid CHANGING: refreshCharacter fires on every panel refresh,
             --not just on a new token, and closing unconditionally shut the box
-            --again in the same frame it was opened.
-            if m_mode ~= nil and charid ~= m_tokenid then
+            --again in the same frame it was opened. Switching to a hero closes
+            --it too, or the entry would be stranded inside a collapsed panel.
+            if m_mode ~= nil and (charid ~= m_tokenid or not isMonster) then
                 CloseEntry()
             end
 
@@ -4837,14 +5226,21 @@ function TacPanel.HealthBar()
         valign = "center",
         flow = "horizontal",
         floating = true,
-        --Click the number to set stamina outright, which is what the STAMINA
-        --box used to be for. Needs a background image to be a hit target at
-        --all, kept clear so nothing changes visually.
+        --Click the number to set stamina outright. MONSTERS ONLY: heroes have
+        --the STAMINA box back in the row above, and the entry this opens lives
+        --inside the adjust panel, which is collapsed for them. Needs a
+        --background image to be a hit target at all, kept clear so nothing
+        --changes visually.
         bgimage = true,
         bgcolor = "clear",
         hoverCursor = "pressbutton",
         press = function(element)
             if TacPanel.IsReadOnly(element) then return end
+            local isMonster = false
+            if m_token ~= nil and m_token.valid and m_token.properties ~= nil then
+                pcall(function() isMonster = m_token.properties:IsMonster() end)
+            end
+            if not isMonster then return end
             if m_openStamina ~= nil then
                 m_openStamina()
             end
@@ -5193,14 +5589,18 @@ function TacPanel.Stamina()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        --This row used to carry DMG, STAMINA, HEAL and TEMP as well. The three
-        --action boxes are the bar's hover controls now (see
-        --TacPanel.BarAdjustControls), and the bar itself prints the number, so
-        --only recoveries are left -- which monsters do not have, leaving the
-        --row empty for them.
+        --HEROES keep the full row: DMG, STAMINA, HEAL, RECOVERIES, TEMP.
+        --MONSTERS collapse all of it -- the three action boxes are their bar's
+        --hover controls instead (see TacPanel.BarAdjustControls), and they have
+        --no recoveries -- which leaves the row empty and the column beside the
+        --portrait free for the bar. Each box gates itself; see SetHeroOnlyBox.
         gui.Panel{
             classes = {"stamina-controls"},
+            TacPanel.HarmBox(),
+            TacPanel.StaminaBox(),
+            TacPanel.HealBox(),
             TacPanel.RecoveriesBox(),
+            TacPanel.TempStamBox(),
         },
         TacPanel.HealthBar(),
         TacPanel.Resistances(),
@@ -7770,6 +8170,11 @@ function TacPanel.SkillLanguages()
             if not isMonster then
                 element:SetClass("collapsed", false)
                 if titleBar ~= nil then titleBar:SetClass("collapsed", false) end
+                --Put back what the monster branch below zeroes. The panel is
+                --reused across tokens, so without this a hero selected after a
+                --monster kept the monster's headerless top edge. 8 is tacpanel's
+                --vpad, which is what this would inherit untouched.
+                element.selfStyle.tpad = 8
                 SetSectionTitle(element, "SKILLS & LANGUAGES")
                 return
             end

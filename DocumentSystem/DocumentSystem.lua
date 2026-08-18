@@ -13610,9 +13610,14 @@ local function CreateIconRail(side, entries)
 
                 --dropped on the trash: take the button off the rail
                 --(parks the layout entry inert, exactly like the
-                --context menu's "Remove from rail").
+                --context menu's "Remove from rail"). A tombstone is
+                --erased instead -- there is nothing left to restore.
                 if target ~= nil and target.valid and target:HasClass("iconRailTrash") then
-                    RailMovePanel(key, "remove")
+                    if missing then
+                        RailPurgeKey(key)
+                    else
+                        RailMovePanel(key, "remove")
+                    end
                     return
                 end
 

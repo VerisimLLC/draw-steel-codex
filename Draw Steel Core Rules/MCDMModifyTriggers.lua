@@ -117,6 +117,44 @@ local g_modeCostDeltas = {}
 local g_modeActionOverrides = {}
 local g_injectedTriggerIds = {}
 
+--Evaluates an Add Mode entry's Mode Condition the same way TriggeredAbility
+--evaluates a modeList entry's, so a mode injected by a Modify Trigger modifier
+--behaves like one authored on the ability itself. Only Add Mode offers the
+--player a new mode, so only Add Mode carries a Condition Reason; the other
+--entry types modify the trigger and just withdraw when their condition fails.
+--
+--Returns nil when the mode should not be offered at all. Otherwise returns the
+--availability fields to merge into the mode: empty when the condition passed,
+--or unavailable/conditionReason when it failed but the author gave a reason.
+--A failed condition hides the mode, as it always has, unless that Condition
+--Reason is filled in: then the mode is offered anyway, greyed out and annotated
+--with the reason, and the player may override it.
+--- @param entry table The modifier entry carrying condition/conditionReason.
+--- @param casterSymbols function
+--- @param errorContext string Label used if the GoblinScript errors.
+--- @return table|nil
+local function EvaluateModeCondition(entry, casterSymbols, errorContext)
+    local formula = entry.condition or ""
+    if formula == "" then
+        return {}
+    end
+
+    local result = ExecuteGoblinScript(formula, casterSymbols, 0, errorContext)
+    if GoblinScriptTrue(result) then
+        return {}
+    end
+
+    local reason = trim(entry.conditionReason or "")
+    if reason == "" then
+        return nil
+    end
+
+    return {
+        unavailable = true,
+        conditionReason = StringInterpolateGoblinScript(reason, casterSymbols),
+    }
+end
+
 
 CharacterModifier.RegisterTriggerModifier{
     id = "mode",
@@ -126,6 +164,7 @@ CharacterModifier.RegisterTriggerModifier{
         entry.text = "New Mode"
         entry.rules = ""
         entry.condition = ""
+        entry.conditionReason = ""
         entry.hasAbility = false
     end,
 
@@ -194,6 +233,26 @@ CharacterModifier.RegisterTriggerModifier{
             },
         }
 
+        -- Blank -- the default -- keeps the original hide-when-unavailable
+        -- behaviour, which is what the placeholder text says.
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Condition Reason:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                characterLimit = 200,
+                placeholderText = "Blank: hide the mode when unavailable",
+                text = entry.conditionReason or "",
+                change = function(element)
+                    entry.conditionReason = element.text
+                    Refresh()
+                end,
+            },
+        }
+
         -- Variation ability support (like ActivatedAbilityEditor variations).
         children[#children+1] = gui.Panel{
             classes = {"formPanel", "formPanel-inline"},
@@ -232,12 +291,9 @@ CharacterModifier.RegisterTriggerModifier{
     end,
 
     fillTriggerModes = function(modifier, entry, triggerInfo, creature, casterSymbols)
-        local formula = entry.condition or ""
-        if formula ~= "" then
-            local result = ExecuteGoblinScript(formula, casterSymbols, 0, "Modify Trigger mode condition")
-            if not GoblinScriptTrue(result) then
-                return
-            end
+        local availability = EvaluateModeCondition(entry, casterSymbols, "Modify Trigger mode condition")
+        if availability == nil then
+            return
         end
 
         -- Copy existing modes into a new table so we never mutate the
@@ -250,11 +306,16 @@ CharacterModifier.RegisterTriggerModifier{
         modes[#modes+1] = {
             text = entry.text or "",
             rules = StringInterpolateGoblinScript(entry.rules or "", casterSymbols),
+            unavailable = availability.unavailable,
+            conditionReason = availability.conditionReason,
         }
         triggerInfo.modes = modes
 
         -- Track variation ability for this mode index so the
-        -- DispatchAvailableTrigger hook can intercept activation.
+        -- DispatchAvailableTrigger hook can intercept activation. The key is
+        -- this mode's position in the modes list, so it must be taken after
+        -- the append -- including for a mode offered greyed out, which the
+        -- player can still choose.
         if entry.hasAbility and entry.variation ~= nil then
             local modeIndex = #modes
             g_modeVariations[triggerInfo.id .. "_" .. modeIndex] = entry.variation
@@ -359,6 +420,8 @@ CharacterModifier.RegisterTriggerModifier{
     end,
 
     fillTriggerModes = function(modifier, entry, triggerInfo, creature, casterSymbols)
+        -- A cost modification is not a mode the author offers, so it has no
+        -- Condition Reason: a failing condition simply withdraws it.
         local formula = entry.condition or ""
         if formula ~= "" then
             local result = ExecuteGoblinScript(formula, casterSymbols, 0, "Modify Trigger cost condition")
@@ -494,6 +557,8 @@ CharacterModifier.RegisterTriggerModifier{
     end,
 
     fillTriggerModes = function(modifier, entry, triggerInfo, creature, casterSymbols)
+        -- An action modification is not a mode the author offers, so it has no
+        -- Condition Reason: a failing condition simply withdraws it.
         local formula = entry.condition or ""
         if formula ~= "" then
             local result = ExecuteGoblinScript(formula, casterSymbols, 0, "Modify Trigger action condition")

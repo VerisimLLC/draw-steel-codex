@@ -399,12 +399,46 @@ asking which member acts when a column spans several fresh initiative
 entries; the claim itself happens exactly once, at the first irreversible
 step (immediately before `ability:Cast`), and only if still legal at that
 instant - off-turn casts leave the queue untouched. Ordinary single-token
-menus are unchanged. Slices (a)-(d) are committed locally; (e) is UNCOMMITTED
-in the working tree (single file: `DrawSteelActionBar/DrawSteelActionBar.lua`,
-+ this brief). Remaining Phase 1 debt: the positive claim-at-confirm branch
-was not exercised live (see (e)); a session with the queue in `ChoosingTurn`
-should run one overview cast to target confirm and watch `currentTurn` flip.
-Next: Phase 1.5 / Phase 2 per the rows above.
+menus are unchanged. The positive claim-at-confirm branch was verified in
+real play on 2026-08-18 (third field test).
+
+**Field-test follow-ups COMPLETE (2026-08-19, commits dfcf10c9 .. 180f4566,
+all local on `main`, NOT pushed - Ricky decides when).** Everything the
+first four user tests asked for is built and live-verified in the A5 game:
+
+| Item | What the Director now sees | Commit |
+|---|---|---|
+| F3-1 | Chip/footer locate: camera pans (~0.5 s), THEN the token gets a gold `locate` ring held 1.4 s (new generic bottomsheet style in `DMHub Token UI/TokenUI.lua`) | dfcf10c9 |
+| F3-2 | Take-turn button HIDDEN once the turn is taken / already acted / nothing running; greyed-with-reason only for transient blocks ("Another creature's turn is in progress", "It's the heroes' turn", "Not in the initiative order") | dfcf10c9, de80fe54 |
+| F2-4/F2-5 | Footer text >= 12px, names ellipsized, raw `13/15` stamina (+T temp), two-line mini-rows (name / `18/18 - state`) | de80fe54 |
+| F2-3 | "Take the Goblin Assassins' turn" when every member token shares one initiative entry | de80fe54 |
+| Layout | `abilitySubMenu` vertical `wrap` misfired once the footer passed ~70px; overview columns set `selfStyle.wrap=false` while bound | de80fe54 |
+| Action type | Overview chips carry a 12px gold "Maneuver" / "Free Maneuver" / "Free Action" line (main actions unmarked); columns sort main actions first, hairline between main actions and maneuvers | 71464388 |
+| F2-7 | Every chip of an all-acted column greys (title/keywords/icon via an `acted` class tree) | 4a20c599 |
+| F2-8 | Dismiss "x" per column (deselects its tokens); the open menu follows the selection live and survives a primary-token change | a385bec2 |
+| F2-9 | Role word leads the footer role line in bold gold ("Controller  Level 1 Horde"); hover = one-line play pattern per role/organization (`OVERVIEW_ROLE_PROSE`, Lua table for now) | 8ce9d2d3 |
+| Field test 4 | "Not yet acted" dropped (default is silent); acted = red "Turn already taken" on greyed chips; "Acting now" mid-turn | 180f4566 |
+
+STANDING REGRESSION CHECK (passed after every commit above): open a Unique
+menu, close it, select ONE monster, open Main Action -> "Signature Abilities /
+Common Abilities", 9 chips on the Monarch, 0 take-turn buttons, 0 dismiss x.
+
+STILL OPEN (small): the "Get in Here!" DATA fix - `data/monsters/
+goblin-monarch.yaml` files it as `categorization: Signature Ability`; the
+goblin convention for malice-costed non-signature abilities is `Heroic
+Ability` (Bury the Point, Shadow Chains). The file also carries ANOTHER
+session's uncommitted `promptWhenResolvingText` line - follow
+data-repo-push-discipline (per-file upstream author check, `git add -p` for
+just the categorization hunk). The placed A5 Monarch token keeps its own
+snapshot of the ability and will not pick the fix up until re-placed/resynced.
+
+NEXT after that: Phase 2, but start with what the 2026-08-18 play
+observation asked for, not the lenses: (1) Marked / condition THREAT FLAGS on
+the column (deterministic, says who the heroes intend to kill), (2) the
+whole-hero-turn threat estimate as a risk band with reasons (never a
+verdict), then (3) lenses + sub-filters, "Everyone can:" line, reach
+estimate, copy pass X13, select-all, Suggested overlay opt-in. Also move
+`OVERVIEW_ROLE_PROSE` into data/ when X13 settles the wording.
 
 ## Field test log
 

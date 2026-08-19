@@ -13,7 +13,7 @@ local mod = dmhub.GetModLoading()
 --- @field source string Source description string.
 --- @field description string Rules text.
 --- @field applyto string Target filter id: "all", "allother", "selfandfriends", "friends", "enemies", "sametype", "othertype".
---- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected.
+--- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected. Honoured on both sides of the engine boundary: Lua checks it in Aura:CreaturePassesFilter (modifiers, triggers, enter/start-of-turn), and the engine reads it through AuraInstance:GetCreatureFilter so Aura.ApplyTo can consult it too -- which is what keeps a filtered aura out of the per-tile terrain rules (FloorController.GetTileRulesAtLoc) and decides it per creature instead.
 --- @field modifiers CharacterModifier[] Modifiers applied to creatures inside the aura.
 --- @field subauras nil|Aura[] Optional child aura payloads. Each shares this aura's area, caster,
 --- duration, and removal, but has its own applyto/creatureFilter/modifiers/triggers/terrain flags/
@@ -1542,6 +1542,33 @@ end
 
 function AuraInstance:GetConcealment()
     return self.aura:try_get("concealment", false)
+end
+
+--The aura definition's GoblinScript creature filter, or "" when it has none.
+--Read once by the engine when it builds the C# Aura (Aura.cs AddAuraFromLua):
+--an aura that reports a filter here is no longer treated as a property of the
+--tiles it covers, because it applies to some creatures standing there and not
+--others. The engine then asks CreaturePassesFilterForToken per creature.
+function AuraInstance:GetCreatureFilter()
+    local filter = self.aura:try_get("creatureFilter", "")
+    if type(filter) ~= "string" then
+        return ""
+    end
+    return filter
+end
+
+--Engine entry point for the creature filter: called from Aura.ApplyTo and from
+--FloorController.GetTileRulesAtLoc with the token being tested. The engine
+--caches the answer per creature per game update, so this runs at most once per
+--pair per update even though its callers are per-tile pathfinding loops.
+--Returns true (affected) for anything it cannot evaluate, matching
+--Aura:CreaturePassesFilter: an unevaluable filter should leave the aura working
+--as if unfiltered rather than silently affect nobody.
+function AuraInstance:CreaturePassesFilterForToken(token)
+    if token == nil or token.properties == nil then
+        return true
+    end
+    return self.aura:CreaturePassesFilter(token.properties, self)
 end
 
 function AuraInstance:GetCover()

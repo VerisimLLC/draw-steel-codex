@@ -31,6 +31,7 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
+--- @field creatureFilter string GoblinScript evaluated against each creature to decide whether the keyword affects it at all. Empty (the class default) affects everyone. Applies to the whole keyword -- modifiers, triggers, the entry power roll, the move damage, AND the terrain rules (difficult terrain, water, concealment, climbable). The terrain half needs the engine: an aura reporting a filter is left out of FloorController.GetTileRulesAtLoc unless the caller names the creature it is asking about, and Aura.ApplyTo consults the filter for everything else, evaluating this script through AuraInstance:CreaturePassesFilterForToken and caching the verdict per creature per game update. Merged onto an aura's own creatureFilter with an "and" rather than skipped like the other fields, because a filter is a restriction -- dropping it would WIDEN who the keyword affects.
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
 --- @field appearance table|nil Optional visual representation drawn on the map for zones of this keyword (beyond the overlay stripes), edited in the Edit Appearance dialog. mode = "floor": {mode, tileid = tilesheet asset id filling the tiles, edgeWallId = wall asset id drawn as a decorative ring around the boundary (nil = none), alpha = fill opacity, fractalEdge = deterministic organic-boundary strength from 0 to 1 (nil = 0), edgeFade = inward fill fade in tiles from 0 to 0.35 (nil = 0), tileImageId/edgeImageId = source image asset ids shown in the dialog's IconEditors (nil when the asset was copied from an existing tilesheet/wall), tileOwned/edgeOwned = true when the asset was created/forked for this keyword (replaced assets are Delete()d)}. Floor fills force the private tilesheet asset to oneLargeTile so the whole image is the repeating unit. mode = "sprites": {mode, sprites = image asset ids, spriteScale = quad size within the tile, spriteAlpha}. Texture scale/hue/saturation/brightness live on the referenced ASSETS, exactly like real floors and walls. MapMarkupPanel stamps this onto zone aura instances (AuraInstance:GetAppearance); the engine's MarkupZoneVisuals renders it resting on the ground, terrain-conformed and parallax-correct. No class default: absent = no visual.
 --- @field appearanceDefaultOff boolean|nil When true, new zones painted with this keyword from the Map Markup panel start with their visual representation hidden (record field hideAppearance; stripes only). Toggled by the "Visuals" pill on the zone palette chip. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Visuals badge on its zone-list row), so flipping this never disturbs existing zones. Only meaningful when appearance is set. No class default: absent = visuals shown.
@@ -56,6 +57,7 @@ EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
 EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
 EnvironmentalKeyword.includeAdjacent = false
+EnvironmentalKeyword.creatureFilter = ""
 
 --Index of keywords by lower-case name, rebuilt whenever tables refresh. Used by
 --runtime code that needs to resolve a keyword from its name.
@@ -199,6 +201,31 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 				auraDef.powerRollEnabled = true
 				auraDef.powerRollBonus = keyword:try_get("powerRollBonus", 0)
 				auraDef.powerRollTiers = dmhub.DeepCopy(tiers)
+			end
+		end
+	end)
+
+	--Creature filter: only creatures matching this GoblinScript are affected.
+	--Unlike every other field here this one MERGES rather than defers to the aura,
+	--because it is a restriction, not an addition: skipping it because the aura
+	--already carries a filter of its own would quietly let the keyword affect
+	--creatures its author excluded. Two filters therefore "and" together, and the
+	--plain-text containment check keeps a second application of the same keyword
+	--(re-merging an aura def that was already merged) from growing the string.
+	pcall(function()
+		local keywordFilter = keyword:try_get("creatureFilter", "")
+		if type(keywordFilter) == "string" and keywordFilter ~= "" then
+			local auraFilter = auraDef:try_get("creatureFilter", "")
+			if auraFilter == nil or auraFilter == "" then
+				auraDef.creatureFilter = keywordFilter
+			elseif type(auraFilter) == "string" then
+				if string.find(auraFilter, keywordFilter, 1, true) == nil then
+					auraDef.creatureFilter = string.format("(%s) and (%s)", auraFilter, keywordFilter)
+				end
+			--an aura carrying the level-tiered table form of a filter cannot be
+			--text-merged with. Leave it alone rather than clobber a restriction
+			--the aura's own author wrote: an aura the keyword cannot narrow is a
+			--better outcome than one whose own filter silently disappeared.
 			end
 		end
 	end)
@@ -2330,6 +2357,65 @@ local SetData = function(tableName, keywordPanel, keyid)
 		},
 	}
 	children[#children+1] = moveDamageDetails
+
+	--optional GoblinScript restricting who the keyword affects. Covers the whole
+	--keyword, terrain rules included: the engine keeps a filtered aura out of the
+	--per-tile rules lookup and decides it per creature instead (Aura.ApplyTo ->
+	--AuraInstance:CreaturePassesFilterForToken).
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Affects Only:",
+			hover = gui.Tooltip("Optional filter. When set, only creatures this GoblinScript returns true for are affected by the keyword at all - its terrain rules, movement damage, power roll and modifiers alike. Leave it empty to affect everyone."),
+		},
+		gui.GoblinScriptInput{
+			classes = {"formStacked"},
+			value = keyword:try_get("creatureFilter", ""),
+			--plain text only: the widget's right-click menu otherwise offers the
+			--level-tiered table form, which means nothing for an environmental
+			--keyword (there is no level context) and would break the string merge
+			--in ApplyToAura.
+			displayTypes = "none",
+			change = function(element)
+				keyword.creatureFilter = element.value
+				UploadKeyword()
+			end,
+			documentation = {
+				help = "This GoblinScript determines which creatures this environmental keyword affects. It is evaluated for each creature in an area marked with the keyword, and none of the keyword takes hold unless it returns true - terrain rules, movement damage, power roll and modifiers alike. An empty script affects every creature.",
+				output = "boolean",
+				examples = {
+					{
+						script = 'not (Keywords has "Fire")',
+						text = "Only creatures that are not themselves Fire creatures are affected -- a fire elemental wades through its own element unharmed.",
+					},
+					{
+						script = 'OnGround',
+						text = "Only creatures on the ground are affected; anything flying, burrowing, or climbing over the area is not.",
+					},
+				},
+				subject = creature.helpSymbols,
+				subjectDescription = "Creature in the area marked with this keyword.",
+				symbols = {
+					target = {
+						name = "Target",
+						type = "creature",
+						desc = "The creature being tested. A synonym for 'Self' in this script.",
+					},
+					caster = {
+						name = "Caster",
+						type = "creature",
+						desc = "The creature that created the area, when it came from an ability. Painted map zones have no caster.",
+					},
+					aura = {
+						name = "Aura",
+						type = "aura",
+						desc = "The area applying this keyword.",
+					},
+				},
+			},
+		},
+	}
 
 	--optional power roll made against any creature that enters the area or
 	--starts its turn there (shared editor section with the Aura dialog).

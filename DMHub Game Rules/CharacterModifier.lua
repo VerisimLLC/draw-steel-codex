@@ -3935,11 +3935,25 @@ end
 
 function CharacterModifier:FillTriggeredAbilities(modContext, creature, result)
 	if self:has_key("triggeredAbility") then
+		--A modifier whose behavior was switched away from "trigger" can retain a
+		--stale, half-initialized triggeredAbility that deserializes as a plain Lua
+		--table with no game type, so it has no try_get/IsLocalOnly. Handing it to
+		--callers breaks GetActivatedAbilities{manualTriggers=true}, which aborts the
+		--action bar refresh and leaves the player unable to act. Skip such entries.
+		--pcall: reading a missing field on a game-typed instance raises, so a plain
+		--nil-check is not safe here (same pattern as creature:ApplyAbilityModifiers).
+		local ability = self.triggeredAbility
+		local tryGet = nil
+		pcall(function() tryGet = ability.try_get end)
+		if tryGet == nil then
+			return
+		end
+
 		result[#result+1] = {
 			modifier = self,
 			available = self:HasResourcesAvailable(creature),
 			resources = self:DescribeResourceAvailability(creature),
-			ability = self.triggeredAbility,
+			ability = ability,
 		}
 	end
 end

@@ -806,6 +806,28 @@ Monarch / Assassin chips; chips remain hoverable/pressable (Decision 4).
 NEXT: F2-8 dismiss-x per column -> F2-9 role prominence -> Get in Here! data
 fix. Then Phase 2.
 
+**2026-08-19, F2-8 done (agent, live A5; regression check passed: Monarch
+alone -> Signature + Common, 9 chips, 0 buttons, 0 dismiss x).**
+- Footer gained a floating 14px `overviewDismiss` "x" (ui-icons/close.png)
+  at its top-right (name label now `100%-16` wide to leave room); press =
+  `dmhub.selectedTokens` minus the column's tokens. Deliberately a plain panel,
+  not `gui.Button{kind="closeButton"}`, whose kind binds Escape (Esc must keep
+  closing the menu). Tooltip "Remove from the overview (deselects on the map)".
+- The root selection poll now fires `refreshOverview` after `refresh`, so an
+  OPEN Unique Abilities menu follows the selection live (dismiss, shift-click
+  on the map) instead of going stale; no-op unless that menu is up.
+- Root `refresh` fires `closemenu` with reason "primary" when only the primary
+  token changed; the unique drawer and the actionMenu ignore that reason while
+  overview mode persists (the menu's columns come from the whole selection, the
+  primary is irrelevant to it) - only the owner prompts are disarmed, since
+  the columns repopulate. Every other menu closes on a primary change exactly
+  as before. Live: 4 columns -> dismiss Stinker -> 3 columns, menu open ->
+  dismiss Monarch (the PRIMARY) -> primary became the Assassin, menu still
+  open with 2 columns, unique drawer active -> dismiss Assassin -> 1 token,
+  overview mode ends, menu closed, classic strip.
+
+NEXT: F2-9 role prominence -> Get in Here! data fix. Then Phase 2.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

@@ -1059,9 +1059,30 @@ local OVERVIEW_FOOTER_RULES = {
     --F2-4: every text in the footer sits at the X11 READ floor (12px) or
     --above; 11px was reported unreadable on a laptop. Names never wrap and
     --ellipsize instead of overflowing the column border.
+    --F2-8 dismiss "x" at the footer's top-right (floating; the name label
+    --leaves it room).
+    {
+        selectors = { "overviewDismiss" },
+        width = 14,
+        height = 14,
+        bgcolor = "#9a9a9a",
+        opacity = 0.8,
+        halign = "right",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewDismiss", "hover" },
+        bgcolor = "white",
+        opacity = 1,
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewDismiss", "press" },
+        bgcolor = "#cccccc",
+    },
     {
         selectors = { "overviewFooterName" },
-        width = "100%",
+        width = "100%-16",
         height = "auto",
         fontSize = 13,
         bold = true,
@@ -1727,7 +1748,12 @@ local function ActionBarDrawer(args)
             element:FireEvent("escape")
         end,
 
-        closemenu = function(element)
+        closemenu = function(element, reason)
+            --See the root refresh: a primary-token change alone does not
+            --close the overview menu while overview mode persists (F2-8).
+            if reason == "primary" and args.type == "unique" and InOverviewMode() then
+                return
+            end
             if element:HasClass("active") then
                 element:FireEvent("press")
             end
@@ -2278,6 +2304,10 @@ local function CreateActionBar()
             end
             if SelectionSignature() ~= element.data.selectionSignature then
                 element:FireEventTree("refresh")
+                --F2-8: an open Unique Abilities menu follows the selection
+                --live (a column dismissed, a token shift-clicked on the map)
+                --instead of going stale. No-op unless that menu is up.
+                element:FireEventTree("refreshOverview")
             end
         end,
 
@@ -2334,7 +2364,12 @@ local function CreateActionBar()
 
             if g_prevCharid ~= g_token.charid then
                 g_prevCharid = g_token.charid
-                element:FireEventTree("closemenu")
+                --"primary" tells the Unique Abilities drawer/menu to stay up:
+                --in overview mode the columns come from the WHOLE selection,
+                --so the primary token changing (F2-8 dismissed the primary's
+                --column, or a shift-click) is not a reason to close it. Every
+                --other menu closes as before.
+                element:FireEventTree("closemenu", "primary")
             end
 
             g_resources = g_token.properties:GetResources()
@@ -3685,7 +3720,41 @@ local function OverviewColumnFooter()
         text = "",
     }
 
-    local children = { header, promptLabel }
+    --F2-8: dismiss this statblock from the overview - drops the column AND
+    --deselects its tokens on the map (the selection poll then repopulates
+    --the open menu; with one token left the strip falls back to the classic
+    --single-creature bar). A plain panel on purpose, not gui.Button{kind =
+    --"closeButton"}: that kind binds Escape, which must keep closing the
+    --menu. Floating at the footer's top-right so it never shifts the rows.
+    local dismissButton = gui.Panel {
+        classes = { "overviewDismiss" },
+        bgimage = "ui-icons/close.png",
+        floating = true,
+        halign = "right",
+        valign = "top",
+        hover = gui.Tooltip("Remove from the overview (deselects on the map)"),
+        press = function(element)
+            if m_column == nil then
+                return
+            end
+            local remove = {}
+            for _, tok in ipairs(m_column.tokens or {}) do
+                if tok ~= nil and tok.valid then
+                    remove[tok.charid] = true
+                end
+            end
+            local remaining = {}
+            for _, tok in ipairs(dmhub.selectedTokens or {}) do
+                if tok ~= nil and tok.valid and not remove[tok.charid] then
+                    remaining[#remaining + 1] = tok
+                end
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            dmhub.selectedTokens = remaining
+        end,
+    }
+
+    local children = { header, promptLabel, dismissButton }
     for _, row in ipairs(rows) do
         children[#children + 1] = row
     end
@@ -4475,7 +4544,14 @@ ActionMenu = function()
             ClearAcknowledgedNovelAbilities()
         end,
 
-        closemenu = function(element)
+        closemenu = function(element, reason)
+            --Matches the drawer: the Unique Abilities menu rides out a
+            --primary-token change in overview mode (F2-8); only its prompts
+            --are disarmed, since the columns are about to repopulate.
+            if reason == "primary" and m_args ~= nil and m_args.type == "unique" and InOverviewMode() and not element:HasClass("hidden") then
+                DisarmOverviewPrompts()
+                return
+            end
             g_triggerPanel:SetClass("hidden", false)
             ClearAcknowledgedNovelAbilities()
             DisarmOverviewPrompts()

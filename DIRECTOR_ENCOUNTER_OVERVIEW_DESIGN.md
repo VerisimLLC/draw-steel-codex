@@ -847,6 +847,17 @@ NEXT: F2-9 role prominence -> Get in Here! data fix. Then Phase 2.
   Runner "Harrier  Level 1 Minion"; hover on the Monarch's role line showed
   "Level 1 Leader / Leader: Commands the battle with villain actions...".
 
+**2026-08-19, fourth user field test (Ricky, live): "- Not yet acted" on the
+footer line is redundant.** Not having acted is the default and needs no
+label; only the acted state must be unmissable. FIXED same session:
+`OverviewActedText` returns nil for not-yet-acted (footer line reads just
+"80/80"), red (#E06464, rich-text colour) "Turn already taken" once acted - on
+top of the F2-7 greyed chips - and plain "Acting now" mid-turn; the
+multi-member header is silent until someone has acted, then red "2 of 3
+already acted" / "Turn already taken". Design rule recorded for the copy pass
+(X13): never label the default state; reserve text + colour for the
+exception the Director must not miss.
+
 NEXT: Get in Here! data fix (Goblin Monarch maneuver filed as
 categorization "Signature Ability" in data/). Then Phase 2 - and F2-5(c) /
 the 2026-08-18 play observation say the first Phase 2 items should be the

@@ -3118,8 +3118,8 @@ end
 --nothing is fabricated when that data is missing), the RAW STAMINA
 --("13/15", F2-5 - the earlier Low/Moderate/High band was relative to the
 --creature's own max and said nothing useful) and the ACTED state from the
---live initiative queue (InitiativeQueue:HasHadTurn): "Not yet acted" /
---"Acted" / "Acting now" (F2-5: "fresh" was our jargon). Everything is text;
+--live initiative queue (InitiativeQueue:HasHadTurn): silent while not yet
+--acted, red "Turn already taken" once acted, "Acting now" mid-turn. Everything is text;
 --colour is never the only channel (Decision 51/X12); text >= 12px (X11 read
 --floor; F2-4 raised it from 11 - too small on a laptop).
 --
@@ -3127,7 +3127,7 @@ end
 --one compact MINI-ROW per member - per SQUAD for minions, since a squad is one
 --actor sharing one initiative slot and one stamina pool - each with a tiny
 --portrait and TWO lines: the member's name (ellipsized, F2-4 - one line
---overflowed the column) and "13/15 - Not yet acted" (X7). At most three rows
+--overflowed the column) and "13/15" (+ the acted state) (X7). At most three rows
 --are shown, then "+N more".
 --
 --Clicking the bar LOCATES the column: dmhub.CenterOnToken on the
@@ -3419,8 +3419,13 @@ local function OverviewLocate(centerToken, pulseTokens)
     end)
 end
 
---Acted-state copy for one member (F2-5: plain words, no jargon); nil out of
---combat or when the member has no queue entry.
+--Acted-state copy for one member. Field test 4 (Ricky): NOT having acted
+--is the default and is not worth a label - the chips are bright and the
+--take-turn button is there; so nil for that case, nil out of combat or with
+--no queue entry. Having ACTED is the thing nobody must miss: the column is
+--already greyed (F2-7) and the line reads "Turn already taken" in red.
+--"Acting now" keeps its own plain text (mid-turn, HasHadTurn not yet set).
+local OVERVIEW_ACTED_COLOR = "#E06464"
 local function OverviewActedText(member, inCombat)
     if not inCombat then
         return nil
@@ -3428,16 +3433,14 @@ local function OverviewActedText(member, inCombat)
     if member.acting == true then
         return "Acting now"
     elseif member.acted == true then
-        return "Acted"
-    elseif member.acted == false then
-        return "Not yet acted"
+        return string.format("<color=%s>Turn already taken</color>", OVERVIEW_ACTED_COLOR)
     end
     return nil
 end
 
---"13/15 - Not yet acted" style signal text for one member. The stamina is
+--"13/15" / "13/15 - Turn already taken" signal text for one member. The stamina is
 --the bare current/max readout every token nameplate in the app already uses
---(a "Stamina " prefix pushed "Not yet acted" past the 151px text column and
+--(a "Stamina " prefix pushed the acted state past the 151px text column and
 --got it ellipsized - measured live).
 local function OverviewSignalText(member, inCombat)
     local parts = {}
@@ -4058,14 +4061,14 @@ local function OverviewColumnFooter()
                 if member ~= nil then
                     text = OverviewSignalText(member, signals.inCombat)
                 end
-            elseif signals.inCombat and signals.knownCount > 0 then
-                --Several actors: header carries the not-yet-acted count, one
-                --mini-row per actor below (LayoutRows). Silent when none of
-                --them is in the order (the take-turn reason says why).
-                if signals.freshCount == 0 and signals.actedCount == #members then
-                    text = "All acted"
+            elseif signals.inCombat and signals.actedCount > 0 then
+                --Several actors: the header only speaks up once some of
+                --them HAVE acted (field test 4: not-yet-acted is the silent
+                --default); one mini-row per actor below (LayoutRows).
+                if signals.actedCount == #members then
+                    text = string.format("<color=%s>Turn already taken</color>", OVERVIEW_ACTED_COLOR)
                 else
-                    text = string.format("%d of %d not yet acted", signals.freshCount, #members)
+                    text = string.format("<color=%s>%d of %d already acted</color>", OVERVIEW_ACTED_COLOR, signals.actedCount, #members)
                 end
             end
             signalLabel.text = text

@@ -1819,13 +1819,13 @@ function ActivatedAbility:Render(options, params)
                                 end,
 
                                 hover = function(element)
-                                    local text = [[<b>Gold:</b> Fully automated.
+                                    local text = [[<b>Fully Automated:</b> Everything is handled by the app.
 
-<b>Silver:</b> Automated with some table adjudication necessary.
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
 
-<b>Bronze:</b> Partially automated.
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
 
-<b>Unimplemented:</b> Requires manual adjudication.
+<b>Not Automated:</b> Requires manual adjudication.
 
 <b>Narrative:</b> Role play only, no automation.
 ]]
@@ -1874,7 +1874,7 @@ function ActivatedAbility:Render(options, params)
 
                                 gui.Label {
                                     classes = { "implementationChip" },
-                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Not Automated",
                                     create = function(element)
                                         print("venla:", mod.images.diamond)
                                         local impl = self:try_get("implementation", 1)

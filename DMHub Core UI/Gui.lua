@@ -4563,10 +4563,10 @@ end
 
 gui.ImplementationStatusValues = {
 	[0] = "Narrative",
-	[1] = "Unimplemented",
-	[2] = "Bronze",
-	[3] = "Silver",
-	[4] = "Gold",
+	[1] = "Not Automated",
+	[2] = "Partly Automated",
+	[3] = "Mostly Automated",
+	[4] = "Fully Automated",
 }
 
 gui.ImplementationStatus = {

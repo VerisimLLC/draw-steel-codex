@@ -204,8 +204,11 @@ local function OverviewClaimGate(initiativeid)
     if q == nil or q.hidden then
         return false, "No initiative running", true
     end
+    --Transient, not settled: reinforcements waiting in "Ready Monsters" are a
+    --real in-play state (A5 Goblin Snipers) and the Director CAN change it by
+    --dragging them into the order - the greyed reason is the hint.
     if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
-        return false, "Not in the initiative order", true
+        return false, "Not in the initiative order", false
     end
     if q.currentTurn == initiativeid then
         return false, "Turn taken - acting now", true
@@ -1024,29 +1027,34 @@ local OVERVIEW_FOOTER_RULES = {
         valign = "center",
         lmargin = 6,
     },
+    --F2-4: every text in the footer sits at the X11 READ floor (12px) or
+    --above; 11px was reported unreadable on a laptop. Names never wrap and
+    --ellipsize instead of overflowing the column border.
     {
         selectors = { "overviewFooterName" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "left",
         textWrap = false,
+        textOverflow = "ellipsis",
     },
     {
         selectors = { "overviewFooterLine" },
         width = "100%",
         height = "auto",
-        fontSize = 11,
+        fontSize = 12,
         color = Styles.textColor,
         textAlignment = "left",
         textWrap = false,
+        textOverflow = "ellipsis",
     },
     {
         selectors = { "overviewFooterRow" },
         width = "100%",
-        height = 20,
+        height = 30,
         flow = "horizontal",
         halign = "left",
         tmargin = 3,
@@ -1059,26 +1067,46 @@ local OVERVIEW_FOOTER_RULES = {
         transitionTime = 0.1,
     },
     {
-        selectors = { "overviewFooterRowLabel" },
-        width = "100%-24",
+        selectors = { "overviewFooterRowText" },
+        width = "100%-28",
         height = "auto",
-        fontSize = 11,
-        color = Styles.textColor,
-        textAlignment = "left",
-        textWrap = false,
+        flow = "vertical",
         halign = "left",
         valign = "center",
         lmargin = 4,
     },
     {
+        selectors = { "overviewFooterRowLabel" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+    },
+    {
+        selectors = { "overviewFooterRowSignal" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        opacity = 0.85,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+    },
+    {
         selectors = { "overviewFooterMore" },
         width = "100%",
         height = "auto",
-        fontSize = 11,
+        fontSize = 12,
         color = Styles.textColor,
         textAlignment = "left",
         tmargin = 3,
-        lmargin = 24,
+        lmargin = 28,
     },
     --Whole-column acted greying (Decision 50): the chips dim but stay
     --discoverable and clickable (Decision 4; opacity floor per X3).
@@ -1092,7 +1120,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterPrompt" },
         width = "100%",
         height = "auto",
-        fontSize = 11,
+        fontSize = 12,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "left",
@@ -1113,13 +1141,13 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "overviewTakeTurn" },
         width = "100%",
-        height = 22,
+        height = 24,
         tmargin = 6,
         bgimage = true,
         bgcolor = "#2A2A2A",
         borderColor = Styles.Ability.goldColor,
         borderWidth = 1,
-        fontSize = 11,
+        fontSize = 12,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "center",
@@ -1148,7 +1176,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewTakeTurnReason" },
         width = "100%",
         height = "auto",
-        fontSize = 11,
+        fontSize = 12,
         color = Styles.textColor,
         textAlignment = "center",
         textWrap = true,
@@ -2952,16 +2980,20 @@ end
 --a verdict (Decision 48): the representative token's real portrait, the
 --statblock name (+ " xN"), the stat-block role line ("Level 1 Horde
 --Harrier", from monster.cr/.role exactly as the stat block header prints it;
---nothing is fabricated when that data is missing), a qualitative STAMINA
---BAND (Low <= 1/3, Moderate <= 2/3, High) and the ACTED state from the live
---initiative queue (InitiativeQueue:HasHadTurn). Everything is text; colour
---is never the only channel (Decision 51/X12); text >= 11px (X11).
+--nothing is fabricated when that data is missing), the RAW STAMINA
+--("13/15", F2-5 - the earlier Low/Moderate/High band was relative to the
+--creature's own max and said nothing useful) and the ACTED state from the
+--live initiative queue (InitiativeQueue:HasHadTurn): "Not yet acted" /
+--"Acted" / "Acting now" (F2-5: "fresh" was our jargon). Everything is text;
+--colour is never the only channel (Decision 51/X12); text >= 12px (X11 read
+--floor; F2-4 raised it from 11 - too small on a laptop).
 --
 --When a column has more than one member (Goblin Warrior x2), the footer grows
 --one compact MINI-ROW per member - per SQUAD for minions, since a squad is one
 --actor sharing one initiative slot and one stamina pool - each with a tiny
---portrait, the member's name, its stamina band and its acted tag (X7). At
---most three rows are shown, then "+N more".
+--portrait and TWO lines: the member's name (ellipsized, F2-4 - one line
+--overflowed the column) and "13/15 - Not yet acted" (X7). At most three rows
+--are shown, then "+N more".
 --
 --Clicking the bar LOCATES the column: dmhub.CenterOnToken on the
 --representative and dmhub.PulseHighlightToken on every member; clicking a
@@ -2980,25 +3012,32 @@ end
 --Styling lives in OVERVIEW_FOOTER_RULES (next to NOVEL_MARKER_RULES, merged
 --into the action bar root's cascade).
 
---Qualitative stamina band for a token: "Low" (<= 1/3), "Moderate" (<= 2/3)
---or "High"; nil when the creature has no usable stamina numbers. For a
---minion, CurrentHitpoints/MaxHitpoints already report the SQUAD pool
---(MCDMCreature.lua ~:172/:4710), so the band is the squad's state.
-local function OverviewStaminaBand(tok)
-    local cur, max = nil, nil
+--Raw stamina for a token as "13/15" (+ " +T" temporary stamina when any);
+--nil when the creature has no usable stamina numbers. F2-5: the earlier
+--qualitative band (Low/Moderate/High, relative to the creature's OWN max)
+--told the Director nothing about survivability - a 15-max Warrior and an
+--80-max Monarch both read "High" - and in practice nearly every column read
+--"High". The raw numbers are cheap and unambiguous (Decision 9's "show raw
+--numbers"); the survivability question itself is the Phase 2 threat
+--estimate. For a minion, CurrentHitpoints/MaxHitpoints already report the
+--SQUAD pool (MCDMCreature.lua ~:172/:4710), so this is the squad's pool.
+local function OverviewStaminaText(tok)
+    local cur, max, temp = nil, nil, nil
     pcall(function()
         cur = tok.properties:CurrentHitpoints()
         max = tok.properties:MaxHitpoints()
     end)
+    pcall(function()
+        temp = tok.properties:TemporaryHitpoints()
+    end)
     if type(cur) ~= "number" or type(max) ~= "number" or max <= 0 then
         return nil
     end
-    if cur <= max / 3 then
-        return "Low"
-    elseif cur <= max * 2 / 3 then
-        return "Moderate"
+    local text = string.format("%d/%d", round(cur), round(max))
+    if type(temp) == "number" and temp > 0 then
+        text = string.format("%s +%d", text, round(temp))
     end
-    return "High"
+    return text
 end
 
 --Acted-this-round from the live initiative queue: true / false, or nil when
@@ -3068,7 +3107,7 @@ local function OverviewColumnSignals(column)
                     token = tok,
                     name = squad or tok.name or column.name or "Creature",
                     tokens = {},
-                    stamina = OverviewStaminaBand(tok),
+                    stamina = OverviewStaminaText(tok),
                     acted = OverviewActedState(q, tok),
                     --Slice (e): mid-turn (HasHadTurn only flips at turn
                     --end), so the signal line can read "acting now".
@@ -3085,16 +3124,27 @@ local function OverviewColumnSignals(column)
     end
 
     local actedCount = 0
+    local freshCount = 0
+    local knownCount = 0
     for _, member in ipairs(members) do
         if member.acted == true then
             actedCount = actedCount + 1
+            knownCount = knownCount + 1
+        elseif member.acted == false then
+            freshCount = freshCount + 1
+            knownCount = knownCount + 1
         end
     end
 
     return {
         members = members,
         actedCount = actedCount,
-        freshCount = #members - actedCount,
+        --Only members with a queue entry count as not-yet-acted; a member
+        --with no entry (reinforcements in "Ready Monsters") is unknown, and
+        --knownCount lets the header stay silent rather than claim "2 of 2
+        --not yet acted" about creatures that are not in the order at all.
+        freshCount = freshCount,
+        knownCount = knownCount,
         allActed = #members > 0 and actedCount == #members,
         inCombat = q ~= nil,
     }
@@ -3171,20 +3221,34 @@ local function OverviewLocate(centerToken, pulseTokens)
     end)
 end
 
---"Stamina: High - acted" style signal text for one member.
+--Acted-state copy for one member (F2-5: plain words, no jargon); nil out of
+--combat or when the member has no queue entry.
+local function OverviewActedText(member, inCombat)
+    if not inCombat then
+        return nil
+    end
+    if member.acting == true then
+        return "Acting now"
+    elseif member.acted == true then
+        return "Acted"
+    elseif member.acted == false then
+        return "Not yet acted"
+    end
+    return nil
+end
+
+--"13/15 - Not yet acted" style signal text for one member. The stamina is
+--the bare current/max readout every token nameplate in the app already uses
+--(a "Stamina " prefix pushed "Not yet acted" past the 151px text column and
+--got it ellipsized - measured live).
 local function OverviewSignalText(member, inCombat)
     local parts = {}
     if member.stamina ~= nil then
-        parts[#parts + 1] = "Stamina: " .. member.stamina
+        parts[#parts + 1] = member.stamina
     end
-    if inCombat then
-        if member.acting == true then
-            parts[#parts + 1] = "acting now"
-        elseif member.acted == true then
-            parts[#parts + 1] = "acted"
-        elseif member.acted == false then
-            parts[#parts + 1] = "fresh"
-        end
+    local acted = OverviewActedText(member, inCombat)
+    if acted ~= nil then
+        parts[#parts + 1] = acted
     end
     return table.concat(parts, " - ")
 end
@@ -3246,13 +3310,33 @@ local function OverviewMemberAbility(memberToken, ability)
     return found or ability
 end
 
+--Plain-English plural of a statblock name for the shared-entry button copy
+--("Goblin Assassins'", "Goblin Bosses'", "Harpies'"). Only used in a
+--possessive, so the result already carries the apostrophe.
+local function OverviewPluralPossessive(name)
+    local lower = string.lower(name)
+    if string.match(lower, "[sxz]$") or string.match(lower, "[cs]h$") then
+        return name .. "es'"
+    end
+    if string.match(lower, "[^aeiou]y$") then
+        return string.sub(name, 1, -2) .. "ies'"
+    end
+    return name .. "s'"
+end
+
 --"Take <Name>'s turn" (single actor) / "Take a <Name>'s turn" (several
---members share the statblock). Falls back to "Take turn" when the name would
---not fit the 205px footer; the full text always goes in the tooltip.
-local function OverviewTakeTurnText(column, memberCount)
+--members with their OWN initiative entries - the press then asks which) /
+--"Take the <Names>' turn" (F2-3: several members sharing ONE entry via
+--initiativeGrouping, e.g. Sneaky + Dizzy Assassin - they act as a unit, so
+--say so instead of surprising the Director). Falls back to "Take turn" when
+--the name would not fit the 205px footer; the full text always goes in the
+--tooltip.
+local function OverviewTakeTurnText(column, memberCount, sharedEntry)
     local name = column.name or "Creature"
     local full
-    if memberCount > 1 then
+    if memberCount > 1 and sharedEntry then
+        full = string.format("Take the %s turn", OverviewPluralPossessive(name))
+    elseif memberCount > 1 then
         full = string.format("Take a %s's turn", name)
     else
         full = string.format("Take %s's turn", name)
@@ -3332,22 +3416,33 @@ local function OverviewColumnFooter()
     local rows = {}
     for i = 1, OVERVIEW_FOOTER_ROW_POOL do
         local rowPortrait = gui.CreateTokenImage(nil, {
-            width = 18,
-            height = 18,
+            width = 24,
+            height = 24,
             halign = "left",
             valign = "center",
             interactable = false,
         })
+        --F2-4: two lines - the name alone (ellipsized) and the signals -
+        --instead of one long line that overflowed the column border.
         local rowLabel = gui.Label {
             classes = { "overviewFooterRowLabel" },
             text = "",
+        }
+        local rowSignal = gui.Label {
+            classes = { "overviewFooterRowSignal" },
+            text = "",
+        }
+        local rowText = gui.Panel {
+            classes = { "overviewFooterRowText" },
+            rowLabel,
+            rowSignal,
         }
         local row
         row = gui.Panel {
             classes = { "overviewFooterRow", "collapsed" },
             data = { member = nil },
             rowPortrait,
-            rowLabel,
+            rowText,
 
             press = function(element)
                 local member = element.data.member
@@ -3412,11 +3507,10 @@ local function OverviewColumnFooter()
                 if #member.tokens > 1 then
                     text = string.format("%s (%d)", text, #member.tokens)
                 end
-                local signal = OverviewSignalText(member, inCombat)
-                if signal ~= "" then
-                    text = text .. " - " .. signal
-                end
                 rowLabel.text = text
+                local signal = OverviewSignalText(member, inCombat)
+                rowSignal.text = signal
+                rowSignal:SetClass("collapsed", signal == "")
             end,
         }
         rows[i] = row
@@ -3597,7 +3691,27 @@ local function OverviewColumnFooter()
         end
         takeTurnButton:SetClass("collapsed", false)
 
-        local short, full = OverviewTakeTurnText(m_column, #m_signals.members)
+        --F2-3: do the column's members all share ONE initiative entry? Count
+        --over EVERY member token, not just the representatives - in A5 a
+        --squad's tokens can carry different initiativeGrouping ids.
+        local sharedEntry = false
+        if #m_signals.members > 1 then
+            local distinct = {}
+            local count = 0
+            for _, member in ipairs(m_signals.members) do
+                for _, tok in ipairs(member.tokens) do
+                    local initiativeid = nil
+                    pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(tok) end)
+                    if initiativeid ~= nil and not distinct[initiativeid] then
+                        distinct[initiativeid] = true
+                        count = count + 1
+                    end
+                end
+            end
+            sharedEntry = count == 1
+        end
+
+        local short, full = OverviewTakeTurnText(m_column, #m_signals.members, sharedEntry)
         takeTurnButton.text = short
         takeTurnButton:SetClass("disabled", not ok)
         m_claimReason = reason
@@ -3699,10 +3813,15 @@ local function OverviewColumnFooter()
                 if member ~= nil then
                     text = OverviewSignalText(member, signals.inCombat)
                 end
-            elseif signals.inCombat then
-                --Several actors: header carries the fresh count, one
-                --mini-row per actor below (LayoutRows).
-                text = string.format("%d of %d fresh", signals.freshCount, #members)
+            elseif signals.inCombat and signals.knownCount > 0 then
+                --Several actors: header carries the not-yet-acted count, one
+                --mini-row per actor below (LayoutRows). Silent when none of
+                --them is in the order (the take-turn reason says why).
+                if signals.freshCount == 0 and signals.actedCount == #members then
+                    text = "All acted"
+                else
+                    text = string.format("%d of %d not yet acted", signals.freshCount, #members)
+                end
             end
             signalLabel.text = text
             signalLabel:SetClass("collapsed", text == "")
@@ -3817,6 +3936,17 @@ local function ActionSubMenu(args)
         setCasterToken = function(element, casterToken, column)
             m_casterToken = casterToken
             m_column = column
+            --The abilitySubMenu style wraps a vertical flow into a second
+            --column when it runs out of height (legacy long menus). For an
+            --overview column that wrap misfires: the engine resolves the
+            --column's auto height and the wrap limit in one pass, and once
+            --the footer grew past ~70px (F2-4 two-line rows / 12px text) the
+            --footer of EVERY column - even a one-chip column - wrapped to the
+            --top-right of its column (seen live, A5). An overview kit is a
+            --handful of chips plus the footer and never needs to wrap, so
+            --turn wrapping off while a column is bound; restore it when the
+            --pooled panel is parked again.
+            element.selfStyle.wrap = not (column ~= nil and casterToken ~= nil)
         end,
 
         --Forwarded to the footer (slice (e) owner prompt); no-op for ordinary

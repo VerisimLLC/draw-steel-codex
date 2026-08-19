@@ -699,6 +699,60 @@ F2-7 (grey acted chips - the Stinker "acted" column above shows its chips at
 full brightness) -> F2-8 -> F2-9/role prominence -> Get in Here! data fix.
 Then Phase 2.
 
+**2026-08-19 (later), F2-4 + F2-5 + F2-3 copy done (agent, live A5 game;
+standing regression check passed again: Monarch alone -> Signature Abilities +
+Common Abilities, 9 chips, 0 buttons; only console errors are the pre-existing
+reload-time `DocumentSystem.lua:7024 GameHud.instance` boolean NRE, not ours).**
+- **F2-5 DONE.** `OverviewStaminaBand` -> `OverviewStaminaText` (~:2998):
+  raw "13/15" (+ " +T" temp stamina when any), via CurrentHitpoints /
+  MaxHitpoints / TemporaryHitpoints; minion squads still read the squad pool.
+  `OverviewActedText` (~:3228): "Not yet acted" / "Acted" / "Acting now".
+  Header line for a single actor = "80/80 - Not yet acted" (the "Stamina "
+  prefix was tried and pushed the state off the 151px text column into the
+  ellipsis - the bare current/max readout is what every token nameplate in
+  the app shows, so it was dropped); multi-member header = "k of N not yet
+  acted" / "All acted", and SILENT when no member has a queue entry (before:
+  "2 of 2 not yet acted" about Snipers who were not in the order at all -
+  `signals.knownCount` added, `freshCount` now counts only `acted == false`).
+- **F2-4 DONE.** Every footer text is now >= 12px (name 13 bold, lines/rows/
+  button/reason 12; button 24 tall); name/lines/rows use
+  `textOverflow = "ellipsis"`. Mini-rows are TWO lines: name (ellipsized) +
+  "18/18 - Not yet acted" (`overviewFooterRowText` vertical panel with
+  `overviewFooterRowLabel` + new `overviewFooterRowSignal`; row 30 tall,
+  portrait 24). Live: "Goblin Sniper Squad 5 (6)" / "18/18" rows fit inside
+  the border.
+- **LAYOUT TRAP FOUND + FIXED (record for anyone touching the footer): the
+  `abilitySubMenu` style has `flow = vertical, wrap = true` (legacy long menus
+  overflow into a second column). Once the footer's auto height passed ~70px
+  the engine's single-pass auto-height/wrap resolution misfired and the footer
+  of EVERY overview column - even a one-chip Runner column - wrapped to the
+  top-RIGHT of its column (screenshot: footers floating beside/above the
+  chips). Forcing `selfStyle.height = 70` un-wrapped them; so does
+  `selfStyle.wrap = false` with auto height. Fix: `ActionSubMenu`'s
+  `setCasterToken` sets `element.selfStyle.wrap = false` while a column is
+  bound and `true` when parked (~:3937). An overview kit never needs to wrap.
+  The slice-(d) footer had only been safe by ~12px of slack.**
+- **F2-3 copy DONE:** `OverviewTakeTurnText(column, memberCount, sharedEntry)`
+  -> "Take the Goblin Assassins' turn" when every member TOKEN of the column
+  resolves to one initiative id (`OverviewPluralPossessive`: s/x/z/ch/sh ->
+  es', consonant+y -> ies', else s'). Counted over every token, not the
+  representatives: in A5 the first "Squad 4" Sniper carries Squad 5's
+  grouping id, so representatives alone said "shared" for a column that
+  spans two entries ("Take a Goblin Sniper's turn" is correct there).
+- F3-2 REFINEMENT: "Not in the initiative order" moved from settled (hidden)
+  to transient (greyed button + reason). Reinforcements parked in "Ready
+  Monsters" are a real in-play state (the 12 A5 Snipers) and the Director can
+  change it by dragging them into the order - the greyed reason is the hint.
+  Out-of-combat ("No initiative running") stays hidden.
+- Visual check of this state (16 tokens, 5 columns): Monarch "80/80 - Not yet
+  acted", Stinker "9/10", Assassin "14/15", Runner "4/4", Sniper x12 with two
+  rows + greyed "Take a Goblin Sniper's turn" / "Not in the initiative order".
+
+NEXT: action-type text on chips + main/maneuver hairline -> F2-7 grey ALL
+chips when acted (verify the `acted` class actually reaches the chips) ->
+F2-8 dismiss-x per column -> F2-9 role prominence -> Get in Here! data fix.
+Then Phase 2.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

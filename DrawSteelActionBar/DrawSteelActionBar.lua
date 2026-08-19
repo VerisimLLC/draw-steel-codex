@@ -1099,6 +1099,106 @@ local OVERVIEW_FOOTER_RULES = {
     --F2-4: every text in the footer sits at the X11 READ floor (12px) or
     --above; 11px was reported unreadable on a laptop. Names never wrap and
     --ellipsize instead of overflowing the column border.
+    --P2-c1 lens bar (Decision 27: fixed width, arrows never move) and the
+    --lens channel on chips (X3: matching = gold frame, non-matching dims to
+    --.45 and never stacks with the acted/cannot-afford channels).
+    {
+        selectors = { "overviewLensBar" },
+        width = 237,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "bottom",
+        bmargin = 6,
+        bgimage = true,
+        bgcolor = "#1D1D1D",
+        borderColor = "#606060",
+        borderWidth = 1.5,
+        pad = 4,
+        borderBox = true,
+    },
+    {
+        selectors = { "overviewLensBar", "active" },
+        borderColor = Styles.Ability.goldColor,
+    },
+    {
+        selectors = { "overviewLensRow" },
+        width = "100%",
+        height = 24,
+        flow = "horizontal",
+        halign = "center",
+        valign = "center",
+    },
+    {
+        selectors = { "overviewLensArrow" },
+        width = 22,
+        height = "100%",
+        fontSize = 14,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "center",
+        halign = "left",
+        valign = "center",
+        bgimage = true,
+        bgcolor = "#2A2A2A",
+        borderColor = "#606060",
+        borderWidth = 1,
+    },
+    {
+        selectors = { "overviewLensArrow", "hover" },
+        bgcolor = "#3A3A3A",
+        borderColor = "white",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewLensLabelHolder" },
+        width = "100%-52",
+        height = "100%",
+        hmargin = 4,
+        halign = "left",
+        valign = "center",
+        bgimage = true,
+        bgcolor = "#2A2A2A",
+        borderColor = "#606060",
+        borderWidth = 1,
+    },
+    {
+        selectors = { "overviewLensLabelHolder", "hover" },
+        bgcolor = "#3A3A3A",
+        borderColor = "white",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewLensLabel" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "center",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "center",
+        valign = "center",
+    },
+    {
+        selectors = { "overviewLensEmpty" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 4,
+    },
+    {
+        selectors = { "abilityHeading", "onLens" },
+        borderColor = Styles.Ability.goldColor,
+    },
+    {
+        selectors = { "abilityHeading", "offLens" },
+        opacity = 0.45,
+    },
     --P2-a status strip: the token HUD's status icons at >= 16px (X15);
     --threat flags (hero-applied marks/conditions) carry a red ring.
     {
@@ -3226,6 +3326,172 @@ end
 --Styling lives in OVERVIEW_FOOTER_RULES (next to NOVEL_MARKER_RULES, merged
 --into the action bar root's cascade).
 
+--P2-c1: LENSES (Decisions 8/21/27/31/49, X3). A lens is a FACET filter over
+--the overview columns: it hides columns with no matching kit ability, dims
+--(never hides) the non-matching chips inside the surviving columns, and sorts
+--each column's chips by the lens's natural key. Facets are derived, never
+--hand-tagged: keywords, behaviour types and the engine's own tier-text parser
+--(ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments - the regex
+--rule matcher, NEVER substring search: "strained" is inside "restrained").
+local OVERVIEW_LENSES = {
+    { id = "all",     name = "All" },
+    { id = "damage",  name = "Damage" },
+    { id = "area",    name = "Area" },
+    { id = "forced",  name = "Forced Move" },
+    { id = "control", name = "Control" },
+    { id = "malice",  name = "Malice" },
+}
+--Session-scoped: the lens survives menu close/open but not a reload.
+local g_overviewLens = "all"
+
+local function OverviewLensInfo(id)
+    for _, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return lens
+        end
+    end
+    return OVERVIEW_LENSES[1]
+end
+
+local function OverviewLensIndex(id)
+    for i, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return i
+        end
+    end
+    return 1
+end
+
+--Tier-text facets, cached by the exact text (the parser is regex-heavy and
+--the same tier strings recur on every populate).
+local g_overviewTierFacetCache = {}
+local function OverviewTierFacets(text)
+    if type(text) ~= "string" or text == "" then
+        return { damage = nil, forced = nil, control = false }
+    end
+    local cached = g_overviewTierFacetCache[text]
+    if cached ~= nil then
+        return cached
+    end
+    local facets = { damage = nil, forced = nil, control = false }
+    local segments = nil
+    pcall(function()
+        segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(text)
+    end)
+    for _, segment in ipairs(segments or {}) do
+        local m = segment.match
+        if type(m) == "table" then
+            if m.damage ~= nil then
+                local n = tonumber(string.match(tostring(m.damage), "^%s*(%d+)"))
+                if n ~= nil and (facets.damage == nil or n > facets.damage) then
+                    facets.damage = n
+                end
+            end
+            if m.movement ~= nil and m.distance ~= nil then
+                local n = tonumber(m.distance)
+                if n ~= nil and (facets.forced == nil or n > facets.forced) then
+                    facets.forced = n
+                end
+            end
+            if m.condition ~= nil then
+                facets.control = true
+            end
+        end
+    end
+    g_overviewTierFacetCache[text] = facets
+    return facets
+end
+
+--Facets of one kit ability: booleans per lens plus the lens sort keys.
+--  damage / damageValue (tier 2, Decision 21), area / areaSize,
+--  forced / forcedDistance, control, malice / maliceCost.
+local function OverviewAbilityFacets(ability)
+    local facets = {
+        damage = false, damageValue = 0,
+        area = false, areaSize = 0,
+        forced = false, forcedDistance = 0,
+        control = false,
+        malice = false, maliceCost = 0,
+    }
+    if ability == nil then
+        return facets
+    end
+    pcall(function()
+        facets.area = ability:HasKeyword("Area") == true
+        if facets.area then
+            facets.areaSize = tonumber(ability:try_get("radius")) or tonumber(ability.range) or 0
+        end
+    end)
+    pcall(function()
+        local cost = GetHeroicResourceOrMaliceCost(ability) or 0
+        facets.malice = cost > 0
+        facets.maliceCost = cost
+    end)
+    pcall(function()
+        for _, behavior in ipairs(ability.behaviors or {}) do
+            local tn = behavior.typeName or ""
+            if tn == "ActivatedAbilityPowerRollBehavior" then
+                local tiers = behavior:try_get("tiers") or {}
+                for i, text in ipairs(tiers) do
+                    local f = OverviewTierFacets(text)
+                    if f.damage ~= nil then
+                        facets.damage = true
+                        if i == 2 or (i == #tiers and facets.damageValue == 0) then
+                            facets.damageValue = f.damage
+                        end
+                    end
+                    if f.forced ~= nil then
+                        facets.forced = true
+                        if f.forced > facets.forcedDistance then
+                            facets.forcedDistance = f.forced
+                        end
+                    end
+                    if f.control then
+                        facets.control = true
+                    end
+                end
+            elseif tn == "ActivatedAbilityDamageBehavior" then
+                facets.damage = true
+            elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
+                facets.forced = true
+                local d = tonumber(behavior:try_get("distance"))
+                if d ~= nil and d > facets.forcedDistance then
+                    facets.forcedDistance = d
+                end
+            elseif string.find(tn, "OngoingEffect", 1, true) ~= nil
+                or string.find(tn, "InflictCondition", 1, true) ~= nil
+                or string.find(tn, "ApplyCondition", 1, true) ~= nil then
+                facets.control = true
+            end
+        end
+    end)
+    return facets
+end
+
+local function OverviewAbilityMatchesLens(facets, lens)
+    if lens == nil or lens == "all" then
+        return true
+    end
+    return facets[lens] == true
+end
+
+--Decision 21: Damage = tier-2 damage desc; Area = size desc; Forced Move =
+--distance desc; Malice = cost asc; Control has no magnitude -> damage desc.
+--ALL ties broken by tier-2 damage desc, then name.
+local function OverviewLensLess(lens, a, fa, b, fb)
+    if lens == "malice" and fa.maliceCost ~= fb.maliceCost then
+        return fa.maliceCost < fb.maliceCost
+    elseif lens == "area" and fa.areaSize ~= fb.areaSize then
+        return fa.areaSize > fb.areaSize
+    elseif lens == "forced" and fa.forcedDistance ~= fb.forcedDistance then
+        return fa.forcedDistance > fb.forcedDistance
+    end
+    if fa.damageValue ~= fb.damageValue then
+        return fa.damageValue > fb.damageValue
+    end
+    return a.name < b.name
+end
+
 --Raw stamina for a token as "13/15" (+ " +T" temporary stamina when any);
 --nil when the creature has no usable stamina numbers. F2-5: the earlier
 --qualitative band (Low/Moderate/High, relative to the creature's OWN max)
@@ -4455,6 +4721,7 @@ local function ActionSubMenu(args)
         children = m_children,
         classes = { "abilitySubMenu" },
         blurBackground = true,
+        data = { lensMatchCount = 0 },
 
         setCasterToken = function(element, casterToken, column)
             m_casterToken = casterToken
@@ -4494,17 +4761,37 @@ local function ActionSubMenu(args)
 
             local overview = m_column ~= nil and m_casterToken ~= nil
 
+            --P2-c1: per-ability facets and the active lens (overview only).
+            local lens = "all"
+            local facetsByAbility = {}
+            local lensMatchCount = 0
+            if overview then
+                lens = g_overviewLens
+                for _, ability in ipairs(abilities) do
+                    local facets = OverviewAbilityFacets(ability)
+                    facetsByAbility[ability] = facets
+                    if OverviewAbilityMatchesLens(facets, lens) then
+                        lensMatchCount = lensMatchCount + 1
+                    end
+                end
+            end
+
             if overview then
                 --Overview column (field test 2): main actions ABOVE, then
-                --maneuvers / free actions BELOW a hairline; signature first
-                --within the main actions, then by cost, then name - so
-                --"Monarch = one above + one below, Warrior = two above" reads
-                --structurally across columns.
+                --maneuvers / free actions BELOW a hairline; within a group,
+                --the "All" lens puts signature first, then cost, then name
+                --("Monarch = one above + one below, Warrior = two above"
+                --reads structurally across columns); an active lens sorts by
+                --its natural key instead (Decision 21 / 49), keeping the
+                --action-economy partition.
                 table.sort(abilities, function(a, b)
                     local groupA = OverviewActionType(a)
                     local groupB = OverviewActionType(b)
                     if groupA ~= groupB then
                         return groupA < groupB
+                    end
+                    if lens ~= "all" then
+                        return OverviewLensLess(lens, a, facetsByAbility[a], b, facetsByAbility[b])
                     end
                     local sigA = a.categorization == "Signature Ability"
                     local sigB = b.categorization == "Signature Ability"
@@ -4547,11 +4834,31 @@ local function ActionSubMenu(args)
                 m_chips[i]:FireEvent("setCasterToken", m_casterToken, pressHook)
                 m_chips[i]:FireEventTree("ability", abilities[i])
                 m_chips[i]:SetClass("collapsed", false)
+                --P2-c1 lens channel (X3): matching chips get a left tick,
+                --non-matching chips dim to .45 but stay (kit context). Both
+                --cleared for the "All" lens and for ordinary menus.
+                local onLens = false
+                local offLens = false
+                if overview and lens ~= "all" then
+                    onLens = OverviewAbilityMatchesLens(facetsByAbility[abilities[i]], lens)
+                    offLens = not onLens
+                end
+                m_chips[i]:SetClass("onLens", onLens)
+                m_chips[i]:SetClass("offLens", offLens)
             end
 
             for i = #abilities + 1, #m_chips do
                 m_chips[i]:SetClass("collapsed", true)
             end
+
+            --P2-c1 (Decision 31/49): a column with NO matching ability hides
+            --under an active lens; the menu re-centers the survivors because
+            --it is halign=center. The column stays populated so flipping the
+            --lens back is instant.
+            if overview and lens ~= "all" and lensMatchCount == 0 then
+                element:SetClass("collapsed", true)
+            end
+            element.data.lensMatchCount = lensMatchCount
 
             --Hairline after the last main-action chip, only when the column
             --has chips on both sides of it.
@@ -4796,6 +5103,119 @@ ActionMenu = function()
         flow = "horizontal",
     }
 
+    --P2-c1: the LENS BAR above the overview columns (Decision 27: fixed
+    --width so the cycle arrows never move; label click = dropdown of every
+    --lens with counts). Collapsed for every ordinary menu. Counts = matching
+    --kit abilities across the selection. m_lensColumns is the last column
+    --list PopulateUniqueColumns produced, so a lens change re-runs it.
+    local m_lensCounts = {}
+    local m_lensEmptyLabel = gui.Label {
+        classes = { "overviewLensEmpty", "collapsed" },
+        text = "",
+    }
+    local m_lensLabel = gui.Label {
+        classes = { "overviewLensLabel" },
+        text = "All",
+    }
+    local m_lensBar
+    local function LensCountsFromColumns(columns)
+        local counts = {}
+        for _, lens in ipairs(OVERVIEW_LENSES) do
+            counts[lens.id] = 0
+        end
+        for _, column in ipairs(columns or {}) do
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                for _, lens in ipairs(OVERVIEW_LENSES) do
+                    if OverviewAbilityMatchesLens(facets, lens.id) then
+                        counts[lens.id] = counts[lens.id] + 1
+                    end
+                end
+            end
+        end
+        return counts
+    end
+    local function RefreshLensBar(columns)
+        m_lensCounts = LensCountsFromColumns(columns)
+        local lens = OverviewLensInfo(g_overviewLens)
+        if lens.id == "all" then
+            m_lensLabel.text = string.format("Filter: All (%d)", m_lensCounts.all or 0)
+        else
+            m_lensLabel.text = string.format("Filter: %s (%d)", lens.name, m_lensCounts[lens.id] or 0)
+        end
+        m_lensBar:SetClass("active", lens.id ~= "all")
+        local empty = lens.id ~= "all" and (m_lensCounts[lens.id] or 0) == 0
+        if empty then
+            m_lensEmptyLabel.text = string.format("No %s abilities in this selection", string.lower(lens.name))
+        end
+        m_lensEmptyLabel:SetClass("collapsed", not empty)
+    end
+    --Set by the unique-menu branch; a lens change re-populates through it.
+    local m_relens = nil
+    local function SetLens(id)
+        if OverviewLensInfo(id).id == g_overviewLens then
+            return
+        end
+        g_overviewLens = OverviewLensInfo(id).id
+        audio.FireSoundEvent("Mouse.Click")
+        if m_relens ~= nil then
+            m_relens()
+        end
+    end
+    local function CycleLens(delta)
+        local index = OverviewLensIndex(g_overviewLens) + delta
+        if index < 1 then
+            index = #OVERVIEW_LENSES
+        elseif index > #OVERVIEW_LENSES then
+            index = 1
+        end
+        SetLens(OVERVIEW_LENSES[index].id)
+    end
+    m_lensBar = gui.Panel {
+        classes = { "overviewLensBar", "collapsed" },
+        gui.Panel {
+            classes = { "overviewLensRow" },
+            gui.Label {
+                classes = { "overviewLensArrow" },
+                text = "<",
+                hover = gui.Tooltip("Previous filter"),
+                press = function(element)
+                    CycleLens(-1)
+                end,
+            },
+            gui.Panel {
+                classes = { "overviewLensLabelHolder" },
+                m_lensLabel,
+                hover = gui.Tooltip("Filter the columns by what their abilities do; click for the list"),
+                press = function(element)
+                    local entries = {}
+                    for _, lens in ipairs(OVERVIEW_LENSES) do
+                        local id = lens.id
+                        entries[#entries + 1] = {
+                            text = string.format("%s (%d)", lens.name, m_lensCounts[id] or 0),
+                            click = function()
+                                element.popup = nil
+                                SetLens(id)
+                            end,
+                        }
+                    end
+                    element.popup = gui.ContextMenu {
+                        entries = entries,
+                    }
+                end,
+            },
+            gui.Label {
+                classes = { "overviewLensArrow" },
+                text = ">",
+                hover = gui.Tooltip("Next filter"),
+                press = function(element)
+                    CycleLens(1)
+                end,
+            },
+        },
+        m_lensEmptyLabel,
+    }
+
     --Slice (e): back out of any armed owner-selection prompt (Esc, click-away
     --and menu switches all land here). Cheap no-op when none is armed.
     local function DisarmOverviewPrompts()
@@ -4907,7 +5327,8 @@ ActionMenu = function()
             if element:HasClass("hidden") or m_args == nil or m_args.type ~= "unique" then
                 return
             end
-            PopulateUniqueColumns()
+            local columns = PopulateUniqueColumns()
+            RefreshLensBar(columns)
         end,
 
         menu = function(element, args)
@@ -4973,6 +5394,14 @@ ActionMenu = function()
             --beginCasting).
             if args.type == "unique" then
                 local columns, populated = PopulateUniqueColumns()
+                --P2-c1: lens bar up, counts from this selection; a lens
+                --change re-populates the same columns.
+                m_relens = function()
+                    local relensed = PopulateUniqueColumns()
+                    RefreshLensBar(relensed)
+                end
+                RefreshLensBar(columns)
+                m_lensBar:SetClass("collapsed", false)
                 local children = {}
                 --EVERY pooled column goes in the list (the ones past this
                 --selection's count are collapsed by PopulateUniqueColumns);
@@ -5201,6 +5630,7 @@ ActionMenu = function()
                 submenu:SetClass("collapsed", true)
                 children[#children + 1] = submenu
             end
+            m_lensBar:SetClass("collapsed", true)
 
             m_containerPanel.children = children
 
@@ -5216,6 +5646,7 @@ ActionMenu = function()
             end
         end,
 
+        m_lensBar,
         m_containerPanel,
         g_manualSetResourcePanel,
     }

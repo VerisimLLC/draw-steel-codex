@@ -2362,6 +2362,43 @@ function Encounter.ClearReadiedEncounter()
     g_readiedEncounter = nil
 end
 
+-- The engine's own click-to-place is armed through GUI focus, not through a
+-- mode flag: dmhub.GetSelectedEncounter reads gui.GetFocus().data.encounter,
+-- so while a panel carrying an encounter holds focus the map draws a ghost of
+-- the whole roster under the cursor and the next map click spawns it. Nothing
+-- disarms that on its own. Once the encounter has been placed some other way
+-- -- or combat has begun -- the arming is stale: the Director is left dragging
+-- a phantom copy of the encounter around, one click from spawning a second
+-- one on top of the fight they just started.
+--
+-- Only a panel that is actually arming an encounter is cleared, never the
+-- placement banner, which holds focus on purpose so it can receive the map
+-- click. The clear is repeated a beat later because the click that placed the
+-- encounter can still be bubbling: the encounter card's own click handler
+-- re-focuses the card AFTER this runs.
+function Encounter.DisarmClickToPlace()
+    local function Clear()
+        local focus = gui.GetFocus()
+        if focus == nil or not focus.valid then
+            return
+        end
+        if focus:HasClass("encounterPlacementBanner") then
+            return
+        end
+        if focus.data.encounter ~= nil then
+            gui.SetFocus(nil)
+        end
+    end
+
+    Clear()
+    dmhub.Schedule(0.1, function()
+        if mod.unloaded then
+            return
+        end
+        Clear()
+    end)
+end
+
 -- Set of wave ids that have already been deployed (or dismissed) during this live
 -- encounter. A deployed wave's reinforcement button no longer shows. Empty by
 -- default; mutated through MarkWaveDeployed (which copies-on-write so the shared

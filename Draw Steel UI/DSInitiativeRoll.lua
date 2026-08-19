@@ -282,7 +282,11 @@ local function createDrawSteelBanner(options)
                         g_selectedEncounterOpenInitiative = nil
 
                         --Combat has started: the readied encounter is consumed.
+                        --Whatever route the monsters took onto the map, an armed
+                        --click-to-place is now stale -- it would drop a second
+                        --copy of the encounter into the fight -- so drop that too.
                         Encounter.ClearReadiedEncounter()
+                        Encounter.DisarmClickToPlace()
 
                         Commands.rollinitiative()
 

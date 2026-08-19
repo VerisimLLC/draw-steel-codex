@@ -3277,7 +3277,10 @@ ShowPlacementBanner = function(encounter, opts)
     local banner
 
     banner = gui.Panel {
-        classes = { "framedPanel" },
+        --marker class: this banner holds GUI focus on purpose (that is how it
+        --receives the map click), so Encounter.DisarmClickToPlace must leave
+        --it alone while it is up.
+        classes = { "framedPanel", "encounterPlacementBanner" },
         styles = ThemeEngine.GetStyles(),
         width = 640,
         --auto height with a bounded label: long messages wrap to a second
@@ -3698,6 +3701,13 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
                 game.UpdateCharacterTokens()
                 Encounter.SetReadiedEncounter(encounter)
+
+                --we have just placed this encounter ourselves, so the engine's
+                --click-to-place must not stay armed behind us: the encounter
+                --card still holds GUI focus from being selected, which leaves a
+                --ghost of the whole roster following the cursor and one stray
+                --map click away from spawning the encounter a second time.
+                Encounter.DisarmClickToPlace()
 
                 if queueActive then
                     --mid-combat: the new arrivals join the running fight,

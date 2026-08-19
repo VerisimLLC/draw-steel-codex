@@ -1059,6 +1059,45 @@ local OVERVIEW_FOOTER_RULES = {
     --F2-4: every text in the footer sits at the X11 READ floor (12px) or
     --above; 11px was reported unreadable on a laptop. Names never wrap and
     --ellipsize instead of overflowing the column border.
+    --P2-a status strip: the token HUD's status icons at >= 16px (X15);
+    --threat flags (hero-applied marks/conditions) carry a red ring.
+    {
+        selectors = { "overviewStatusStrip" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        tmargin = 3,
+    },
+    {
+        selectors = { "overviewStatusIcon" },
+        width = 18,
+        height = 18,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+        bgcolor = "white",
+        borderWidth = 0,
+    },
+    {
+        selectors = { "overviewStatusIcon", "threat" },
+        borderWidth = 2,
+        borderColor = "#E06464",
+    },
+    {
+        selectors = { "overviewStatusIcon", "hover" },
+        brightness = 1.3,
+    },
+    {
+        selectors = { "overviewStatusMore" },
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        halign = "left",
+        valign = "center",
+    },
     --F2-8 dismiss "x" at the footer's top-right (floating; the name label
     --leaves it room).
     {
@@ -3175,6 +3214,105 @@ local function OverviewStaminaText(tok)
     return text
 end
 
+--P2-a: the status entries a token's HUD shows (conditions, ongoing effects,
+--registered status icons) via TokenUI.CalculateStatusIcons, each reduced to
+--{id, icon, style, name, hoverText, threat, casterName}. THREAT = the
+--effect's caster is NOT a director-run monster, i.e. a hero put it there
+--(a Tactician's Mark, a Censor's judgment): deterministic and it says who
+--the heroes intend to kill (2026-08-18 play observation) - the footer
+--draws those with a red ring and mirrors them in red text. Self-applied
+--monster buffs and plain conditions stay neutral.
+local OVERVIEW_STATUS_ICONS = 5
+local OVERVIEW_THREAT_COLOR = "#E06464"
+
+local function OverviewStatusName(icon)
+    if icon.statusText ~= nil and icon.statusText ~= "" then
+        return icon.statusText
+    end
+    local text = icon.hoverText or icon.id or "Status"
+    --"Name: description" / "Name (2): description" -> Name
+    text = string.gsub(text, "<[^>]*>", "")
+    local name = string.match(text, "^([^:\n]+)") or text
+    name = string.gsub(name, "%s*%(%d+%)%s*$", "")
+    return trim(name)
+end
+
+local function OverviewStatusEntries(tok)
+    local entries = {}
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return entries
+    end
+    local icons = nil
+    pcall(function() icons = TokenUI.CalculateStatusIcons(tok) end)
+    for _, icon in ipairs(icons or {}) do
+        --Skip the director-only eye and the walk-elevation glyph (an altitude
+        --readout, not a status; it is hidden at altitude 0 on the HUD).
+        if icon ~= nil and icon.icon ~= nil and icon.id ~= "invisible" and not icon.hideAtZeroAltitude then
+            local threat = false
+            local casterName = nil
+            if icon.casterid ~= nil then
+                local caster = dmhub.GetTokenById(icon.casterid)
+                if caster ~= nil and caster.valid then
+                    threat = not IsOverviewCreatureToken(caster)
+                    pcall(function()
+                        if caster.canLocalPlayerSeeName then
+                            casterName = caster.name
+                        end
+                    end)
+                    casterName = casterName or "a hero"
+                end
+            end
+            entries[#entries + 1] = {
+                id = icon.id,
+                icon = icon.icon,
+                style = icon.style,
+                name = OverviewStatusName(icon),
+                hoverText = icon.hoverText,
+                threat = threat,
+                casterName = casterName,
+                ord = #entries + 1,
+            }
+        end
+    end
+    --Threat flags first (stable otherwise), so the strip's "+N" never hides
+    --one.
+    table.sort(entries, function(a, b)
+        if a.threat ~= b.threat then
+            return a.threat
+        end
+        return a.ord < b.ord
+    end)
+    return entries
+end
+
+--Red "Marked by Talent" (+N) mirror of a member's threat flags; nil if none.
+--prefixLength = the characters already on the line ("14/15 - "); the caster
+--is named only while the whole line still fits the 151px footer text column
+--(~26 chars at 12px) - the icon's hover text always names it.
+local function OverviewThreatText(entries, prefixLength)
+    local threats = {}
+    for _, entry in ipairs(entries or {}) do
+        if entry.threat then
+            threats[#threats + 1] = entry
+        end
+    end
+    if #threats == 0 then
+        return nil
+    end
+    local first = threats[1]
+    local text = first.name
+    if first.casterName ~= nil then
+        local long = string.format("%s by %s", text, first.casterName)
+        if (prefixLength or 0) + #long <= 26 then
+            text = long
+        end
+    end
+    if #threats > 1 then
+        text = string.format("%s +%d", text, #threats - 1)
+    end
+    return string.format("<color=%s>%s</color>", OVERVIEW_THREAT_COLOR, text)
+end
+
 --Acted-this-round from the live initiative queue: true / false, or nil when
 --there is no (visible) queue or the token has no entry in it.
 local function OverviewActedState(q, tok)
@@ -3306,6 +3444,7 @@ local function OverviewColumnSignals(column)
                     name = squad or tok.name or column.name or "Creature",
                     tokens = {},
                     stamina = OverviewStaminaText(tok),
+                    statuses = OverviewStatusEntries(tok),
                     acted = OverviewActedState(q, tok),
                     --Slice (e): mid-turn (HasHadTurn only flips at turn
                     --end), so the signal line can read "acting now".
@@ -3450,6 +3589,15 @@ local function OverviewSignalText(member, inCombat)
     local acted = OverviewActedText(member, inCombat)
     if acted ~= nil then
         parts[#parts + 1] = acted
+    end
+    --P2-a: hero-applied marks/conditions are the threat flag, in red.
+    local plainLength = 0
+    for _, part in ipairs(parts) do
+        plainLength = plainLength + #string.gsub(part, "<[^>]*>", "") + 3
+    end
+    local threat = OverviewThreatText(member.statuses, plainLength)
+    if threat ~= nil then
+        parts[#parts + 1] = threat
     end
     return table.concat(parts, " - ")
 end
@@ -3603,6 +3751,74 @@ local function OverviewColumnFooter()
         text = "",
     }
 
+    --P2-a: status strip - the token HUD's status icons for a single-member
+    --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
+    --hover text). Pooled icon panels + "+N"; collapsed when empty or when the
+    --column has several members (their mini-rows mirror the names instead).
+    local statusIcons = {}
+    for i = 1, OVERVIEW_STATUS_ICONS do
+        statusIcons[i] = gui.Panel {
+            classes = { "overviewStatusIcon", "collapsed" },
+            bgimage = "panels/square.png",
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
+            setStatus = function(element, entry)
+                element.data.entry = entry
+                if entry == nil then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                element.bgimage = entry.icon
+                local bgcolor = "white"
+                if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                    bgcolor = entry.style.bgcolor
+                end
+                element.selfStyle.bgcolor = bgcolor
+                element:SetClass("threat", entry.threat == true)
+            end,
+        }
+    end
+    local statusMore = gui.Label {
+        classes = { "overviewStatusMore", "collapsed" },
+        text = "",
+    }
+    local statusStripChildren = {}
+    for _, icon in ipairs(statusIcons) do
+        statusStripChildren[#statusStripChildren + 1] = icon
+    end
+    statusStripChildren[#statusStripChildren + 1] = statusMore
+    local statusStrip = gui.Panel {
+        classes = { "overviewStatusStrip", "collapsed" },
+        children = statusStripChildren,
+        setStatuses = function(element, entries)
+            if entries == nil or #entries == 0 then
+                element:SetClass("collapsed", true)
+                for _, icon in ipairs(statusIcons) do
+                    icon:FireEvent("setStatus", nil)
+                end
+                statusMore:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+            for i, icon in ipairs(statusIcons) do
+                icon:FireEvent("setStatus", entries[i])
+            end
+            local overflow = #entries - #statusIcons
+            if overflow > 0 then
+                statusMore.text = string.format("+%d", overflow)
+                statusMore:SetClass("collapsed", false)
+            else
+                statusMore:SetClass("collapsed", true)
+            end
+        end,
+    }
+
     local header = gui.Panel {
         classes = { "overviewFooterHeader" },
         portrait,
@@ -3611,6 +3827,7 @@ local function OverviewColumnFooter()
             nameLabel,
             roleLabel,
             signalLabel,
+            statusStrip,
         },
     }
 
@@ -4073,6 +4290,14 @@ local function OverviewColumnFooter()
             end
             signalLabel.text = text
             signalLabel:SetClass("collapsed", text == "")
+
+            --P2-a: status strip for a single actor; mini-rows carry the
+            --names when there are several.
+            if #members == 1 then
+                statusStrip:FireEvent("setStatuses", members[1].statuses)
+            else
+                statusStrip:FireEvent("setStatuses", nil)
+            end
 
             LayoutRows()
             LayoutTakeTurn()

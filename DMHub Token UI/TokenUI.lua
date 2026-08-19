@@ -383,6 +383,12 @@ local CalculateStatusIcons = function(token)
 	return result
 end
 
+--Exposed so other surfaces can show EXACTLY the status icons the token HUD
+--shows (conditions, ongoing effects, registered status icons), with the same
+--icon / style / hoverText / statusText / casterid per entry - e.g. the
+--Director's multi-monster overview footer. Read-only; returns a fresh list.
+TokenUI.CalculateStatusIcons = CalculateStatusIcons
+
 
 local g_animationStyles = {
 

@@ -3984,6 +3984,27 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			height = "auto",
 			textAlignment = "center",
 			text = cond(playerside, "Ready Heroes", "Ready Monsters"),
+
+			--Director overview P2-b (DIRECTOR_ENCOUNTER_OVERVIEW_DESIGN.md,
+			--Decision 39): on the monster side, the Director can click this
+			--label to select every ready monster on the map at once - the
+			--multi-selection the "Unique Abilities" overview reads. Selection
+			--only; it never claims a turn or opens the folder.
+			hover = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				gui.Tooltip("Click to select every ready monster on the map")(element)
+			end,
+			press = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				local selectAll = rawget(_G, "DrawSteelActionBar")
+				if selectAll ~= nil and selectAll.SelectReadyMonsters ~= nil then
+					selectAll.SelectReadyMonsters()
+				end
+			end,
 		}
 		local m_hadTurnSegment = gui.Panel{
 			classes = {"initiativeBarSegment", "hadTurn"},

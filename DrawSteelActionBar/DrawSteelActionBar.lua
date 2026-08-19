@@ -170,6 +170,46 @@ local function InOverviewMode()
     return true
 end
 
+--P2-b (Decision 39): select every READY director monster on the current map
+--- alive, director-run, and (while an initiative queue is running) not yet
+--acted this round; out of combat, every director monster. Sets the selection
+--only; it does NOT open the Unique Abilities folder (opening is a separate
+--click). Returns the number selected. Called from the initiative bar's
+--"Ready Monsters" label (MCDMInitiativeBar.lua) - the one place on screen
+--that already means "these monsters have not gone yet".
+function DrawSteelActionBar.SelectReadyMonsters()
+    if not dmhub.isDM then
+        return 0
+    end
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+    local result = {}
+    for _, tok in ipairs(dmhub.GetTokens() or {}) do
+        if IsOverviewCreatureToken(tok) then
+            local ok = true
+            pcall(function()
+                if tok.properties:IsDown() then
+                    ok = false
+                end
+            end)
+            if ok and q ~= nil then
+                local acted = nil
+                pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) end)
+                if acted == true then
+                    ok = false
+                end
+            end
+            if ok then
+                result[#result + 1] = tok
+            end
+        end
+    end
+    dmhub.selectedTokens = result
+    return #result
+end
+
 --Director overview, slice (e): the implicit claim-turn-at-target-confirm.
 --
 --A chip press in an overview column records WHO the cast is for here

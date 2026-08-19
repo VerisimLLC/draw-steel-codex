@@ -504,6 +504,254 @@ local function GetHeroicResourceOrMaliceCost(ability, symbols)
     return heroicResourceEntry.quantity
 end
 
+--P2-c1: LENSES (Decisions 8/21/27/31/49, X3). A lens is a FACET filter over
+--the overview columns: it hides columns with no matching kit ability, dims
+--(never hides) the non-matching chips inside the surviving columns, and sorts
+--each column's chips by the lens's natural key. Facets are derived, never
+--hand-tagged: keywords, behaviour types and the engine's own tier-text parser
+--(ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments - the regex
+--rule matcher, NEVER substring search: "strained" is inside "restrained").
+local OVERVIEW_LENSES = {
+    { id = "all",     name = "All" },
+    { id = "damage",  name = "Damage" },
+    { id = "area",    name = "Area" },
+    { id = "forced",  name = "Forced Move" },
+    { id = "control", name = "Control" },
+    { id = "malice",  name = "Malice" },
+}
+--Session-scoped: the lens survives menu close/open but not a reload.
+local g_overviewLens = "all"
+
+local function OverviewLensInfo(id)
+    for _, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return lens
+        end
+    end
+    return OVERVIEW_LENSES[1]
+end
+
+local function OverviewLensIndex(id)
+    for i, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return i
+        end
+    end
+    return 1
+end
+
+--Tier-text facets, cached by the exact text (the parser is regex-heavy and
+--the same tier strings recur on every populate).
+local g_overviewTierFacetCache = {}
+local function OverviewTierFacets(text)
+    if type(text) ~= "string" or text == "" then
+        return { damage = nil, forced = nil, control = false }
+    end
+    local cached = g_overviewTierFacetCache[text]
+    if cached ~= nil then
+        return cached
+    end
+    local facets = { damage = nil, forced = nil, forcedVerb = nil, control = false, conditions = {} }
+    local segments = nil
+    pcall(function()
+        segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(text)
+    end)
+    for _, segment in ipairs(segments or {}) do
+        local m = segment.match
+        if type(m) == "table" then
+            if m.damage ~= nil then
+                local n = tonumber(string.match(tostring(m.damage), "^%s*(%d+)"))
+                if n ~= nil and (facets.damage == nil or n > facets.damage) then
+                    facets.damage = n
+                end
+            end
+            if m.movement ~= nil and m.distance ~= nil then
+                local n = tonumber(m.distance)
+                if n ~= nil and (facets.forced == nil or n > facets.forced) then
+                    facets.forced = n
+                    facets.forcedVerb = tostring(m.movement)
+                end
+            end
+            if m.condition ~= nil then
+                facets.control = true
+                local name = tostring(m.condition)
+                name = string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2)
+                local seen = false
+                for _, existing in ipairs(facets.conditions) do
+                    if existing == name then
+                        seen = true
+                    end
+                end
+                if not seen then
+                    facets.conditions[#facets.conditions + 1] = name
+                end
+            end
+        end
+    end
+    g_overviewTierFacetCache[text] = facets
+    return facets
+end
+
+--Facets of one kit ability: booleans per lens plus the lens sort keys.
+--  damage / damageValue (tier 2, Decision 21), area / areaSize,
+--  forced / forcedDistance, control, malice / maliceCost.
+local function OverviewAbilityFacets(ability)
+    local facets = {
+        damage = false, damageValue = 0,
+        area = false, areaSize = 0,
+        forced = false, forcedDistance = 0, forcedVerb = nil,
+        control = false, conditions = {},
+        malice = false, maliceCost = 0,
+    }
+    if ability == nil then
+        return facets
+    end
+    pcall(function()
+        facets.area = ability:HasKeyword("Area") == true
+        if facets.area then
+            facets.areaSize = tonumber(ability:try_get("radius")) or tonumber(ability.range) or 0
+        end
+    end)
+    pcall(function()
+        local cost = GetHeroicResourceOrMaliceCost(ability) or 0
+        facets.malice = cost > 0
+        facets.maliceCost = cost
+    end)
+    pcall(function()
+        for _, behavior in ipairs(ability.behaviors or {}) do
+            local tn = behavior.typeName or ""
+            if tn == "ActivatedAbilityPowerRollBehavior" then
+                local tiers = behavior:try_get("tiers") or {}
+                for i, text in ipairs(tiers) do
+                    local f = OverviewTierFacets(text)
+                    if f.damage ~= nil then
+                        facets.damage = true
+                        if i == 2 or (i == #tiers and facets.damageValue == 0) then
+                            facets.damageValue = f.damage
+                        end
+                    end
+                    if f.forced ~= nil then
+                        facets.forced = true
+                        if f.forced > facets.forcedDistance then
+                            facets.forcedDistance = f.forced
+                            facets.forcedVerb = f.forcedVerb
+                        end
+                    end
+                    if f.control then
+                        facets.control = true
+                        for _, name in ipairs(f.conditions) do
+                            local seen = false
+                            for _, existing in ipairs(facets.conditions) do
+                                if existing == name then
+                                    seen = true
+                                end
+                            end
+                            if not seen then
+                                facets.conditions[#facets.conditions + 1] = name
+                            end
+                        end
+                    end
+                end
+            elseif tn == "ActivatedAbilityDamageBehavior" then
+                facets.damage = true
+            elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
+                facets.forced = true
+                local d = tonumber(behavior:try_get("distance"))
+                if d ~= nil and d > facets.forcedDistance then
+                    facets.forcedDistance = d
+                end
+            elseif string.find(tn, "InflictCondition", 1, true) ~= nil
+                or string.find(tn, "ApplyCondition", 1, true) ~= nil then
+                facets.control = true
+            elseif string.find(tn, "OngoingEffect", 1, true) ~= nil then
+                --Only an ongoing effect that carries a CONDITION is control;
+                --plain buffs (Defend's edge, Aid Attack) are not.
+                local effectid = behavior:try_get("ongoingEffect")
+                local info = nil
+                if effectid ~= nil then
+                    info = (dmhub.GetTable("characterOngoingEffects") or {})[effectid]
+                end
+                if info ~= nil and info.condition ~= nil and info.condition ~= "none" then
+                    facets.control = true
+                    local conditions = dmhub.GetTable(CharacterCondition.tableName) or {}
+                    local cond = conditions[info.condition]
+                    if cond ~= nil and cond.name ~= nil then
+                        local seen = false
+                        for _, existing in ipairs(facets.conditions) do
+                            if existing == cond.name then
+                                seen = true
+                            end
+                        end
+                        if not seen then
+                            facets.conditions[#facets.conditions + 1] = cond.name
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return facets
+end
+
+local function OverviewAbilityMatchesLens(facets, lens)
+    if lens == nil or lens == "all" then
+        return true
+    end
+    return facets[lens] == true
+end
+
+--Decision 21: Damage = tier-2 damage desc; Area = size desc; Forced Move =
+--distance desc; Malice = cost asc; Control has no magnitude -> damage desc.
+--ALL ties broken by tier-2 damage desc, then name.
+local function OverviewLensLess(lens, a, fa, b, fb)
+    if lens == "malice" and fa.maliceCost ~= fb.maliceCost then
+        return fa.maliceCost < fb.maliceCost
+    elseif lens == "area" and fa.areaSize ~= fb.areaSize then
+        return fa.areaSize > fb.areaSize
+    elseif lens == "forced" and fa.forcedDistance ~= fb.forcedDistance then
+        return fa.forcedDistance > fb.forcedDistance
+    end
+    if fa.damageValue ~= fb.damageValue then
+        return fa.damageValue > fb.damageValue
+    end
+    return a.name < b.name
+end
+
+--X14: the active lens's sort key, printed on a matching chip so the sort is
+--legible ("6 damage per target", "Area 3", "Push 3", "Restrained",
+--"1 Malice"). nil for the "All" lens or a non-matching chip.
+local function OverviewLensKeyText(facets, lens)
+    if facets == nil or lens == nil or lens == "all" or not OverviewAbilityMatchesLens(facets, lens) then
+        return nil
+    end
+    if lens == "damage" then
+        if facets.damageValue > 0 then
+            return string.format("%d damage per target", facets.damageValue)
+        end
+        return "Damage"
+    elseif lens == "area" then
+        if facets.areaSize > 0 then
+            return string.format("Area %d", facets.areaSize)
+        end
+        return "Area"
+    elseif lens == "forced" then
+        local verb = facets.forcedVerb or "Move"
+        verb = string.upper(string.sub(verb, 1, 1)) .. string.sub(verb, 2)
+        if facets.forcedDistance > 0 then
+            return string.format("%s %d", verb, facets.forcedDistance)
+        end
+        return "Forced movement"
+    elseif lens == "control" then
+        if #facets.conditions > 0 then
+            return table.concat(facets.conditions, ", ")
+        end
+        return "Applies an effect"
+    elseif lens == "malice" then
+        return string.format("%d Malice", facets.maliceCost)
+    end
+    return nil
+end
+
 --Movement cross-section diagram during ability movement targeting.
 --
 --For any ability-driven movement preview -- forced move (push/pull/slide,
@@ -1194,6 +1442,34 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "abilityHeading", "onLens" },
         borderColor = Styles.Ability.goldColor,
+    },
+    {
+        selectors = { "overviewLensKey" },
+        fontSize = 12,
+        color = "#C9A86A",
+        textWrap = false,
+        width = "100%-20",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewLensKey", "expended" },
+        color = Styles.textColor,
+    },
+    --X6 "Everyone can:" - common abilities (Charge, Grab, Knockback...) that
+    --satisfy the active lens, dimmed, under the lens bar.
+    {
+        selectors = { "overviewLensEveryone" },
+        width = "100%",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        opacity = 0.75,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 4,
     },
     {
         selectors = { "abilityHeading", "offLens" },
@@ -3139,6 +3415,21 @@ local function AbilityHeading(args)
                     element:SetClass("collapsed", text == "")
                 end,
             },
+
+            --P2-c2 / X14: under an active lens, the lens's sort key on a
+            --matching overview chip ("6 damage per target", "Push 3").
+            gui.Label {
+                classes = { "overviewLensKey", "collapsed" },
+                text = "",
+                ability = function(element, ability)
+                    local text = nil
+                    if args.overviewPress ~= nil and g_overviewLens ~= "all" then
+                        text = OverviewLensKeyText(OverviewAbilityFacets(ability), g_overviewLens)
+                    end
+                    element.text = text or ""
+                    element:SetClass("collapsed", text == nil)
+                end,
+            },
         },
 
         m_novelMarker,
@@ -3325,172 +3616,6 @@ end
 --
 --Styling lives in OVERVIEW_FOOTER_RULES (next to NOVEL_MARKER_RULES, merged
 --into the action bar root's cascade).
-
---P2-c1: LENSES (Decisions 8/21/27/31/49, X3). A lens is a FACET filter over
---the overview columns: it hides columns with no matching kit ability, dims
---(never hides) the non-matching chips inside the surviving columns, and sorts
---each column's chips by the lens's natural key. Facets are derived, never
---hand-tagged: keywords, behaviour types and the engine's own tier-text parser
---(ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments - the regex
---rule matcher, NEVER substring search: "strained" is inside "restrained").
-local OVERVIEW_LENSES = {
-    { id = "all",     name = "All" },
-    { id = "damage",  name = "Damage" },
-    { id = "area",    name = "Area" },
-    { id = "forced",  name = "Forced Move" },
-    { id = "control", name = "Control" },
-    { id = "malice",  name = "Malice" },
-}
---Session-scoped: the lens survives menu close/open but not a reload.
-local g_overviewLens = "all"
-
-local function OverviewLensInfo(id)
-    for _, lens in ipairs(OVERVIEW_LENSES) do
-        if lens.id == id then
-            return lens
-        end
-    end
-    return OVERVIEW_LENSES[1]
-end
-
-local function OverviewLensIndex(id)
-    for i, lens in ipairs(OVERVIEW_LENSES) do
-        if lens.id == id then
-            return i
-        end
-    end
-    return 1
-end
-
---Tier-text facets, cached by the exact text (the parser is regex-heavy and
---the same tier strings recur on every populate).
-local g_overviewTierFacetCache = {}
-local function OverviewTierFacets(text)
-    if type(text) ~= "string" or text == "" then
-        return { damage = nil, forced = nil, control = false }
-    end
-    local cached = g_overviewTierFacetCache[text]
-    if cached ~= nil then
-        return cached
-    end
-    local facets = { damage = nil, forced = nil, control = false }
-    local segments = nil
-    pcall(function()
-        segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(text)
-    end)
-    for _, segment in ipairs(segments or {}) do
-        local m = segment.match
-        if type(m) == "table" then
-            if m.damage ~= nil then
-                local n = tonumber(string.match(tostring(m.damage), "^%s*(%d+)"))
-                if n ~= nil and (facets.damage == nil or n > facets.damage) then
-                    facets.damage = n
-                end
-            end
-            if m.movement ~= nil and m.distance ~= nil then
-                local n = tonumber(m.distance)
-                if n ~= nil and (facets.forced == nil or n > facets.forced) then
-                    facets.forced = n
-                end
-            end
-            if m.condition ~= nil then
-                facets.control = true
-            end
-        end
-    end
-    g_overviewTierFacetCache[text] = facets
-    return facets
-end
-
---Facets of one kit ability: booleans per lens plus the lens sort keys.
---  damage / damageValue (tier 2, Decision 21), area / areaSize,
---  forced / forcedDistance, control, malice / maliceCost.
-local function OverviewAbilityFacets(ability)
-    local facets = {
-        damage = false, damageValue = 0,
-        area = false, areaSize = 0,
-        forced = false, forcedDistance = 0,
-        control = false,
-        malice = false, maliceCost = 0,
-    }
-    if ability == nil then
-        return facets
-    end
-    pcall(function()
-        facets.area = ability:HasKeyword("Area") == true
-        if facets.area then
-            facets.areaSize = tonumber(ability:try_get("radius")) or tonumber(ability.range) or 0
-        end
-    end)
-    pcall(function()
-        local cost = GetHeroicResourceOrMaliceCost(ability) or 0
-        facets.malice = cost > 0
-        facets.maliceCost = cost
-    end)
-    pcall(function()
-        for _, behavior in ipairs(ability.behaviors or {}) do
-            local tn = behavior.typeName or ""
-            if tn == "ActivatedAbilityPowerRollBehavior" then
-                local tiers = behavior:try_get("tiers") or {}
-                for i, text in ipairs(tiers) do
-                    local f = OverviewTierFacets(text)
-                    if f.damage ~= nil then
-                        facets.damage = true
-                        if i == 2 or (i == #tiers and facets.damageValue == 0) then
-                            facets.damageValue = f.damage
-                        end
-                    end
-                    if f.forced ~= nil then
-                        facets.forced = true
-                        if f.forced > facets.forcedDistance then
-                            facets.forcedDistance = f.forced
-                        end
-                    end
-                    if f.control then
-                        facets.control = true
-                    end
-                end
-            elseif tn == "ActivatedAbilityDamageBehavior" then
-                facets.damage = true
-            elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
-                facets.forced = true
-                local d = tonumber(behavior:try_get("distance"))
-                if d ~= nil and d > facets.forcedDistance then
-                    facets.forcedDistance = d
-                end
-            elseif string.find(tn, "OngoingEffect", 1, true) ~= nil
-                or string.find(tn, "InflictCondition", 1, true) ~= nil
-                or string.find(tn, "ApplyCondition", 1, true) ~= nil then
-                facets.control = true
-            end
-        end
-    end)
-    return facets
-end
-
-local function OverviewAbilityMatchesLens(facets, lens)
-    if lens == nil or lens == "all" then
-        return true
-    end
-    return facets[lens] == true
-end
-
---Decision 21: Damage = tier-2 damage desc; Area = size desc; Forced Move =
---distance desc; Malice = cost asc; Control has no magnitude -> damage desc.
---ALL ties broken by tier-2 damage desc, then name.
-local function OverviewLensLess(lens, a, fa, b, fb)
-    if lens == "malice" and fa.maliceCost ~= fb.maliceCost then
-        return fa.maliceCost < fb.maliceCost
-    elseif lens == "area" and fa.areaSize ~= fb.areaSize then
-        return fa.areaSize > fb.areaSize
-    elseif lens == "forced" and fa.forcedDistance ~= fb.forcedDistance then
-        return fa.forcedDistance > fb.forcedDistance
-    end
-    if fa.damageValue ~= fb.damageValue then
-        return fa.damageValue > fb.damageValue
-    end
-    return a.name < b.name
-end
 
 --Raw stamina for a token as "13/15" (+ " +T" temporary stamina when any);
 --nil when the creature has no usable stamina numbers. F2-5: the earlier
@@ -5117,6 +5242,68 @@ ActionMenu = function()
         classes = { "overviewLensLabel" },
         text = "All",
     }
+    --X6: "Everyone can: Charge, Knockback" - the COMMON abilities (not in any
+    --column's unique kit) that satisfy the active lens, read off the first
+    --column's representative. Collapsed for "All" and when none match.
+    local m_lensEveryoneLabel = gui.Label {
+        classes = { "overviewLensEveryone", "collapsed" },
+        text = "",
+    }
+    local function EveryoneCanText(columns, lens)
+        if lens == nil or lens == "all" or columns == nil or columns[1] == nil then
+            return nil
+        end
+        local tok = columns[1].token
+        if tok == nil or not tok.valid or tok.properties == nil then
+            return nil
+        end
+        local kitKeys = {}
+        for _, column in ipairs(columns) do
+            for _, ability in ipairs(column.abilities or {}) do
+                local key = NovelAbilityKey(ability)
+                if key ~= nil then
+                    kitKeys[key] = true
+                end
+            end
+        end
+        local names = {}
+        local seen = {}
+        pcall(function()
+            local all = tok.properties:GetActivatedAbilities { bindCaster = true } or {}
+            for _, ability in ipairs(all) do
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    local key = NovelAbilityKey(variation)
+                    local cat = variation.categorization
+                    if variation ~= nil and key ~= nil and not kitKeys[key]
+                        and cat ~= "Trigger" and cat ~= "Villain Action" and cat ~= "Malice" and cat ~= "Hidden"
+                        and OverviewAbilityMatchesLens(OverviewAbilityFacets(variation), lens) then
+                        local name = variation.name or "?"
+                        if not seen[name] then
+                            seen[name] = true
+                            names[#names + 1] = name
+                        end
+                    end
+                end
+            end
+        end)
+        if #names == 0 then
+            return nil
+        end
+        table.sort(names)
+        local shown = {}
+        for i = 1, math.min(4, #names) do
+            shown[#shown + 1] = names[i]
+        end
+        local text = "Everyone can: " .. table.concat(shown, ", ")
+        if #names > 4 then
+            text = string.format("%s +%d", text, #names - 4)
+        end
+        return text
+    end
     local m_lensBar
     local function LensCountsFromColumns(columns)
         local counts = {}
@@ -5149,6 +5336,9 @@ ActionMenu = function()
             m_lensEmptyLabel.text = string.format("No %s abilities in this selection", string.lower(lens.name))
         end
         m_lensEmptyLabel:SetClass("collapsed", not empty)
+        local everyone = EveryoneCanText(columns, lens.id)
+        m_lensEveryoneLabel.text = everyone or ""
+        m_lensEveryoneLabel:SetClass("collapsed", everyone == nil)
     end
     --Set by the unique-menu branch; a lens change re-populates through it.
     local m_relens = nil
@@ -5214,6 +5404,7 @@ ActionMenu = function()
             },
         },
         m_lensEmptyLabel,
+        m_lensEveryoneLabel,
     }
 
     --Slice (e): back out of any armed owner-selection prompt (Esc, click-away

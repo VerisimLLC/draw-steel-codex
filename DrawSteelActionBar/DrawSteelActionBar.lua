@@ -3853,6 +3853,93 @@ local function OverviewThreatText(entries, prefixLength)
     return string.format("<color=%s>%s</color>", OVERVIEW_THREAT_COLOR, text)
 end
 
+--P2-d (X7 / Decision 48 signal): REACH ESTIMATE - how many heroes this
+--member could get at this turn: speed + the longest range among its kit
+--abilities that target enemies (melee counts 1), measured in straight-line
+--squares (Chebyshev, as Draw Steel counts) from the token; walls, terrain
+--and difficult ground are ignored, so it is an ESTIMATE and says so. Heroes
+--= live tokens on the map that are not director-run monsters.
+local function OverviewHeroTokens()
+    local heroes = {}
+    for _, tok in ipairs(dmhub.GetTokens() or {}) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil and not tok.isObject and not IsOverviewCreatureToken(tok) then
+            local down = false
+            pcall(function() down = tok.properties:IsDown() end)
+            if not down then
+                heroes[#heroes + 1] = tok
+            end
+        end
+    end
+    return heroes
+end
+
+local function OverviewKitRange(tok, abilities)
+    local best = 1
+    for _, ability in ipairs(abilities or {}) do
+        pcall(function()
+            local tt = ability.targetType
+            if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
+                local r = tonumber(ability:GetRange(tok.properties))
+                if r ~= nil and r > best then
+                    best = r
+                end
+            end
+        end)
+    end
+    return best
+end
+
+local function OverviewReach(tok, abilities, heroes)
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return nil
+    end
+    local speed = 0
+    pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
+    local range = OverviewKitRange(tok, abilities)
+    local reach = speed + range
+    local count = 0
+    local ok = pcall(function()
+        local locs = tok.locsOccupying
+        if locs == nil or #locs == 0 then
+            locs = { tok.loc }
+        end
+        for _, hero in ipairs(heroes or {}) do
+            local hloc = hero.loc
+            local nearest = nil
+            for _, loc in ipairs(locs) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if nearest == nil or d < nearest then
+                    nearest = d
+                end
+            end
+            if nearest ~= nil and nearest <= reach then
+                count = count + 1
+            end
+        end
+    end)
+    if not ok then
+        return nil
+    end
+    return { count = count, reach = reach, speed = speed, range = range }
+end
+
+--"3 heroes in reach" / "1 hero in reach" / "No hero in reach"; short = "3 in
+--reach" for the mini-rows.
+local function OverviewReachText(reach, short)
+    if reach == nil then
+        return nil
+    end
+    if short then
+        return string.format("%d in reach", reach.count)
+    end
+    if reach.count == 0 then
+        return "No hero in reach"
+    elseif reach.count == 1 then
+        return "1 hero in reach"
+    end
+    return string.format("%d heroes in reach", reach.count)
+end
+
 --Acted-this-round from the live initiative queue: true / false, or nil when
 --there is no (visible) queue or the token has no entry in it.
 local function OverviewActedState(q, tok)
@@ -3972,6 +4059,10 @@ local function OverviewColumnSignals(column)
 
     local members = {}
     local byKey = {}
+    local heroes = nil
+    if q ~= nil then
+        heroes = OverviewHeroTokens()
+    end
     for _, tok in ipairs(column.tokens or {}) do
         if tok ~= nil and tok.valid and tok.properties ~= nil then
             local squad = nil
@@ -3985,6 +4076,8 @@ local function OverviewColumnSignals(column)
                     tokens = {},
                     stamina = OverviewStaminaText(tok),
                     statuses = OverviewStatusEntries(tok),
+                    --P2-d: only in combat (heroes nil otherwise -> nil).
+                    reach = cond(heroes ~= nil, OverviewReach(tok, column.abilities, heroes), nil),
                     acted = OverviewActedState(q, tok),
                     --Slice (e): mid-turn (HasHadTurn only flips at turn
                     --end), so the signal line can read "acting now".
@@ -4290,6 +4383,18 @@ local function OverviewColumnFooter()
         classes = { "overviewFooterLine" },
         text = "",
     }
+    --P2-d reach estimate line (single-member columns; mini-rows carry the
+    --short form). Hover explains the arithmetic and that it is an estimate.
+    local m_reachTooltip = nil
+    local reachLabel = gui.Label {
+        classes = { "overviewFooterLine", "overviewFooterReach", "collapsed" },
+        text = "",
+        hover = function(element)
+            if m_reachTooltip ~= nil then
+                gui.Tooltip(m_reachTooltip)(element)
+            end
+        end,
+    }
 
     --P2-a: status strip - the token HUD's status icons for a single-member
     --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
@@ -4367,6 +4472,7 @@ local function OverviewColumnFooter()
             nameLabel,
             roleLabel,
             signalLabel,
+            reachLabel,
             statusStrip,
         },
     }
@@ -4476,6 +4582,14 @@ local function OverviewColumnFooter()
                 end
                 rowLabel.text = text
                 local signal = OverviewSignalText(member, inCombat)
+                local reach = OverviewReachText(member.reach, true)
+                if reach ~= nil then
+                    if signal == "" then
+                        signal = reach
+                    else
+                        signal = signal .. " - " .. reach
+                    end
+                end
                 rowSignal.text = signal
                 rowSignal:SetClass("collapsed", signal == "")
             end,
@@ -4838,6 +4952,19 @@ local function OverviewColumnFooter()
             else
                 statusStrip:FireEvent("setStatuses", nil)
             end
+
+            --P2-d: reach line for a single actor (rows carry it otherwise).
+            local reachText = nil
+            m_reachTooltip = nil
+            if #members == 1 and members[1].reach ~= nil then
+                local reach = members[1].reach
+                reachText = OverviewReachText(reach)
+                m_reachTooltip = string.format(
+                    "Heroes within %d squares: speed %d + longest range %d. Straight-line estimate; ignores walls and terrain.",
+                    reach.reach, reach.speed, reach.range)
+            end
+            reachLabel.text = reachText or ""
+            reachLabel:SetClass("collapsed", reachText == nil)
 
             LayoutRows()
             LayoutTakeTurn()

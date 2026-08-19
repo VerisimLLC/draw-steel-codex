@@ -641,6 +641,64 @@ Design consequences:
 - Game state: the user ended the Assassins' turn and played on; no cleanup
   outstanding. User does NOT want a push yet.
 
+**2026-08-19, F3-1 + F3-2 fixed (agent, live A5 game, round 3, ChoosingTurn;
+zero codex console errors after reload; standing regression check passed:
+Unique menu open/close -> Monarch alone -> Main Action = Signature Abilities
++ Common Abilities, 9 chips, 0 take-turn buttons).**
+- **F3-1 FIXED - both hypotheses were true, measured live.**
+  `dmhub.CenterOnToken{smooth=true}` is a FIXED ~0.5 s eased tween regardless
+  of distance (sampled `dmhub.cameraPosition` every 0.05-0.1 s: 79-unit and
+  27-unit pans both settle at ~0.5 s) and its `callback` fires SYNCHRONOUSLY
+  (useless for sequencing). `PulseHighlightToken` is a brief white flash, so it
+  (a) ran entirely inside the pan and (b) on a selected token is the same
+  colour as the selection ring anyway. Fix in `OverviewLocate`
+  (DrawSteelActionBar.lua ~3096): the pulse is deferred by
+  `OVERVIEW_LOCATE_PAN_TIME` = 0.55 s (immediate when the camera is already on
+  the token, |cam - loc| < 0.5), and `OverviewPulseTokens` pairs the engine
+  pulse with a sustained coloured ring: `token.bottomsheet:SetClassTree
+  ("locate", true)` held for `OVERVIEW_LOCATE_HOLD` = 1.4 s, per-charid
+  generation counter so a re-locate restarts the hold instead of being cut
+  short. The ring itself is a new generic style on the token bottomsheet in
+  `DMHub Token UI/TokenUI.lua` (~2950): selector `locate`, priority 5, 8px
+  `#f2b632` border, 0.15 s transition - deliberately not white and thicker
+  than select/focus so it reads on an already-selected token. Live: footer
+  press on the Monarch -> camera settled at 0.52 s, `locate` class on at 0.62 s,
+  still on at 1.58 s; screenshot shows a gold ring on the Monarch beside the
+  Stinker's white selection ring. Chip-press locate and the owner-prompt
+  `choose` path go through the same `OverviewLocate`. The prompt-row HOVER
+  and `armOwnerPrompt` still use the bare engine pulse (no pan there; revisit
+  with X4 / on-map pick in Phase 2 if it proves too faint).
+- **F3-2 FIXED.** `OverviewClaimGate` (~:195) now returns a third value
+  `settled`: true for "No initiative running", "Not in the initiative order",
+  "Turn taken - acting now", "Already acted this round" (taking the turn is no
+  longer an OPTION this round); false for the transient blocks ("Another
+  creature's turn is in progress", "It's the heroes' turn - browse only",
+  "Cannot take turns right now"). `LayoutTakeTurn` (~:3548) collapses the
+  button AND the reason label when `not ok and settled` - the footer signal
+  line already says "acting now" / "acted" - and keeps the greyed button +
+  inline reason only for the transient cases. Multi-candidate columns count
+  as settled only if EVERY fresh candidate's gate is settled. Also fixed in
+  passing: with exactly ONE fresh candidate the button now keys on THAT
+  member's entry rather than the representative's (the representative can be
+  the member acting now, which would have hidden the button for a column that
+  still had a claimable member); `armOwnerPrompt` explicitly un-collapses the
+  button when it turns into "Cancel". Live (HasHadTurn monkeypatched locally
+  for the Stinker's entry, no data touched, restored after): Stinker column =
+  "Stamina: High - acted", button collapsed, reason collapsed; Monarch /
+  Assassin / Runner buttons enabled. ChoosingTurn patched false: all four
+  buttons visible, disabled, reason "Another creature's turn is in progress".
+  OPEN for Ricky: out of combat the button is now hidden too (was: greyed
+  "No initiative running" under every column) - say so if the greyed hint was
+  wanted there.
+- Harness note: `GetChildrenWithClassRecursive("overviewFooterLine")` returns
+  the ROLE label first and the signal label second; read both and skip the
+  collapsed one.
+
+NEXT: F2-4/F2-5 (footer copy/size/raw numbers) -> action-type visibility ->
+F2-7 (grey acted chips - the Stinker "acted" column above shows its chips at
+full brightness) -> F2-8 -> F2-9/role prominence -> Get in Here! data fix.
+Then Phase 2.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

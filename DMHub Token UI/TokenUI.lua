@@ -2952,6 +2952,22 @@ function CreateTokenHud(token)
                     borderColor = '#ffffff99',
                 },
 
+                --"Locate this token" ring: a sustained, coloured ring that a UI
+                --surface toggles (SetClassTree("locate", true/false)) to point
+                --at a token without selecting it. Deliberately NOT white and
+                --thicker than the select/focus rings, so it still reads on a
+                --token that is already selected (the engine's
+                --PulseHighlightToken flash is white and brief, and vanishes
+                --against the selection ring / under a camera pan). priority 5
+                --so it wins over 'select' and 'focus' while held.
+                {
+                    selectors = {"locate"},
+                    priority = 5,
+                    borderWidth = 8,
+                    borderColor = '#f2b632',
+                    transitionTime = 0.15,
+                },
+
                 {
                     selectors = { 'focus' },
                     borderWidth = 4,

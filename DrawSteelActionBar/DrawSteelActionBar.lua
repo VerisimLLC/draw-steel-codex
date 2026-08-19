@@ -187,35 +187,42 @@ end
 local g_overviewCastPending = nil
 
 --Is a claim of this initiative entry legal for the Director right now?
---Returns ok, reason (reason is the newcomer-facing text shown inline on the
---disabled button / tooltip). Stricter than InitiativeQueue.CanClaimTurn on
---purpose: the Director CAN force any turn from the initiative bar, but the
---overview only offers a claim at the genuine start-of-a-director-turn juncture
---(Phase 0 resolution: ChoosingTurn, not the heroes' side, entry unmoved).
+--Returns ok, reason, settled. reason is the newcomer-facing text shown inline
+--on the disabled button / tooltip. settled (F3-2) is true when taking the
+--turn is no longer an OPTION this round at all - nothing is running, or the
+--entry is acting now / has already acted - as opposed to merely blocked for
+--the moment (heroes' turn, another creature mid-turn): the footer hides the
+--button for settled cases (the signal line already says "acting now" /
+--"acted") and keeps the greyed button + reason only for the transient ones,
+--where the Director might want to know WHY they cannot act yet.
+--Stricter than InitiativeQueue.CanClaimTurn on purpose: the Director CAN
+--force any turn from the initiative bar, but the overview only offers a claim
+--at the genuine start-of-a-director-turn juncture (Phase 0 resolution:
+--ChoosingTurn, not the heroes' side, entry unmoved).
 local function OverviewClaimGate(initiativeid)
     local q = dmhub.initiativeQueue
     if q == nil or q.hidden then
-        return false, "No initiative running"
+        return false, "No initiative running", true
     end
     if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
-        return false, "Not in the initiative order"
+        return false, "Not in the initiative order", true
     end
     if q.currentTurn == initiativeid then
-        return false, "Turn taken - acting now"
+        return false, "Turn taken - acting now", true
     end
     if q:HasHadTurn(initiativeid) then
-        return false, "Already acted this round"
+        return false, "Already acted this round", true
     end
     if not q:ChoosingTurn() then
-        return false, "Another creature's turn is in progress"
+        return false, "Another creature's turn is in progress", false
     end
     if q:IsPlayersTurn() then
-        return false, "It's the heroes' turn - browse only"
+        return false, "It's the heroes' turn - browse only", false
     end
     if not InitiativeQueue.CanClaimTurn(initiativeid, { canControlInitiative = dmhub.isDM }) then
-        return false, "Cannot take turns right now"
+        return false, "Cannot take turns right now", false
     end
-    return true, nil
+    return true, nil, false
 end
 
 --Perform the claim through the shared helper. Returns true if the turn was
@@ -3095,16 +3102,73 @@ end
 
 --Locate on the map without selecting (Decision 51/X5): pan to one token,
 --pulse a set. Never dmhub.FocusToken.
+--
+--F3-1: the pulse was requested but never SEEN. Two reasons, both measured
+--live: dmhub.CenterOnToken{smooth=true} is a fixed ~0.5s eased tween (its
+--callback fires synchronously, so it cannot be used to sequence), and the
+--engine's PulseHighlightToken is a brief white flash - invisible while the
+--camera is still moving, and indistinguishable from the white selection ring
+--on a token that is already selected (which every overview token is). So:
+--(1) the pulse is deferred until the pan has settled (immediate when the
+--camera is already on the token), and (2) it is paired with the sustained
+--coloured "locate" ring on the token's bottomsheet (TokenUI.lua), held for
+--OVERVIEW_LOCATE_HOLD seconds. A later locate on the same token restarts
+--the hold instead of being cut short by the earlier timer.
+local OVERVIEW_LOCATE_PAN_TIME = 0.55
+local OVERVIEW_LOCATE_HOLD = 1.4
+local g_overviewLocateGeneration = {}
+
+local function OverviewPulseTokens(tokens)
+    for _, tok in ipairs(tokens) do
+        if tok ~= nil and tok.valid then
+            local charid = tok.charid
+            local gen = (g_overviewLocateGeneration[charid] or 0) + 1
+            g_overviewLocateGeneration[charid] = gen
+            dmhub.PulseHighlightToken(charid)
+            if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+                tok.bottomsheet:SetClassTree("locate", true)
+            end
+            dmhub.Schedule(OVERVIEW_LOCATE_HOLD, function()
+                if mod.unloaded or g_overviewLocateGeneration[charid] ~= gen then
+                    return
+                end
+                g_overviewLocateGeneration[charid] = nil
+                local live = dmhub.GetTokenById(charid)
+                if live ~= nil and live.valid and live.bottomsheet ~= nil and live.bottomsheet.valid then
+                    live.bottomsheet:SetClassTree("locate", false)
+                end
+            end)
+        end
+    end
+end
+
 local function OverviewLocate(centerToken, pulseTokens)
     if centerToken == nil or not centerToken.valid then
         return
     end
-    dmhub.CenterOnToken(centerToken.charid, { smooth = true })
+    local tokens = {}
     for _, tok in ipairs(pulseTokens or { centerToken }) do
-        if tok ~= nil and tok.valid then
-            dmhub.PulseHighlightToken(tok.charid)
-        end
+        tokens[#tokens + 1] = tok
     end
+
+    local alreadyThere = false
+    pcall(function()
+        local cam = dmhub.cameraPosition
+        local loc = centerToken.loc
+        alreadyThere = math.abs(cam.x - loc.x) < 0.5 and math.abs(cam.y - loc.y) < 0.5
+    end)
+
+    dmhub.CenterOnToken(centerToken.charid, { smooth = true })
+    if alreadyThere then
+        OverviewPulseTokens(tokens)
+        return
+    end
+    dmhub.Schedule(OVERVIEW_LOCATE_PAN_TIME, function()
+        if mod.unloaded then
+            return
+        end
+        OverviewPulseTokens(tokens)
+    end)
 end
 
 --"Stamina: High - acted" style signal text for one member.
@@ -3488,30 +3552,50 @@ local function OverviewColumnFooter()
             m_claimId = nil
             return
         end
-        takeTurnButton:SetClass("collapsed", false)
-
-        --The entry the button acts on: the representative's, unless several
-        --members are still fresh (then the press arms the owner prompt and
-        --the button is enabled if ANY of them may claim).
+        --The entry the button acts on: the one still-fresh member's entry
+        --when exactly one remains (which need not be the representative's -
+        --the representative can be the member acting NOW), the
+        --representative's when none is fresh (so the gate reports WHY), or -
+        --when several members are still fresh - the press arms the owner
+        --prompt and the button is enabled if ANY of them may claim.
         local candidates = OverviewFreshCandidates(m_signals)
-        local ok, reason
+        local ok, reason, settled
         if #candidates > 1 then
             ok = false
+            settled = true
             for _, member in ipairs(candidates) do
-                local memberOk, memberReason = OverviewClaimGate(member.initiativeid)
+                local memberOk, memberReason, memberSettled = OverviewClaimGate(member.initiativeid)
                 if memberOk then
                     ok = true
                     reason = nil
+                    settled = false
                     break
                 end
                 reason = reason or memberReason
+                settled = settled and memberSettled
             end
             m_claimId = candidates[1].initiativeid
+        elseif #candidates == 1 then
+            m_claimId = candidates[1].initiativeid
+            ok, reason, settled = OverviewClaimGate(m_claimId)
         else
             m_claimId = nil
             pcall(function() m_claimId = InitiativeQueue.GetInitiativeId(m_column.token) end)
-            ok, reason = OverviewClaimGate(m_claimId)
+            ok, reason, settled = OverviewClaimGate(m_claimId)
         end
+
+        --F3-2: once the turn is taken / the creature has acted (or nothing is
+        --running), taking the turn is not an option any more - the button is
+        --noise, not information. The footer signal line carries the state
+        --("acting now" / "acted"); hide the button and its reason outright.
+        if not ok and settled then
+            takeTurnButton:SetClass("collapsed", true)
+            reasonLabel:SetClass("collapsed", true)
+            m_claimReason = reason
+            m_takeTurnTooltip = nil
+            return
+        end
+        takeTurnButton:SetClass("collapsed", false)
 
         local short, full = OverviewTakeTurnText(m_column, #m_signals.members)
         takeTurnButton.text = short
@@ -3569,6 +3653,7 @@ local function OverviewColumnFooter()
             end
             promptLabel:SetClass("collapsed", false)
             takeTurnButton.text = "Cancel"
+            takeTurnButton:SetClass("collapsed", false)
             takeTurnButton:SetClass("disabled", false)
             m_takeTurnTooltip = "Back out without choosing"
             reasonLabel:SetClass("collapsed", true)

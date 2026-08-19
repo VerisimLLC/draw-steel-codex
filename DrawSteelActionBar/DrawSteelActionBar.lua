@@ -3189,32 +3189,95 @@ local function OverviewActedState(q, tok)
     return nil
 end
 
---The stat block's own role line ("Level 1 Horde Harrier", "Level 2 Harrier
---minion") built from monster.cr / monster.role exactly as the stat block
---header does (MCDMMonster.lua ~:637). nil for anything without role data.
-local function OverviewRoleLine(tok)
+--F2-9 / Decision 15: one-line PLAY PATTERN per monster role and per
+--organization, shown on hover of the footer's role line so the Director can
+--pick which column to read first. Paraphrased play guidance, not rules text.
+--Keys are the lowercase words monster:Role() / monster:Organization() yield.
+local OVERVIEW_ROLE_PROSE = {
+    ambusher   = "Strikes from hiding, then slips away. Open hidden, pick off an isolated hero.",
+    artillery  = "Ranged damage from the back line. Keep line of sight, stay out of melee.",
+    brute      = "Tough melee damage. Close in, hit hard, soak what comes back.",
+    controller = "Shapes the fight: forced movement, hazards, conditions. Decide where the heroes stand.",
+    defender   = "Holds the line. Protects allies and punishes heroes who ignore it.",
+    harrier    = "Hit and run. Strike, then reposition; never stay pinned.",
+    hexer      = "Curses and debuffs from mid range. Weaken heroes so allies' hits land harder.",
+    mount      = "Carries a rider. Strongest when ridden; moves allies where they need to be.",
+    skirmisher = "Mobile fighter. Darts in and out of the front line.",
+    support    = "Buffs, heals and enables allies. Stay behind the line, near friends.",
+    leader     = "Commands the battle with villain actions. The others fight better while it stands.",
+    solo       = "Fights alone and acts more than once a round. The encounter IS this creature.",
+    minion     = "Weak alone, acts as a squad sharing one stamina pool. Swarm, then expect losses.",
+    horde      = "Numerous and cheap. Strength in numbers, each one fragile.",
+    platoon    = "The standard monster. A few of them make a fight.",
+    elite      = "Tough and dangerous, worth two standard monsters. Expect it to last.",
+}
+
+--The stat block's role for the footer: line = the role line with the ROLE
+--WORD first and emphasised ("<b>Controller</b>  Level 1 Horde"; a
+--Leader/Solo has only the organization, so that word leads), prose = the
+--hover play pattern (role + organization lines), plain = the stat block's
+--own "Level 1 Horde Controller" text. nil for anything without role data.
+--Built from monster.cr / monster.role exactly as the stat block header does
+--(MCDMMonster.lua ~:637).
+local function OverviewRoleInfo(tok)
     local props = tok.properties
     local role = nil
     local level = nil
     local isMinion = false
+    local roleWord = nil
+    local orgWord = nil
     pcall(function()
         if props:IsMonster() then
             role = props:try_get("role")
             level = tonumber(props:try_get("cr"))
             isMinion = props.minion == true
+            roleWord = props:Role()
+            orgWord = props:Organization()
         end
     end)
     if role == nil or role == "" then
         return nil
     end
-    local text = role
+    local plain = role
     if level ~= nil then
-        text = string.format("Level %d %s", round(level), role)
+        plain = string.format("Level %d %s", round(level), role)
     end
     if isMinion and string.find(string.lower(role), "minion", 1, true) == nil then
-        text = text .. " minion"
+        plain = plain .. " minion"
+        orgWord = orgWord or "minion"
     end
-    return text
+
+    --Lead with the role word (or the organization for Leader / Solo).
+    local lead = roleWord or orgWord
+    local line = plain
+    if lead ~= nil then
+        local leadText = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
+        local rest = {}
+        if level ~= nil then
+            rest[#rest + 1] = string.format("Level %d", round(level))
+        end
+        if roleWord ~= nil and orgWord ~= nil then
+            rest[#rest + 1] = string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2)
+        end
+        line = string.format("<color=#C9A86A><b>%s</b></color>", leadText)
+        if #rest > 0 then
+            line = line .. "  " .. table.concat(rest, " ")
+        end
+    end
+
+    local prose = {}
+    if roleWord ~= nil and OVERVIEW_ROLE_PROSE[roleWord] ~= nil then
+        prose[#prose + 1] = string.format("%s: %s", string.upper(string.sub(roleWord, 1, 1)) .. string.sub(roleWord, 2), OVERVIEW_ROLE_PROSE[roleWord])
+    end
+    if orgWord ~= nil and OVERVIEW_ROLE_PROSE[orgWord] ~= nil then
+        prose[#prose + 1] = string.format("%s: %s", string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2), OVERVIEW_ROLE_PROSE[orgWord])
+    end
+
+    return {
+        plain = plain,
+        line = line,
+        prose = table.concat(prose, "\n"),
+    }
 end
 
 --Reduce a column record ({tokens, token, name, label}) to its signals:
@@ -3519,9 +3582,18 @@ local function OverviewColumnFooter()
         classes = { "overviewFooterName" },
         text = "",
     }
+    --F2-9: role word first and emphasised (overviewFooterRole colours the
+    --bold lead via the label's rich text); hover = the role's one-line play
+    --pattern (Decision 15). m_roleTooltip is set per column.
+    local m_roleTooltip = nil
     local roleLabel = gui.Label {
-        classes = { "overviewFooterLine" },
+        classes = { "overviewFooterLine", "overviewFooterRole" },
         text = "",
+        hover = function(element)
+            if m_roleTooltip ~= nil and m_roleTooltip ~= "" then
+                gui.Tooltip(m_roleTooltip)(element)
+            end
+        end,
     }
     local signalLabel = gui.Label {
         classes = { "overviewFooterLine" },
@@ -3970,9 +4042,13 @@ local function OverviewColumnFooter()
             end)
             nameLabel.text = column.label or column.name or ""
 
-            local roleText = OverviewRoleLine(column.token)
-            roleLabel.text = roleText or ""
-            roleLabel:SetClass("collapsed", roleText == nil)
+            local roleInfo = OverviewRoleInfo(column.token)
+            roleLabel.text = roleInfo and roleInfo.line or ""
+            roleLabel:SetClass("collapsed", roleInfo == nil)
+            m_roleTooltip = nil
+            if roleInfo ~= nil and roleInfo.prose ~= "" then
+                m_roleTooltip = string.format("%s\n%s", roleInfo.plain, roleInfo.prose)
+            end
 
             local members = signals.members
             local text = ""

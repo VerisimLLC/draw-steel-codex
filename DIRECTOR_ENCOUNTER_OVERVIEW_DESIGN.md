@@ -828,6 +828,31 @@ alone -> Signature + Common, 9 chips, 0 buttons, 0 dismiss x).**
 
 NEXT: F2-9 role prominence -> Get in Here! data fix. Then Phase 2.
 
+**2026-08-19, F2-9 done (agent, live A5; regression check passed).**
+- `OverviewRoleLine` -> `OverviewRoleInfo(tok)` (~:3215) returning `plain`
+  (the stat block's "Level 1 Horde Controller"), `line` (rich text with the
+  ROLE WORD first, bold, gold `#C9A86A`: "Controller  Level 1 Horde"; a
+  Leader/Solo has only the organization so that leads: "Leader  Level 1";
+  minions read "Harrier  Level 1 Minion") and `prose` (hover text). Uses
+  `monster:Role()` / `monster:Organization()`.
+- `OVERVIEW_ROLE_PROSE` (~:3193): one-line PLAY PATTERN per role (ambusher,
+  artillery, brute, controller, defender, harrier, hexer, mount, skirmisher,
+  support) and per organization (leader, solo, minion, horde, platoon,
+  elite) - paraphrased guidance, not book text. Hover on the footer role
+  line = `plain` + the role line + the organization line (Decision 15's
+  "role description on hover"). The table lives in Lua for now; Ricky's
+  brief wanted it as data eventually - move to data/ when the copy pass
+  (X13) settles the wording.
+- Live: Monarch "Leader  Level 1", Stinker "Controller  Level 1 Horde",
+  Runner "Harrier  Level 1 Minion"; hover on the Monarch's role line showed
+  "Level 1 Leader / Leader: Commands the battle with villain actions...".
+
+NEXT: Get in Here! data fix (Goblin Monarch maneuver filed as
+categorization "Signature Ability" in data/). Then Phase 2 - and F2-5(c) /
+the 2026-08-18 play observation say the first Phase 2 items should be the
+Marked/condition threat flags and the whole-turn threat estimate, not the
+lenses.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

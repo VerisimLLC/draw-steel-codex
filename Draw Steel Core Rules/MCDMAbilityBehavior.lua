@@ -717,7 +717,7 @@ local g_rulePatterns = {
         end,
     },
     {
-        pattern = "^prone( and)? can't stand \\((?<duration>eot|eoe|save ends)\\)",
+        pattern = "^prone( and)? cant stand \\((?<duration>eot|eoe|save ends)\\)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
 

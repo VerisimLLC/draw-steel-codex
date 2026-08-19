@@ -423,16 +423,20 @@ STANDING REGRESSION CHECK (passed after every commit above): open a Unique
 menu, close it, select ONE monster, open Main Action -> "Signature Abilities /
 Common Abilities", 9 chips on the Monarch, 0 take-turn buttons, 0 dismiss x.
 
-STILL OPEN (small): the "Get in Here!" DATA fix - `data/monsters/
-goblin-monarch.yaml` files it as `categorization: Signature Ability`; the
-goblin convention for malice-costed non-signature abilities is `Heroic
-Ability` (Bury the Point, Shadow Chains). The file also carries ANOTHER
-session's uncommitted `promptWhenResolvingText` line - follow
-data-repo-push-discipline (per-file upstream author check, `git add -p` for
-just the categorization hunk). The placed A5 Monarch token keeps its own
-snapshot of the ability and will not pick the fix up until re-placed/resynced.
+"Get in Here!" DATA fix DONE (2026-08-19): draw-steel-data `3fb500c` on
+origin/main (`categorization: Signature Ability` -> `Heroic Ability`, the
+goblin convention for malice-costed non-signature abilities - Bury the Point,
+Shadow Chains). Made in a throwaway worktree off origin/main and pushed
+directly; the LOCAL `data/` checkout was NOT touched - it is 127 commits
+behind origin/main with the usual export churn plus a one-line uncommitted
+hunk that turned out to be already upstream as rickdog's `9629848`. The app
+reads local data/, so the live game sees the fix only after a data/ sync
+(Ricky's call - back up first, [[data-repo-push-discipline]]) and the placed
+A5 Monarch keeps its own snapshot until re-placed/resynced. Noted in passing:
+upstream Get in Here! still carries a stale `villainAction: Villain Action 2`
+field (harmless unless the categorization were Villain Action; left alone).
 
-NEXT after that: Phase 2, but start with what the 2026-08-18 play
+NEXT: Phase 2, but start with what the 2026-08-18 play
 observation asked for, not the lenses: (1) Marked / condition THREAT FLAGS on
 the column (deterministic, says who the heroes intend to kill), (2) the
 whole-hero-turn threat estimate as a risk band with reasons (never a

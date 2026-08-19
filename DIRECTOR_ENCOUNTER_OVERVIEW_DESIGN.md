@@ -608,6 +608,39 @@ Design consequences:
   by one tier-2 hit" obvious; "High" hides it. Role prominence (F2-9) frames
   the Controller-vs-minions trade-off faster.
 
+**2026-08-18, third user field test (Ricky, live play, real turn).**
+
+- **VERIFIED THE POSITIVE CLAIM PATH (the one Phase 1 could not exercise):**
+  with several monsters selected, clicking Spear Charge on a Warrior panned to
+  it and began targeting WITHOUT claiming; confirming the cast on the Tactician
+  CLAIMED the Warrior's turn at that moment; the columns then read "Turn taken
+  - acting now". Afterwards an off-turn Runner ability cast did NOT change
+  initiative. Decision 47 + 24 hold in real play. Phase 1 is now fully
+  field-verified end to end.
+- **F3-1 BUG (minor): no visible pulse on chip-press locate.** Code calls
+  `OverviewLocate` -> `dmhub.CenterOnToken(..., {smooth=true})` then
+  `PulseHighlightToken` per member (DrawSteelActionBar.lua ~3098, ~3700), so
+  the pulse IS requested; the user saw the pan but no pulse. Footer-click
+  pulse (no simultaneous pan) was seen in the earlier test. Hypotheses: the
+  smooth camera tween swallows/obscures the short engine pulse, or
+  PulseHighlightToken is faint on an already-selected token. DISPOSITION:
+  fire the pulse after the pan completes (delay ~0.3s via dmhub.Schedule,
+  guarded by mod.unloaded) or switch locate to the director-local TokenHud
+  pulse pattern (DrawSteelTokenHud.lua:19-60) which can also carry role colour
+  and a longer hold - that pattern was already the planned fallback for pulse
+  locality. Test both footer and chip paths.
+- **F3-2 COPY/STATE (accept): once a turn is taken, the take-turn buttons
+  should DISAPPEAR, not show "Turn taken - acting now".** They are no longer
+  options; a disabled button with a caption is noise. DISPOSITION: hide the
+  button (collapse) when the gate reason is "Turn taken - acting now" or
+  "Already acted this round"; keep the state visible in the footer signal
+  line instead ("acting now" / "Acted"). Keep the disabled-with-reason button
+  ONLY for the transient cases where the Director might want to know WHY they
+  cannot act yet ("It's the heroes' turn - browse only", "Another creature's
+  turn is in progress").
+- Game state: the user ended the Assassins' turn and played on; no cleanup
+  outstanding. User does NOT want a push yet.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

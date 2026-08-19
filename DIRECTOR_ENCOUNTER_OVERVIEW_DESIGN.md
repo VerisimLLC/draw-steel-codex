@@ -753,6 +753,42 @@ chips when acted (verify the `acted` class actually reaches the chips) ->
 F2-8 dismiss-x per column -> F2-9 role prominence -> Get in Here! data fix.
 Then Phase 2.
 
+**2026-08-19 (later still), ACTION TYPE ON CHIPS + HAIRLINE GROUPING done
+(agent, live A5; classic Main Action / Maneuver / Malice menus re-checked on a
+single Monarch: Signature + Common / Signature + Common / Malice Abilities, no
+overview labels or dividers leak into them; only console errors are the same
+pre-existing DocumentSystem.lua:7024 reload NRE).**
+- `OverviewActionType(ability)` (~:235) -> group, label from
+  `actionResourceId`: main action = group 0, "" (unmarked); maneuver /
+  free maneuver / "none" = group 1, "Maneuver" / "Free Maneuver" / "Free
+  Action"; any other resource = group 1 with the resource's own name.
+- `AbilityHeading` gained a pooled `overviewActionType` label under the
+  keywords line (12px bold gold, `OVERVIEW_FOOTER_RULES`), populated ONLY
+  when `args.overviewPress` is set (i.e. an overview column chip) - ordinary
+  menus never show it, the drawer already names the action.
+- `ActionSubMenu` now keeps its chips in a separate `m_chips` pool plus a
+  pooled `m_divider` (`overviewActionDivider`: 2px gold hairline, 181 wide)
+  and REBUILDS `m_children` on every populate: chips (spares collapsed at the
+  end), divider at its slot (parked collapsed before the tail when unused),
+  heading, footer; re-assigns `element.children` only when the order
+  changed. Every pooled panel stays in the list (fa2053b7 rule).
+- Overview sort (only when `m_column`/`m_casterToken` are set): group 0
+  first, then Signature Ability first, then cost, then name. Ordinary menus
+  keep the old cost/name sort byte-for-byte. Divider shows only when the
+  column has chips on both sides.
+- Live: Monarch = Handaxe, Handaxe | hairline | Get in Here! [Maneuver];
+  Stinker = Toxic Winds | hairline | Swamp Gas [Maneuver]; Assassin = Sword
+  Stab, Shadow Chains (no divider); Runner = Club Charge. Screenshot: the
+  "one above + one below" structure reads at a glance. Maneuver chips are a
+  line taller than main-action chips (3 text lines) - cross-column row
+  alignment was never promised (field note (i)).
+
+NEXT: F2-7 grey ALL chips when acted (verify the `acted` class reaches the
+chips - the F3-2 test screenshot showed an "acted" Stinker column with chips
+at full brightness) -> F2-8 dismiss-x per column -> F2-9 role prominence ->
+Get in Here! data fix (categorization "Signature Ability" on a maneuver in
+data/). Then Phase 2.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

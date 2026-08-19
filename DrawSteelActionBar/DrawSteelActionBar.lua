@@ -228,6 +228,35 @@ local function OverviewClaimGate(initiativeid)
     return true, nil, false
 end
 
+--Action economy of a kit ability for the overview column (field test 2:
+--"can this monster do two unique things this turn?" must read structurally).
+--Returns group, label: group 0 = main action (label "" - main actions stay
+--unmarked, they are the default), group 1 = everything that is NOT a main
+--action, labelled "Maneuver" / "Free Maneuver" / "Free Action" (no action
+--required) so the chip says so in legible text. Triggers / villain actions
+--never reach the column (IsUniqueKitAbility).
+local function OverviewActionType(ability)
+    local rid = nil
+    pcall(function() rid = ability.actionResourceId end)
+    if rid == CharacterResource.actionResourceId then
+        return 0, ""
+    elseif rid == CharacterResource.maneuverResourceId then
+        return 1, "Maneuver"
+    elseif rid == CharacterResource.freeManeuverResourceId then
+        return 1, "Free Maneuver"
+    elseif rid == "none" or rid == nil then
+        return 1, "Free Action"
+    end
+    --Anything else (respite activity, a custom resource) is not a main action
+    --either; show the resource's own name when it has one.
+    local name = nil
+    pcall(function()
+        local resource = dmhub.GetTable(CharacterResource.tableName)[rid]
+        name = resource and resource.name
+    end)
+    return 1, name or "Maneuver"
+end
+
 --Perform the claim through the shared helper. Returns true if the turn was
 --taken. Never called from a browse/preview click.
 local function OverviewClaimTurn(initiativeid)
@@ -1113,6 +1142,36 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "abilityHeading", "parent:acted" },
         opacity = 0.5,
+    },
+    --Action economy on overview chips (field test 2): a legible 12px line
+    --under the keywords, gold so it reads as structure, not as a keyword.
+    {
+        selectors = { "overviewActionType" },
+        fontSize = 12,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textWrap = false,
+        width = "100%-20",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewActionType", "expended" },
+        color = Styles.textColor,
+    },
+    --Hairline between a column's main actions (above) and its maneuvers /
+    --free actions (below), so "one above + one below" reads at a glance.
+    {
+        selectors = { "overviewActionDivider" },
+        width = 205 - 24,
+        height = 2,
+        halign = "center",
+        vmargin = 5,
+        bgimage = true,
+        bgcolor = Styles.Ability.goldColor,
+        opacity = 0.6,
     },
     --Slice (e): owner-selection prompt (instruction line + selectable member
     --rows) and the "Take <Creature>'s turn" button with its inline reason.
@@ -2825,6 +2884,24 @@ local function AbilityHeading(args)
                     element.text = string.join(keywords, ", ")
                 end,
             },
+
+            --Director overview only (args.overviewPress set): the action
+            --economy in legible text - "Maneuver" / "Free Maneuver" / "Free
+            --Action"; main actions stay unmarked. Ordinary menus never show
+            --it (the drawer already says which action the menu is).
+            gui.Label {
+                classes = { "overviewActionType", "collapsed" },
+                text = "",
+                ability = function(element, ability)
+                    local text = ""
+                    if args.overviewPress ~= nil then
+                        local _, label = OverviewActionType(ability)
+                        text = label or ""
+                    end
+                    element.text = text
+                    element:SetClass("collapsed", text == "")
+                end,
+            },
         },
 
         m_novelMarker,
@@ -3850,7 +3927,17 @@ local function ActionSubMenu(args)
     }
     local m_footer = OverviewColumnFooter()
 
-    local m_children = { m_heading, m_footer }
+    --Pooled chips (AbilityHeading, created on demand, never destroyed) and
+    --the pooled hairline an overview column shows between its main actions
+    --and its maneuvers. m_children is REBUILT from these on every populate
+    --(chips, divider at its slot, heading, footer) - see "abilities" below.
+    local m_chips = {}
+    local m_divider = gui.Panel {
+        classes = { "overviewActionDivider", "collapsed" },
+        interactable = false,
+    }
+
+    local m_children = { m_divider, m_heading, m_footer }
 
     local resultPanel
 
@@ -3969,7 +4056,33 @@ local function ActionSubMenu(args)
 
             element:SetClass("collapsed", false)
 
-            if abilities[1].categorization == "Malice" then
+            local overview = m_column ~= nil and m_casterToken ~= nil
+
+            if overview then
+                --Overview column (field test 2): main actions ABOVE, then
+                --maneuvers / free actions BELOW a hairline; signature first
+                --within the main actions, then by cost, then name - so
+                --"Monarch = one above + one below, Warrior = two above" reads
+                --structurally across columns.
+                table.sort(abilities, function(a, b)
+                    local groupA = OverviewActionType(a)
+                    local groupB = OverviewActionType(b)
+                    if groupA ~= groupB then
+                        return groupA < groupB
+                    end
+                    local sigA = a.categorization == "Signature Ability"
+                    local sigB = b.categorization == "Signature Ability"
+                    if sigA ~= sigB then
+                        return sigA
+                    end
+                    local costA = GetHeroicResourceOrMaliceCost(a) or 0
+                    local costB = GetHeroicResourceOrMaliceCost(b) or 0
+                    if costA ~= costB then
+                        return costA < costB
+                    end
+                    return a.name < b.name
+                end)
+            elseif abilities[1].categorization == "Malice" then
                 table.sort(abilities, function(a, b)
                     return (GetHeroicResourceOrMaliceCost(a) or 0) < (GetHeroicResourceOrMaliceCost(b) or 0)
                 end)
@@ -3986,38 +4099,73 @@ local function ActionSubMenu(args)
                 end)
             end
 
-            local startChildCount = #m_children
-
-            --Pop the two tail panels (heading, footer); re-appended below.
-            m_children[#m_children] = nil
-            m_children[#m_children] = nil
-
             for i = 1, #abilities do
-                m_children[i] = m_children[i] or AbilityHeading()
+                m_chips[i] = m_chips[i] or AbilityHeading()
                 --Re-point the pooled chip at this column's owner (nil restores
                 --the g_token default) before it computes cost/suppression.
                 --The overview press hook rides along (nil for ordinary menus).
                 local pressHook = nil
-                if m_column ~= nil and m_casterToken ~= nil then
+                if overview then
                     pressHook = OverviewChipPress
                 end
-                m_children[i]:FireEvent("setCasterToken", m_casterToken, pressHook)
-                m_children[i]:FireEventTree("ability", abilities[i])
-                m_children[i]:SetClass("collapsed", false)
+                m_chips[i]:FireEvent("setCasterToken", m_casterToken, pressHook)
+                m_chips[i]:FireEventTree("ability", abilities[i])
+                m_chips[i]:SetClass("collapsed", false)
             end
 
-            for i = #abilities + 1, #m_children do
-                m_children[i]:SetClass("collapsed", true)
+            for i = #abilities + 1, #m_chips do
+                m_chips[i]:SetClass("collapsed", true)
             end
 
-            m_children[#m_children + 1] = m_heading
-            m_children[#m_children + 1] = m_footer
+            --Hairline after the last main-action chip, only when the column
+            --has chips on both sides of it.
+            local dividerAfter = nil
+            if overview then
+                local lastMain = 0
+                for i, ability in ipairs(abilities) do
+                    if OverviewActionType(ability) == 0 then
+                        lastMain = i
+                    end
+                end
+                if lastMain > 0 and lastMain < #abilities then
+                    dividerAfter = lastMain
+                end
+            end
+            m_divider:SetClass("collapsed", dividerAfter == nil)
+
+            --Rebuild the child order: every pooled chip (spares collapsed at
+            --the end), the divider at its slot (or parked collapsed before
+            --the tail), then heading + footer. Every pooled panel is ALWAYS
+            --in the list (fa2053b7 rule); the list is only re-assigned when
+            --the order actually changed.
+            local newChildren = {}
+            for i = 1, #m_chips do
+                newChildren[#newChildren + 1] = m_chips[i]
+                if dividerAfter == i then
+                    newChildren[#newChildren + 1] = m_divider
+                end
+            end
+            if dividerAfter == nil then
+                newChildren[#newChildren + 1] = m_divider
+            end
+            newChildren[#newChildren + 1] = m_heading
+            newChildren[#newChildren + 1] = m_footer
+
+            local changed = #newChildren ~= #m_children
+            if not changed then
+                for i = 1, #newChildren do
+                    if newChildren[i] ~= m_children[i] then
+                        changed = true
+                        break
+                    end
+                end
+            end
+            m_children = newChildren
 
             --Overview column: footer bar instead of the text heading, and
             --dim the whole column when every member has acted this round
             --(Decision 50). Ordinary menus: heading shown, footer collapsed,
             --never dimmed - unchanged from before slice (d).
-            local overview = m_column ~= nil and m_casterToken ~= nil
             local allActed = false
             if overview then
                 local signals = OverviewColumnSignals(m_column)
@@ -4029,7 +4177,7 @@ local function ActionSubMenu(args)
             m_heading:SetClass("collapsed", overview)
             element:SetClass("acted", overview and allActed)
 
-            if #m_children ~= startChildCount then
+            if changed then
                 element.children = m_children
             end
         end,

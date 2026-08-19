@@ -5465,6 +5465,27 @@ CreateAbilityController = function()
             local cancel = options.cancel or function() end
 
             gui.SetFocus(nil)
+
+            --The chooser lives inside the action bar, and "refresh" hides the
+            --whole bar when there is no token to show. An off-turn cast fired
+            --from the initiative bar (villain actions) with nothing selected
+            --pops its caster the moment the cast begins, so a behavior that
+            --then prompts for a target (Prompt When Resolving) would build its
+            --prompt inside a hidden bar: the cast silently waits on a choice
+            --nobody can see. Push the prompt's source token as the caster for
+            --the life of the chooser so the bar shows it; popped in destroy.
+            local pushedSourceToken = false
+            if options.sourceToken ~= nil and options.sourceToken.valid then
+                local shownToken = g_token
+                if #g_casterTokenStack == 0 then
+                    shownToken = dmhub.selectedOrPrimaryTokens[1]
+                end
+                if shownToken == nil or not shownToken.valid then
+                    PushCasterToken(options.sourceToken)
+                    pushedSourceToken = true
+                end
+            end
+
             g_actionBar:FireEvent("refresh")
 
             g_actionBar:SetClassTree("choosingTarget", true)
@@ -5508,6 +5529,13 @@ CreateAbilityController = function()
                     end
                     gui.SetFocus(nil)
                     g_actionBar:SetClassTree("choosingTarget", false)
+                    if pushedSourceToken then
+                        pushedSourceToken = false
+                        TryPopCasterToken()
+                        if g_actionBar ~= nil and g_actionBar.valid then
+                            g_actionBar:FireEvent("refresh")
+                        end
+                    end
                 end,
             }
 

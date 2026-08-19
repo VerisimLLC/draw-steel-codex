@@ -1137,11 +1137,34 @@ local OVERVIEW_FOOTER_RULES = {
         tmargin = 3,
         lmargin = 28,
     },
-    --Whole-column acted greying (Decision 50): the chips dim but stay
-    --discoverable and clickable (Decision 4; opacity floor per X3).
+    --Whole-column acted greying (Decision 50 / F2-7): once every member of a
+    --column has acted this round, ALL of its chips grey out - title,
+    --keywords, icon, action type - so "do not use these" is unmistakable,
+    --while the chips stay discoverable and clickable (Decision 4; opacity
+    --floor per X3). Driven by an "acted" class tree on each chip (the same
+    --mechanism as "expended"); the earlier parent:acted opacity rule was
+    --too subtle to see in play.
     {
-        selectors = { "abilityHeading", "parent:acted" },
-        opacity = 0.5,
+        selectors = { "abilityHeading", "acted" },
+        opacity = 0.55,
+        borderColor = "#404040",
+    },
+    {
+        selectors = { "abilityTitle", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "abilityInfoLabel", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "overviewActionType", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "abilityIconPanel", "acted" },
+        saturation = 0,
+        opacity = 0.6,
     },
     --Action economy on overview chips (field test 2): a legible 12px line
     --under the keywords, gold so it reads as structure, not as a keyword.
@@ -4176,6 +4199,12 @@ local function ActionSubMenu(args)
             end
             m_heading:SetClass("collapsed", overview)
             element:SetClass("acted", overview and allActed)
+            --F2-7: grey every chip of an all-acted column (class tree so the
+            --title / keywords / icon rules apply); always cleared for
+            --ordinary menus, which reuse no overview state.
+            for i = 1, #abilities do
+                m_chips[i]:SetClassTree("acted", overview and allActed)
+            end
 
             if changed then
                 element.children = m_children

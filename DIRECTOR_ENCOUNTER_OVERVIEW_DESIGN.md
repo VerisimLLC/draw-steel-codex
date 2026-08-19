@@ -789,6 +789,23 @@ at full brightness) -> F2-8 dismiss-x per column -> F2-9 role prominence ->
 Get in Here! data fix (categorization "Signature Ability" on a maneuver in
 data/). Then Phase 2.
 
+**2026-08-19, F2-7 done (agent, live A5, HasHadTurn monkeypatched locally for
+the Stinker entry, restored after).** The slice-(d) rule
+`{abilityHeading, parent:acted} opacity 0.5` DID match (column had the class)
+but was invisible in play - the chips are dark translucent panels on a dark
+menu, so halving their opacity barely moves the text. Replaced by an "acted"
+CLASS TREE on every chip of an all-acted column (`m_chips[i]:SetClassTree
+("acted", overview and allActed)` at populate, always cleared for ordinary
+menus - same mechanism as "expended") with explicit rules in
+`OVERVIEW_FOOTER_RULES`: `{abilityHeading, acted}` opacity 0.55 + dark border,
+`{abilityTitle|abilityInfoLabel|overviewActionType, acted}` color #8a8a8a,
+`{abilityIconPanel, acted}` saturation 0 / opacity 0.6. Live: Stinker column
+(acted) = grey Toxic Winds / Swamp Gas with desaturated icons beside bright
+Monarch / Assassin chips; chips remain hoverable/pressable (Decision 4).
+
+NEXT: F2-8 dismiss-x per column -> F2-9 role prominence -> Get in Here! data
+fix. Then Phase 2.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

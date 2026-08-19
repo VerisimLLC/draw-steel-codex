@@ -752,6 +752,38 @@ local function OverviewLensKeyText(facets, lens)
     return nil
 end
 
+--Decision 45: the token-UI glyph for each condition an ability can apply
+--(charConditions iconid + display, powertable entries preferred - the same
+--art players see on tokens). From facets.conditions (parser/effect names),
+--matched by lowercased name, never substring.
+local OVERVIEW_CHIP_CONDITION_ICONS = 2
+local function OverviewConditionIcons(facets)
+    local result = {}
+    if facets == nil or facets.conditions == nil or #facets.conditions == 0 then
+        return result
+    end
+    local table_ = dmhub.GetTable(CharacterCondition.tableName) or {}
+    for _, name in ipairs(facets.conditions) do
+        local wanted = string.lower(name)
+        local best = nil
+        for _, cond in unhidden_pairs(table_) do
+            if string.lower(cond.name or "") == wanted then
+                if best == nil or (cond.powertable and not best.powertable) then
+                    best = cond
+                end
+            end
+        end
+        if best ~= nil and best.iconid ~= nil then
+            result[#result + 1] = {
+                name = best.name,
+                icon = best.iconid,
+                bgcolor = (best.display ~= nil and best.display.bgcolor) or "white",
+            }
+        end
+    end
+    return result
+end
+
 --Movement cross-section diagram during ability movement targeting.
 --
 --For any ability-driven movement preview -- forced move (push/pull/slide,
@@ -1442,6 +1474,34 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "abilityHeading", "onLens" },
         borderColor = Styles.Ability.goldColor,
+    },
+    --Decision 45 condition glyph row on overview chips (>= 16px, X15).
+    {
+        selectors = { "overviewConditionRow" },
+        width = "100%-20",
+        height = 18,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewConditionIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+        bgcolor = "white",
+    },
+    {
+        selectors = { "overviewConditionMore" },
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        color = Styles.textColor,
+        halign = "left",
+        valign = "center",
     },
     {
         selectors = { "overviewLensKey" },
@@ -3395,6 +3455,55 @@ local function AbilityHeading(args)
                     end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
+                end,
+            },
+
+            --Decision 45 (overview only): the conditions this ability can
+            --apply, as the token-UI glyphs, up to two then "+N"; always on,
+            --not lens-gated, so the Control lens is discoverable from the
+            --chips. Inline under the keywords (the chip's right corner is
+            --already the cost diamond's and the novelty pip's).
+            gui.Panel {
+                classes = { "overviewConditionRow", "collapsed" },
+                gui.Panel { classes = { "overviewConditionIcon", "collapsed" }, bgimage = "panels/square.png" },
+                gui.Panel { classes = { "overviewConditionIcon", "collapsed" }, bgimage = "panels/square.png" },
+                gui.Label { classes = { "overviewConditionMore", "collapsed" }, text = "" },
+                ability = function(element, ability)
+                    local icons = {}
+                    if args.overviewPress ~= nil then
+                        icons = OverviewConditionIcons(OverviewAbilityFacets(ability))
+                    end
+                    local children = element.children
+                    local names = {}
+                    for _, icon in ipairs(icons) do
+                        names[#names + 1] = icon.name
+                    end
+                    for i = 1, OVERVIEW_CHIP_CONDITION_ICONS do
+                        local panel = children[i]
+                        local icon = icons[i]
+                        if icon == nil then
+                            panel:SetClass("collapsed", true)
+                        else
+                            panel:SetClass("collapsed", false)
+                            panel.bgimage = icon.icon
+                            panel.selfStyle.bgcolor = icon.bgcolor
+                        end
+                    end
+                    local more = children[OVERVIEW_CHIP_CONDITION_ICONS + 1]
+                    if #icons > OVERVIEW_CHIP_CONDITION_ICONS then
+                        more.text = string.format("+%d", #icons - OVERVIEW_CHIP_CONDITION_ICONS)
+                        more:SetClass("collapsed", false)
+                    else
+                        more:SetClass("collapsed", true)
+                    end
+                    element.data.tooltip = table.concat(names, ", ")
+                    element:SetClass("collapsed", #icons == 0)
+                end,
+                data = { tooltip = "" },
+                hover = function(element)
+                    if element.data.tooltip ~= "" then
+                        gui.Tooltip("Can apply: " .. element.data.tooltip)(element)
+                    end
                 end,
             },
 

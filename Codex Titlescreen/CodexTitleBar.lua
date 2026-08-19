@@ -1670,6 +1670,12 @@ local function CreateStatusBar()
         m_mapNameLabel,
     }
 
+    local m_initiativeHost = CreateInitiativeStatusHost()
+
+    -- While a CommandBuilder session is active, a floating recorder dialog
+    -- shows the steps; this zero-size host is just its mount point.
+    local m_commandBuilderHost = CommandBuilder.CreateDialogHost()
+
     resultPanel = gui.Panel{
         flow = "horizontal",
         height = "100%",
@@ -1759,11 +1765,15 @@ local function CreateStatusBar()
         -- showstatusbar preference is done here rather than in the mounted
         -- panel so the initiative bar does not have to know about this
         -- setting.
-        CreateInitiativeStatusHost(),
+        m_initiativeHost,
 
         -- Hovered-tile terrain chip + map name/engine status, sharing one
         -- clickable plate that opens the map overlay menu.
         m_mapCluster,
+
+        -- Zero-size mount point that opens the command-builder recorder
+        -- dialog when a session begins.
+        m_commandBuilderHost,
     }
 
     return resultPanel
@@ -1840,7 +1850,7 @@ Search.RegisterProvider{
 local g_searchWidthFraction = 0.9
 
 local function SearchBoxWidth()
-    return math.floor(364 * g_searchWidthFraction * (dmhub.GetSettingValue("dockscale") or 1))
+    return math.floor(364 * g_searchWidthFraction * DockablePanel.EffectiveDockScale())
 end
 
 local function CreateSearchBar()
@@ -2293,7 +2303,7 @@ local function CreateSearchBar()
             -- must never wrap at small dock scales. At scale > 1 the popup
             -- grows to match the (now wider) box above it. Rebuilt fresh per
             -- search, so a value computed at construction stays current.
-            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
+            width = math.max(368, math.floor(364 * DockablePanel.EffectiveDockScale())),
             height = "auto",
             halign = "center",
             valign = "bottom",

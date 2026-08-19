@@ -9,6 +9,31 @@ setting{
     storage = "transient",
 }
 
+--The icon-rail ("New Experimental UI") mode toggle. Registered HERE
+--rather than in DocumentSystem (which owns the rail itself) because this
+--file loads long before it and the setting is read at STARTUP: the title
+--bar is built at CodexTitleBar.lua load time and sizes its search box
+--via DockablePanel.EffectiveDockScale, and reading a not-yet-registered
+--setting logs an engine "Could not find setting" error. The behavior
+--stays in DocumentSystem: its rail/dock sync work is reached through the
+--IconRailSettingChanged global it defines. rawget because the global is
+--nil until DocumentSystem loads -- harmless, since the setting can only
+--change from UI that exists well after load.
+setting{
+    id = "iconrail",
+    description = "New Experimental UI",
+    help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
+    storage = "preference",
+    editor = "check",
+    default = false,
+    onchange = function()
+        local fn = rawget(_G, "IconRailSettingChanged")
+        if fn ~= nil then
+            fn()
+        end
+    end,
+}
+
 setting{
     id = "dockscale",
     description = "Dock Scale",
@@ -19,6 +44,14 @@ setting{
     default = 1.0,
     min = 0.5,
     max = 1.5,
+    --The icon-rail UI ignores dock scaling entirely (docks are slid away
+    --there and every reader goes through DockablePanel.EffectiveDockScale,
+    --which reads 1 while iconrail is on), so hide the slider with it. The
+    --stored preference is kept and comes back when the rail is turned off.
+    visible = function()
+        return dmhub.GetSettingValue("iconrail") ~= true
+    end,
+    monitorVisible = {"iconrail"},
     onchange = function()
         --Apply the new scale live to any docks that already exist. Docks are
         --only created once a game is active; bail out otherwise.
@@ -168,7 +201,7 @@ function GameHud:CreateSingleDock(params)
 	--NOTE: DockHeight is captured as an upvalue by fitChildren/sizeChild below;
 	--the setScale event reassigns it so those closures pick up the new value.
 	local baseDockHeight = (params.height or 1080)
-	local dockScale = cond(floating, 1, dmhub.GetSettingValue("dockscale") or 1)
+	local dockScale = cond(floating, 1, DockablePanel.EffectiveDockScale())
 	local DockHeight = baseDockHeight / dockScale
 	--The dock is created at base size / uiscale 1 / default pivot, then setScale
 	--is fired once after construction to apply the real scale+pivot+height. This
@@ -374,7 +407,7 @@ function GameHud:CreateSingleDock(params)
 			if floating then
 				return
 			end
-			dockScale = dmhub.GetSettingValue("dockscale") or 1
+			dockScale = DockablePanel.EffectiveDockScale()
 			DockHeight = baseDockHeight / dockScale
 			element.data.DockHeight = DockHeight
 			--Set pivot in selfStyle (the form that actually takes effect) and
@@ -961,7 +994,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		--renders at dockscale (via uiscale) and its logical height is the screen
 		--height divided by that scale, so a panel needs a proportionally larger
 		--logical max height to still stretch to the full screen when scaled down.
-		local dockScale = dmhub.GetSettingValue("dockscale") or 1
+		local dockScale = DockablePanel.EffectiveDockScale()
 
 		return {
 			minHeight = min + tabSpacing, -- + panelSpacing*2,
@@ -2169,6 +2202,19 @@ DockablePanel = {
 	ContentWidth = 364,
 	DockWidth = 364,
     FloatingDockMargin = 100,
+
+	--The dock scale actually in effect. The icon-rail UI ignores the Dock
+	--Scale setting (the docks are slid away there and the slider is hidden
+	--from the settings screen), so it reads as 1 while iconrail is on; the
+	--stored preference is untouched and applies again when the rail is
+	--turned off. All dockscale readers must go through this rather than
+	--reading the setting directly.
+	EffectiveDockScale = function()
+		if dmhub.GetSettingValue("iconrail") == true then
+			return 1
+		end
+		return dmhub.GetSettingValue("dockscale") or 1
+	end,
 
 	--args: name, icon, content(), vscroll, minHeight/maxHeight (content
 	--bounds used by the dock AND as vertical bounds for the panel's

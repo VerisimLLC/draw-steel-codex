@@ -2445,6 +2445,17 @@ Commands.RegisterMacro{
     name = "rollinitiative",
     summary = "start combat",
     doc = "Usage: /rollinitiative [x1 y1 x2 y2]\nStarts combat with selected tokens, or tokens in a rectangular area if coordinates are given.",
+
+    --Only the no-argument (use the current selection) form is surfaced; the
+    --rectangle form wants map coordinates, which the builder has no way to
+    --pick. dmonly matches the engine command registration above, which is
+    --already declared dmonly.
+    commandInfo = {
+        name = "Start Combat",
+        description = "Open combat setup for the tokens you have selected.",
+        dmonly = true,
+    },
+
     command = function(str)
     local args = string.split(str or "", " ")
 

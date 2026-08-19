@@ -5096,6 +5096,16 @@ function CreateSettingsScreen(dialog, args)
 
 	dmhub.Debug('EXEC SETTING SCREEN')
 
+	--PERF instrumentation: how long the full settings-dialog build takes and
+	--how much of it is the command-builder lightning icons, printed at the
+	--end of this function. os.clock() (CPU seconds) rather than dmhub.Time(),
+	--which is frame-quantized.
+	local perfStart = os.clock()
+	local perfLightningBaseline = {
+		count = CommandBuilder.profile.count,
+		seconds = CommandBuilder.profile.seconds,
+	}
+
 	local m_selectedTab = "General"
 
 	--The root panel the settings UI lives in. Normally this is the sheet we
@@ -6438,6 +6448,11 @@ function CreateSettingsScreen(dialog, args)
 	else
 		dialog.sheet = m_screenRoot
 	end
+
+	print(string.format("SETTINGSPERF:: dialog built in %.1fms (lightning icons: %d created, %.1fms)",
+		(os.clock() - perfStart) * 1000,
+		CommandBuilder.profile.count - perfLightningBaseline.count,
+		(CommandBuilder.profile.seconds - perfLightningBaseline.seconds) * 1000))
 
 	settingsDialog:PulseClass("fadein")
 end

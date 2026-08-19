@@ -1,5 +1,81 @@
 local mod = dmhub.GetModLoading()
 
+--Switch a map object's appearance (its Appearance component's image-swap
+--selection), addressed by floor id + object id. The value is an alternate's
+--name (the stable address: names travel with their image when an alternate
+--is promoted via Set as Default), a numeric index (0 = the base image), or
+--"cycle" to advance to the next appearance and wrap around. Recorded by the
+--command builder's bolts in the Map Appearance gallery (below).
+Commands.RegisterMacro{
+    name = "mapappearance",
+    summary = "switch a map object's appearance",
+    doc = "Usage: /mapappearance <floorid> <objectid> <name|index|cycle>. Switches the map's Appearance to the named alternate (0 or the default's name for the base image), or cycles to the next one.",
+    command = function(str)
+        local floorid, objid, value = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(.-)%s*$")
+        if value == nil or value == "" then
+            dmhub.Log("mapappearance: usage: /mapappearance <floorid> <objectid> <name|index|cycle>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("mapappearance: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        local comp = obj:GetComponent("Appearance")
+        if comp == nil or not comp.valid then
+            dmhub.Log(string.format("mapappearance: object %s has no appearance alternates", objid))
+            return
+        end
+
+        local doc = obj:ComponentToJson(comp.componentid)
+        local swaps = (doc ~= nil and doc.imageSwaps) or {}
+        local names = (doc ~= nil and doc.imageSwapNames) or {}
+        local current = (doc ~= nil and doc.imageNumber) or 0
+        local baseLabel = (doc ~= nil and doc.imageDefaultName) or ""
+        if baseLabel == "" then
+            baseLabel = "Default"
+        end
+
+        local target = nil
+        if value == "cycle" then
+            target = (current + 1) % (#swaps + 1)
+        else
+            --name match first so an appearance literally named "2" wins over
+            --index interpretation.
+            if string.lower(value) == string.lower(baseLabel) then
+                target = 0
+            else
+                for i = 1, #swaps do
+                    local name = names[i] or string.format("Appearance %d", i)
+                    if string.lower(name) == string.lower(value) then
+                        target = i
+                        break
+                    end
+                end
+            end
+            if target == nil then
+                local num = tonumber(value)
+                if num ~= nil and num >= 0 and num <= #swaps then
+                    target = math.floor(num)
+                end
+            end
+        end
+
+        if target == nil then
+            dmhub.Log(string.format("mapappearance: no appearance named '%s' on object %s", value, objid))
+            return
+        end
+
+        if target ~= current then
+            comp:SetAndUploadProperties{
+                imageNumber = target,
+            }
+        end
+    end,
+}
+
 local function track(eventType, fields)
 	if dmhub.GetSettingValue("telemetry_enabled") == false then
 		return
@@ -682,6 +758,51 @@ local function ShowFloorSettings(floor, onHeightChanged)
 			local imageId = cond(isBase, mapObj.displayImageId, swaps[index])
 			local isSelected = selected == index
 
+			--command-builder affordance: a bolt in the tile's corner
+			--recording "/mapappearance <floorid> <objid> <name>" (switch to
+			--this appearance) or "... cycle" (advance to the next one).
+			--Skipped for a base tile with no alternates -- there is nothing
+			--to switch -- and for objects without a placed identity.
+			local attachTileLightning = nil
+			if ((not isBase) or #swaps > 0)
+					and mapObj.floorid ~= nil and mapObj.floorid ~= ""
+					and mapObj.objid ~= nil and mapObj.objid ~= "" then
+				attachTileLightning = function(element)
+					CommandBuilder.EnsureLightningIcon(element, {
+						floating = true,
+						halign = "right",
+						valign = "top",
+						rmargin = 2,
+						tmargin = 2,
+						width = 16,
+						height = 16,
+						entries = function()
+							--read the name fresh: the caption inputs rename
+							--into the names/baseName upvalues live.
+							local name
+							if isBase then
+								name = (baseName ~= nil and baseName ~= "") and baseName or "Default"
+							else
+								name = names[index] or string.format("Appearance %d", index)
+							end
+							local target = string.format("%s %s", mapObj.floorid, mapObj.objid)
+							return {
+								{
+									text = string.format("Switch map to %s", name),
+									command = string.format("mapappearance %s %s", target, name),
+									stepText = string.format("Map: %s", name),
+								},
+								{
+									text = "Cycle map appearance",
+									command = string.format("mapappearance %s cycle", target),
+									stepText = "Cycle map appearance",
+								},
+							}
+						end,
+					})
+				end
+			end
+
 			--Border/hover/selected coloring comes from the themed mapAppearanceTile styles; "image" keeps
 			--the bgcolor white so the map image shows untinted. "selected" drives the accent highlight.
 			local thumb = gui.Panel{
@@ -692,6 +813,9 @@ local function ShowFloorSettings(floor, onHeightChanged)
 				valign = "top",
 				bgimage = imageId or "panels/square.png",
 				cornerRadius = 6,
+				multimonitor = attachTileLightning ~= nil and {"commandcreationmode"} or nil,
+				create = attachTileLightning,
+				monitor = attachTileLightning,
 				click = function()
 					--Clicking the base when there are no alternates is a no-op (nothing to switch to).
 					if isBase and #swaps == 0 then

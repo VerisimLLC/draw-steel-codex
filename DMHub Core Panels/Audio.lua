@@ -4305,7 +4305,7 @@ local function CreatePlayerSoundPanel()
 			end
 			local h = 330
 			local tabSpacing = 40
-			local dockScale = dmhub.GetSettingValue("dockscale") or 1
+			local dockScale = DockablePanel.EffectiveDockScale()
 			inst.data.minHeight = h
 			inst.data.maxHeight = h
 			container.data.minHeight = h + tabSpacing

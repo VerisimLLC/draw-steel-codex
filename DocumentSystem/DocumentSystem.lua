@@ -1896,7 +1896,7 @@ function CustomDocument:CreateInterface(args)
     --project's Journal Toolbar spec, rows 1-2): warm-black bar surface,
     --hairline row separators, ghost icon buttons that only show chrome on
     --hover, and a gold-accented selected state. Corner radii are
-    --deliberately left to the user's theme (squared vs rounded). Hardcoded
+    --deliberately left to the theme. Hardcoded
     --colors are the same design-trial decision as the format toolbar in
     --MarkdownDocument.lua.
     --icon buttons are true ghosts at rest (transparent, per the handoff);
@@ -3810,6 +3810,21 @@ local function DocumentWindowStyles()
     return dialogStyles
 end
 
+--In the icon-rail UI the Font Size setting acts as a flat zoom on these
+--windows: the window renders at uiscale = fontsize/100 around its
+--top-left corner while the engine holds font magnification at 1
+--(GameConfig.cs does this whenever iconrail is on), so the content
+--inside is unchanged -- the whole window is simply scaled. Outside rail
+--mode windows stay at scale 1 and the setting magnifies fonts as it
+--always has. Window geometry (x/y/width/height, _tmp_location, the
+--resize handles) all stays in the unscaled panel units.
+local function WindowUIScale()
+    if dmhub.GetSettingValue("iconrail") == true then
+        return (dmhub.GetSettingValue("fontsize") or 100) * 0.01
+    end
+    return 1
+end
+
 --args may carry placement overrides for the window:
 --  width/height: initial size (defaults to the full document dialog size;
 --      a location remembered from a drag/resize this session still wins).
@@ -3973,10 +3988,37 @@ function CustomDocument:PresentDocument(args)
             element:FireEventTree("hostPanelPressed")
         end,
 
+        --The Font Size setting as a flat window zoom in rail mode (see
+        --WindowUIScale above). Applied through an event so it runs on the
+        --ATTACHED window: a pivot write only takes effect alongside a
+        --size-affecting refresh (the uiscale change here provides one) --
+        --same recipe as the dock's setScale. Fired after AddChild by
+        --PresentPanel, and again by the settings monitor below whenever
+        --fontsize/iconrail change while the window is open.
+        setWindowScale = function(element)
+            local scale = WindowUIScale()
+            if element.data.windowScale == scale then
+                return
+            end
+            element.data.windowScale = scale
+            --pivot on the anchored corner (halign left / valign top) so
+            --the scaled window grows down-right from where it sits rather
+            --than swelling around its center. Named form only -- a
+            --positional pivot is silently ignored by selfStyle.
+            element.selfStyle.pivot = {x = 0, y = 1}
+            element.selfStyle.uiscale = scale
+        end,
+
+        multimonitor = {"fontsize", "iconrail"},
+        monitor = function(element)
+            element:FireEvent("setWindowScale")
+        end,
+
         data = {
             history = {},
             forwardHistory = {},
             currentDocId = self.id,
+            windowScale = nil,
         },
 
         --Recolor on a theme / color-scheme switch. This window OWNS its
@@ -4569,6 +4611,9 @@ function PanelDocument:PresentPanel(args)
     local dialog = self:PresentDocument(args)
     self._tmp_dialog = dialog
     GameHud.instance.documentsPanel:AddChild(dialog)
+    --apply the rail-mode window zoom now that the window is attached
+    --(pivot writes need an attached panel -- see setWindowScale).
+    dialog:FireEvent("setWindowScale")
     return dialog
 end
 
@@ -6480,26 +6525,34 @@ end
 --turns off.
 local SyncDocksToRailMode
 
-setting{
-    id = "iconrail",
-    description = "New Experimental UI",
-    help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
-    storage = "preference",
-    editor = "check",
-    default = false,
-    onchange = function()
-        if mod.unloaded then
-            return
+--The iconrail setting itself is registered early, in DockablePanel.lua
+--("DMHub Core UI"): the title bar reads it through EffectiveDockScale at
+--its own load time, well before this file loads, and reading an
+--unregistered setting logs an engine error. Its onchange dispatches to
+--this global, which owns the actual mode-switch behavior.
+function IconRailSettingChanged()
+    if mod.unloaded then
+        return
+    end
+    --docks first, so the rails built below see the updated dock
+    --visibility and come up uncollapsed immediately (syncDockMode
+    --reads the dock settings at rail create).
+    if SyncDocksToRailMode ~= nil then
+        SyncDocksToRailMode()
+    end
+    EnsureIconRail()
+    --rail mode changes the EFFECTIVE dock scale (the Dock Scale
+    --setting reads as 1 while the rail is on -- see
+    --DockablePanel.EffectiveDockScale), so live docks re-apply it the
+    --same way the dockscale setting's own onchange does.
+    if gamehud ~= nil and rawget(gamehud, "leftDock") ~= nil then
+        for _,dock in ipairs(gamehud:Docks()) do
+            if dock ~= nil and dock.valid then
+                dock:FireEvent("setScale")
+            end
         end
-        --docks first, so the rails built below see the updated dock
-        --visibility and come up uncollapsed immediately (syncDockMode
-        --reads the dock settings at rail create).
-        if SyncDocksToRailMode ~= nil then
-            SyncDocksToRailMode()
-        end
-        EnsureIconRail()
-    end,
-}
+    end
+end
 
 --Which rail windows are open and where, for this game:
 --{ [panelKey] = {x = ..., y = ..., width = ..., height = ...} }.
@@ -7380,18 +7433,29 @@ end
 
 --Where a window summoned from a rail icon lands: beside that rail,
 --level with the icon, clamped on screen. Computed at click time so it
---tracks the live screen width.
+--tracks the live screen width. The window renders scaled by the
+--rail-mode Font Size zoom around its top-left corner (WindowUIScale),
+--so the footprint that must fit on screen is the SCALED one, not the
+--declared geometry -- and the RAIL renders at the same zoom (the rail
+--root's uiscale, see setRailScale), so the slot offsets and the
+--button's width scale too.
 local function RailAnchor(side, index)
-    local anchorY = ICON_RAIL_TOP + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
-    local maxY = 1080 - PanelDocument.DefaultHeight - 40
+    local scale = WindowUIScale()
+    local anchorY = ICON_RAIL_TOP + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local maxY = 1080 - PanelDocument.DefaultHeight * scale - 40
+    --a zoom big enough that the window cannot fit at all still opens it
+    --pinned to the top rather than pushed above the screen.
+    if maxY < 0 then
+        maxY = 0
+    end
     if anchorY > maxY then
         anchorY = maxY
     end
     local anchorX
     if side == "left" then
-        anchorX = ICON_RAIL_LEFT + ICON_RAIL_BUTTON + 10
+        anchorX = ICON_RAIL_LEFT + ICON_RAIL_BUTTON * scale + 10
     else
-        anchorX = IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON - 10 - PanelDocument.DefaultWidth
+        anchorX = IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale - 10 - PanelDocument.DefaultWidth * scale
     end
     return anchorX, anchorY
 end
@@ -7473,6 +7537,10 @@ local function RailBandTarget(dialog, lx, ly)
         if type(w) ~= "number" or w <= 0 then
             w = PanelDocument.DefaultWidth
         end
+        --renderedWidth is in the window's own (pre-uiscale) units
+        --(verified empirically); the on-screen footprint is scaled by
+        --the rail-mode zoom.
+        w = w * (dialog.data.windowScale or 1)
         if lx + w >= uiW + RAIL_DOCK_OVERSHOOT or (cursorX ~= nil and cursorX >= uiW - RAIL_DOCK_CURSOR_EDGE) then
             side = "right"
         end
@@ -7482,7 +7550,9 @@ local function RailBandTarget(dialog, lx, ly)
     end
 
     local span = 2
-    local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+    --the rail renders at the Font Size zoom (setRailScale), so slot
+    --geometry in layer units carries the same factor.
+    local pitch = (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * WindowUIScale()
     local desired = math.floor((ly - ICON_RAIL_TOP) / pitch + 0.5)
     local maxTop = ICON_RAIL_MAX_SLOT - (span - 1)
     if desired < 0 then
@@ -7788,7 +7858,11 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
             width = tmploc.width or width
             height = tmploc.height or height
         end
-        local placement = TokenWindowPlacement(anchorToken, width, height)
+        --the window renders scaled by the rail-mode Font Size zoom
+        --(WindowUIScale), so the placement must dodge/fit the SCALED
+        --footprint, not the declared geometry.
+        local scale = WindowUIScale()
+        local placement = TokenWindowPlacement(anchorToken, width * scale, height * scale)
         if placement ~= nil then
             presentArgs.x = placement.x
             presentArgs.y = placement.y
@@ -7891,7 +7965,9 @@ local function RailDropPoint(dropX, dropY, excludeKey)
     --panel's TOP edge; fed the pointer instead, it read a hit in the
     --lower half of a slot as the next slot down (field report
     --2026-08-08: vacant-slot drops landing one space too low).
-    local targetSlot = math.floor((dropY - ICON_RAIL_TOP + ICON_RAIL_GAP / 2) / (ICON_RAIL_BUTTON + ICON_RAIL_GAP))
+    --slot bands are scaled by the rail's Font Size zoom (setRailScale).
+    local railScale = WindowUIScale()
+    local targetSlot = math.floor((dropY - ICON_RAIL_TOP + ICON_RAIL_GAP * railScale / 2) / ((ICON_RAIL_BUTTON + ICON_RAIL_GAP) * railScale))
     if targetSlot < 0 then
         targetSlot = 0
     end
@@ -7933,6 +8009,14 @@ end
 --for the whole drag, so base + drag offset + grab point IS the
 --pointer. Falls back to the panel centre if the point is unavailable.
 local function RailDragPointer(baseX, baseY, element)
+    --the dragged element lives INSIDE the zoomed rail (setRailScale), so
+    --its rendered size, its drag offset, and the grab extent are all in
+    --the rail's pre-scale units (renderedWidth verifiably excludes
+    --uiscale) -- multiply the whole local-space contribution up into
+    --layer units. NOTE the xdrag assumption (parent-space, pre-scale)
+    --matches renderedWidth's semantics but wants an in-app rearrange
+    --check at a non-100% Font Size; at 100% this is exact either way.
+    local scale = WindowUIScale()
     local w = element.renderedWidth
     local h = element.renderedHeight
     if w == nil or w <= 0 then w = ICON_RAIL_BUTTON end
@@ -7944,7 +8028,7 @@ local function RailDragPointer(baseX, baseY, element)
         gx = math.max(0, math.min(1, mp.x)) * w
         gy = (1 - math.max(0, math.min(1, mp.y))) * h
     end
-    return baseX + (element.xdrag or 0) + gx, baseY + (element.ydrag or 0) + gy
+    return baseX + ((element.xdrag or 0) + gx) * scale, baseY + ((element.ydrag or 0) + gy) * scale
 end
 
 --Pointer position for a dragged rail button resting at (side, slot).
@@ -7972,8 +8056,9 @@ local function RailWindowIntersectsBand(x1, y1, x2, y2)
 end
 
 local function RailButtonDragPointer(side, slot, element)
-    local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local scale = WindowUIScale()
+    local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
+    local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -7985,20 +8070,23 @@ end
 --right rail that means the strip's RIGHT edge sits at the owner's left
 --edge and the first member is the farthest from the rail.
 local function RailMemberDragPointer(side, ownerSlot, memberIndex, memberCount, element)
-    local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
+    --the strip is a child of the zoomed rail, so every offset within it
+    --is scaled on screen.
+    local scale = WindowUIScale()
+    local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
     --member buttons carry hmargin 4, so their pitch is button + 8.
-    local pitch = ICON_RAIL_BUTTON + 8
+    local pitch = (ICON_RAIL_BUTTON + 8) * scale
     local baseX
     if side == "left" then
-        baseX = railX + ICON_RAIL_BUTTON + 4 + (memberIndex - 1) * pitch
+        baseX = railX + (ICON_RAIL_BUTTON + 4) * scale + (memberIndex - 1) * pitch
     else
         --the right rail's strip is anchored by its RIGHT edge, and in
         --rearrange mode (the only time members drag) the trailing
         --cut-out box widens the strip by one more pitch, pushing every
         --member that much further left.
-        baseX = railX - (memberCount + 1) * pitch + 4 + (memberIndex - 1) * pitch
+        baseX = railX - (memberCount + 1) * pitch + 4 * scale + (memberIndex - 1) * pitch
     end
-    local baseY = ICON_RAIL_TOP + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    local baseY = ICON_RAIL_TOP + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -8072,14 +8160,17 @@ local function RailGroupZoneAt(px, py, draggedKey)
         return nil
     end
     draggedKey = string.lower(draggedKey)
-    local rowPitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
-    local pitch = ICON_RAIL_BUTTON + 8
+    --all strip geometry is inside the zoomed rail (setRailScale), so the
+    --layer-space bands carry the scale.
+    local scale = WindowUIScale()
+    local rowPitch = (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local pitch = (ICON_RAIL_BUTTON + 8) * scale
     for _, z in ipairs(g_railStripZones) do
         if string.lower(z.ownerKey) ~= draggedKey then
             local rowTop = ICON_RAIL_TOP + z.ownerSlot * rowPitch
-            if py >= rowTop - ICON_RAIL_GAP / 2 and py <= rowTop + ICON_RAIL_BUTTON + ICON_RAIL_GAP / 2 then
-                local railX = cond(z.side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-                local stripStart = cond(z.side == "left", railX + ICON_RAIL_BUTTON, railX - (z.memberCount + 1) * pitch)
+            if py >= rowTop - ICON_RAIL_GAP * scale / 2 and py <= rowTop + (ICON_RAIL_BUTTON + ICON_RAIL_GAP / 2) * scale then
+                local railX = cond(z.side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
+                local stripStart = cond(z.side == "left", railX + ICON_RAIL_BUTTON * scale, railX - (z.memberCount + 1) * pitch)
                 local dx = px - stripStart
                 if dx >= -4 and dx <= (z.memberCount + 1) * pitch + 4 then
                     local j = math.floor(dx / pitch + 0.5)
@@ -9249,8 +9340,13 @@ ShowRailGhost = function(side, slot, excludeKey)
         return
     end
 
-    local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    local slotTop = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    --the ghosts are LAYER children (no zoomed rail above them), so they
+    --carry the Font Size zoom in their own geometry. Safe to bake the
+    --scale into their construction-time sizes: a fontsize change rebuilds
+    --the rails, and DestroyIconRails takes the cached ghosts with it.
+    local scale = WindowUIScale()
+    local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
+    local slotTop = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
 
     --An OCCUPIED slot gets the insertion LINE in the gap above it ("slots
     --in between these two"); an EMPTY slot gets the dotted BOX ("lands in
@@ -9267,7 +9363,7 @@ ShowRailGhost = function(side, slot, excludeKey)
                 bgimage = "panels/square.png",
                 bgcolor = "#ffffffe0",
                 cornerRadius = 2,
-                width = ICON_RAIL_BUTTON,
+                width = ICON_RAIL_BUTTON * scale,
                 height = 3,
                 halign = "left",
                 valign = "top",
@@ -9278,7 +9374,7 @@ ShowRailGhost = function(side, slot, excludeKey)
         g_railDragGhostLine.x = railX
         --centred in the gap ABOVE the target slot: the drop inserts just
         --above that slot's occupant.
-        g_railDragGhostLine.y = slotTop - ICON_RAIL_GAP / 2 - 1
+        g_railDragGhostLine.y = slotTop - ICON_RAIL_GAP * scale / 2 - 1
         g_railDragGhostLine:SetClass("hidden", false)
         return
     end
@@ -9293,12 +9389,12 @@ ShowRailGhost = function(side, slot, excludeKey)
             --carries the rail styles itself.
             styles = IconRailStyles(),
             bgimage = "panels/square.png",
-            width = ICON_RAIL_BUTTON,
-            height = ICON_RAIL_BUTTON,
+            width = ICON_RAIL_BUTTON * scale,
+            height = ICON_RAIL_BUTTON * scale,
             halign = "left",
             valign = "top",
             interactable = false,
-            children = DottedOutlineChildren(ICON_RAIL_BUTTON),
+            children = DottedOutlineChildren(ICON_RAIL_BUTTON * scale),
         }
         layer:AddChild(g_railDragGhost)
     end
@@ -9586,6 +9682,7 @@ ShowRailCardGhost = function(side, slot, charid)
         g_railCardGhost = nil
     end
 
+    local scale = WindowUIScale()
     if g_railCardGhost == nil or not g_railCardGhost.valid then
         local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
         g_railCardGhost = gui.Panel{
@@ -9612,10 +9709,18 @@ ShowRailCardGhost = function(side, slot, charid)
         }
         g_railCardGhostCharid = charid
         layer:AddChild(g_railCardGhost)
+        --a LAYER child previewing a card inside the zoomed rail: scale
+        --the whole preview (card face included) the way the rail root
+        --does, around its anchored top-left corner. Post-attach, like
+        --setWindowScale: the uiscale change supplies the size-affecting
+        --refresh a pivot write needs. Safe to bake in: a fontsize change
+        --rebuilds the rails and DestroyIconRails destroys this ghost.
+        g_railCardGhost.selfStyle.pivot = {x = 0, y = 1}
+        g_railCardGhost.selfStyle.uiscale = scale
     end
 
-    g_railCardGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON)
-    g_railCardGhost.y = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP)
+    g_railCardGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
+    g_railCardGhost.y = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     g_railCardGhost:SetClass("hidden", false)
 end
 
@@ -9816,6 +9921,9 @@ function RailWindowsRightIntrusion(maxDepth)
             if type(w) ~= "number" or w <= 0 then
                 w = PanelDocument.DefaultWidth
             end
+            --renderedWidth is pre-uiscale; the on-screen footprint
+            --carries the rail-mode Font Size zoom.
+            w = w * (d.data.windowScale or 1)
             if d.x + w > uiW - maxDepth then
                 local intrusion = uiW - d.x
                 if intrusion > result then
@@ -10669,6 +10777,18 @@ local function RunToolkitScriptButton(item, element)
             }
             return
         end
+    end
+
+    --Command-mode buttons (built with the command builder) run their
+    --recorded command pipe instead of a Lua script. The {name} step
+    --annotations are metadata and are stripped before execution. The pack
+    --kill switch above applies to these too.
+    if (item.mode or "script") == "command" then
+        local command = item.command or ""
+        if command ~= "" then
+            dmhub.Execute(CommandBuilder.StripAnnotations(command))
+        end
+        return
     end
 
     local chunk, loadErr = load(ScriptButtonCode(item.script or ""), "script-button:" .. (item.name or "button"))
@@ -11609,6 +11729,16 @@ RailScriptButtonDialog = function(toolkitid, idx)
     local scriptStatusLabel
     local scriptSnippetLabel
 
+    --A button acts in one of two modes: "command" runs a command pipe
+    --recorded with the command builder (the default for new buttons);
+    --"script" runs the Lua code authored via Edit code. Buttons saved
+    --before modes existed have no mode field and are scripts.
+    local m_mode = "command"
+    if existing ~= nil then
+        m_mode = existing.mode or "script"
+    end
+    local m_command = (existing ~= nil and existing.command) or ""
+
     local function DestroyScriptWatcher()
         if m_watcher ~= nil then
             m_watcher:Destroy()
@@ -11671,6 +11801,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
     }
 
     local codeSection = gui.Panel{
+        classes = {cond(m_mode ~= "script", "collapsed")},
         flow = "vertical",
         width = TOOLKIT_ICON_GRID_WIDTH - 20,
         height = "auto",
@@ -11718,6 +11849,238 @@ RailScriptButtonDialog = function(toolkitid, idx)
         scriptSnippetLabel,
     }
 
+    --Build the item from the dialog's current state and persist it through
+    --whichever path applies (standalone edit / new standalone / toolkit).
+    --Returns a locator identifying where the button now lives, so the
+    --record-command flow can write its recorded command back into it:
+    --{buttonid = id} for standalone buttons, {toolkitid = id, idx = n} for
+    --toolkit items; nil if nothing could be saved. Shared by the dialog's
+    --Create/Save button and by Record Command (which must save first,
+    --since recording happens out in the app with the dialog closed).
+    local function CommitButton()
+        local name = nameInput.text
+        if name == nil or name == "" then
+            name = cond(m_mode == "command", "Command", "Script")
+        end
+        local icon = nil
+        pcall(function() icon = iconEditor.value end)
+        if icon == nil or icon == "" then
+            icon = "phosphor/lightning.png"
+        end
+        local item = { type = "script", name = name, icon = icon, script = m_script or "", mode = m_mode }
+        if m_command ~= "" then
+            item.command = m_command
+        end
+        local desc = buttonDescInput.text
+        if desc ~= nil and desc ~= "" then
+            item.description = desc
+        end
+
+        --standalone edit: update the definition in place and
+        --redraw the rail (name/icon may have changed). pack
+        --(came from the community) and packid (shared BY the
+        --user) both survive the rebuild.
+        if sbuttonEditId ~= nil then
+            item.pack = existing.pack
+            item.packid = existing.packid
+            local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+            defs[sbuttonEditId] = item
+            dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            RebuildIconRails()
+            return { buttonid = sbuttonEditId }
+        end
+
+        --library mode with "On the rail" chosen: mint a
+        --standalone button, no toolkit involved.
+        local railChoice = nil
+        if toolkitid == nil then
+            railChoice = "__rail"
+            pcall(function() railChoice = targetDropdown.idChosen end)
+        end
+        if railChoice == "__rail" then
+            local id = string.lower(dmhub.GenerateGuid())
+            local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+            defs[id] = item
+            dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            RailAddPanel("button:" .. id, "left")
+            return { buttonid = id }
+        end
+
+        local t = RailToolkits()
+        local target = toolkitid
+        if target == nil then
+            if railChoice ~= "__new" and t[railChoice] ~= nil then
+                target = railChoice
+            else
+                target = string.lower(dmhub.GenerateGuid())
+                t[target] = { name = "My Buttons", icon = "phosphor/lightning.png", items = {} }
+            end
+        end
+        local rec = t[target]
+        if rec == nil then
+            return nil
+        end
+        rec.items = rec.items or {}
+        local itemIndex
+        if idx ~= nil and rec.items[idx] ~= nil then
+            --a shared toolkit item keeps its packid through
+            --the rebuild, so Update still targets its pack.
+            item.packid = rec.items[idx].packid
+            rec.items[idx] = item
+            itemIndex = idx
+        else
+            rec.items[#rec.items + 1] = item
+            itemIndex = #rec.items
+        end
+        RailWriteToolkits(t)
+        if toolkitid == nil then
+            --from the library: make the result visible. The
+            --toolkit gets its rail button (no-op if already
+            --there) and its strip opens beside it.
+            RailAddPanel("toolkit:" .. target, "left")
+            local bside, slot = RailFindButton("toolkit:" .. target)
+            local ax, ay
+            if bside ~= nil then
+                ax, ay = RailAnchor(bside, slot)
+            end
+            HideToolkitStrip(target)
+            ShowToolkitStrip(target, ax, ay)
+            RefreshRails()
+        else
+            --rebuild the strip in place if it is open.
+            local strip = g_railToolkitStrips[target]
+            local x, y = nil, nil
+            if strip ~= nil and strip.valid then
+                x = strip.x
+                y = strip.y
+            end
+            HideToolkitStrip(target)
+            ShowToolkitStrip(target, x, y)
+            RefreshRails()
+        end
+        return { toolkitid = target, idx = itemIndex }
+    end
+
+    --Write a recorded command back into a saved button definition. The
+    --command is stored raw (with its {name} step annotations); execution
+    --strips them.
+    local function UpdateButtonCommand(locator, cmd)
+        if locator.buttonid ~= nil then
+            local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+            local item = defs[locator.buttonid]
+            if type(item) == "table" then
+                item.command = cmd
+                dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            end
+        elseif locator.toolkitid ~= nil then
+            local t = RailToolkits()
+            local rec = t[locator.toolkitid]
+            local item = nil
+            if rec ~= nil and rec.items ~= nil then
+                item = rec.items[locator.idx]
+            end
+            if type(item) == "table" then
+                item.command = cmd
+                RailWriteToolkits(t)
+            end
+        end
+    end
+
+    local commandStatusLabel = gui.Label{
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        vmargin = 4,
+        fontSize = 13,
+        color = "#bbbbbbff",
+        text = "",
+    }
+
+    local function RefreshCommandStatus()
+        if commandStatusLabel == nil or not commandStatusLabel.valid then
+            return
+        end
+        if m_command == "" then
+            commandStatusLabel.text = "No command recorded yet. Record Command saves this button, closes this dialog, and starts the recorder in the title bar; click the lightning bolts around the app to add steps."
+        else
+            local parts = {}
+            for part in string.gmatch(m_command, "[^;]+") do
+                local command, stepName = CommandBuilder.ParseStep(part)
+                if command ~= "" then
+                    parts[#parts+1] = "- " .. (stepName or ("/" .. command))
+                end
+            end
+            commandStatusLabel.text = string.format("%d step(s):\n%s", #parts, table.concat(parts, "\n"))
+        end
+    end
+
+    local commandSection = gui.Panel{
+        classes = {cond(m_mode ~= "command", "collapsed")},
+        flow = "vertical",
+        width = TOOLKIT_ICON_GRID_WIDTH - 20,
+        height = "auto",
+        halign = "center",
+        create = function()
+            RefreshCommandStatus()
+        end,
+        gui.Button{
+            text = "Record Command...",
+            width = 200,
+            height = 28,
+            halign = "left",
+            fontSize = 16,
+            click = function()
+                local locator = CommitButton()
+                if locator == nil then
+                    return
+                end
+                gamehud:CloseModal()
+                CommandBuilder.Begin{
+                    seedCommand = m_command,
+                    complete = function(cmd)
+                        UpdateButtonCommand(locator, cmd)
+                    end,
+                }
+            end,
+        },
+        commandStatusLabel,
+    }
+
+    local modeDropdown = gui.Dropdown{
+        options = {
+            { id = "command", text = "Command" },
+            { id = "script", text = "Lua Script" },
+        },
+        idChosen = m_mode,
+        width = 200,
+        height = 26,
+        valign = "center",
+        change = function(element)
+            m_mode = element.idChosen
+            codeSection:SetClass("collapsed", m_mode ~= "script")
+            commandSection:SetClass("collapsed", m_mode ~= "command")
+            RefreshScriptStatus()
+            RefreshCommandStatus()
+        end,
+    }
+
+    local modeRow = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        vmargin = 2,
+        gui.Label{
+            text = "Action:",
+            fontSize = 13,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            rmargin = 8,
+        },
+        modeDropdown,
+    }
+
     gamehud:ModalDialog{
         title = cond(existing == nil, "New script button", "Edit script button"),
         width = 480,
@@ -11734,100 +12097,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
             {
                 text = cond(existing == nil, "Create", "Save"),
                 click = function()
-                    local name = nameInput.text
-                    if name == nil or name == "" then
-                        name = "Script"
-                    end
-                    local icon = nil
-                    pcall(function() icon = iconEditor.value end)
-                    if icon == nil or icon == "" then
-                        icon = "phosphor/lightning.png"
-                    end
-                    local item = { type = "script", name = name, icon = icon, script = m_script or "" }
-                    local desc = buttonDescInput.text
-                    if desc ~= nil and desc ~= "" then
-                        item.description = desc
-                    end
-
-                    --standalone edit: update the definition in place and
-                    --redraw the rail (name/icon may have changed). pack
-                    --(came from the community) and packid (shared BY the
-                    --user) both survive the rebuild.
-                    if sbuttonEditId ~= nil then
-                        item.pack = existing.pack
-                        item.packid = existing.packid
-                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
-                        defs[sbuttonEditId] = item
-                        dmhub.SetSettingValue("iconrailscriptbuttons", defs)
-                        RebuildIconRails()
-                        return
-                    end
-
-                    --library mode with "On the rail" chosen: mint a
-                    --standalone button, no toolkit involved.
-                    local railChoice = nil
-                    if toolkitid == nil then
-                        railChoice = "__rail"
-                        pcall(function() railChoice = targetDropdown.idChosen end)
-                    end
-                    if railChoice == "__rail" then
-                        local id = string.lower(dmhub.GenerateGuid())
-                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
-                        defs[id] = item
-                        dmhub.SetSettingValue("iconrailscriptbuttons", defs)
-                        RailAddPanel("button:" .. id, "left")
-                        return
-                    end
-
-                    local t = RailToolkits()
-                    local target = toolkitid
-                    if target == nil then
-                        if railChoice ~= "__new" and t[railChoice] ~= nil then
-                            target = railChoice
-                        else
-                            target = string.lower(dmhub.GenerateGuid())
-                            t[target] = { name = "My Buttons", icon = "phosphor/lightning.png", items = {} }
-                        end
-                    end
-                    local rec = t[target]
-                    if rec == nil then
-                        return
-                    end
-                    rec.items = rec.items or {}
-                    if idx ~= nil and rec.items[idx] ~= nil then
-                        --a shared toolkit item keeps its packid through
-                        --the rebuild, so Update still targets its pack.
-                        item.packid = rec.items[idx].packid
-                        rec.items[idx] = item
-                    else
-                        rec.items[#rec.items + 1] = item
-                    end
-                    RailWriteToolkits(t)
-                    if toolkitid == nil then
-                        --from the library: make the result visible. The
-                        --toolkit gets its rail button (no-op if already
-                        --there) and its strip opens beside it.
-                        RailAddPanel("toolkit:" .. target, "left")
-                        local bside, slot = RailFindButton("toolkit:" .. target)
-                        local ax, ay
-                        if bside ~= nil then
-                            ax, ay = RailAnchor(bside, slot)
-                        end
-                        HideToolkitStrip(target)
-                        ShowToolkitStrip(target, ax, ay)
-                        RefreshRails()
-                    else
-                        --rebuild the strip in place if it is open.
-                        local strip = g_railToolkitStrips[target]
-                        local x, y = nil, nil
-                        if strip ~= nil and strip.valid then
-                            x = strip.x
-                            y = strip.y
-                        end
-                        HideToolkitStrip(target)
-                        ShowToolkitStrip(target, x, y)
-                        RefreshRails()
-                    end
+                    CommitButton()
                 end,
             },
             {
@@ -11855,6 +12125,8 @@ RailScriptButtonDialog = function(toolkitid, idx)
         },
         nameInput,
         buttonDescInput,
+        modeRow,
+        commandSection,
         codeSection,
         iconEditor,
     }
@@ -14472,6 +14744,12 @@ local function CreateIconRail(side, entries)
 
                     hover = function(element)
                         RailButtonSound("hover")
+                        --a strip member is still "the pointer is on the
+                        --rail" as far as the + is concerned (see
+                        --groupHoverPanels' note: the engine only marks the
+                        --panel directly under the pointer, so every
+                        --hoverable piece reports proximity itself).
+                        RailNotifyProximity(element, true)
                         --the strip's name slot follows the pointer, and
                         --the card backdrop resizes to the new name.
                         if stripLabel ~= nil and stripLabel.valid then
@@ -14487,6 +14765,7 @@ local function CreateIconRail(side, entries)
                     --member or back to the owner keeps the strip open.
                     dehover = function(element)
                         RailButtonSound("dehover")
+                        RailNotifyProximity(element, false)
                         if g_railRearranging then
                             return
                         end
@@ -14604,21 +14883,11 @@ local function CreateIconRail(side, entries)
                     --slot -- see stripLabel -- rather than as a floating
                     --label of its own.)
 
-                    --A strip member is still "the pointer is on the rail"
-                    --as far as the + is concerned. Without this, reaching
-                    --into a folder's flyout dropped the proximity count to
-                    --zero -- the owner button had been left, and nothing
-                    --in the strip reported taking over -- so the + faded
-                    --out and back in every time you moved along a folder's
-                    --members. The engine only marks the panel directly
-                    --under the pointer (see groupHoverPanels' note), so
-                    --every hoverable piece has to say so itself.
-                    hover = function(element)
-                        RailNotifyProximity(element, true)
-                    end,
-                    dehover = function(element)
-                        RailNotifyProximity(element, false)
-                    end,
+                    --(proximity reporting for the + lives in the hover/
+                    --dehover handlers above -- a second hover key here
+                    --would silently clobber them: duplicate keys in a
+                    --table constructor keep only the LAST value, which is
+                    --exactly how the strip's name slot once went dead.)
 
                     --the click sound still goes on PRESS: it acknowledges
                     --the mouse going down, which is when the gesture reads
@@ -15363,15 +15632,18 @@ local function CreateIconRail(side, entries)
                 --Width covers the member slots plus the name slot (a
                 --generous allowance; erring toward the card near an edge
                 --beats loose buttons over a window).
-                local stripWidth = #groupMembers * (ICON_RAIL_BUTTON + 8) + 160
-                local sy = ICON_RAIL_TOP + buttonTop
+                --the strip renders inside the zoomed rail, so its
+                --on-screen band scales with the Font Size zoom.
+                local railScale = WindowUIScale()
+                local stripWidth = (#groupMembers * (ICON_RAIL_BUTTON + 8) + 160) * railScale
+                local sy = ICON_RAIL_TOP + buttonTop * railScale
                 local sx1
                 if side == "left" then
-                    sx1 = ICON_RAIL_LEFT + ICON_RAIL_BUTTON
+                    sx1 = ICON_RAIL_LEFT + ICON_RAIL_BUTTON * railScale
                 else
-                    sx1 = (dmhub.screenDimensionsBelowTitlebar.x - ICON_RAIL_LEFT - ICON_RAIL_BUTTON) - stripWidth
+                    sx1 = (dmhub.screenDimensionsBelowTitlebar.x - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * railScale) - stripWidth
                 end
-                local overPanel = RailWindowIntersectsBand(sx1, sy, sx1 + stripWidth, sy + ICON_RAIL_BUTTON)
+                local overPanel = RailWindowIntersectsBand(sx1, sy, sx1 + stripWidth, sy + ICON_RAIL_BUTTON * railScale)
                 --docks are not panel-document windows, but a dock visible
                 --on this side always underlies the strip band -- the strip
                 --opens straight across it. Err toward the card: text and
@@ -16395,6 +16667,41 @@ local function CreateIconRail(side, entries)
             side = side,
         },
 
+        --The Font Size setting as a flat zoom on the rail, exactly as it
+        --is on the panel windows (WindowUIScale): the whole column --
+        --buttons, icons, cards, labels, flyout strips -- renders scaled
+        --around its anchored top corner. Internal geometry (slots,
+        --margins, drag math) stays in pre-scale units; the layer-space
+        --helpers (RailAnchor, RailDropPoint, the ghosts...) multiply by
+        --the scale where they convert. Applied through an event fired
+        --after AddChild by BuildIconRails: a pivot write only takes
+        --effect alongside a size-affecting refresh on an ATTACHED panel
+        --(the uiscale change provides one) -- the dock's setScale recipe.
+        setRailScale = function(element)
+            element.selfStyle.pivot = {x = cond(side == "left", 0, 1), y = 1}
+            element.selfStyle.uiscale = WindowUIScale()
+        end,
+
+        --A fontsize change re-applies the zoom AND re-runs the overflow
+        --wrap (buttons that stop fitting move to the other column), so it
+        --is a full rebuild. Deferred + deduped: a monitor must not
+        --destroy the panel it is firing on, and both rails observe the
+        --same setting.
+        multimonitor = {"fontsize"},
+        monitor = function(element)
+            if g_railRebuildPending then
+                return
+            end
+            g_railRebuildPending = true
+            dmhub.Schedule(0.01, function()
+                g_railRebuildPending = false
+                if mod.unloaded then
+                    return
+                end
+                RebuildIconRails()
+            end)
+        end,
+
         --Reveal the + on hovering ANYWHERE on the rail, not just on the +
         --itself. The root's hit area spans the whole column including the
         --+'s slot, so this covers the buttons, the gaps between them, and
@@ -16675,16 +16982,97 @@ local function CreateRailTrashZone(side)
     }
 end
 
+--The Font Size zoom can make a column taller than the screen. Rather
+--than running off the bottom, buttons that no longer fit WRAP to the
+--other side's rail, taking the first free slots there. Render-time
+--only: the stored layout keeps the user's own arrangement, so turning
+--the zoom back down puts every button back where it was. (The drag/drop
+--previews consult the STORED layout, so previews around a wrapped
+--button can be off while a column overflows; the drop itself names its
+--side+slot explicitly and stays correct.)
+local function WrapRailOverflow(sides)
+    local scale = WindowUIScale()
+    local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
+    --the column's usable run in layer units, converted to whole slots at
+    --the current zoom: slots 0..maxSlots-1 fit (slot n's button bottom
+    --sits at (n+1)*pitch - GAP, scaled, below ICON_RAIL_TOP).
+    local avail = IconRailUIHeight() - ICON_RAIL_TOP - 16
+    local maxSlots = math.floor((avail / scale + ICON_RAIL_GAP) / pitch)
+    if maxSlots < 1 then
+        maxSlots = 1
+    end
+
+    local used = { left = {}, right = {} }
+    local overflow = {}
+    for _, side in ipairs({"left", "right"}) do
+        local kept = {}
+        for _, e in ipairs(sides[side]) do
+            local span = e.span or 1
+            if e.slot + span <= maxSlots then
+                kept[#kept + 1] = e
+                for i = 0, span - 1 do
+                    used[side][e.slot + i] = true
+                end
+            else
+                overflow[#overflow + 1] = { entry = e, from = side }
+            end
+        end
+        sides[side] = kept
+    end
+
+    for _, o in ipairs(overflow) do
+        local e = o.entry
+        local span = e.span or 1
+        local target = cond(o.from == "left", "right", "left")
+        local placed = false
+        for s = 0, maxSlots - span do
+            local free = true
+            for i = 0, span - 1 do
+                if used[target][s + i] then
+                    free = false
+                    break
+                end
+            end
+            if free then
+                for i = 0, span - 1 do
+                    used[target][s + i] = true
+                end
+                e.slot = s
+                local list = sides[target]
+                list[#list + 1] = e
+                placed = true
+                break
+            end
+        end
+        if not placed then
+            --no room on either side: leave it on its own column at its
+            --stored slot, overflowing off the bottom as before.
+            local list = sides[o.from]
+            list[#list + 1] = e
+        end
+    end
+
+    --the button construction's margin chain needs each list in
+    --final-slot order.
+    for _, list in pairs(sides) do
+        table.sort(list, function(a, b) return a.slot < b.slot end)
+    end
+end
+
 local function BuildIconRails()
     local layer = DocumentsLayer()
     if layer == nil then
         return
     end
     local sides = RailLayout()
+    WrapRailOverflow(sides)
     for _, side in ipairs({"left", "right"}) do
         local rail = CreateIconRail(side, sides[side])
         g_iconRails[side] = rail
         layer:AddChild(rail)
+        --apply the Font Size zoom now that the rail is attached (pivot
+        --writes need an attached panel -- see setRailScale).
+        rail:FireEvent("setRailScale")
         if g_railRearranging then
             local trash = CreateRailTrashZone(side)
             g_railTrashZones[side] = trash

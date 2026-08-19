@@ -410,6 +410,40 @@ Remaining design rounds before their steps: publish metadata (before
   remembered `packid` no longer has a publish surface -- sharing those
   buttons individually mints fresh single-button packs.
 
+- **2026-08-19 -- The COMMUNITY SPOTLIGHT switches to compact square
+  tiles (owner request): the styled face, the name, and the
+  download/heart counts -- no description, no author.** 96x112
+  vertical tiles via CommunityButtonCard's new opts.compact; the heart
+  stays its own click target and the ADDED overlay/click gate carry
+  over unchanged. The full 410x70 card remains the Community
+  Browser's form (descriptions live there).
+
+- **2026-08-19 -- Replica faces get honest: community cards, Share
+  Your Buttons rows, and the library's replica tiles now render a
+  script button's AUTHORED styling (owner request: "show the actual
+  button with its styling in the library").** One shared
+  ScriptButtonFacePanel builds the 40px face everywhere:
+  @bgcolor/@bggradient/@opacity land as the same selfStyle overrides
+  the rail's create applies, and a @label button previews its live
+  value (evaluated once on the viewer's character at build) instead
+  of its icon. Panel replicas and create tiles pass no def and keep
+  the plain chip.
+
+- **2026-08-19 -- Script buttons gain @disabled: a GoblinScript
+  condition (owner request: "grey it out and remove interactable
+  click and hover, for example if there are no more recoveries").**
+  While the condition holds, the button greys (opacity 0.4), loses
+  its hover tint and swell (higher-selector-count rules -- count
+  ranks before declaration order), plays no sounds, and does not run
+  from ANY path (click, strip click, context-menu Run -- gated in
+  RunToolkitScriptButton plus the press handlers). Deliberate keeps:
+  the hover LABEL stays (with @tooltip it says WHY the button is
+  off) and right-click stays (Edit Script must always be reachable).
+  Unevaluable (no character, bad formula) = ENABLED, so an error can
+  never lock a button out. Evaluated live on the rail refreshRail /
+  strip refreshToolkit cadences. Canonical pairing, in the template:
+  "@disabled Recoveries Available To Spend < 1".
+
 - **2026-08-19 -- Script edits to an EXISTING button apply LIVE on
   every file save (owner-priority fix for the trap they hit: the
   watched-file flow felt live, but nothing landed until the dialog's

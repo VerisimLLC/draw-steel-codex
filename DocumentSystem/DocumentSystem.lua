@@ -7114,6 +7114,12 @@ local ICON_RAIL_MAX_SLOT = 16
 --                         character and updates live, so conditional
 --                         state text ("USE RECOVERY" vs "AT FULL
 --                         STAMINA") needs no script involvement
+--  @disabled <goblinscript>  grey the button out and make it inert
+--                         (no hover response, no click) while the
+--                         condition holds, evaluated live on the
+--                         player's character. Unevaluable = enabled,
+--                         so an error never locks a button out. The
+--                         hover label and right-click menu stay
 local function ScriptButtonHexColor(c)
     return c ~= nil and (string.match(c, "^#%x%x%x%x%x%x$") ~= nil or string.match(c, "^#%x%x%x%x%x%x%x%x$") ~= nil)
 end
@@ -7168,6 +7174,10 @@ local function ScriptButtonStyle(def)
             if value ~= nil and value ~= "" then
                 style.tooltip = value
             end
+        elseif key == "disabled" then
+            if value ~= nil and value ~= "" then
+                style.disabled = value
+            end
         end
     end
     return style
@@ -7204,6 +7214,37 @@ local function ScriptButtonHoverText(def, fallbackName)
         text = tip
     end
     return string.upper(text)
+end
+
+--Whether a script button's @disabled condition currently holds: a
+--GoblinScript formula (same trust rule as @label/@tooltip) evaluated
+--on the player's current character. Unevaluable -- no character, bad
+--formula, non-truthy result -- means ENABLED: a button must never be
+--locked out by an error. The hover LABEL stays live on a disabled
+--button on purpose: paired with @tooltip it says WHY ("AT FULL
+--STAMINA"), which beats an unexplained grey lump.
+local function ScriptButtonDisabled(def)
+    local formula = ScriptButtonStyle(def).disabled
+    if formula == nil then
+        return false
+    end
+    local token = dmhub.currentToken
+    if token == nil or token.properties == nil then
+        return false
+    end
+    local disabled = false
+    pcall(function()
+        local value = ExecuteGoblinScript(formula, token.properties:LookupSymbol{}, 0, "script button disabled")
+        if value == true then
+            disabled = true
+        else
+            local n = tonumber(value)
+            if n ~= nil and n ~= 0 then
+                disabled = true
+            end
+        end
+    end)
+    return disabled
 end
 
 --A script button's code as the Lua parser should see it: BARE directive
@@ -8817,6 +8858,27 @@ local function IconRailStyles()
             selectors = {"iconRailButton", "scriptAnim", "hover"},
             scale = 1.08,
         },
+        --a script button whose @disabled condition holds: greyed and
+        --inert. No hover tint or swell (the rules below out-rank the
+        --hover rules by selector count -- count beats declaration
+        --order), no click (gated in RunToolkitScriptButton and the
+        --press handlers). The hover LABEL deliberately stays: paired
+        --with @tooltip it says WHY the button is off. Right-click
+        --stays too -- Edit Script must always be reachable.
+        {
+            selectors = {"iconRailButton", "scriptDisabled"},
+            opacity = 0.4,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailButton", "scriptDisabled", "hover"},
+            bgcolor = "#000000cc",
+        },
+        {
+            selectors = {"iconRailButton", "scriptAnim", "scriptDisabled", "hover"},
+            scale = 1,
+        },
+
         --the click pop, pulsed by RunToolkitScriptButton: the classic
         --game-button press -- SQUASH below rest on click, spring back
         --up to the hover swell. A pulsed style applies instantly and
@@ -10966,6 +11028,13 @@ local SCRIPT_BUTTON_INSTRUCTION_BUDGET = 20000000
 --under an instruction-count watchdog so a runaway script cannot wedge
 --the app.
 local function RunToolkitScriptButton(item, element)
+    --a @disabled button does not run, from ANY path -- click, strip
+    --click, or the context menu's Run. Silent by design: the greyed
+    --face (and the @tooltip label) already say why.
+    if ScriptButtonDisabled(item) then
+        return
+    end
+
     --the click "pop": the button acknowledges the press bodily before the
     --outcome (even a kill-switch modal or an error flash) arrives. Default
     --on for every script button; @clickanim none opts out.
@@ -11331,7 +11400,8 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
             local button
             button = gui.Panel{
                 classes = {"iconRailButton",
-                    cond(ScriptButtonStyle(item).clickanim ~= "none", "scriptAnim")},
+                    cond(ScriptButtonStyle(item).clickanim ~= "none", "scriptAnim"),
+                    cond(ScriptButtonDisabled(item), "scriptDisabled")},
                 bgimage = true,
                 blurBackground = true,
                 width = ICON_RAIL_BUTTON,
@@ -11340,13 +11410,25 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                 hmargin = 2,
                 swallowPress = true,
 
+                --the @disabled condition tracks live game state, so it
+                --re-evaluates on the strip's refresh cadence.
+                refreshToolkit = function(element)
+                    element:SetClass("scriptDisabled", ScriptButtonDisabled(itemRef))
+                end,
+
                 hover = function(element)
+                    if element:HasClass("scriptDisabled") then
+                        return
+                    end
                     RailButtonSound("hover")
                 end,
                 dehover = function(element)
                     RailButtonSound("dehover")
                 end,
                 press = function(element)
+                    if element:HasClass("scriptDisabled") then
+                        return
+                    end
                     RailButtonSound("press")
                 end,
                 click = function(element)
@@ -11931,6 +12013,10 @@ chat.Send("Hello from my new button!")
 --                          GoblinScript formula (quote the strings) and
 --                          it evaluates on your character, live:
 --   -- @tooltip "AT FULL STAMINA" when Stamina = Maximum Stamina else "USE RECOVERY"
+--   -- @disabled Recoveries Available To Spend < 1
+--                          grey the button out and disable clicking
+--                          while the condition (GoblinScript, on your
+--                          character) is true
 --
 -- A bare form works too ("@slots 2" on its own line, no leading --),
 -- but your editor's Lua checker will underline it; the -- form keeps
@@ -12664,6 +12750,101 @@ end
 --heart, and the ADDED overlay for buttons the user already owns.
 --opts: side (which rail an add lands on), onAdded (host callback after
 --a successful add -- close the surface, typically).
+--The rail-button replica FACE (the 40px rounded chip + 20px glyph)
+--shared by community cards, the Share Your Buttons rows, and the
+--library's replica tiles -- wearing the button's own authored styling
+--so the preview is honest (owner request 2026-08-19: show the real
+--button, not a plain chip). @bgcolor/@bggradient/@opacity land as the
+--same selfStyle overrides the rail button's create applies, and a
+--@label button previews its live value instead of its icon. def may
+--be nil (panel replicas, create tiles): plain face, args.icon glyph.
+local function ScriptButtonFacePanel(def, args)
+    args = args or {}
+    local style = nil
+    if type(def) == "table" then
+        style = ScriptButtonStyle(def)
+    end
+
+    local content
+    if style ~= nil and style.label ~= nil then
+        local text = "-"
+        local token = dmhub.currentToken
+        if token ~= nil and token.properties ~= nil then
+            pcall(function()
+                local value = ExecuteGoblinScript(style.label, token.properties:LookupSymbol{}, 0, "rail button label")
+                if value ~= nil then
+                    local n = tonumber(value)
+                    if n ~= nil and n == math.floor(n) then
+                        text = string.format("%d", n)
+                    else
+                        text = tostring(value)
+                    end
+                end
+            end)
+        end
+        content = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            fontSize = 16,
+            bold = true,
+            color = "#ffffffee",
+            interactable = false,
+            text = text,
+        }
+    else
+        content = gui.Panel{
+            classes = {"libButtonIcon"},
+            bgimage = (type(def) == "table" and def.icon) or args.icon or "phosphor/lightning.png",
+            width = 20,
+            height = 20,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+    end
+
+    return gui.Panel{
+        classes = {"libButtonFace", args.extraClass},
+        width = 40,
+        height = 40,
+        bgimage = true,
+        halign = args.halign,
+        valign = args.valign,
+        lmargin = args.lmargin,
+        tmargin = args.tmargin,
+        interactable = false,
+        create = function(element)
+            if style == nil then
+                return
+            end
+            if style.bgcolor ~= nil then
+                element.selfStyle.bgcolor = style.bgcolor
+            end
+            if style.gradient ~= nil then
+                --the gradient multiplies against bgcolor; default the
+                --base to white for true stop colors (the rail's rule).
+                if style.bgcolor == nil then
+                    element.selfStyle.bgcolor = "#ffffff"
+                end
+                element.selfStyle.gradient = gui.Gradient{
+                    point_a = {x = 0, y = 1},
+                    point_b = {x = 0, y = 0},
+                    stops = {
+                        { position = 0, color = style.gradient[1] },
+                        { position = 1, color = style.gradient[2] },
+                    },
+                }
+            end
+            if style.opacity ~= nil then
+                element.selfStyle.opacity = style.opacity
+            end
+        end,
+        content,
+    }
+end
+
 local function CommunityButtonCard(pack, button, packStats, opts)
     opts = opts or {}
     local packid = pack.id
@@ -12758,6 +12939,78 @@ local function CommunityButtonCard(pack, button, packStats, opts)
         }
     end
 
+    local function AddClick()
+        if isAdded then
+            return
+        end
+        CommunityAddButton(pack, button, opts.side or "left")
+        if opts.onAdded ~= nil then
+            opts.onAdded()
+        end
+    end
+
+    --SPOTLIGHT tiles: compact squares -- the styled face, the name, and
+    --the download/heart counts, no description or author (owner request
+    --2026-08-19). The full card below stays the Community Browser's
+    --form. The heart is still its own click target; the ADDED overlay
+    --and click gate work exactly as on the full card.
+    if opts.compact then
+        return gui.Panel{
+            classes = {"libPackCard", cond(isAdded, "added")},
+            width = 96,
+            height = 112,
+            bgimage = true,
+            borderBox = true,
+            flow = "vertical",
+            margin = 4,
+            click = AddClick,
+
+            ScriptButtonFacePanel(button, { halign = "center", tmargin = 10 }),
+
+            gui.Label{
+                classes = {"libCardName"},
+                text = button.name or "Button",
+                width = "100%-8",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = false,
+                tmargin = 6,
+                interactable = false,
+            },
+
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 5,
+                gui.Panel{
+                    classes = {"libCardStatIcon"},
+                    bgimage = "phosphor/download-simple.png",
+                    width = 12,
+                    height = 12,
+                    valign = "center",
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = tostring(downloads),
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 3,
+                    rmargin = 8,
+                    interactable = false,
+                },
+                heartIcon,
+                heartCount,
+            },
+
+            addedOverlay,
+        }
+    end
+
     return gui.Panel{
         classes = {"libPackCard", cond(isAdded, "added")},
         width = 410,
@@ -12766,35 +13019,10 @@ local function CommunityButtonCard(pack, button, packStats, opts)
         borderBox = true,
         flow = "horizontal",
         margin = 4,
-        click = function()
-            if isAdded then
-                return
-            end
-            CommunityAddButton(pack, button, opts.side or "left")
-            if opts.onAdded ~= nil then
-                opts.onAdded()
-            end
-        end,
+        click = AddClick,
 
-        --the true rail-button face.
-        gui.Panel{
-            classes = {"libButtonFace"},
-            width = 40,
-            height = 40,
-            bgimage = true,
-            valign = "center",
-            lmargin = 10,
-            interactable = false,
-            gui.Panel{
-                classes = {"libButtonIcon"},
-                bgimage = button.icon or "phosphor/lightning.png",
-                width = 20,
-                height = 20,
-                halign = "center",
-                valign = "center",
-                interactable = false,
-            },
-        },
+        --the true rail-button face, wearing the button's own styling.
+        ScriptButtonFacePanel(button, { valign = "center", lmargin = 10 }),
 
         --name, description, author.
         gui.Panel{
@@ -13513,25 +13741,8 @@ local function RailShareButtonsDialog(opts)
             vmargin = 4,
 
             --the true rail-button face, same grammar as the community
-            --cards.
-            gui.Panel{
-                classes = {"libButtonFace"},
-                width = 40,
-                height = 40,
-                bgimage = true,
-                valign = "center",
-                lmargin = 10,
-                interactable = false,
-                gui.Panel{
-                    classes = {"libButtonIcon"},
-                    bgimage = item.icon or "phosphor/lightning.png",
-                    width = 20,
-                    height = 20,
-                    halign = "center",
-                    valign = "center",
-                    interactable = false,
-                },
-            },
+            --cards -- authored styling included.
+            ScriptButtonFacePanel(item, { valign = "center", lmargin = 10 }),
 
             gui.Panel{
                 flow = "vertical",
@@ -13813,7 +14024,7 @@ RailShowAddPicker = function(element, side)
     local standaloneButtons = {}
     for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
         if type(def) == "table" and not onRail["button:" .. id] then
-            standaloneButtons[#standaloneButtons + 1] = { id = id, name = def.name or "Button", icon = def.icon or "phosphor/lightning.png" }
+            standaloneButtons[#standaloneButtons + 1] = { id = id, name = def.name or "Button", icon = def.icon or "phosphor/lightning.png", def = def }
         end
     end
     table.sort(standaloneButtons, function(a, b) return a.name < b.name end)
@@ -13838,22 +14049,13 @@ RailShowAddPicker = function(element, side)
             bgimage = true,
             click = opts.click,
             linger = cond(opts.tooltip ~= nil, gui.Tooltip(opts.tooltip or "")),
-            gui.Panel{
-                classes = {"libButtonFace", cond(opts.create, "create")},
-                width = 40,
-                height = 40,
-                bgimage = true,
+            --opts.def: a script button's definition, so the tile wears
+            --its authored styling.
+            ScriptButtonFacePanel(opts.def, {
                 halign = "center",
-                gui.Panel{
-                    classes = {"libButtonIcon"},
-                    bgimage = icon,
-                    width = 20,
-                    height = 20,
-                    halign = "center",
-                    valign = "center",
-                    interactable = false,
-                },
-            },
+                icon = icon,
+                extraClass = cond(opts.create, "create"),
+            }),
             gui.Label{
                 classes = {"libButtonLabel"},
                 text = text,
@@ -13993,6 +14195,7 @@ RailShowAddPicker = function(element, side)
     }
     for _, b in ipairs(standaloneButtons) do
         buttonTiles[#buttonTiles + 1] = ButtonReplica(b.icon, b.name, {
+            def = b.def,
             click = function()
                 RailAddPanel("button:" .. b.id, side)
                 CloseLibrary()
@@ -14271,6 +14474,7 @@ RailShowAddPicker = function(element, side)
                                     cards[#cards + 1] = CommunityButtonCard(pack, button, stats[pack.id], {
                                         side = side,
                                         onAdded = CloseLibrary,
+                                        compact = true,
                                     })
                                 end
                             end
@@ -14599,6 +14803,9 @@ local function CreateIconRail(side, entries)
         --Pack "panel" shortcuts are excluded -- their click opens a
         --window, and buttons that open things answer with the window.
         local sbuttonAnimates = false
+        --the @disabled condition's state at build time; refreshRail
+        --keeps it live afterwards.
+        local sbuttonDisabled = false
         if toolkitid ~= nil then
             --the user's chosen icon, falling back to the toolbox for
             --toolkits made before icons existed (and for anyone who left
@@ -14619,6 +14826,8 @@ local function CreateIconRail(side, entries)
             sbuttonStyle = ScriptButtonStyle(def)
             sbuttonAnimates = type(def) == "table" and def.type ~= "panel"
                 and sbuttonStyle.clickanim ~= "none"
+            sbuttonDisabled = type(def) == "table" and def.type ~= "panel"
+                and ScriptButtonDisabled(def)
         elseif missing then
             --the tombstone face. Tinted rather than left at default so it
             --reads as an inert marker, not another live panel icon.
@@ -15538,6 +15747,9 @@ local function CreateIconRail(side, entries)
         if sbuttonAnimates then
             buttonClasses[#buttonClasses + 1] = "scriptAnim"
         end
+        if sbuttonDisabled then
+            buttonClasses[#buttonClasses + 1] = "scriptDisabled"
+        end
         if g_railJustDropped ~= nil and g_railJustDropped == key then
             buttonClasses[#buttonClasses + 1] = "justDropped"
             g_railJustDropped = nil
@@ -15783,6 +15995,14 @@ local function CreateIconRail(side, entries)
             --FireEventTree, and rebuilding destroys the very panels that
             --sweep is walking.
             refreshRail = function(element)
+                --@disabled tracks live game state; keep the class in
+                --step on the rail's refresh cadence.
+                if sbuttonid ~= nil then
+                    local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+                    if type(def) == "table" and def.type ~= "panel" then
+                        element:SetClass("scriptDisabled", ScriptButtonDisabled(def))
+                    end
+                end
                 if charid == nil or g_railRebuildPending then
                     return
                 end
@@ -16412,6 +16632,13 @@ local function CreateIconRail(side, entries)
             --buttons are not draggable outside rearrange mode, there is
             --no press-vs-drag ambiguity to wait out.
             press = function(element)
+                --a @disabled script button is inert to presses: no
+                --sound, no run. Right-click stays live -- Edit Script
+                --must always be reachable.
+                if element:HasClass("scriptDisabled") then
+                    return
+                end
+
                 RailButtonSound("press")
 
                 --in rearrange mode presses begin drags, never open.

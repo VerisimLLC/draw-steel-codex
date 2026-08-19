@@ -6904,6 +6904,46 @@ local g_iconRails = {}
 --when the next icon is clicked. Shared across both rails: there is one
 --transient window, whichever side it was summoned from.
 local g_railTransientKey = nil
+
+--Windows opened from a toolkit strip: [windowOwnerKey] = toolkitid.
+--Membership makes a window part of that strip's CLUSTER: it opens at a
+--per-toolkit offset around the strip, follows strip drags, and is swept
+--as one unit by the transient rule. ToolkitCluster is the helper table
+--(one table, not loose locals -- the main chunk is close to Lua's
+--200-local limit); its functions are assigned next to the toolkit
+--strip code below, after the locals they need exist. The generic
+--window plumbing (OpenIconRailWindow) nil-checks the fields it hooks.
+local g_railClusterWindows = {}
+local ToolkitCluster = {}
+
+--One transient unit at a time: close the current unit -- a single
+--window, or a toolkit cluster's unpinned windows -- unless it IS
+--newUnit, then make newUnit the transient unit. Cluster units are keyed
+--"toolkitcluster:<id>": panels opened from one strip stay open TOGETHER
+--(the cluster is the transient unit, not each window), while opening
+--from the rail or another strip sweeps them as one.
+local function RailSweepTransient(newUnit)
+    if g_railTransientKey ~= nil and g_railTransientKey ~= newUnit then
+        local clusterId = string.match(g_railTransientKey, "^toolkitcluster:(.+)$")
+        if clusterId ~= nil then
+            for key, tid in pairs(g_railClusterWindows) do
+                if tid == clusterId then
+                    local doc = RailPanelDocument(key)
+                    if doc ~= nil and not PanelDocument.IsPinned(key) then
+                        doc:ClosePanel()
+                    end
+                    g_railClusterWindows[key] = nil
+                end
+            end
+        else
+            local prev = RailPanelDocument(g_railTransientKey)
+            if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
+                prev:ClosePanel()
+            end
+        end
+    end
+    g_railTransientKey = newUnit
+end
 --set when a button drag ends, so the click the engine may deliver on
 --release does not also toggle a window.
 local g_railDragTime = nil
@@ -7117,6 +7157,22 @@ local ICON_RAIL_MAX_SLOT = 16
 --                         evaluated against the player's current
 --                         character (a formula, not Lua -- which is
 --                         what keeps render-time evaluation safe)
+--  @clickanim pop|none    hover/click feedback; every script button
+--                         swells on hover and squashes on click by
+--                         default ("pop"), "none" opts out of both
+--  @tooltip <text>        the hover text, replacing the button's name.
+--                         Plain text shows as written; a GoblinScript
+--                         formula (data, never Lua -- the @label rule)
+--                         evaluates against the player's current
+--                         character and updates live, so conditional
+--                         state text ("USE RECOVERY" vs "AT FULL
+--                         STAMINA") needs no script involvement
+--  @disabled <goblinscript>  grey the button out and make it inert
+--                         (no hover response, no click) while the
+--                         condition holds, evaluated live on the
+--                         player's character. Unevaluable = enabled,
+--                         so an error never locks a button out. The
+--                         hover label and right-click menu stay
 local function ScriptButtonHexColor(c)
     return c ~= nil and (string.match(c, "^#%x%x%x%x%x%x$") ~= nil or string.match(c, "^#%x%x%x%x%x%x%x%x$") ~= nil)
 end
@@ -7163,9 +7219,85 @@ local function ScriptButtonStyle(def)
             if value ~= nil and value ~= "" then
                 style.label = value
             end
+        elseif key == "clickanim" then
+            if tok == "pop" or tok == "none" then
+                style.clickanim = tok
+            end
+        elseif key == "tooltip" then
+            if value ~= nil and value ~= "" then
+                style.tooltip = value
+            end
+        elseif key == "disabled" then
+            if value ~= nil and value ~= "" then
+                style.disabled = value
+            end
         end
     end
     return style
+end
+
+--The hover text a script button shows instead of its name: the @tooltip
+--directive, tried as GoblinScript first (evaluated on the player's
+--current character, so conditional state text updates live), falling
+--back to the raw directive text when the formula errors or returns
+--nothing -- which is exactly what makes plain-prose tooltips work with
+--no syntax at all. Always uppercased into the rail labels' voice.
+--Callers re-run this on their refresh cadence for the live half.
+local function ScriptButtonHoverText(def, fallbackName)
+    local tip = ScriptButtonStyle(def).tooltip
+    if tip == nil then
+        return string.upper(fallbackName or "")
+    end
+    local text = nil
+    local token = dmhub.currentToken
+    if token ~= nil and token.properties ~= nil then
+        pcall(function()
+            local value = ExecuteGoblinScript(tip, token.properties:LookupSymbol{}, 0, "script button tooltip")
+            if value ~= nil then
+                local n = tonumber(value)
+                if n ~= nil and n == math.floor(n) then
+                    text = string.format("%d", n)
+                else
+                    text = tostring(value)
+                end
+            end
+        end)
+    end
+    if text == nil or text == "" then
+        text = tip
+    end
+    return string.upper(text)
+end
+
+--Whether a script button's @disabled condition currently holds: a
+--GoblinScript formula (same trust rule as @label/@tooltip) evaluated
+--on the player's current character. Unevaluable -- no character, bad
+--formula, non-truthy result -- means ENABLED: a button must never be
+--locked out by an error. The hover LABEL stays live on a disabled
+--button on purpose: paired with @tooltip it says WHY ("AT FULL
+--STAMINA"), which beats an unexplained grey lump.
+local function ScriptButtonDisabled(def)
+    local formula = ScriptButtonStyle(def).disabled
+    if formula == nil then
+        return false
+    end
+    local token = dmhub.currentToken
+    if token == nil or token.properties == nil then
+        return false
+    end
+    local disabled = false
+    pcall(function()
+        local value = ExecuteGoblinScript(formula, token.properties:LookupSymbol{}, 0, "script button disabled")
+        if value == true then
+            disabled = true
+        else
+            local n = tonumber(value)
+            if n ~= nil and n ~= 0 then
+                disabled = true
+            end
+        end
+    end)
+    return disabled
 end
 
 --A script button's code as the Lua parser should see it: BARE directive
@@ -8288,6 +8420,12 @@ local function OpenIconRailWindow(panelName, placement)
                 return
             end
             RailRememberWindow(key, element.x, element.y, doc)
+            --a cluster member dragged by hand STAYS in the cluster,
+            --following its strip from the new relative spot (owner
+            --decision 2026-08-19); the drag just re-records its offset.
+            if ToolkitCluster.WindowMoved ~= nil then
+                ToolkitCluster.WindowMoved(key, element)
+            end
         end,
 
         --a plain resize keeps a stuck window's recorded size current
@@ -8302,9 +8440,14 @@ local function OpenIconRailWindow(panelName, placement)
             CharacterWindowDragging(key, element)
         end,
 
-        --the header close button: closing forgets the window.
+        --the header close button: closing forgets the window (and its
+        --cluster membership -- closing is how a window leaves its
+        --toolkit's cluster; escape below deliberately does not).
         close = function()
             RailForgetWindow(key)
+            if ToolkitCluster.WindowClosed ~= nil then
+                ToolkitCluster.WindowClosed(key)
+            end
             doc:ClosePanel()
             RefreshRails()
         end,
@@ -8795,6 +8938,55 @@ local function IconRailStyles()
         {
             selectors = {"iconRailButton", "justDropped"},
             scale = 1.25,
+        },
+        --the classic script-button feel: swell under the pointer, pop
+        --past that on click, settle back. scriptAnim gates both to
+        --buttons that RUN code (panel buttons' feedback is their
+        --window opening); @clickanim none sheds the class entirely.
+        --The swell transitions on the base rule's 0.15s like hover's
+        --bgcolor does.
+        {
+            selectors = {"iconRailButton", "scriptAnim", "hover"},
+            scale = 1.08,
+        },
+        --a script button whose @disabled condition holds: greyed and
+        --inert. No hover tint or swell (the rules below out-rank the
+        --hover rules by selector count -- count beats declaration
+        --order), no click (gated in RunToolkitScriptButton and the
+        --press handlers). The hover LABEL deliberately stays: paired
+        --with @tooltip it says WHY the button is off. Right-click
+        --stays too -- Edit Script must always be reachable.
+        {
+            selectors = {"iconRailButton", "scriptDisabled"},
+            opacity = 0.4,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"iconRailButton", "scriptDisabled", "hover"},
+            bgcolor = "#000000cc",
+        },
+        {
+            selectors = {"iconRailButton", "scriptAnim", "scriptDisabled", "hover"},
+            scale = 1,
+        },
+
+        --the click pop, pulsed by RunToolkitScriptButton: the classic
+        --game-button press -- SQUASH below rest on click, spring back
+        --up to the hover swell. A pulsed style applies instantly and
+        --fades out over ITS OWN transitionTime and easing (the roll
+        --dialogs' "flash" rules are the transitionTime precedent), so
+        --the one rule is the whole gesture. scriptAnim is load-bearing
+        --even though the pulse is already gated: rules rank by selector
+        --COUNT before declaration order (sortOrder = priority*1000 +
+        --specificity), and a click always happens while hovering -- a
+        --2-selector rule loses its scale to the 3-selector hover rule
+        --above and the squash never shows. Same count + declared later
+        --= this rule wins.
+        {
+            selectors = {"iconRailButton", "scriptAnim", "clickPop"},
+            scale = 0.94,
+            transitionTime = 0.25,
+            easing = "EaseOutBack",
         },
         {
             selectors = {"iconRailIcon"},
@@ -10499,13 +10691,7 @@ if rawget(_G, "RegisterDockablePanelOpenHandler") ~= nil then
         end
 
         --one transient window at a time, as the rail buttons enforce.
-        if g_railTransientKey ~= nil and g_railTransientKey ~= ownerKey then
-            local prev = RailPanelDocument(g_railTransientKey)
-            if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
-                prev:ClosePanel()
-            end
-        end
-        g_railTransientKey = ownerKey
+        RailSweepTransient(ownerKey)
 
         local placement = { autoFocus = true }
         if side ~= nil then
@@ -10565,13 +10751,7 @@ local function RailSlashOpensChat()
     --the same summon the rail button performs: one transient window at a
     --time (pinned windows are not ours to close), anchored beside the
     --chat icon on whichever rail carries it.
-    if g_railTransientKey ~= nil and g_railTransientKey ~= "chat" then
-        local prev = RailPanelDocument(g_railTransientKey)
-        if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
-            prev:ClosePanel()
-        end
-    end
-    g_railTransientKey = "chat"
+    RailSweepTransient("chat")
 
     --nil placement is fine: the chat button may have been taken off the
     --rail entirely, in which case PresentDocument uses the remembered spot.
@@ -10704,6 +10884,205 @@ local function RailToolkitStripOpen(id)
     return strip ~= nil and strip.valid
 end
 
+----------------------------------------------------------------------
+-- Toolkit window clusters
+-- -----------------------
+-- Panels opened from a strip form an organized CLUSTER around it
+-- (owner request 2026-08-19): each window opens at a per-toolkit
+-- offset from the strip, new windows take the first free spot around
+-- it (below, right, left, above, then a staggered fallback) that
+-- overlaps no other open window, and the whole cluster follows when
+-- the strip is dragged. Offsets persist on the toolkit record
+-- (iconrailtoolkits, per-game), so the same buttons rebuild the same
+-- arrangement next session. Cluster placement is ABSOLUTE: it beats
+-- the panel's remembered solo position when opened from a strip.
+-- Membership ends when the window's close button is used (escape
+-- keeps it, matching escape's keep-everything contract); closing the
+-- strip leaves the windows where they are.
+----------------------------------------------------------------------
+
+function ToolkitCluster.SetOffset(toolkitid, key, dx, dy)
+    local t = RailToolkits()
+    local rec = t[toolkitid]
+    if rec == nil then
+        return
+    end
+    rec.cluster = rec.cluster or {}
+    rec.cluster[key] = { dx = dx, dy = dy }
+    RailWriteToolkits(t)
+end
+
+function ToolkitCluster.Remove(toolkitid, key)
+    g_railClusterWindows[key] = nil
+    local t = RailToolkits()
+    local rec = t[toolkitid]
+    if rec ~= nil and rec.cluster ~= nil and rec.cluster[key] ~= nil then
+        rec.cluster[key] = nil
+        RailWriteToolkits(t)
+    end
+end
+
+--a hand-dragged member STAYS in the cluster at its new relative spot:
+--the drag re-records its offset against the (open) strip.
+function ToolkitCluster.WindowMoved(key, element)
+    local toolkitid = g_railClusterWindows[key]
+    if toolkitid == nil then
+        return
+    end
+    local strip = g_railToolkitStrips[toolkitid]
+    if strip == nil or not strip.valid or not element.valid then
+        return
+    end
+    ToolkitCluster.SetOffset(toolkitid, key, element.x - strip.x, element.y - strip.y)
+end
+
+function ToolkitCluster.WindowClosed(key)
+    local toolkitid = g_railClusterWindows[key]
+    if toolkitid ~= nil then
+        ToolkitCluster.Remove(toolkitid, key)
+    end
+end
+
+--every open window and strip the placement search must not land on.
+function ToolkitCluster.Obstacles(skipKey)
+    local rects = {}
+    for key, doc in pairs(g_panelDocuments) do
+        if key ~= skipKey then
+            local d = doc:try_get("_tmp_dialog")
+            if d ~= nil and d.valid then
+                local w = d.renderedWidth
+                local h = d.renderedHeight
+                if type(w) == "number" and w > 0 and type(h) == "number" and h > 0 then
+                    rects[#rects + 1] = { x = d.x, y = d.y, width = w, height = h }
+                end
+            end
+        end
+    end
+    for _, strip in pairs(g_railToolkitStrips) do
+        if strip.valid then
+            rects[#rects + 1] = {
+                x = strip.x,
+                y = strip.y,
+                width = strip.renderedWidth or 220,
+                height = strip.renderedHeight or 100,
+            }
+        end
+    end
+    return rects
+end
+
+function ToolkitCluster.RectsOverlap(a, b, margin)
+    return a.x < b.x + b.width + margin and b.x < a.x + a.width + margin
+        and a.y < b.y + b.height + margin and b.y < a.y + a.height + margin
+end
+
+--Where this panel's window goes in the toolkit's cluster: its
+--remembered offset if it has one, else the first candidate spot around
+--the strip that fits on screen and overlaps nothing.
+function ToolkitCluster.Place(toolkitid, key, strip)
+    local rec = RailToolkits()[toolkitid]
+    local off = rec ~= nil and rec.cluster ~= nil and rec.cluster[key] or nil
+    if off ~= nil then
+        return strip.x + (off.dx or 0), strip.y + (off.dy or 0)
+    end
+
+    --size estimate: live geometry from this session, else the persisted
+    --window record, else the panel-window defaults.
+    local doc = RailPanelDocument(key)
+    local w, h = RailWindowSize(doc)
+    local restore = RailRestoreWindows()[key]
+    if type(restore) == "table" then
+        w = w or restore.width
+        h = h or restore.height
+    end
+    w = w or PanelDocument.DefaultWidth
+    h = h or PanelDocument.ClampHeight(key, PanelDocument.DefaultHeight)
+
+    local sx, sy = strip.x, strip.y
+    local sw = strip.renderedWidth or 220
+    local sh = strip.renderedHeight or 100
+    local GAP = 12
+    local candidates = {
+        { sx, sy + sh + GAP },  --below
+        { sx + sw + GAP, sy },  --right
+        { sx - w - GAP, sy },   --left
+        { sx, sy - h - GAP },   --above
+    }
+    --nothing adjacent is free: cascade down-right so windows at least
+    --stagger legibly instead of stacking.
+    for i = 1, 8 do
+        candidates[#candidates + 1] = { sx + i * 40, sy + sh + GAP + i * 40 }
+    end
+
+    local uiW = IconRailUIWidth()
+    local uiH = IconRailUIHeight()
+    local obstacles = ToolkitCluster.Obstacles(key)
+    for _, c in ipairs(candidates) do
+        local x, y = c[1], c[2]
+        if x >= 4 and y >= 4 and x + w <= uiW - 4 and y + h <= uiH - 4 then
+            local rect = { x = x, y = y, width = w, height = h }
+            local clear = true
+            for _, o in ipairs(obstacles) do
+                if ToolkitCluster.RectsOverlap(rect, o, 8) then
+                    clear = false
+                    break
+                end
+            end
+            if clear then
+                return x, y
+            end
+        end
+    end
+
+    --nowhere is clear: land below the strip, clamped on screen.
+    local x = math.max(4, math.min(sx, uiW - w - 4))
+    local y = math.max(4, math.min(sy + sh + GAP, uiH - h - 4))
+    return x, y
+end
+
+--Deliberately closing the strip -- its rail-button toggle, its own X,
+--or deleting the toolkit -- closes what it opened (owner amendment
+--2026-08-19): every open cluster window goes with it, pinned ones
+--excepted (pins are not ours to close, as everywhere). Offsets on the
+--toolkit record survive, so reopening the toolkit and clicking the
+--same buttons rebuilds the arrangement. NOT called from the
+--EditToolkit hide/show rebuild or the rail-mode-off teardown -- those
+--are not the user closing the tool panel.
+function ToolkitCluster.CloseAll(toolkitid)
+    for key, tid in pairs(g_railClusterWindows) do
+        if tid == toolkitid then
+            local doc = RailPanelDocument(key)
+            if doc ~= nil and not PanelDocument.IsPinned(key) then
+                doc:ClosePanel()
+            end
+            g_railClusterWindows[key] = nil
+        end
+    end
+    if g_railTransientKey == "toolkitcluster:" .. toolkitid then
+        g_railTransientKey = nil
+    end
+end
+
+--the sticky half: the strip moved by (dx, dy), move its open cluster
+--windows with it. Offsets are untouched -- strip and windows moved
+--together. Programmatic x/y writes do not fire onMoved, so this never
+--pollutes the windows' own remembered positions.
+function ToolkitCluster.FollowStrip(toolkitid, dx, dy)
+    if dx == 0 and dy == 0 then
+        return
+    end
+    for key, tid in pairs(g_railClusterWindows) do
+        if tid == toolkitid then
+            local doc = RailPanelDocument(key)
+            local d = doc ~= nil and doc:try_get("_tmp_dialog") or nil
+            if d ~= nil and d.valid then
+                d.x = d.x + dx
+                d.y = d.y + dy
+            end
+        end
+    end
+end
+
 --forward-declared: the strip's own chrome closes it, and edits rebuild
 --it in place.
 local HideToolkitStrip
@@ -10757,6 +11136,20 @@ local SCRIPT_BUTTON_INSTRUCTION_BUDGET = 20000000
 --under an instruction-count watchdog so a runaway script cannot wedge
 --the app.
 local function RunToolkitScriptButton(item, element)
+    --a @disabled button does not run, from ANY path -- click, strip
+    --click, or the context menu's Run. Silent by design: the greyed
+    --face (and the @tooltip label) already say why.
+    if ScriptButtonDisabled(item) then
+        return
+    end
+
+    --the click "pop": the button acknowledges the press bodily before the
+    --outcome (even a kill-switch modal or an error flash) arrives. Default
+    --on for every script button; @clickanim none opts out.
+    if element ~= nil and element.valid and ScriptButtonStyle(item).clickanim ~= "none" then
+        element:PulseClass("clickPop")
+    end
+
     local packid = item.pack
     if packid ~= nil then
         if g_buttonPackKilled == nil then
@@ -10828,7 +11221,7 @@ end
 --Toggle a panel from a toolkit button: the same open/close/raise the
 --panel's own rail button performs (transient-window rule included),
 --anchored beside the strip rather than beside the rail.
-local function ToolkitTogglePanel(panelKey, strip)
+local function ToolkitTogglePanel(panelKey, strip, toolkitid)
     local key = string.lower(panelKey)
     local verb, ownerKey, doc, d = RailActivation(key)
     if doc == nil then
@@ -10844,22 +11237,32 @@ local function ToolkitTogglePanel(panelKey, strip)
     end
     if verb == "close" then
         RailForgetWindow(ownerKey)
+        --closing from the strip is leaving the cluster, same as the
+        --window's own close button.
+        if toolkitid ~= nil then
+            ToolkitCluster.Remove(toolkitid, ownerKey)
+        end
         doc:ClosePanel()
         RefreshRails()
         return
     end
 
-    --one transient window at a time, as everywhere else.
-    if g_railTransientKey ~= nil and g_railTransientKey ~= ownerKey then
-        local prev = RailPanelDocument(g_railTransientKey)
-        if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
-            prev:ClosePanel()
-        end
+    --the toolkit's whole CLUSTER is one transient unit: panels opened
+    --from this strip stay open together, while opening from the rail or
+    --another strip sweeps them as one.
+    local unit = ownerKey
+    if toolkitid ~= nil and strip ~= nil and strip.valid then
+        unit = "toolkitcluster:" .. toolkitid
     end
-    g_railTransientKey = ownerKey
+    RailSweepTransient(unit)
 
     local placement = { autoFocus = true }
-    if strip ~= nil and strip.valid then
+    if toolkitid ~= nil and strip ~= nil and strip.valid then
+        --the window's spot in this toolkit's cluster. ABSOLUTE (no
+        --anchor): the cluster arrangement wins over wherever the panel
+        --was last dragged as a solo window.
+        placement.x, placement.y = ToolkitCluster.Place(toolkitid, ownerKey, strip)
+    elseif strip ~= nil and strip.valid then
         --just under the strip, so the window reads as summoned by it.
         --An anchored open still yields to wherever the user last dragged
         --this panel's window.
@@ -10868,6 +11271,13 @@ local function ToolkitTogglePanel(panelKey, strip)
         placement.anchor = true
     end
     OpenIconRailWindow(key, placement)
+    if toolkitid ~= nil and strip ~= nil and strip.valid and placement.x ~= nil then
+        g_railClusterWindows[ownerKey] = toolkitid
+        --persist the offset the placement resolved to, so the same
+        --arrangement rebuilds next time (and next session).
+        ToolkitCluster.SetOffset(toolkitid, ownerKey,
+            placement.x - strip.x, placement.y - strip.y)
+    end
     RefreshRails()
 end
 
@@ -10947,6 +11357,48 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         return entries
     end
 
+    --The strip buttons' hover name, in the rail's own label grammar: a
+    --plain bold iconRailLabel fading in 10px under the hovered button
+    --(opacity 0 -> 1 on parent:hover over the rail's 0.15s), replacing
+    --the generic boxed gui.Tooltip that read as a foreign control
+    --(Venla 2026-08-19). Floating and centered below the button so it
+    --never overlaps a neighbour in the horizontal row. Inherits the
+    --rail rules' parent:active suppression: an OPEN panel's button
+    --shows the close hint, not its name, same as on the rail.
+    --text may be a FUNCTION for live hover text (a script button's
+    --@tooltip): re-evaluated on the strip's refreshToolkit cadence, so
+    --state text ("USE RECOVERY" -> "AT FULL STAMINA") updates while
+    --the pointer sits on the button.
+    local function StripHoverLabel(text)
+        local textFn = nil
+        if type(text) == "function" then
+            textFn = text
+            text = textFn()
+        end
+        return gui.Label{
+            classes = {"iconRailLabel"},
+            floating = true,
+            renderOnTop = true,
+            halign = "center",
+            valign = "top",
+            y = ICON_RAIL_BUTTON + 10,
+            interactable = false,
+            text = text,
+            width = "auto",
+            height = "auto",
+            hpad = 8,
+            vpad = 4,
+            borderBox = true,
+            textWrap = false,
+            refreshToolkit = textFn ~= nil and function(element)
+                local t = textFn()
+                if element.text ~= t then
+                    element.text = t
+                end
+            end or nil,
+        }
+    end
+
     local buttonPanels = {}
     for i, item in ipairs(tk.items or {}) do
         --unknown item types are skipped: a future version's action or
@@ -10970,7 +11422,6 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
 
                 hover = function(element)
                     RailButtonSound("hover")
-                    gui.Tooltip(string.upper(itemName))(element)
                 end,
                 dehover = function(element)
                     RailButtonSound("dehover")
@@ -10979,7 +11430,7 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                     RailButtonSound("press")
                 end,
                 click = function(element)
-                    ToolkitTogglePanel(itemKey, strip)
+                    ToolkitTogglePanel(itemKey, strip, id)
                     if strip ~= nil and strip.valid then
                         strip:FireEventTree("refreshToolkit")
                     end
@@ -10990,7 +11441,7 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                             text = cond(PanelDocument.IsPanelActive(itemKey), "Close", "Open"),
                             click = function()
                                 element.popup = nil
-                                ToolkitTogglePanel(itemKey, strip)
+                                ToolkitTogglePanel(itemKey, strip, id)
                             end,
                         },
                     }
@@ -11057,6 +11508,8 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                     valign = "center",
                     interactable = false,
                 },
+
+                StripHoverLabel(string.upper(itemName)),
             }
             buttonPanels[#buttonPanels + 1] = button
         elseif item.type == "script" then
@@ -11066,7 +11519,9 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
             local itemName = item.name or "Script"
             local button
             button = gui.Panel{
-                classes = {"iconRailButton"},
+                classes = {"iconRailButton",
+                    cond(ScriptButtonStyle(item).clickanim ~= "none", "scriptAnim"),
+                    cond(ScriptButtonDisabled(item), "scriptDisabled")},
                 bgimage = true,
                 blurBackground = true,
                 width = ICON_RAIL_BUTTON,
@@ -11075,14 +11530,25 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                 hmargin = 2,
                 swallowPress = true,
 
+                --the @disabled condition tracks live game state, so it
+                --re-evaluates on the strip's refresh cadence.
+                refreshToolkit = function(element)
+                    element:SetClass("scriptDisabled", ScriptButtonDisabled(itemRef))
+                end,
+
                 hover = function(element)
+                    if element:HasClass("scriptDisabled") then
+                        return
+                    end
                     RailButtonSound("hover")
-                    gui.Tooltip(string.upper(itemName))(element)
                 end,
                 dehover = function(element)
                     RailButtonSound("dehover")
                 end,
                 press = function(element)
+                    if element:HasClass("scriptDisabled") then
+                        return
+                    end
                     RailButtonSound("press")
                 end,
                 click = function(element)
@@ -11148,6 +11614,10 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                     valign = "center",
                     interactable = false,
                 },
+
+                StripHoverLabel(function()
+                    return ScriptButtonHoverText(itemRef, itemName)
+                end),
             }
             buttonPanels[#buttonPanels + 1] = button
         end
@@ -11165,7 +11635,6 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         swallowPress = true,
         hover = function(element)
             RailButtonSound("hover")
-            gui.Tooltip("Add to this toolkit")(element)
         end,
         press = function(element)
             RailButtonSound("press")
@@ -11188,6 +11657,8 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
             valign = "center",
             interactable = false,
         },
+
+        StripHoverLabel("ADD TO THIS TOOLKIT"),
     }
 
     --starting position: remembered spot, else beside the summoning
@@ -11217,8 +11688,29 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
         flow = "vertical",
         swallowPress = true,
         draggable = true,
+        data = {},
+
+        --the cluster follows the strip LIVE, frame by frame: each
+        --dragging tick moves the open cluster windows by the pointer's
+        --delta since the last tick (the first tick's baseline is the
+        --strip's pre-drag spot, so no movement is lost).
+        dragging = function(element)
+            local last = element.data.clusterDragLast
+                or { x = element.x, y = element.y }
+            ToolkitCluster.FollowStrip(id,
+                element.xdrag - last.x, element.ydrag - last.y)
+            element.data.clusterDragLast = { x = element.xdrag, y = element.ydrag }
+        end,
 
         drag = function(element)
+            --the drop: apply any remaining delta (all of it, if the
+            --engine never fired dragging), then settle.
+            local last = element.data.clusterDragLast
+                or { x = element.x, y = element.y }
+            ToolkitCluster.FollowStrip(id,
+                element.xdrag - last.x, element.ydrag - last.y)
+            element.data.clusterDragLast = nil
+
             element.x = element.xdrag
             element.y = element.ydrag
             element:SetAsLastSibling()
@@ -11287,6 +11779,7 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
                 valign = "center",
                 swallowPress = true,
                 click = function(element)
+                    ToolkitCluster.CloseAll(id)
                     HideToolkitStrip(id)
                     RefreshRails()
                 end,
@@ -11310,6 +11803,7 @@ end
 
 local function ToggleToolkitStrip(id, anchorX, anchorY)
     if RailToolkitStripOpen(id) then
+        ToolkitCluster.CloseAll(id)
         HideToolkitStrip(id)
     else
         ShowToolkitStrip(id, anchorX, anchorY)
@@ -11599,7 +12093,9 @@ local SCRIPT_BUTTON_TEMPLATE = [[-- Hello! Here is a guide on custom buttons.
 --
 -- The code you write here runs every time you click your button.
 -- Replace the example below with your own code.
--- Save this file and the button picks up the change instantly.
+-- Editing an existing button: every save of this file applies to the
+-- button immediately. Creating a new one: saves land in the dialog,
+-- and the button is made when you press Create there.
 
 
 
@@ -11627,6 +12123,20 @@ chat.Send("Hello from my new button!")
 --   -- @label Recoveries Available To Spend
 --                          show a live value (a GoblinScript formula,
 --                          evaluated on your character) instead of the icon
+--   -- @clickanim pop      the click/hover animation toggle. "pop" is
+--                          the default: grow on hover, squash down on
+--                          click, spring back. Set to "none" to keep
+--                          the button perfectly still.
+--   -- @tooltip Use recovery
+--                          hover text instead of the button's name.
+--                          Plain words show as written -- or write a
+--                          GoblinScript formula (quote the strings) and
+--                          it evaluates on your character, live:
+--   -- @tooltip "AT FULL STAMINA" when Stamina = Maximum Stamina else "USE RECOVERY"
+--   -- @disabled Recoveries Available To Spend < 1
+--                          grey the button out and disable clicking
+--                          while the condition (GoblinScript, on your
+--                          character) is true
 --
 -- A bare form works too ("@slots 2" on its own line, no leading --),
 -- but your editor's Lua checker will underline it; the -- form keeps
@@ -11836,6 +12346,50 @@ RailScriptButtonDialog = function(toolkitid, idx)
                 m_watcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
                     m_script = contents or ""
                     RefreshScriptStatus()
+
+                    --Editing an EXISTING button: every file save commits
+                    --the script to the button immediately -- no second
+                    --Save-in-the-dialog step (the trap the owner hit
+                    --2026-08-19: file saves felt live but nothing landed
+                    --until the dialog's Save). Script ONLY: name, icon
+                    --and description stay dialog-managed until Save, and
+                    --mutating the stored record in place keeps pack /
+                    --packid untouched. A NEW button still needs Create --
+                    --there is nothing to commit to yet.
+                    local committed = false
+                    if sbuttonEditId ~= nil then
+                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+                        local def = defs[sbuttonEditId]
+                        if type(def) == "table" then
+                            def.script = m_script
+                            dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+                            --directives (@slots/@bgcolor/@label/@tooltip)
+                            --may have changed; the rail bakes them in at
+                            --build time.
+                            RebuildIconRails()
+                            committed = true
+                        end
+                    elseif toolkitid ~= nil and idx ~= nil then
+                        local t = RailToolkits()
+                        local rec = t[toolkitid]
+                        local it = rec ~= nil and rec.items ~= nil and rec.items[idx] or nil
+                        if it ~= nil and it.type == "script" then
+                            it.script = m_script
+                            RailWriteToolkits(t)
+                            --rebuild the strip in place if it is open, so
+                            --face directives and the hover text follow.
+                            local strip = g_railToolkitStrips[toolkitid]
+                            if strip ~= nil and strip.valid then
+                                local x, y = strip.x, strip.y
+                                HideToolkitStrip(toolkitid)
+                                ShowToolkitStrip(toolkitid, x, y)
+                            end
+                            committed = true
+                        end
+                    end
+                    if committed and scriptStatusLabel ~= nil and scriptStatusLabel.valid then
+                        scriptStatusLabel.text = scriptStatusLabel.text .. "  Applied to the button."
+                    end
                 end)
                 if m_watcher == nil then
                     gui.ModalMessage{
@@ -12150,6 +12704,7 @@ end
 --And unlike "Remove from rail", deletion should not park an entry for a
 --toolkit that no longer exists.
 local function RailDeleteToolkit(id)
+    ToolkitCluster.CloseAll(id)
     HideToolkitStrip(id)
     local toolkits = RailToolkits()
     toolkits[id] = nil
@@ -12467,6 +13022,101 @@ end
 --heart, and the ADDED overlay for buttons the user already owns.
 --opts: side (which rail an add lands on), onAdded (host callback after
 --a successful add -- close the surface, typically).
+--The rail-button replica FACE (the 40px rounded chip + 20px glyph)
+--shared by community cards, the Share Your Buttons rows, and the
+--library's replica tiles -- wearing the button's own authored styling
+--so the preview is honest (owner request 2026-08-19: show the real
+--button, not a plain chip). @bgcolor/@bggradient/@opacity land as the
+--same selfStyle overrides the rail button's create applies, and a
+--@label button previews its live value instead of its icon. def may
+--be nil (panel replicas, create tiles): plain face, args.icon glyph.
+local function ScriptButtonFacePanel(def, args)
+    args = args or {}
+    local style = nil
+    if type(def) == "table" then
+        style = ScriptButtonStyle(def)
+    end
+
+    local content
+    if style ~= nil and style.label ~= nil then
+        local text = "-"
+        local token = dmhub.currentToken
+        if token ~= nil and token.properties ~= nil then
+            pcall(function()
+                local value = ExecuteGoblinScript(style.label, token.properties:LookupSymbol{}, 0, "rail button label")
+                if value ~= nil then
+                    local n = tonumber(value)
+                    if n ~= nil and n == math.floor(n) then
+                        text = string.format("%d", n)
+                    else
+                        text = tostring(value)
+                    end
+                end
+            end)
+        end
+        content = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            fontSize = 16,
+            bold = true,
+            color = "#ffffffee",
+            interactable = false,
+            text = text,
+        }
+    else
+        content = gui.Panel{
+            classes = {"libButtonIcon"},
+            bgimage = (type(def) == "table" and def.icon) or args.icon or "phosphor/lightning.png",
+            width = 20,
+            height = 20,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+        }
+    end
+
+    return gui.Panel{
+        classes = {"libButtonFace", args.extraClass},
+        width = 40,
+        height = 40,
+        bgimage = true,
+        halign = args.halign,
+        valign = args.valign,
+        lmargin = args.lmargin,
+        tmargin = args.tmargin,
+        interactable = false,
+        create = function(element)
+            if style == nil then
+                return
+            end
+            if style.bgcolor ~= nil then
+                element.selfStyle.bgcolor = style.bgcolor
+            end
+            if style.gradient ~= nil then
+                --the gradient multiplies against bgcolor; default the
+                --base to white for true stop colors (the rail's rule).
+                if style.bgcolor == nil then
+                    element.selfStyle.bgcolor = "#ffffff"
+                end
+                element.selfStyle.gradient = gui.Gradient{
+                    point_a = {x = 0, y = 1},
+                    point_b = {x = 0, y = 0},
+                    stops = {
+                        { position = 0, color = style.gradient[1] },
+                        { position = 1, color = style.gradient[2] },
+                    },
+                }
+            end
+            if style.opacity ~= nil then
+                element.selfStyle.opacity = style.opacity
+            end
+        end,
+        content,
+    }
+end
+
 local function CommunityButtonCard(pack, button, packStats, opts)
     opts = opts or {}
     local packid = pack.id
@@ -12561,6 +13211,78 @@ local function CommunityButtonCard(pack, button, packStats, opts)
         }
     end
 
+    local function AddClick()
+        if isAdded then
+            return
+        end
+        CommunityAddButton(pack, button, opts.side or "left")
+        if opts.onAdded ~= nil then
+            opts.onAdded()
+        end
+    end
+
+    --SPOTLIGHT tiles: compact squares -- the styled face, the name, and
+    --the download/heart counts, no description or author (owner request
+    --2026-08-19). The full card below stays the Community Browser's
+    --form. The heart is still its own click target; the ADDED overlay
+    --and click gate work exactly as on the full card.
+    if opts.compact then
+        return gui.Panel{
+            classes = {"libPackCard", cond(isAdded, "added")},
+            width = 96,
+            height = 112,
+            bgimage = true,
+            borderBox = true,
+            flow = "vertical",
+            margin = 4,
+            click = AddClick,
+
+            ScriptButtonFacePanel(button, { halign = "center", tmargin = 10 }),
+
+            gui.Label{
+                classes = {"libCardName"},
+                text = button.name or "Button",
+                width = "100%-8",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                textWrap = false,
+                tmargin = 6,
+                interactable = false,
+            },
+
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 5,
+                gui.Panel{
+                    classes = {"libCardStatIcon"},
+                    bgimage = "phosphor/download-simple.png",
+                    width = 12,
+                    height = 12,
+                    valign = "center",
+                    interactable = false,
+                },
+                gui.Label{
+                    classes = {"libCardMeta"},
+                    text = tostring(downloads),
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 3,
+                    rmargin = 8,
+                    interactable = false,
+                },
+                heartIcon,
+                heartCount,
+            },
+
+            addedOverlay,
+        }
+    end
+
     return gui.Panel{
         classes = {"libPackCard", cond(isAdded, "added")},
         width = 410,
@@ -12569,35 +13291,10 @@ local function CommunityButtonCard(pack, button, packStats, opts)
         borderBox = true,
         flow = "horizontal",
         margin = 4,
-        click = function()
-            if isAdded then
-                return
-            end
-            CommunityAddButton(pack, button, opts.side or "left")
-            if opts.onAdded ~= nil then
-                opts.onAdded()
-            end
-        end,
+        click = AddClick,
 
-        --the true rail-button face.
-        gui.Panel{
-            classes = {"libButtonFace"},
-            width = 40,
-            height = 40,
-            bgimage = true,
-            valign = "center",
-            lmargin = 10,
-            interactable = false,
-            gui.Panel{
-                classes = {"libButtonIcon"},
-                bgimage = button.icon or "phosphor/lightning.png",
-                width = 20,
-                height = 20,
-                halign = "center",
-                valign = "center",
-                interactable = false,
-            },
-        },
+        --the true rail-button face, wearing the button's own styling.
+        ScriptButtonFacePanel(button, { valign = "center", lmargin = 10 }),
 
         --name, description, author.
         gui.Panel{
@@ -13316,25 +14013,8 @@ local function RailShareButtonsDialog(opts)
             vmargin = 4,
 
             --the true rail-button face, same grammar as the community
-            --cards.
-            gui.Panel{
-                classes = {"libButtonFace"},
-                width = 40,
-                height = 40,
-                bgimage = true,
-                valign = "center",
-                lmargin = 10,
-                interactable = false,
-                gui.Panel{
-                    classes = {"libButtonIcon"},
-                    bgimage = item.icon or "phosphor/lightning.png",
-                    width = 20,
-                    height = 20,
-                    halign = "center",
-                    valign = "center",
-                    interactable = false,
-                },
-            },
+            --cards -- authored styling included.
+            ScriptButtonFacePanel(item, { valign = "center", lmargin = 10 }),
 
             gui.Panel{
                 flow = "vertical",
@@ -13616,7 +14296,7 @@ RailShowAddPicker = function(element, side)
     local standaloneButtons = {}
     for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
         if type(def) == "table" and not onRail["button:" .. id] then
-            standaloneButtons[#standaloneButtons + 1] = { id = id, name = def.name or "Button", icon = def.icon or "phosphor/lightning.png" }
+            standaloneButtons[#standaloneButtons + 1] = { id = id, name = def.name or "Button", icon = def.icon or "phosphor/lightning.png", def = def }
         end
     end
     table.sort(standaloneButtons, function(a, b) return a.name < b.name end)
@@ -13641,22 +14321,13 @@ RailShowAddPicker = function(element, side)
             bgimage = true,
             click = opts.click,
             linger = cond(opts.tooltip ~= nil, gui.Tooltip(opts.tooltip or "")),
-            gui.Panel{
-                classes = {"libButtonFace", cond(opts.create, "create")},
-                width = 40,
-                height = 40,
-                bgimage = true,
+            --opts.def: a script button's definition, so the tile wears
+            --its authored styling.
+            ScriptButtonFacePanel(opts.def, {
                 halign = "center",
-                gui.Panel{
-                    classes = {"libButtonIcon"},
-                    bgimage = icon,
-                    width = 20,
-                    height = 20,
-                    halign = "center",
-                    valign = "center",
-                    interactable = false,
-                },
-            },
+                icon = icon,
+                extraClass = cond(opts.create, "create"),
+            }),
             gui.Label{
                 classes = {"libButtonLabel"},
                 text = text,
@@ -13796,6 +14467,7 @@ RailShowAddPicker = function(element, side)
     }
     for _, b in ipairs(standaloneButtons) do
         buttonTiles[#buttonTiles + 1] = ButtonReplica(b.icon, b.name, {
+            def = b.def,
             click = function()
                 RailAddPanel("button:" .. b.id, side)
                 CloseLibrary()
@@ -14074,6 +14746,7 @@ RailShowAddPicker = function(element, side)
                                     cards[#cards + 1] = CommunityButtonCard(pack, button, stats[pack.id], {
                                         side = side,
                                         onAdded = CloseLibrary,
+                                        compact = true,
                                     })
                                 end
                             end
@@ -14397,6 +15070,14 @@ local function CreateIconRail(side, entries)
         local buttonIconTint = nil
         local buttonIconRect = nil
         local sbuttonStyle = nil
+        --whether this button wears the scriptAnim class (hover swell +
+        --click pop): script buttons only, unless the author opted out.
+        --Pack "panel" shortcuts are excluded -- their click opens a
+        --window, and buttons that open things answer with the window.
+        local sbuttonAnimates = false
+        --the @disabled condition's state at build time; refreshRail
+        --keeps it live afterwards.
+        local sbuttonDisabled = false
         if toolkitid ~= nil then
             --the user's chosen icon, falling back to the toolbox for
             --toolkits made before icons existed (and for anyone who left
@@ -14415,6 +15096,10 @@ local function CreateIconRail(side, entries)
             --the author's @bgcolor/@opacity directives (span was already
             --resolved in RailLayout; the face styling applies below).
             sbuttonStyle = ScriptButtonStyle(def)
+            sbuttonAnimates = type(def) == "table" and def.type ~= "panel"
+                and sbuttonStyle.clickanim ~= "none"
+            sbuttonDisabled = type(def) == "table" and def.type ~= "panel"
+                and ScriptButtonDisabled(def)
         elseif missing then
             --the tombstone face. Tinted rather than left at default so it
             --reads as an inert marker, not another live panel icon.
@@ -14624,13 +15309,7 @@ local function CreateIconRail(side, entries)
 
             --the same one-transient-window rule the icon's own click
             --follows.
-            if g_railTransientKey ~= nil and g_railTransientKey ~= ownerKey then
-                local prev = RailPanelDocument(g_railTransientKey)
-                if prev ~= nil and not PanelDocument.IsPinned(g_railTransientKey) then
-                    prev:ClosePanel()
-                end
-            end
-            g_railTransientKey = ownerKey
+            RailSweepTransient(ownerKey)
             local anchorX, anchorY = RailAnchor(side, index)
             OpenIconRailWindow(memberKey, { x = anchorX, y = anchorY, anchor = true, autoFocus = true })
             --the strip has done its job, and the window it just opened
@@ -14653,6 +15332,15 @@ local function CreateIconRail(side, entries)
             --button's only verb is "dismiss me".
             if missing then
                 return "REMOVED CHARACTER  (CLICK TO DISMISS)"
+            end
+            --a script button's @tooltip replaces its name entirely --
+            --live state text, re-read on the same refreshRail cadence
+            --as everything else in this label.
+            if sbuttonid ~= nil then
+                local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+                if type(def) == "table" then
+                    return ScriptButtonHoverText(def, def.name or panelName or "Button")
+                end
             end
             if docid == nil and charid == nil and toolkitid == nil then
                 local bind = dmhub.GetCommandBinding(string.format("togglepanel %s", key))
@@ -15325,6 +16013,12 @@ local function CreateIconRail(side, entries)
         --a scale-down animation: it constructs oversized (justDropped)
         --and sheds the class a moment later, riding the transition.
         local buttonClasses = {"iconRailButton"}
+        if sbuttonAnimates then
+            buttonClasses[#buttonClasses + 1] = "scriptAnim"
+        end
+        if sbuttonDisabled then
+            buttonClasses[#buttonClasses + 1] = "scriptDisabled"
+        end
         if g_railJustDropped ~= nil and g_railJustDropped == key then
             buttonClasses[#buttonClasses + 1] = "justDropped"
             g_railJustDropped = nil
@@ -15570,6 +16264,14 @@ local function CreateIconRail(side, entries)
             --FireEventTree, and rebuilding destroys the very panels that
             --sweep is walking.
             refreshRail = function(element)
+                --@disabled tracks live game state; keep the class in
+                --step on the rail's refresh cadence.
+                if sbuttonid ~= nil then
+                    local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
+                    if type(def) == "table" and def.type ~= "panel" then
+                        element:SetClass("scriptDisabled", ScriptButtonDisabled(def))
+                    end
+                end
                 if charid == nil or g_railRebuildPending then
                     return
                 end
@@ -16179,14 +16881,10 @@ local function CreateIconRail(side, entries)
                     ownerDoc:ClosePanel()
                 else
                     --one transient window at a time: opening a panel
-                    --closes the previous un-pinned one.
-                    if g_railTransientKey ~= nil and g_railTransientKey ~= ownerKey then
-                        local prev = RailPanelDocument(g_railTransientKey)
-                        if prev ~= nil then
-                            prev:ClosePanel()
-                        end
-                    end
-                    g_railTransientKey = ownerKey
+                    --closes the previous un-pinned one. (This site used
+                    --to skip the pinned check its own comment promises;
+                    --the shared sweep restores it.)
+                    RailSweepTransient(ownerKey)
 
                     local anchorX, anchorY = RailAnchor(side, index)
                     OpenIconRailWindow(key, {
@@ -16206,6 +16904,13 @@ local function CreateIconRail(side, entries)
             --buttons are not draggable outside rearrange mode, there is
             --no press-vs-drag ambiguity to wait out.
             press = function(element)
+                --a @disabled script button is inert to presses: no
+                --sound, no run. Right-click stays live -- Edit Script
+                --must always be reachable.
+                if element:HasClass("scriptDisabled") then
+                    return
+                end
+
                 RailButtonSound("press")
 
                 --in rearrange mode presses begin drags, never open.
@@ -16890,9 +17595,28 @@ local function CreateIconRail(side, entries)
                 return
             end
             if g_railTransientKey ~= nil then
-                local doc = RailPanelDocument(g_railTransientKey)
-                if doc == nil or not doc:PresentDocumentOpen() then
-                    g_railTransientKey = nil
+                --a toolkit cluster stays the transient unit while ANY of
+                --its windows is open; a plain key while its own window is.
+                local clusterId = string.match(g_railTransientKey, "^toolkitcluster:(.+)$")
+                if clusterId ~= nil then
+                    local anyOpen = false
+                    for key, tid in pairs(g_railClusterWindows) do
+                        if tid == clusterId then
+                            local doc = RailPanelDocument(key)
+                            if doc ~= nil and doc:PresentDocumentOpen() then
+                                anyOpen = true
+                                break
+                            end
+                        end
+                    end
+                    if not anyOpen then
+                        g_railTransientKey = nil
+                    end
+                else
+                    local doc = RailPanelDocument(g_railTransientKey)
+                    if doc == nil or not doc:PresentDocumentOpen() then
+                        g_railTransientKey = nil
+                    end
                 end
             end
             element:FireEventTree("refreshRail")

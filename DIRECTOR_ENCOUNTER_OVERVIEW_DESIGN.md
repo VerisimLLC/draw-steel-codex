@@ -641,6 +641,28 @@ Design consequences:
 - Game state: the user ended the Assassins' turn and played on; no cleanup
   outstanding. User does NOT want a push yet.
 
+**2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
+fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
+is active and the acting side has unmoved creatures, each unmoved ally's token
+HUD shows the pulsing claim-turn SWORDS (16x16 hit area at token centre) and a
+clickable NAMEPLATE above the token; both swallow a pick click and their press
+runs `SelectTurn` + `BeginTurn` (DrawSteelTokenHud.lua ~:583) - i.e. picking a
+token can silently CLAIM ITS TURN. PR #253 masks the swords and routes both
+presses to `token.sheet:FireEvent("tokenClick", false)` whenever
+`token.sheet.data.targetInfo ~= nil` (the action bar stamps that on every
+candidate of an active prompt).
+RELEVANCE TO THIS DESIGN: the slice-(e) owner prompt (Decision 32/36) says "the
+matching creatures are also highlighted on the map for direct clicking", and
+Decision 47's whole premise is that nothing claims except target-confirm. If
+the overview's on-map pick path ever relies on clicking the token itself, it
+MUST use the same targetInfo stamping (so PR #253's routing applies) - a raw
+token click on an unmoved monster would hit the swords and claim. ACTION: when
+the on-map pick for the owner prompt is implemented (currently the prompt is
+mini-rows in the footer, which is safe), stamp candidates via the action bar's
+targetInfo mechanism, never a bespoke click handler. Also a good regression
+test for Phase 2: open the owner prompt, click a highlighted unmoved monster on
+the map, assert currentTurn unchanged.
+
 ## Phase 0 findings
 
 ### ANSWERED 2026-08-14: what "claim turn" actually does

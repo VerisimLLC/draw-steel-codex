@@ -2023,6 +2023,13 @@ local function KeywordSummary(kw)
             parts[#parts+1] = "Affects adjacent"
         end
     end)
+    --a keyword restricted to some creatures reads very differently from one
+    --that catches everyone, so the palette says so without quoting the script.
+    pcall(function()
+        if kw:try_get("creatureFilter", "") ~= "" then
+            parts[#parts+1] = "Filtered"
+        end
+    end)
     --the default height a zone of this type is painted with; unlimited (the
     --default) describes as nil and stays out of the summary.
     local heightText = m_zoneHeight.Describe(m_zoneHeight.Get(kw))

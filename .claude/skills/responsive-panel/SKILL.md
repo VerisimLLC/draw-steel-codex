@@ -16,7 +16,12 @@ A panel must survive two things it does not control:
    event** -- it relayouts because it is percent-sized. If it is not percent-sized, it does not
    respond at all.
 2. **Font Size.** The `fontsize` setting (General settings, 80%-140%, preference storage,
-   `DMHub Titlescreen/Settings.lua`) becomes `GameConfig.fontMagnification` in the engine. It
+   `DMHub Titlescreen/Settings.lua`) becomes `GameConfig.fontMagnification` in the engine --
+   EXCEPT while the icon-rail UI (`iconrail` setting) is on: there magnification is held at 1
+   and the setting instead acts as a flat `uiscale` zoom on PresentDocument windows
+   (`DocumentSystem.lua` `WindowUIScale`/`setWindowScale`) and on tooltip roots
+   (`GameConfig.tooltipMagnification`, applied in `SheetPanel` style application). Landed
+   2026-08-18, NEEDS ENGINE BUILD. In dock mode it
    multiplies the **rendered point size** of every Label/Input/Dropdown/TextEditor at style-apply
    time (`SheetLabel.cs UpdateLabelStyle`, `SheetInput.cs`, `SheetDropdown.cs`,
    `SheetTextEditor.cs`). It does **not** scale panels, padding, margins, icons, or any pixel
@@ -326,7 +331,9 @@ eyeballs (re-probe in a LATER execute_lua call -- same-call reads are stale).
 
 - `fontsize` setting -> `GameConfig.fontMagnification`; applied per text control in
   `SheetLabel.cs` / `SheetInput.cs` / `SheetDropdown.cs` / `SheetTextEditor.cs`; setting
-  change dirties all top-level sheet trees (`GameConfig.cs`).
+  change dirties all top-level sheet trees (`GameConfig.cs`). While `iconrail` is on,
+  `fontMagnification` is forced to 1 and `GameConfig.tooltipMagnification` carries
+  fontsize/100 instead (2026-08-18, NEEDS ENGINE BUILD).
 - Auto label measurement uses the magnified size (`SheetLabel.CalculateAutoSizeText` caches
   on live `label.fontSize`).
 - `minFontSize` floor and `maxFontSize` are both magnified (`SheetLabel.cs UpdateLabelStyle`;

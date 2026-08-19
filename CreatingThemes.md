@@ -170,8 +170,12 @@ You do **not** need to redefine the whole vocabulary. Because resolution is
 `[default, yours]`, a rule you supply with the same `selectors` overrides the
 default rule for those selectors; everything you omit keeps working. The
 practical way to author a theme is: start empty, add only the selector rules
-you want to look different (see `default-rounded` in `DefaultStyles.lua`, which
-overrides nothing but `cornerRadius`).
+you want to look different.
+
+Note that the theme is not a user-facing choice -- there is no theme picker,
+and `default` is the only registered theme (it owns the app's corner radii).
+A theme you register is activated by the code that wants it, via an explicit
+`GetStyles(yourThemeId, ...)` on the subtree it should style.
 
 **The selector vocabulary itself** -- every class name (`panel`, `label`,
 `button`, `formRow`, `dialog`, `framedPanel`, `tab`, the size classes, the
@@ -220,9 +224,9 @@ for transparent), but a theme should otherwise always go through `@name`.
 
 | Call | Purpose |
 |---|---|
-| `ThemeEngine.SetActiveTheme(id)` | Make a theme active. Persists to user prefs, fires the change event. |
 | `ThemeEngine.SetActiveColorScheme(id)` | Make a scheme active (independent of theme). |
-| `ThemeEngine.GetActiveTheme()` / `GetActiveColorScheme()` | Current ids, normalized to a registered id (falls back to `default`). |
+| `ThemeEngine.GetActiveTheme()` | Always `"default"` -- the theme is not a user choice. |
+| `ThemeEngine.GetActiveColorScheme()` | Current scheme id, normalized to a registered id (falls back to `default`). |
 | `ThemeEngine.ListThemes()` / `ListColorSchemes()` | `{id, name, description}` arrays for building pickers. |
 | `ThemeEngine.OnThemeChanged(mod, fn)` | Subscribe to theme/scheme changes (auto-removed on mod unload). |
 | `ThemeEngine.DeregisterTheme(id)` / `DeregisterColorScheme(id)` | Remove a registration. Refused for `default` or anything currently in use. |

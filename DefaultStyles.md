@@ -370,7 +370,7 @@ The engine uses **kebab case** for these — match verbatim:
 
 ## 4. Theme variants
 
-`default-rounded` is the canonical example of "inherit colors + theme, override only what changes." It registers under a different theme id but shares the `default` color scheme, and its `styles` table contains nothing but `cornerRadius` overrides — 10px on panel-class surfaces, 5px on interactive controls, and asymmetric values on `featureCardHeader` / `featureCardBody` and `tab` to round only the outer corners. Use this pattern when you want to ship a stylistic variant: keep the colors, override the small set of properties that distinguish your variant.
+`default` is the only registered theme, and the theme is not user-selectable — rounded corners are not an option. The corner radii live in the base theme's own `styles` table, at the end of the block: 10px on panel-class surfaces, 5px on interactive controls, and asymmetric values on `featureCardHeader` / `featureCardBody`, the enum-slider ends and `tab` so only the outer corners round. A mod that wants to ship a stylistic variant can still `RegisterTheme` under its own id and override only the properties that differ — every theme inherits from `default`.
 
 ## 5. Authoring conventions
 

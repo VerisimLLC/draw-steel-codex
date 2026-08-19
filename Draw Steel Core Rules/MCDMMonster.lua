@@ -383,10 +383,10 @@ function monster:RenderImplementationSummaryPanel(args)
             height = "auto",
             wrap = true,
             tmargin = 2,
-            text = [[<b>Gold:</b> Fully automated.
-<b>Silver:</b> Automated with some table adjudication necessary.
-<b>Bronze:</b> Partially automated.
-<b>Unimplemented:</b> Requires manual adjudication.
+            text = [[<b>Fully Automated:</b> Everything is handled by the app.
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
+<b>Not Automated:</b> Requires manual adjudication.
 <b>Narrative:</b> Role play only, no automation.
 
 A monster's status is the lowest tier across its abilities and traits; Narrative entries are neutral and do not lower it.]],

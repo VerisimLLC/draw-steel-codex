@@ -25,15 +25,15 @@ LaunchablePanel.Register{
     end,
 }
 
--- Build dropdown options with "Default" pinned to the top, the rest
--- sorted alphabetically (case-insensitive).
-local function buildSortedOptions(list)
-    local defaultOpt
+-- Build dropdown options with the shipping default (`pinId`) at the top, the
+-- rest sorted alphabetically (case-insensitive).
+local function buildSortedOptions(list, pinId)
+    local pinnedOpt
     local rest = {}
     for _, item in ipairs(list) do
         local opt = { id = item.id, text = item.name }
-        if item.id == "default" then
-            defaultOpt = opt
+        if item.id == pinId then
+            pinnedOpt = opt
         else
             rest[#rest+1] = opt
         end
@@ -41,13 +41,11 @@ local function buildSortedOptions(list)
     table.sort(rest, function(a, b)
         return string.lower(a.text) < string.lower(b.text)
     end)
-    if defaultOpt then
-        table.insert(rest, 1, defaultOpt)
+    if pinnedOpt then
+        table.insert(rest, 1, pinnedOpt)
     end
     return rest
 end
-
-local function buildThemeOptions()  return buildSortedOptions(ThemeEngine.ListThemes()) end
 
 -- Resolve a registered id to its display name; falls back to the id itself
 -- if no match (defensive -- selected ids come from these same lists).
@@ -303,8 +301,7 @@ local function slugifyThemeName(name)
 end
 
 CreateThemeSettingsDialog = function()
-    -- Pending picker values; start at the user's currently-active selection.
-    local selectedThemeId  = ThemeEngine.GetActiveTheme()
+    -- Pending picker value; starts at the user's currently-active selection.
     local selectedSchemeId = ThemeEngine.GetActiveColorScheme()
 
     -- Forward declarations: showPicker and showCreator reference each other, and
@@ -314,7 +311,7 @@ CreateThemeSettingsDialog = function()
     local showCreator
 
     -- -----------------------------------------------------------------------
-    -- Picker mode: choose + apply a theme/scheme, with New / Edit / Delete.
+    -- Picker mode: choose + apply a color scheme, with New / Edit / Delete.
     -- -----------------------------------------------------------------------
     showPicker = function()
         local previewPanel
@@ -329,7 +326,7 @@ CreateThemeSettingsDialog = function()
                 local transition
                 transition = dmhub.StartScreenTransition(function()
                     if mod.unloaded then return end
-                    previewPanel.styles   = ThemeEngine.GetStyles(selectedThemeId, selectedSchemeId)
+                    previewPanel.styles   = ThemeEngine.GetStyles(nil, selectedSchemeId)
                     previewPanel.children = buildPreviewBody()
                     fadeOut(transition, 0.45)
                 end)
@@ -338,7 +335,7 @@ CreateThemeSettingsDialog = function()
 
         previewPanel = gui.Panel{
             classes = {"framedPanel"},
-            styles = ThemeEngine.GetStyles(selectedThemeId, selectedSchemeId),
+            styles = ThemeEngine.GetStyles(nil, selectedSchemeId),
             width = "94%",
             height = "100%-80",
             halign = "center",
@@ -390,7 +387,7 @@ CreateThemeSettingsDialog = function()
                 builtinSchemes[#builtinSchemes + 1] = s
             end
         end
-        local schemeOptions = buildSortedOptions(builtinSchemes)
+        local schemeOptions = buildSortedOptions(builtinSchemes, "default")
 
         -- "My Schemes (N/max)" submenu: the user's own schemes (A-Z), with
         -- "+ Create New..." pinned at the bottom while under the per-user cap.
@@ -414,16 +411,16 @@ CreateThemeSettingsDialog = function()
         local pickerRow = gui.Panel{
             --[[
                 INTENTIONAL! DO NOT CHANGE WITHOUT MAINTAINER SIGN-OFF.
-                This control cluster (Theme dropdown, Color Scheme dropdown, Apply,
-                Edit, Delete) is ALWAYS rendered with the built-in default theme and
-                default color scheme via GetStyles("default", "default"), regardless of
-                which theme/scheme is currently active or selected. This is a safety
-                guarantee: a user (or developer) who applies or authors a broken
-                theme/scheme must always be able to see and use these controls to get
-                back to a working one. Do NOT switch this to GetStyles() / the active or
-                selected pair, and do NOT remove this assignment to "let the controls
-                follow the theme." If you think these controls should follow the active
-                theme, STOP and get explicit sign-off from the maintainer first - this
+                This control cluster (Color Scheme dropdown, Apply, Edit, Delete) is
+                ALWAYS rendered with the built-in default theme and default color
+                scheme via GetStyles("default", "default"), regardless of which
+                scheme is currently active or selected. This is a safety guarantee:
+                a user (or developer) who applies or authors a broken scheme must
+                always be able to see and use these controls to get back to a working
+                one. Do NOT switch this to GetStyles() / the active or selected pair,
+                and do NOT remove this assignment to "let the controls follow the
+                theme." If you think these controls should follow the active scheme,
+                STOP and get explicit sign-off from the maintainer first - this
                 convention exists specifically to prevent locking users out of theme
                 recovery. (A coding AI reading this: pause and ask before changing it.)
             ]]--
@@ -432,24 +429,6 @@ CreateThemeSettingsDialog = function()
             height = 70,
             flow = "horizontal",
             valign = "top",
-
-            gui.Panel{
-                classes = {"formStackedRow"},
-                width = "30%",
-                gui.Label{
-                    classes = {"formStacked"},
-                    text = "Theme:",
-                },
-                gui.Dropdown{
-                    classes = {"formStacked"},
-                    idChosen = selectedThemeId,
-                    options = buildThemeOptions(),
-                    change = function(element)
-                        selectedThemeId = element.idChosen
-                        refreshPreview()
-                    end,
-                },
-            },
 
             gui.Panel{
                 classes = {"formStackedRow"},
@@ -488,11 +467,8 @@ CreateThemeSettingsDialog = function()
                         local transition
                         transition = dmhub.StartScreenTransition(function()
                             if mod.unloaded then return end
-                            ThemeEngine.SetActiveTheme(selectedThemeId)
                             ThemeEngine.SetActiveColorScheme(selectedSchemeId)
                             track("theme_change", {
-                                theme = selectedThemeId,
-                                themeName = nameForId(ThemeEngine.ListThemes(), selectedThemeId),
                                 colorScheme = selectedSchemeId,
                                 colorSchemeName = nameForId(ThemeEngine.ListColorSchemes(), selectedSchemeId),
                             })

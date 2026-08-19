@@ -225,11 +225,11 @@ end
 
 --Names for the implementation levels used by gui.ImplementationStatusIcon.
 local g_implementationNames = {
-    [0] = "Not implemented",
-    [1] = "Not implemented",
-    [2] = "Bronze",
-    [3] = "Silver",
-    [4] = "Gold",
+    [0] = "Narrative",
+    [1] = "Not Automated",
+    [2] = "Partly Automated",
+    [3] = "Mostly Automated",
+    [4] = "Fully Automated",
 }
 
 --Implementation level -> status modifier class (tinted via the scheme's

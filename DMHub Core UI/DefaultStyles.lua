@@ -201,7 +201,7 @@ ThemeEngine.RegisterColorScheme{
 ThemeEngine.RegisterTheme{
     id          = "default",
     name        = "Default",
-    description = "The Draw Steel default theme.",
+    description = "The Draw Steel theme: rounded corners on bordered surfaces.",
     colorScheme = "default",
 
     fonts = {
@@ -2393,60 +2393,16 @@ ThemeEngine.RegisterTheme{
         },
 
         -- =====================================================================
-        -- Square-corner reset.
+        -- Corner radii.
         --
-        -- The cascade is additive: an absent property does not reset an
-        -- inherited one. When a rounded theme (e.g. default-rounded) is the
-        -- active theme on an ancestor, its cornerRadius cascades into any
-        -- subtree -- even one explicitly styled with GetStyles("default").
-        -- The default theme must therefore *assert* square corners, not
-        -- merely omit cornerRadius. This block mirrors the default-rounded
-        -- selector set 1:1 so the two stay in lockstep.
+        -- 10px on panel-class surfaces, 5px on interactive controls, with
+        -- asymmetric values where only the outer corners should round
+        -- (featureCardHeader/Body when stacked, enum-slider ends, tab tops).
+        -- These live on the base theme deliberately: rounded corners are not
+        -- an option, so every subtree -- including one explicitly styled with
+        -- GetStyles("default") for theme-recovery purposes -- gets them.
         -- =====================================================================
-        { selectors = {"panel", "bordered"},   cornerRadius = 0 },
-        { selectors = {"panel", "dialog"},     cornerRadius = 0 },
-        { selectors = {"modalDialog"},         cornerRadius = 0 },
-        { selectors = {"framedPanel"},         cornerRadius = 0 },
-        { selectors = {"contextMenu"},         cornerRadius = 0 },
-        { selectors = {"featureCard"},         cornerRadius = 0 },
-        { selectors = {"featureCardHeader"},   cornerRadius = 0 },
-        { selectors = {"featureCardHeader", "expanded"}, cornerRadius = 0 },
-        { selectors = {"featureCardBody"},     cornerRadius = 0 },
 
-        { selectors = {"label", "button"},        cornerRadius = 0 },
-        { selectors = {"iconButton"},             cornerRadius = 0 },
-        { selectors = {"input"},                  cornerRadius = 0 },
-        { selectors = {"searchInput"},            cornerRadius = 0 },
-        { selectors = {"dropdown"},               cornerRadius = 0 },
-        { selectors = {"dropdownBorder"},         cornerRadius = 0 },
-        { selectors = {"dropdownMenuSub"},        cornerRadius = 0 },
-        { selectors = {"colorPicker"},            cornerRadius = 0 },
-        { selectors = {"label", "bordered"},      cornerRadius = 0 },
-        { selectors = {"input", "bordered"},      cornerRadius = 0 },
-        { selectors = {"multiselectChip"},        cornerRadius = 0 },
-        { selectors = {"multiselectChipRemove"},  cornerRadius = 0 },
-        { selectors = {"enumSliderOption"},       cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderFirst"},                     cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderLast"},                      cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderFirst", "enumSliderLast"},   cornerRadius = 0 },
-        { selectors = {"checkBackground"},        cornerRadius = 0 },
-        { selectors = {"tab"},                    cornerRadius = 0 },
-    },
-}
-
--- =============================================================================
--- Default Rounded theme -- inherits everything from default and only overrides
--- cornerRadius on bordered surfaces. 10px for panel-class surfaces, 5px for
--- interactive controls (buttons, inputs, dropdowns, checkboxes, tabs, …).
--- =============================================================================
-
-ThemeEngine.RegisterTheme{
-    id          = "default-rounded",
-    name        = "Default Rounded",
-    description = "Default theme with rounded corners on bordered surfaces.",
-    colorScheme = "default",
-
-    styles = {
         -- Panel surfaces
         { selectors = {"panel", "bordered"},   cornerRadius = 10 },
         { selectors = {"panel", "dialog"},     cornerRadius = 10 },
@@ -2866,7 +2822,7 @@ ThemeEngine.RegisterColorScheme{
 -- active pick of a custom scheme would fall back to default.
 ThemeEngine.LoadUserColorSchemes()
 
--- After schemes and themes are registered, restore the user's
--- saved selections (defaults to "default" / "default" if they
--- haven't picked anything yet).
+-- After the schemes are registered, restore the user's saved color-scheme
+-- selection (defaults to the "default" scheme if they haven't picked anything
+-- yet).
 ThemeEngine.RestoreActiveSelection()

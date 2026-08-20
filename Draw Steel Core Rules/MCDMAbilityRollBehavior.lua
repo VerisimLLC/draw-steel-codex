@@ -1917,7 +1917,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
+                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)

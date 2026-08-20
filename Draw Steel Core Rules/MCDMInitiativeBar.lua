@@ -4017,7 +4017,78 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				or {m_unmovedSegment, m_segmentSpacer, m_hadTurnSegment}),
 		}
 
-		return gui.Panel{
+		--Notebook button in the monster container's upper-left corner: opens
+		--the Encounter Wrangler window (Director only; see EncounterWrangler.lua).
+		--A construction-time floating child: the refresh handler must re-include
+		--it (via data.wranglerButton) whenever it reassigns .children, the same
+		--contract m_bar and the label panel rely on.
+		local m_wranglerButton = nil
+		if not playerside then
+			m_wranglerButton = gui.Panel{
+				classes = {"initiativeWranglerButton", "hidden"},
+				styles = {
+					{
+						selectors = {"initiativeWranglerButton"},
+						bgcolor = "#000000cc",
+						borderWidth = 1,
+						borderColor = "#ffffff55",
+					},
+					{
+						selectors = {"initiativeWranglerButton", "hover"},
+						bgcolor = "#333333ff",
+						borderColor = "white",
+						transitionTime = 0.1,
+					},
+					{
+						selectors = {"initiativeWranglerButton", "press"},
+						bgcolor = "#000000ff",
+					},
+					{
+						selectors = {"initiativeWranglerIcon"},
+						bgcolor = "#ffffffcc",
+					},
+					{
+						selectors = {"initiativeWranglerIcon", "parent:hover"},
+						bgcolor = "white",
+						transitionTime = 0.1,
+					},
+				},
+				floating = true,
+				halign = "left",
+				valign = "top",
+				--negative x floats it just OUTSIDE the container's left edge,
+				--in the gap beside the leftmost card, so it never overlaps
+				--card art (floating children are not clipped by the parent).
+				x = -28,
+				y = 4,
+				width = 22,
+				height = 22,
+				cornerRadius = 11,
+				bgimage = "panels/square.png",
+				hoverCursor = "pressbutton",
+				swallowPress = true,
+				linger = function(element)
+					gui.Tooltip("Encounter Wrangler")(element)
+				end,
+				press = function(element)
+					local wrangler = rawget(_G, "EncounterWrangler")
+					if wrangler ~= nil then
+						wrangler.Open()
+					end
+				end,
+				gui.Panel{
+					classes = {"initiativeWranglerIcon"},
+					width = 14,
+					height = 14,
+					halign = "center",
+					valign = "center",
+					bgimage = "phosphor/notebook.png",
+					interactable = false,
+				},
+			}
+		end
+
+		local containerPanel = gui.Panel{
 			styles = {
 				{
 					selectors = {"initiativeEntryContainer"},
@@ -4052,6 +4123,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				segmentSpacer = m_segmentSpacer,
 				hadTurnLabel = m_hadTurnLabel,
 				unmovedLabel = m_unmovedLabel,
+				wranglerButton = m_wranglerButton,
 			},
 
 			gui.Panel{
@@ -4074,6 +4146,15 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--attachment to keep the bar alive without re-attach churn.
 			m_bar,
 		}
+
+		--Attached after construction rather than positionally: it is nil on
+		--the player side, and a nil in a positional constructor truncates
+		--the child list after it.
+		if m_wranglerButton ~= nil then
+			containerPanel:AddChild(m_wranglerButton)
+		end
+
+		return containerPanel
 	end
 
     
@@ -4663,6 +4744,16 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			for _,e in ipairs(playerList) do processEntry(e.k, e.v, true) end
 			for _,e in ipairs(monsterList) do processEntry(e.k, e.v, false) end
+
+			--The Encounter Wrangler button is a construction-time floating child;
+			--re-include it in every reassignment or it gets disposed. Appended
+			--AFTER the cards so it renders above them (children render in list
+			--order; seeding it before the cards buried it under the leftmost
+			--card). Director only.
+			if monsterContainer.data.wranglerButton ~= nil then
+				monsterChildren[#monsterChildren+1] = monsterContainer.data.wranglerButton
+				monsterContainer.data.wranglerButton:SetClass("hidden", not dmhub.isDM)
+			end
 
 			--The anthem speaker icon goes last so it renders above the centered card.
 			--It must be included in every reassignment or it gets disposed.

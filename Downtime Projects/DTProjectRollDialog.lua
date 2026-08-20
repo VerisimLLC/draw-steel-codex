@@ -573,7 +573,7 @@ function DTProjectRollDialog._createPanel(options)
                                                                 for i = 2, #curSelected do
                                                                     description = description .. ", " .. skillLookup[curSelected[i]]
                                                                 end
-                                                                local value = 2 * #curSelected
+                                                                local value = 2
 
                                                                 local item = {
                                                                     id = element.id,

@@ -189,6 +189,18 @@ Commands.RegisterMacro{
     end,
 }
 
+--Executes a "macro" field's recorded command. The engine fires this global
+--event on the pressing client when a Button property with a non-empty Command
+--field is pressed (ObjectComponentButton in LevelObject.cs). The stored
+--command keeps its {name} step annotations; strip them before execution, the
+--same way journal and rail command buttons run theirs.
+dmhub.RegisterEventHandler("objectButtonCommand", function(command)
+    if type(command) ~= "string" or command == "" then
+        return
+    end
+    dmhub.Execute(CommandBuilder.StripAnnotations(command))
+end)
+
 -- External-text-editor watchers tied to object lifetime (not panel lifetime).
 -- Keyed by "objid/componentid/fieldName". Each entry holds the watcher plus
 -- the floorid/objid needed to detect deletion. Survives property-sheet close;
@@ -309,6 +321,94 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
                     element.text = labelActive
                 end
             end,
+        }
+    elseif fieldInfo.type == "macro" then
+        --a recorded command macro (C# ObjectFieldMacro): a ';'-separated
+        --command pipe built with the command builder, stored with {name} step
+        --annotations. Mirrors the Record Command flow script buttons use
+        --(DocumentSystem.lua): the button starts a recording session out in
+        --the app and the completed pipe is written back into the field.
+        local statusLabel = gui.Label{
+            classes = {"sizeS"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 4,
+            text = "",
+        }
+
+        local function RefreshMacroStatus()
+            if not statusLabel.valid then
+                return
+            end
+            local command = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or "")
+            if command == "" then
+                statusLabel.text = "No command recorded."
+            else
+                local parts = {}
+                for part in string.gmatch(command, "[^;]+") do
+                    local cmd, stepName = CommandBuilder.ParseStep(part)
+                    if cmd ~= "" then
+                        parts[#parts+1] = "- " .. (stepName or ("/" .. cmd))
+                    end
+                end
+                statusLabel.text = string.format("%d step(s):\n%s", #parts, table.concat(parts, "\n"))
+            end
+        end
+
+        editorPanel = gui.Panel{
+            flow = "vertical",
+            width = 220,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+
+            create = function(element)
+                RefreshMacroStatus()
+            end,
+            refreshObjects = function(element)
+                RefreshMacroStatus()
+            end,
+
+            gui.Button{
+                text = "Record Command...",
+                width = 160,
+                height = 24,
+                fontSize = 14,
+                halign = "left",
+                click = function(element)
+                    local floorid = fieldInfo.component.floorid
+                    local objid = fieldInfo.component.objid
+                    CommandBuilder.Begin{
+                        seedCommand = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or ""),
+                        complete = function(cmd)
+                            --recording happens out in the app; the object may
+                            --have been deleted in the meantime.
+                            if floorid ~= nil and floorid ~= "" then
+                                local liveFloor = game.GetFloor(floorid)
+                                if liveFloor == nil or liveFloor:HasObject(objid) == false then
+                                    return
+                                end
+                            end
+
+                            local groupid = dmhub.GenerateGuid()
+                            for i,fieldInstance in ipairs(fieldInfo.fieldList) do
+                                fieldInstance:SetValue(cmd, valueIndex)
+                                if options.objectInstances then
+                                    fieldInstance:Upload(groupid)
+                                end
+                            end
+
+                            RefreshMacroStatus()
+
+                            if options.onchange ~= nil then
+                                options.onchange()
+                            end
+                        end,
+                    }
+                end,
+            },
+            statusLabel,
         }
     elseif fieldInfo.type == "document" then
         editorPanel = gui.Button{

@@ -3485,6 +3485,46 @@ local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
     }
 end
 
+--- Highlight the squares an explicit targeting whitelist (_tmp_restrictLocs) offers on floors
+--- OTHER than the caster's, and report whether any were drawn.
+---
+--- The normal highlight is a radius built around the caster and filtered down to the whitelist,
+--- which can only ever produce squares on the caster's own floor: CalculateShape's
+--- "radiusfromcreature" anchors to the caster's occupied squares and ignores targetFloorIndex,
+--- so an off-floor square is never in the set being filtered. The whitelist is already the
+--- exact set of legal squares, so those floors are marked directly instead of enumerating and
+--- filtering a radius that cannot reach them.
+---
+--- Used by the portal emergence picker in Draw Steel Ability Behaviors/AbilityRelocateAura.lua,
+--- whose portal network spans floors. Abilities with no whitelist are unaffected.
+--- @return nil
+local function MarkOffFloorWhitelist()
+    if g_currentAbility == nil or g_token == nil or (not g_token.valid) then
+        return
+    end
+
+    local restrictLocs = g_currentAbility:try_get("_tmp_restrictLocs")
+    if restrictLocs == nil then
+        return
+    end
+
+    local offFloor = {}
+    for _, loc in ipairs(restrictLocs) do
+        if loc.floor ~= g_token.floorIndex then
+            offFloor[#offFloor + 1] = loc
+        end
+    end
+
+    if #offFloor == 0 then
+        return
+    end
+
+    g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
+        locs = offFloor,
+        color = "white",
+    }
+end
+
 local function ClearRadiusMarkers()
     for i, marker in ipairs(g_radiusMarkers) do
         marker:Destroy()
@@ -7915,6 +7955,10 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     else
                         print("MovementRadius:: MARK", range)
                         AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+
+                        --The radius above can only produce squares on the caster's floor. A
+                        --whitelist that reaches onto other floors marks those directly.
+                        MarkOffFloorWhitelist()
                     end
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)

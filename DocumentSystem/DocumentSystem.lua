@@ -6599,6 +6599,19 @@ setting{
     default = "",
 }
 
+--Per-panel zoom override for popped-out windows: { [panelKey] = percent }
+--in the same units as the Font Size setting. A panel absent from the
+--table simply follows Font Size (see PopoutContentScale); an entry
+--detaches that one window from the setting until it is stepped back
+--onto the setting's own value. Unlike popoutwindows this is NOT
+--session-stamped -- a zoom the user chose for a panel is a lasting
+--preference, and it applies again the next time that panel pops out.
+setting{
+    id = "popoutzoom",
+    storage = "preference",
+    default = {},
+}
+
 --Which rail each panel button lives on and in what order:
 --{ [panelKey] = { side = "left"|"right", ord = number } }. Panels absent
 --from the table default to the left rail in curated order. Written when
@@ -8048,7 +8061,12 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         local d = doc:try_get("_tmp_dialog")
         local geometry = nil
         if d ~= nil and d.valid then
-            geometry = { width = d.renderedWidth, height = d.renderedHeight }
+            --renderedWidth/Height are PRE-uiscale panel units, so the
+            --window's own scale rides along: the popout is born with the
+            --same on-screen footprint even when it renders at a different
+            --zoom (see OpenPanelPopout).
+            geometry = { width = d.renderedWidth, height = d.renderedHeight,
+                scale = d.data.windowScale }
         end
         doc:ClosePanel()
         OpenPanelPopout(key, geometry)
@@ -8472,7 +8490,12 @@ local function OpenIconRailWindow(panelName, placement)
             local d = doc:try_get("_tmp_dialog")
             local geometry = nil
             if d ~= nil and d.valid then
-                geometry = { width = d.renderedWidth, height = d.renderedHeight }
+                --renderedWidth/Height are PRE-uiscale panel units, so the
+                --window's own scale rides along: the popout is born with
+                --the same on-screen footprint even when it renders at a
+                --different zoom (see OpenPanelPopout).
+                geometry = { width = d.renderedWidth, height = d.renderedHeight,
+                    scale = d.data.windowScale }
             end
             doc:ClosePanel()
             OpenPanelPopout(key, geometry)
@@ -8552,6 +8575,16 @@ local function PopoutWindowStyles()
                 opacity = 1,
                 bgcolor = "@fgStrong",
             },
+            --a zoom control sitting at the end of its ladder. It stays in
+            --the header (the row must not reflow as the zoom changes) and
+            --just reads as inert; the priority is what keeps the hover
+            --rule above from brightening it back up.
+            {
+                selectors = {"panelDocumentCloseButton", "popoutZoomDisabled"},
+                priority = 10,
+                opacity = 0.2,
+                bgcolor = "@fg",
+            },
         }),
     }
 end
@@ -8582,6 +8615,7 @@ local function PopoutRememberWindow(key, geometry)
         geometry.y = geometry.y or prev.y
         geometry.width = geometry.width or prev.width
         geometry.height = geometry.height or prev.height
+        geometry.scale = geometry.scale or prev.scale
     end
     geometry.session = PopoutSessionId()
     records[key] = geometry
@@ -8594,6 +8628,73 @@ local function PopoutForgetWindow(key)
         records[key] = nil
         dmhub.SetSettingValue("popoutwindows", records)
     end
+end
+
+--===== popout zoom =====
+--A popped-out window scales exactly like an in-app rail window does --
+--the Font Size setting as a flat zoom on the whole window (see
+--WindowUIScale) -- with a per-panel override on top, stepped from the
+--window's own header. The override is what the +/- controls write.
+--
+--These hang off PanelDocument rather than being file locals because this
+--chunk is AT Lua's ceiling of 200 locals in a function: one more
+--top-level `local` in this file and it stops compiling outright.
+
+--This panel's zoom override in percent, or nil when it has none and the
+--window is following the Font Size setting.
+function PanelDocument.PopoutZoomOverride(key)
+    local zooms = dmhub.GetSettingValue("popoutzoom") or {}
+    local percent = zooms[key]
+    if type(percent) == "number" then
+        return percent
+    end
+    return nil
+end
+
+--Write (percent) or clear (nil) this panel's override. Every live popout
+--host monitors the setting, so the window re-scales off the back of this.
+function PanelDocument.SetPopoutZoomOverride(key, percent)
+    local zooms = dmhub.GetSettingValue("popoutzoom") or {}
+    zooms[key] = percent
+    dmhub.SetSettingValue("popoutzoom", zooms)
+end
+
+--The scale a popped-out window renders its content at. Outside rail mode
+--WindowUIScale is 1 (the engine magnifies fonts instead), so an
+--un-overridden popout there is unscaled exactly as it has always been.
+function PanelDocument.PopoutContentScale(key)
+    local override = PanelDocument.PopoutZoomOverride(key)
+    if override ~= nil then
+        return override * 0.01
+    end
+    return WindowUIScale()
+end
+
+--Keep the popout zoom controls on the same ladder as the General > Font Size
+--setting, so reaching that setting's value can always clear the override.
+PanelDocument.PopoutZoomSteps = {60, 70, 80, 90, 100, 110, 120, 130, 140}
+
+--The next rung above (dir > 0) or below (dir < 0) the given percentage,
+--or nil at the end of the ladder -- which is also how the controls know
+--to show themselves as inert. The epsilon keeps a percentage that IS a
+--rung (the common case) from matching itself.
+function PanelDocument.PopoutZoomStep(current, dir)
+    local steps = PanelDocument.PopoutZoomSteps
+    if dir > 0 then
+        for _, step in ipairs(steps) do
+            if step > current + 0.001 then
+                return step
+            end
+        end
+        return nil
+    end
+    for i = #steps, 1, -1 do
+        local step = steps[i]
+        if step < current - 0.001 then
+            return step
+        end
+    end
+    return nil
 end
 
 --Open the named panel in a native OS popout window. geometry (optional)
@@ -8624,9 +8725,28 @@ OpenPanelPopout = function(panelName, geometry)
         return
     end
 
-    local width = (geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth
+    --The window's content scale: the Font Size zoom an in-app rail window
+    --gets from setWindowScale, or this panel's own override.
+    --
+    --A native OS window can only be resized BY the user -- the companion
+    --owns its geometry, and the protocol carries no engine-to-companion
+    --resize. So the scale is applied the way a browser's page zoom is:
+    --the window keeps its pixel footprint and the content re-lays out denser
+    --or sparser inside it. The panel's own size is therefore always
+    --(window pixels / scale), and at creation the reverse holds: the OS
+    --window is born (panel size * scale) pixels, because that is what
+    --MoveToNativeWindow measures.
+    --
+    --geometry.scale is the scale the incoming width/height were measured
+    --at (the rail window's on a pop-out, the recorded one on a restore),
+    --so the pixel footprint carries across even when the two differ.
+    local scale = PanelDocument.PopoutContentScale(key)
+    local sourceScale = (geometry ~= nil and geometry.scale) or scale
+    local width = ((geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth) *
+        sourceScale / scale
     local height = PanelDocument.ClampHeight(panelName,
-        (geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight)
+        ((geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight) *
+            sourceScale / scale)
 
     local host
 
@@ -8672,15 +8792,67 @@ OpenPanelPopout = function(panelName, geometry)
         }
     end
 
+    --The window's own zoom, in percent -- what the controls step from and
+    --what their tooltips report. Read live rather than cached: the Font
+    --Size setting moves under a window with no override of its own.
+    local ZoomPercent = function()
+        return math.floor(PanelDocument.PopoutContentScale(key) * 100 + 0.5)
+    end
+
+    --Step the zoom one rung. Landing back exactly on what Font Size means
+    --CLEARS the override instead of freezing the window at today's value,
+    --so a window stepped back to the setting starts following it again.
+    local StepZoom = function(dir)
+        local percent = PanelDocument.PopoutZoomStep(ZoomPercent(), dir)
+        if percent == nil then
+            return
+        end
+        if percent == math.floor(WindowUIScale() * 100 + 0.5) then
+            percent = nil
+        end
+        PanelDocument.SetPopoutZoomOverride(key, percent)
+    end
+
+    --The zoom controls. A popped-out window is the one window Font Size
+    --cannot be adjusted from (the settings screen lives in the main app
+    --window), which is exactly why the override is offered here, next to
+    --the pop-in control.
+    local MakeZoomButton = function(dir, icon, verb)
+        return gui.Panel{
+            classes = {"panelDocumentCloseButton"},
+            bgimage = icon,
+            width = 15,
+            height = 15,
+            valign = "center",
+            rmargin = 6,
+            swallowPress = true,
+            linger = function(element)
+                gui.Tooltip(string.format("%s (currently %d%%)", verb, ZoomPercent()))(element)
+            end,
+            click = function(element)
+                StepZoom(dir)
+            end,
+            --fired across the window whenever its scale actually changes,
+            --plus once at build time, so the end-of-ladder state is right
+            --from the first frame.
+            popoutZoomChanged = function(element)
+                element:SetClass("popoutZoomDisabled", PanelDocument.PopoutZoomStep(ZoomPercent(), dir) == nil)
+            end,
+            create = function(element)
+                element:FireEvent("popoutZoomChanged")
+            end,
+        }
+    end
+
+    local zoomOutButton = MakeZoomButton(-1, "phosphor/magnifying-glass-minus-bold.png", "Zoom out")
+    local zoomInButton = MakeZoomButton(1, "phosphor/magnifying-glass-plus-bold.png", "Zoom in")
+
     local popInButton = gui.Panel{
         classes = {"panelDocumentCloseButton"},
         bgimage = "drawsteel/Icons_Nav_MinWindow.png",
         width = 16,
         height = 16,
-        floating = true,
-        halign = "right",
         valign = "center",
-        x = -8,
         swallowPress = true,
         linger = function(element)
             gui.Tooltip("Return to the app")(element)
@@ -8699,6 +8871,20 @@ OpenPanelPopout = function(panelName, geometry)
         end,
     }
 
+    --One floating right-anchored row for the window's controls, the shape
+    --the rail window's header uses: they share a single corner anchor
+    --instead of each carrying its own hand-tuned offset.
+    local headerControls = gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        floating = true,
+        halign = "right",
+        valign = "center",
+        x = -8,
+        children = {zoomOutButton, zoomInButton, popInButton},
+    }
+
     local header = gui.Panel{
         classes = {"panelDocumentHeader"},
         width = "100%",
@@ -8714,7 +8900,7 @@ OpenPanelPopout = function(panelName, geometry)
             valign = "center",
             lmargin = 10,
         },
-        popInButton,
+        headerControls,
     }
 
     local hairline = gui.Panel{
@@ -8759,13 +8945,19 @@ OpenPanelPopout = function(panelName, geometry)
             --an owner under this root route into the window's own modal
             --layer (Hud.ResolveModalLayer) instead of the main window's.
             nativeWindowRoot = true,
-            --the live geometry record: width/height in panel units, x/y
+            --the content scale this window is currently rendering at, so
+            --setPopoutScale can tell what changed and convert between
+            --panel units and the OS window's pixels.
+            popoutScale = scale,
+            --the live geometry record: width/height in panel units at
+            --`scale` (so the OS window is width*scale pixels wide), x/y
             --in OS screen pixels once the companion reports them.
             popoutGeometry = {
                 x = geometry ~= nil and geometry.x or nil,
                 y = geometry ~= nil and geometry.y or nil,
                 width = width,
                 height = height,
+                scale = scale,
             },
             popoutSavePending = false,
             TooltipAlignment = function()
@@ -8776,12 +8968,52 @@ OpenPanelPopout = function(panelName, geometry)
         },
 
         --fired by NativeWindowCanvas when the user resizes the OS window.
+        --w/h arrive already divided by the panel's own scale, so they are
+        --panel units at the window's current zoom -- the same space
+        --popoutGeometry records.
         resize = function(element, w, h)
             element.selfStyle.width = w
             element.selfStyle.height = h
             element.data.popoutGeometry.width = w
             element.data.popoutGeometry.height = h
             element:FireEvent("queuePopoutSave")
+        end,
+
+        --Re-apply the window's content scale after a Font Size, rail-mode
+        --or zoom-override change. The OS window keeps its pixel size (the
+        --app cannot resize it), so the panel's own size moves the other
+        --way by the same factor and the content simply gets denser or
+        --sparser inside the same frame -- browser page zoom, not a
+        --window resize.
+        --
+        --No pivot write here, deliberately: the native canvas centres the
+        --panel in the window (SheetPanel.PlaceWithinParent), so a panel
+        --sized (window pixels / scale) fills the window exactly when it
+        --scales about its own centre. Anchoring it to a corner the way
+        --the in-app window does would push the content off-window.
+        setPopoutScale = function(element)
+            local newScale = PanelDocument.PopoutContentScale(key)
+            local oldScale = element.data.popoutScale or 1
+            if newScale == oldScale then
+                return
+            end
+            local geo = element.data.popoutGeometry
+            local w = (geo.width or PanelDocument.DefaultWidth) * oldScale / newScale
+            local h = (geo.height or PanelDocument.DefaultHeight) * oldScale / newScale
+            element.data.popoutScale = newScale
+            element.selfStyle.uiscale = newScale
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+            geo.width = w
+            geo.height = h
+            geo.scale = newScale
+            element:FireEvent("queuePopoutSave")
+            element:FireEventTree("popoutZoomChanged")
+        end,
+
+        multimonitor = {"fontsize", "iconrail", "popoutzoom"},
+        monitor = function(element)
+            element:FireEvent("setPopoutScale")
         end,
 
         --fired by the engine when the OS window moves (and once at
@@ -8810,6 +9042,7 @@ OpenPanelPopout = function(panelName, geometry)
             local geo = element.data.popoutGeometry
             PopoutRememberWindow(key, {
                 x = geo.x, y = geo.y, width = geo.width, height = geo.height,
+                scale = geo.scale,
             })
         end,
 
@@ -8821,18 +9054,13 @@ OpenPanelPopout = function(panelName, geometry)
             PopoutForgetWindow(key)
         end,
 
-        --Escape pressed IN the popout window (the engine routes it to this
-        --window's own escape chain; popups in the window outrank us via
-        --listener priority). Closing = destroying the host -- the engine
-        --closes the OS window, and the rail's records stay, same contract
-        --as the rail window's escape. A deliberate dismissal, so the
-        --persistence record goes too.
-        captureEscape = true,
-        escapePriority = EscapePriority.EXIT_DIALOG,
-        escape = function(element)
-            PopoutForgetWindow(key)
-            element:DestroySelf()
-        end,
+        --Escape pressed IN the popout window deliberately has NO handler
+        --here: an OS window is not an in-app dialog, and Escape must not
+        --close it. The engine runs the window's own escape chain (popups,
+        --dropdowns and the content's own handlers, by listener priority),
+        --and a press nothing in the window consumes falls through to the
+        --main app's escape path (NativeWindowCanvas.KeyDown). Closing the
+        --window is the OS close button or the pop-in control.
 
         --recolor on a theme / color-scheme switch, exactly like the rail
         --window root: this host owns its cascade, so nothing else will.
@@ -8886,6 +9114,14 @@ OpenPanelPopout = function(panelName, geometry)
     GameHud.instance.documentsPanel:AddChild(host)
     g_panelPopouts[key] = host
 
+    --the content scale, applied on the ATTACHED host so it is in the
+    --panel's style before the scheduled move measures the rect: the OS
+    --window is created (width * scale) pixels across. Written through
+    --selfStyle rather than the constructor for the same reason the docks
+    --and the in-app windows do -- a style write takes with the layout
+    --pass that follows it.
+    host.selfStyle.uiscale = scale
+
     --record the popout immediately so it survives a Lua reload that
     --happens before the first move/resize report arrives.
     PopoutRememberWindow(key, {
@@ -8893,6 +9129,7 @@ OpenPanelPopout = function(panelName, geometry)
         y = geometry ~= nil and geometry.y or nil,
         width = width,
         height = height,
+        scale = scale,
     })
 
     wrapper:ScheduleEvent("buildPanelContent", 0.01)
@@ -10101,14 +10338,24 @@ function RailModeActive()
 end
 
 --How deeply floating rail panel windows currently intrude into the
---right edge of the screen, in UI units, clamped to [0, maxDepth].
---A window counts only when it actually reaches into the rightmost
---maxDepth band; the answer is how far the leftmost such window's left
---edge sits from the right screen edge. 0 means the band is clear.
+--right edge of the screen, in UI units. A window counts only when it
+--actually reaches into the rightmost maxDepth band; the answer is how
+--far the leftmost such window's left edge sits from the right screen
+--edge. 0 means the band is clear.
 --Exported for the right-side ability sidebar / roll host (GameHud),
 --which in rail mode sit near the right edge unless windows float there.
-function RailWindowsRightIntrusion(maxDepth)
+--Without hostReserve the result is clamped to maxDepth. With it, the
+--slide may go past maxDepth to FULLY clear the counted windows, but
+--never deeper than uiW - hostReserve -- hostReserve is the horizontal
+--room the sliding host needs (its width plus a left-edge reserve), so
+--the host always stays fully on screen even when a window covers most
+--of the width.
+function RailWindowsRightIntrusion(maxDepth, hostReserve)
     local uiW = IconRailUIWidth()
+    local slideLimit = maxDepth
+    if hostReserve ~= nil then
+        slideLimit = math.max(maxDepth, uiW - hostReserve)
+    end
     local result = 0
     for _, doc in pairs(g_panelDocuments) do
         local d = doc:try_get("_tmp_dialog")
@@ -10128,8 +10375,8 @@ function RailWindowsRightIntrusion(maxDepth)
             end
         end
     end
-    if result > maxDepth then
-        result = maxDepth
+    if result > slideLimit then
+        result = slideLimit
     elseif result < 0 then
         result = 0
     end
@@ -18044,7 +18291,13 @@ function EnsureIconRail()
         if p.session ~= session then
             PopoutForgetWindow(key)
         elseif not PanelDocument.IsPoppedOut(key) then
-            OpenPanelPopout(key, { x = p.x, y = p.y, width = p.width, height = p.height })
+            OpenPanelPopout(key, {
+                x = p.x, y = p.y, width = p.width, height = p.height,
+                --the scale the recorded size was measured at, so the
+                --window comes back the same number of SCREEN pixels even
+                --if Font Size moved while it was down.
+                scale = p.scale,
+            })
         end
     end
 

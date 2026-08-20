@@ -94,10 +94,10 @@ TacPanelSizes.Fonts = {
     -- Compact variants, used for monsters. Same boxes and the same press
     -- handlers -- a monster sheet just wants far less of the panel spent on
     -- them than a hero sheet does.
-    movePanelTitleCompact = 8,
-    movePanelValueCompact = 12,
-    charTitleCompact = 8,
-    charValueCompact = 13,
+    movePanelTitleCompact = 10,
+    movePanelValueCompact = 14,
+    charTitleCompact = 10,
+    charValueCompact = 15,
 
     hrChipValue = 12,
     hrChipEvent = 11,

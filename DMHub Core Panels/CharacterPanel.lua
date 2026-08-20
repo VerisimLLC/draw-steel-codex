@@ -2137,6 +2137,23 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         return result
     end
 
+    --The row panel is cached in memberPanes for the life of the character
+    --list, and a repopulate only fires "prepareRefresh" down it (see
+    --PopulatePartyMembers) -- a tree-wide "refresh" happens just once, when the
+    --panel is first built. So both text lines listen on BOTH events: bound to
+    --"refresh" alone they froze at creation time, which left a character made
+    --with the panel's add button (blank at that moment: "Level 1 Human", no
+    --class) showing those defaults forever after the player built them in the
+    --sheet.
+    local function RefreshNameText(element)
+        element.text = creature.GetTokenDescription(token)
+        element:SetClass("invisible", token.invisibleToPlayers)
+    end
+
+    local function RefreshSubtitleText(element)
+        element.text = SubtitleText()
+    end
+
     resultPanel = gui.Panel {
         classes = { "characterEntry" },
         bgimage = true,
@@ -2625,18 +2642,15 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                 gui.Label({
                     classes = { "charName" },
                     text = creature.GetTokenDescription(token),
-                    refresh = function(element)
-                        element.text = creature.GetTokenDescription(token)
-                        element:SetClass("invisible", token.invisibleToPlayers)
-                    end,
+                    refresh = RefreshNameText,
+                    prepareRefresh = RefreshNameText,
                 }),
 
                 gui.Label({
                     classes = { "charSubtitle" },
                     text = SubtitleText(),
-                    refresh = function(element)
-                        element.text = SubtitleText()
-                    end,
+                    refresh = RefreshSubtitleText,
+                    prepareRefresh = RefreshSubtitleText,
                 }),
             },
         }

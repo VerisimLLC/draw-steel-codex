@@ -278,6 +278,15 @@ RollUtils = {}
 
 --result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
+    -- A game system may define absolute natural-roll outcomes without
+    -- replacing this shared helper (important because several files cache the
+    -- function itself during load). Returning nil keeps the standard rules.
+    local naturalTierFn = GameSystem:try_get("PowerRollNaturalTierOverride")
+    if naturalTierFn ~= nil and type(naturalTierFn) == "function" then
+        local naturalTier = naturalTierFn(result)
+        if naturalTier ~= nil then return naturalTier end
+    end
+
     if result.autosuccess then
         return 3
     end
@@ -3536,7 +3545,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 options.symbols.cast:SetTierResult(target.token, tier)
                 local command = self.tiers[tier]
                 self:ExecuteCommand(ability, casterToken, target.token, options, command)
@@ -3593,7 +3602,7 @@ function ActivatedAbilityPowerRollBehavior:CastCustom(ability, casterToken, targ
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 if self:has_key("callback") then
                     self.callback(target.token, tier)
                 end

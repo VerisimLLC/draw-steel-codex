@@ -697,7 +697,10 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"dropdown", "hover", "~search"},
-            bgcolor = "@fg",
+            --hover fills use @accentHover, not @fg/@bgInverse: the
+            --parchment text color as a large fill read as aged paper
+            --over warm map art (Venla 2026-08-19; see menuItem hover).
+            bgcolor = "@accentHover",
         },
         -- The search field inside an open dropdown popup. It is a
         -- {searchInput}, so it picks up the base {input} rule's border = 2 --
@@ -821,13 +824,15 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"dropdownOption", "hover"},
             color = "@fgInverse",
-            bgcolor = "@bgInverse",
+            --@accentHover, not @bgInverse: the aged-paper hover fix
+            --(see menuItem hover).
+            bgcolor = "@accentHover",
             priority = 5,
         },
         {
             selectors = {"dropdownOption", "searchfocus"},
             color = "@bg",
-            bgcolor = "@fg",
+            bgcolor = "@accentHover",
         },
         {
             selectors = {"dropdownOption", "disabled"},
@@ -1472,7 +1477,11 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"menuItem", "hover"},
-            bgcolor = "@fg",
+            --@accentHover, not @fg: the parchment TEXT color as a large
+            --fill sits at ~87% lightness, and floating over warm map art
+            --it read as aged/tea-stained paper (Venla 2026-08-19). The
+            --brighter accent fill keeps the warmth but reads clean.
+            bgcolor = "@accentHover",
         },
         {
             selectors = {"menuLabel"},
@@ -1520,7 +1529,10 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"contextMenuItem", "hover"},
-            bgcolor = "@fg",
+            --@accentHover, not @fg: the aged-paper hover fix (see
+            --menuItem hover) -- these rows drop down from the very
+            --menu tabs that motivated it.
+            bgcolor = "@accentHover",
             color = "@bg",
         },
         {

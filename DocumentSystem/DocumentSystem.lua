@@ -5870,6 +5870,10 @@ function PanelDocument:CreateInterface(args)
         if reg == nil then
             return
         end
+        --same gate as the docks: a saved tab must not be the way back in.
+        if not DockablePanel.PanelPermittedForUser(reg) then
+            return
+        end
         local tab = {
             key = key,
             reg = reg,
@@ -11403,7 +11407,14 @@ ShowToolkitStrip = function(id, anchorX, anchorY)
     for i, item in ipairs(tk.items or {}) do
         --unknown item types are skipped: a future version's action or
         --widget items degrade to nothing rather than erroring here.
-        if item.type == "panel" then
+        --a Director-only panel saved into a rail before it was flagged must
+        --not come back as a button either (report XRA4WE35). A synthetic entry
+        --has no registration, and those stay.
+        local itemPermitted = item.type ~= "panel"
+            or DockablePanel.PanelPermittedForUser(
+                DockablePanel.GetRegistration(string.lower(item.panel or "")))
+
+        if item.type == "panel" and itemPermitted then
             local itemKey = string.lower(item.panel or "")
             local reg = DockablePanel.GetRegistration(itemKey)
             local itemName = (reg ~= nil and reg.name) or item.panel or "?"

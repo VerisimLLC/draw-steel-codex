@@ -2196,9 +2196,44 @@ end
 
 
 
+--May THIS user have this panel at all? devonly panels need dev mode, dmonly
+--panels need the Director.
+--
+--This has to be asked everywhere a panel is instantiated, not just where the
+--Panels menu is built. It previously guarded only the menu, so a player who
+--had docked a Director-only panel BEFORE it was flagged kept getting it
+--restored from their saved layout on every launch -- report XRA4WE35, a
+--player's dock listing the Director's encounter rosters, monster counts, EV
+--and all. Hiding the menu entry does nothing for a panel that is already
+--docked.
+--
+--Checking dmhub.isDM here is no more fragile than what the layout already
+--does: GetDockablePanelsSetting picks which saved layout to read from the
+--same flag, so if it were unresolved the wrong dock config would load
+--wholesale. Player and Director layouts are separate settings, so a panel
+--dropped from a player's layout can never cost a Director theirs.
+local PanelPermittedForUser = function(p)
+	if p == nil then
+		--unknown identifier (a mod that is not loaded): leave it to the
+		--caller, which finds no registration and adds nothing.
+		return true
+	end
+	if p.devonly and not devmode() then
+		return false
+	end
+	if p.dmonly and not dmhub.isDM then
+		return false
+	end
+	return true
+end
+
 DockablePanel = {}
 
 DockablePanel = {
+	--Exposed because the icon rail and the panel windows restore panels from
+	--their own saved config, not from the docks, and must apply the same rule.
+	PanelPermittedForUser = PanelPermittedForUser,
+
 	ContentWidth = 364,
 	DockWidth = 364,
     FloatingDockMargin = 100,
@@ -2377,7 +2412,7 @@ DockablePanel = {
 
 		for _,name in ipairs(names) do
 			for k,p in pairs(dockablePanels) do
-				if string.lower(p.name) == string.lower(name) then
+				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
 					local instance = existing[p.identifier]
 					existing[p.identifier] = nil
 					if instance == nil or not instance.valid then
@@ -2407,10 +2442,7 @@ DockablePanel = {
 		local result = {}
 		for k,p in pairs(dockablePanels) do
 
-			local available = (not p.devonly) or devmode()
-            if p.dmonly and not dmhub.isDM then
-                available = false
-            end
+			local available = PanelPermittedForUser(p)
 
 			--A panel may hide itself from the menus in this context --
 			--Maps, for one, which players only get when there is a map
@@ -2700,14 +2732,19 @@ DockablePanel = {
 					--try to find the panel with this identifier and create it.
 					
 					for _,panelid in ipairs(panelInfo.tabs) do
-					
-						if existingInstances[panelid] ~= nil then
-							panelInstances[#panelInstances+1] = existingInstances[panelid]
-							existingInstances[panelid] = nil
-						else
-							for k,p in pairs(dockablePanels) do
-								if p.identifier == panelid then
-									panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+
+						--Skipping rather than dropping the entry: any live
+						--instance stays in existingInstances and is destroyed
+						--by the cleanup at the end of this function.
+						if PanelPermittedForUser(dockablePanels[panelid]) then
+							if existingInstances[panelid] ~= nil then
+								panelInstances[#panelInstances+1] = existingInstances[panelid]
+								existingInstances[panelid] = nil
+							else
+								for k,p in pairs(dockablePanels) do
+									if p.identifier == panelid then
+										panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+									end
 								end
 							end
 						end

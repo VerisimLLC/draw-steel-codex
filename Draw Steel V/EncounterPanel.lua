@@ -379,6 +379,70 @@ local function PlacedTokensForGroup(group)
     return result
 end
 
+--The group's monsters in a stable order.
+--
+--pairs() over group.monsters has no defined order, and INSERTING a key can
+--rehash the whole table -- so a spawn loop driven by pairs() reshuffles every
+--monster the moment the roster is edited. Adding a captain to a group whose
+--positions were already banked handed the captain a minion's saved tile
+--(report BFUBGW59). Sorting by monsterid makes slot assignment reproducible
+--across roster edits, app restarts, and the staging/real-placement pair.
+local function SortedMonsterIds(group)
+    local ids = {}
+    for monsterid, _ in pairs(group.monsters or {}) do
+        ids[#ids + 1] = monsterid
+    end
+    table.sort(ids)
+    return ids
+end
+
+--Regroup the flat banked slots into one queue of saved positions PER MONSTER
+--TYPE, so an edit to the roster cannot hand one monster's tile to another.
+--Each entry carries the appearance and player-visibility banked with it, since
+--those are slot-keyed too and must travel with the position.
+--
+--Positions banked before spawnmonsters existed carry no monsterid stamp; they
+--go into a shared legacy queue any monster may draw from in slot order, which
+--reproduces the old flat behaviour for encounters saved by older builds.
+local function BankedPositionQueues(group)
+    local queues = {}
+    local legacy = {}
+    local locs = group.spawnlocs or {}
+    for slot = 1, #locs do
+        local entry = {
+            loc = locs[slot],
+            appearance = (group.appearances or {})[slot],
+            invisible = (group.invisibleToPlayers or {})[slot],
+        }
+        local monsterid = (group.spawnmonsters or {})[slot]
+        if monsterid == nil or monsterid == false then
+            legacy[#legacy + 1] = entry
+        else
+            local queue = queues[monsterid]
+            if queue == nil then
+                queue = {}
+                queues[monsterid] = queue
+            end
+            queue[#queue + 1] = entry
+        end
+    end
+    return queues, legacy
+end
+
+--Draw the next saved position for this monster type, or nil once the group has
+--outgrown what was banked (a monster added since, or a quantity raised). nil
+--means the caller must fall back -- never that the monster is skipped.
+local function TakeBankedPosition(queues, legacy, monsterid)
+    local queue = queues[monsterid]
+    if queue ~= nil and #queue > 0 then
+        return table.remove(queue, 1)
+    end
+    if #legacy > 0 then
+        return table.remove(legacy, 1)
+    end
+    return nil
+end
+
 --Bank one group's staged tokens into the group: positions (spawnlocs),
 --player-visibility, and (when the encounter opts in) appearances, all in
 --spawn-slot order. Also stamps the map the positions belong to -- spawnlocs
@@ -392,10 +456,16 @@ local function BankGroupPositions(group, saveAppearances)
     group.spawnlocs = {}
     group.appearances = {}
     group.invisibleToPlayers = {}
+    group.spawnmonsters = {}
     group.stagemapid = game.currentMapId
     for slot, token in ipairs(tokens) do
         group.spawnlocs[slot] = token.loc
         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
+        --which monster type held this tile, so a later restage can hand it back
+        --to the same one even if the roster changed in between. false (never
+        --nil) for tokens spawned before the stamp existed: the list has to stay
+        --dense or serialization compacts it and shifts every later entry.
+        group.spawnmonsters[slot] = token.properties:try_get("encounterSpawnMonster") or false
         if saveAppearances and token.appearanceChangedFromBestiary then
             group.appearances[slot] = token:SerializeAppearanceToString()
         else
@@ -414,35 +484,59 @@ end
 
 --Spawn a group's monsters at its saved staging positions (group.spawnlocs),
 --restoring saved appearances and player-visibility, and tag them with the
---group's placement id so the builder recognises them as staged. Slots that
---have no saved position are skipped. Returns the spawned tokens.
+--group's placement id so the builder recognises them as staged. A monster with
+--no banked position of its own -- one added to the group since it was staged --
+--goes to a fallback grid rather than being skipped. Returns the spawned tokens.
 local function StageGroupAtSavedLocations(group, numHeroes, placementid)
     local tokens = {}
+    local queues, legacy = BankedPositionQueues(group)
+
+    --Where monsters with nothing banked land: beside the group's own saved
+    --arrangement, so a captain added after staging appears next to their
+    --minions rather than wherever the camera happens to point.
+    local fallbackAnchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
+    local baseX = round(fallbackAnchor.x)
+    local baseY = round(fallbackAnchor.y)
+    local floorIndex = game.currentFloorIndex
+    local fallbackIndex = 0
+
     local slot = 1
-    for monsterid, quantity in pairs(group.monsters) do
-        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
-            local loc = (group.spawnlocs or {})[slot]
+            local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local loc = entry ~= nil and entry.loc or nil
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
                 end
-                local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
-                if token ~= nil then
-                    token.properties.encounterPlacementId = placementid
-                    token.properties.encounterSpawnSlot = slot
-                    token.properties.encounterStaged = true
-                    token.properties.encounterStagedBy = dmhub.userid
-                    local appearance = (group.appearances or {})[slot]
-                    if type(appearance) == "string" then
-                        token:SerializeAppearanceFromString(appearance)
-                    end
-                    if (group.invisibleToPlayers or {})[slot] then
-                        token.invisibleToPlayers = true
-                    end
-                    token:UploadToken()
-                    tokens[#tokens + 1] = token
+            else
+                --Same 5-wide grid SpawnGroupForReal uses for unbanked monsters.
+                --Skipping instead (as this did) silently lost the monster: the
+                --user got a captain and seven of their eight minions, with no
+                --indication one had never spawned.
+                local col = fallbackIndex % 5
+                local row = math.floor(fallbackIndex / 5)
+                loc = core.Loc { x = baseX + col, y = baseY + row, floorIndex = floorIndex }
+                fallbackIndex = fallbackIndex + 1
+            end
+
+            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
+            if token ~= nil then
+                token.properties.encounterPlacementId = placementid
+                token.properties.encounterSpawnSlot = slot
+                token.properties.encounterSpawnMonster = monsterid
+                token.properties.encounterStaged = true
+                token.properties.encounterStagedBy = dmhub.userid
+                local appearance = entry ~= nil and entry.appearance or nil
+                if type(appearance) == "string" then
+                    token:SerializeAppearanceFromString(appearance)
                 end
+                if entry ~= nil and entry.invisible then
+                    token.invisibleToPlayers = true
+                end
+                token:UploadToken()
+                tokens[#tokens + 1] = token
             end
             slot = slot + 1
         end
@@ -2646,6 +2740,7 @@ local function CreateGroupCard(args)
                         copy.spawnlocs = nil
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
+                        copy.spawnmonsters = nil
                         encounter.groups[#encounter.groups + 1] = copy
                         rebuild()
                     end,
@@ -2681,6 +2776,7 @@ local function CreateGroupCard(args)
                         group.spawnlocs = nil
                         group.appearances = nil
                         group.invisibleToPlayers = nil
+                        group.spawnmonsters = nil
                         group.stagemapid = nil
                         refresh()
                     end,
@@ -3469,7 +3565,8 @@ end
 local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
     local minionName = nil
     local nsquads = 1
-    for monsterid, quantity in pairs(group.monsters) do
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = group.monsters[monsterid]
         local monsterAsset = assets.monsters[monsterid]
         if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
             minionName = monsterAsset.properties.monster_type
@@ -3498,10 +3595,13 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
     local fallbackIndex = 0
     local nsquad = 1
 
-    for monsterid, quantity in pairs(group.monsters) do
-        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+    local queues, legacy = BankedPositionQueues(group)
+
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
-            local loc = (group.spawnlocs or {})[slot]
+            local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local loc = entry ~= nil and entry.loc or nil
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
@@ -3522,14 +3622,15 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 if group.placementid ~= nil then
                     token.properties.encounterPlacementId = group.placementid
                     token.properties.encounterSpawnSlot = slot
+                    token.properties.encounterSpawnMonster = monsterid
                     token.properties.encounterStaged = false
                 end
 
-                local appearanceInfo = (group.appearances or {})[slot]
+                local appearanceInfo = entry ~= nil and entry.appearance or nil
                 if type(appearanceInfo) == "string" then
                     token:SerializeAppearanceFromString(appearanceInfo)
                 end
-                if (group.invisibleToPlayers or {})[slot] then
+                if entry ~= nil and entry.invisible then
                     token.invisibleToPlayers = true
                 end
 

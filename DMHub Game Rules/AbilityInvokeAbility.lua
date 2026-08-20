@@ -1292,7 +1292,13 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 	local standardAbilities = {}
 	for k,v in unhidden_pairs(dmhub.GetTable("standardAbilities") or {}) do
-		standardAbilities[#standardAbilities+1] = { text = v.name, id = k }
+		--A nameless standardAbilities row would put a nil into the dropdown's
+		--sort comparator and stop the menu from opening at all.
+		local abilityName = v.name
+		if type(abilityName) ~= "string" or abilityName == "" then
+			abilityName = "(Unnamed)"
+		end
+		standardAbilities[#standardAbilities+1] = { text = abilityName, id = k }
 	end
 
 	result[#result+1] = gui.Panel{

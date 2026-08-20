@@ -198,7 +198,14 @@ function gui.Dropdown(args)
 						end
 					end
 
-					return ResolveFunction(a.text) < ResolveFunction(b.text)
+					--Guard against a malformed option with a nil/non-string text.
+					--One such option used to make this comparator throw, which
+					--aborts table.sort and leaves the popup unbuilt.
+					local atext = ResolveFunction(a.text)
+					local btext = ResolveFunction(b.text)
+					if type(atext) ~= "string" then atext = "" end
+					if type(btext) ~= "string" then btext = "" end
+					return atext < btext
 				end)
 			end
 

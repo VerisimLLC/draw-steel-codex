@@ -4,6 +4,15 @@ CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
 
+-- Optional coordination metadata for modifiers chosen after the dice land.
+-- An empty group preserves the ordinary independent-checkbox behavior. Mods
+-- that share a non-empty group behave as a single choice. consumeOncePerRoll
+-- prevents a modifier copied across several targets from billing once per
+-- target; it is deliberately opt-in so existing Draw Steel modifiers retain
+-- their current semantics.
+CharacterModifier.afterRollExclusiveGroup = ""
+CharacterModifier.consumeOncePerRoll = false
+
 local g_powerRollTypes = {
     {
         id = "all",

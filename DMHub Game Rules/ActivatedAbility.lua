@@ -2654,6 +2654,14 @@ end
 --- @param targets { loc = Loc, token = CharacterToken }[]
 --- @param options table
 function ActivatedAbility:Cast(casterToken, targets, options)
+	--While the Director has the game frozen, players cannot act. Refuse here,
+	--before the chat message and before any resources are spent -- this is the
+	--central funnel every ability activation path goes through.
+	if dmhub.frozen and not dmhub.isDM then
+		print("Cast:: refused; the game is frozen")
+		return
+	end
+
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()

@@ -2053,6 +2053,12 @@ local function AbilityHeading(args)
         end,
 
         press = function(element)
+            -- While the Director has the game frozen, players cannot act at
+            -- all; the FROZEN banner on screen explains why. Directors bypass.
+            if (not dmhub.isDM) and dmhub.frozen then
+                return
+            end
+
             -- Strict resource enforcement: if a player tries to use an ability
             -- whose icon is greyed out (insufficient resources, action already
             -- expended this round, or the ability filter suppresses it), the

@@ -4364,7 +4364,7 @@ local function MakeHeroPanel(heroIndex)
         -- playingInCampaignBanner class supplies @bgAlt bgcolor via the
         -- Heroes column's MergeStyles extras. The {banner} class stays
         -- for the existing hover-brightness rules below.
-        classes = { "collapsed", "banner", "playingInCampaignBanner" },
+        classes = { "collapsed", "banner", "playingInCampaignBanner", "hiddenWithNoCharacter" },
         width = "94%",
         height = "20% width",
         bgimage = true,

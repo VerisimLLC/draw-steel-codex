@@ -2080,6 +2080,28 @@ function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
 
+--An invoked custom ability carries its own power roll (e.g. the Reaver's
+--Phalanx Breaker shifts, then invokes a three-target power roll). The card's
+--render pass already unwraps those nested tiers to display them, so this
+--lookup has to find the same roll -- it gates the whole power-roll section,
+--which stays collapsed while it returns "".
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
+    if self.abilityType ~= "custom" then
+        return nil
+    end
+
+    --Take the last matching subbehavior, which is what the render pass shows.
+    local customAbility = self:try_get("customAbility")
+    local result = nil
+    for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
+        if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            result = subbehavior:GetPowerRollDisplay()
+        end
+    end
+
+    return result
+end
+
 --Resolves the value of the characteristic this power roll uses for `caster`,
 --e.g. 5 for a hero whose roll is "2d10 + Reason" with Reason +5, or the higher
 --of the two for "2d10 + Might or Agility". Returns nil when the roll formula

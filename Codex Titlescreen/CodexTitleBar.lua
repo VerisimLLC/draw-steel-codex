@@ -3173,9 +3173,13 @@ local function CreateTopBar()
 
 
     local m_documents
+    --Generic until the tracked documents say which adventure this is; GameHud's
+    --adventure-documents manager fires "setname"/"seticon" with the real
+    --identity. An icon must be set here for CreateCodexMenuItem to build the
+    --icon panel at all -- that panel owns the "seticon" handler.
     local m_adventureDocumentsBar = CreateCodexMenuItem{
-        icon = "panels/drawsteel/delian-tomb.png",
-        name = "Delian Tomb",
+        icon = "phosphor/book-open.png",
+        name = "Adventure Documents",
         create = function(element)
             element.selfStyle.collapsed = 1
         end,

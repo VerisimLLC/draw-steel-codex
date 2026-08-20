@@ -1027,6 +1027,61 @@ local function CreateLobbyHud(dialog, tokenInfo)
     return gamehud
 end
 
+--The generic identity for the tracked-documents top bar when the adventure
+--cannot be named. Kept in step with the initial values CodexTitleBar.lua gives
+--the menu item itself.
+local g_adventureDocumentsIcon = "phosphor/book-open.png"
+
+--Walks a document's journal-folder ancestry and returns the description of the
+--outermost real folder (the built-in roots -- Shared/Private/Templates/map --
+--are not in the folders table, so the walk simply runs out there). Adventures
+--ship their documents under a single top-level folder named for the adventure,
+--so that folder is the adventure's name. Returns nil for a document that sits
+--loose in a built-in root.
+local function AdventureFolderNameForDoc(doc)
+    local foldersTable = assets.documentFoldersTable or {}
+    local folderId = doc.parentFolder
+    local name = nil
+    local count = 0
+    while folderId ~= nil and folderId ~= "" and count < 20 do
+        local folder = foldersTable[folderId]
+        if folder == nil then
+            break
+        end
+        if not folder.hidden then
+            name = folder.description or name
+        end
+        folderId = folder.parentFolder
+        count = count + 1
+    end
+    return name
+end
+
+--The label for the tracked-documents top bar, derived from the documents being
+--tracked: if they all live under the same adventure folder, that adventure is
+--what the director is running. Returns nil when the answer is not unanimous
+--(two adventures tracked at once, or documents with no adventure folder) --
+--TopBar.SetAdventureDocuments renders a nil name as "Adventure Documents".
+local function AdventureDocumentsLabel(documentids)
+    local documentsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+    local result = nil
+    for _,docid in ipairs(documentids) do
+        local doc = documentsTable[docid]
+        if doc == nil then
+            return nil
+        end
+
+        local name = AdventureFolderNameForDoc(doc)
+        if name == nil or (result ~= nil and result ~= name) then
+            return nil
+        end
+
+        result = name
+    end
+
+    return result
+end
+
 function GameHud:CreateAdventureDocumentsManager()
     local resultPanel
 
@@ -1066,9 +1121,22 @@ function GameHud:CreateAdventureDocumentsManager()
 
             print("AdventureDoc:: MONITOR", docs, "->", documentids)
 
-            local meta = m_docs["meta"] or {
-                icon = "panels/drawsteel/delian-tomb.png",
-                name = "Delian Tomb",
+            --An adventure can name its own bar with /setadventuredocumentstitle,
+            --but almost none do, and defaulting to the starter adventure's
+            --identity branded every adventure "Delian Tomb". Derive the name
+            --from the tracked documents instead, and fall back to the generic
+            --identity rather than to a specific adventure's.
+            local metaRecord = m_docs["meta"]
+            local metaName = metaRecord and metaRecord.name
+            if metaName == "" then
+                --the whole-adventure "untrack" buttons blank the title to clear
+                --it; an empty label would otherwise leave a nameless bar.
+                metaName = nil
+            end
+
+            local meta = {
+                name = metaName or AdventureDocumentsLabel(documentids),
+                icon = (metaRecord and metaRecord.icon) or g_adventureDocumentsIcon,
             }
 
             TopBar.SetAdventureDocuments(meta, documentids)
@@ -1079,10 +1147,6 @@ function GameHud:CreateAdventureDocumentsManager()
         end,
 
         destroy = function(element)
-            local meta = m_docs["meta"] or {
-                icon = "panels/drawsteel/delian-tomb.png",
-                name = "Delian Tomb",
-            }
             TopBar.SetAdventureDocuments(nil, {})
             print("ADVENTURE:: DESTROY DOC")
         end,

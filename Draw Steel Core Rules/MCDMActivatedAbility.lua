@@ -1415,6 +1415,12 @@ function ActivatedAbility:Render(options, params)
         actionText = resourceInfo.name
     end
 
+    --Malice abilities collapse the action label and the target/range section:
+    --they are effects bought with malice, so "Free" and the default targeting
+    --info carry no information. The keyword row survives only if the ability
+    --actually has keywords.
+    local isMaliceAbility = self.categorization == "Malice"
+
     local preDescription = self:try_get("preDescription", "")
     local description = self.description
 
@@ -1601,6 +1607,9 @@ function ActivatedAbility:Render(options, params)
     local descriptionString
     if description == "" then
         descriptionString = ""
+    elseif isMaliceAbility then
+        --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description
     end
@@ -1941,6 +1950,7 @@ function ActivatedAbility:Render(options, params)
                 height = 25,
                 tmargin = 6,
                 flow = "horizontal",
+                collapsed = cond(isMaliceAbility and #keywords == 0, 1, 0),
 
                 --keywords
                 gui.Label {
@@ -1970,6 +1980,7 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     halign = "right",
                     markdown = true,
+                    collapsed = cond(isMaliceAbility, 1, 0),
 
 
                 },
@@ -1986,6 +1997,7 @@ function ActivatedAbility:Render(options, params)
                 height = "auto",
                 tmargin = 2,
                 flow = "vertical",
+                collapsed = cond(isMaliceAbility, 1, 0),
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then

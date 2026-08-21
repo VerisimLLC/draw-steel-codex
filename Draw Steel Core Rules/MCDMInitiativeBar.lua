@@ -3983,7 +3983,11 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			width = "auto",
 			height = "auto",
 			textAlignment = "center",
-			text = cond(playerside, "Ready Heroes", "Ready Monsters"),
+			--Director overview P2-b: for the Director the monster-side label
+			--is an action ("Select All" - field test: "Ready Monsters" did
+			--not read as clickable); players and the hero side keep the
+			--plain status wording.
+			text = cond(playerside, "Ready Heroes", cond(dmhub.isDM, "Select All", "Ready Monsters")),
 
 			--Director overview P2-b (DIRECTOR_ENCOUNTER_OVERVIEW_DESIGN.md,
 			--Decision 39): on the monster side, the Director can click this
@@ -4815,8 +4819,16 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					--Shorten the label text when the segment is only one card wide so it
 					--still fits beneath the bar.
 					container.data.hadTurnLabel.text = (hadTurnCount == 1) and "Moved" or "Already Moved"
-					container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready"
-						or (container.data.player and "Ready Heroes" or "Ready Monsters")
+					--Director overview P2-b: the Director's monster-side label
+					--is the "Select All" action (see the label's press); keep
+					--the plain status wording for players and the hero side.
+					if container.data.player then
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Heroes"
+					elseif dmhub.isDM then
+						container.data.unmovedLabel.text = "Select All"
+					else
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Monsters"
+					end
 					--Labels only show when this side is currently choosing the next turn,
 					--and the bucket has at least one card to label.
 					container.data.hadTurnLabel.selfStyle.hidden = (active and hadTurnCount > 0) and 0 or 1

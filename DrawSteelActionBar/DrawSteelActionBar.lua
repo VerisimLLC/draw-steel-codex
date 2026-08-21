@@ -195,9 +195,15 @@ function DrawSteelActionBar.SelectReadyMonsters()
                 end
             end)
             if ok and q ~= nil then
-                local acted = nil
-                pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) end)
-                if acted == true then
+                --Field test 4: only monsters that are actually IN the
+                --initiative order. Reinforcements parked in "Ready Monsters"
+                --(the A5 Snipers) are not part of the encounter yet and
+                --selecting them was noise.
+                local initiativeid = nil
+                pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(tok) end)
+                if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
+                    ok = false
+                elseif q:HasHadTurn(initiativeid) then
                     ok = false
                 end
             end
@@ -1379,101 +1385,106 @@ local OVERVIEW_FOOTER_RULES = {
     --F2-4: every text in the footer sits at the X11 READ floor (12px) or
     --above; 11px was reported unreadable on a laptop. Names never wrap and
     --ellipsize instead of overflowing the column border.
-    --P2-c1 lens bar (Decision 27: fixed width, arrows never move) and the
-    --lens channel on chips (X3: matching = gold frame, non-matching dims to
-    --.45 and never stacks with the acted/cannot-afford channels).
+    --P2-c1 lens bar, field-test-4 restyle: flat and quiet (icon-rail
+    --spirit) - no box, no border; a row of text tabs, active = gold with a
+    --2px underline, zero-count tabs dimmed but pressable. The row keeps a
+    --near-black translucent backing so it reads over any map and eats the
+    --click (never a click-through to the map).
     {
         selectors = { "overviewLensBar" },
-        width = 237,
+        width = "auto",
         height = "auto",
         flow = "vertical",
         halign = "center",
         valign = "bottom",
         bmargin = 6,
-        bgimage = true,
-        bgcolor = "#1D1D1D",
-        borderColor = "#606060",
-        borderWidth = 1.5,
-        pad = 4,
-        borderBox = true,
-    },
-    {
-        selectors = { "overviewLensBar", "active" },
-        borderColor = Styles.Ability.goldColor,
     },
     {
         selectors = { "overviewLensRow" },
-        width = "100%",
-        height = 24,
+        width = 6 * 96 + 8,
+        height = "auto",
         flow = "horizontal",
         halign = "center",
         valign = "center",
+        bgimage = true,
+        bgcolor = "#000000AA",
+        cornerRadius = 4,
+        pad = 2,
+        borderBox = false,
     },
     {
-        selectors = { "overviewLensArrow" },
-        width = 22,
-        height = "100%",
-        fontSize = 14,
-        bold = true,
-        color = Styles.Ability.goldColor,
-        textAlignment = "center",
+        selectors = { "overviewLensTab" },
+        width = 96,
+        height = "auto",
         halign = "left",
         valign = "center",
-        bgimage = true,
-        bgcolor = "#2A2A2A",
-        borderColor = "#606060",
-        borderWidth = 1,
+        hpad = 4,
+        vpad = 3,
+        borderBox = true,
+        bgcolor = "clear",
     },
     {
-        selectors = { "overviewLensArrow", "hover" },
-        bgcolor = "#3A3A3A",
-        borderColor = "white",
+        selectors = { "overviewLensTab", "hover" },
+        bgcolor = "#ffffff18",
         transitionTime = 0.1,
     },
     {
-        selectors = { "overviewLensLabelHolder" },
-        width = "100%-52",
-        height = "100%",
-        hmargin = 4,
-        halign = "left",
-        valign = "center",
-        bgimage = true,
-        bgcolor = "#2A2A2A",
-        borderColor = "#606060",
-        borderWidth = 1,
-    },
-    {
-        selectors = { "overviewLensLabelHolder", "hover" },
-        bgcolor = "#3A3A3A",
-        borderColor = "white",
-        transitionTime = 0.1,
-    },
-    {
-        selectors = { "overviewLensLabel" },
+        selectors = { "overviewLensTabLabel" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
-        bold = true,
-        color = Styles.Ability.goldColor,
+        fontSize = 13,
+        color = Styles.textColor,
+        opacity = 0.75,
         textAlignment = "center",
         textWrap = false,
         textOverflow = "ellipsis",
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:hover" },
+        color = "white",
+        opacity = 1,
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:active" },
+        color = Styles.Ability.goldColor,
+        opacity = 1,
+        bold = true,
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:zero", "~parent:active" },
+        opacity = 0.35,
+    },
+    {
+        selectors = { "overviewLensTabLine" },
+        width = "100%-8",
+        height = 2,
         halign = "center",
-        valign = "center",
+        valign = "bottom",
+        tmargin = 2,
+        bgimage = true,
+        bgcolor = Styles.Ability.goldColor,
     },
     {
         selectors = { "overviewLensEmpty" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         textAlignment = "center",
         textWrap = true,
         tmargin = 4,
     },
+    --Match side pops (field test 4: the dim alone did not steer the eye to
+    --Toxic Winds over Swamp Gas); off-lens dim floors at .45 per X3.
     {
         selectors = { "abilityHeading", "onLens" },
         borderColor = Styles.Ability.goldColor,
+        borderWidth = 2.5,
+        brightness = 1.15,
+    },
+    {
+        selectors = { "abilityHeading", "offLens" },
+        saturation = 0.5,
     },
     --Decision 45 condition glyph row on overview chips (>= 16px, X15).
     {
@@ -1498,14 +1509,14 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewConditionMore" },
         width = "auto",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         halign = "left",
         valign = "center",
     },
     {
         selectors = { "overviewLensKey" },
-        fontSize = 12,
+        fontSize = 13,
         color = "#C9A86A",
         textWrap = false,
         width = "100%-20",
@@ -1524,7 +1535,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewLensEveryone" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         opacity = 0.75,
         textAlignment = "center",
@@ -1569,7 +1580,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewStatusMore" },
         width = "auto",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         halign = "left",
         valign = "center",
@@ -1610,7 +1621,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterLine" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         textAlignment = "left",
         textWrap = false,
@@ -1619,7 +1630,7 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "overviewFooterRow" },
         width = "100%",
-        height = 30,
+        height = 32,
         flow = "horizontal",
         halign = "left",
         tmargin = 3,
@@ -1644,7 +1655,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterRowLabel" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         textAlignment = "left",
         textWrap = false,
@@ -1655,7 +1666,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterRowSignal" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         opacity = 0.85,
         textAlignment = "left",
@@ -1667,7 +1678,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterMore" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         textAlignment = "left",
         tmargin = 3,
@@ -1704,9 +1715,11 @@ local OVERVIEW_FOOTER_RULES = {
     },
     --Action economy on overview chips (field test 2): a legible 12px line
     --under the keywords, gold so it reads as structure, not as a keyword.
+    --Community colour coding (field test 4): Maneuver = blue. The WORD is
+    --the colour-blind channel (X12) - colour is reinforcement only.
     {
         selectors = { "overviewActionType" },
-        fontSize = 12,
+        fontSize = 13,
         bold = true,
         color = Styles.Ability.goldColor,
         textWrap = false,
@@ -1715,6 +1728,14 @@ local OVERVIEW_FOOTER_RULES = {
         halign = "left",
         valign = "center",
         vmargin = 1,
+    },
+    {
+        selectors = { "overviewActionType", "maneuver" },
+        color = "#5B9BD5",
+    },
+    {
+        selectors = { "overviewActionType", "freeaction" },
+        color = "#B8B8B8",
     },
     {
         selectors = { "overviewActionType", "expended" },
@@ -1738,7 +1759,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewFooterPrompt" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "left",
@@ -1759,13 +1780,13 @@ local OVERVIEW_FOOTER_RULES = {
     {
         selectors = { "overviewTakeTurn" },
         width = "100%",
-        height = 24,
+        height = 26,
         tmargin = 6,
         bgimage = true,
         bgcolor = "#2A2A2A",
         borderColor = Styles.Ability.goldColor,
         borderWidth = 1,
-        fontSize = 12,
+        fontSize = 13,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "center",
@@ -1794,7 +1815,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewTakeTurnReason" },
         width = "100%",
         height = "auto",
-        fontSize = 12,
+        fontSize = 13,
         color = Styles.textColor,
         textAlignment = "center",
         textWrap = true,
@@ -3521,6 +3542,8 @@ local function AbilityHeading(args)
                         text = label or ""
                     end
                     element.text = text
+                    element:SetClass("maneuver", text == "Maneuver" or text == "Free Maneuver")
+                    element:SetClass("freeaction", text == "Free Action")
                     element:SetClass("collapsed", text == "")
                 end,
             },
@@ -3925,15 +3948,22 @@ end
 
 --"3 heroes in reach" / "1 hero in reach" / "No hero in reach"; short = "3 in
 --reach" for the mini-rows.
+--Zero reads AMBER + bold (field test 4: white "0 in reach" did not steer -
+--zero is the "rule this monster out this turn" cue and must pop the way
+--"Turn already taken" does in red).
+local OVERVIEW_NOREACH_COLOR = "#E0A050"
 local function OverviewReachText(reach, short)
     if reach == nil then
         return nil
     end
     if short then
+        if reach.count == 0 then
+            return string.format("<color=%s><b>0 in reach</b></color>", OVERVIEW_NOREACH_COLOR)
+        end
         return string.format("%d in reach", reach.count)
     end
     if reach.count == 0 then
-        return "No hero in reach"
+        return string.format("<color=%s><b>No hero in reach</b></color>", OVERVIEW_NOREACH_COLOR)
     elseif reach.count == 1 then
         return "1 hero in reach"
     end
@@ -4169,6 +4199,40 @@ local function OverviewLocate(centerToken, pulseTokens)
     local tokens = {}
     for _, tok in ipairs(pulseTokens or { centerToken }) do
         tokens[#tokens + 1] = tok
+    end
+
+    --Field test 4: when locating a GROUP (a minion squad's mini-row), pan to
+    --the member nearest the group's centroid, not to whichever token happened
+    --to be listed first - in A5 one "Squad 4" Sniper is parked with Squad 5,
+    --and centering on it read as "panned to the wrong squad".
+    if #tokens > 1 then
+        local sx, sy, n = 0, 0, 0
+        for _, tok in ipairs(tokens) do
+            if tok ~= nil and tok.valid then
+                pcall(function()
+                    sx = sx + tok.loc.x
+                    sy = sy + tok.loc.y
+                    n = n + 1
+                end)
+            end
+        end
+        if n > 0 then
+            local cx, cy = sx / n, sy / n
+            local best, bestd = nil, nil
+            for _, tok in ipairs(tokens) do
+                if tok ~= nil and tok.valid then
+                    local ok = pcall(function()
+                        local d = math.max(math.abs(tok.loc.x - cx), math.abs(tok.loc.y - cy))
+                        if bestd == nil or d < bestd then
+                            best, bestd = tok, d
+                        end
+                    end)
+                end
+            end
+            if best ~= nil then
+                centerToken = best
+            end
+        end
     end
 
     local alreadyThere = false
@@ -4946,9 +5010,18 @@ local function OverviewColumnFooter()
             signalLabel:SetClass("collapsed", text == "")
 
             --P2-a: status strip for a single actor; mini-rows carry the
-            --names when there are several.
+            --names when there are several. Field test 4: a hero-applied
+            --threat already prints as red TEXT on the signal line, so the
+            --strip shows only the OTHER statuses - never both channels for
+            --the same fact.
             if #members == 1 then
-                statusStrip:FireEvent("setStatuses", members[1].statuses)
+                local nonThreat = {}
+                for _, entry in ipairs(members[1].statuses or {}) do
+                    if not entry.threat then
+                        nonThreat[#nonThreat + 1] = entry
+                    end
+                end
+                statusStrip:FireEvent("setStatuses", nonThreat)
             else
                 statusStrip:FireEvent("setStatuses", nil)
             end
@@ -5462,6 +5535,9 @@ ActionMenu = function()
         minHeight = 200,
         maxHeight = 900,
         flow = "horizontal",
+        --Decision 31: lens survivors sit centered (the lens bar above is
+        --wider than a single surviving column).
+        halign = "center",
     }
 
     --P2-c1: the LENS BAR above the overview columns (Decision 27: fixed
@@ -5473,10 +5549,6 @@ ActionMenu = function()
     local m_lensEmptyLabel = gui.Label {
         classes = { "overviewLensEmpty", "collapsed" },
         text = "",
-    }
-    local m_lensLabel = gui.Label {
-        classes = { "overviewLensLabel" },
-        text = "All",
     }
     --X6: "Everyone can: Charge, Knockback" - the COMMON abilities (not in any
     --column's unique kit) that satisfy the active lens, read off the first
@@ -5534,7 +5606,9 @@ ActionMenu = function()
         for i = 1, math.min(4, #names) do
             shown[#shown + 1] = names[i]
         end
-        local text = "Everyone can: " .. table.concat(shown, ", ")
+        --Field test 4 copy: name the lens, not "everyone".
+        local text = string.format("Common %s abilities: %s",
+            string.lower(OverviewLensInfo(lens).name), table.concat(shown, ", "))
         if #names > 4 then
             text = string.format("%s +%d", text, #names - 4)
         end
@@ -5558,15 +5632,15 @@ ActionMenu = function()
         end
         return counts
     end
+    local m_lensTabs = {}
     local function RefreshLensBar(columns)
         m_lensCounts = LensCountsFromColumns(columns)
         local lens = OverviewLensInfo(g_overviewLens)
-        if lens.id == "all" then
-            m_lensLabel.text = string.format("Filter: All (%d)", m_lensCounts.all or 0)
-        else
-            m_lensLabel.text = string.format("Filter: %s (%d)", lens.name, m_lensCounts[lens.id] or 0)
+        for _, tab in ipairs(m_lensTabs) do
+            local id = tab.data.lensid
+            local count = m_lensCounts[id] or 0
+            tab:FireEventTree("setLensState", string.format("%s %d", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all")
         end
-        m_lensBar:SetClass("active", lens.id ~= "all")
         local empty = lens.id ~= "all" and (m_lensCounts[lens.id] or 0) == 0
         if empty then
             m_lensEmptyLabel.text = string.format("No %s abilities in this selection", string.lower(lens.name))
@@ -5588,57 +5662,51 @@ ActionMenu = function()
             m_relens()
         end
     end
-    local function CycleLens(delta)
-        local index = OverviewLensIndex(g_overviewLens) + delta
-        if index < 1 then
-            index = #OVERVIEW_LENSES
-        elseif index > #OVERVIEW_LENSES then
-            index = 1
-        end
-        SetLens(OVERVIEW_LENSES[index].id)
+    --Field test 4 redesign: no box, no arrows, no dropdown - one quiet row
+    --of lens tabs in the flat minimalist style of the icon rail. Every tab
+    --is a plain panel (the chips' own construction, proven with real
+    --clicks); the active tab is gold with an underline, zero-count tabs dim
+    --but stay pressable (their empty state explains itself). The old cycle
+    --arrows closed the menu for real mouse clicks and the dropdown died with
+    --it, so both are gone; hotkeys (X4) can return cycling later.
+    for _, lens in ipairs(OVERVIEW_LENSES) do
+        local id = lens.id
+        local underline = gui.Panel {
+            classes = { "overviewLensTabLine", "hidden" },
+            interactable = false,
+        }
+        local label = gui.Label {
+            classes = { "overviewLensTabLabel" },
+            text = lens.name,
+            interactable = false,
+        }
+        local tab = gui.Panel {
+            classes = { "overviewLensTab" },
+            bgimage = "panels/square.png",
+            data = { lensid = id },
+            flow = "vertical",
+            label,
+            underline,
+            hover = gui.Tooltip(string.format("Show only columns with a matching ability (%s)", lens.name)),
+            press = function(element)
+                SetLens(id)
+            end,
+            setLensState = function(element, text, active, zero)
+                label.text = text
+                element:SetClass("active", active)
+                element:SetClass("zero", zero)
+                underline:SetClass("hidden", not active)
+            end,
+        }
+        m_lensTabs[#m_lensTabs + 1] = tab
     end
+    local lensTabRow = gui.Panel {
+        classes = { "overviewLensRow" },
+        children = m_lensTabs,
+    }
     m_lensBar = gui.Panel {
         classes = { "overviewLensBar", "collapsed" },
-        gui.Panel {
-            classes = { "overviewLensRow" },
-            gui.Label {
-                classes = { "overviewLensArrow" },
-                text = "<",
-                hover = gui.Tooltip("Previous filter"),
-                press = function(element)
-                    CycleLens(-1)
-                end,
-            },
-            gui.Panel {
-                classes = { "overviewLensLabelHolder" },
-                m_lensLabel,
-                hover = gui.Tooltip("Filter the columns by what their abilities do; click for the list"),
-                press = function(element)
-                    local entries = {}
-                    for _, lens in ipairs(OVERVIEW_LENSES) do
-                        local id = lens.id
-                        entries[#entries + 1] = {
-                            text = string.format("%s (%d)", lens.name, m_lensCounts[id] or 0),
-                            click = function()
-                                element.popup = nil
-                                SetLens(id)
-                            end,
-                        }
-                    end
-                    element.popup = gui.ContextMenu {
-                        entries = entries,
-                    }
-                end,
-            },
-            gui.Label {
-                classes = { "overviewLensArrow" },
-                text = ">",
-                hover = gui.Tooltip("Next filter"),
-                press = function(element)
-                    CycleLens(1)
-                end,
-            },
-        },
+        lensTabRow,
         m_lensEmptyLabel,
         m_lensEveryoneLabel,
     }

@@ -909,6 +909,66 @@ the 2026-08-18 play observation say the first Phase 2 items should be the
 Marked/condition threat flags and the whole-turn threat estimate, not the
 lenses.
 
+**2026-08-19, fifth user field test (Ricky, live) - all items fixed same
+session, live-verified; zero console errors; regression check passed.**
+- **"Select All"**: the Director's monster-side initiative label now reads
+  "Select All" (creation AND the runtime rewrite at MCDMInitiativeBar ~:4822
+  that was clobbering the first fix); players/hero side keep "Ready Heroes" /
+  "Ready Monsters".
+- **Select-all scope**: `SelectReadyMonsters` now requires the monster's
+  entry to be IN `q.entries` while a queue runs - reinforcements parked in
+  "Ready Monsters" (the 12 A5 Snipers) are no longer selected. Live: 6
+  selected, Snipers excluded.
+- **Squad locate**: `OverviewLocate` on a multi-token member now pans to the
+  member nearest the GROUP CENTROID, not tokens[1]. Could not reproduce the
+  reported wrong-squad pan today (both squads geographically coherent, press
+  on "Squad 4 (6)" landed at (12,-21) = squad 4) - the centroid guard also
+  covers a stray mis-squadded token; watch for recurrence.
+- **Readability**: footer fonts +1 across the board (name 14 bold, all lines
+  and rows 13, take-turn 13/26 tall, rows 32 tall).
+- **Threat de-duplication** (Ricky: icon + red text was saying it twice):
+  the status STRIP now shows only statuses that are NOT threat flags;
+  hero-applied effects appear exactly once, as the red text on the signal
+  line ("14/15 - Judged"), with the caster in the tooltip. My call and the
+  reasoning: text is the clearer single channel (the icon needed a legend;
+  the word does not), and the strip stays for statuses that have no text
+  mirror.
+- **Zero reach pops**: "No hero in reach" / "0 in reach" now amber
+  (#E0A050) bold - the "rule this monster out this turn" cue, mirroring red
+  "Turn already taken" (the signal vocabulary is now: silent = fine, amber =
+  cannot contribute, red = spent/marked).
+- **Community action-type colours** (Ricky): "Maneuver"/"Free Maneuver" on
+  chips render BLUE (#5B9BD5), "Free Action" grey; the word remains the
+  colour-blind channel (X12), colour is reinforcement. Main-action red is NOT
+  applied to titles (every chip title turning red would drown the palette);
+  revisit in the copy pass if wanted.
+- **Lens match emphasis** (sixth-test note: Toxic Winds vs Swamp Gas did not
+  separate enough): onLens chips now get 2.5px gold border + brightness
+  1.15; offLens keeps opacity .45 (X3 floor) + saturation .5.
+- **LENS BAR REDESIGNED** (Ricky rejected the boxy fixed-width bar + arrows;
+  wanted the flat icon-rail aesthetic): now ONE quiet row of six text tabs
+  ("All 8 | Damage 6 | ... ") on a translucent black rounded strip, active
+  tab gold + 2px underline, zero-count tabs dimmed but pressable, hover
+  brightens. NO arrows, NO dropdown - both are GONE: with real mouse clicks
+  the arrow press closed the menu and the ContextMenu died instantly with
+  it (never reproducible with synthetic FireEvent presses - suspected
+  click-through/dim-out interaction; eliminated by construction instead of
+  diagnosed). Tabs are plain panels with bgimage (the chips' own proven
+  construction). Columns center under the bar (`m_containerPanel` halign).
+  SIZING TRAP for the future: a width="100%" child (the underline) inside a
+  width="auto" tab inflated every tab to 219px and the row to the full menu
+  width - tabs are fixed 96px, underline "100%-8".
+- **Copy**: "Everyone can:" -> "Common <lens> abilities:" ("Common forced
+  move abilities: Knockback").
+- Cross-session note: the working tree gained MORE unrelated hunks from the
+  other session mid-run (ShowMovementDiagram textOverride + summon placement
+  wording ~:825/:9273, on top of the chooser caster-push ~:8766) - keep
+  committing with add -p only.
+- STILL OPEN from this test: portraits of the in-reach heroes on the footer
+  (Ricky floated it, flagged the density risk himself - design it with P2-e
+  rather than bolt on); P2-e threat estimate awaiting his answers to the
+  three questions in the P2-e row; sub-filter chips; hotkeys (X4).
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

@@ -992,6 +992,15 @@ icon is working") - multi-target and summon chip badges. Live-verified.**
 - Live: Handaxe x2 = red twins + surge; Get in Here! = green person+;
   Shadow Chains = red twins; area abilities (Toxic Winds / Swamp Gas)
   correctly carry nothing (the green grid icon already says area).
+- FOLLOW-UP same session (fourteenth report): the center-right float
+  collided with the malice cost diamond (Get in Here!, Shadow Chains) and
+  two badges grazed the "Weapon" keyword. Badge row moved to the chip's
+  TOP-RIGHT corner (valign top, tmargin 3) - the title row's right side is
+  reliably empty for monster kit names; the diamond owns the vertical
+  center, the keywords own the bottom, the novel pip owns the top-left.
+  CHIP CORNER MAP for anyone adding decorations: top-left = novel pip,
+  top-right = badge row, center-right = cost diamond, bottom span =
+  keywords/action type/condition glyphs.
 
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
 bar + minion copy.**

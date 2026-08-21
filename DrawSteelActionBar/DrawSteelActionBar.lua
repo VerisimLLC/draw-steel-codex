@@ -3229,12 +3229,17 @@ local function AbilityHeading(args)
             interactable = false,
         },
     }
+    --Field test 14: TOP-right corner - the title row's right side is
+    --reliably empty for monster kit names, while the vertical center is the
+    --malice cost diamond's zone and the bottom is the keywords line (both
+    --collided). The novel pip owns the top-LEFT corner.
     local m_badgeRow = gui.Panel {
         classes = { "overviewBadgeRow", "collapsed" },
         floating = true,
         halign = "right",
-        valign = "center",
+        valign = "top",
         rmargin = 4,
+        tmargin = 3,
         flow = "horizontal",
         m_summonBadge,
         m_multiBadge,

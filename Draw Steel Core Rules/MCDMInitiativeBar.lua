@@ -4831,8 +4831,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					end
 					--Labels only show when this side is currently choosing the next turn,
 					--and the bucket has at least one card to label.
+					--Director overview P2-b: the Director's monster-side "Select All"
+					--is an ACTION, not a status, so it stays available whenever unmoved
+					--monsters exist - including during the heroes' turn, which is
+					--exactly when the Director preps the next activation (browsing the
+					--overview off-turn never claims; field test 16).
+					local showUnmoved = unmovedCount > 0 and (active or (dmhub.isDM and not container.data.player))
 					container.data.hadTurnLabel.selfStyle.hidden = (active and hadTurnCount > 0) and 0 or 1
-					container.data.unmovedLabel.selfStyle.hidden = (active and unmovedCount > 0) and 0 or 1
+					container.data.unmovedLabel.selfStyle.hidden = showUnmoved and 0 or 1
 				end)
 			end
 			SizeBar(playerContainer, playerCards, choosingPlayer)

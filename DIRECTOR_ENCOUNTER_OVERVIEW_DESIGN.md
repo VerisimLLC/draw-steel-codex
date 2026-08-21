@@ -1034,6 +1034,17 @@ exceed 35) was forced onto a live chip with BOTH badges - it wrapped to five
 lines, the chip grew, nothing overlapped. No per-monster positioning exists
 anywhere in the overview.
 
+**2026-08-19, sixteenth report (Ricky, live Rival game): "no Select All
+button under the initiative".** Cause: the reused initiative-bar label only
+shows while ITS side is choosing (pre-existing rule), so during a hero's
+turn the Director's "Select All" was hidden - precisely the prep moment.
+Fix (MCDMInitiativeBar SizeBar): the Director's monster-side unmoved label
+shows whenever unmovedCount > 0, regardless of whose turn it is; hero side
+and player clients keep the old gate. Safe because browsing the overview
+off-turn never claims (Decisions 24/47). Live: heroes' turn, round 4 -
+"Select All" visible under the Rival cards.
+
+
 
 
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens

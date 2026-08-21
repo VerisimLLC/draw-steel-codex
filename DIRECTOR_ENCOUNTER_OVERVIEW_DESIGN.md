@@ -969,6 +969,28 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, ninth user field test (Ricky) - the risk box speaks in real
+names and actions, and calls out the damage dealers. Live-verified.**
+- **Threat bullets name the ACTUAL effect and caster** ("Dazed by High Elf
+  Tactician", "Judged by Human Censor"), never the generic "Marked by
+  heroes" - Marked is a specific mechanic and the Monarch was Dazed. Up to
+  two named, then "+N more"; `OverviewThreatEstimate` now takes the threat
+  ENTRY LIST, not a boolean.
+- **Amber answers "what do I do?"**: green guidance "Consider using turn
+  soon" under "At Risk" (red keeps "Use turn before they die"); both
+  suppressed once the turn is spent. Semantics recorded: amber = heroes
+  have intent+access or combined attacks threaten it, no single hero turn
+  likely kills it; red = one hero turn could.
+- **"High damage dealer" bullet** (Ricky's ask): flagged for (a) the
+  column(s) whose kit has the selection's best tier-2 damage AND (b) the
+  best among columns already at red death risk - so when several are dying
+  the Director knows which to burn for damage first. Computed
+  cross-column in `PopulateUniqueColumns` (`column.highDamage`); rendered
+  as a bullet above the green guidance, or as a standalone gold line when
+  the creature is otherwise safe. Live: Monarch (Handaxe 10, selection
+  best) and Assassin (best among reds) both flagged - exactly the two
+  Ricky named.
+
 **2026-08-19, eighth user field test (Ricky, rapid-fire) - LENS-CLICK ROOT
 CAUSE FOUND AND FIXED via the OVERVIEWDBG instrumentation, plus seven
 refinements. All live-verified except the real-click fix (needs Ricky's

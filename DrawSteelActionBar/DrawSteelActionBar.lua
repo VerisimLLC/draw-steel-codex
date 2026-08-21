@@ -4141,7 +4141,8 @@ end
 --marked = the member carries a hero-applied threat flag (P2-a statuses).
 --lowStamina feeds a bullet (computed by the caller so the label and the
 --risk box agree).
-local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpent)
+local function OverviewThreatEstimate(tok, threats, inCombat, lowStamina, turnSpent)
+    local marked = threats ~= nil and #threats > 0
     if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
         return nil
     end
@@ -4215,8 +4216,30 @@ local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpe
     --Field test 6 layout: headline tag, then WHY as bullets, then a green
     --guidance line (red only - amber is advisory, not a call to action).
     local bullets = {}
+    --Field test 9: name the ACTUAL effects ("Dazed by Human Censor"), never
+    --the generic "Marked by heroes" - Marked is a specific mechanic and the
+    --Monarch was Dazed, not Marked.
     if marked then
-        bullets[#bullets + 1] = "Marked by heroes"
+        local seen = {}
+        local shown = 0
+        for _, entry in ipairs(threats) do
+            local text = entry.name or "Marked"
+            if entry.casterName ~= nil then
+                text = string.format("%s by %s", text, entry.casterName)
+            else
+                text = text .. " by a hero"
+            end
+            if not seen[text] then
+                seen[text] = true
+                if shown < 2 then
+                    bullets[#bullets + 1] = text
+                end
+                shown = shown + 1
+            end
+        end
+        if shown > 2 then
+            bullets[#bullets] = string.format("%s +%d more", bullets[#bullets], shown - 2)
+        end
     end
     if lowStamina then
         bullets[#bullets + 1] = "Low Stamina"
@@ -4240,6 +4263,9 @@ local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpe
     --die, plan around it).
     if level == "red" and not turnSpent then
         lines[#lines + 1] = string.format("<color=%s>Use turn before they die</color>", OVERVIEW.GUIDE_COLOR)
+    elseif level == "amber" and not turnSpent then
+        --Field test 9 ("what should the user DO with At Risk?"): say it.
+        lines[#lines + 1] = string.format("<color=%s>Consider using turn soon</color>", OVERVIEW.GUIDE_COLOR)
     end
 
     local tooltipParts = {}
@@ -4401,17 +4427,17 @@ local function OverviewColumnSignals(column)
                     pcall(function() member.acting = q.currentTurn == InitiativeQueue.GetInitiativeId(tok) end)
                 end
                 --P2-e: threat estimate (nil when safe / out of combat).
-                local marked = false
+                local threats = {}
                 for _, entry in ipairs(member.statuses or {}) do
                     if entry.threat then
-                        marked = true
+                        threats[#threats + 1] = entry
                     end
                 end
                 local lowStamina = OverviewLowStamina(tok, q ~= nil)
                 --Field test 7: Low Stamina appears exactly ONCE - as a risk
                 --bullet, never doubled on the stamina readout (the raw
                 --number stays plain).
-                member.risk = OverviewThreatEstimate(tok, marked, q ~= nil, lowStamina,
+                member.risk = OverviewThreatEstimate(tok, threats, q ~= nil, lowStamina,
                     member.acted == true or member.acting == true)
                 byKey[key] = member
                 members[#members + 1] = member
@@ -5389,8 +5415,27 @@ local function OverviewColumnFooter()
                 end
             end
             m_riskTooltip = risk and risk.tooltip or nil
-            riskLabel.text = risk and risk.text or ""
-            riskLabel:SetClass("collapsed", risk == nil)
+            local riskText = risk and risk.text or nil
+            --Field test 9: "High damage dealer" rides as a bullet under the
+            --risk tag (before the green guidance), or stands alone in gold
+            --when the creature is otherwise safe.
+            if column.highDamage then
+                if riskText == nil then
+                    riskText = "<color=#C9A86A><b>High damage dealer</b></color>"
+                    m_riskTooltip = "This creature's kit has the best typical (tier-2) damage in the selection."
+                else
+                    local bullet = "- High damage dealer"
+                    local guideAt = string.find(riskText, "<color=" .. OVERVIEW.GUIDE_COLOR, 1, true)
+                    if guideAt ~= nil then
+                        riskText = string.sub(riskText, 1, guideAt - 1) .. bullet .. "\n" .. string.sub(riskText, guideAt)
+                    else
+                        riskText = riskText .. "\n" .. bullet
+                    end
+                    m_riskTooltip = (m_riskTooltip or "") .. "\nBest typical (tier-2) damage among the dying - if several are about to die, burn this one for damage first."
+                end
+            end
+            riskLabel.text = riskText or ""
+            riskLabel:SetClass("collapsed", riskText == nil)
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil
@@ -6141,6 +6186,40 @@ ActionMenu = function()
     --take-turn buttons all follow the queue.
     local function PopulateUniqueColumns()
         local columns = BuildOverviewColumns()
+
+        --Field test 9: flag the HIGH DAMAGE DEALER(s) - the column whose kit
+        --carries the selection's best tier-2 damage, AND (separately) the
+        --best among columns already at red death risk, so when several are
+        --dying the Director knows which one to burn for damage first.
+        local maxDamage, redMaxDamage = 0, 0
+        for _, column in ipairs(columns) do
+            local best = 0
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                if facets.damageValue > best then
+                    best = facets.damageValue
+                end
+            end
+            column.bestDamage = best
+            column.anyRed = false
+            local signals = OverviewColumnSignals(column)
+            for _, member in ipairs(signals.members) do
+                if member.risk ~= nil and member.risk.level == "red" then
+                    column.anyRed = true
+                end
+            end
+            if best > maxDamage then
+                maxDamage = best
+            end
+            if column.anyRed and best > redMaxDamage then
+                redMaxDamage = best
+            end
+        end
+        for _, column in ipairs(columns) do
+            column.highDamage = column.bestDamage > 0
+                and (column.bestDamage == maxDamage or (column.anyRed and column.bestDamage == redMaxDamage))
+        end
+
         local populated = 0
         for i, column in ipairs(columns) do
             m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}

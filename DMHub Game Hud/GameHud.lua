@@ -1860,9 +1860,9 @@ end
 function GameHud:CreateFrozenLabel()
 
 	local freezebind = dmhub.GetCommandBinding("togglefreeze")
-	local bindtext = "(Players cannot move.)"
+	local bindtext = "(Players cannot act.)"
 	if freezebind ~= nil and dmhub.isDM then
-		bindtext = string.format("(Players cannot move. %s to toggle.)", freezebind)
+		bindtext = string.format("(Players cannot act. %s to toggle.)", freezebind)
 	end
 
 

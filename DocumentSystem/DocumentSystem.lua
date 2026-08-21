@@ -12825,7 +12825,7 @@ local function RailEditToolkit(id)
     local iconEditor = RailToolkitIconPicker(tk.icon or "phosphor/toolbox.png")
 
     gamehud:ModalDialog{
-        title = "Edit tool panel",
+        title = "Edit toolkit",
         width = 480,
         height = 470,
         buttonsHalign = "center",
@@ -12898,7 +12898,7 @@ local function RailCreateToolkit(side)
     local iconEditor = RailToolkitIconPicker("phosphor/toolbox.png")
 
     gamehud:ModalDialog{
-        title = "New tool panel",
+        title = "New toolkit",
         width = 480,
         height = 470,
         buttonsHalign = "center",
@@ -13060,7 +13060,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
         for _, e in ipairs(sorted) do
             options[#options + 1] = { id = e.id, text = e.name }
         end
-        options[#options + 1] = { id = "__new", text = "New tool panel" }
+        options[#options + 1] = { id = "__new", text = "New toolkit" }
         targetDropdown = gui.Dropdown{
             options = options,
             idChosen = "__rail",
@@ -13639,15 +13639,50 @@ end
 --the two surfaces render identically.
 local function PanelLibraryStyles()
     return ThemeEngine.MergeStyles({
+        --Library visual language (redesign 2026-08-20, iterated to match
+        --ui-mockup/panel-library-redesign.html IN THE HARNESS -- see the
+        --ledger's reverted first attempt for why that matters): soft
+        --fills over borders, label-anchored section rules, tile plates.
         {
             selectors = {"label", "libSection"},
             color = "@fgMuted",
             fontSize = 11,
             bold = true,
         },
+        --hairlines are soft: full @border stripes read as chopping.
         {
             selectors = {"libRule"},
-            bgcolor = "@border",
+            bgcolor = "#ffffff17",
+        },
+        --the tile PLATE: face + name as one object on a faint lifted
+        --fill -- NO border (1px borders over near-black read as a harsh
+        --grid; harness-verified). Create tiles carry the one accent per
+        --section: a parchment-alpha outline.
+        {
+            selectors = {"libTile"},
+            bgcolor = "#ffffff08",
+            cornerRadius = 10,
+            transitionTime = 0.12,
+        },
+        {
+            selectors = {"libTile", "hover"},
+            bgcolor = "#ffffff10",
+        },
+        {
+            selectors = {"libTile", "create"},
+            bgcolor = "clear",
+            border = 1,
+            borderColor = "#E4DDD04d",
+        },
+        {
+            selectors = {"libTile", "create", "hover"},
+            borderColor = "#E4DDD08c",
+        },
+        --the ALL PANELS rows' glyph chip: the plate grammar at row scale.
+        {
+            selectors = {"libRowChip"},
+            bgcolor = "#ffffff08",
+            cornerRadius = 8,
         },
         --the replica face mirrors the rail's iconRailButton rules; the
         --hex is deliberate (it must match the rail's own scrim exactly).
@@ -13726,23 +13761,23 @@ local function PanelLibraryStyles()
         --replica face -- name, description, author, downloads, hearts.
         {
             selectors = {"libPackCard"},
-            bgcolor = "@bg",
+            bgcolor = "#ffffff08",
             border = 1,
-            borderColor = "@border",
-            cornerRadius = 8,
+            borderColor = "#ffffff14",
+            cornerRadius = 10,
             transitionTime = 0.1,
         },
         {
             selectors = {"libPackCard", "hover"},
-            bgcolor = "#ffffff08",
+            bgcolor = "#ffffff10",
             borderColor = "@accent",
         },
         --an added card is inert: no hover response, or the card would
         --promise a click it refuses to honor.
         {
             selectors = {"libPackCard", "added", "hover"},
-            bgcolor = "@bg",
-            borderColor = "@border",
+            bgcolor = "#ffffff08",
+            borderColor = "#ffffff14",
         },
         {
             selectors = {"label", "libCardName"},
@@ -13903,8 +13938,11 @@ local function ScriptButtonFacePanel(def, args)
     end
 
     local content
+    --@label preview: only when it actually evaluates. A dash for "no
+    --character right now" read as a broken tile (screenshot
+    --2026-08-20); the icon is the honest fallback.
+    local labelText = nil
     if style ~= nil and style.label ~= nil then
-        local text = "-"
         local token = dmhub.currentToken
         if token ~= nil and token.properties ~= nil then
             pcall(function()
@@ -13912,13 +13950,15 @@ local function ScriptButtonFacePanel(def, args)
                 if value ~= nil then
                     local n = tonumber(value)
                     if n ~= nil and n == math.floor(n) then
-                        text = string.format("%d", n)
+                        labelText = string.format("%d", n)
                     else
-                        text = tostring(value)
+                        labelText = tostring(value)
                     end
                 end
             end)
         end
+    end
+    if labelText ~= nil and labelText ~= "" then
         content = gui.Label{
             width = "auto",
             height = "auto",
@@ -13928,7 +13968,7 @@ local function ScriptButtonFacePanel(def, args)
             bold = true,
             color = "#ffffffee",
             interactable = false,
-            text = text,
+            text = labelText,
         }
     else
         content = gui.Panel{
@@ -14037,18 +14077,29 @@ local function CommunityButtonCard(pack, button, packStats, opts)
     --the ADDED overlay: darkens the card and labels it, so it reads as
     --done rather than clickable. interactable = false so the heart
     --beneath still receives its clicks; the add-click gate is in the
-    --card's own handler.
+    --card's own handler. COMPACT tiles get the check alone, centered
+    --on the face zone -- the wide card's centered check+label landed
+    --exactly on the tile's name and struck it through (screenshot
+    --2026-08-20); the darkening plus the check carries the meaning,
+    --and the name stays legible beneath.
     local addedOverlay = nil
     if isAdded then
-        addedOverlay = gui.Panel{
-            floating = true,
-            width = "100%",
-            height = "100%",
-            bgimage = true,
-            bgcolor = "#000000a6",
-            cornerRadius = 8,
-            interactable = false,
-            gui.Panel{
+        local marker
+        if opts.compact then
+            marker = gui.Panel{
+                classes = {"libCardStatIcon"},
+                bgimage = "phosphor/check-circle-fill.png",
+                width = 18,
+                height = 18,
+                halign = "center",
+                valign = "top",
+                --centered on the face: the face sits 10px down and is
+                --40px tall, so its middle is 30px from the tile top.
+                y = 21,
+                interactable = false,
+            }
+        else
+            marker = gui.Panel{
                 flow = "horizontal",
                 width = "auto",
                 height = "auto",
@@ -14072,7 +14123,17 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                     valign = "center",
                     interactable = false,
                 },
-            },
+            }
+        end
+        addedOverlay = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "#000000a6",
+            cornerRadius = 8,
+            interactable = false,
+            marker,
         }
     end
 
@@ -14552,7 +14613,7 @@ local function RailShowCommunityBrowser(side, opts)
         halign = "center",
         valign = "center",
         width = 900,
-        height = 700,
+        height = 760,
         pad = 28,
         borderBox = true,
         flow = "vertical",
@@ -15174,15 +15235,20 @@ RailShowAddPicker = function(element, side)
     end
 
     --a faithful rail-button replica (the rail's 40px #000000cc rounded
-    --face, 20px @fg glyph) with its name beneath: an honest preview of
-    --exactly what lands on the rail.
+    --face, 20px @fg glyph) with its name beneath, together on a soft
+    --tile PLATE (harness-verified 2026-08-20) -- face and name read as
+    --one object; create tiles wear the section's one accent outline.
     local function ButtonReplica(icon, text, opts)
         opts = opts or {}
         return gui.Panel{
+            classes = {"libTile", cond(opts.create, "create")},
             flow = "vertical",
-            width = 72,
+            width = 84,
             height = "auto",
-            hmargin = 5,
+            hmargin = 4,
+            tpad = 8,
+            bpad = 7,
+            borderBox = true,
             bgimage = true,
             click = opts.click,
             linger = cond(opts.tooltip ~= nil, gui.Tooltip(opts.tooltip or "")),
@@ -15196,37 +15262,45 @@ RailShowAddPicker = function(element, side)
             gui.Label{
                 classes = {"libButtonLabel"},
                 text = text,
-                width = "100%",
+                width = "100%-6",
                 height = "auto",
                 textAlignment = "center",
                 halign = "center",
-                tmargin = 6,
+                tmargin = 7,
                 textWrap = false,
                 interactable = false,
             },
         }
     end
 
+    --Section header (harness-verified 2026-08-20): the hairline fills
+    --the REST of the row ("100% available" works horizontally) -- the
+    --line runs FROM the label, giving each section a left anchor
+    --instead of a full-width underline stripe. Margins tuned so the
+    --fixed 700px window still leaves the ALL PANELS scroll region 2+
+    --visible rows. (Count chips shipped here briefly and were removed
+    --at the owner's request 2026-08-20.)
     local function SectionHeader(text)
         return gui.Panel{
-            flow = "vertical",
+            flow = "horizontal",
             width = "100%",
-            height = "auto",
-            tmargin = 20,
+            height = 16,
+            tmargin = 16,
             bmargin = 10,
             gui.Label{
                 classes = {"libSection"},
                 text = text,
                 width = "auto",
                 height = "auto",
-                halign = "left",
+                valign = "center",
             },
             gui.Panel{
                 classes = {"libRule"},
                 bgimage = true,
-                width = "100%",
+                width = "100% available",
                 height = 1,
-                tmargin = 5,
+                valign = "center",
+                lmargin = 12,
             },
         }
     end
@@ -15238,7 +15312,7 @@ RailShowAddPicker = function(element, side)
         local row = gui.Panel{
             classes = {"libRow"},
             width = 420,
-            height = 32,
+            height = 36,
             bgimage = true,
             flow = "horizontal",
             data = { searchText = string.lower(name) },
@@ -15246,15 +15320,26 @@ RailShowAddPicker = function(element, side)
                 RailAddPanel(name, side)
                 CloseLibrary()
             end,
+            --the glyph sits in a small soft chip (harness-verified
+            --2026-08-20): rows get structure without borders.
             gui.Panel{
-                classes = {"libRowIcon"},
-                bgimage = (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png",
-                width = 18,
-                height = 18,
+                classes = {"libRowChip"},
+                bgimage = true,
+                width = 28,
+                height = 28,
                 valign = "center",
-                lmargin = 10,
-                rmargin = 10,
+                lmargin = 6,
+                rmargin = 11,
                 interactable = false,
+                gui.Panel{
+                    classes = {"libRowIcon"},
+                    bgimage = (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png",
+                    width = 15,
+                    height = 15,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
             },
             gui.Label{
                 classes = {"libRowLabel"},
@@ -15262,7 +15347,7 @@ RailShowAddPicker = function(element, side)
                 --fills the rest of the row: a horizontal flow centres its
                 --children as a group, so the label eating the remaining
                 --width is what pins each icon+label pair to the left.
-                width = "100%-38",
+                width = "100%-45",
                 height = "auto",
                 halign = "left",
                 textAlignment = "left",
@@ -15304,7 +15389,7 @@ RailShowAddPicker = function(element, side)
     --one kind of thing, buttons another (owner decision 2026-08-17 --
     --"new button can't be under tool panels").
     local tkTiles = {
-        ButtonReplica("phosphor/plus-bold.png", "New tool panel", {
+        ButtonReplica("phosphor/plus-bold.png", "New toolkit", {
             create = true,
             click = function()
                 CloseLibrary()
@@ -15322,7 +15407,9 @@ RailShowAddPicker = function(element, side)
     end
 
     local buttonTiles = {
-        ButtonReplica("phosphor/lightning.png", "New button", {
+        --plus, not lightning: both create tiles share the + (owner
+        --2026-08-20), so "create" reads the same in every section.
+        ButtonReplica("phosphor/plus-bold.png", "New button", {
             create = true,
             click = function()
                 CloseLibrary()
@@ -15378,7 +15465,9 @@ RailShowAddPicker = function(element, side)
             --windows read as the same surface, so navigating between them
             --must not change the frame (owner decision 2026-08-17). The
             --ALL PANELS scroll region absorbs the slack via "available".
-            height = 700,
+            --760 rather than 700 (owner 2026-08-20): the extra height goes
+            --entirely to the panel list.
+            height = 760,
             flow = "vertical",
             pad = 28,
             borderBox = true,
@@ -15475,7 +15564,7 @@ RailShowAddPicker = function(element, side)
                 },
             },
 
-            SectionHeader("YOUR TOOL PANELS"),
+            SectionHeader("YOUR TOOLKITS"),
             gui.Panel{
                 flow = "horizontal",
                 width = "auto",
@@ -18380,7 +18469,7 @@ local function CreateIconRail(side, entries)
                 end,
             })
             table.insert(menuEntries, 2, {
-                text = "New Toolkit",
+                text = "New toolkit",
                 click = function()
                     element.popup = nil
                     RailCreateToolkit(side)

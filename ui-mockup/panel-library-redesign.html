@@ -1,0 +1,285 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Panel Library redesign mockup</title>
+<style>
+  /* Real theme tokens from DefaultStyles.lua (default scheme) */
+  :root {
+    --bg: #0A0A0B;
+    --bg-alt: #1A1A1E;
+    --fg: #E4DDD0;
+    --fg-strong: #F2EDE1;
+    --fg-muted: #8A8A8A;
+    --fg-soft: #7A7468;
+    --border: rgba(255,255,255,0.16);
+    --border-soft: rgba(255,255,255,0.08);
+    --accent: #E4DDD0;
+    --accent-hover: #F7F3EA;
+    --danger: #C94040;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #4d4023 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="%23695832"/><circle cx="40" cy="60" r="28" fill="%23786440" opacity="0.6"/><circle cx="150" cy="130" r="40" fill="%23574a28" opacity="0.7"/><circle cx="110" cy="30" r="18" fill="%23837045" opacity="0.5"/></svg>');
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex; justify-content: center; padding: 40px 20px;
+    min-height: 100vh;
+  }
+
+  .window {
+    width: 900px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0 0 8px 0;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+    color: var(--fg);
+  }
+
+  /* ---------- header ---------- */
+  .header {
+    display: flex; align-items: center; gap: 20px;
+    padding: 22px 28px 18px 28px;
+  }
+  .title { font-family: Georgia, "Times New Roman", serif; font-size: 26px; font-weight: 700; color: var(--fg-strong); letter-spacing: 0.2px; }
+  .search {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 9px;
+    width: 340px; height: 38px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border-soft);
+    border-radius: 19px;
+    padding: 0 16px; color: var(--fg-soft); font-size: 14px;
+  }
+  .search .glyph { opacity: .7; font-size: 14px; }
+  .close { color: var(--fg-muted); font-size: 17px; margin-left: 4px; padding: 6px; cursor: default; }
+  .header-rule { height: 1px; background: linear-gradient(90deg, var(--border), rgba(255,255,255,0.03)); margin: 0 0 6px 0; }
+
+  .scroll { padding: 4px 28px 16px 28px; }
+
+  /* ---------- section grammar ---------- */
+  .section { margin-top: 26px; }
+  .section:first-child { margin-top: 14px; }
+  .section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .section-title {
+    font-size: 11.5px; font-weight: 600; letter-spacing: 1.6px;
+    color: var(--fg-muted); text-transform: uppercase;
+  }
+  .section-count {
+    font-size: 10.5px; color: var(--fg-soft);
+    background: var(--bg-alt); border: 1px solid var(--border-soft);
+    border-radius: 8px; padding: 1px 7px;
+  }
+  .section-rule { flex: 1; height: 1px; background: var(--border-soft); align-self: center; }
+
+  /* ---------- ALL PANELS: quiet rows, two columns ---------- */
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 2px; }
+  .panel-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 7px 10px; border-radius: 8px; cursor: default;
+  }
+  .panel-row:hover { background: rgba(255,255,255,0.05); }
+  .panel-row:hover .panel-name { color: var(--fg-strong); }
+  .row-chip {
+    width: 30px; height: 30px; flex: none;
+    background: var(--bg-alt); border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 14px; color: var(--fg);
+  }
+  .panel-name { font-size: 14px; color: var(--fg); }
+
+  /* ---------- replica tiles (tool panels / buttons) ---------- */
+  .tile-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .tile {
+    width: 86px; padding: 12px 6px 10px 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: default;
+    transition: border-color .12s, transform .12s;
+  }
+  .tile:hover { border-color: var(--border); transform: translateY(-1px); }
+  .tile:hover .tile-name { color: var(--fg-strong); }
+  .face {
+    width: 40px; height: 40px; border-radius: 8px;
+    background: rgba(0,0,0,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    display: grid; place-items: center;
+    font-size: 17px; color: var(--fg);
+  }
+  .tile-name {
+    font-size: 11px; color: var(--fg-muted); text-align: center;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* create tiles: the one accent-outlined thing per section */
+  .tile.create { background: transparent; border: 1px dashed rgba(228,221,208,0.35); }
+  .tile.create .face { background: rgba(228,221,208,0.06); border-color: rgba(228,221,208,0.3); color: var(--fg-strong); }
+  .tile.create .tile-name { color: var(--fg); white-space: normal; line-height: 1.25; }
+  .tile.create:hover { border-color: rgba(228,221,208,0.6); }
+  /* an authored face keeps its gradient */
+  .face.recoveries {
+    background: linear-gradient(180deg, #bfe3ff 0%, #4a90d9 100%);
+    color: #fff; font-weight: 700; font-size: 15px;
+    border: none;
+  }
+
+  /* ---------- community spotlight cards ---------- */
+  .spot-row { display: flex; gap: 10px; }
+  .card {
+    width: 104px; padding: 14px 8px 10px 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    position: relative;
+    cursor: default;
+    transition: border-color .12s;
+  }
+  .card:hover { border-color: rgba(242,237,225,0.4); }
+  .card-name { font-size: 12px; font-weight: 600; color: var(--fg-strong); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-stats { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--fg-muted); }
+  .card-stats .heart { color: var(--fg-muted); }
+  .card-stats .gap { width: 6px; }
+  .card.added { pointer-events: none; }
+  .card.added::after {
+    content: ""; position: absolute; inset: 0; border-radius: 10px;
+    background: rgba(0,0,0,0.55);
+  }
+  .card.added .check {
+    position: absolute; z-index: 2; top: 25px; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--fg-strong); color: #0A0A0B;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  }
+  .card.added .card-name, .card.added .card-stats { position: relative; z-index: 2; opacity: .85; }
+  .card.added .face { opacity: .8; }
+
+  /* ---------- footer action rows ---------- */
+  .action-rows { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+  .action-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 10px; border-radius: 8px; cursor: default;
+    color: var(--fg); font-size: 14px;
+  }
+  .action-row:hover { background: rgba(255,255,255,0.05); color: var(--fg-strong); }
+  .action-row .chev { margin-left: auto; color: var(--fg-soft); font-size: 12px; }
+
+  /* annotation strip under the mockup */
+  .notes {
+    width: 900px; margin-top: 14px; color: #d8d2c4; font-size: 12.5px; line-height: 1.55;
+    background: rgba(0,0,0,0.55); border-radius: 10px; padding: 14px 18px;
+  }
+  .notes b { color: #F2EDE1; }
+  .wrap { display: flex; flex-direction: column; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="window">
+
+  <div class="header">
+    <div class="title">Panel Library</div>
+    <div class="search"><span class="glyph">&#128269;</span> Search panels...</div>
+    <div class="close">&#10005;</div>
+  </div>
+  <div class="header-rule"></div>
+
+  <div class="scroll">
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">All Panels</span>
+        <span class="section-count">6</span>
+        <span class="section-rule"></span>
+      </div>
+      <div class="panel-grid">
+        <div class="panel-row"><span class="row-chip">&#9640;</span><span class="panel-name">Pool Stress Test</span></div>
+        <div class="panel-row"><span class="row-chip">&#9655;</span><span class="panel-name">Run</span></div>
+        <div class="panel-row"><span class="row-chip">&#9881;</span><span class="panel-name">Sheet Perf</span></div>
+        <div class="panel-row"><span class="row-chip">&#9736;</span><span class="panel-name">Steam Handoff Test</span></div>
+        <div class="panel-row"><span class="row-chip">&#9635;</span><span class="panel-name">Texture Load</span></div>
+        <div class="panel-row"><span class="row-chip">&#9790;</span><span class="panel-name">User Status</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Your Tool Panels</span>
+        <span class="section-count">6</span>
+        <span class="section-rule"></span>
+      </div>
+      <div class="tile-row">
+        <div class="tile create"><div class="face">+</div><div class="tile-name">New tool panel</div></div>
+        <div class="tile"><div class="face">&#128188;</div><div class="tile-name">Char Tools</div></div>
+        <div class="tile"><div class="face">&#127922;</div><div class="tile-name">Quick Rolls</div></div>
+        <div class="tile"><div class="face">&#129520;</div><div class="tile-name">Toolkit</div></div>
+        <div class="tile"><div class="face">&#10022;</div><div class="tile-name">Toolkit</div></div>
+        <div class="tile"><div class="face">&#128293;</div><div class="tile-name">Venla's tools</div></div>
+        <div class="tile"><div class="face">&#128123;</div><div class="tile-name">Vtools</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Your Buttons</span>
+        <span class="section-count">2</span>
+        <span class="section-rule"></span>
+      </div>
+      <div class="tile-row">
+        <div class="tile create"><div class="face">&#9889;</div><div class="tile-name">New button</div></div>
+        <div class="tile"><div class="face recoveries">5</div><div class="tile-name">Recoveries</div></div>
+        <div class="tile"><div class="face">&#9650;</div><div class="tile-name">V</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Community Spotlight</span>
+        <span class="section-rule"></span>
+      </div>
+      <div class="spot-row">
+        <div class="card added">
+          <div class="check">&#10003;</div>
+          <div class="face">&#127922;</div>
+          <div class="card-name">Roll 2d6</div>
+          <div class="card-stats">&#8595; 0 <span class="gap"></span> <span class="heart">&#9825;</span> 0</div>
+        </div>
+        <div class="card added">
+          <div class="check">&#10003;</div>
+          <div class="face">&#128172;</div>
+          <div class="card-name">Say hello</div>
+          <div class="card-stats">&#8595; 0 <span class="gap"></span> <span class="heart">&#9825;</span> 0</div>
+        </div>
+        <div class="card added">
+          <div class="check">&#10003;</div>
+          <div class="face recoveries">5</div>
+          <div class="card-name">Recoveries</div>
+          <div class="card-stats">&#8595; 0 <span class="gap"></span> <span class="heart">&#9825;</span> 0</div>
+        </div>
+      </div>
+
+      <div class="action-rows">
+        <div class="action-row">&#128101;&nbsp; Browse all community buttons... <span class="chev">&#9656;</span></div>
+        <div class="action-row">&#128279;&nbsp; Share your buttons... <span class="chev">&#9656;</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="notes">
+  <b>What changed (same section order, same palette):</b><br>
+  &bull; <b>Rhythm:</b> consistent 26px between sections, 14px from header to content; the window breathes instead of stacking hairline-on-tiles.<br>
+  &bull; <b>Section headers:</b> small-caps label + count chip + a hairline that runs FROM the label instead of underlining the whole width -- gives each section a left anchor.<br>
+  &bull; <b>All Panels rows:</b> each panel's glyph sits in a 30px rounded chip on @bgAlt, so the rows have structure instead of floating glyphs; hover is a soft row lift.<br>
+  &bull; <b>Tiles:</b> replica faces now sit on quiet @bgAlt plates (1px soft border, 10px radius) with the name inside the plate -- reads as one object, hover lifts it 1px. Create tiles are the single accented thing per section: dashed parchment outline.<br>
+  &bull; <b>Authored styling</b> (your Recoveries gradient + live "5") carries into tiles and cards, as in the app now.<br>
+  &bull; <b>Spotlight cards:</b> slightly wider (104px), face/name/stats with real spacing; ADDED = darken + parchment check chip over the face, name stays legible below.<br>
+  &bull; <b>Footer rows:</b> Browse/Share as quiet rows with chevrons, matching the All-Panels row grammar.<br>
+  &bull; <b>Search:</b> pill on @bgAlt in the header, hairline under the whole header band.
+</div>
+</div>
+</body>
+</html>

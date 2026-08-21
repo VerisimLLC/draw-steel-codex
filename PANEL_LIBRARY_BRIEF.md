@@ -410,6 +410,60 @@ Remaining design rounds before their steps: publish metadata (before
   remembered `packid` no longer has a publish surface -- sharing those
   buttons individually mints fresh single-button packs.
 
+- **2026-08-20 -- Vocabulary unified on TOOLKIT (owner decision).**
+  The UI had two names for one concept: "tool panel" (library
+  section, create tile, both dialog titles, Add-to dropdown) vs
+  "Toolkit" (rail menu, every strip's serialized default name). All
+  user-facing strings now say toolkit: YOUR TOOLKITS / New toolkit /
+  Edit toolkit; the rail menu's "New Toolkit" recased to match.
+  Rejected: "tool panel" (clunky; collides with the panels-vs-buttons
+  vocabulary -- a toolkit is a container of buttons, not a panel;
+  sat confusingly above ALL PANELS), "toolbar" (names the geometry,
+  not the concept; generic), "toolrail" (overloads "rail", already
+  load-bearing for the edge columns). Settings ids (iconrailtoolkits)
+  were already toolkit-named and are unchanged. The library window
+  also grew to 900x760 (browser matched -- same-frame rule), the
+  header-band hairline and section count chips were removed at owner
+  request, and both create tiles now share the plus glyph.
+
+- **2026-08-20 -- Library visual refresh: mockup APPROVED, first
+  in-engine attempt REVERTED ("this looks completely chopped" --
+  owner).** The owner-approved direction lives at
+  ui-mockup/panel-library-redesign.html (same section order, same
+  palette, white phosphor icons; rhythm, label-anchored section
+  headers with count chips, glyph chips on rows, tile plates, wider
+  spotlight cards). The blind translation failed three ways, recorded
+  so the next attempt avoids them: (1) the header-label "patch" trick
+  assumed the window surface is @bgAlt -- it is not, so labels sat in
+  visible grey boxes; (2) 1px bordered plates on the near-black
+  window read as a harsh chopped grid, nothing like the mockup's
+  soft bgAlt-on-bg values; (3) the added vertical rhythm ate the
+  FIXED 700px window's budget and collapsed the ALL PANELS
+  "available" scroll region to a sliver. Verdict: NO further blind
+  visual passes on this surface -- iterate in the ui-harness with
+  screenshots and match the mockup by eye before showing the owner.
+  SECOND ATTEMPT SHIPPED same day, harness-verified this time (a
+  faithful scratch replica of the window, iterated v1->v3 over the
+  HTTP bridge with screenshots at each step): soft FILLS instead of
+  borders everywhere (tile plates #ffffff08, no border -- 1px borders
+  over near-black were the "chopped" read; create tiles keep a
+  parchment-alpha outline as the one accent), label-anchored section
+  headers (label + a "100% available"-width hairline filling the
+  rest of the row -- available-width works horizontally,
+  harness-proven; the count chips shipped briefly and were removed
+  at the owner's request same day: "remove these little numbers";
+  the header-band hairline likewise removed same day at the owner's
+  request -- the section rules carry the structure alone), 28px soft glyph chips on ALL PANELS rows, a
+  hairline under the header band, and rhythm tuned (16/10 header
+  margins, 8/7 tile pads) so the fixed 700px window keeps 2+ visible
+  ALL PANELS rows. Cards move to the same soft-fill language
+  (#ffffff08 fill, #ffffff14 border, radius 10). Mockup reference at
+  ui-mockup/panel-library-redesign.html.
+  Two defects from the same screenshots WERE kept: the compact ADDED
+  overlay now shows the check alone over the face (its check+label
+  used to strike through the tile name), and a @label face that
+  cannot evaluate falls back to the icon instead of showing "-".
+
 - **2026-08-19 -- The COMMUNITY SPOTLIGHT switches to compact square
   tiles (owner request): the styled face, the name, and the
   download/heart counts -- no description, no author.** 96x112

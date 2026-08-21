@@ -340,26 +340,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    --Mount ONLY when nothing is mounted. This used to AddChild on
-                    --every single refresh: an option whose Panel() returns a stable
-                    --function reference rather than a fresh closure fails the guard
-                    --above, so nothing was destroyed and another full copy of the
-                    --card was appended -- once per builder refresh, unbounded, and
-                    --refreshBuilderState fans out several times a second in a live
-                    --session (report PZ8WG62M: ~392 panels leaked per refresh, FPS
-                    --60 -> 2). DestroySelf unparents synchronously, so the child
-                    --count is already 0 here when the panel did change.
-                    if element.data.panelFn ~= nil and #element.children == 0 then
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
                         element:AddChild(element.data.panelFn())
                     end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
                     local item = element.parent
                     local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },
@@ -689,26 +696,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    --Mount ONLY when nothing is mounted. This used to AddChild on
-                    --every single refresh: an option whose Panel() returns a stable
-                    --function reference rather than a fresh closure fails the guard
-                    --above, so nothing was destroyed and another full copy of the
-                    --card was appended -- once per builder refresh, unbounded, and
-                    --refreshBuilderState fans out several times a second in a live
-                    --session (report PZ8WG62M: ~392 panels leaked per refresh, FPS
-                    --60 -> 2). DestroySelf unparents synchronously, so the child
-                    --count is already 0 here when the panel did change.
-                    if element.data.panelFn ~= nil and #element.children == 0 then
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
                         element:AddChild(element.data.panelFn())
                     end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
                     local item = element.parent
                     local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },

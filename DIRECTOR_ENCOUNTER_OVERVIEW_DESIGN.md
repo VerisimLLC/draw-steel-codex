@@ -969,6 +969,20 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
+bar + minion copy.**
+- **On-map multi-select buttons yield to the open overview menu**: the
+  worldspace "Group Initiative" / "Make Captain" buttons (MCDMMinion.lua)
+  trigger on exactly the overview's multi-selection and drew OVER the lens
+  bar. While the Unique Abilities menu is open
+  (`DrawSteelActionBar.uniqueMenuOpen`, set by the unique drawer's
+  menuStatus) the buttons collapse; they return the moment the menu closes.
+  The menu IS the multi-select surface while it is up. Lens row backing also
+  bumped #000000AA -> #000000D9 against general map noise.
+- **Minion guidance copy**: red guidance reads "Use squad before they die"
+  when the member is a minion squad (verified in code; the live A5 Runner
+  died mid-session before it could be re-checked on screen).
+
 **2026-08-19, eleventh user field test (Ricky) - "clicking on a lens now
 works as I would expect" (swallowPress fix CONFIRMED with a real mouse;
 OVERVIEWDBG diagnostics removed). Three refinements, live-verified.**

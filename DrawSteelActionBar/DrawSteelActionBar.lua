@@ -1421,7 +1421,7 @@ local OVERVIEW_FOOTER_RULES = {
         halign = "center",
         valign = "center",
         bgimage = true,
-        bgcolor = "#000000AA",
+        bgcolor = "#000000D9",
         cornerRadius = 4,
         pad = 2,
         borderBox = false,
@@ -2343,6 +2343,13 @@ local function ActionBarDrawer(args)
             element:SetClass("active", active)
             element.captureEscape = active
             element.mapfocus = active
+            --Field test 12: while the Unique Abilities menu is open, the
+            --on-map multi-select buttons (Group Initiative / Make Captain,
+            --MCDMMinion.lua) step aside - they appear for exactly the same
+            --multi-selection and drew OVER the lens bar.
+            if args.type == "unique" then
+                DrawSteelActionBar.uniqueMenuOpen = active
+            end
         end,
 
         mappress = function(element, loc, pos)
@@ -4298,7 +4305,11 @@ local function OverviewThreatEstimate(tok, threats, inCombat, lowStamina, turnSp
     --to spend, so the tag+bullets stand alone (still useful: it will likely
     --die, plan around it).
     if level == "red" and not turnSpent then
-        lines[#lines + 1] = string.format("<color=%s>Use turn before they die</color>", OVERVIEW.GUIDE_COLOR)
+        --Field test 12: squads spend the squad, not "a turn".
+        local isMinion = false
+        pcall(function() isMinion = tok.properties.minion == true end)
+        lines[#lines + 1] = string.format("<color=%s>%s</color>", OVERVIEW.GUIDE_COLOR,
+            isMinion and "Use squad before they die" or "Use turn before they die")
     elseif level == "amber" and not turnSpent then
         --Field test 9 ("what should the user DO with At Risk?"): say it.
         lines[#lines + 1] = string.format("<color=%s>Consider using turn soon</color>", OVERVIEW.GUIDE_COLOR)

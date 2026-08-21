@@ -79,15 +79,9 @@ def main():
     if not pw:
         ok = False
         line(False, "Dashboard team password (REQUIRED)",
-             ["not resolved from any source",
-              "set $BUG_TICKETS_PASSWORD, or config 'ticketsPassword', or point",
-              "config 'dmhubRepo' at the dmhub checkout so TICKETS_PASSWORD can be",
-              "read out of internal-dashboards/wrangler.jsonc (running from inside",
-              "that repo finds it with no configuration at all)"])
+             ["not found -- see the setup instructions below"])
     else:
-        src = ("$BUG_TICKETS_PASSWORD" if os.environ.get("BUG_TICKETS_PASSWORD")
-               else "config ticketsPassword" if cfg.get("ticketsPassword")
-               else "internal-dashboards/wrangler.jsonc")
+        src = lib.password_source(cfg) or "(unknown)"
         # Prove it end to end: log in and read the bug system.
         try:
             st = lib.bugs().status()
@@ -174,6 +168,10 @@ def main():
         print("the dashboard holds those and acts on your behalf.")
     else:
         print("NOT usable yet: fix the [MISSING] items above.")
+        if not pw:
+            print("")
+            print("-" * 70)
+            print(lib.missing_password_message())
     return 0 if ok else 1
 
 

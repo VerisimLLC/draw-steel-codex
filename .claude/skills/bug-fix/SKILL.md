@@ -24,35 +24,42 @@ exception: the tickets password is auto-discovered by walking up from the workin
 directory to find `internal-dashboards/wrangler.jsonc`, so running from inside the dmhub
 repo saves configuring `dmhubRepo`.)
 
-## Step 0 - Credentials preflight
+## Step 0 - First run / credentials
 
-**Only when something fails with a credentials/config error, or on a machine that has
-never run this skill.** Otherwise skip straight to Step 1.
+The skill needs **one** credential: the shared team password. Everything else --
+the Firebase service account, the Discord webhooks, the bot token -- lives as a
+Worker secret on the internal-dashboards deployment, which performs those calls on
+the caller's behalf. There is no Firebase key and no Discord secret on a developer
+machine, and there must never be.
+
+**Anyone with the password can use this skill.** If a script exits saying it cannot
+find one, it prints complete setup instructions: put the password on one line in
+`~/.dmhub/tickets-password.txt`. **Relay those instructions to the user and let them
+create the file.** Never ask them to paste the password into the conversation, and
+never write it to a file yourself -- it is a credential, and it should not pass
+through the transcript.
+
+If a password is found but rejected, the message says so and names the file or env
+var it came from, so the user knows which one to correct.
+
+Run the doctor when something fails with a credentials error, or on a machine that
+has never run this skill:
 
 ```bash
 python <S>/check-credentials.py
 ```
 
-It prints one line per credential, resolved or missing, and never prints a secret. If
-anything is missing, **tell the user what is missing, what it blocks, and how to supply
-it** -- the script's own output says all three, and `<S>/CREDENTIALS.md` has the full
-walkthrough. Do not guess at secret values and never invent one.
-
-**There is no Firebase key and no Discord secret on this machine, and there must never
-be.** Both live as Worker secrets on the internal-dashboards deployment, which exposes
-only the bug system -- six RTDB paths, all keyed by a report id, one append-only write --
-and performs the Discord reply/archive itself. If a script ever asks for a service-account
-key, something has fallen back to the legacy path; say so rather than supplying a key.
+It prints one line per credential, never a secret value, and ends with the setup
+instructions if the password is what is missing.
 
 | Credential | Where | Blocks, if absent |
 |---|---|---|
-| Dashboard team password | `$BUG_TICKETS_PASSWORD`, or read from `internal-dashboards/wrangler.jsonc` (automatic when running inside the dmhub repo) | **everything** |
+| Team password | `~/.dmhub/tickets-password.txt`, or `$BUG_TICKETS_PASSWORD`, or `$BUG_TICKETS_PASSWORD_FILE`. Also auto-read from `internal-dashboards/wrangler.jsonc` for whoever has that private repo checked out | **everything** |
 | Worker `ADMIN_SECRET` | `$DMHUB_ADMIN_SECRET` / `admin-secret.txt` in the credentials dir | `send-game-chat.py` finishing a send into a **DurableObjects** game (a Firebase game is written by the dashboard) |
 
-The **Discord** webhooks and bot token are Worker secrets on the dashboard, which makes
-those calls on your behalf -- nothing to configure locally. `check-credentials.py` reports
-whether the deployment has them, which is a property of the Worker, not of this machine;
-if one is missing, the fix is a `wrangler secret put`, which is the user's to run.
+Discord state belongs to the deployment, not the machine: `check-credentials.py`
+reports whether the Worker has the webhooks and bot token, and a gap there is fixed
+with `wrangler secret put`, which is the user's to run.
 
 Missing Python packages (`requests`, `websockets`) install with
 `pip install -r <S>/requirements.txt`.

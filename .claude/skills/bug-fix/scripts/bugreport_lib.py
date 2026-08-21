@@ -67,6 +67,8 @@ import requests
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+NL = chr(10)  # so message builders need no escapes
+
 # ---------------------------------------------------------------- credentials
 
 # These scripts live in a source repo (draw-steel-codex), so no secret may ever
@@ -125,8 +127,14 @@ def credentials_dir():
 
 
 def missing_config_message():
+    """Only reached by a caller that explicitly demands the config file.
+
+    Nothing in the skill does: the config is optional, and the password has its
+    own (much simpler) setup path -- see missing_password_message.
+    """
     lines = [
-        "Missing %s -- the bug-fix scripts have no credentials to work with." % CONFIG_BASENAME,
+        "No %s found. It is OPTIONAL -- the skill needs only the team password" % CONFIG_BASENAME,
+        "(run check-credentials.py), so you probably do not need this file at all.",
         "",
         "Looked in (first match wins):",
     ]
@@ -134,17 +142,12 @@ def missing_config_message():
         lines.append("  - %s" % p)
     lines += [
         "",
-        "To set it up: create a credentials directory outside this repo (e.g.",
-        "  %s)," % CREDENTIAL_DIR_FALLBACKS[0],
-        "copy bug-report-config.example.json from %s into it as %s," % (SCRIPT_DIR, CONFIG_BASENAME),
-        "fill it in, and drop the Firebase service-account key (mcdm-key.json)",
-        "beside it. Point at a different location with $BUG_REPORT_CONFIG (a file)",
-        "or $DMHUB_ADMIN_DIR (a directory).",
-        "",
-        "Full instructions: CREDENTIALS.md next to these scripts. To check a setup:",
-        "  python %s" % os.path.join(SCRIPT_DIR, "check-credentials.py"),
+        "If you do want one, copy bug-report-config.example.json from",
+        "  %s" % SCRIPT_DIR,
+        "into %s as %s and edit it." % (CREDENTIAL_DIR_FALLBACKS[0], CONFIG_BASENAME),
+        "Point elsewhere with $BUG_REPORT_CONFIG (a file) or $DMHUB_ADMIN_DIR (a directory).",
     ]
-    return "\n".join(lines)
+    return NL.join(lines)
 
 
 _config = None
@@ -331,15 +334,18 @@ class BugsClient:
             return self._session
         pw = tickets_password(self.cfg)
         if not pw:
-            raise SystemExit(
-                "No dashboard password, so the bug system is unreachable.\n"
-                "Set $BUG_TICKETS_PASSWORD, add \"ticketsPassword\" to bug-report-config.json,\n"
-                "or run from a checkout where internal-dashboards/wrangler.jsonc is readable\n"
-                "(point config \"dmhubRepo\" at it from elsewhere). See CREDENTIALS.md."
-            )
+            raise SystemExit(missing_password_message())
         s = requests.Session()
         resp = s.post("%s/api/bugs/login" % dashboard_url(self.cfg),
                       json={"name": self.dev_name, "password": pw}, timeout=30)
+        if resp.status_code in (401, 403):
+            raise SystemExit(
+                "The dashboard rejected that password (HTTP %d)."
+                "%sIt came from: %s"
+                "%sCheck it against the Tickets dashboard login at %s, or ask a teammate."
+                % (resp.status_code, NL, password_source(self.cfg) or "(unknown)",
+                   NL, dashboard_url(self.cfg))
+            )
         if resp.status_code != 200:
             raise SystemExit("Dashboard login failed (%d): %s" % (resp.status_code, resp.text[:200]))
         self._session = s
@@ -513,11 +519,10 @@ def dashboard_url(cfg):
 def wrangler_candidates(cfg):
     """Paths where internal-dashboards/wrangler.jsonc might live, best guess first.
 
-    The dmhub repo is NOT reliably a sibling of dmhub-admin -- on some machines
-    they sit on different drives (admin on D:, repo on C:) -- so a single relative
-    guess silently fails. Try, in order: the explicit env override, a configured
-    repo root, every ancestor of the cwd (an agent-driven run starts inside the
-    repo), and finally the historical sibling layout.
+    A CONVENIENCE ONLY, and one that works for fewer people than it looks like:
+    internal-dashboards is its own private repo, gitignored by the dmhub parent,
+    so a fresh dmhub clone does not contain it. Anyone without that checkout
+    supplies the password directly (see password_file_candidates).
     """
     rel = os.path.join("internal-dashboards", "wrangler.jsonc")
 
@@ -540,22 +545,136 @@ def wrangler_candidates(cfg):
     yield os.path.join(SCRIPT_DIR, "..", "dmhub", rel)
 
 
+# A one-line text file is the least error-prone way for a person to supply the
+# password: no JSON to get wrong, it survives a new shell, and it sits outside
+# every repo. This is the path the setup instructions point at.
+PASSWORD_BASENAME = "tickets-password.txt"
+
+
+def password_file_candidates():
+    """Files that may contain nothing but the shared team password."""
+    env = os.environ.get("BUG_TICKETS_PASSWORD_FILE")
+    if env:
+        yield env
+    cdir = credentials_dir()
+    if cdir:
+        yield os.path.join(cdir, PASSWORD_BASENAME)
+    for d in CREDENTIAL_DIR_FALLBACKS:
+        yield os.path.join(d, PASSWORD_BASENAME)
+
+
+def _read_password_file(path):
+    """First non-blank, non-comment line, stripped. None if unusable."""
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line
+    except OSError:
+        pass
+    return None
+
+
 def tickets_password(cfg):
-    """The shared team password gating /api/tickets/* (see internal-dashboards)."""
-    pw = os.environ.get("BUG_TICKETS_PASSWORD") or cfg.get("ticketsPassword")
-    if pw:
-        return pw
-    # Fall back to the dashboard's own wrangler config, so there is nothing to
-    # duplicate into bug-report-config.json. It is a plain var there, by design.
+    """The shared team password gating /api/tickets/* and /api/bugs/*.
+
+    Resolution order, first hit wins:
+      1. $BUG_TICKETS_PASSWORD
+      2. $BUG_TICKETS_PASSWORD_FILE, or tickets-password.txt in the credentials
+         directory (~/.dmhub by default) -- the documented way to set it up
+      3. "ticketsPassword" in bug-report-config.json
+      4. TICKETS_PASSWORD read out of internal-dashboards/wrangler.jsonc, for
+         whoever has that private repo checked out
+    """
+    pw = os.environ.get("BUG_TICKETS_PASSWORD")
+    if pw and pw.strip():
+        return pw.strip()
+
+    for path in password_file_candidates():
+        pw = _read_password_file(path)
+        if pw:
+            return pw
+
+    pw = cfg.get("ticketsPassword")
+    if pw and pw.strip():
+        return pw.strip()
+
     for path in wrangler_candidates(cfg):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 m = re.search(r'"TICKETS_PASSWORD"\s*:\s*"([^"]*)"', f.read())
         except OSError:
             continue
-        if m:
+        if m and m.group(1):
             return m.group(1)
     return None
+
+
+def password_source(cfg):
+    """Where the password came from, for reporting. Never returns the value."""
+    if (os.environ.get("BUG_TICKETS_PASSWORD") or "").strip():
+        return "$BUG_TICKETS_PASSWORD"
+    for path in password_file_candidates():
+        if _read_password_file(path):
+            return path
+    if (cfg.get("ticketsPassword") or "").strip():
+        return "ticketsPassword in %s" % (cfg.get("_configPath") or CONFIG_BASENAME)
+    for path in wrangler_candidates(cfg):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                if re.search(r'"TICKETS_PASSWORD"\s*:\s*"[^"]+"', f.read()):
+                    return path
+        except OSError:
+            continue
+    return None
+
+
+DEFAULT_CREDENTIAL_DIR = os.path.join(os.path.expanduser("~"), ".dmhub")
+
+
+def default_password_path():
+    """Where the setup instructions tell a newcomer to put the password.
+
+    Computed from the home directory rather than indexing the fallback tuple:
+    this runs on the failure path, where a crash would replace the one message
+    that was supposed to help.
+    """
+    base = CREDENTIAL_DIR_FALLBACKS[0] if CREDENTIAL_DIR_FALLBACKS else DEFAULT_CREDENTIAL_DIR
+    return os.path.join(base, PASSWORD_BASENAME)
+
+
+def missing_password_message():
+    """Setup instructions for someone running the skill for the first time.
+
+    Deliberately ONE obvious action -- create one file, paste one line -- with
+    the alternatives listed after it for anyone who wants them. Paths are shown
+    with ~ so the commands copy-paste on every platform, with the resolved
+    location underneath so there is no doubt where it lands.
+    """
+    return NL.join([
+        "The bug-fix tools need the shared team password, and cannot find one.",
+        "",
+        "Put it on a single line in:",
+        "",
+        "    ~/.dmhub/" + PASSWORD_BASENAME,
+        "    (on this machine: %s)" % default_password_path(),
+        "",
+        "Create it with an editor, or:",
+        "",
+        "    mkdir -p ~/.dmhub",
+        "    printf '%s' 'THE-PASSWORD' > ~/.dmhub/" + PASSWORD_BASENAME,
+        "",
+        "(an editor keeps it out of your shell history).",
+        "",
+        "It is the same password as the Tickets dashboard login at",
+        "%s -- ask a teammate for it." % DASHBOARD_URL_DEFAULT,
+        "",
+        "That is the whole setup: the dashboard holds every other credential.",
+        "",
+        "Alternatives: $BUG_TICKETS_PASSWORD, or $BUG_TICKETS_PASSWORD_FILE",
+        'pointing at a file elsewhere, or "ticketsPassword" in %s.' % CONFIG_BASENAME,
+    ])
 
 
 class TicketsClient:
@@ -582,10 +701,7 @@ class TicketsClient:
             return self._session
         pw = tickets_password(self.cfg)
         if not pw:
-            raise SystemExit(
-                "No tickets password. Set $BUG_TICKETS_PASSWORD, add \"ticketsPassword\" to "
-                "bug-report-config.json, or make internal-dashboards/wrangler.jsonc readable."
-            )
+            raise SystemExit(missing_password_message())
         s = requests.Session()
         resp = s.post(
             "%s/api/tickets/login" % dashboard_url(self.cfg),

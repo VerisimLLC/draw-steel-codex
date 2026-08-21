@@ -1,10 +1,11 @@
 # bug-fix credentials
 
-**There is no Firebase key here, and no Discord secret either -- and there should never
-be.** The bug system is reached through `/api/bugs/*` on the internal-dashboards Worker,
-which holds those credentials as Worker secrets, exposes only the bug system, and makes
-the Discord calls on your behalf. A developer needs the shared team password, plus
-`ADMIN_SECRET` only for chat sends into a DurableObjects game.
+**One credential: the shared team password.** There is no Firebase key here and no
+Discord secret either, and there should never be. The bug system is reached through
+`/api/bugs/*` on the internal-dashboards Worker, which holds those credentials as Worker
+secrets, exposes only the bug system, and makes the Discord calls on your behalf. The
+only other thing a developer might need is `ADMIN_SECRET`, and only for chat sends into
+a DurableObjects game.
 
 Check what is configured at any time:
 
@@ -38,20 +39,35 @@ something a caller on this side can skip.
 
 ## The credentials
 
-### 1. Dashboard team password -- REQUIRED
+### 1. Dashboard team password -- REQUIRED, and the only one you supply
 
-**Env:** `$BUG_TICKETS_PASSWORD`, or config `ticketsPassword`.
+Put it on a single line in **`~/.dmhub/tickets-password.txt`**:
 
-Usually needs **no setup at all**: the scripts read `TICKETS_PASSWORD` out of
-`internal-dashboards/wrangler.jsonc` in the dmhub repo, searching
-`$INTERNAL_DASHBOARDS_WRANGLER`, then config `dmhubRepo`, then every ancestor of the
-working directory. Running from inside the dmhub checkout finds it by itself. Set config
-`dmhubRepo` to that checkout's path when running from somewhere else.
+```bash
+mkdir -p ~/.dmhub
+printf '%s' 'THE-PASSWORD' > ~/.dmhub/tickets-password.txt
+```
 
-The same password gates `/api/tickets/*`, so one login covers reading a report, posting a
-ticket message, and closing a ticket.
+(Creating it in an editor keeps it out of your shell history.) It is the same password
+as the Tickets dashboard login -- ask a teammate if you do not have it.
 
-Without it: nothing works.
+That is the whole setup. Anyone who knows the password can use the skill; nothing else
+needs configuring, and no other credential goes on your machine.
+
+Resolution order, first hit wins:
+
+1. `$BUG_TICKETS_PASSWORD`
+2. `$BUG_TICKETS_PASSWORD_FILE`, or `tickets-password.txt` in the credentials directory
+3. `"ticketsPassword"` in `bug-report-config.json`
+4. `TICKETS_PASSWORD` read out of `internal-dashboards/wrangler.jsonc`
+
+**Do not rely on 4.** `internal-dashboards` is a separate private repo, gitignored by the
+dmhub parent, so a fresh dmhub clone does not contain it -- that path only works for
+whoever has that checkout sitting inside the repo. It is a convenience, not the mechanism.
+
+If the password is missing, every script exits with the setup instructions above. If one
+is found but rejected, the message names the file or env var it came from so you know
+which to fix.
 
 ### 2 + 3. Discord -- held by the dashboard, not by you
 

@@ -1569,6 +1569,19 @@ local OVERVIEW_FOOTER_RULES = {
     --Chip badge row (field tests 10-13): surge = standout damage, twin
     --persons = multi-target (red when damaging), person+plus = summon
     --(green). Clear backings so the chip behind still hovers/presses.
+    --The title narrows when badges are up (field test 15: long Rival titles
+    --reached the corner) - reserve = badge row width + the 18px diamond
+    --clearance; priority 5 to beat the base abilityTitle width.
+    {
+        selectors = { "abilityTitle", "badges1" },
+        priority = 5,
+        width = "100%-46",
+    },
+    {
+        selectors = { "abilityTitle", "badges2" },
+        priority = 5,
+        width = "100%-68",
+    },
     {
         selectors = { "overviewBadgeRow" },
         width = "auto",
@@ -3271,7 +3284,15 @@ local function AbilityHeading(args)
             m_multiIcon1.selfStyle.bgcolor = tint
             m_multiIcon2.selfStyle.bgcolor = tint
             m_summonBadge:SetClass("collapsed", summon ~= true)
-            m_badgeRow:SetClass("collapsed", not (dmg == true or multi == true or summon == true))
+            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0)
+            m_badgeRow:SetClass("collapsed", count == 0)
+            --Long titles (Rival Tactician's "Dual Targeting Shot") reach the
+            --top-right corner, so floating alone cannot guarantee no
+            --overlap: the TITLE reserves the badge zone and wraps early
+            --instead (class tree; rules on abilityTitle in
+            --OVERVIEW_FOOTER_RULES).
+            element:SetClassTree("badges1", count == 1)
+            element:SetClassTree("badges2", count >= 2)
         end,
 
         ability = function(element, ability)

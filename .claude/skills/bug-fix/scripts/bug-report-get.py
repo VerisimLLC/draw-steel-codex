@@ -4,6 +4,10 @@ Checks /BugReports first (novel/unprocessed), then /BugReportsArchive (processed
 If the report has been triaged, also pulls its issue-registry node so the caller
 gets the agent's analysis + Discord thread in one shot.
 
+Goes through /api/bugs/report on the internal-dashboards Worker, which holds the
+Firebase service account server-side. This machine needs only the shared team
+password -- no Firebase credential. See CREDENTIALS.md.
+
 Usage:
   python bug-report-get.py <reportId>
 
@@ -12,7 +16,8 @@ Prints JSON:
     "found":  true|false,
     "source": "BugReports" | "BugReportsArchive" | null,
     "report": { ...record, "_id": ..., "triage": { issueId, analysis, ... } } | null,
-    "issue":  { title, type, signature, status, reportIds, "_threadId": ... } | null
+    "issue":  { title, type, signature, status, reportIds, "_threadId": ... } | null,
+    "ticket": { uid, exists } | null    // is there a user-facing ticket to close
   }
 """
 
@@ -31,7 +36,6 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
-
 def main():
     # NOTE: read argv directly rather than via argparse -- Firebase push ids start
     # with '-' (e.g. -OwzDc6X...), which argparse would treat as an option flag.
@@ -41,29 +45,8 @@ def main():
         sys.exit(0 if argv else 2)
     rid = argv[0]
 
-    source = None
-    report = None
-    r = lib.ref("/BugReports/%s" % rid).get()
-    if isinstance(r, dict):
-        source, report = "BugReports", r
-    else:
-        r = lib.ref("/BugReportsArchive/%s" % rid).get()
-        if isinstance(r, dict):
-            source, report = "BugReportsArchive", r
+    out = lib.bugs().report(rid)
 
-    issue = None
-    if report is not None:
-        report = dict(report)
-        report["_id"] = rid
-        issue_id = (report.get("triage") or {}).get("issueId")
-        if issue_id:
-            node = lib.ref("/BugReportTriage/issues/%s" % issue_id).get()
-            if isinstance(node, dict):
-                node = dict(node)
-                node["_threadId"] = issue_id
-                issue = node
-
-    out = {"found": report is not None, "source": source, "report": report, "issue": issue}
     json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
     sys.stdout.write("\n")
 

@@ -20,13 +20,23 @@ for lobby reports (`isLobby: true`) and for games whose storage backend is
 The --game/--no-report-check form bypasses the report lookup for non-bug-report
 uses (e.g. a manual note into a known game). It prints a warning that
 allowGameEntry was NOT verified -- use it only when you have the user's consent
-by other means.
+by other means. NOTE: this form is DurableObjects-only. The dashboard API acts
+only on a report (there is nothing to check consent against otherwise), so this
+path never reaches Firebase and cannot read /games to pick a worker -- name the
+staging one with --staging, or take the release default.
 
-Backends (routed automatically from /games/{gameid}/storage in Firebase MCDM):
-  - Firebase (storage 0 / absent)      -> service-account write to
+WHERE THE WORK HAPPENS. With --report, the internal-dashboards Worker does the
+report lookup, the consent gate and the backend routing, and performs the write
+itself for a Firebase-backed game -- this script holds no Firebase credential.
+The gate therefore lives on the far side of the team password and cannot be
+skipped from here.
+
+Backends (routed by the Worker from /games/{gameid}/storage):
+  - Firebase (storage 0 / absent)      -> the Worker writes
                                           /GameDetails/{gameid}/chat/{guid}
-  - DurableObjects (storage 1)         -> admin WebSocket put to release worker
-  - DurableObjectsStaging (storage 2)  -> admin WebSocket put to staging worker
+  - DurableObjects (storage 1)         -> Worker authorises; THIS script makes
+                                          the admin WebSocket put (release)
+  - DurableObjectsStaging (storage 2)  -> same, against the staging worker
   - Local (storage 3)                  -> refused (unreachable)
 
 ADMIN SECRET (only needed for DurableObjects games):
@@ -45,8 +55,9 @@ ADMIN SECRET (only needed for DurableObjects games):
   `wrangler secret put ADMIN_SECRET --env staging`, then save the same value
   into the file above. Wrangler cannot read a secret back.
 
-Dependencies: firebase-admin (already used across dmhub-admin) for Firebase
-reads/writes, and the `websockets` package for the DO path (import guarded).
+Dependencies: `requests` (via bugreport_lib, for the dashboard API) and the
+`websockets` package for the DO path (import guarded). No firebase-admin, and
+no service-account key on this machine.
 
 Dry run: --dry-run prints the resolved backend, target URL/path, and the exact
 record JSON, and writes nothing.
@@ -68,17 +79,6 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-
-# On Windows the default stdout encoding is cp1252, which chokes on any
-# non-ASCII character a message might contain. Reconfigure to UTF-8 so log
-# lines (and echoed message text) always print. Python 3.7+. Matches
-# migrate-game-to-do.py.
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-except AttributeError:
-    pass
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Cloudflare game-server WebSocket endpoints. codexback.com is the current
@@ -96,25 +96,12 @@ HTTP_USER_AGENT = "dmhub-admin-send-game-chat/1.0"
 SENDER_USERID = "codex-team"
 DEFAULT_NICK = "Codex Team"
 
-# StorageBackend enum (AccountInfo.cs:432). /games/{gameid}/storage is written
-# as this int (absent == 0 == Firebase); reports carry it as a string.
+# Backend names as the dashboard API reports them (bugs.js keeps the
+# StorageBackend enum mapping now -- AccountInfo.cs:432 is its source).
 BACKEND_FIREBASE = "firebase"
 BACKEND_DO_RELEASE = "durableobjects"
 BACKEND_DO_STAGING = "durableobjectsstaging"
 BACKEND_LOCAL = "local"
-
-_INT_TO_BACKEND = {
-    0: BACKEND_FIREBASE,
-    1: BACKEND_DO_RELEASE,
-    2: BACKEND_DO_STAGING,
-    3: BACKEND_LOCAL,
-}
-_STR_TO_BACKEND = {
-    "firebase": BACKEND_FIREBASE,
-    "durableobjects": BACKEND_DO_RELEASE,
-    "durableobjectsstaging": BACKEND_DO_STAGING,
-    "local": BACKEND_LOCAL,
-}
 
 
 def die(msg, code=1):
@@ -122,66 +109,32 @@ def die(msg, code=1):
     sys.exit(code)
 
 
-# -- Firebase reads (reuse bugreport_lib's service-account app) --------------
+# -- Dashboard (holds the Firebase credential) --------------------------------
 
 def _lib():
-    """Lazily import bugreport_lib (initialises firebase-admin against the
-    MCDM RTDB with mcdm-key.json). Its .ref() authenticates with the service
-    account -- an OAuth Bearer token that bypasses RTDB security rules, which
-    is exactly the privileged write path we want (no ?auth=)."""
+    """Lazily import bugreport_lib, which carries the /api/bugs/* client.
+
+    The report lookup, the consent gate, the backend routing and the Firebase
+    write all happen in the Worker now -- this script no longer has, or needs,
+    a Firebase credential. What stays here is the DurableObjects path: that
+    needs an admin WebSocket to the game-server Worker with its own
+    ADMIN_SECRET, which the dashboard has no business holding."""
     try:
         import bugreport_lib  # noqa
     except Exception as e:
-        die("could not import bugreport_lib (needed for Firebase access): %s" % e)
+        die("could not import bugreport_lib (needed for the dashboard API): %s" % e)
     return bugreport_lib
-
-
-def fetch_report(report_id):
-    """Return (source, report) from /BugReports then /BugReportsArchive, or
-    (None, None). Mirrors bug-report-get.py."""
-    lib = _lib()
-    r = lib.ref("/BugReports/%s" % report_id).get()
-    if isinstance(r, dict):
-        return "BugReports", r
-    r = lib.ref("/BugReportsArchive/%s" % report_id).get()
-    if isinstance(r, dict):
-        return "BugReportsArchive", r
-    return None, None
-
-
-def resolve_backend(gameid, force_staging):
-    """Read /games/{gameid}/storage and map it to a backend constant.
-    Returns (backend, raw_storage_value). Missing game -> (None, None)."""
-    lib = _lib()
-    games_node = lib.ref("/games/%s" % gameid).get()
-    if not isinstance(games_node, dict):
-        return None, None
-    raw = games_node.get("storage")
-    backend = None
-    if raw is None:
-        backend = BACKEND_FIREBASE
-    elif isinstance(raw, bool):
-        # Defensive: a bool would be a data error; treat as Firebase default.
-        backend = BACKEND_FIREBASE
-    elif isinstance(raw, int):
-        backend = _INT_TO_BACKEND.get(raw)
-    elif isinstance(raw, str):
-        backend = _STR_TO_BACKEND.get(raw.strip().lower())
-    if backend is None:
-        die("unrecognised storage value %r at /games/%s/storage" % (raw, gameid))
-    # --staging forces DO writes at the staging worker regardless of which DO
-    # the game is flagged for. Only meaningful for DO backends.
-    if force_staging and backend in (BACKEND_DO_RELEASE, BACKEND_DO_STAGING):
-        backend = BACKEND_DO_STAGING
-    return backend, raw
 
 
 # -- Send paths ---------------------------------------------------------------
 
 def build_record(nick, message):
-    """The chat record. `{".sv":"timestamp"}` is Firebase's server-timestamp
-    placeholder; it is resolved server-side on BOTH backends -- the RTDB REST
-    layer resolves it natively, and the DO worker's handlePut runs data through
+    """The chat record, for the --game path only (the --report path gets the
+    record back from the Worker, which builds the identical thing).
+
+    `{".sv":"timestamp"}` is Firebase's server-timestamp placeholder; it is
+    resolved server-side on BOTH backends -- the RTDB REST layer resolves it
+    natively, and the DO worker's handlePut runs data through
     normalizeForFirebaseCompat (json-patch.ts:82, index.ts:5397), which turns
     it into Date.now(). No nickColor is set: the chat panel treats an alpha<0.9
     nickColor as "use a default light color" (ChatPanel.lua FormatChatMessage),
@@ -192,13 +145,6 @@ def build_record(nick, message):
         "message": message,
         "timestamp": {".sv": "timestamp"},
     }
-
-
-def send_firebase(gameid, guid, record):
-    lib = _lib()
-    path = "/GameDetails/%s/chat/%s" % (gameid, guid)
-    # set() writes the whole (new) record; the service account bypasses rules.
-    lib.ref(path).set(record)
 
 
 def load_admin_secret(cli_secret, staging):
@@ -364,70 +310,87 @@ def main():
     if not message or not message.strip():
         die("message is empty.")
 
-    # -- Resolve the target game + consent -----------------------------------
+    # -- The --report path: the Worker decides, and does the Firebase half ----
+    #
+    # It loads the report, applies the consent gate (allowGameEntry / isLobby /
+    # Local), resolves the backend from /games, and -- for a Firebase game --
+    # performs the write. That is deliberately not negotiable from here: the
+    # gate now lives on the server side of the password, so this script cannot
+    # talk its way past it.
     if args.report:
-        source, report = fetch_report(args.report)
-        if report is None:
-            die("report %s not found in /BugReports or /BugReportsArchive "
-                "(check for a typo)." % args.report)
-        print("[report] found in %s" % source, flush=True)
+        lib = _lib()
+        result = lib.bugs().game_chat(
+            args.report, message,
+            nick=args.nick, dry_run=args.dry_run, force_staging=args.staging,
+        )
+        if not result.get("ok"):
+            die("%s (%s)" % (result.get("error", "refused"), result.get("code", "?")))
 
-        gameid = report.get("gameid")
-        if not gameid:
-            die("report %s has no gameid (no game was loaded when it was "
-                "filed) -- nothing to send into." % args.report)
+        plan = result["plan"]
+        print("[report] found in %s" % plan.get("reportSource"), flush=True)
+        print("[plan] game=%s storage=%r backend=%s"
+              % (plan["gameid"], plan.get("storage"), plan["backend"]), flush=True)
+        print("[plan] record: %s" % json.dumps(plan["record"], ensure_ascii=False), flush=True)
 
-        if report.get("isLobby") is True:
-            die("report %s was filed from the local lobby (isLobby=true); the "
-                "lobby game is on the user's machine and is unreachable." % args.report)
+        if result.get("dryRun"):
+            print("[plan] target: %s" % _describe_target(plan), flush=True)
+            print("[dry-run] no connection made, nothing written.", flush=True)
+            return
 
-        if report.get("allowGameEntry") is not True:
-            die("report %s does not grant allowGameEntry (it is %r). This is "
-                "the consent gate -- refuse to write into the game without it."
-                % (args.report, report.get("allowGameEntry")))
-    else:
-        gameid = args.game
-        report = None
-        print("WARNING: --no-report-check: allowGameEntry was NOT verified. "
-              "Only proceed if you have the user's consent by other means.",
-              file=sys.stderr)
+        if result.get("sent"):
+            print("[done] chat message written to %s via the dashboard "
+                  "(guid=%s)." % (plan["gameid"], plan["guid"]), flush=True)
+            return
 
-    backend, raw_storage = resolve_backend(gameid, args.staging)
-    if backend is None:
-        die("game %s not found at /games/%s in Firebase -- it may be a Local/"
-            "lobby game or have been deleted; unreachable." % (gameid, gameid))
-    if backend == BACKEND_LOCAL:
-        die("game %s uses the Local storage backend (per-machine lobby server); "
-            "it is unreachable from here." % gameid)
+        # Delegated: a DurableObjects game. The Worker resolved and authorised
+        # it; the admin WebSocket write is ours to make.
+        staging = (plan["backend"] == BACKEND_DO_STAGING)
+        print("[plan] target: %s" % _describe_target(plan), flush=True)
+        secret = load_admin_secret(args.admin_secret, staging)
+        send_durable_object(plan["gameid"], plan["guid"], plan["record"], staging, secret)
+        print("[done] chat message sent to %s as %r (guid=%s)."
+              % (plan["gameid"], plan["record"].get("nick"), plan["guid"]), flush=True)
+        return
+
+    # -- The --game escape hatch: no report, so no consent to check -----------
+    #
+    # The dashboard API refuses to take a bare gameid (there is nothing to check
+    # consent against), so this path never reaches Firebase -- which makes it
+    # DurableObjects-only, and it cannot read /games to work out which worker.
+    # Say which one with --staging, or accept the release default.
+    gameid = args.game
+    print("WARNING: --no-report-check: allowGameEntry was NOT verified. "
+          "Only proceed if you have the user's consent by other means.",
+          file=sys.stderr)
+    print("WARNING: without a report this cannot reach a Firebase-backed game "
+          "(the dashboard API only acts on a report). Assuming a DurableObjects "
+          "game on the %s worker." % ("staging" if args.staging else "release"),
+          file=sys.stderr)
 
     guid = str(uuid.uuid4())
     record = build_record(args.nick, message)
-
-    # Resolve the concrete target for logging / dry-run.
-    if backend == BACKEND_FIREBASE:
-        target = "Firebase RTDB set /GameDetails/%s/chat/%s" % (gameid, guid)
-    else:
-        staging = (backend == BACKEND_DO_STAGING)
-        ws_url = (STAGING_WS if staging else RELEASE_WS).format(gameid=gameid)
-        target = "DO admin put %s  store=game path=/chat/%s" % (ws_url, guid)
-
-    print("[plan] game=%s storage=%r backend=%s" % (gameid, raw_storage, backend), flush=True)
-    print("[plan] target: %s" % target, flush=True)
+    ws_url = (STAGING_WS if args.staging else RELEASE_WS).format(gameid=gameid)
+    print("[plan] game=%s backend=%s" % (gameid, "durableobjects"), flush=True)
+    print("[plan] target: DO admin put %s  store=game path=/chat/%s" % (ws_url, guid), flush=True)
     print("[plan] record: %s" % json.dumps(record, ensure_ascii=False), flush=True)
 
     if args.dry_run:
         print("[dry-run] no connection made, nothing written.", flush=True)
         return
 
-    if backend == BACKEND_FIREBASE:
-        send_firebase(gameid, guid, record)
-    else:
-        staging = (backend == BACKEND_DO_STAGING)
-        secret = load_admin_secret(args.admin_secret, staging)
-        send_durable_object(gameid, guid, record, staging, secret)
-
+    secret = load_admin_secret(args.admin_secret, args.staging)
+    send_durable_object(gameid, guid, record, args.staging, secret)
     print("[done] chat message sent to %s as %r (guid=%s)."
           % (gameid, args.nick, guid), flush=True)
+
+
+def _describe_target(plan):
+    """Human-readable destination for the plan the Worker resolved."""
+    if plan["backend"] == BACKEND_FIREBASE:
+        return "Firebase RTDB set %s (written by the dashboard)" % plan["path"]
+    staging = (plan["backend"] == BACKEND_DO_STAGING)
+    ws_url = (STAGING_WS if staging else RELEASE_WS).format(gameid=plan["gameid"])
+    return "DO admin put %s  store=game path=/chat/%s" % (ws_url, plan["guid"])
 
 
 if __name__ == "__main__":

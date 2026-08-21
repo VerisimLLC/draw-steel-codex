@@ -1,5 +1,11 @@
 # Dependencies for the bug-fix skill scripts.
 #   pip install -r requirements.txt
-firebase-admin>=6.0      # service-account access to the MCDM Realtime Database
-requests>=2.28           # blob downloads, Discord webhooks, dashboard tickets API
+requests>=2.28           # the dashboard bug API, blob downloads, Discord webhooks
 websockets>=12.0         # only for send-game-chat.py against a DurableObjects game
+
+# NOT firebase-admin, and deliberately so. The bug system is reached through
+# /api/bugs/* on the internal-dashboards Worker, which holds the Firebase
+# service account server-side; nothing here needs a Firebase credential. The
+# legacy init_firebase()/ref() path in bugreport_lib.py imports it lazily and is
+# unused by this skill -- install it only if you are running the older
+# dmhub-admin tooling that shares that file.

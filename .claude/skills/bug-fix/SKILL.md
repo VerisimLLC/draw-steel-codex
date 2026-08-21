@@ -27,8 +27,7 @@ repo saves configuring `dmhubRepo`.)
 ## Step 0 - Credentials preflight
 
 **Only when something fails with a credentials/config error, or on a machine that has
-never run this skill.** Otherwise skip straight to Step 1 -- a working setup needs no
-check.
+never run this skill.** Otherwise skip straight to Step 1.
 
 ```bash
 python <S>/check-credentials.py
@@ -39,23 +38,20 @@ anything is missing, **tell the user what is missing, what it blocks, and how to
 it** -- the script's own output says all three, and `<S>/CREDENTIALS.md` has the full
 walkthrough. Do not guess at secret values and never invent one.
 
-The short version, for what to tell them:
+**There is no Firebase key on this machine, and there must never be one.** The bug system
+is reached through `/api/bugs/*` on the internal-dashboards Worker, which holds the
+Firebase service account server-side and exposes only the bug system -- six paths, all
+keyed by a report id, one append-only write. If a script ever asks for a service-account
+key, something has fallen back to the legacy path; say so rather than supplying a key.
 
 | Credential | Where | Blocks, if absent |
 |---|---|---|
-| Firebase service-account key (`mcdm-key.json`, project mcdm-385cf) | credentials dir | **everything** -- reports cannot be read |
+| Dashboard team password | `$BUG_TICKETS_PASSWORD`, or read from `internal-dashboards/wrangler.jsonc` (automatic when running inside the dmhub repo) | **everything** |
 | Discord webhook(s) | config `discordWebhook` / `channels.bug.webhook` | closeout: the "Fixed and Closed" reply |
 | Discord bot token | `$DISCORD_BOT_TOKEN` / config `discordBotToken` | closeout: archiving the thread (skipped with a note, not a failure) |
-| Dashboard tickets password | `$BUG_TICKETS_PASSWORD`, or read from `internal-dashboards/wrangler.jsonc` | closeout: the ticket message + close |
-| Worker `ADMIN_SECRET` | `$DMHUB_ADMIN_SECRET` / `admin-secret.txt` in the credentials dir | `send-game-chat.py` into a DurableObjects game |
+| Worker `ADMIN_SECRET` | `$DMHUB_ADMIN_SECRET` / `admin-secret.txt` in the credentials dir | `send-game-chat.py` finishing a send into a **DurableObjects** game (a Firebase game is written by the dashboard) |
 
-The **credentials directory** is the directory holding `bug-report-config.json`, resolved
-in this order: `$BUG_REPORT_CONFIG` (a file) > `$DMHUB_ADMIN_DIR` (a directory) >
-`~/.dmhub` > `D:\dev\dmhub-admin` > `C:\dev\dmhub-admin` > `~/dev/dmhub-admin` > beside
-the scripts. It is deliberately outside the repo: **never** write a credential into
-`<S>`, and never commit one.
-
-Missing Python packages (`firebase_admin`, `requests`, `websockets`) install with
+Missing Python packages (`requests`, `websockets`) install with
 `pip install -r <S>/requirements.txt`.
 
 ## Step 1 - Load the report + its stored agent analysis
@@ -67,6 +63,9 @@ Read the file (`<scratch>` = your session scratchpad dir):
 python <S>/bug-report-get.py <reportId> > <scratch>/feedback.json
 ```
 
+This goes through the dashboard's `/api/bugs/report`; the JSON it prints is the whole
+report record, unabridged.
+
 - `found: false` -> the id isn't in `/BugReports` or `/BugReportsArchive`; tell the
   user and stop (check for a typo).
 - `source`: `BugReports` = still novel/un-triaged; `BugReportsArchive` = already processed.
@@ -74,6 +73,8 @@ python <S>/bug-report-get.py <reportId> > <scratch>/feedback.json
   for this issue: summary, root-cause hypothesis, **suggested fix** with `file:line`, and
   the verbatim user quote. `report.triage.issueId` is the Discord thread; `issue` is the
   registry node (title / type / signature / all reportIds folded into it).
+- `ticket` is `{uid, exists}` -- whether the reporter has a user-facing ticket, which is
+  what decides if a closeout has a ticket half at all.
 
 ## Step 2 - Gather what the instruction needs
 
@@ -106,9 +107,13 @@ Do exactly what the user asked. Common cases:
 - **"notify the user in-game"** -> after a fix ships (or their game data was repaired),
   post a "Codex Team" chat line into the reporter's game:
   `python <S>/send-game-chat.py --report <reportId> "<message>"`
-  Requirements the script ENFORCES: `allowGameEntry` must be true, not `isLobby`, and
-  storage not `Local` (all refused otherwise). This is OUTWARD-FACING: ALWAYS show the
-  exact message text to the user and get confirmation before sending. Have the message
+  Requirements the **Worker** enforces (not the script, so they cannot be bypassed from
+  here): `allowGameEntry` must be true, not `isLobby`, and storage not `Local` -- all
+  refused with a machine-readable code otherwise. A Firebase-backed game is written by
+  the dashboard; a DurableObjects game is authorised by the dashboard and then written by
+  the script over an admin WebSocket, which is the one step still needing `ADMIN_SECRET`
+  locally. This is OUTWARD-FACING: ALWAYS show the exact message text to the user and get
+  confirmation before sending. Have the message
   name the report id and what was fixed, and note availability (e.g. "in the next
   release") when relevant. Use `--dry-run` first to preview the resolved backend + record.
 - **"close out the bug" / "close it out"** -> the closeout below. ONLY on explicit

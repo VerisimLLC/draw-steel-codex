@@ -1,11 +1,22 @@
 """Shared helpers for the bug-report triage pipeline.
 
 All of the bug-report-*.py scripts import this. It centralises:
-  - loading bug-report-config.json (webhook URL, service-account key path, tag ids)
-  - initialising the firebase-admin app against the MCDM RTDB
+  - reaching the bug system through the internal-dashboards Worker (the
+    supported path -- see "bug system API" below); this needs only the shared
+    team password, and NO Firebase credential on this machine
+  - loading bug-report-config.json (Discord webhooks, tag ids, dashboard url)
   - path resolution that works no matter what the current working directory is
-    (the scheduled task runs from dmhub-admin; a Claude Code agent runs from the
-    dmhub repo -- both must find the key + config next to these scripts).
+
+HOW THE DATA IS REACHED. Reports live in the MCDM Realtime Database, but this
+library does not talk to it. It calls /api/bugs/* on the internal-dashboards
+Worker, which holds the service account as a Worker secret and exposes only the
+bug system (one report by id, its issue node, its ticket marker, and a single
+consent-gated chat write). The Worker enforces the consent gate itself, so it
+cannot be skipped from here.
+
+The service-account path (init_firebase/ref) is still present for the admin
+tooling that shares this file, but nothing in the bug-fix skill calls it, and
+firebase_admin is imported lazily so it need not even be installed.
 
 Consumer-owned triage state lives under a single root in the MCDM RTDB:
 
@@ -47,10 +58,13 @@ import os
 import re
 import time
 
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
 import requests
+
+# firebase_admin is NOT imported at module scope. The supported path for this
+# skill is the dashboard API (see "bug system API" below), which needs nothing
+# but `requests`; the service-account path survives only for a caller that
+# explicitly opts into it, and imports lazily inside init_firebase() so the
+# package need not be installed at all.
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -148,7 +162,13 @@ def load_config(path=None):
         return _config
     path = path or find_config()
     if not path or not os.path.exists(path):
-        raise SystemExit(missing_config_message())
+        # NOT fatal any more. Reading reports and closing tickets need only the
+        # dashboard password, which resolves from the environment or from
+        # internal-dashboards/wrangler.jsonc -- so a machine with no config at
+        # all still works for most of the skill. Only the Discord steps really
+        # need this file, and they say so themselves when it is absent.
+        _config = {"_missing": True, "_configPath": None, "_credentialsDir": None}
+        return _config
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
     cfg["_configPath"] = os.path.abspath(path)
@@ -160,27 +180,45 @@ def load_config(path=None):
         beside_config = os.path.join(cfg["_credentialsDir"], key)
         key = beside_config if os.path.exists(beside_config) else os.path.join(SCRIPT_DIR, key)
     cfg["keyPath"] = key
-    if not os.path.exists(key):
-        raise SystemExit(
-            "Missing Firebase service-account key: %s\n"
-            "It is named by 'keyPath' in %s. Download it from the Firebase console\n"
-            "(project mcdm-385cf) > Project settings > Service accounts > Generate\n"
-            "new private key, and save it there. Never commit it."
-            % (key, cfg["_configPath"])
-        )
+    # Deliberately NOT checked for existence here: a machine running the skill
+    # is expected to have no key at all. init_firebase() is the only thing that
+    # needs one, and it explains itself if it is missing.
     _config = cfg
     return cfg
 
 
 def init_firebase():
-    """Initialise (once) and return the firebase-admin app for the MCDM RTDB."""
+    """Initialise (once) and return the firebase-admin app for the MCDM RTDB.
+
+    LEGACY. Nothing in the bug-fix skill calls this -- the dashboard API below
+    is the supported path, and it needs no key on this machine. This survives
+    for admin tooling that shares this file, and fails with an explanation
+    rather than a stack trace when the key or the package is absent.
+    """
     global _app
     if _app is not None:
         return _app
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+    except ImportError as e:
+        raise SystemExit(
+            "This call wants the Firebase service-account path, which needs the\n"
+            "firebase-admin package (%s). The bug-fix skill does not use it --\n"
+            "it goes through the dashboard API instead. Install it only if you\n"
+            "really need direct RTDB access:  pip install firebase-admin" % e
+        )
     cfg = load_config()
-    cred = credentials.Certificate(cfg["keyPath"])
+    key = cfg.get("keyPath")
+    if not key or not os.path.exists(key):
+        raise SystemExit(
+            "This call wants a Firebase service-account key (%s), which this\n"
+            "machine does not have -- by design. The bug-fix skill reaches the\n"
+            "bug system through the dashboard API instead; see CREDENTIALS.md."
+            % (key or "<unset>")
+        )
     _app = firebase_admin.initialize_app(
-        cred,
+        credentials.Certificate(key),
         {"databaseURL": cfg.get("databaseURL", "https://mcdm-385cf-default-rtdb.firebaseio.com/")},
     )
     return _app
@@ -264,28 +302,118 @@ def ref(path):
 
 # ---------------------------------------------------------------- reports
 
+# ---------------------------------------------------------------- bug system API
+#
+# /api/bugs/* on the internal-dashboards Worker. The Worker holds the Firebase
+# service account and exposes only the bug system; this side holds nothing but
+# the shared team password. See internal-dashboards/worker/bugs.js for the
+# allowlist of paths it will touch.
+
+_report_cache = {}
+
+
+class BugsClient:
+    """Authenticated client for /api/bugs/*.
+
+    Shares its login (and its cookie shape) with TicketsClient -- one password,
+    one session -- so a close-out that reads a report and then posts to a ticket
+    authenticates once.
+    """
+
+    def __init__(self, cfg=None, dev_name=None):
+        self.cfg = cfg if cfg is not None else load_config()
+        self.dev_name = dev_name or DEV_NAME_DEFAULT
+        self._session = None
+
+    def session(self):
+        if self._session is not None:
+            return self._session
+        pw = tickets_password(self.cfg)
+        if not pw:
+            raise SystemExit(
+                "No dashboard password, so the bug system is unreachable.\n"
+                "Set $BUG_TICKETS_PASSWORD, add \"ticketsPassword\" to bug-report-config.json,\n"
+                "or run from a checkout where internal-dashboards/wrangler.jsonc is readable\n"
+                "(point config \"dmhubRepo\" at it from elsewhere). See CREDENTIALS.md."
+            )
+        s = requests.Session()
+        resp = s.post("%s/api/bugs/login" % dashboard_url(self.cfg),
+                      json={"name": self.dev_name, "password": pw}, timeout=30)
+        if resp.status_code != 200:
+            raise SystemExit("Dashboard login failed (%d): %s" % (resp.status_code, resp.text[:200]))
+        self._session = s
+        return s
+
+    def _url(self, sub):
+        return "%s/api/bugs/%s" % (dashboard_url(self.cfg), sub)
+
+    def get(self, sub, params=None):
+        resp = self.session().get(self._url(sub), params=params or {}, timeout=30)
+        if resp.status_code != 200:
+            raise RuntimeError("/api/bugs/%s failed (%d): %s" % (sub, resp.status_code, resp.text[:300]))
+        return resp.json()
+
+    def post(self, sub, payload, allow_status=()):
+        """POST. Statuses in allow_status come back as data rather than raising,
+        so a caller can render a refusal (403 + a machine-readable code) as the
+        answer it is instead of a crash."""
+        resp = self.session().post(self._url(sub), json=payload, timeout=60)
+        if resp.status_code == 200 or resp.status_code in allow_status:
+            return resp.json() if resp.content else {}
+        raise RuntimeError("/api/bugs/%s failed (%d): %s" % (sub, resp.status_code, resp.text[:300]))
+
+    def status(self):
+        return self.get("status")
+
+    def report(self, rid):
+        """{found, source, report, issue, ticket} -- cached per process, since a
+        close-out asks for the same report two or three times."""
+        if rid not in _report_cache:
+            _report_cache[rid] = self.get("report", {"id": rid})
+        return _report_cache[rid]
+
+    def game_chat(self, rid, message, nick=None, dry_run=False, force_staging=False):
+        return self.post("game-chat", {
+            "reportId": rid,
+            "message": message,
+            "nick": nick,
+            "dryRun": bool(dry_run),
+            "forceStaging": bool(force_staging),
+        }, allow_status=(400, 403, 404))
+
+
+_bugs = None
+
+
+def bugs():
+    """The process-wide BugsClient (logs in once, lazily)."""
+    global _bugs
+    if _bugs is None:
+        _bugs = BugsClient()
+    return _bugs
+
+
 def load_report(rid):
     """Return (source, report) for a report id, from wherever it lives.
 
     Novel reports are in /BugReports; processed ones have been moved to
     /BugReportsArchive by bug-report-apply.py. (None, None) if it is in neither.
     """
-    r = ref("/BugReports/%s" % rid).get()
-    if isinstance(r, dict):
-        return "BugReports", r
-    r = ref("/BugReportsArchive/%s" % rid).get()
-    if isinstance(r, dict):
-        return "BugReportsArchive", r
-    return None, None
+    data = bugs().report(rid)
+    if not data.get("found"):
+        return None, None
+    return data.get("source"), data.get("report")
 
 
 def ticket_exists(uid, rid):
     """True if this report opened a user-facing ticket.
 
     Only bug-type reports filed by ticket-aware clients have one, so a missing
-    ticket is normal and never an error.
+    ticket is normal and never an error. `uid` is accepted for call
+    compatibility; the server resolves the owner from the report itself.
     """
-    return bool(ref("/Tickets/%s/%s/reportId" % (uid, rid)).get())
+    ticket = bugs().report(rid).get("ticket") or {}
+    return bool(ticket.get("exists"))
 
 
 # ---------------------------------------------------------------- fix PRs
@@ -370,7 +498,15 @@ DEV_NAME_DEFAULT = "Codex Developers"
 
 
 def dashboard_url(cfg):
-    return (cfg.get("dashboardUrl") or DASHBOARD_URL_DEFAULT).rstrip("/")
+    """Base url of the internal-dashboards Worker.
+
+    $BUG_DASHBOARD_URL overrides everything -- that is how you point the skill
+    at a local `wrangler dev` (http://127.0.0.1:8787) to try a Worker change
+    before deploying it.
+    """
+    return (os.environ.get("BUG_DASHBOARD_URL")
+            or cfg.get("dashboardUrl")
+            or DASHBOARD_URL_DEFAULT).rstrip("/")
 
 
 def wrangler_candidates(cfg):

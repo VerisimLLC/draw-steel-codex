@@ -1009,6 +1009,19 @@ icon is working") - multi-target and summon chip badges. Live-verified.**
   correctly ABSENT for a mixed monster+hero selection in that game (F2-1
   holds outside A5).
 
+**2026-08-19, fifteenth report (Ricky, Rival monsters - first full test
+outside the goblin bed) - long titles vs badges, SOLVED STRUCTURALLY.**
+Rival kit names ("Dual Targeting Shot", "The Writhing Green", "Thunder of
+Heavens") reach the chip's top-right corner, so floating placement can never
+guarantee no overlap. Fix: the TITLE reserves the badge zone - AbilityHeading
+sets a "badges1"/"badges2" class tree from the visible badge count and
+`{abilityTitle, badgesN}` rules (priority 5) narrow the title to 100%-46 /
+100%-68, wrapping it a line early (commit c4743b7c). Verified live in Ricky's
+Rival game: all long titles wrap cleanly, badges own the corner, and the
+overview's whole signal stack works on non-goblin content (Fury amber "Can't
+reach any hero", Tactician gold "High damage dealer").
+
+
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
 bar + minion copy.**
 - **On-map multi-select buttons yield to the open overview menu**: the

@@ -426,7 +426,9 @@ LaunchablePanel.Register {
                                 end
 
                                 resultsPanel = gui.Panel{
-                                    classes = {"bordered", "bg", "searchResultsPanel"},
+                                    --just searchResultsPanel, matching the real
+                                    --popup's seamless look (fill, no frame).
+                                    classes = {"searchResultsPanel"},
                                     flow = "vertical",
                                     width = 368,
                                     height = "auto",

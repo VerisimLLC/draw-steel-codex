@@ -1856,6 +1856,37 @@ end
 local function CreateSearchBar()
     local resultPanel
 
+    --the seamless-popup dressing (the connector strip below the bar and
+    --the bar's squared-off bottom corners) must track whether a POPUP is
+    --actually up, not focus -- a focused empty bar with no recents has
+    --no popup and must stay a plain closed pill (Venla 2026-08-21).
+    --Called from the paths that assign/clear the popup, from the popups'
+    --own destroy (so an engine outside-click dismissal retracts the
+    --dressing IMMEDIATELY -- the think tick alone left it flickering for
+    --up to 0.2s), plus the think tick as a catch-all.
+    local function SyncPopupOpenState()
+        if resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        local hasPopup = resultPanel.popup ~= nil
+        if hasPopup ~= resultPanel.data.hadPopup then
+            resultPanel.data.hadPopup = hasPopup
+            resultPanel:SetClass("searchPopupOpen", hasPopup)
+            resultPanel:FireEventTree("searchPopupChanged", hasPopup)
+        end
+    end
+
+    --destroy handler shared by the popups: when a popup is torn down and
+    --nothing replaced it, retract the dressing right away. The
+    --popup-still-set guard keeps per-keystroke popup REPLACEMENT from
+    --blinking the connector (the old popup's destroy can fire after the
+    --new one is already assigned).
+    local function OnSearchPopupDestroyed()
+        if resultPanel ~= nil and resultPanel.valid and resultPanel.popup == nil then
+            SyncPopupOpenState()
+        end
+    end
+
     -- Per-doc heading search lives in JournalPDFViewer.lua (SearchPDFHeadings,
     -- shared with the "In this document" context provider). This wrapper maps
     -- its {page, heading, score} matches onto result rows: the HEADING is the
@@ -2296,7 +2327,10 @@ local function CreateSearchBar()
         end
 
         popupPanel = gui.Panel{
-            classes = {"bordered", "bg", "searchResultsPanel"},
+            --just searchResultsPanel: the seamless look supplies its own
+            --fill; bordered/bg would re-frame it as a separate panel.
+            classes = {"searchResultsPanel"},
+            destroy = OnSearchPopupDestroyed,
             flow = "vertical",
             -- Exactly the search box's width -- the popup must never be
             -- wider or narrower than the box above it (Venla 2026-08-21;
@@ -2534,6 +2568,7 @@ local function CreateSearchBar()
                 --default label styling, huge and unframed.
                 resultPanel.popupsInheritStyles = true
                 resultPanel.popup = gui.Panel{
+                    destroy = OnSearchPopupDestroyed,
                     flow = "vertical",
                     width = SearchBoxWidth(),
                     height = "auto",
@@ -2547,7 +2582,7 @@ local function CreateSearchBar()
                     --results popup sits).
                     gui.Panel{ width = 1, height = 12 },
                     gui.Panel{
-                        classes = {"bordered", "bg", "searchResultsPanel"},
+                        classes = {"searchResultsPanel"},
                         flow = "vertical",
                         width = "100%",
                         height = "auto",
@@ -2657,6 +2692,7 @@ local function CreateSearchBar()
             if not status then
                 element:FireEvent("repeatSearch")
             end
+            SyncPopupOpenState()
         end,
         change = function(element)
             --element:FireEvent("edit")
@@ -2666,6 +2702,7 @@ local function CreateSearchBar()
             if string.trim(element.text or "") == "" then
                 ShowRecentResults()
             end
+            SyncPopupOpenState()
         end,
         -- Click-to-focus on the empty box shows the recents. The engine has
         -- no input-gained-focus event (deselect has no symmetric select), so
@@ -2689,6 +2726,7 @@ local function CreateSearchBar()
                 ShowRecentResults()
             end
             element.data.hadInputFocus = focused
+            SyncPopupOpenState()
         end,
         -- Keyboard navigation of the results popup: arrows move the selection,
         -- Enter activates it (or the first result when nothing is selected).
@@ -2739,6 +2777,30 @@ local function CreateSearchBar()
             element:FireEvent("edit")
         end,
     }
+
+    --seamless popup connector (Venla 2026-08-21): while a results popup
+    --is up (searchPopupChanged, from SyncPopupOpenState), this strip
+    --extends the field's fill down over the gap the engine leaves above
+    --the popup (popup roots ignore y offsets, so the FIELD carries the
+    --bridge). Same fill as field and popup, so the three read as one
+    --stretched shape. AddChild, NOT a positional child in the
+    --constructor -- a positional option would overwrite
+    --gui.SearchInput's own magnifier child. Floating children anchor to
+    --the CONTENT box (inside hpad 24), hence the +48 to reach the full
+    --pill width.
+    resultPanel:AddChild(gui.Panel{
+        classes = {"searchPopupBridge", "hidden"},
+        floating = true,
+        interactable = false,
+        halign = "center",
+        valign = "bottom",
+        width = "100%+48",
+        height = 14,
+        y = 14,
+        searchPopupChanged = function(element, hasPopup)
+            element:SetClass("hidden", not hasPopup)
+        end,
+    })
 
     return resultPanel
 end
@@ -5932,48 +5994,89 @@ local function CreateTopBar()
             hidden = 1,
         },
 
-        -- Grouped global-search results popup.
+        -- Grouped global-search results popup: the search bar's own
+        -- focused fill, stretched downward (Venla 2026-08-21) -- no
+        -- frame, no separate panel color, square top corners so it
+        -- continues the bar's silhouette; only the bottom keeps the
+        -- pill rounding. x1=TL, y1=TR, x2=BR, y2=BL.
         {
             selectors = {"searchResultsPanel"},
-            pad = 6,
+            --vpad only, NO horizontal padding: row highlights span the
+            --popup's full width (Venla 2026-08-21), so rows reach the
+            --edges and carry their text inset as their own lpad/rpad.
+            vpad = 6,
             maxHeight = 600,
             borderBox = true,
+            bgimage = true,
+            bgcolor = "#2E2E33",
+            cornerRadius = {x1 = 0, y1 = 0, x2 = 7, y2 = 7},
+        },
+        {
+            -- While the search's results popup is actually up (class
+            -- toggled by SyncPopupOpenState), the field's bottom
+            -- corners square off so the popup below continues the
+            -- shape without corner notches. Keyed to the popup, NOT
+            -- focus: a focused empty bar has no popup and must stay a
+            -- plain closed pill.
+            selectors = {"searchInput", "searchPopupOpen"},
+            cornerRadius = {x1 = 7, y1 = 7, x2 = 0, y2 = 0},
+        },
+        {
+            -- The connector strip a focused search bar drops below
+            -- itself to meet the popup (the engine positions popup
+            -- roots a few px lower and ignores y offsets on them, so
+            -- the FIELD bridges the gap). Same fill as bar + popup, so
+            -- the overlap is invisible and the three read as one shape.
+            selectors = {"searchPopupBridge"},
+            bgimage = true,
+            bgcolor = "#2E2E33",
         },
         {
             selectors = {"searchGroupHeading"},
-            width = "100%-12",
+            --hmargin 12, matching the old 6 popup pad + 6 margin now
+            --that the popup itself has no horizontal padding.
+            width = "100%-24",
             height = "auto",
             halign = "left",
             color = "@accent",
             fontSize = 13,
             tmargin = 6,
             bmargin = 2,
-            hmargin = 6,
+            hmargin = 12,
         },
         {
             selectors = {"searchResultRow"},
-            width = "100%-12",
+            --full width so the hover/keyboard highlight runs edge to
+            --edge of the popup; the text inset lives in the row's OWN
+            --padding instead of margins. rpad 28, not symmetric: the
+            --engine scrollbar overlays the popup's right edge, and the
+            --right-aligned type labels must stay clear of it (Venla
+            --2026-08-21).
+            width = "100%",
             height = "auto",
             halign = "left",
             valign = "center",
             bgimage = true,
             bgcolor = "clear",
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
+        --row highlights lift ABOVE the popup's #2E2E33 ground (@bgAlt
+        --is darker than it now and read as dark stripes).
         {
             selectors = {"searchResultRow", "hover"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchResultRow", "searchfocus"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchSeeAll", "searchfocus"},
             bgimage = true,
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             -- Empty-state line ("No Search Results" / "Searching...")
@@ -6019,6 +6122,17 @@ local function CreateTopBar()
         {
             selectors = {"searchResultName"},
             width = "auto",
+            --hard cap, not "available": rows flow horizontally with an
+            --auto-width name block, so an uncapped long name pushes the
+            --right-hand type/chips column past the row edge and it
+            --clips mid-word (Venla 2026-08-21). Fixed cap, not an
+            --available-based width -- see the Control Zoo mock's note
+            --on the hover-restyle flicker loop. BOTH columns are
+            --capped (the right one overflowed too on long monster
+            --names as type labels); capped labels wrap instead of
+            --clipping. 150 + the right column's 95 + icon and margins
+            --fills the current popup width.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             valign = "center",
@@ -6028,6 +6142,10 @@ local function CreateTopBar()
         {
             selectors = {"searchResultType"},
             width = "auto",
+            --the right column's cap (see searchResultName): long type
+            --labels -- e.g. a monster name on an ability row -- wrap
+            --within it instead of running off the row edge.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -6038,6 +6156,9 @@ local function CreateTopBar()
         {
             selectors = {"searchResultSub"},
             width = "auto",
+            --same cap rationale as searchResultName: the sub line also
+            --widens the name block and pushes the right column out.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             color = "@fgMuted",
@@ -6070,6 +6191,9 @@ local function CreateTopBar()
         {
             selectors = {"searchHintText"},
             width = "auto",
+            --cap like searchResultName (minus the lead-in arrow), so a
+            --long action hint cannot widen the name block either.
+            maxWidth = 134,
             height = "auto",
             valign = "center",
             color = "@fgMuted",
@@ -6081,6 +6205,8 @@ local function CreateTopBar()
             -- chip above (and from sibling buttons when there is more than one).
             selectors = {"searchResultChip"},
             width = "auto",
+            --same right-column cap as searchResultType.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -6104,13 +6230,16 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchSeeAll"},
-            width = "100%-12",
+            --full width with row-matching pads, so its searchfocus
+            --highlight also runs edge to edge (see searchResultRow).
+            width = "100%",
             height = "auto",
             halign = "left",
             color = "@accentHover",
             fontSize = 13,
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
     }

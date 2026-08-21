@@ -625,10 +625,14 @@ local function OverviewAbilityFacets(ability)
         forced = false, forcedDistance = 0, forcedVerb = nil,
         control = false, conditions = {},
         malice = false, maliceCost = 0,
+        multiTarget = false, summon = false,
     }
     if ability == nil then
         return facets
     end
+    pcall(function()
+        facets.multiTarget = (tonumber(ability.numTargets) or 1) > 1 or ability.targetType == "all"
+    end)
     pcall(function()
         facets.area = ability:HasKeyword("Area") == true
         if facets.area then
@@ -677,6 +681,8 @@ local function OverviewAbilityFacets(ability)
                 end
             elseif tn == "ActivatedAbilityDamageBehavior" then
                 facets.damage = true
+            elseif string.find(tn, "Summon", 1, true) ~= nil then
+                facets.summon = true
             elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
                 facets.forced = true
                 local d = tonumber(behavior:try_get("distance"))
@@ -1560,12 +1566,20 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "abilityHeading", "offLens" },
         opacity = 0.45,
     },
-    --Field test 10: the DMG badge (red surge + label) on standout damage
-    --chips; clear backing so the chip behind still hovers/presses.
+    --Chip badge row (field tests 10-13): surge = standout damage, twin
+    --persons = multi-target (red when damaging), person+plus = summon
+    --(green). Clear backings so the chip behind still hovers/presses.
+    {
+        selectors = { "overviewBadgeRow" },
+        width = "auto",
+        height = "auto",
+        bgcolor = "clear",
+    },
     {
         selectors = { "overviewDmgBadge" },
         width = 18,
-        height = "auto",
+        height = 18,
+        valign = "center",
         bgcolor = "clear",
     },
     {
@@ -1573,7 +1587,51 @@ local OVERVIEW_FOOTER_RULES = {
         width = 16,
         height = 16,
         halign = "center",
+        valign = "center",
         bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewMultiBadge" },
+        width = 20,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewMultiIcon" },
+        width = 12,
+        height = 12,
+        halign = "left",
+        valign = "top",
+        bgcolor = "#EDEDED",
+    },
+    {
+        selectors = { "overviewSummonBadge" },
+        width = 22,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        flow = "horizontal",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewSummonIcon" },
+        width = 13,
+        height = 13,
+        halign = "left",
+        valign = "center",
+        bgcolor = "#7AC77A",
+    },
+    {
+        selectors = { "overviewSummonPlus" },
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        bold = true,
+        color = "#7AC77A",
+        halign = "left",
+        valign = "center",
     },
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
     {
@@ -3119,24 +3177,68 @@ local function AbilityHeading(args)
     --marker has been dismissed by opening the menu.
     local m_novelMarker = NovelContentMarker("onAbility")
 
-    --Field test 10: red surge + "DMG" for the standout damage ability in the
-    --director overview (never on hero chips - only the overview sets it).
-    --Presses bubble through to the chip, so clicking the badge still casts.
+    --Director-overview chip badges (never on hero chips - only the overview
+    --sets them; presses bubble through, so clicking a badge still casts):
+    --  * red surge = standout damage (field tests 10/11);
+    --  * two person silhouettes = targets more than one creature, red when
+    --    the ability does damage (field test 13);
+    --  * green person + "+" = brings a new creature into the encounter
+    --    (summon - friendly, hence green, field test 13).
     local m_dmgBadge = gui.Panel {
         classes = { "overviewDmgBadge", "collapsed" },
-        floating = true,
         bgimage = "panels/square.png",
-        halign = "right",
-        valign = "center",
-        rmargin = 4,
-        flow = "vertical",
         hover = gui.Tooltip{ text = "This ability does high damage", valign = "top" },
-        --Field test 11: symbol only - the "DMG" word crowded the keywords.
         gui.Panel {
             classes = { "overviewDmgIcon" },
             bgimage = "game-icons/surge.png",
             interactable = false,
         },
+    }
+    local m_multiIcon1 = gui.Panel {
+        classes = { "overviewMultiIcon" },
+        bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+        interactable = false,
+    }
+    local m_multiIcon2 = gui.Panel {
+        classes = { "overviewMultiIcon" },
+        bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+        floating = true,
+        x = 6,
+        y = 3,
+        interactable = false,
+    }
+    local m_multiBadge = gui.Panel {
+        classes = { "overviewMultiBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "Targets more than one creature", valign = "top" },
+        m_multiIcon1,
+        m_multiIcon2,
+    }
+    local m_summonBadge = gui.Panel {
+        classes = { "overviewSummonBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "Brings a new creature into the encounter", valign = "top" },
+        gui.Panel {
+            classes = { "overviewSummonIcon" },
+            bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewSummonPlus" },
+            text = "+",
+            interactable = false,
+        },
+    }
+    local m_badgeRow = gui.Panel {
+        classes = { "overviewBadgeRow", "collapsed" },
+        floating = true,
+        halign = "right",
+        valign = "center",
+        rmargin = 4,
+        flow = "horizontal",
+        m_summonBadge,
+        m_multiBadge,
+        m_dmgBadge,
     }
 
     resultPanel = gui.Panel {
@@ -3153,8 +3255,14 @@ local function AbilityHeading(args)
             args.overviewPress = overviewPress
         end,
 
-        setDamageBadge = function(element, flag)
-            m_dmgBadge:SetClass("collapsed", flag ~= true)
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon)
+            m_dmgBadge:SetClass("collapsed", dmg ~= true)
+            m_multiBadge:SetClass("collapsed", multi ~= true)
+            local tint = multiDamaging and "#E06464" or "#EDEDED"
+            m_multiIcon1.selfStyle.bgcolor = tint
+            m_multiIcon2.selfStyle.bgcolor = tint
+            m_summonBadge:SetClass("collapsed", summon ~= true)
+            m_badgeRow:SetClass("collapsed", not (dmg == true or multi == true or summon == true))
         end,
 
         ability = function(element, ability)
@@ -3667,7 +3775,7 @@ local function AbilityHeading(args)
         },
 
         m_novelMarker,
-        m_dmgBadge,
+        m_badgeRow,
     }
 
     if args.ability ~= nil then
@@ -5731,16 +5839,28 @@ local function ActionSubMenu(args)
                 --death risk (ties share it). Overview monsters only, and only
                 --under the All / Damage lenses.
                 local dmgBadge = false
-                if overview and (lens == "all" or lens == "damage") and m_column ~= nil then
+                local multiBadge, multiDamaging, summonBadge = false, false, false
+                if overview then
                     local facets = facetsByAbility[abilities[i]]
-                    if facets ~= nil and facets.damageValue > 0 then
-                        if (m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax)
-                            or (m_column.anyRed and m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax) then
-                            dmgBadge = true
+                    if facets ~= nil then
+                        if (lens == "all" or lens == "damage") and m_column ~= nil and facets.damageValue > 0 then
+                            if (m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax)
+                                or (m_column.anyRed and m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax) then
+                                dmgBadge = true
+                            end
+                        end
+                        --Field test 13: multi-target and summon markers ride
+                        --every lens, but never on a dimmed (off-lens) chip.
+                        --A summon IS a multi-ish ability; the green badge
+                        --wins so Get in Here! does not wear both.
+                        if not offLens then
+                            summonBadge = facets.summon == true
+                            multiBadge = (not summonBadge) and facets.multiTarget == true
+                            multiDamaging = facets.damage == true
                         end
                     end
                 end
-                m_chips[i]:FireEvent("setDamageBadge", dmgBadge)
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge)
             end
 
             for i = #abilities + 1, #m_chips do

@@ -969,6 +969,30 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, thirteenth user field test (Ricky, "really like how the damage
+icon is working") - multi-target and summon chip badges. Live-verified.**
+- The chip badge is now a BADGE ROW (floating right edge, presses bubble
+  through): [green summon] [twin persons] [red surge]. Icons from the
+  "Provided By MCDM" image library - the person silhouette is asset
+  e2345ee0-e8e3-412c-bebc-d0dddbafad93 (identified by rendering the whole
+  library in-app; Ricky's screenshot-inspector had grabbed the pencil
+  edit-button instead).
+- **Multi-target badge**: TWO overlapped person silhouettes when
+  numTargets > 1 or targetType == "all"; RED (#E06464) when the ability
+  does damage, off-white otherwise. Tooltip "Targets more than one
+  creature".
+- **Summon badge**: person + green "+" (#7AC77A - friendly, not
+  adversarial) when any behavior typeName contains "Summon". Tooltip
+  "Brings a new creature into the encounter". PRECEDENCE: a summon never
+  also wears the multi badge (Get in Here! targets 2 empty squares but
+  reads as summon only).
+- Facets gained `multiTarget` and `summon`; badges ride every lens but
+  never on a dimmed off-lens chip (the DMG surge keeps its stricter
+  All/Damage gating from field test 10).
+- Live: Handaxe x2 = red twins + surge; Get in Here! = green person+;
+  Shadow Chains = red twins; area abilities (Toxic Winds / Swamp Gas)
+  correctly carry nothing (the green grid icon already says area).
+
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
 bar + minion copy.**
 - **On-map multi-select buttons yield to the open overview menu**: the

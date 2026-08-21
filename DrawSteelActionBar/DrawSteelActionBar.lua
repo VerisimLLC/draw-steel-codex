@@ -510,6 +510,23 @@ local function GetHeroicResourceOrMaliceCost(ability, symbols)
     return heroicResourceEntry.quantity
 end
 
+--Consolidated overview constants/state. The file sits AT Lua 5.4's limit of
+--200 locals per chunk (the engine REFUSES the file past it - luac 5.5 on the
+--dev machine counts differently and misses it), so overview scalars live as
+--fields here rather than as top-level locals. Add new module state HERE.
+local OVERVIEW = {
+    FOOTER_ROWS = 3,
+    FOOTER_ROW_POOL = 6,
+    STATUS_ICONS = 5,
+    THREAT_COLOR = "#E06464",
+    NOREACH_COLOR = "#E0A050",
+    CHIP_CONDITION_ICONS = 2,
+    LOCATE_PAN_TIME = 0.55,
+    LOCATE_HOLD = 1.4,
+    locateGeneration = {},
+    tierFacetCache = {},
+}
+
 --P2-c1: LENSES (Decisions 8/21/27/31/49, X3). A lens is a FACET filter over
 --the overview columns: it hides columns with no matching kit ability, dims
 --(never hides) the non-matching chips inside the surviving columns, and sorts
@@ -548,12 +565,11 @@ end
 
 --Tier-text facets, cached by the exact text (the parser is regex-heavy and
 --the same tier strings recur on every populate).
-local g_overviewTierFacetCache = {}
 local function OverviewTierFacets(text)
     if type(text) ~= "string" or text == "" then
         return { damage = nil, forced = nil, control = false }
     end
-    local cached = g_overviewTierFacetCache[text]
+    local cached = OVERVIEW.tierFacetCache[text]
     if cached ~= nil then
         return cached
     end
@@ -594,7 +610,7 @@ local function OverviewTierFacets(text)
             end
         end
     end
-    g_overviewTierFacetCache[text] = facets
+    OVERVIEW.tierFacetCache[text] = facets
     return facets
 end
 
@@ -762,7 +778,6 @@ end
 --(charConditions iconid + display, powertable entries preferred - the same
 --art players see on tokens). From facets.conditions (parser/effect names),
 --matched by lowercased name, never substring.
-local OVERVIEW_CHIP_CONDITION_ICONS = 2
 local function OverviewConditionIcons(facets)
     local result = {}
     if facets == nil or facets.conditions == nil or #facets.conditions == 0 then
@@ -1339,11 +1354,9 @@ local NOVEL_MARKER_RULES = {
 --OverviewColumnFooter block above ActionSubMenu for the design notes.
 --Merged into the action bar root's cascade like NOVEL_MARKER_RULES so
 --the rules resolve on columns inside an open action menu.
-local OVERVIEW_FOOTER_ROWS = 3
---Pooled row count: the signals view shows OVERVIEW_FOOTER_ROWS then "+N
+--Pooled row count: the signals view shows OVERVIEW.FOOTER_ROWS then "+N
 --more"; the owner-selection prompt (slice (e)) may show up to this many
 --selectable members before its own "+N more".
-local OVERVIEW_FOOTER_ROW_POOL = 6
 
 local OVERVIEW_FOOTER_RULES = {
     {
@@ -3509,7 +3522,7 @@ local function AbilityHeading(args)
                     for _, icon in ipairs(icons) do
                         names[#names + 1] = icon.name
                     end
-                    for i = 1, OVERVIEW_CHIP_CONDITION_ICONS do
+                    for i = 1, OVERVIEW.CHIP_CONDITION_ICONS do
                         local panel = children[i]
                         local icon = icons[i]
                         if icon == nil then
@@ -3520,9 +3533,9 @@ local function AbilityHeading(args)
                             panel.selfStyle.bgcolor = icon.bgcolor
                         end
                     end
-                    local more = children[OVERVIEW_CHIP_CONDITION_ICONS + 1]
-                    if #icons > OVERVIEW_CHIP_CONDITION_ICONS then
-                        more.text = string.format("+%d", #icons - OVERVIEW_CHIP_CONDITION_ICONS)
+                    local more = children[OVERVIEW.CHIP_CONDITION_ICONS + 1]
+                    if #icons > OVERVIEW.CHIP_CONDITION_ICONS then
+                        more.text = string.format("+%d", #icons - OVERVIEW.CHIP_CONDITION_ICONS)
                         more:SetClass("collapsed", false)
                     else
                         more:SetClass("collapsed", true)
@@ -3795,8 +3808,6 @@ end
 --the heroes intend to kill (2026-08-18 play observation) - the footer
 --draws those with a red ring and mirrors them in red text. Self-applied
 --monster buffs and plain conditions stay neutral.
-local OVERVIEW_STATUS_ICONS = 5
-local OVERVIEW_THREAT_COLOR = "#E06464"
 
 local function OverviewStatusName(icon)
     if icon.statusText ~= nil and icon.statusText ~= "" then
@@ -3883,7 +3894,7 @@ local function OverviewThreatText(entries, prefixLength)
     if #threats > 1 then
         text = string.format("%s +%d", text, #threats - 1)
     end
-    return string.format("<color=%s>%s</color>", OVERVIEW_THREAT_COLOR, text)
+    return string.format("<color=%s>%s</color>", OVERVIEW.THREAT_COLOR, text)
 end
 
 --P2-d (X7 / Decision 48 signal): REACH ESTIMATE - how many heroes this
@@ -3961,19 +3972,18 @@ end
 --Zero reads AMBER + bold (field test 4: white "0 in reach" did not steer -
 --zero is the "rule this monster out this turn" cue and must pop the way
 --"Turn already taken" does in red).
-local OVERVIEW_NOREACH_COLOR = "#E0A050"
 local function OverviewReachText(reach, short)
     if reach == nil then
         return nil
     end
     if short then
         if reach.count == 0 then
-            return string.format("<color=%s><b>0 in reach</b></color>", OVERVIEW_NOREACH_COLOR)
+            return string.format("<color=%s><b>0 in reach</b></color>", OVERVIEW.NOREACH_COLOR)
         end
         return string.format("%d in reach", reach.count)
     end
     if reach.count == 0 then
-        return string.format("<color=%s><b>No hero in reach</b></color>", OVERVIEW_NOREACH_COLOR)
+        return string.format("<color=%s><b>No hero in reach</b></color>", OVERVIEW.NOREACH_COLOR)
     elseif reach.count == 1 then
         return "1 hero in reach"
     end
@@ -4351,27 +4361,24 @@ end
 --(1) the pulse is deferred until the pan has settled (immediate when the
 --camera is already on the token), and (2) it is paired with the sustained
 --coloured "locate" ring on the token's bottomsheet (TokenUI.lua), held for
---OVERVIEW_LOCATE_HOLD seconds. A later locate on the same token restarts
+--OVERVIEW.LOCATE_HOLD seconds. A later locate on the same token restarts
 --the hold instead of being cut short by the earlier timer.
-local OVERVIEW_LOCATE_PAN_TIME = 0.55
-local OVERVIEW_LOCATE_HOLD = 1.4
-local g_overviewLocateGeneration = {}
 
 local function OverviewPulseTokens(tokens)
     for _, tok in ipairs(tokens) do
         if tok ~= nil and tok.valid then
             local charid = tok.charid
-            local gen = (g_overviewLocateGeneration[charid] or 0) + 1
-            g_overviewLocateGeneration[charid] = gen
+            local gen = (OVERVIEW.locateGeneration[charid] or 0) + 1
+            OVERVIEW.locateGeneration[charid] = gen
             dmhub.PulseHighlightToken(charid)
             if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
                 tok.bottomsheet:SetClassTree("locate", true)
             end
-            dmhub.Schedule(OVERVIEW_LOCATE_HOLD, function()
-                if mod.unloaded or g_overviewLocateGeneration[charid] ~= gen then
+            dmhub.Schedule(OVERVIEW.LOCATE_HOLD, function()
+                if mod.unloaded or OVERVIEW.locateGeneration[charid] ~= gen then
                     return
                 end
-                g_overviewLocateGeneration[charid] = nil
+                OVERVIEW.locateGeneration[charid] = nil
                 local live = dmhub.GetTokenById(charid)
                 if live ~= nil and live.valid and live.bottomsheet ~= nil and live.bottomsheet.valid then
                     live.bottomsheet:SetClassTree("locate", false)
@@ -4436,7 +4443,7 @@ local function OverviewLocate(centerToken, pulseTokens)
         OverviewPulseTokens(tokens)
         return
     end
-    dmhub.Schedule(OVERVIEW_LOCATE_PAN_TIME, function()
+    dmhub.Schedule(OVERVIEW.LOCATE_PAN_TIME, function()
         if mod.unloaded then
             return
         end
@@ -4667,7 +4674,7 @@ local function OverviewColumnFooter()
     --hover text). Pooled icon panels + "+N"; collapsed when empty or when the
     --column has several members (their mini-rows mirror the names instead).
     local statusIcons = {}
-    for i = 1, OVERVIEW_STATUS_ICONS do
+    for i = 1, OVERVIEW.STATUS_ICONS do
         statusIcons[i] = gui.Panel {
             classes = { "overviewStatusIcon", "collapsed" },
             bgimage = "panels/square.png",
@@ -4752,9 +4759,9 @@ local function OverviewColumnFooter()
 
     --Fixed pool of member mini-rows plus the overflow line; created once,
     --collapsed when unused, never re-listed. The signals view uses the first
-    --OVERVIEW_FOOTER_ROWS; the owner prompt may use the whole pool.
+    --OVERVIEW.FOOTER_ROWS; the owner prompt may use the whole pool.
     local rows = {}
-    for i = 1, OVERVIEW_FOOTER_ROW_POOL do
+    for i = 1, OVERVIEW.FOOTER_ROW_POOL do
         local rowPortrait = gui.CreateTokenImage(nil, {
             width = 24,
             height = 24,
@@ -4986,7 +4993,7 @@ local function OverviewColumnFooter()
     children[#children + 1] = reasonLabel
 
     --Lay the mini-rows out for the current mode: the signals view (first
-    --OVERVIEW_FOOTER_ROWS members, "+N more") or the armed owner prompt
+    --OVERVIEW.FOOTER_ROWS members, "+N more") or the armed owner prompt
     --(fresh candidates only, whole pool).
     local function LayoutRows()
         if m_signals == nil then
@@ -4998,7 +5005,7 @@ local function OverviewColumnFooter()
         end
 
         local list = nil
-        local cap = OVERVIEW_FOOTER_ROWS
+        local cap = OVERVIEW.FOOTER_ROWS
         if m_prompt ~= nil then
             list = m_prompt.members
             cap = #rows

@@ -969,6 +969,45 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, eighth user field test (Ricky, rapid-fire) - LENS-CLICK ROOT
+CAUSE FOUND AND FIXED via the OVERVIEWDBG instrumentation, plus seven
+refinements. All live-verified except the real-click fix (needs Ricky's
+mouse; diagnostics left in for one more round).**
+- **LENS CLICK CLOSING THE MENU - ROOT CAUSE (third report, first evidence)**:
+  the log showed a real click firing `lens tab press` AND TWO raw `drawer
+  press (toggle)` events - engine input presses BUBBLE to every ancestor
+  (Panel.swallowPress docs), and the Unique drawer is an ancestor of the
+  menu; the same-frame reopen was swallowed by the shownMenuTime guard, so
+  the menu ended closed. `FireEvent("press")` never bubbles - THAT is why
+  every synthetic test passed while every real click failed. FIX:
+  `swallowPress = true` on the lens tabs, tab row, footer, mini-rows,
+  take-turn button and dismiss-x (the footer swallow also stops a mini-row
+  click from double-firing the footer's locate). RULE FOR THIS FILE: any
+  interactive panel inside the action menu MUST set swallowPress = true.
+- Role line drops the level: "Horde <b>Controller</b>", "Minion Harrier",
+  plain "Leader" (tooltip keeps the full stat-block line).
+- Lens tab labels read "All (7)" / "Damage (5)" (brackets); tabs widened
+  96 -> 106 so "Forced Move (1)" fits; hover tooltip is Ricky's copy "Shows
+  only creatures with Malice abilities (2 creatures)" - CREATURE counts
+  (columns with a match), computed beside the ability counts - and opens
+  ABOVE the bar (valign top; below, it covered the chips).
+- "Common <lens> abilities:" line is CENTERED directly beneath the active
+  tab (full-row-width label shifted by selfStyle.x; numeric widths only - a
+  %-width child of the auto-width bar collapses to one char per line).
+- Lens RESETS to All whenever the unit selection changes (a lens is a
+  question about THIS selection) - root refresh compares SelectionSignature.
+- Naming: stays "Forced Move" (rules term is "forced movement"; "Force
+  Move" reads as a command).
+- "At Risk" semantics (Ricky asked): amber = heroes have INTENT+ACCESS
+  (marked with someone in reach) or combined attacks could drop it, but no
+  single hero turn likely kills it - urgency without a death call; red =
+  one hero turn could. Explained in the tab tooltip question - if amber
+  proves noisy in play, the cut is to require the two-best-bursts math and
+  drop the marked-floor.
+- The "Error indexing userdata ... [string "code"]" dialog Ricky reported
+  was MY diagnostic probe reading an unset selfStyle field over the bridge -
+  not app code; harness rule: never read selfStyle fields you did not set.
+
 **2026-08-19, seventh user field test (Ricky, "loving your changes") - four
 refinements, live-verified.**
 - **Squad-captain crown moved beside the NAME** (it was sitting in the P2-a

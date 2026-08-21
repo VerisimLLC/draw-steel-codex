@@ -1415,7 +1415,7 @@ local OVERVIEW_FOOTER_RULES = {
     },
     {
         selectors = { "overviewLensRow" },
-        width = 6 * 96 + 8,
+        width = 6 * 106 + 8,
         height = "auto",
         flow = "horizontal",
         halign = "center",
@@ -1428,7 +1428,7 @@ local OVERVIEW_FOOTER_RULES = {
     },
     {
         selectors = { "overviewLensTab" },
-        width = 96,
+        width = 106,
         height = "auto",
         halign = "left",
         valign = "center",
@@ -2918,7 +2918,13 @@ local function CreateActionBar()
                     end
                 end
                 g_selectedTokens = selected
-                element.data.selectionSignature = SelectionSignature()
+                local signature = SelectionSignature()
+                if signature ~= element.data.selectionSignature then
+                    --Field test 8: a lens is a question about THIS selection;
+                    --changing the selection resets to All.
+                    g_overviewLens = "all"
+                end
+                element.data.selectionSignature = signature
             end
 
             if g_token == nil or not g_token.valid then
@@ -4323,22 +4329,18 @@ local function OverviewRoleInfo(tok)
         orgWord = orgWord or "minion"
     end
 
-    --Lead with the role word (or the organization for Leader / Solo).
-    local lead = roleWord or orgWord
+    --Field test 8: no level on the chip (the tooltip keeps the full stat
+    --block line). Natural order, role word emphasised: "Horde Controller",
+    --"Minion Harrier", or just "Leader".
     local line = plain
-    if lead ~= nil then
-        local leadText = string.upper(string.sub(lead, 1, 1)) .. string.sub(lead, 2)
-        local rest = {}
-        if level ~= nil then
-            rest[#rest + 1] = string.format("Level %d", round(level))
+    if roleWord ~= nil then
+        local roleText = string.upper(string.sub(roleWord, 1, 1)) .. string.sub(roleWord, 2)
+        line = string.format("<color=#C9A86A><b>%s</b></color>", roleText)
+        if orgWord ~= nil then
+            line = string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2) .. " " .. line
         end
-        if roleWord ~= nil and orgWord ~= nil then
-            rest[#rest + 1] = string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2)
-        end
-        line = string.format("<color=#C9A86A><b>%s</b></color>", leadText)
-        if #rest > 0 then
-            line = line .. "  " .. table.concat(rest, " ")
-        end
+    elseif orgWord ~= nil then
+        line = string.format("<color=#C9A86A><b>%s</b></color>", string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2))
     end
 
     local prose = {}
@@ -4895,6 +4897,9 @@ local function OverviewColumnFooter()
         local row
         row = gui.Panel {
             classes = { "overviewFooterRow", "collapsed" },
+            --Stop the bubble at the row: without this a real click on a
+            --mini-row ALSO fired the footer's own locate.
+            swallowPress = true,
             data = { member = nil },
             rowPortrait,
             rowText,
@@ -4997,6 +5002,7 @@ local function OverviewColumnFooter()
     --"Take <Creature>'s turn" and its inline reason when disabled.
     local takeTurnButton = gui.Label {
         classes = { "overviewTakeTurn", "disabled" },
+        swallowPress = true,
         text = "Take turn",
 
         hover = function(element)
@@ -5066,6 +5072,7 @@ local function OverviewColumnFooter()
     --menu. Floating at the footer's top-right so it never shifts the rows.
     local dismissButton = gui.Panel {
         classes = { "overviewDismiss" },
+        swallowPress = true,
         bgimage = "ui-icons/close.png",
         floating = true,
         halign = "right",
@@ -5236,6 +5243,9 @@ local function OverviewColumnFooter()
     resultPanel = gui.Panel {
         classes = { "overviewFooter", "collapsed" },
         children = children,
+        --Real presses bubble to ancestors (see the lens tab note); the
+        --footer is the last stop before the drawer toggle.
+        swallowPress = true,
 
         press = function(element)
             if m_column == nil or m_signals == nil then
@@ -5971,31 +5981,42 @@ ActionMenu = function()
         return text
     end
     local m_lensBar
+    --counts = matching ABILITIES per lens (the number on the tab, Decision
+    --8); creatureCounts = columns with at least one match (the tooltip
+    --speaks in creatures, field test 8).
     local function LensCountsFromColumns(columns)
         local counts = {}
+        local creatureCounts = {}
         for _, lens in ipairs(OVERVIEW_LENSES) do
             counts[lens.id] = 0
+            creatureCounts[lens.id] = 0
         end
         for _, column in ipairs(columns or {}) do
+            local columnHas = {}
             for _, ability in ipairs(column.abilities or {}) do
                 local facets = OverviewAbilityFacets(ability)
                 for _, lens in ipairs(OVERVIEW_LENSES) do
                     if OverviewAbilityMatchesLens(facets, lens.id) then
                         counts[lens.id] = counts[lens.id] + 1
+                        columnHas[lens.id] = true
                     end
                 end
             end
+            for id, _ in pairs(columnHas) do
+                creatureCounts[id] = creatureCounts[id] + 1
+            end
         end
-        return counts
+        return counts, creatureCounts
     end
     local m_lensTabs = {}
     local function RefreshLensBar(columns)
-        m_lensCounts = LensCountsFromColumns(columns)
+        local creatureCounts
+        m_lensCounts, creatureCounts = LensCountsFromColumns(columns)
         local lens = OverviewLensInfo(g_overviewLens)
         for _, tab in ipairs(m_lensTabs) do
             local id = tab.data.lensid
             local count = m_lensCounts[id] or 0
-            tab:FireEventTree("setLensState", string.format("%s %d", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all", count)
+            tab:FireEventTree("setLensState", string.format("%s (%d)", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all", creatureCounts[id] or 0)
         end
         local empty = lens.id ~= "all" and (m_lensCounts[lens.id] or 0) == 0
         if empty then
@@ -6005,6 +6026,22 @@ ActionMenu = function()
         local everyone = EveryoneCanText(columns, lens.id)
         m_lensEveryoneLabel.text = everyone or ""
         m_lensEveryoneLabel:SetClass("collapsed", everyone == nil)
+        --Field test 8: these lines sit directly beneath the ACTIVE tab
+        --(left edges aligned; the label wraps in the remaining width).
+        --CENTRED under the active tab: keep the label full row width and
+        --shift its rendering by x (layout untouched; numeric widths only -
+        --a %-width child of the auto-width bar collapses to one character
+        --per line, seen live).
+        local rowWidth = 6 * 106 + 8
+        local index = OverviewLensIndex(g_overviewLens)
+        local offset = (index - 0.5) * 106 + 4 - rowWidth / 2
+        for _, label in ipairs({ m_lensEveryoneLabel, m_lensEmptyLabel }) do
+            label.selfStyle.width = rowWidth
+            label.selfStyle.x = offset
+            label.selfStyle.lmargin = 0
+            label.selfStyle.textAlignment = "center"
+            label.selfStyle.halign = "center"
+        end
     end
     --Set by the unique-menu branch; a lens change re-populates through it.
     local m_relens = nil
@@ -6039,29 +6076,39 @@ ActionMenu = function()
         local tab = gui.Panel {
             classes = { "overviewLensTab" },
             bgimage = "panels/square.png",
+            --Field test 8 ROOT CAUSE of "changing lens closes the menu":
+            --real input presses BUBBLE to every ancestor (engine default),
+            --and the Unique drawer is an ancestor of the menu, so the same
+            --click also toggled the drawer - twice, with the same-frame
+            --reopen swallowed by the shownMenuTime guard, leaving the menu
+            --closed. FireEvent("press") never bubbles, which is why every
+            --synthetic test passed. swallowPress stops the bubble here.
+            swallowPress = true,
             data = { lensid = id, tooltip = nil },
             flow = "vertical",
             label,
             underline,
             hover = function(element)
                 if element.data.tooltip ~= nil then
-                    gui.Tooltip(element.data.tooltip)(element)
+                    --valign top: below the cursor the tooltip covered the
+                    --chips and the neighbouring tabs (field test 8).
+                    gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
                 end
             end,
             press = function(element)
                 print("OVERVIEWDBG:: lens tab press", id)
                 SetLens(id)
             end,
-            setLensState = function(element, text, active, zero, count)
+            setLensState = function(element, text, active, zero, creatureCount)
                 label.text = text
                 element:SetClass("active", active)
                 element:SetClass("zero", zero)
                 underline:SetClass("hidden", not active)
-                --Field test 6: the bare count ("Damage 3") needs explaining.
+                --Field test 8 copy (Ricky's wording).
                 if id == "all" then
-                    element.data.tooltip = string.format("Show every ability (%d in this selection)", count or 0)
+                    element.data.tooltip = string.format("Shows every creature (%d creature%s)", creatureCount or 0, creatureCount == 1 and "" or "s")
                 else
-                    element.data.tooltip = string.format("Show only %s abilities - this selection has %d. Columns without one hide; other abilities dim.", string.lower(lens.name), count or 0)
+                    element.data.tooltip = string.format("Shows only creatures with %s abilities (%d creature%s)", lens.name, creatureCount or 0, creatureCount == 1 and "" or "s")
                 end
             end,
         }
@@ -6069,6 +6116,7 @@ ActionMenu = function()
     end
     local lensTabRow = gui.Panel {
         classes = { "overviewLensRow" },
+        swallowPress = true,
         children = m_lensTabs,
     }
     m_lensBar = gui.Panel {

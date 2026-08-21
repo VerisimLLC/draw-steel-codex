@@ -1044,6 +1044,19 @@ and player clients keep the old gate. Safe because browsing the overview
 off-turn never claims (Decisions 24/47). Live: heroes' turn, round 4 -
 "Select All" visible under the Rival cards.
 
+**2026-08-19, seventeenth report (Ricky, Rival game): Select All + Unique
+Abilities threw `bad argument #1 to 'gsub' (string expected, got
+function)` in OverviewStatusName.** A registered token-HUD status icon may
+carry `hoverText` as a FUNCTION(creature) computed live on hover - the
+wounded/Winded icon in DrawSteelTokenHud does - and the Rival Fury was
+winded. `OverviewStatusEntries` now resolves it once via
+`OverviewStatusHoverText(icon, tok)` (pcall the function with the
+creature; anything non-string -> nil) before naming/tooltips. Live: Fury
+shows Mark + Winded glyphs, Conduit Weakened + Bleeding, no error. Note for
+anyone reading TokenUI.CalculateStatusIcons output: hoverText is string OR
+function.
+
+
 
 
 

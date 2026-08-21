@@ -4027,11 +4027,26 @@ end
 --draws those with a red ring and mirrors them in red text. Self-applied
 --monster buffs and plain conditions stay neutral.
 
-local function OverviewStatusName(icon)
+--A registered status icon's hoverText may be a FUNCTION (creature) ->
+--string, computed live on hover (the wounded icon in DrawSteelTokenHud).
+--Resolve it once here; anything non-string becomes nil.
+local function OverviewStatusHoverText(icon, tok)
+    local text = icon.hoverText
+    if type(text) == "function" then
+        local ok, result = pcall(text, tok and tok.properties or nil)
+        text = ok and result or nil
+    end
+    if type(text) ~= "string" then
+        return nil
+    end
+    return text
+end
+
+local function OverviewStatusName(icon, hoverText)
     if icon.statusText ~= nil and icon.statusText ~= "" then
         return icon.statusText
     end
-    local text = icon.hoverText or icon.id or "Status"
+    local text = hoverText or icon.id or "Status"
     --"Name: description" / "Name (2): description" -> Name
     text = string.gsub(text, "<[^>]*>", "")
     local name = string.match(text, "^([^:\n]+)") or text
@@ -4070,12 +4085,13 @@ local function OverviewStatusEntries(tok)
                     casterName = casterName or "a hero"
                 end
             end
+            local hoverText = OverviewStatusHoverText(icon, tok)
             entries[#entries + 1] = {
                 id = icon.id,
                 icon = icon.icon,
                 style = icon.style,
-                name = OverviewStatusName(icon),
-                hoverText = icon.hoverText,
+                name = OverviewStatusName(icon, hoverText),
+                hoverText = hoverText,
                 threat = threat,
                 casterName = casterName,
                 ord = #entries + 1,

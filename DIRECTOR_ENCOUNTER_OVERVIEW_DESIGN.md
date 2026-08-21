@@ -1021,6 +1021,20 @@ Rival game: all long titles wrap cleanly, badges own the corner, and the
 overview's whole signal stack works on non-goblin content (Fury amber "Can't
 reach any hero", Tactician gold "High damage dealer").
 
+**2026-08-19, generality check (Ricky: "this has to work for all monsters").**
+The chip layout is now INVARIANT-based, not tuned per monster: every
+decoration owns a reserved zone (top-left novel pip, top-right badge row,
+center-right cost diamond at a fixed 15px intrusion, bottom rows for
+keywords/action type/condition glyphs/lens key), and the single
+variable-length element - the title - yields by MEASURED badge count
+(badges1/badges2 class tree), never by hand-tuned offsets. Stress-tested
+against the whole bestiary: the longest ability name in data/monsters
+("The Iron Saint Does Not Recognize Retreat", 42 chars; only ~4 abilities
+exceed 35) was forced onto a live chip with BOTH badges - it wrapped to five
+lines, the chip grew, nothing overlapped. No per-monster positioning exists
+anywhere in the overview.
+
+
 
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
 bar + minion copy.**

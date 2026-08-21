@@ -198,7 +198,15 @@ function gui.Dropdown(args)
 						end
 					end
 
-					return ResolveFunction(a.text) < ResolveFunction(b.text)
+					local atext = ResolveFunction(a.text)
+					local btext = ResolveFunction(b.text)
+					if type(atext) ~= "string" then
+						atext = tostring(atext or "")
+					end
+					if type(btext) ~= "string" then
+						btext = tostring(btext or "")
+					end
+					return atext < btext
 				end)
 			end
 

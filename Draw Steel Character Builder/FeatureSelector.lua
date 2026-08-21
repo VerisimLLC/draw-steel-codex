@@ -509,8 +509,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         vmargin = 20,
                         text = tip,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = CBStyles.COLORS.GOLD,
                     }(element)
                 elseif element.data.panelFn then
                     -- element.tooltip = gui.TooltipFrame(element.data.panelFn(), {

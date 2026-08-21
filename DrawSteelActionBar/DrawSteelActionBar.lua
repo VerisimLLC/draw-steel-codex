@@ -518,7 +518,7 @@ local OVERVIEW = {
     GUIDE_COLOR = "#7AC77A",
     FOOTER_ROWS = 3,
     FOOTER_ROW_POOL = 6,
-    STATUS_ICONS = 5,
+    STATUS_ICONS = 2,
     THREAT_COLOR = "#E06464",
     NOREACH_COLOR = "#E0A050",
     CHIP_CONDITION_ICONS = 2,
@@ -1564,7 +1564,7 @@ local OVERVIEW_FOOTER_RULES = {
     --chips; clear backing so the chip behind still hovers/presses.
     {
         selectors = { "overviewDmgBadge" },
-        width = 26,
+        width = 18,
         height = "auto",
         bgcolor = "clear",
     },
@@ -1574,16 +1574,6 @@ local OVERVIEW_FOOTER_RULES = {
         height = 16,
         halign = "center",
         bgcolor = "#E06464",
-    },
-    {
-        selectors = { "overviewDmgLabel" },
-        width = "auto",
-        height = "auto",
-        fontSize = 11,
-        bold = true,
-        color = "#E06464",
-        halign = "center",
-        textAlignment = "center",
     },
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
     {
@@ -1598,11 +1588,19 @@ local OVERVIEW_FOOTER_RULES = {
     --P2-a status strip: the token HUD's status icons at >= 16px (X15);
     --threat flags (hero-applied marks/conditions) carry a red ring.
     {
+        selectors = { "overviewFooterPortraitColumn" },
+        width = 34,
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+    },
+    {
         selectors = { "overviewStatusStrip" },
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        halign = "left",
+        halign = "center",
         valign = "center",
         tmargin = 3,
     },
@@ -2326,10 +2324,6 @@ local function ActionBarDrawer(args)
         data = { drawerType = args.type },
 
         press = function(element)
-            --TEMP OVERVIEWDBG (lens-click investigation): remove after.
-            if args.type == "unique" then
-                print("OVERVIEWDBG:: drawer press (toggle), active=", element:HasClass("active"))
-            end
 
             args.drawer = resultPanel
             element:FindParentWithClass("actionBar"):FireEventTree("menu", args)
@@ -2362,20 +2356,12 @@ local function ActionBarDrawer(args)
                 return
             end
             if element:HasClass("active") then
-                --TEMP OVERVIEWDBG (lens-click investigation): remove after.
-                if args.type == "unique" then
-                    print("OVERVIEWDBG:: drawer closemenu reason=", reason)
-                end
                 element:FireEvent("press")
             end
         end,
 
         escapePriority = EscapePriority.CANCEL_ACTION_BAR,
         escape = function(element)
-            --TEMP OVERVIEWDBG (lens-click investigation): remove after.
-            if args.type == "unique" and element:HasClass("active") then
-                print("OVERVIEWDBG:: drawer escape (mappress/esc)")
-            end
             element:FireEvent("press")
         end,
 
@@ -3138,14 +3124,10 @@ local function AbilityHeading(args)
         rmargin = 4,
         flow = "vertical",
         hover = gui.Tooltip{ text = "This ability does high damage", valign = "top" },
+        --Field test 11: symbol only - the "DMG" word crowded the keywords.
         gui.Panel {
             classes = { "overviewDmgIcon" },
             bgimage = "game-icons/surge.png",
-            interactable = false,
-        },
-        gui.Label {
-            classes = { "overviewDmgLabel" },
-            text = "DMG",
             interactable = false,
         },
     }
@@ -4073,20 +4055,20 @@ local function OverviewReachText(reach, short)
     if reach == nil then
         return nil
     end
-    --Field test 6 copy: "in reach" collided with the risk box's "within
-    --striking range". This line is the monster's OFFENSE, so say so.
+    --Field test 11 (Ricky's own silent-default rule, applied back at him):
+    --being able to reach heroes is the NORMAL state and says nothing worth
+    --reading on every chip - only the exception prints. Zero reach = amber
+    --"Can't reach any hero" = rule this monster out this turn. This also
+    --kills the near-duplicate reading with the risk box's "N heroes within
+    --striking range" (that line is the heroes' threat TO the monster and
+    --stays, as the WHY under the risk tag).
+    if reach.count > 0 then
+        return nil
+    end
     if short then
-        if reach.count == 0 then
-            return string.format("<color=%s><b>can reach no hero</b></color>", OVERVIEW.NOREACH_COLOR)
-        end
-        return string.format("can reach %d", reach.count)
+        return string.format("<color=%s><b>can reach no hero</b></color>", OVERVIEW.NOREACH_COLOR)
     end
-    if reach.count == 0 then
-        return string.format("<color=%s><b>Can't reach any hero</b></color>", OVERVIEW.NOREACH_COLOR)
-    elseif reach.count == 1 then
-        return "Can reach 1 hero"
-    end
-    return string.format("Can reach %d heroes", reach.count)
+    return string.format("<color=%s><b>Can't reach any hero</b></color>", OVERVIEW.NOREACH_COLOR)
 end
 
 --P2-e THREAT ESTIMATE (F2-5c, signed off by Ricky 2026-08-19): "if the
@@ -4914,9 +4896,16 @@ local function OverviewColumnFooter()
         end,
     }
 
+    --Field test 11: the status glyphs sit DIRECTLY UNDER THE PORTRAIT - the
+    --same fact as the risk bullets, on purpose: the image lands faster than
+    --the words.
     local header = gui.Panel {
         classes = { "overviewFooterHeader" },
-        portrait,
+        gui.Panel {
+            classes = { "overviewFooterPortraitColumn" },
+            portrait,
+            statusStrip,
+        },
         gui.Panel {
             classes = { "overviewFooterText" },
             nameRow,
@@ -4924,7 +4913,6 @@ local function OverviewColumnFooter()
             signalLabel,
             reachLabel,
             riskLabel,
-            statusStrip,
         },
     }
 
@@ -5435,14 +5423,10 @@ local function OverviewColumnFooter()
             --threat already prints as red TEXT on the signal line, so the
             --strip shows only the OTHER statuses - never both channels for
             --the same fact.
+            --Field test 11: ALL statuses (threats red-ringed) - the visual
+            --twin of the risk bullets, under the portrait.
             if #members == 1 then
-                local nonThreat = {}
-                for _, entry in ipairs(members[1].statuses or {}) do
-                    if not entry.threat then
-                        nonThreat[#nonThreat + 1] = entry
-                    end
-                end
-                statusStrip:FireEvent("setStatuses", nonThreat)
+                statusStrip:FireEvent("setStatuses", members[1].statuses)
             else
                 statusStrip:FireEvent("setStatuses", nil)
             end
@@ -6197,7 +6181,6 @@ ActionMenu = function()
                 end
             end,
             press = function(element)
-                print("OVERVIEWDBG:: lens tab press", id)
                 SetLens(id)
             end,
             setLensState = function(element, text, active, zero, creatureCount)

@@ -969,6 +969,25 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, eleventh user field test (Ricky) - "clicking on a lens now
+works as I would expect" (swallowPress fix CONFIRMED with a real mouse;
+OVERVIEWDBG diagnostics removed). Three refinements, live-verified.**
+- **DMG badge is symbol-only**: the "DMG" word crowded the keywords; the red
+  surge glyph alone carries it (tooltip unchanged, badge 18px).
+- **Status glyphs sit DIRECTLY UNDER THE PORTRAIT** (Ricky: deliberate
+  duplication with the risk bullets - "images are more powerful than text").
+  The P2-a strip moved into a portrait column (34px, vertical), now shows
+  ALL statuses again including threats (red-ringed), 2 glyphs + "+N". Live:
+  Dazed under the Monarch, Judged under the Assassin. ("Judged" is the
+  Censor's class effect, not a core condition - the strip mirrors whatever
+  art the token HUD shows.)
+- **Reach line is exception-only** (Ricky's silent-default rule applied to
+  his own feature): "Can reach 5 heroes" on every chip was repeated noise
+  and near-collided with "5 heroes within striking range". The line now
+  prints ONLY at zero - amber "Can't reach any hero" / rows "can reach no
+  hero" - the rule-this-monster-out cue. The risk bullet keeps the heroes'
+  side of the story.
+
 **2026-08-19, tenth user field test (Ricky) - stamina numbers removed, DMG
 chip badge added. Live-verified.**
 - **Stamina numbers REMOVED from the footer** (Ricky: not needed; also the

@@ -2331,6 +2331,15 @@ local function CreateSearchBar()
             --fill; bordered/bg would re-frame it as a separate panel.
             classes = {"searchResultsPanel"},
             destroy = OnSearchPopupDestroyed,
+            --top-center pivot: the engine places a popup ONCE, against
+            --its rect at placement time, and an auto-height popup that
+            --finishes layout afterwards grows around its pivot -- with
+            --the default center pivot a SHORT popup's top edge crept up
+            --over the search bar and clipped its text (Venla
+            --2026-08-21). Anchored at the top, growth extends downward
+            --only, so the placed top edge (flush under the bar) holds
+            --for every result count.
+            pivot = {x = 0.5, y = 1},
             flow = "vertical",
             -- Exactly the search box's width -- the popup must never be
             -- wider or narrower than the box above it (Venla 2026-08-21;
@@ -2568,31 +2577,25 @@ local function CreateSearchBar()
                 --default label styling, huge and unframed.
                 resultPanel.popupsInheritStyles = true
                 resultPanel.popup = gui.Panel{
+                    classes = {"searchResultsPanel"},
                     destroy = OnSearchPopupDestroyed,
+                    --top-center pivot, same as the grouped popup: keeps
+                    --the placed top edge flush under the bar however the
+                    --auto height settles (the old center pivot needed a
+                    --hand-tuned spacer and still crept over the bar at
+                    --some heights).
+                    pivot = {x = 0.5, y = 1},
                     flow = "vertical",
                     width = SearchBoxWidth(),
                     height = "auto",
                     halign = "center",
                     valign = "bottom",
-                    --transparent spacer: the engine places a short popup
-                    --higher than the tall grouped one, clipping the input,
-                    --and ignores x/y offsets on popup roots -- so the gap
-                    --that drops the frame below the box is built into the
-                    --popup itself (12px lands the frame where the grouped
-                    --results popup sits).
-                    gui.Panel{ width = 1, height = 12 },
-                    gui.Panel{
-                        classes = {"searchResultsPanel"},
-                        flow = "vertical",
-                        width = "100%",
-                        height = "auto",
-                        gui.Label{
-                            classes = {"searchEmptyState"},
-                            text = "",
-                            settext = function(element, newtext)
-                                element.text = newtext
-                            end,
-                        },
+                    gui.Label{
+                        classes = {"searchEmptyState"},
+                        text = "",
+                        settext = function(element, newtext)
+                            element.text = newtext
+                        end,
                     },
                 }
             end

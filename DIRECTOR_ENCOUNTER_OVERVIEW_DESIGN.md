@@ -969,6 +969,29 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, seventh user field test (Ricky, "loving your changes") - four
+refinements, live-verified.**
+- **Squad-captain crown moved beside the NAME** (it was sitting in the P2-a
+  status strip): `OverviewStatusEntries` splits out status id "captain"
+  (DrawSteelTokenHud TokenUI.RegisterIcon, panels/hud/crown.png, squad-colour
+  bgcolor preserved); the footer name is now a `overviewFooterNameRow`
+  (name + 16px `overviewCaptainIcon`, tooltip "Squad captain"), crown shown
+  only for single-actor columns. Identity, not status.
+- **Risk bands made honest (Ricky: a marked 50/80 Monarch is NOT "High Death
+  Risk")**: RED is now strictly the stamina-vs-damage verdict
+  (stamina <= best adjusted burst + allowance); a MARK no longer grants red
+  by itself - it DOUBLES the allowance (mark benefits are extra damage) and
+  guarantees at least amber while anyone is in reach. Low stamina alone also
+  guarantees at least amber, so the fact survives when nobody is currently
+  in reach. Live: marked 50/80 Monarch = amber "At Risk - Marked by heroes,
+  5 heroes within striking range", no guidance; 14/15 Judged Assassin still
+  red (14 <= 10 + 8).
+- **Low Stamina exactly once**: the field-test-6 amber stamina-line label is
+  GONE (line back to plain raw "9/10"); "Low Stamina" lives only as a risk
+  bullet - Ricky's preference. (Net of tests 5-7: raw number on the stamina
+  line, the WORD only in the risk box.)
+- Copy: guidance is "Use turn before they die" (was Spend).
+
 **2026-08-19, sixth user field test (Ricky) - risk box redesign + copy fixes,
 live-verified. LENS-CLICK BUG STILL OPEN, now instrumented.**
 - **Risk box redesigned to Ricky's spec**: red "<b>High Death Risk</b>"

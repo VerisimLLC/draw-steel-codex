@@ -1631,10 +1631,28 @@ local OVERVIEW_FOOTER_RULES = {
         bgcolor = "#cccccc",
     },
     {
-        selectors = { "overviewFooterName" },
+        selectors = { "overviewFooterNameRow" },
         width = "100%-16",
         height = "auto",
-        fontSize = 13,
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewCaptainIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        bgcolor = "white",
+    },
+    {
+        selectors = { "overviewFooterName" },
+        width = "auto",
+        maxWidth = "100%-22",
+        height = "auto",
+        fontSize = 14,
         bold = true,
         color = Styles.Ability.goldColor,
         textAlignment = "left",
@@ -3834,17 +3852,23 @@ local function OverviewStatusName(icon)
     return trim(name)
 end
 
+--Returns entries, captain: the squad-captain crown (status id "captain") is
+--split out - it is IDENTITY, not a transient status, and the footer shows it
+--beside the name (field test 7), never in the status strip.
 local function OverviewStatusEntries(tok)
     local entries = {}
+    local captain = nil
     if tok == nil or not tok.valid or tok.properties == nil then
-        return entries
+        return entries, captain
     end
     local icons = nil
     pcall(function() icons = TokenUI.CalculateStatusIcons(tok) end)
     for _, icon in ipairs(icons or {}) do
         --Skip the director-only eye and the walk-elevation glyph (an altitude
         --readout, not a status; it is hidden at altitude 0 on the HUD).
-        if icon ~= nil and icon.icon ~= nil and icon.id ~= "invisible" and not icon.hideAtZeroAltitude then
+        if icon ~= nil and icon.id == "captain" then
+            captain = icon
+        elseif icon ~= nil and icon.icon ~= nil and icon.id ~= "invisible" and not icon.hideAtZeroAltitude then
             local threat = false
             local casterName = nil
             if icon.casterid ~= nil then
@@ -3879,7 +3903,7 @@ local function OverviewStatusEntries(tok)
         end
         return a.ord < b.ord
     end)
-    return entries
+    return entries, captain
 end
 
 --Red "Marked by Talent" (+N) mirror of a member's threat flags; nil if none.
@@ -4160,10 +4184,22 @@ local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpe
     local best1 = inReach[1] ~= nil and inReach[1].adjusted or 0
     local best2 = inReach[2] ~= nil and inReach[2].adjusted or 0
 
+    --Field test 7: RED is a stamina-vs-damage VERDICT, never granted by a
+    --mark alone - a marked 80-stamina Monarch is urgent, not dying. A mark
+    --raises the damage allowance instead (mark benefits are extra damage)
+    --and guarantees at least amber while anyone can reach the monster.
+    --Low stamina alone guarantees at least amber, so the fact never
+    --disappears when nobody is currently in reach.
+    local allowance = g_overviewRisk.allowance
+    if marked then
+        allowance = allowance * 2
+    end
     local level = nil
-    if (marked and #inReach > 0) or (best1 > 0 and cur <= best1 + g_overviewRisk.allowance) then
+    if best1 > 0 and cur <= best1 + allowance then
         level = "red"
-    elseif (best2 > 0 and cur <= best1 + best2 + g_overviewRisk.allowance) or marked then
+    elseif (best2 > 0 and cur <= best1 + best2 + allowance)
+        or (marked and #inReach > 0)
+        or lowStamina then
         level = "amber"
     end
     if level == nil then
@@ -4197,15 +4233,15 @@ local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpe
     --to spend, so the tag+bullets stand alone (still useful: it will likely
     --die, plan around it).
     if level == "red" and not turnSpent then
-        lines[#lines + 1] = string.format("<color=%s>Spend turn before they die</color>", OVERVIEW.GUIDE_COLOR)
+        lines[#lines + 1] = string.format("<color=%s>Use turn before they die</color>", OVERVIEW.GUIDE_COLOR)
     end
 
     local tooltipParts = {}
     tooltipParts[#tooltipParts + 1] = string.format("%s: %s.", headline, table.concat(bullets, "; "))
     if best1 > 0 then
         tooltipParts[#tooltipParts + 1] = string.format(
-            "Hardest reachable hit ~%d damage (+%d for a triggered action or mark benefit) vs %d Stamina. Spent heroes count at half weight.",
-            math.floor(best1), g_overviewRisk.allowance, math.floor(cur))
+            "Hardest reachable hit ~%d damage (+%d for a triggered action%s) vs %d Stamina. Spent heroes count at half weight.",
+            math.floor(best1), allowance, marked and " and the mark benefit" or "", math.floor(cur))
     end
     tooltipParts[#tooltipParts + 1] = "Straight-line estimate; crits and choices can beat it either way."
     return {
@@ -4350,7 +4386,6 @@ local function OverviewColumnSignals(column)
                     name = squad or tok.name or column.name or "Creature",
                     tokens = {},
                     stamina = OverviewStaminaText(tok),
-                    statuses = OverviewStatusEntries(tok),
                     --P2-d: only in combat (heroes nil otherwise -> nil).
                     reach = cond(heroes ~= nil, OverviewReach(tok, column.abilities, heroes), nil),
                     risk = nil,
@@ -4359,6 +4394,7 @@ local function OverviewColumnSignals(column)
                     --end), so the signal line can read "acting now".
                     acting = false,
                 }
+                member.statuses, member.captain = OverviewStatusEntries(tok)
                 if q ~= nil then
                     pcall(function() member.acting = q.currentTurn == InitiativeQueue.GetInitiativeId(tok) end)
                 end
@@ -4370,13 +4406,11 @@ local function OverviewColumnSignals(column)
                     end
                 end
                 local lowStamina = OverviewLowStamina(tok, q ~= nil)
+                --Field test 7: Low Stamina appears exactly ONCE - as a risk
+                --bullet, never doubled on the stamina readout (the raw
+                --number stays plain).
                 member.risk = OverviewThreatEstimate(tok, marked, q ~= nil, lowStamina,
                     member.acted == true or member.acting == true)
-                --Field test 6: low stamina is called out on the stamina
-                --readout itself, amber, raw number kept in parentheses.
-                if lowStamina and member.stamina ~= nil then
-                    member.stamina = string.format("<color=%s><b>Low Stamina</b> (%s)</color>", OVERVIEW.NOREACH_COLOR, member.stamina)
-                end
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -4688,6 +4722,18 @@ local function OverviewColumnFooter()
         classes = { "overviewFooterName" },
         text = "",
     }
+    --Field test 7: the squad-captain crown is identity, so it sits beside
+    --the name (squad colour preserved), not in the status strip.
+    local captainIcon = gui.Panel {
+        classes = { "overviewCaptainIcon", "collapsed" },
+        bgimage = "panels/hud/crown.png",
+        hover = gui.Tooltip("Squad captain"),
+    }
+    local nameRow = gui.Panel {
+        classes = { "overviewFooterNameRow" },
+        nameLabel,
+        captainIcon,
+    }
     --F2-9: role word first and emphasised (overviewFooterRole colours the
     --bold lead via the label's rich text); hover = the role's one-line play
     --pattern (Decision 15). m_roleTooltip is set per column.
@@ -4804,7 +4850,7 @@ local function OverviewColumnFooter()
         portrait,
         gui.Panel {
             classes = { "overviewFooterText" },
-            nameLabel,
+            nameRow,
             roleLabel,
             signalLabel,
             reachLabel,
@@ -5261,6 +5307,22 @@ local function OverviewColumnFooter()
                 portrait:FireEventTree("token", column.token)
             end)
             nameLabel.text = column.label or column.name or ""
+            --Crown when the column's single actor is a squad captain (a
+            --multi-member statblock column has no single identity to crown).
+            local captain = nil
+            if #signals.members == 1 and signals.members[1] ~= nil then
+                captain = signals.members[1].captain
+            end
+            if captain ~= nil then
+                local bgcolor = "white"
+                if type(captain.style) == "table" and captain.style.bgcolor ~= nil then
+                    bgcolor = captain.style.bgcolor
+                end
+                captainIcon.selfStyle.bgcolor = bgcolor
+                captainIcon:SetClass("collapsed", false)
+            else
+                captainIcon:SetClass("collapsed", true)
+            end
 
             local roleInfo = OverviewRoleInfo(column.token)
             roleLabel.text = roleInfo and roleInfo.line or ""

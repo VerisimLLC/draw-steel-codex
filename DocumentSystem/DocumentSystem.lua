@@ -6903,7 +6903,36 @@ end
 local ICON_RAIL_BUTTON = 40
 local ICON_RAIL_GAP = 8
 local ICON_RAIL_LEFT = 12
-local ICON_RAIL_TOP = 64
+--The gap the rearrange-mode stop button leaves below itself (its own y
+--offset, in pre-scale rail units) AND above itself (in layer units) --
+--see IconRailTop. A field rather than a local because this file sits on
+--Lua's 200-locals-per-chunk ceiling; PanelDocument already carries
+--constants this way (CHAT_BUBBLE_WIDTH and friends).
+PanelDocument.RAIL_STOP_GAP = 12
+
+--The column's top inset in LAYER units: 64, the flat gap between the
+--title bar and slot 0 -- except that same gap is also the stop button's
+--home in rearrange mode, a floating ICON_RAIL_BUTTON that renders at
+--the Font Size zoom (setRailScale) while the gap itself does not zoom.
+--Past ~120% the scaled button no longer fitted and the title bar
+--clipped its top edge, so the inset grows to hold it plus a matching
+--margin above.
+--
+--Unconditional rather than only-while-rearranging on purpose: the inset
+--also sets the column's slot capacity (WrapRailOverflow), so an inset
+--that moved with the mode would shunt a full column's last button over
+--to the other rail on entering rearrange and back again on leaving. At
+--100% the two expressions are equal, so nothing moves at the default
+--zoom. (The 64 lives inline rather than in an ICON_RAIL_TOP constant
+--because this chunk is at the 200-locals ceiling -- replacing the
+--constant with this function is what kept the count flat.)
+local function IconRailTop()
+    local needed = (ICON_RAIL_BUTTON + PanelDocument.RAIL_STOP_GAP) * WindowUIScale() + PanelDocument.RAIL_STOP_GAP
+    if needed > 64 then
+        return needed
+    end
+    return 64
+end
 --the group-shadow image (core cloud asset, uploaded 2026-08-08): a
 --40x40 rounded card with the rail button's own silhouette subtracted
 --at the (-5,+5) stack offset, so the shadow's inner edge follows the
@@ -7590,7 +7619,7 @@ end
 --button's width scale too.
 local function RailAnchor(side, index)
     local scale = WindowUIScale()
-    local anchorY = ICON_RAIL_TOP + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local anchorY = IconRailTop() + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     local maxY = 1080 - PanelDocument.DefaultHeight * scale - 40
     --a zoom big enough that the window cannot fit at all still opens it
     --pinned to the top rather than pushed above the screen.
@@ -7702,7 +7731,7 @@ local function RailBandTarget(dialog, lx, ly)
     --the rail renders at the Font Size zoom (setRailScale), so slot
     --geometry in layer units carries the same factor.
     local pitch = (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * WindowUIScale()
-    local desired = math.floor((ly - ICON_RAIL_TOP) / pitch + 0.5)
+    local desired = math.floor((ly - IconRailTop()) / pitch + 0.5)
     local maxTop = ICON_RAIL_MAX_SLOT - (span - 1)
     if desired < 0 then
         desired = 0
@@ -8121,7 +8150,7 @@ local function RailDropPoint(dropX, dropY, excludeKey)
     --2026-08-08: vacant-slot drops landing one space too low).
     --slot bands are scaled by the rail's Font Size zoom (setRailScale).
     local railScale = WindowUIScale()
-    local targetSlot = math.floor((dropY - ICON_RAIL_TOP + ICON_RAIL_GAP * railScale / 2) / ((ICON_RAIL_BUTTON + ICON_RAIL_GAP) * railScale))
+    local targetSlot = math.floor((dropY - IconRailTop() + ICON_RAIL_GAP * railScale / 2) / ((ICON_RAIL_BUTTON + ICON_RAIL_GAP) * railScale))
     if targetSlot < 0 then
         targetSlot = 0
     end
@@ -8212,7 +8241,7 @@ end
 local function RailButtonDragPointer(side, slot, element)
     local scale = WindowUIScale()
     local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local baseY = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -8240,7 +8269,7 @@ local function RailMemberDragPointer(side, ownerSlot, memberIndex, memberCount, 
         --member that much further left.
         baseX = railX - (memberCount + 1) * pitch + 4 * scale + (memberIndex - 1) * pitch
     end
-    local baseY = ICON_RAIL_TOP + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local baseY = IconRailTop() + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -8321,7 +8350,7 @@ local function RailGroupZoneAt(px, py, draggedKey)
     local pitch = (ICON_RAIL_BUTTON + 8) * scale
     for _, z in ipairs(g_railStripZones) do
         if string.lower(z.ownerKey) ~= draggedKey then
-            local rowTop = ICON_RAIL_TOP + z.ownerSlot * rowPitch
+            local rowTop = IconRailTop() + z.ownerSlot * rowPitch
             if py >= rowTop - ICON_RAIL_GAP * scale / 2 and py <= rowTop + (ICON_RAIL_BUTTON + ICON_RAIL_GAP / 2) * scale then
                 local railX = cond(z.side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
                 local stripStart = cond(z.side == "left", railX + ICON_RAIL_BUTTON * scale, railX - (z.memberCount + 1) * pitch)
@@ -9779,7 +9808,7 @@ ShowRailGhost = function(side, slot, excludeKey)
     --the rails, and DestroyIconRails takes the cached ghosts with it.
     local scale = WindowUIScale()
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    local slotTop = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local slotTop = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
 
     --An OCCUPIED slot gets the insertion LINE in the gap above it ("slots
     --in between these two"); an EMPTY slot gets the dotted BOX ("lands in
@@ -10153,7 +10182,7 @@ ShowRailCardGhost = function(side, slot, charid)
     end
 
     g_railCardGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    g_railCardGhost.y = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    g_railCardGhost.y = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     g_railCardGhost:SetClass("hidden", false)
 end
 
@@ -11023,6 +11052,584 @@ local function RailSlashOpensChat()
     local dialog = doc:try_get("_tmp_dialog")
     if dialog ~= nil and dialog.valid then
         dialog:FireEventTree("slashChat")
+    end
+end
+
+----------------------------------------------------------------------
+-- Chat speech bubble
+-- ------------------
+-- A chat message landing while the chat panel is nowhere on screen --
+-- not the shown tab of any rail window, not popped out, not in an
+-- on-screen dock -- and the chat button IS on screen gets previewed in
+-- a small speech bubble beside the button: frosted translucent plate,
+-- rounded corners, each message fading in and drifting up into place.
+-- The bubble lingers 5 seconds past the LAST message it shows, then
+-- fades as one; messages beyond the row cap shed from the top early.
+-- Placement probes a few spots anchored to the button and takes the
+-- first that overlaps no open window; when every spot is covered the
+-- bubble keeps its default spot but lives at the BOTTOM of the layer's
+-- sibling order, so windows always draw over it rather than it over
+-- them. Clicking the bubble opens chat exactly as the button would.
+--
+-- All state hangs off PanelDocument: this file's main chunk is at
+-- Lua's 200-local ceiling, so no new file-scope locals.
+
+PanelDocument.chatBubbleState = { seen = {}, seenCount = 0, panel = nil }
+PanelDocument.CHAT_BUBBLE_WIDTH = 300
+PanelDocument.CHAT_BUBBLE_LINGER = 5
+PanelDocument.CHAT_BUBBLE_MAX_ROWS = 4
+PanelDocument.CHAT_BUBBLE_TRUNCATE = 220
+
+function PanelDocument.ChatBubbleStyles()
+    return ThemeEngine.MergeTokens({
+        --the rail's own frosted-black treatment (see IconRailStyles):
+        --the bubble reads as an outgrowth of the button it hangs off.
+        --blurBackground rides on the panel itself.
+        {
+            selectors = {"chatSpeechBubble"},
+            bgcolor = "#000000cc",
+            cornerRadius = 12,
+            opacity = 1,
+            scale = 1,
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"chatSpeechBubble", "entering"},
+            opacity = 0,
+            scale = 0.85,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"chatSpeechBubble", "fadeout"},
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        {
+            selectors = {"chatSpeechBubbleTail"},
+            bgcolor = "#000000cc",
+            opacity = 1,
+            transitionTime = 0.2,
+        },
+        --opacity is strictly PER-ELEMENT in the engine (it tints the
+        --panel's own image/border only; there is no canvas-group
+        --multiply down the subtree), so the root's entering/fadeout
+        --rules never touch the text. Every visible descendant carries
+        --its own opacity rules instead, matched against the ROOT's
+        --state via inherit_selectors (a selector class matches on any
+        --ancestor). The same rules make labels of an individually
+        --shedding row fade, since the row is their ancestor too.
+        {
+            selectors = {"chatSpeechBubbleTail", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"chatSpeechBubbleTail", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        --rows enter transparent and 14 units low, then settle: the
+        --fade-in-and-drift-up. y here is the post-layout style offset
+        --(it lerps like opacity does), not the inline positioning x/y.
+        {
+            selectors = {"chatBubbleRow"},
+            opacity = 1,
+            y = 0,
+            vmargin = 3,
+            transitionTime = 0.25,
+        },
+        {
+            selectors = {"chatBubbleRow", "entering"},
+            opacity = 0,
+            y = 14,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"chatBubbleRow", "fadeout"},
+            opacity = 0,
+            transitionTime = 0.4,
+        },
+        --auto width up to the bubble's content cap (bubble maxWidth
+        --minus its hpad), so short messages produce a snug bubble and
+        --long ones wrap at the cap.
+        {
+            selectors = {"label", "chatBubbleNick"},
+            color = "@accent",
+            fontSize = 12,
+            bold = true,
+            width = "auto",
+            maxWidth = PanelDocument.CHAT_BUBBLE_WIDTH - 24,
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            opacity = 1,
+            transitionTime = 0.25,
+        },
+        {
+            selectors = {"label", "chatBubbleText"},
+            color = "@fg",
+            fontSize = 14,
+            width = "auto",
+            maxWidth = PanelDocument.CHAT_BUBBLE_WIDTH - 24,
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            opacity = 1,
+            transitionTime = 0.25,
+        },
+        --the text's own halves of the row fade-in and the bubble/row
+        --fade-out (see the tail's note: per-element opacity).
+        {
+            selectors = {"label", "chatBubbleNick", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"label", "chatBubbleText", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"label", "chatBubbleNick", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        {
+            selectors = {"label", "chatBubbleText", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+    })
+end
+
+--Builds the (singleton) bubble beside the chat button at side/slot and
+--registers it in chatBubbleState. Returns nil when the documents layer
+--is not available.
+function PanelDocument.CreateChatBubble(side, slot)
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return nil
+    end
+
+    --the bubble is a LAYER child (like the drag ghosts and trash
+    --zones): outside the zoomed rail, so it carries the Font Size zoom
+    --itself via uiscale -- internal units stay unscaled, the on-screen
+    --footprint is units * scale, same convention as the rail windows.
+    local scale = WindowUIScale()
+    local bubbleW = PanelDocument.CHAT_BUBBLE_WIDTH
+    local effW = bubbleW * scale
+    local buttonTop = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local buttonSize = ICON_RAIL_BUTTON * scale
+    local gap = 12 * scale
+    --the bubble is ANCHORED by the edge nearest its rail (halign =
+    --side, plus the matching pivot corner for the uiscale below): left
+    --edge beside a left-rail button, right edge beside a right-rail
+    --button. Width is auto up to CHAT_BUBBLE_WIDTH, so a short message
+    --gets a snug bubble and a longer one grows it AWAY from the button
+    --only, the anchored edge (and the tail on it) never moving.
+    --x is the offset from the anchored screen edge; sx is the leftmost
+    --screen x the bubble can REACH at full width -- the avoidance band
+    --below deliberately tests the maximum footprint, since a later
+    --message may widen the bubble in place.
+    local x, sx
+    if side == "left" then
+        x = ICON_RAIL_LEFT + buttonSize + gap
+        sx = x
+    else
+        x = -(ICON_RAIL_LEFT + buttonSize + gap)
+        sx = IconRailUIWidth() - ICON_RAIL_LEFT - buttonSize - gap - effW
+    end
+
+    --window avoidance: probe spots anchored to the button (top-aligned,
+    --bottom-aligned, below, above) with an estimated footprint, first
+    --clear one wins. All covered = keep the default spot; the bubble
+    --sits under the windows (SetAsFirstSibling below) so it never
+    --draws over one. NOT RailWindowIntersectsBand: that reads
+    --renderedWidth/Height, which are PRE-uiscale units, so at a zoomed
+    --Font Size it understates every window's footprint by the zoom --
+    --the on-screen rect is w/h times the window's own scale.
+    local obstacles = {}
+    for _, pdoc in pairs(g_panelDocuments) do
+        local d = pdoc:try_get("_tmp_dialog")
+        if d ~= nil and d.valid then
+            local ws = 1
+            if type(d.data) == "table" then
+                ws = d.data.windowScale or 1
+            end
+            local wx = tonumber(d.x) or 0
+            local wy = tonumber(d.y) or 0
+            local ww = (tonumber(d.renderedWidth) or 0) * ws
+            local wh = (tonumber(d.renderedHeight) or 0) * ws
+            if ww > 0 and wh > 0 then
+                obstacles[#obstacles + 1] = { x1 = wx, y1 = wy, x2 = wx + ww, y2 = wy + wh }
+            end
+        end
+    end
+    local estH = 110 * scale
+    local maxY = IconRailUIHeight() - estH - 8
+    local candidates = {
+        buttonTop,
+        buttonTop + buttonSize - estH,
+        buttonTop + buttonSize + 10 * scale,
+        buttonTop - estH - 10 * scale,
+    }
+    local y = nil
+    for _, cy in ipairs(candidates) do
+        if cy >= 8 and cy <= maxY then
+            local clear = true
+            for _, r in ipairs(obstacles) do
+                if sx < r.x2 and sx + effW > r.x1 and cy < r.y2 and cy + estH > r.y1 then
+                    clear = false
+                    break
+                end
+            end
+            if clear then
+                y = cy
+                break
+            end
+        end
+    end
+    if y == nil then
+        y = buttonTop
+        if y > maxY then
+            y = maxY
+        end
+        if y < 8 then
+            y = 8
+        end
+    end
+
+    --the tail: a filled caret in the gap, pointing back at the button.
+    --Its y aims at the button's centre, clamped onto the bubble's edge
+    --when the bubble had to move away from the button's band.
+    local tailY = (buttonTop + buttonSize / 2 - y) / scale - 11
+    if tailY < 6 then
+        tailY = 6
+    end
+    if tailY > 72 then
+        tailY = 72
+    end
+
+    local bubble
+    bubble = gui.Panel{
+        classes = {"chatSpeechBubble", "entering"},
+        --a layer child sits outside every theme cascade, so it carries
+        --its own resolved styles, like the rail's ghosts and trash zone.
+        styles = PanelDocument.ChatBubbleStyles(),
+        bgimage = true,
+        blurBackground = true,
+        halign = side,
+        valign = "top",
+        x = x,
+        y = y,
+        width = "auto",
+        minWidth = 110,
+        maxWidth = bubbleW,
+        height = "auto",
+        flow = "vertical",
+        hpad = 12,
+        vpad = 9,
+        borderBox = true,
+        swallowPress = true,
+        data = {
+            side = side,
+            slot = slot,
+            lastMessage = dmhub.Time(),
+            rows = {},
+        },
+
+        create = function(element)
+            element:ScheduleEvent("settleIn", 0.02)
+        end,
+        settleIn = function(element)
+            element:SetClass("entering", false)
+        end,
+
+        --a press on the bubble is "show me": open the chat window
+        --exactly as its rail button would, and let the bubble go.
+        click = function(element)
+            local data = element.data
+            element:FireEvent("bubbleFade")
+            RailSweepTransient("chat")
+            local anchorX, anchorY = RailAnchor(data.side, data.slot)
+            OpenIconRailWindow("Chat", { x = anchorX, y = anchorY, anchor = true })
+            RefreshRails()
+        end,
+
+        addChatMessage = function(element, message)
+            local data = element.data
+            data.lastMessage = dmhub.Time()
+            --a message landing mid-fade rescues the bubble; the pending
+            --bubbleDie checks the class and stands down.
+            if element:HasClass("fadeout") then
+                element:SetClass("fadeout", false)
+                element.blurBackground = true
+            end
+
+            local text = ""
+            pcall(function() text = tostring(message.message or "") end)
+            local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
+            if #text > limit then
+                --byte cap, backed off past any UTF-8 continuation bytes
+                --so the cut never splits a codepoint.
+                local cut = limit
+                while cut > 1 do
+                    local b = string.byte(text, cut)
+                    if b ~= nil and b >= 0x80 and b < 0xc0 then
+                        cut = cut - 1
+                    else
+                        break
+                    end
+                end
+                text = string.sub(text, 1, cut - 1) .. "..."
+            end
+
+            local nick = nil
+            pcall(function() nick = message.nick end)
+            if nick == nil or nick == "" then
+                nick = "Player"
+            end
+            local nickColor = nil
+            pcall(function() nickColor = message.nickColor end)
+
+            local nickLabel = gui.Label{
+                classes = {"chatBubbleNick"},
+                text = nick,
+                interactable = false,
+            }
+            if nickColor ~= nil then
+                pcall(function() nickLabel.selfStyle.color = nickColor end)
+            end
+
+            local row = gui.Panel{
+                classes = {"chatBubbleRow", "entering"},
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                flow = "vertical",
+                --older rows glide up when one above them sheds.
+                moveTime = 0.2,
+                interactable = false,
+                create = function(r)
+                    r:ScheduleEvent("settleRow", 0.02)
+                end,
+                settleRow = function(r)
+                    r:SetClass("entering", false)
+                end,
+                rowFade = function(r)
+                    r:SetClass("fadeout", true)
+                    r:ScheduleEvent("rowDie", 0.45)
+                end,
+                rowDie = function(r)
+                    r:DestroySelf()
+                end,
+
+                nickLabel,
+                gui.Label{
+                    classes = {"chatBubbleText"},
+                    text = text,
+                    interactable = false,
+                },
+            }
+            element:AddChild(row)
+
+            --row bookkeeping + overflow: past the cap, rows shed from
+            --the top early rather than letting the bubble grow forever.
+            local live = {}
+            for _, r in ipairs(data.rows) do
+                if r.valid then
+                    live[#live + 1] = r
+                end
+            end
+            live[#live + 1] = row
+            data.rows = live
+            local excess = #live - PanelDocument.CHAT_BUBBLE_MAX_ROWS
+            for i = 1, excess do
+                if not live[i]:HasClass("fadeout") then
+                    live[i]:FireEvent("rowFade")
+                end
+            end
+
+            element:ScheduleEvent("bubbleMaybeExpire", PanelDocument.CHAT_BUBBLE_LINGER)
+        end,
+
+        --one of these fires per message; only the one scheduled by the
+        --LAST message finds the linger actually elapsed.
+        bubbleMaybeExpire = function(element)
+            if dmhub.Time() - element.data.lastMessage < PanelDocument.CHAT_BUBBLE_LINGER - 0.1 then
+                return
+            end
+            element:FireEvent("bubbleFade")
+        end,
+        bubbleFade = function(element)
+            if element:HasClass("fadeout") then
+                return
+            end
+            --the blur backdrop paints at full strength whatever the
+            --panel's opacity, so it goes out with the lights.
+            element.blurBackground = false
+            element:SetClass("fadeout", true)
+            element:ScheduleEvent("bubbleDie", 0.8)
+        end,
+        bubbleDie = function(element)
+            --stand down if a late message rescued the bubble.
+            if element:HasClass("fadeout") then
+                element:DestroySelf()
+            end
+        end,
+        destroy = function(element)
+            if PanelDocument.chatBubbleState.panel == element then
+                PanelDocument.chatBubbleState.panel = nil
+            end
+        end,
+
+        thinkTime = 0.5,
+        think = function(element)
+            if mod.unloaded then
+                element:DestroySelf()
+                return
+            end
+            --chat opened by any path while the bubble is up: the
+            --preview has done its job.
+            if PanelDocument.IsPanelActive("chat") or PanelDocument.IsPoppedOut("chat") then
+                element:FireEvent("bubbleFade")
+            end
+        end,
+
+        gui.Panel{
+            classes = {"chatSpeechBubbleTail"},
+            floating = true,
+            bgimage = cond(side == "left", "phosphor/caret-left-fill.png", "phosphor/caret-right-fill.png"),
+            width = 16,
+            height = 22,
+            halign = cond(side == "left", "left", "right"),
+            valign = "top",
+            x = cond(side == "left", -13, 13),
+            y = tailY,
+            interactable = false,
+        },
+    }
+    layer:AddChild(bubble)
+    --the Font Size zoom, the rail's way (see setRailScale): pivot to
+    --the corner the bubble is anchored by FIRST -- uiscale scales
+    --around the pivot, and the default centre pivot slides the scaled
+    --bubble back over the rail. Pivot writes need an attached panel.
+    bubble.selfStyle.pivot = {x = cond(side == "left", 0, 1), y = 1}
+    bubble.selfStyle.uiscale = scale
+    --the deference half of window awareness: bubble at the BOTTOM of
+    --the layer, so any window it could not avoid draws over it.
+    bubble:SetAsFirstSibling()
+    PanelDocument.chatBubbleState.panel = bubble
+    return bubble
+end
+
+--Fired on the rail root (the chat listener, see BuildIconRails) with
+--the engine's chat changeInfo. Decides whether a bubble is warranted
+--and routes the fresh messages into it.
+function PanelDocument.ChatBubbleNotify(changeInfo)
+    --changeInfo == nil is the create/full pass (replayed history);
+    --new messages always arrive with their key in `changed`.
+    if changeInfo == nil or type(changeInfo.changed) ~= "table" then
+        return
+    end
+    local state = PanelDocument.chatBubbleState
+
+    --collect the genuinely fresh people-typed messages: plain chat
+    --text, not our own, recent by server timestamp (reconnects replay
+    --history through the same event), and never bubbled before
+    --(`changed` re-fires the same key for amendments and reactions).
+    local fresh = {}
+    local nowMs = os.time() * 1000
+    for key, _ in pairs(changeInfo.changed) do
+        if not state.seen[key] then
+            local message = chat.GetRollInfo(key)
+            if message ~= nil and message.messageType == "chat" then
+                local ts = nil
+                pcall(function() ts = message.timestamp end)
+                if type(ts) == "number" and nowMs - ts < 10000 then
+                    state.seen[key] = true
+                    state.seenCount = state.seenCount + 1
+                    local uid = nil
+                    pcall(function() uid = message.userid end)
+                    local gmonly = false
+                    pcall(function() gmonly = message.gmonly end)
+                    if uid ~= dmhub.userid and ((not gmonly) or dmhub.isDM) then
+                        fresh[#fresh + 1] = message
+                    end
+                end
+            end
+        end
+    end
+    --the recency guard is the real re-bubble protection; the seen set
+    --only needs to cover the recent past, so it can reset when large.
+    if state.seenCount > 800 then
+        state.seen = {}
+        state.seenCount = 0
+    end
+    if #fresh == 0 then
+        return
+    end
+    table.sort(fresh, function(a, b)
+        local ta, tb = 0, 0
+        pcall(function() ta = a.timestamp or 0 end)
+        pcall(function() tb = b.timestamp or 0 end)
+        return ta < tb
+    end)
+
+    --no bubble while chat is already on screen: the shown tab of a
+    --rail window, a native popout, or an on-screen dock instance.
+    if PanelDocument.IsPanelActive("chat") or PanelDocument.IsPoppedOut("chat") then
+        return
+    end
+    local reg = DockablePanel.GetRegistration("Chat")
+    if reg ~= nil and reg.identifier ~= nil then
+        local instance = DockablePanel.FindInstance(reg.identifier)
+        if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil then
+            return
+        end
+    end
+
+    --the bubble hangs off the chat button, so there must BE one: a
+    --live, un-collapsed top-level rail button. Grouped-away or
+    --overflow-parked chat has no button; dock mode collapses the
+    --rails' children (enabled goes false).
+    local side, slot = nil, nil
+    for railSide, rail in pairs(g_iconRails) do
+        if rail ~= nil and rail.valid then
+            for _, child in ipairs(rail.children) do
+                if child.valid and child:HasClass("iconRailButton") and child.enabled then
+                    local d = child.data
+                    if type(d) == "table" and d.key == "chat" then
+                        side = railSide
+                        slot = d.slot
+                    end
+                end
+            end
+        end
+    end
+    if side == nil or slot == nil then
+        return
+    end
+
+    local bubble = state.panel
+    if bubble ~= nil and not bubble.valid then
+        bubble = nil
+        state.panel = nil
+    end
+    if bubble == nil then
+        bubble = PanelDocument.CreateChatBubble(side, slot)
+    end
+    if bubble == nil then
+        return
+    end
+    for _, message in ipairs(fresh) do
+        bubble:FireEvent("addChatMessage", message)
     end
 end
 
@@ -15245,6 +15852,10 @@ local function CreateIconRail(side, entries)
     --than sitting in the flow: slot 0 is the top of the rail now that
     --nothing else lives up there, and a button in the flow would push
     --every icon down and invalidate the slot geometry (RailDropPoint).
+    --The band it floats into is reserved by IconRailTop, which grows
+    --the column's inset with the Font Size zoom so the scaled button
+    --always clears the title bar; RAIL_STOP_GAP is the same gap on
+    --both sides of it.
     --Escape exits the mode too: escapeActivates fires the click handler.
     if g_railRearranging then
         buttons[#buttons + 1] = gui.Panel{
@@ -15252,7 +15863,7 @@ local function CreateIconRail(side, entries)
             bgimage = true,
             blurBackground = true,
             floating = true,
-            y = -(ICON_RAIL_BUTTON + 12),
+            y = -(ICON_RAIL_BUTTON + PanelDocument.RAIL_STOP_GAP),
             width = ICON_RAIL_BUTTON,
             height = ICON_RAIL_BUTTON,
             flow = "none",
@@ -16596,7 +17207,7 @@ local function CreateIconRail(side, entries)
                 --on-screen band scales with the Font Size zoom.
                 local railScale = WindowUIScale()
                 local stripWidth = (#groupMembers * (ICON_RAIL_BUTTON + 8) + 160) * railScale
-                local sy = ICON_RAIL_TOP + buttonTop * railScale
+                local sy = IconRailTop() + buttonTop * railScale
                 local sx1
                 if side == "left" then
                     sx1 = ICON_RAIL_LEFT + ICON_RAIL_BUTTON * railScale
@@ -17604,7 +18215,7 @@ local function CreateIconRail(side, entries)
         valign = "top",
         lmargin = cond(side == "left", ICON_RAIL_LEFT, 0),
         rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
-        tmargin = ICON_RAIL_TOP,
+        tmargin = IconRailTop(),
         width = ICON_RAIL_BUTTON,
         --ALWAYS auto, never a fixed column height: the vertical flow
         --distributes children across a fixed height, spreading the
@@ -17842,6 +18453,13 @@ local function CreateIconRail(side, entries)
             RailSlashOpensChat()
         end,
 
+        --a chat message landing while the chat panel is closed: the same
+        --listener registration delivers the engine's chat refresh here,
+        --and the speech-bubble preview hangs off it.
+        refreshChat = function(element, changeInfo)
+            PanelDocument.ChatBubbleNotify(changeInfo)
+        end,
+
         --self-heal: track windows closed by any path and keep the active
         --states honest. Panels survive a Lua reload while their module
         --state does not, so a rail from an unloaded generation destroys
@@ -17977,8 +18595,8 @@ local function WrapRailOverflow(sides)
     local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
     --the column's usable run in layer units, converted to whole slots at
     --the current zoom: slots 0..maxSlots-1 fit (slot n's button bottom
-    --sits at (n+1)*pitch - GAP, scaled, below ICON_RAIL_TOP).
-    local avail = IconRailUIHeight() - ICON_RAIL_TOP - 16
+    --sits at (n+1)*pitch - GAP, scaled, below IconRailTop()).
+    local avail = IconRailUIHeight() - IconRailTop() - 16
     local maxSlots = math.floor((avail / scale + ICON_RAIL_GAP) / pitch)
     if maxSlots < 1 then
         maxSlots = 1
@@ -19416,7 +20034,7 @@ function ViewsToast(text, undoFn, actions)
         valign = "top",
         --where the view chip used to sit, above the left rail.
         x = ICON_RAIL_LEFT,
-        y = ICON_RAIL_TOP - 34,
+        y = IconRailTop() - 34,
         width = "auto",
         height = 26,
         flow = "horizontal",

@@ -1,0 +1,27 @@
+{
+  "_comment_location": "Copy this to bug-report-config.json in a credentials directory OUTSIDE the repo (default ~/.dmhub), NOT next to the scripts. See CREDENTIALS.md.",
+  "_comment_keyPath": "Firebase service-account key for project mcdm-385cf. A relative path resolves against this file's own directory.",
+  "keyPath": "mcdm-key.json",
+  "databaseURL": "https://mcdm-385cf-default-rtdb.firebaseio.com/",
+  "_comment_discordWebhook": "Default channel (#user-feedback): anything not listed in 'channels' posts here.",
+  "discordWebhook": "https://discord.com/api/webhooks/REPLACE_ME/REPLACE_ME",
+  "discordMaxUploadBytes": 8388608,
+  "_comment_channels": "Per-type overrides. A webhook is bound to one channel, so routing bugs elsewhere needs that channel's own webhook; 'tag' is a forum tag id IN THAT CHANNEL (optional -- omit for a single-purpose forum).",
+  "channels": {
+    "bug": {
+      "webhook": "https://discord.com/api/webhooks/REPLACE_ME/REPLACE_ME",
+      "tag": ""
+    }
+  },
+  "_comment_tags": "Forum tag ids in the DEFAULT channel, per type (see bug-report-list-tags.py).",
+  "tags": {
+    "feature": "",
+    "feedback": ""
+  },
+  "_comment_discordBotToken": "Only used to ARCHIVE a thread on closeout -- webhook tokens cannot touch /channels. Needs a bot in the guild with Manage Threads on both forums. Override with $DISCORD_BOT_TOKEN. Leave empty to skip archiving.",
+  "discordBotToken": "",
+  "_comment_dmhubRepo": "Path to the dmhub checkout. Lets the closeout read TICKETS_PASSWORD out of internal-dashboards/wrangler.jsonc instead of duplicating it here. Not needed when the scripts run from inside that repo.",
+  "dmhubRepo": "C:\\dev\\dmhub",
+  "_comment_ticketsPassword": "Only set this if wrangler.jsonc is unreachable. $BUG_TICKETS_PASSWORD overrides it.",
+  "ticketsPassword": ""
+}

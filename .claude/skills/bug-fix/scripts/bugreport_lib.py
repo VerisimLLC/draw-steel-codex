@@ -1,0 +1,557 @@
+"""Shared helpers for the bug-report triage pipeline.
+
+All of the bug-report-*.py scripts import this. It centralises:
+  - loading bug-report-config.json (webhook URL, service-account key path, tag ids)
+  - initialising the firebase-admin app against the MCDM RTDB
+  - path resolution that works no matter what the current working directory is
+    (the scheduled task runs from dmhub-admin; a Claude Code agent runs from the
+    dmhub repo -- both must find the key + config next to these scripts).
+
+Consumer-owned triage state lives under a single root in the MCDM RTDB:
+
+  /BugReportTriage/issues/{threadId}   one node per distinct issue (Discord forum
+                                       thread). key == the Discord thread id.
+      title      : short human title (also the forum post title)
+      type       : bug | feature | feedback
+      signature  : short stable dedupe key the agent assigns
+      status     : open | fixed | wontfix | ...  (consumer-owned)
+      reportIds  : [reportId, ...] every /BugReports id folded into this issue
+      channelKey : which configured Discord channel the thread lives in (see
+                   resolve_channel). Absent on threads created before the
+                   bug/feedback channel split -- those are all in the default
+                   channel, which is exactly what the fallback assumes.
+      created    : server ms
+      updated    : server ms
+
+  /BugReports/{reportId}/status        set to "triaged" once folded into an issue
+  /BugReports/{reportId}/triage        { issueId: <threadId>, updated: server ms }
+
+  /BugReportTriage/prs/{owner__repo__number}   one node per fix PR raised by a
+                                       bug-fixer agent, so the merge poller
+                                       (bug-report-check-prs.py) can close the
+                                       issue out when the PR lands. Registered by
+                                       bug-report-apply.py -- which is the only
+                                       point at which both the PR and its Discord
+                                       thread id are known.
+      url        : the GitHub PR URL (also the source of owner/repo/number)
+      repoLabel  : the fixer's repo handle ("codex" | "data")
+      branch     : the triage/* branch backing the PR
+      issueId    : Discord thread the fix belongs to
+      reportIds  : [reportId, ...] every report the fix closes out
+      state      : open | merged | closed   (closed == rejected, not merged)
+      closeout   : { tickets: { <reportId>: true }, discordAt: server ms }
+"""
+
+import json
+import os
+import re
+import time
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+import requests
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ---------------------------------------------------------------- credentials
+
+# These scripts live in a source repo (draw-steel-codex), so no secret may ever
+# sit next to them. Credentials live in a separate directory OUTSIDE the repo --
+# the "credentials directory" -- which holds:
+#
+#   bug-report-config.json   webhook urls, tag ids, discord bot token, key path
+#   mcdm-key.json            Firebase service-account key for the MCDM RTDB
+#   admin-secret.txt         (optional) release worker ADMIN_SECRET
+#   admin-secret-staging.txt (optional) staging worker ADMIN_SECRET
+#
+# Resolution order, first hit wins. $BUG_REPORT_CONFIG points straight at a
+# config file; $DMHUB_ADMIN_DIR names a directory holding one.
+CONFIG_BASENAME = "bug-report-config.json"
+
+CREDENTIAL_DIR_FALLBACKS = (
+    os.path.join(os.path.expanduser("~"), ".dmhub"),
+    os.path.join("D:", os.sep, "dev", "dmhub-admin"),
+    os.path.join("C:", os.sep, "dev", "dmhub-admin"),
+    os.path.join(os.path.expanduser("~"), "dev", "dmhub-admin"),
+)
+
+
+def config_candidates():
+    """Every path a bug-report-config.json might live at, best guess first."""
+    env_file = os.environ.get("BUG_REPORT_CONFIG")
+    if env_file:
+        yield env_file
+    env_dir = os.environ.get("DMHUB_ADMIN_DIR")
+    if env_dir:
+        yield os.path.join(env_dir, CONFIG_BASENAME)
+    for d in CREDENTIAL_DIR_FALLBACKS:
+        yield os.path.join(d, CONFIG_BASENAME)
+    # Last resort: next to these scripts. Only ever true for a private checkout;
+    # the repo .gitignore refuses to track a real config here.
+    yield os.path.join(SCRIPT_DIR, CONFIG_BASENAME)
+
+
+def find_config():
+    """Path of the first config that exists, or None."""
+    for p in config_candidates():
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+def credentials_dir():
+    """Directory holding the resolved config -- and, by convention, the
+    service-account key and any worker admin-secret files. None if unset."""
+    if _config is not None:
+        return _config.get("_credentialsDir")
+    p = find_config()
+    return os.path.dirname(os.path.abspath(p)) if p else None
+
+
+def missing_config_message():
+    lines = [
+        "Missing %s -- the bug-fix scripts have no credentials to work with." % CONFIG_BASENAME,
+        "",
+        "Looked in (first match wins):",
+    ]
+    for p in config_candidates():
+        lines.append("  - %s" % p)
+    lines += [
+        "",
+        "To set it up: create a credentials directory outside this repo (e.g.",
+        "  %s)," % CREDENTIAL_DIR_FALLBACKS[0],
+        "copy bug-report-config.example.json from %s into it as %s," % (SCRIPT_DIR, CONFIG_BASENAME),
+        "fill it in, and drop the Firebase service-account key (mcdm-key.json)",
+        "beside it. Point at a different location with $BUG_REPORT_CONFIG (a file)",
+        "or $DMHUB_ADMIN_DIR (a directory).",
+        "",
+        "Full instructions: CREDENTIALS.md next to these scripts. To check a setup:",
+        "  python %s" % os.path.join(SCRIPT_DIR, "check-credentials.py"),
+    ]
+    return "\n".join(lines)
+
+
+_config = None
+_app = None
+
+
+def load_config(path=None):
+    """Load bug-report-config.json from the credentials directory.
+
+    Explicit path > $BUG_REPORT_CONFIG > $DMHUB_ADMIN_DIR > known fallbacks
+    (see config_candidates). A relative keyPath resolves against the config's
+    own directory, so the service-account key travels with the config instead
+    of having to sit next to these scripts (which are in a git repo)."""
+    global _config
+    if _config is not None:
+        return _config
+    path = path or find_config()
+    if not path or not os.path.exists(path):
+        raise SystemExit(missing_config_message())
+    with open(path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    cfg["_configPath"] = os.path.abspath(path)
+    cfg["_credentialsDir"] = os.path.dirname(os.path.abspath(path))
+    # A relative service-account key path resolves against the config's own
+    # directory first, then (legacy) against the script directory.
+    key = cfg.get("keyPath", "mcdm-key.json")
+    if not os.path.isabs(key):
+        beside_config = os.path.join(cfg["_credentialsDir"], key)
+        key = beside_config if os.path.exists(beside_config) else os.path.join(SCRIPT_DIR, key)
+    cfg["keyPath"] = key
+    if not os.path.exists(key):
+        raise SystemExit(
+            "Missing Firebase service-account key: %s\n"
+            "It is named by 'keyPath' in %s. Download it from the Firebase console\n"
+            "(project mcdm-385cf) > Project settings > Service accounts > Generate\n"
+            "new private key, and save it there. Never commit it."
+            % (key, cfg["_configPath"])
+        )
+    _config = cfg
+    return cfg
+
+
+def init_firebase():
+    """Initialise (once) and return the firebase-admin app for the MCDM RTDB."""
+    global _app
+    if _app is not None:
+        return _app
+    cfg = load_config()
+    cred = credentials.Certificate(cfg["keyPath"])
+    _app = firebase_admin.initialize_app(
+        cred,
+        {"databaseURL": cfg.get("databaseURL", "https://mcdm-385cf-default-rtdb.firebaseio.com/")},
+    )
+    return _app
+
+
+def sv_timestamp():
+    """Firebase server-timestamp sentinel."""
+    return {".sv": "timestamp"}
+
+
+# statuses that mean a report has already been consumed and should be skipped
+PROCESSED_STATUSES = {"triaged", "closed", "fixed", "wontfix", "duplicate"}
+
+# ---------------------------------------------------------------- discord channels
+
+DEFAULT_CHANNEL_KEY = "default"
+
+
+def resolve_channel(cfg, itype):
+    """Which Discord channel a NEW issue of this type opens its thread in.
+
+    Returns {"key", "webhook", "tag"}. A Discord webhook is bound to one channel,
+    so routing by type means one webhook per channel; forum tag ids are likewise
+    channel-scoped, hence the tag travels with the channel rather than living in
+    a single flat map.
+
+    Config, per type (all optional -- anything unlisted uses the default channel):
+
+      "discordWebhook": "<default channel webhook>",   # #user-feedback
+      "tags": { "feature": "<tagId>", ... },            # tags in THAT channel
+      "channels": {
+        "bug": { "webhook": "<#bugs webhook>", "tag": "<tagId in #bugs or null>" }
+      }
+
+    `key` is the stable handle stored on the issue registry node so replies can
+    find their way back to the right webhook years later; see webhook_for_key.
+    """
+    chan = (cfg.get("channels") or {}).get(itype)
+    if isinstance(chan, dict) and chan.get("webhook"):
+        return {
+            "key": chan.get("key") or itype,
+            "webhook": chan["webhook"],
+            "tag": chan.get("tag") or None,
+        }
+    return {
+        "key": DEFAULT_CHANNEL_KEY,
+        "webhook": cfg.get("discordWebhook", ""),
+        "tag": (cfg.get("tags") or {}).get(itype) or None,
+    }
+
+
+def webhook_for_key(cfg, key):
+    """The webhook for a channel key recorded on an issue node (for replies).
+
+    A missing/unknown key means the default channel -- which is right for every
+    thread created before the split, since back then there was only one channel.
+    """
+    if key and key != DEFAULT_CHANNEL_KEY:
+        for itype, chan in (cfg.get("channels") or {}).items():
+            if not isinstance(chan, dict) or not chan.get("webhook"):
+                continue
+            if (chan.get("key") or itype) == key:
+                return chan["webhook"]
+        print("  note: unknown channelKey %r; replying via the default channel" % key)
+    return cfg.get("discordWebhook", "")
+
+
+def channel_is_shared(cfg, key, types):
+    """True if more than one of `types` routes to this channel.
+
+    Used to decide whether a post needs a "[BUG]"-style title prefix: in a
+    channel dedicated to one type the prefix is pure noise.
+    """
+    return sum(1 for t in types if resolve_channel(cfg, t)["key"] == key) > 1
+
+
+def ref(path):
+    init_firebase()
+    return db.reference(path)
+
+
+# ---------------------------------------------------------------- reports
+
+def load_report(rid):
+    """Return (source, report) for a report id, from wherever it lives.
+
+    Novel reports are in /BugReports; processed ones have been moved to
+    /BugReportsArchive by bug-report-apply.py. (None, None) if it is in neither.
+    """
+    r = ref("/BugReports/%s" % rid).get()
+    if isinstance(r, dict):
+        return "BugReports", r
+    r = ref("/BugReportsArchive/%s" % rid).get()
+    if isinstance(r, dict):
+        return "BugReportsArchive", r
+    return None, None
+
+
+def ticket_exists(uid, rid):
+    """True if this report opened a user-facing ticket.
+
+    Only bug-type reports filed by ticket-aware clients have one, so a missing
+    ticket is normal and never an error.
+    """
+    return bool(ref("/Tickets/%s/%s/reportId" % (uid, rid)).get())
+
+
+# ---------------------------------------------------------------- fix PRs
+
+# RTDB keys may not contain . $ # [ ] or /, so a PR's identity is flattened with
+# '__' rather than kept in its natural owner/repo#number spelling.
+PR_URL_RE = re.compile(r"^https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/pull/(\d+)")
+
+
+def parse_pr_url(url):
+    """Split a GitHub PR URL into {owner, repo, number}, or None if it isn't one."""
+    m = PR_URL_RE.match((url or "").strip())
+    if not m:
+        return None
+    return {"owner": m.group(1), "repo": m.group(2), "number": int(m.group(3))}
+
+
+def pr_key(url):
+    """The /BugReportTriage/prs key for a PR URL, or None if it is unparseable."""
+    parts = parse_pr_url(url)
+    return "%s__%s__%d" % (parts["owner"], parts["repo"], parts["number"]) if parts else None
+
+
+def pr_label(node):
+    """Human handle for a PR node: 'owner/repo#number' (falls back to the URL)."""
+    if node.get("owner") and node.get("repo") and node.get("number") is not None:
+        return "%s/%s#%s" % (node["owner"], node["repo"], node["number"])
+    return node.get("url") or "(unknown PR)"
+
+
+def record_pr(dry_run, pr, issue_id, report_ids):
+    """Register a fix PR so the merge poller can close its issue out when it lands.
+
+    `pr` is the bug-fixer agent's returned object ({url, repo, branch, summary}).
+    Returns the registry key, or None if the URL is not a GitHub PR URL -- a bad
+    URL must not take the surrounding apply run down, since the PR link is in the
+    Discord body regardless and only the automated closeout is lost.
+    """
+    url = (pr or {}).get("url")
+    key = pr_key(url)
+    if not key:
+        print("  note: %r is not a GitHub PR URL; not tracking it for merge closeout" % (url,))
+        return None
+    report_ids = list(report_ids or [])
+
+    if dry_run:
+        print("  [dry-run] track fix PR %s -> /BugReportTriage/prs/%s (issue %s, reports: %s)"
+              % (url, key, issue_id, ", ".join(report_ids) or "-"))
+        return key
+
+    existing = ref("/BugReportTriage/prs/%s" % key).get()
+    if isinstance(existing, dict):
+        # Same PR seen twice (a re-run, or a second issue folded onto one fix):
+        # merge the report ids but leave `state` alone, so a PR already closed
+        # out is never resurrected into the poller's open set.
+        merged = list(dict.fromkeys((existing.get("reportIds") or []) + report_ids))
+        ref("/BugReportTriage/prs/%s/reportIds" % key).set(merged)
+        return key
+
+    parts = parse_pr_url(url)
+    ref("/BugReportTriage/prs/%s" % key).set({
+        "url": url,
+        "owner": parts["owner"],
+        "repo": parts["repo"],
+        "number": parts["number"],
+        "repoLabel": (pr.get("repo") or ""),
+        "branch": (pr.get("branch") or ""),
+        "summary": (pr.get("summary") or ""),
+        "issueId": issue_id,
+        "reportIds": report_ids,
+        "state": "open",
+        "openedAt": sv_timestamp(),
+    })
+    return key
+
+
+# ---------------------------------------------------------------- tickets dashboard
+
+# Team dashboard hosting the tickets UI (override via config "dashboardUrl").
+DASHBOARD_URL_DEFAULT = "https://internal-dashboards.purchase-a5b.workers.dev"
+DEV_NAME_DEFAULT = "Codex Developers"
+
+
+def dashboard_url(cfg):
+    return (cfg.get("dashboardUrl") or DASHBOARD_URL_DEFAULT).rstrip("/")
+
+
+def wrangler_candidates(cfg):
+    """Paths where internal-dashboards/wrangler.jsonc might live, best guess first.
+
+    The dmhub repo is NOT reliably a sibling of dmhub-admin -- on some machines
+    they sit on different drives (admin on D:, repo on C:) -- so a single relative
+    guess silently fails. Try, in order: the explicit env override, a configured
+    repo root, every ancestor of the cwd (an agent-driven run starts inside the
+    repo), and finally the historical sibling layout.
+    """
+    rel = os.path.join("internal-dashboards", "wrangler.jsonc")
+
+    env = os.environ.get("INTERNAL_DASHBOARDS_WRANGLER")
+    if env:
+        yield env
+
+    configured = cfg.get("dmhubRepo")
+    if configured:
+        yield os.path.join(configured, rel)
+
+    d = os.path.abspath(os.getcwd())
+    while True:
+        yield os.path.join(d, rel)
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+
+    yield os.path.join(SCRIPT_DIR, "..", "dmhub", rel)
+
+
+def tickets_password(cfg):
+    """The shared team password gating /api/tickets/* (see internal-dashboards)."""
+    pw = os.environ.get("BUG_TICKETS_PASSWORD") or cfg.get("ticketsPassword")
+    if pw:
+        return pw
+    # Fall back to the dashboard's own wrangler config, so there is nothing to
+    # duplicate into bug-report-config.json. It is a plain var there, by design.
+    for path in wrangler_candidates(cfg):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                m = re.search(r'"TICKETS_PASSWORD"\s*:\s*"([^"]*)"', f.read())
+        except OSError:
+            continue
+        if m:
+            return m.group(1)
+    return None
+
+
+class TicketsClient:
+    """Authenticated client for the dashboard's /api/tickets/* endpoints.
+
+    Logs in lazily and exactly once, so closing out a dozen reports costs one
+    login -- and a run that turns out to have nothing to post costs none, which
+    also means a missing password only becomes fatal if a ticket is really there
+    to update.
+
+    Failure modes are deliberately different: a missing password or a rejected
+    login is a configuration fault that invalidates the whole run and raises
+    SystemExit, while a single failed request raises RuntimeError so a caller
+    looping over many reports can record that one as failed and keep going.
+    """
+
+    def __init__(self, cfg, dev_name=None):
+        self.cfg = cfg
+        self.dev_name = dev_name or DEV_NAME_DEFAULT
+        self._session = None
+
+    def session(self):
+        if self._session is not None:
+            return self._session
+        pw = tickets_password(self.cfg)
+        if not pw:
+            raise SystemExit(
+                "No tickets password. Set $BUG_TICKETS_PASSWORD, add \"ticketsPassword\" to "
+                "bug-report-config.json, or make internal-dashboards/wrangler.jsonc readable."
+            )
+        s = requests.Session()
+        resp = s.post(
+            "%s/api/tickets/login" % dashboard_url(self.cfg),
+            json={"name": self.dev_name, "password": pw},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise SystemExit("Dashboard login failed (%d): %s" % (resp.status_code, resp.text[:200]))
+        self._session = s
+        return s
+
+    def _post(self, sub, payload):
+        resp = self.session().post(
+            "%s/api/tickets/%s" % (dashboard_url(self.cfg), sub), json=payload, timeout=30)
+        if resp.status_code != 200:
+            raise RuntimeError("/api/tickets/%s failed (%d): %s"
+                               % (sub, resp.status_code, resp.text[:200]))
+        return resp.json() if resp.content else {}
+
+    def message(self, uid, rid, text):
+        """Post a developer message, which bumps the ticket's lastDevMessageAt."""
+        return self._post("message", {"uid": uid, "id": rid, "text": text})
+
+    def close(self, uid, rid):
+        return self._post("status", {"uid": uid, "id": rid, "status": "closed"})
+
+
+# ---------------------------------------------------------------- discord replies
+
+DISCORD_COLOR_RESOLVED = 0x2ECC71  # green: resolved
+
+
+def discord_reply(cfg, thread_id, text, color=DISCORD_COLOR_RESOLVED):
+    """Reply into an existing forum thread via the webhook owning its channel.
+
+    Bugs and other feedback live in different forums, so the webhook depends on
+    the thread: take it from the issue node's channelKey, which is absent (=>
+    default channel) for threads created before that split.
+    """
+    key = ref("/BugReportTriage/issues/%s/channelKey" % thread_id).get()
+    webhook = webhook_for_key(cfg, key)
+    if not webhook or "REPLACE_ME" in webhook:
+        raise SystemExit("Discord webhook is not configured in bug-report-config.json")
+    url = webhook + "?wait=true&thread_id=%s" % thread_id
+    payload = {"embeds": [{"description": text, "color": color}]}
+    for _ in range(5):
+        resp = requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 429:
+            time.sleep(float(resp.json().get("retry_after", 1.0)) + 0.25)
+            continue
+        resp.raise_for_status()
+        return resp.json() if resp.content else {}
+    raise SystemExit("Discord rate-limited after retries")
+
+
+# ---------------------------------------------------------------- discord threads
+
+DISCORD_API = "https://discord.com/api/v10"
+
+
+def discord_bot_token(cfg):
+    """The bot token used to ARCHIVE a thread, or "" if none is configured.
+
+    Everything else in this pipeline posts through a webhook, but a webhook token
+    only authorises /webhooks/{id}/{token} message endpoints -- it cannot touch
+    /channels/{id}, which is where thread state lives. Archiving therefore needs a
+    real bot identity in the guild, with Manage Threads on the forum channels
+    (the threads are owned by the webhook, not the bot, so thread-owner archive
+    rights don't apply).
+
+    Resolution: $DISCORD_BOT_TOKEN, then config "discordBotToken". Absent is a
+    supported state -- callers skip the archive step rather than failing.
+    """
+    tok = os.environ.get("DISCORD_BOT_TOKEN") or cfg.get("discordBotToken") or ""
+    tok = tok.strip()
+    if not tok or "REPLACE_ME" in tok:
+        return ""
+    return tok
+
+
+def discord_archive_thread(cfg, thread_id):
+    """Archive a forum thread. Returns (ok, detail); never raises for the caller.
+
+    Archive only, deliberately not locked: a reporter who answers "still broken"
+    into an archived thread un-archives it by doing so, which is a free reopen
+    signal we would throw away by locking.
+
+    Call this AFTER posting the closing reply -- posting into an archived thread
+    is what would un-archive it again.
+    """
+    token = discord_bot_token(cfg)
+    if not token:
+        return (None, "no bot token configured -- thread left open")
+    url = "%s/channels/%s" % (DISCORD_API, thread_id)
+    headers = {"Authorization": "Bot %s" % token}
+    for _ in range(5):
+        resp = requests.patch(url, json={"archived": True}, headers=headers, timeout=30)
+        if resp.status_code == 429:
+            time.sleep(float(resp.json().get("retry_after", 1.0)) + 0.25)
+            continue
+        if resp.status_code >= 400:
+            # Bad token / missing Manage Threads / thread deleted. Not fatal --
+            # the user has already been told the fix landed; only tidying failed.
+            return (False, "HTTP %s: %s" % (resp.status_code, resp.text[:200]))
+        return (True, "archived thread %s" % thread_id)
+    return (False, "Discord rate-limited after retries")

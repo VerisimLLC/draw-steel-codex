@@ -5110,9 +5110,12 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 		styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles),
 
-		gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules.
+		gui.SearchInput{
 			valign = "top",
 			vmargin = 20,
+			borderBox = true,
 			placeholderText = "Search for modules...",
 			editlag = 0.3,
 			edit = function(element)

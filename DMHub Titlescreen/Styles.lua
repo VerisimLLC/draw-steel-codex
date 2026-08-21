@@ -372,19 +372,44 @@ Styles = {
 
 		gui.Style{
 			selectors = {"searchInput"},
-			hpad = 6,
-			fontSize = 16,
-			bold = true,
+			--aligned with the canonical searchInput look in
+			--DefaultStyles (Control Zoo decision 2026-08-20, frameless
+			--pass 2026-08-21): quiet 14px regular type, NO frame at
+			--rest -- the border is painted the same as the fill and
+			--hover/focus lift the whole fill instead. Raw colors, as
+			--everywhere in this legacy sheet. hpad in the STYLE:
+			--inputs ignore inline pads.
+			hpad = 24,
+			fontSize = 14,
+			bold = false,
 			borderFade = false,
 
             color = "white",
-            borderWidth = 1,
-            borderColor = "grey",
+            bgcolor = "black",
+            --border, not borderWidth: see the canonical searchInput
+            --rule in DefaultStyles -- borderWidth is the widget's
+            --square outline and breaks the rounded caps. Kept in the
+            --geometry (painted fill-color) so state changes do not
+            --shift pixels.
+            border = 1,
+            borderWidth = 0,
+            borderColor = "black",
+            --7, not 9: must stay under half the RENDERED height at
+            --any window scale (see the canonical rule's comment).
+            cornerRadius = 7,
 		},
 
         gui.Style{
+            selectors = {"searchInput", "hover"},
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
+            transitionTime = 0.15,
+        },
+
+        gui.Style{
             selectors = {"searchInput", "focus"},
-            borderColor = Styles.textColor,
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
         },
 
 		--labels.

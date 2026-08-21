@@ -1,12 +1,52 @@
 local mod = dmhub.GetModLoading()
 
+--Per-control dev notes, written IN-APP: the info glyph on each zoo
+--entry opens a note editor; the note saves on every keystroke
+--(preference storage -- local to this machine), keyed by the entry's
+--name. Hovering the glyph shows the note; a dim glyph means no note
+--yet.
+setting{
+    id = "controlzoo:notes",
+    storage = "preference",
+    default = {},
+}
+
+local function GetZooNote(name)
+    local t = dmhub.GetSettingValue("controlzoo:notes") or {}
+    local note = t[name]
+    if note == nil or note == "" then
+        return nil
+    end
+    return note
+end
+
+local function SetZooNote(name, text)
+    local t = dmhub.GetSettingValue("controlzoo:notes") or {}
+    if text == nil or text == "" then
+        t[name] = nil
+    else
+        t[name] = text
+    end
+    dmhub.SetSettingValue("controlzoo:notes", t)
+end
+
 local g_formStyles = {
+    --each control entry is a framed CARD (owner request 2026-08-20):
+    --title, control, and its knobs visibly grouped, so it is clear
+    --which pieces belong to which sample.
     gui.Style{
         classes = {"formPanel"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        vmargin = 8,
+        vmargin = 6,
+        bgimage = "panels/square.png",
+        bgcolor = "#ffffff05",
+        border = 1,
+        borderColor = "#ffffff1a",
+        cornerRadius = 8,
+        pad = 12,
+        borderBox = true,
     },
     gui.Style{
         classes = {"formLabel"},
@@ -49,7 +89,7 @@ LaunchablePanel.Register {
                 text = args.name,
             }
             if args.snippet then
-                labelChildren[2] = gui.Label {
+                labelChildren[#labelChildren + 1] = gui.Label {
                     text = "[copy]",
                     fontSize = 11,
                     color = "#6688aa",
@@ -64,6 +104,94 @@ LaunchablePanel.Register {
                     linger = gui.Tooltip("Copy example code"),
                 }
             end
+            --dev notes: the info glyph opens an in-app note editor for
+            --this control. Saves on every keystroke, so closing the
+            --popup any way (click away, escape) never loses text.
+            local noteIcon
+            noteIcon = gui.Panel {
+                bgimage = "phosphor/info.png",
+                width = 14,
+                height = 14,
+                bgcolor = cond(GetZooNote(args.name) ~= nil, "#88bbee", "#55606a"),
+                valign = "center",
+                hmargin = 4,
+                --anchor the editor popup to the glyph rather than the
+                --default placement, which clipped off the window's edge.
+                popupPositioning = "panel",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#aaccee",
+                        transitionTime = 0.1,
+                    },
+                },
+                linger = function(element)
+                    local note = GetZooNote(args.name)
+                    gui.Tooltip(note or "Click to write dev notes for this control")(element)
+                end,
+                press = function(element)
+                    local function SyncIcon(text)
+                        SetZooNote(args.name, text)
+                        if noteIcon ~= nil and noteIcon.valid then
+                            noteIcon.selfStyle.bgcolor = cond(GetZooNote(args.name) ~= nil, "#88bbee", "#55606a")
+                        end
+                    end
+                    element.popup = gui.Panel{
+                        styles = Styles.Default,
+                        --popup halign/valign place it relative to the
+                        --anchor (see popupPositioning docs): open to the
+                        --right of and below the glyph.
+                        halign = "right",
+                        valign = "bottom",
+                        width = 380,
+                        height = "auto",
+                        flow = "vertical",
+                        bgimage = "panels/square.png",
+                        bgcolor = "#14161b",
+                        border = 1,
+                        borderColor = "#ffffff30",
+                        cornerRadius = 8,
+                        pad = 10,
+                        borderBox = true,
+                        gui.Label{
+                            text = "Dev notes: " .. args.name,
+                            fontSize = 14,
+                            bold = true,
+                            width = "100%",
+                            height = "auto",
+                            bmargin = 6,
+                        },
+                        gui.Input{
+                            width = "100%",
+                            height = "auto",
+                            minHeight = 120,
+                            multiline = true,
+                            textAlignment = "topleft",
+                            fontSize = 13,
+                            characterLimit = 4000,
+                            text = GetZooNote(args.name) or "",
+                            placeholderText = "Best practices, gotchas, guidance...",
+                            hasFocus = true,
+                            editlag = 0.3,
+                            edit = function(input)
+                                SyncIcon(input.text)
+                            end,
+                            change = function(input)
+                                SyncIcon(input.text)
+                            end,
+                        },
+                        gui.Label{
+                            text = "Saves as you type. Click away to close.",
+                            fontSize = 10,
+                            color = "#888888",
+                            width = "100%",
+                            height = "auto",
+                            tmargin = 4,
+                        },
+                    }
+                end,
+            }
+            labelChildren[#labelChildren + 1] = noteIcon
             return gui.Panel {
                 classes = { "formPanel" },
                 gui.Panel {
@@ -107,6 +235,274 @@ LaunchablePanel.Register {
                 vscroll = true,
 
                 styles = g_formStyles,
+
+                --First in the zoo while the canonical search look is under
+                --active work (2026-08-20): the one true search field, as
+                --every surface receives it from gui.SearchInput +
+                --DefaultStyles' searchInput rules.
+                ControlEntry{
+                    name = "Search Input",
+                    snippet = [[gui.SearchInput{
+    width = 260,
+    height = 26,
+    placeholderText = "Search...",
+    -- fires with the lowercased, trimmed query ("" for cleared or
+    -- single-character input):
+    search = function(element, text)
+        -- filter your list on `text`
+    end,
+}]],
+                    control = gui.Panel{
+                        height = "auto",
+                        vpad = 10,
+                        halign = "center",
+                        flow = "vertical",
+                        --the backdrop the sample sits on: toggleable to the
+                        --app's light fill (@bgInverse parchment) so the
+                        --field can be judged over a light surface during
+                        --visual development.
+                        gui.Panel{
+                            id = "search-input-backdrop",
+                            width = "auto",
+                            height = "auto",
+                            pad = 14,
+                            halign = "center",
+                            bgimage = true,
+                            bgcolor = "clear",
+                            cornerRadius = 8,
+                            setLightBackdrop = function(element, on)
+                                element.selfStyle.bgcolor = cond(on, "#E4DDD0", "clear")
+                            end,
+                            gui.SearchInput{
+                                halign = "center",
+                                valign = "center",
+                                width = 260,
+                                height = 26,
+                                search = function(element, text)
+                                    outputLabel.text = "Search: \"" .. text .. "\""
+                                end,
+                            },
+                        },
+                        gui.Check{
+                            tmargin = 8,
+                            halign = "center",
+                            text = "Light backdrop",
+                            value = false,
+                            change = function(element)
+                                local backdrop = element.parent:Get("search-input-backdrop")
+                                if backdrop ~= nil then
+                                    backdrop:FireEvent("setLightBackdrop", element.value)
+                                end
+                            end,
+                        },
+
+                        --REAL example data, on demand: pick a data set and
+                        --a connected search mounts below the sample.
+                        --"Global search (live)" is the actual title-bar bar
+                        --(TopBar factory) with its genuine results popup;
+                        --the compendium sets render their rows with the
+                        --SAME searchResult* classes, so styling either
+                        --styles the real search everywhere.
+                        gui.Panel{
+                            id = "live-search-host",
+                            width = "100%",
+                            height = "auto",
+                            flow = "vertical",
+                            halign = "center",
+                            mountDataset = function(element, choice)
+                                if choice == nil or choice == "none" then
+                                    element.children = {}
+                                    return
+                                end
+                                if rawget(_G, "TopBar") == nil or TopBar.CreateSearchBar == nil then
+                                    element.children = {
+                                        gui.Label{
+                                            text = "Unavailable (TopBar search factory not exposed in this build).",
+                                            fontSize = 11,
+                                            color = "#aa8888",
+                                            width = "100%",
+                                            height = "auto",
+                                            textAlignment = "center",
+                                        },
+                                    }
+                                    return
+                                end
+
+                                if choice == "global" then
+                                    local host = gui.Panel{
+                                        width = "auto",
+                                        height = "auto",
+                                        halign = "center",
+                                        tmargin = 10,
+                                        flow = "vertical",
+                                        --the popup inherits the host
+                                        --cascade; these are the title
+                                        --bar's own rules, so the popup
+                                        --renders exactly as the real one.
+                                        styles = ThemeEngine.MergeStyles(TopBar.SearchBarStyles()),
+                                        TopBar.CreateSearchBar(),
+                                    }
+                                    element.children = { host }
+                                    --the sheet hides the bar outside the
+                                    --game ("~ingame"); mirror the title
+                                    --bar's class.
+                                    host:SetClassTree("ingame", true)
+                                    return
+                                end
+
+                                local datasets = {
+                                    conditions = { table = "charConditions", label = "Condition" },
+                                    classes = { table = "classes", label = "Class" },
+                                    careers = { table = "careers", label = "Career" },
+                                    effects = { table = "characterOngoingEffects", label = "Ongoing Effect" },
+                                }
+                                local info = datasets[choice]
+                                if info == nil then
+                                    element.children = {}
+                                    return
+                                end
+
+                                local resultsPanel
+                                local function BuildRows(needle)
+                                    local names = {}
+                                    local t = dmhub.GetTable(info.table) or {}
+                                    for _, obj in unhidden_pairs(t) do
+                                        local name = nil
+                                        pcall(function() name = obj.name end)
+                                        if name ~= nil and (needle == "" or string.find(string.lower(name), needle, 1, true)) then
+                                            names[#names + 1] = name
+                                        end
+                                    end
+                                    table.sort(names)
+                                    local rows = {}
+                                    for i, name in ipairs(names) do
+                                        if i > 12 then
+                                            rows[#rows + 1] = gui.Label{
+                                                classes = {"searchSeeAll"},
+                                                text = string.format("... and %d more", #names - 12),
+                                                width = "100%-12",
+                                                height = "auto",
+                                            }
+                                            break
+                                        end
+                                        rows[#rows + 1] = gui.Panel{
+                                            classes = {"searchResultRow"},
+                                            flow = "horizontal",
+                                            gui.Panel{
+                                                classes = {"searchResultIcon"},
+                                                bgimage = "phosphor/sparkle.png",
+                                                interactable = false,
+                                            },
+                                            gui.Label{
+                                                classes = {"searchResultName"},
+                                                text = name,
+                                                --fixed remainder, not "available":
+                                                --available width re-resolved
+                                                --unstably on hover restyles and the
+                                                --row ballooned in a flicker loop
+                                                --(live-debugged 2026-08-20).
+                                                width = "100%-110",
+                                                height = "auto",
+                                                textAlignment = "left",
+                                                textWrap = false,
+                                                interactable = false,
+                                            },
+                                            gui.Label{
+                                                classes = {"searchResultType"},
+                                                text = info.label,
+                                                interactable = false,
+                                            },
+                                        }
+                                    end
+                                    if #rows == 0 then
+                                        rows[1] = gui.Label{
+                                            classes = {"searchSeeAll"},
+                                            text = "No matches.",
+                                            width = "100%-12",
+                                            height = "auto",
+                                        }
+                                    end
+                                    return rows
+                                end
+
+                                resultsPanel = gui.Panel{
+                                    classes = {"bordered", "bg", "searchResultsPanel"},
+                                    flow = "vertical",
+                                    width = 368,
+                                    height = "auto",
+                                    halign = "center",
+                                    tmargin = 6,
+                                    vscroll = true,
+                                    children = BuildRows(""),
+                                }
+
+                                local host = gui.Panel{
+                                    width = "auto",
+                                    height = "auto",
+                                    halign = "center",
+                                    tmargin = 10,
+                                    flow = "vertical",
+                                    --same sheet as the real popup, so
+                                    --the searchResult* classes style
+                                    --these rows identically.
+                                    styles = ThemeEngine.MergeStyles(TopBar.SearchBarStyles()),
+                                    gui.SearchInput{
+                                        halign = "center",
+                                        width = 368,
+                                        height = 26,
+                                        placeholderText = "Search " .. string.lower(info.label) .. "s...",
+                                        search = function(input, text)
+                                            if resultsPanel ~= nil and resultsPanel.valid then
+                                                resultsPanel.children = BuildRows(text)
+                                            end
+                                        end,
+                                    },
+                                    resultsPanel,
+                                }
+                                element.children = { host }
+                                --the merged sheet hides search inputs
+                                --outside the game ("~ingame"); mirror the
+                                --title bar's class here too.
+                                host:SetClassTree("ingame", true)
+                            end,
+                        },
+                        gui.Panel{
+                            flow = "horizontal",
+                            width = "auto",
+                            height = "auto",
+                            halign = "center",
+                            tmargin = 6,
+                            gui.Label{
+                                text = "Data set:",
+                                fontSize = 13,
+                                width = "auto",
+                                height = "auto",
+                                valign = "center",
+                                rmargin = 8,
+                            },
+                            gui.Dropdown{
+                                width = 220,
+                                height = 24,
+                                valign = "center",
+                                options = {
+                                    { id = "none", text = "Disconnected" },
+                                    { id = "global", text = "Global search (live)" },
+                                    { id = "conditions", text = "Conditions" },
+                                    { id = "classes", text = "Classes" },
+                                    { id = "careers", text = "Careers" },
+                                    { id = "effects", text = "Ongoing effects" },
+                                },
+                                idChosen = "none",
+                                change = function(element)
+                                    local hostPanel = element.parent.parent:Get("live-search-host")
+                                    if hostPanel ~= nil then
+                                        hostPanel:FireEvent("mountDataset", element.idChosen)
+                                    end
+                                end,
+                            },
+                        },
+                    },
+                },
 
                 ControlEntry{
                     name = "Action Button",

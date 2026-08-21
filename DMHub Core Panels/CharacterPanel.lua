@@ -210,11 +210,11 @@ local g_sidebarExtras = {
     },
 }
 
---Character-list fork of the sidebar styles: the Character tab follows the
---STYLE_GUIDE.md quiet-dark grammar (transparent rows, @bgAlt hover, accent
---edge for selection, no inverse fills) while the Bestiary tab keeps
---g_sidebarExtras until its own pass. The class NAMES stay shared; the fork
---happens at each tab's root styles, which scope to their own subtree.
+--Character-list fork of the sidebar styles: the Character and Bestiary
+--tabs follow the STYLE_GUIDE.md quiet-dark grammar (transparent rows,
+--@bgAlt hover, accent edge for selection, no inverse fills); the pinned
+--character window keeps g_sidebarExtras. The class NAMES stay shared; the
+--fork happens at each root's styles, which scope to their own subtree.
 local g_characterListExtras = {
     {
         selectors = { "bestiaryLabel" },
@@ -404,6 +404,43 @@ local g_characterListExtras = {
         priority = 10,
     },
 }
+
+--Bestiary fork: the Character tab's quiet-dark grammar verbatim (the class
+--vocabulary is shared), plus rules for the monster rows -- the bestiary's
+--selection is focus-driven (gui.SetFocus) rather than the character list's
+--selected class, so the accent-edge treatment keys off "focus" here.
+local g_bestiaryListExtras = {}
+for _, rule in ipairs(g_characterListExtras) do
+    g_bestiaryListExtras[#g_bestiaryListExtras + 1] = rule
+end
+for _, rule in ipairs({
+    {
+        selectors = { "monsterEntry" },
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "monsterEntry", "hover" },
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "monsterEntry", "focus" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    --the bestiary hosts in a vscroll whose scrollbar overlays the last
+    --few pixels of every row (children lay out at full width; the
+    --viewport then shrinks), so the counts need a deeper inset than the
+    --character list's 8px to stay clear of it.
+    {
+        selectors = { "charPartyCount" },
+        rmargin = 18,
+        priority = 5,
+    },
+}) do
+    g_bestiaryListExtras[#g_bestiaryListExtras + 1] = rule
+end
 
 DockablePanel.Register {
     name = "Character",
@@ -924,8 +961,47 @@ local function CreateMonsterEntry(nodeid, startHidden)
         m_pipRetained = false
     end
 
+    --"Level 3 Elite Brute" style summary line: the monster's level plus its
+    --role string (which encodes organization and role). Falls back to the
+    --monster type for entries without either (followers, imports). Guarded
+    --with pcall throughout -- properties may be follower- or plain
+    --creature-typed, and game-type objects raise on missing methods.
+    local function MonsterSubtitleText()
+        local props = monster ~= nil and monster.properties or nil
+        if props == nil then
+            return ""
+        end
+
+        local parts = {}
+
+        local level = nil
+        pcall(function() level = props:Level() end)
+        if level ~= nil and level > 0 then
+            parts[#parts + 1] = string.format("Level %d", level)
+        end
+
+        local role = nil
+        pcall(function() role = props:try_get("role", nil) end)
+        if role ~= nil and role ~= "" then
+            --stored lowercase ("elite brute"); read it title-cased.
+            parts[#parts + 1] = string.gsub(role, "(%a)([%w]*)", function(a, b)
+                return string.upper(a) .. b
+            end)
+        end
+
+        if #parts == 0 then
+            local kind = nil
+            pcall(function() kind = props:RaceOrMonsterType() end)
+            if kind ~= nil and kind ~= "" then
+                parts[#parts + 1] = kind
+            end
+        end
+
+        return table.concat(parts, " ")
+    end
+
     nameLabel = gui.Label({
-        classes = { "bestiaryLabel" },
+        classes = { "charName" },
         text = creature.GetTokenDescription(monster),
         novelContentAlert,
         refreshAssets = function(element)
@@ -970,7 +1046,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
         bgimage = true,
         valign = "top",
         width = "100%",
-        height = BestiaryPanelHeight,
+        --two-line row: bold name over a muted summary line, square portrait
+        --at the left (the Character tab's row grammar).
+        height = 40,
         flow = "horizontal",
         draggable = nodeid ~= '',
         canDragOnto = function(element, target)
@@ -1099,7 +1177,11 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     element:FireEvent('focus')
                 end
 
-                element.x = element.data.depth * 10
+                --rows sit flush at the panel edge at every depth: the
+                --folder bands' own indent carries the hierarchy, and the
+                --two-line rows read as contents without a second indent
+                --(Venla 2026-08-12).
+                element.x = 0
             end,
 
             press = function(element)
@@ -1253,59 +1335,138 @@ local function CreateMonsterEntry(nodeid, startHidden)
         },
 
         children = {
+            --Square portrait in a subtle tile at the row's left: the token
+            --art, cover-cropped to the tile (no token ring/frame -- the
+            --Character tab's portrait treatment).
             gui.Panel({
-                classes = {"image"},
-                bgimageStreamed = monster.portrait,
-                bgimageTokenMask = monster.portraitFrame,
+                classes = { "charPortraitTile" },
+                interactable = false,
+                bgimage = "panels/square.png",
 
-                selfStyle = {
-                    imageRect = monster.portraitRect,
-                },
+                gui.Panel({
+                    classes = { "charPortrait" },
+                    interactable = false,
 
-                style = {
-                    halign = 'left',
-                    valign = 'center',
-                    width = BestiaryPanelHeight,
-                    height = BestiaryPanelHeight,
-                },
+                    data = {
+                        --the crop region the current image starts from; the
+                        --imageLoaded handler aspect-fits WITHIN this region
+                        --so nothing stretches.
+                        baseRect = nil,
+                    },
 
-                events = {
-                    refreshAssets = function(element)
-                        element.bgimageStreamed = monster.portrait
-                        element.bgimageTokenMask = monster.portraitFrame
-                        element.selfStyle.imageRect = monster.portraitRect
+                    create = function(element)
+                        element:FireEvent("refreshAssets")
                     end,
-                },
 
-                children = {
-                    gui.Panel({
-                        classes = {"image"},
-                        bgimage = monster.portraitFrame,
-                        selfStyle = {
-                            hueshift = monster.portraitFrameHueShift,
-                            width = BestiaryPanelHeight,
-                            height = BestiaryPanelHeight,
-                        }
-                    })
-                },
+                    refreshAssets = function(element)
+                        local popout = false
+                        pcall(function() popout = monster.popoutPortrait end)
+                        if popout then
+                            --popout art overflows its nominal rect; use the
+                            --inset crop CreateTokenImage uses for it.
+                            local b = 0.14
+                            element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                        else
+                            element.data.baseRect = monster.portraitRect
+                        end
+                        element.bgimage = monster.portrait
+                        element.selfStyle.imageRect = element.data.baseRect
+                    end,
+
+                    --center-crop the base region's longer axis so the
+                    --displayed rect has exactly the tile's 28:34 aspect
+                    --(same recipe as the Character rows -- update both
+                    --together).
+                    imageLoaded = function(element)
+                        if element.bgsprite == nil then
+                            return
+                        end
+
+                        local src_w = element.bgsprite.dimensions.x
+                        local src_h = element.bgsprite.dimensions.y
+                        if src_w <= 0 or src_h <= 0 then
+                            return
+                        end
+
+                        local base = element.data.baseRect or {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                        local baseW = (base.x2 - base.x1) * src_w
+                        local baseH = (base.y2 - base.y1) * src_h
+                        if baseW <= 0 or baseH <= 0 then
+                            return
+                        end
+
+                        local dstAspect = 28 / 34
+                        local srcAspect = baseW / baseH
+
+                        if srcAspect > dstAspect then
+                            --region wider than the tile: shrink its x-span, centered.
+                            local keep = dstAspect / srcAspect
+                            local inset = (base.x2 - base.x1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1 + inset,
+                                y1 = base.y1,
+                                x2 = base.x2 - inset,
+                                y2 = base.y2,
+                            }
+                        elseif srcAspect < dstAspect then
+                            --region taller than the tile: shrink its y-span, centered.
+                            local keep = srcAspect / dstAspect
+                            local inset = (base.y2 - base.y1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1,
+                                y1 = base.y1 + inset,
+                                x2 = base.x2,
+                                y2 = base.y2 - inset,
+                            }
+                        else
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+                }),
             }),
 
-            --Implementation status diamond next to the monster's name,
-            --mirroring the diamond on ability cards. Styled inline because
-            --the implementationDiamond style rules live in SpellRenderStyles,
-            --which is scoped to ability rendering. Hover for an explanation
-            --of the tiers plus this monster's per-ability/trait accounting.
-            --Only shown for creature types with the implementation-status
-            --API (Draw Steel monsters).
+            --name over summary line; top-aligned so the name's cap line
+            --sits level with the portrait tile's top edge (see the
+            --Character rows for the margin math).
+            gui.Panel {
+                flow = "vertical",
+                --reserves the portrait column on the left and the
+                --implementation diamond's corner on the right.
+                width = "100%-60",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                lmargin = 8,
+
+                nameLabel,
+
+                gui.Label({
+                    classes = { "charSubtitle" },
+                    text = MonsterSubtitleText(),
+                    refreshAssets = function(element)
+                        element.text = MonsterSubtitleText()
+                    end,
+                }),
+            },
+
+            --Implementation status diamond, mirroring the diamond on
+            --ability cards; anchored to the row's right edge, out of the
+            --text's way. Styled inline because the implementationDiamond
+            --style rules live in SpellRenderStyles, which is scoped to
+            --ability rendering. Hover for an explanation of the tiers plus
+            --this monster's per-ability/trait accounting. Only shown for
+            --creature types with the implementation-status API (Draw Steel
+            --monsters).
             gui.Panel({
                 classes = { "implementationDiamond" },
                 rotate = 45,
                 width = 10,
                 height = 10,
                 bgimage = "panels/square.png",
-                halign = "left",
+                floating = true,
+                halign = "right",
                 valign = "center",
-                hmargin = 6,
+                x = -10,
                 events = {
                     create = function(element)
                         element:FireEvent("refreshAssets")
@@ -1345,8 +1506,6 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     end,
                 },
             }),
-
-            nameLabel
         }
     })
 
@@ -1390,15 +1549,16 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     end
 
     --the root folder gets additional UI, such as a search and ways to add objects.
-    local clearSearchButton = nil
+    --searchInput is hoisted out of the root-only block: the collapse handler
+    --below it clears the search through it. The clear x is built into
+    --gui.SearchInput now, so there is no separate clear button any more.
+    local searchInput = nil
     local searchLimitLabel = nil
     local rootPanel = nil
     if nodeid == '' then
         isCollapsed = false
 
         local updateSearch = function(element)
-            clearSearchButton:SetClass("hidden", element.text == "")
-
             local budget = { remaining = MaxBestiarySearchResults, truncated = false }
             folderPane.data.search(element.text, nil, budget)
 
@@ -1417,31 +1577,23 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             end
         end
 
-        local searchInput = gui.SearchInput {
+        searchInput = gui.SearchInput {
             id = 'MonsterSearch',
-            classes = {"bordered"},
             placeholderText = 'Search for Monsters...',
             editlag = 0.25,
-            width = '65%',
-            height = "100%-8",
+            --fills the row up to the right-side controls (folder + add;
+            --the old separate clear x is now built into the field). The
+            --themed searchInput look is borderless with its own
+            --magnifier; borderBox keeps the magnifier padding inside
+            --the declared width (see the Maps panel).
+            width = '100%-64',
+            height = 24,
+            borderBox = true,
             halign = 'left',
             valign = 'center',
+            rmargin = 6,
             edit = updateSearch,
             change = updateSearch,
-        }
-
-        clearSearchButton = gui.Button {
-            icon = "ui-icons/close.png",
-            classes = {"hidden"},
-            valign = "center",
-            pad = 4,
-
-            events = {
-                press = function(element)
-                    searchInput.text = ""
-                    updateSearch(searchInput)
-                end,
-            }
         }
 
         --shown when a search has more matches than the result cap.
@@ -1452,7 +1604,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         local createBestiaryFolderButton = gui.Button {
             id = "CreateBestiaryFolderButton",
-            icon = "game-icons/open-folder.png",
+            icon = "phosphor/folder-plus-duotone.png",
+            width = 26,
+            height = 26,
+            hmargin = 2,
             valign = "center",
             hover = gui.Tooltip("Create a bestiary folder"),
             press = function(element)
@@ -1474,6 +1629,9 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         local addBestiaryEntryButton = gui.Button {
             id = "AddBestiaryEntryButton",
             classes = {"addButton"},
+            width = 26,
+            height = 26,
+            hmargin = 2,
             valign = "center",
             hover = gui.Tooltip("Create a bestiary entry"),
             press = function(element)
@@ -1543,16 +1701,32 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         rootPanel =
             gui.Panel {
                 id = 'RootUIPanel',
+                --left-anchored with an explicit right reserve: the old
+                --centered-90%-plus-x-offset arithmetic pushed the add
+                --buttons past the window edge (and half under the
+                --scrollbar), clipping the plus to a bar.
                 x = 10,
                 style = {
                     height = 'auto',
-                    width = '90%',
+                    width = '100%-30',
+                    halign = 'left',
                     flow = 'vertical',
                 },
 
                 children = {
                     gui.Panel {
                         id = 'ObjectSearchPanel',
+                        --the root drop target: with the root "Bestiary"
+                        --band gone (redundant under the window title),
+                        --dragging a monster or folder onto the search row
+                        --files it back at the top level.
+                        classes = { 'monster-drag-target' },
+                        dragTarget = true,
+                        bgimage = true,
+                        bgcolor = "clear",
+                        data = {
+                            nodeid = '',
+                        },
                         style = {
                             height = 30,
                             width = '100%',
@@ -1560,7 +1734,6 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                         },
                         children = {
                             searchInput,
-                            clearSearchButton,
                             createBestiaryFolderButton,
                             addBestiaryEntryButton,
                         },
@@ -1570,8 +1743,23 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             }
     end
 
+    --non-hidden children only: hidden (soft-deleted) nodes should not
+    --keep a folder reading occupied.
+    local function VisibleChildCount()
+        local n = 0
+        for _, v in ipairs(node.children) do
+            if not v.hidden then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
     local triangle = nil
     triangle = gui.ExpandoArrow({
+        --Phosphor mask: the default triangle bitmap reads fuzzy at header
+        --size (same swap as the character, floors and maps lists).
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -1591,10 +1779,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                     element:SetClass("collapsed", true)
                 end
                 element:SetClass("expanded", not isCollapsed)
-                element:SetClass("empty", #node.children < 1)
+                element:SetClass("empty", VisibleChildCount() < 1)
             end,
             refreshAssets = function(element)
-                element:SetClass('empty', #node.children < 1)
+                element:SetClass('empty', VisibleChildCount() < 1)
             end,
             press = function(element)
                 if element:HasClass("collapsed") then
@@ -1610,8 +1798,9 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                     element:SetClass('search', false)
                     searchActive = false
 
-                    if clearSearchButton ~= nil then --is root panel, clear search.
-                        clearSearchButton:FireEvent('press')
+                    if searchInput ~= nil then --is root panel, clear search.
+                        searchInput.text = ""
+                        searchInput:FireEvent('edit')
                     end
                 end
 
@@ -1658,7 +1847,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     local headerPanel = gui.Panel({
 
         bgimage = true,
-        classes = { 'headerPanel', 'monster-drag-target' },
+        --the ROOT band is hidden entirely: the window's own title bar
+        --already says Bestiary, so a second title band was noise. Its
+        --drop-to-root duty moved to the search row (see RootUIPanel).
+        classes = { 'headerPanel', 'monster-drag-target', cond(nodeid == '', 'collapsed') },
         dragTarget = true,
 
         draggable = nodeid ~= '',
@@ -1671,7 +1863,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             valign = 'top',
             halign = 'left',
             width = "100%",
-            height = BestiaryPanelHeight,
+            --a step taller than the old rows, with air above, so folder
+            --bands read as section headers (the Character tab's grammar).
+            height = 30,
+            tmargin = 6,
             flow = 'horizontal',
         },
 
@@ -1680,7 +1875,28 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         },
 
         events = {
+            --An empty folder cannot usefully be opened; grey the whole
+            --band (label, caret, count) so it reads inert. Dropping a
+            --monster on the band still files it inside.
+            --The band also takes the tree indent here (top-level bands
+            --flush at 0, one 10px step per nesting level) -- the panes
+            --carry no offset of their own, so this x IS the absolute
+            --indent.
+            create = function(element)
+                element:SetClass("emptyFolder", nodeid ~= '' and VisibleChildCount() < 1)
+            end,
             refreshAssets = function(element)
+                element:SetClass("emptyFolder", nodeid ~= '' and VisibleChildCount() < 1)
+                if folderPane ~= nil and folderPane.valid then
+                    element.x = math.max(0, (folderPane.data.depth - 1) * 10)
+                end
+            end,
+
+            --The whole band toggles the folder; the caret alone was too
+            --small a target. (The label forwards its own press the same
+            --way; renaming stays on double-click.)
+            press = function(element)
+                triangle:FireEvent("press")
             end,
 
             drag = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
@@ -1690,8 +1906,29 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         children = {
             triangle,
             folderLabel,
+
+            --Glanceable size of the folder. The root band skips it -- the
+            --whole bestiary's count is not a useful number.
+            gui.Label {
+                classes = { "charPartyCount", cond(nodeid == '', "collapsed") },
+                text = tostring(VisibleChildCount()),
+                interactable = false,
+                events = {
+                    refreshAssets = function(element)
+                        element.text = tostring(VisibleChildCount())
+                    end,
+                },
+            },
         },
     })
+
+    --The header's underline, per the section-header grammar (hidden with
+    --the root band).
+    local headerRule = gui.Panel {
+        classes = { "charHeaderRule", cond(nodeid == '', 'collapsed') },
+        interactable = false,
+        bgimage = "panels/square.png",
+    }
 
     local dragPanels = {}
 
@@ -1703,10 +1940,11 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     --materializes immediately.
     local m_materialized = not isCollapsed
 
-    --Assigns the folder's children: header, root UI (if any), then
-    --whichever child panels currently exist, in display order.
+    --Assigns the folder's children: header (with its underline), root UI
+    --(if any), then whichever child panels currently exist, in display
+    --order.
     local AssembleChildren = function(element)
-        local newChildren = { headerPanel }
+        local newChildren = { headerPanel, headerRule, rootPanel }
 
         local newNodes = {}
         for _, v in ipairs(node.children) do
@@ -2032,7 +2270,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
                 RebuildChildren(element)
 
-                element.x = element.data.depth * 10
+                --NO x offset on the pane itself: panes nest, so a per-pane
+                --shift compounds down the tree (and pushed even top-level
+                --bands off the panel's left edge). Indentation lives on
+                --the contents -- the header band and the monster rows.
 
                 element.data.refreshCollapsed(element)
             end,
@@ -4101,7 +4342,7 @@ CreateBestiaryPanel = function()
 
     local resultPanel
     resultPanel = gui.Panel {
-        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
+        styles = ThemeEngine.MergeStyles(g_bestiaryListExtras),
 
         flow = "vertical",
         width = "100%",
@@ -4122,7 +4363,7 @@ CreateBestiaryPanel = function()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+            resultPanel.styles = ThemeEngine.MergeStyles(g_bestiaryListExtras)
         end
     end)
 

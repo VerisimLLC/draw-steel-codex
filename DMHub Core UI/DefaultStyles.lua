@@ -619,33 +619,80 @@ ThemeEngine.RegisterTheme{
             borderFade = true,
             bgcolor = "@bg",
         },
-        -- Default search input has no border. Surfaces that want a bordered
-        -- search input add it via their own MergeStyles extras.
+        -- The ONE canonical search-field look (Control Zoo decision
+        -- 2026-08-20, "solve it once and for all"). History: the default
+        -- shipped borderless, which is invisible on dark surfaces, so the
+        -- title bar and Maps panel each grew their own frame -- and both
+        -- independently chose thin @border + focus @fgStrong. That de
+        -- facto standard is now THE standard, with quiet 14px regular
+        -- type (16 bold outshouted every surface it sat on). Surfaces
+        -- must NOT re-style searchInput locally.
         {
             selectors = {"searchInput"},
             bgimage = true,
-            hpad = 6,
-            fontSize = 16,
-            bold = true,
+            fontSize = 14,
+            bold = false,
             borderFade = false,
             color = "@fg",
             bgcolor = "@bg",
+            --border, NOT borderWidth: `border` is the rounded shader
+            --frame; `borderWidth` draws the input widget's own SQUARE
+            --outline, which pokes past the pill's end caps as a broken
+            --inner edge (live-debugged on the title bar 2026-08-20 --
+            --red-border/green-fill experiments; the old rule zeroed it
+            --deliberately).
+            border = 1,
             borderWidth = 0,
+            --no visible border at rest: painted the same color as the
+            --fill (NOT alpha 0 -- the 1px `border` shader IGNORES the
+            --color's alpha channel: @border #FFFFFF29 and #FFFFFF14
+            --both measured as an antialiased ~#909090 WHITE hairline,
+            --title bar 2026-08-21, so alpha-based border tokens render
+            --full-contrast). Keeping border = 1 in the geometry lets
+            --hover (@borderInverse) and focus (@fgStrong) recolor it
+            --without anything shifting.
+            borderColor = "@bg",
+            hpad = 24,
+        },
+        {
+            --hover response is the FILL lightening, not a frame (Venla
+            --2026-08-21): the whole bar lifts to a raised gray. The
+            --border is repainted to match the hover fill so it stays
+            --invisible -- leaving it at the resting @bg would draw a
+            --dark ring around the lightened bar.
+            selectors = {"searchInput", "hover"},
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
+            transitionTime = 0.15,
+        },
+        {
+            --focused = the highlight HOLDS: same raised fill as hover,
+            --still no frame (Venla 2026-08-21). The caret and typed
+            --text carry the active signal beyond the fill.
+            selectors = {"searchInput", "focus"},
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
         },
         -- Magnifying-glass icon child auto-created by gui.SearchInput.
-        -- Tinted to @fg so the glyph follows the active scheme. The
-        -- `floating = true` and `x = -20` positioning stay inline at
-        -- the call site -- floating is a structural property (controls
-        -- layout participation) that the engine doesn't honor through
-        -- the style cascade.
+        -- Tinted to @fg so the glyph follows the active scheme; the
+        -- structural half (floating, position, size) lives inline at the
+        -- call site -- floating is a property the engine doesn't honor
+        -- through the style cascade.
         {
             selectors = {"searchInputIcon"},
             bgcolor = "@fg",
-            vmargin = 0,
-            halign = "left",
-            valign = "center",
-            height = "90%",
-            width = "100% height",
+        },
+        -- Clear-x child auto-created by gui.SearchInput, shown while the
+        -- field has text. Muted at rest so it reads quieter than the
+        -- typed text beside it; full strength on hover to invite the
+        -- click.
+        {
+            selectors = {"searchInputClear"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"searchInputClear", "hover"},
+            bgcolor = "@fgStrong",
         },
         -- Color picker main button (gui.ColorPicker mainPanel).
         -- The button shows the currently-selected color via
@@ -2436,7 +2483,20 @@ ThemeEngine.RegisterTheme{
         { selectors = {"label", "button"},        cornerRadius = 5 },
         { selectors = {"iconButton"},             cornerRadius = 5 },
         { selectors = {"input"},                  cornerRadius = 5 },
-        { selectors = {"searchInput"},            cornerRadius = 5 },
+        --search fields are the one pill-shaped input: form follows
+        --function -- a search box filters, a plain input edits.
+        --7, not 9: the radius must stay UNDER half the field's
+        --RENDERED height or the border path breaks at the end caps --
+        --and window scale shrinks rendered heights below the declared
+        --ones, which is what the old "under half of 20" reasoning
+        --missed. The title bar's 20px field renders 18px in a 1009px
+        --window, where 9 hit the limit and the caps broke (live-
+        --debugged 2026-08-21). The relative forms ("50% height",
+        --"45% height") do NOT fix this: they resolve against the
+        --declared height before scaling, so they break identically
+        --(also tried live). 7 keeps the caps clean down to ~0.78
+        --window scale (15.5px rendered) on the 20px fields.
+        { selectors = {"searchInput"},            cornerRadius = 7 },
         { selectors = {"dropdown"},               cornerRadius = 5 },
         { selectors = {"dropdownBorder"},         cornerRadius = 5 },
         { selectors = {"dropdownMenuSub"},        cornerRadius = 5 },

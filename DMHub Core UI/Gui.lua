@@ -4470,6 +4470,12 @@ function gui.SearchInput(options)
 	local args = {
 		classes = {"searchInput"},
 		placeholderText = "Search...",
+		--room for the magnifier: hpad, not lpad/rpad -- inputs only
+		--honor the symmetric form (harness-verified 2026-08-20: lpad
+		--left the placeholder under the icon). The LOOK (frame, type,
+		--radius) lives in DefaultStyles' searchInput rules -- the one
+		--canonical search-field appearance; surfaces must not re-style
+		--it locally (Control Zoo decision 2026-08-20).
 		hpad = 24,
 		editlag = 0.25,
 
@@ -4480,19 +4486,86 @@ function gui.SearchInput(options)
 			element:FireEvent("search", ParseString(element.text))
 		end,
 
+		--the magnifier, inside the field's left edge. floating and the
+		--offset are structural, so they stay inline (the engine does not
+		--honor floating through the cascade); the tint comes from the
+		--searchInputIcon rule. Floating children anchor to the CONTENT
+		--box (inside the style's hpad 24), so the negative x walks the
+		--icon back into the padding: 24 - 18 = 6px from the field edge,
+		--ending at 21px, just clear of the text at 24
+		--(harness-verified 2026-08-20).
 		gui.Panel{
 			classes = {"searchInputIcon"},
-			bgimage = "icons/icon_tool/icon_tool_42.png",
+			bgimage = "phosphor/magnifying-glass-bold.png",
 			floating = true,
-            width = 16,
-            height = 16,
-            valign = "center",
-			x = -20,
+			halign = "left",
+			valign = "center",
+			x = -18,
+			width = 15,
+			height = 15,
+		},
+
+		--the clear x, inside the field's right edge: the mirror of the
+		--magnifier (x = +18 walks it into the right hpad, 6px from the
+		--field edge). Hidden while the field is empty; the edit/change
+		--wrappers below keep it in sync however the text changes. The
+		--tint comes from the searchInputClear rules.
+		gui.Panel{
+			classes = {"searchInputClear", "hidden"},
+			bgimage = "phosphor/x-bold.png",
+			floating = true,
+			halign = "right",
+			valign = "center",
+			x = 18,
+			width = 13,
+			height = 13,
+			create = function(element)
+				element:FireEvent("refreshSearchClear")
+			end,
+			refreshSearchClear = function(element)
+				element:SetClass("hidden", (element.parent.text or "") == "")
+			end,
+			press = function(element)
+				local input = element.parent
+				input.text = ""
+				input.hasFocus = true
+				--fire both text events: call sites listen to either (or
+				--both -- their handlers are idempotent searches, so a
+				--double run is harmless), and the wrappers below then
+				--re-hide this x.
+				input:FireEvent("edit")
+				input:FireEvent("change")
+			end,
 		},
 	}
 
 	for k,v in pairs(options) do
 		args[k] = v
+	end
+
+	--keep the clear x in sync with the text without requiring call
+	--sites to cooperate: wrap whichever edit/change handlers ended up
+	--in effect (the defaults above or the caller's overrides).
+	local function withClearRefresh(handler)
+		return function(element, ...)
+			if handler ~= nil then
+				handler(element, ...)
+			end
+			element:FireEventTree("refreshSearchClear")
+		end
+	end
+	args.edit = withClearRefresh(args.edit)
+	args.change = withClearRefresh(args.change)
+	--some call sites pass handlers via the legacy events = {} table
+	--instead; wrap those in place so precedence between the two forms
+	--stays whatever the engine already does.
+	if type(args.events) == "table" then
+		if args.events.edit ~= nil then
+			args.events.edit = withClearRefresh(args.events.edit)
+		end
+		if args.events.change ~= nil then
+			args.events.change = withClearRefresh(args.events.change)
+		end
 	end
 
 	return gui.Input(args)

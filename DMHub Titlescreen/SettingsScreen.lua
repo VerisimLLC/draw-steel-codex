@@ -1563,10 +1563,12 @@ local function CreateLocalAssetsSection()
 
 		local MaxSearchRows = 100
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		local searchInput = gui.SearchInput{
+			borderBox = true,
 			width = 180,
 			height = 24,
-			fontSize = 14,
 			halign = "left",
 			vmargin = 4,
 			placeholderText = "Search ids, names, filenames...",

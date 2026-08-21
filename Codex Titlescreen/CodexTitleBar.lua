@@ -2298,12 +2298,12 @@ local function CreateSearchBar()
         popupPanel = gui.Panel{
             classes = {"bordered", "bg", "searchResultsPanel"},
             flow = "vertical",
-            -- Mirrors the search box's dockscale-tracking width (HB1), but
-            -- never shrinks below the old fixed 368 -- cards in this popup
-            -- must never wrap at small dock scales. At scale > 1 the popup
-            -- grows to match the (now wider) box above it. Rebuilt fresh per
-            -- search, so a value computed at construction stays current.
-            width = math.max(368, math.floor(364 * DockablePanel.EffectiveDockScale())),
+            -- Exactly the search box's width -- the popup must never be
+            -- wider or narrower than the box above it (Venla 2026-08-21;
+            -- this replaces the old max(368, dock width) rule, trading the
+            -- no-wrap floor for alignment). Rebuilt fresh per search, so a
+            -- value computed at construction stays current.
+            width = SearchBoxWidth(),
             height = "auto",
             halign = "center",
             valign = "bottom",
@@ -2525,17 +2525,40 @@ local function CreateSearchBar()
             resultPanel.data.searchStatus = nil
             if resultPanel.popup == nil or not resultPanel.data.isNoResultsPopup then
                 resultPanel.data.isNoResultsPopup = true
-                resultPanel.popup = gui.Label{
-                    width = "auto",
+                --same chrome and width as the grouped results popup, so the
+                --empty state reads as the same surface and sits below the
+                --box like the results do (the old bare black label sat on
+                --top of the input itself). popupsInheritStyles is what
+                --delivers the searchResultsPanel/searchEmptyState rules to
+                --the re-rooted popup -- without it the label renders with
+                --default label styling, huge and unframed.
+                resultPanel.popupsInheritStyles = true
+                resultPanel.popup = gui.Panel{
+                    flow = "vertical",
+                    width = SearchBoxWidth(),
                     height = "auto",
                     halign = "center",
                     valign = "bottom",
-                    fontSize = 18,
-                    bgimage = true,
-                    bgcolor = "black",
-                    settext = function(element, newtext)
-                        element.text = newtext
-                    end,
+                    --transparent spacer: the engine places a short popup
+                    --higher than the tall grouped one, clipping the input,
+                    --and ignores x/y offsets on popup roots -- so the gap
+                    --that drops the frame below the box is built into the
+                    --popup itself (12px lands the frame where the grouped
+                    --results popup sits).
+                    gui.Panel{ width = 1, height = 12 },
+                    gui.Panel{
+                        classes = {"bordered", "bg", "searchResultsPanel"},
+                        flow = "vertical",
+                        width = "100%",
+                        height = "auto",
+                        gui.Label{
+                            classes = {"searchEmptyState"},
+                            text = "",
+                            settext = function(element, newtext)
+                                element.text = newtext
+                            end,
+                        },
+                    },
                 }
             end
 
@@ -2613,8 +2636,14 @@ local function CreateSearchBar()
         width = SearchBoxWidth(),
         height = 20,
         halign = "right",
+        --breathing room against the window edge: without it the pill's
+        --border (and the popup centered under it) sat on the last pixel
+        --of the screen (Venla 2026-08-21).
+        rmargin = 8,
         valign = "center",
-        pad = 2,
+        --no pad override: the canonical searchInput padding (room for
+        --the magnifier) comes from the component/style (Control Zoo
+        --pass 2026-08-20; the old pad=2 left the text under the icon).
         popupPositioning = "panel",
         placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
         inputEvents = { "find" },
@@ -5885,18 +5914,10 @@ local function CreateTopBar()
             gradient = "@barTrack",
         },
 
-        -- Title-bar search field: bordered variant + behavior visibility.
-        -- DefaultStyles' searchInput rule ships borderWidth=0; the title
-        -- bar wants a thin frame so we add it here at the surface.
-        {
-            selectors = {"searchInput"},
-            borderWidth = 1,
-            borderColor = "@border",
-        },
-        {
-            selectors = {"searchInput", "focus"},
-            borderColor = "@fgStrong",
-        },
+        -- Title-bar search field visibility. (Its LOOK is the canonical
+        -- searchInput rule in DefaultStyles now -- this surface's old
+        -- thin-frame variant was promoted to the app-wide default,
+        -- Control Zoo decision 2026-08-20.)
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
             hidden = 1,
@@ -5953,6 +5974,17 @@ local function CreateTopBar()
             selectors = {"searchSeeAll", "searchfocus"},
             bgimage = true,
             bgcolor = "@bgAlt",
+        },
+        {
+            -- Empty-state line ("No Search Results" / "Searching...")
+            -- shown alone inside the searchResultsPanel frame.
+            selectors = {"searchEmptyState"},
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            color = "@fgMuted",
+            fontSize = 13,
+            vmargin = 6,
         },
         {
             -- 20px to line up with the placed-token portraits (CreateTokenImage
@@ -6082,6 +6114,18 @@ local function CreateTopBar()
             borderBox = true,
         },
     }
+
+    -- Expose the REAL global-search bar to dev surfaces (the Control
+    -- Zoo hosts it for styling work on the results popup). The popup
+    -- inherits its searchResult* rules from the HOST's cascade
+    -- (popupsInheritStyles), so a foreign host must merge
+    -- TopBar.SearchBarStyles() into its own sheet -- and must
+    -- SetClassTree("ingame", true) on its wrapper, or the sheet's
+    -- {searchInput, ~ingame} rule hides the bar.
+    TopBar.CreateSearchBar = CreateSearchBar
+    TopBar.SearchBarStyles = function()
+        return titleBarStyleExtras
+    end
 
     -- Tree-wide invalidation pulse for theme repaints. Reassigning .styles
     -- updates the rule array but doesn't mark descendants dirty, so without

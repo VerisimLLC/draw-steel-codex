@@ -2288,17 +2288,14 @@ TacPanelStyles.AddConditionMenu = ThemeEngine.MergeTokens{
         color = "@fgMuted",
         borderColor = "@fgMuted",
     },
-    {   -- Search input
+    {   -- Search input: LAYOUT only. The look (frame, pill radius, font,
+        -- colors, hpad) comes from DefaultStyles' canonical searchInput
+        -- rules -- surfaces must not re-style it locally (Control Zoo
+        -- decision 2026-08-20).
         selectors = {"input", "menu-search"},
         width = "90%",
         height = "auto",
         halign = "center",
-        fontSize = TacPanelSizes.Fonts.menuSearch,
-        color = "@fg",
-        border = 1,
-        borderColor = "@fgMuted",
-        cornerRadius = 4,
-        hpad = 6,
         vpad = 4,
         bmargin = 6,
     },
@@ -10695,8 +10692,11 @@ function TacPanel.AddConditionMenu(args)
             classes = {"panel", "menu-divider"},
         },
 
-        gui.Input{
-            classes = {"input", "menu-search"},
+        --the canonical search field; menu-search keeps only the menu's
+        --layout (width/align/margins), the look is the shared searchInput
+        --style.
+        gui.SearchInput{
+            classes = {"searchInput", "menu-search"},
             placeholderText = "Search...",
             hasFocus = true,
             data = { searchedOption = nil },
@@ -11499,13 +11499,14 @@ function CharacterPanel.AddConditionMenu(args)
                 gradient = ThemeEngine.ResolveTokens("@surfaceLinear"), --Styles.horizontalGradient,
             },
 
-            gui.Input {
+            --the canonical search field; look comes from DefaultStyles'
+            --searchInput rules, borderBox keeps its hpad 24 inside the width.
+            gui.SearchInput {
                 placeholderText = "Search...",
                 hasFocus = true,
+                borderBox = true,
                 width = "70%",
-                hpad = 8,
                 height = 20,
-                fontSize = 14,
                 data = {
                     searchedOption = nil
 

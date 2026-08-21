@@ -4284,7 +4284,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
     --TODO: show actions somewhere in DS.
 	--actionResourcesBar = CreateResourcesBar({"Actions"}, { halign = "left", resourceSize = cond(ActionBar.resourcesWithBars, 16, 40), iconSize = cond(ActionBar.resourcesWithBars, 16, 40), flow = cond(ActionBar.resourcesWithBars, "vertical", "horizontal") })
 
-	local searchInput = gui.Input{
+	--the canonical search field; look comes from DefaultStyles'
+	--searchInput rules, borderBox keeps its hpad 24 inside the width.
+	local searchInput = gui.SearchInput{
+		borderBox = true,
 		width = 120,
 		height = 22,
 		placeholderText = "Search...",

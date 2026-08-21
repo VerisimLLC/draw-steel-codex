@@ -7021,7 +7021,7 @@ end
 --windows past the right rail. Falls back to the aspect formula before
 --the first layout pass.
 local function IconRailUIWidth()
-    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+    if GameHud.instance and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
         local w = GameHud.instance.documentsPanel.renderedWidth
         if type(w) == "number" and w > 100 then
             return w
@@ -7033,7 +7033,7 @@ end
 --the height of the rail's coordinate space, measured the same way (the
 --layer is ~1048 units tall, not 1080; see IconRailUIWidth).
 local function IconRailUIHeight()
-    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+    if GameHud.instance and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
         local h = GameHud.instance.documentsPanel.renderedHeight
         if type(h) == "number" and h > 100 then
             return h
@@ -13546,7 +13546,7 @@ RailShowAddPicker = function(element, side)
     --left edge. Anchoring to the full-screen documents layer makes
     --center mean the middle of the screen -- the library is a
     --destination surface, not a flyout of the + button.
-    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil then
+    if GameHud.instance and GameHud.instance.documentsPanel ~= nil then
         element.popupPositioning = GameHud.instance.documentsPanel
     end
     element.popup = gui.Panel{

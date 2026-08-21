@@ -2326,10 +2326,32 @@ local function CreateSearchBar()
             end
         end
 
+        --the filled, scrolling body. Its searchResultsPanel fill/corners
+        --live HERE, not on the popup root: the root's first 4px are a
+        --transparent notch (see below).
         popupPanel = gui.Panel{
-            --just searchResultsPanel: the seamless look supplies its own
-            --fill; bordered/bg would re-frame it as a separate panel.
             classes = {"searchResultsPanel"},
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            vscroll = true,
+            children = children,
+
+            uparrow = function(element)
+                MoveCursor(-1)
+            end,
+            downarrow = function(element)
+                MoveCursor(1)
+            end,
+            activateSelection = function(element)
+                local row = navRows[math.max(m_cursor, 1)]
+                if row ~= nil and row.panel.valid then
+                    row.panel:FireEvent(row.event)
+                end
+            end,
+        }
+
+        return gui.Panel{
             destroy = OnSearchPopupDestroyed,
             --top-center pivot: the engine places a popup ONCE, against
             --its rect at placement time, and an auto-height popup that
@@ -2350,23 +2372,17 @@ local function CreateSearchBar()
             height = "auto",
             halign = "center",
             valign = "bottom",
-            vscroll = true,
-            children = children,
-
-            uparrow = function(element)
-                MoveCursor(-1)
-            end,
-            downarrow = function(element)
-                MoveCursor(1)
-            end,
-            activateSelection = function(element)
-                local row = navRows[math.max(m_cursor, 1)]
-                if row ~= nil and row.panel.valid then
-                    row.panel:FireEvent(row.event)
-                end
-            end,
+            --transparent notch: the engine PLACES the popup's top edge
+            --~6px INSIDE the bar (measured 2026-08-21; the shared fill
+            --hid the overlap, but the opaque fill painted over glyph
+            --descenders -- g, y, p -- which reach the bar's last rows).
+            --10px of transparency puts the fill's top just below the
+            --bar's box; the bar itself and its connector strip show
+            --through with the same fill, so the join still reads
+            --seamless.
+            gui.Panel{ width = 1, height = 10 },
+            popupPanel,
         }
-        return popupPanel
     end
 
     -- Empty-state: focusing the search box with no query shows the recently
@@ -2577,25 +2593,29 @@ local function CreateSearchBar()
                 --default label styling, huge and unframed.
                 resultPanel.popupsInheritStyles = true
                 resultPanel.popup = gui.Panel{
-                    classes = {"searchResultsPanel"},
                     destroy = OnSearchPopupDestroyed,
-                    --top-center pivot, same as the grouped popup: keeps
-                    --the placed top edge flush under the bar however the
-                    --auto height settles (the old center pivot needed a
-                    --hand-tuned spacer and still crept over the bar at
-                    --some heights).
+                    --top-center pivot + 10px descender notch, same
+                    --structure as the grouped popup (see
+                    --CreateGroupedPopup for the full rationale).
                     pivot = {x = 0.5, y = 1},
                     flow = "vertical",
                     width = SearchBoxWidth(),
                     height = "auto",
                     halign = "center",
                     valign = "bottom",
-                    gui.Label{
-                        classes = {"searchEmptyState"},
-                        text = "",
-                        settext = function(element, newtext)
-                            element.text = newtext
-                        end,
+                    gui.Panel{ width = 1, height = 10 },
+                    gui.Panel{
+                        classes = {"searchResultsPanel"},
+                        flow = "vertical",
+                        width = "100%",
+                        height = "auto",
+                        gui.Label{
+                            classes = {"searchEmptyState"},
+                            text = "",
+                            settext = function(element, newtext)
+                                element.text = newtext
+                            end,
+                        },
                     },
                 }
             end
@@ -2799,7 +2819,13 @@ local function CreateSearchBar()
         valign = "bottom",
         width = "100%+48",
         height = 14,
-        y = 14,
+        --17, not 14: panel children render ABOVE the input's own text,
+        --and at 14 the strip's top row overlapped the glyph descender
+        --zone and clipped g/y/p tails (live-debugged 2026-08-21 -- the
+        --popup fill was innocent). 3px lower clears the text; the
+        --strip still overlaps the popup fill below, so the join stays
+        --seamless.
+        y = 17,
         searchPopupChanged = function(element, hasPopup)
             element:SetClass("hidden", not hasPopup)
         end,

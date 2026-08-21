@@ -969,6 +969,44 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, sixth user field test (Ricky) - risk box redesign + copy fixes,
+live-verified. LENS-CLICK BUG STILL OPEN, now instrumented.**
+- **Risk box redesigned to Ricky's spec**: red "<b>High Death Risk</b>"
+  headline, then WHY as "- " bullets (Marked by heroes / Low Stamina / 5
+  heroes within striking range), then GREEN (#7AC77A) guidance "Spend turn
+  before they die". Guidance only when the turn is NOT already spent (an
+  acted/acting monster keeps tag+bullets - still useful for planning - but
+  no call to action). Amber tier = "At Risk", no guidance.
+- **LOW STAMINA replaces the bare raw number (reverses F2-5b, Ricky's call)**:
+  amber "<b>Low Stamina</b> (9/10)" on the stamina line - raw number kept in
+  parentheses. Definition: a typical TIER-2 hit from the hardest-hitting hero
+  on the map (any hero, not just in reach) would drop it - roughly "2 rolls
+  in 3 kill it", standing in for Ricky's 65% intuition without a probability
+  model (OverviewLowStamina, from the P2-e hero profiles). Also feeds the
+  "Low Stamina" bullet. Above the threshold the line stays a plain raw
+  number (silent default).
+- **Reach copy de-collided**: "5 heroes in reach" (monster's OFFENSE) read
+  like the risk box's "within striking range" (threat TO it). Now "Can reach
+  5 heroes" / amber "Can't reach any hero"; rows "can reach 3" / "can reach
+  no hero".
+- **Lens tab counts explained** (new-user confusion): per-tab hover tooltip
+  "Show only damage abilities - this selection has 3. Columns without one
+  hide; other abilities dim." Tabs stay all-visible (Ricky prefers this over
+  the original cycle control for now).
+- **Mid-reload crash fixed in passing**: actionMenu destroy -> dehover called
+  `CharacterPanel.HideAbility` while that module was mid-reload (nil) if a
+  hover card was up when Lua reloaded; now guarded. (Reported by Ricky as an
+  error dialog; only reachable around reloads.)
+- **LENS TAB CLICK STILL CLOSES THE MENU with a real mouse click** (synthetic
+  FireEvent("press") never reproduces it; hover DOES reach the tab - Ricky's
+  inspector showed the row with the hover class). TEMP `OVERVIEWDBG::` prints
+  are now in every close path (drawer press toggle / escape / closemenu with
+  reason, lens tab press) - next session: have Ricky click a lens tab once,
+  then grep the Player log for OVERVIEWDBG to see WHICH path fired; remove
+  the prints after. Candidate theories if press+toggle both log: the real
+  click hits the drawer's mappress (click-through to map), or the press
+  propagates to a toggle.
+
 **2026-08-19, "Get in Here! made it the Runners' turn" report - INVESTIGATED,
 NOT an overview bug; claim path CORRECT (third live proof of Decision 47).**
 Log: exactly one `OVERVIEW:: claiming turn for cead488d...` at the cast

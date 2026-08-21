@@ -515,6 +515,7 @@ end
 --dev machine counts differently and misses it), so overview scalars live as
 --fields here rather than as top-level locals. Add new module state HERE.
 local OVERVIEW = {
+    GUIDE_COLOR = "#7AC77A",
     FOOTER_ROWS = 3,
     FOOTER_ROW_POOL = 6,
     STATUS_ICONS = 5,
@@ -2282,6 +2283,10 @@ local function ActionBarDrawer(args)
         data = { drawerType = args.type },
 
         press = function(element)
+            --TEMP OVERVIEWDBG (lens-click investigation): remove after.
+            if args.type == "unique" then
+                print("OVERVIEWDBG:: drawer press (toggle), active=", element:HasClass("active"))
+            end
 
             args.drawer = resultPanel
             element:FindParentWithClass("actionBar"):FireEventTree("menu", args)
@@ -2314,12 +2319,20 @@ local function ActionBarDrawer(args)
                 return
             end
             if element:HasClass("active") then
+                --TEMP OVERVIEWDBG (lens-click investigation): remove after.
+                if args.type == "unique" then
+                    print("OVERVIEWDBG:: drawer closemenu reason=", reason)
+                end
                 element:FireEvent("press")
             end
         end,
 
         escapePriority = EscapePriority.CANCEL_ACTION_BAR,
         escape = function(element)
+            --TEMP OVERVIEWDBG (lens-click investigation): remove after.
+            if args.type == "unique" and element:HasClass("active") then
+                print("OVERVIEWDBG:: drawer escape (mappress/esc)")
+            end
             element:FireEvent("press")
         end,
 
@@ -3976,18 +3989,20 @@ local function OverviewReachText(reach, short)
     if reach == nil then
         return nil
     end
+    --Field test 6 copy: "in reach" collided with the risk box's "within
+    --striking range". This line is the monster's OFFENSE, so say so.
     if short then
         if reach.count == 0 then
-            return string.format("<color=%s><b>0 in reach</b></color>", OVERVIEW.NOREACH_COLOR)
+            return string.format("<color=%s><b>can reach no hero</b></color>", OVERVIEW.NOREACH_COLOR)
         end
-        return string.format("%d in reach", reach.count)
+        return string.format("can reach %d", reach.count)
     end
     if reach.count == 0 then
-        return string.format("<color=%s><b>No hero in reach</b></color>", OVERVIEW.NOREACH_COLOR)
+        return string.format("<color=%s><b>Can't reach any hero</b></color>", OVERVIEW.NOREACH_COLOR)
     elseif reach.count == 1 then
-        return "1 hero in reach"
+        return "Can reach 1 hero"
     end
-    return string.format("%d heroes in reach", reach.count)
+    return string.format("Can reach %d heroes", reach.count)
 end
 
 --P2-e THREAT ESTIMATE (F2-5c, signed off by Ricky 2026-08-19): "if the
@@ -4068,9 +4083,35 @@ local function OverviewHeroProfiles()
     return list
 end
 
+--Field test 6 (reverses F2-5b raw-numbers-only): LOW STAMINA = a typical
+--(tier-2) hit from the hardest-hitting hero on the map would drop it -
+--roughly "2 rolls in 3 kill it", close to Ricky's 65% intuition but tied to
+--the tier system instead of a probability model. Hypothetical ANY hero, not
+--just those in reach ("if a hero were to target them"). The raw number
+--stays in parentheses.
+local function OverviewLowStamina(tok, inCombat)
+    if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
+        return false
+    end
+    local cur = nil
+    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
+    if cur == nil or cur <= 0 then
+        return false
+    end
+    local best = 0
+    for _, profile in ipairs(OverviewHeroProfiles()) do
+        if profile.burst > best then
+            best = profile.burst
+        end
+    end
+    return best > 0 and cur <= best
+end
+
 --nil when safe (or no queue/stamina data), else {level, text, tooltip}.
 --marked = the member carries a hero-applied threat flag (P2-a statuses).
-local function OverviewThreatEstimate(tok, marked, inCombat)
+--lowStamina feeds a bullet (computed by the caller so the label and the
+--risk box agree).
+local function OverviewThreatEstimate(tok, marked, inCombat, lowStamina, turnSpent)
     if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
         return nil
     end
@@ -4129,33 +4170,47 @@ local function OverviewThreatEstimate(tok, marked, inCombat)
         return nil
     end
 
-    local reasons = {}
+    --Field test 6 layout: headline tag, then WHY as bullets, then a green
+    --guidance line (red only - amber is advisory, not a call to action).
+    local bullets = {}
     if marked then
-        reasons[#reasons + 1] = "marked by heroes"
+        bullets[#bullets + 1] = "Marked by heroes"
+    end
+    if lowStamina then
+        bullets[#bullets + 1] = "Low Stamina"
     end
     if #inReach > 0 then
-        local striking = string.format("%d hero%s in striking range", #inReach, #inReach == 1 and "" or "es")
+        local striking = string.format("%d hero%s within striking range", #inReach, #inReach == 1 and "" or "es")
         if spentCount == #inReach and spentCount > 0 then
             striking = striking .. " (all spent)"
         end
-        reasons[#reasons + 1] = striking
+        bullets[#bullets + 1] = striking
     end
 
     local color = level == "red" and g_overviewRisk.red or g_overviewRisk.amber
-    local headline = level == "red" and "High target risk" or "At risk"
-    local text = string.format("<color=%s><b>%s</b></color> - %s", color, headline, table.concat(reasons, ", "))
+    local headline = level == "red" and "High Death Risk" or "At Risk"
+    local lines = { string.format("<color=%s><b>%s</b></color>", color, headline) }
+    for _, bullet in ipairs(bullets) do
+        lines[#lines + 1] = "- " .. bullet
+    end
+    --Guidance is a call to action; once the turn is spent there is nothing
+    --to spend, so the tag+bullets stand alone (still useful: it will likely
+    --die, plan around it).
+    if level == "red" and not turnSpent then
+        lines[#lines + 1] = string.format("<color=%s>Spend turn before they die</color>", OVERVIEW.GUIDE_COLOR)
+    end
 
     local tooltipParts = {}
-    tooltipParts[#tooltipParts + 1] = string.format("%s: %s.", headline, table.concat(reasons, "; "))
+    tooltipParts[#tooltipParts + 1] = string.format("%s: %s.", headline, table.concat(bullets, "; "))
     if best1 > 0 then
         tooltipParts[#tooltipParts + 1] = string.format(
             "Hardest reachable hit ~%d damage (+%d for a triggered action or mark benefit) vs %d Stamina. Spent heroes count at half weight.",
             math.floor(best1), g_overviewRisk.allowance, math.floor(cur))
     end
-    tooltipParts[#tooltipParts + 1] = "Hint: consider using this monster's turn before the heroes strike. Straight-line estimate; crits and choices can beat it either way."
+    tooltipParts[#tooltipParts + 1] = "Straight-line estimate; crits and choices can beat it either way."
     return {
         level = level,
-        text = text,
+        text = table.concat(lines, "\n"),
         tooltip = table.concat(tooltipParts, "\n"),
     }
 end
@@ -4314,7 +4369,14 @@ local function OverviewColumnSignals(column)
                         marked = true
                     end
                 end
-                member.risk = OverviewThreatEstimate(tok, marked, q ~= nil)
+                local lowStamina = OverviewLowStamina(tok, q ~= nil)
+                member.risk = OverviewThreatEstimate(tok, marked, q ~= nil, lowStamina,
+                    member.acted == true or member.acting == true)
+                --Field test 6: low stamina is called out on the stamina
+                --readout itself, amber, raw number kept in parentheses.
+                if lowStamina and member.stamina ~= nil then
+                    member.stamina = string.format("<color=%s><b>Low Stamina</b> (%s)</color>", OVERVIEW.NOREACH_COLOR, member.stamina)
+                end
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -5871,7 +5933,7 @@ ActionMenu = function()
         for _, tab in ipairs(m_lensTabs) do
             local id = tab.data.lensid
             local count = m_lensCounts[id] or 0
-            tab:FireEventTree("setLensState", string.format("%s %d", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all")
+            tab:FireEventTree("setLensState", string.format("%s %d", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all", count)
         end
         local empty = lens.id ~= "all" and (m_lensCounts[lens.id] or 0) == 0
         if empty then
@@ -5915,19 +5977,30 @@ ActionMenu = function()
         local tab = gui.Panel {
             classes = { "overviewLensTab" },
             bgimage = "panels/square.png",
-            data = { lensid = id },
+            data = { lensid = id, tooltip = nil },
             flow = "vertical",
             label,
             underline,
-            hover = gui.Tooltip(string.format("Show only columns with a matching ability (%s)", lens.name)),
+            hover = function(element)
+                if element.data.tooltip ~= nil then
+                    gui.Tooltip(element.data.tooltip)(element)
+                end
+            end,
             press = function(element)
+                print("OVERVIEWDBG:: lens tab press", id)
                 SetLens(id)
             end,
-            setLensState = function(element, text, active, zero)
+            setLensState = function(element, text, active, zero, count)
                 label.text = text
                 element:SetClass("active", active)
                 element:SetClass("zero", zero)
                 underline:SetClass("hidden", not active)
+                --Field test 6: the bare count ("Damage 3") needs explaining.
+                if id == "all" then
+                    element.data.tooltip = string.format("Show every ability (%d in this selection)", count or 0)
+                else
+                    element.data.tooltip = string.format("Show only %s abilities - this selection has %d. Columns without one hide; other abilities dim.", string.lower(lens.name), count or 0)
+                end
             end,
         }
         m_lensTabs[#m_lensTabs + 1] = tab
@@ -6025,7 +6098,14 @@ ActionMenu = function()
 
         dehover = function(element)
             if m_showingAbility then
-                CharacterPanel.HideAbility(m_showingAbility)
+                --destroy fires this during RebuildGameHud, when the
+                --CharacterPanel module can be mid-reload and HideAbility
+                --briefly nil (seen live: reload while a hover card was up).
+                --The card dies with the HUD anyway; never let the guard
+                --crash the rebuild.
+                if CharacterPanel ~= nil and CharacterPanel.HideAbility ~= nil then
+                    CharacterPanel.HideAbility(m_showingAbility)
+                end
                 m_showingAbility = false
             end
         end,

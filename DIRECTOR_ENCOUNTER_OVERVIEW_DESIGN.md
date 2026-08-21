@@ -969,6 +969,22 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, "Get in Here! made it the Runners' turn" report - INVESTIGATED,
+NOT an overview bug; claim path CORRECT (third live proof of Decision 47).**
+Log: exactly one `OVERVIEW:: claiming turn for cead488d...` at the cast
+commit; `q.currentTurn` = cead488d = the MONARCH's entry; the entry's own
+`description` is "Goblin Monarch"; `HasHadTurn` false (turn in progress).
+What Ricky saw: in this A5 game the Monarch and the Goblin Runners share ONE
+group initiative entry (cead488d - predates the summon; the original Runner
+had the same id at session start), and the two summoned Runners joined that
+entry (RAW: summons act on the summoner's turn). The initiative bar picks
+the group's display token via GetTokensForInitiativeId()[1] = a Runner by
+token iteration order, so the turn card wears a Runner face even though the
+entry is the Monarch's. PRE-EXISTING group-entry display quirk, out of
+overview scope. Candidate fix if wanted (separate slice, MCDMInitiativeBar):
+prefer the non-minion / leader / the entry.description-matching token as a
+group entry's display representative.
+
 **2026-08-19, cross-session hazard inherited from the "VA1 marks allies moved"
 fix (PR #253, token-hud-pick-not-claim):** While ANY targeting prompt or chooser
 is active and the acting side has unmoved creatures, each unmoved ally's token

@@ -38,18 +38,21 @@ anything is missing, **tell the user what is missing, what it blocks, and how to
 it** -- the script's own output says all three, and `<S>/CREDENTIALS.md` has the full
 walkthrough. Do not guess at secret values and never invent one.
 
-**There is no Firebase key on this machine, and there must never be one.** The bug system
-is reached through `/api/bugs/*` on the internal-dashboards Worker, which holds the
-Firebase service account server-side and exposes only the bug system -- six paths, all
-keyed by a report id, one append-only write. If a script ever asks for a service-account
+**There is no Firebase key and no Discord secret on this machine, and there must never
+be.** Both live as Worker secrets on the internal-dashboards deployment, which exposes
+only the bug system -- six RTDB paths, all keyed by a report id, one append-only write --
+and performs the Discord reply/archive itself. If a script ever asks for a service-account
 key, something has fallen back to the legacy path; say so rather than supplying a key.
 
 | Credential | Where | Blocks, if absent |
 |---|---|---|
 | Dashboard team password | `$BUG_TICKETS_PASSWORD`, or read from `internal-dashboards/wrangler.jsonc` (automatic when running inside the dmhub repo) | **everything** |
-| Discord webhook(s) | config `discordWebhook` / `channels.bug.webhook` | closeout: the "Fixed and Closed" reply |
-| Discord bot token | `$DISCORD_BOT_TOKEN` / config `discordBotToken` | closeout: archiving the thread (skipped with a note, not a failure) |
 | Worker `ADMIN_SECRET` | `$DMHUB_ADMIN_SECRET` / `admin-secret.txt` in the credentials dir | `send-game-chat.py` finishing a send into a **DurableObjects** game (a Firebase game is written by the dashboard) |
+
+The **Discord** webhooks and bot token are Worker secrets on the dashboard, which makes
+those calls on your behalf -- nothing to configure locally. `check-credentials.py` reports
+whether the deployment has them, which is a property of the Worker, not of this machine;
+if one is missing, the fix is a `wrangler secret put`, which is the user's to run.
 
 Missing Python packages (`requests`, `websockets`) install with
 `pip install -r <S>/requirements.txt`.
@@ -145,9 +148,9 @@ python <S>/bug-close-out.py <reportId> [--dry-run]
 4. **Archives that thread**, so it leaves the forum's active list. Archived, not
    locked, on purpose: if the reporter replies "still broken" the thread un-archives
    itself, which is how a closed-too-early bug comes back to us. This step needs a
-   Discord bot token (`$DISCORD_BOT_TOKEN` / config `discordBotToken`) -- webhooks
-   cannot touch thread state. With no token it is skipped with a note, which is not
-   a failure; the first three steps still ran.
+   Discord bot token on the dashboard -- webhooks cannot touch thread state. With no
+   token it is skipped with a note, which is not a failure; the first three steps
+   still ran.
 
 Workflow: this is OUTWARD-FACING (a real user and a public forum see it). ALWAYS run
 `--dry-run` first, show the user the resolved target ticket + thread id and the exact
@@ -161,6 +164,8 @@ Notes:
   skipped with a note, not an error -- the Discord step still runs. Say so in the summary.
 - The dashboard password resolves automatically from `internal-dashboards/wrangler.jsonc`
   (override via `$BUG_TICKETS_PASSWORD` or config `ticketsPassword`).
+- Steps 3 and 4 run through the dashboard, which holds the webhooks and bot token and
+  picks the thread's forum from the issue registry itself.
 - The script does NOT touch the `/BugReportTriage/issues/{threadId}` registry `status`
   or re-archive the report; mention that if the user wants the registry updated too.
 

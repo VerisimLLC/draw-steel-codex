@@ -56,7 +56,6 @@ Consumer-owned triage state lives under a single root in the MCDM RTDB:
 import json
 import os
 import re
-import time
 
 import requests
 
@@ -74,10 +73,12 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # sit next to them. Credentials live in a separate directory OUTSIDE the repo --
 # the "credentials directory" -- which holds:
 #
-#   bug-report-config.json   webhook urls, tag ids, discord bot token, key path
-#   mcdm-key.json            Firebase service-account key for the MCDM RTDB
+#   bug-report-config.json   optional: dashboard url, dmhubRepo, legacy keyPath
 #   admin-secret.txt         (optional) release worker ADMIN_SECRET
 #   admin-secret-staging.txt (optional) staging worker ADMIN_SECRET
+#
+# The Discord webhooks and bot token are NOT here any more -- they are Worker
+# secrets on the dashboard, which performs the Discord calls itself.
 #
 # Resolution order, first hit wins. $BUG_REPORT_CONFIG points straight at a
 # config file; $DMHUB_ADMIN_DIR names a directory holding one.
@@ -618,57 +619,60 @@ DISCORD_COLOR_RESOLVED = 0x2ECC71  # green: resolved
 
 
 def discord_reply(cfg, thread_id, text, color=DISCORD_COLOR_RESOLVED, channel_key=None):
-    """Reply into an existing forum thread via the webhook owning its channel.
+    """Reply into an existing forum thread, through the dashboard.
 
-    Bugs and other feedback live in different forums, so the webhook depends on
-    the thread: `channel_key` is the issue node's channelKey, which the caller
-    reads off the /api/bugs/report payload. It is absent (=> default channel)
-    for threads created before the bug/feedback channel split, and for a
-    --thread override on an untriaged report -- both of which are exactly what
-    the default-channel fallback is for.
+    The Worker holds the webhooks and picks the right one from the thread's own
+    issue node -- bugs and other feedback live in different forums, and a
+    webhook is bound to one channel. `channel_key` is accepted for call
+    compatibility and ignored: letting the caller name the channel would let it
+    post into the wrong forum, so the server resolves it.
+
+    Raises SystemExit when Discord is not configured on the Worker, matching the
+    old behaviour of a missing webhook in the local config.
     """
-    webhook = webhook_for_key(cfg, channel_key)
-    if not webhook or "REPLACE_ME" in webhook:
-        raise SystemExit("Discord webhook is not configured in bug-report-config.json")
-    url = webhook + "?wait=true&thread_id=%s" % thread_id
-    payload = {"embeds": [{"description": text, "color": color}]}
-    for _ in range(5):
-        resp = requests.post(url, json=payload, timeout=30)
-        if resp.status_code == 429:
-            time.sleep(float(resp.json().get("retry_after", 1.0)) + 0.25)
-            continue
-        resp.raise_for_status()
-        return resp.json() if resp.content else {}
-    raise SystemExit("Discord rate-limited after retries")
+    out = bugs().post("discord-reply", {
+        "threadId": thread_id,
+        "text": text,
+        "color": color,
+    }, allow_status=(400, 502))
+    if not out.get("ok"):
+        if out.get("code") == "no-webhook":
+            raise SystemExit(
+                "No Discord webhook is configured on the dashboard. Set it with:"
+                "\n  cd internal-dashboards"
+                "\n  npx wrangler secret put DISCORD_WEBHOOKS"
+                '\n(the value is a JSON map, e.g.'
+                ' {"default":"https://...","bug":"https://..."})'
+            )
+        raise SystemExit("Discord reply failed: %s" % out.get("error", out))
+    return out
 
 
 # ---------------------------------------------------------------- discord threads
 
-DISCORD_API = "https://discord.com/api/v10"
-
-
 def discord_bot_token(cfg):
-    """The bot token used to ARCHIVE a thread, or "" if none is configured.
+    """Truthy when the DASHBOARD has a bot token, i.e. archiving can work.
 
-    Everything else in this pipeline posts through a webhook, but a webhook token
-    only authorises /webhooks/{id}/{token} message endpoints -- it cannot touch
-    /channels/{id}, which is where thread state lives. Archiving therefore needs a
-    real bot identity in the guild, with Manage Threads on the forum channels
-    (the threads are owned by the webhook, not the bot, so thread-owner archive
-    rights don't apply).
+    Everything else in this pipeline posts through a webhook, but a webhook
+    token only authorises /webhooks/{id}/{token} message endpoints -- it cannot
+    touch /channels/{id}, where thread state lives. Archiving therefore needs a
+    real bot in the guild with Manage Threads on the forum channels (the threads
+    are owned by the webhook, not the bot, so thread-owner archive rights do not
+    apply).
 
-    Resolution: $DISCORD_BOT_TOKEN, then config "discordBotToken". Absent is a
-    supported state -- callers skip the archive step rather than failing.
+    The token itself never comes over the wire -- this reports only whether one
+    is configured, so a caller can skip the archive step with a useful message.
+    Absent is a supported state.
     """
-    tok = os.environ.get("DISCORD_BOT_TOKEN") or cfg.get("discordBotToken") or ""
-    tok = tok.strip()
-    if not tok or "REPLACE_ME" in tok:
-        return ""
-    return tok
+    try:
+        return bool((bugs().status().get("discord") or {}).get("botToken"))
+    except Exception:
+        return False
 
 
 def discord_archive_thread(cfg, thread_id):
-    """Archive a forum thread. Returns (ok, detail); never raises for the caller.
+    """Archive a forum thread, through the dashboard. Returns (ok, detail);
+    never raises for the caller.
 
     Archive only, deliberately not locked: a reporter who answers "still broken"
     into an archived thread un-archives it by doing so, which is a free reopen
@@ -677,19 +681,14 @@ def discord_archive_thread(cfg, thread_id):
     Call this AFTER posting the closing reply -- posting into an archived thread
     is what would un-archive it again.
     """
-    token = discord_bot_token(cfg)
-    if not token:
-        return (None, "no bot token configured -- thread left open")
-    url = "%s/channels/%s" % (DISCORD_API, thread_id)
-    headers = {"Authorization": "Bot %s" % token}
-    for _ in range(5):
-        resp = requests.patch(url, json={"archived": True}, headers=headers, timeout=30)
-        if resp.status_code == 429:
-            time.sleep(float(resp.json().get("retry_after", 1.0)) + 0.25)
-            continue
-        if resp.status_code >= 400:
-            # Bad token / missing Manage Threads / thread deleted. Not fatal --
-            # the user has already been told the fix landed; only tidying failed.
-            return (False, "HTTP %s: %s" % (resp.status_code, resp.text[:200]))
-        return (True, "archived thread %s" % thread_id)
-    return (False, "Discord rate-limited after retries")
+    try:
+        out = bugs().post("discord-archive", {"threadId": thread_id},
+                          allow_status=(400, 502))
+    except Exception as e:
+        return (False, str(e))
+    if out.get("ok") and out.get("archived"):
+        return (True, out.get("detail") or "archived thread %s" % thread_id)
+    if out.get("ok"):
+        # No bot token on the Worker: tidying was skipped, the closeout was not.
+        return (None, out.get("detail") or "no bot token configured -- thread left open")
+    return (False, out.get("error") or "archive failed")

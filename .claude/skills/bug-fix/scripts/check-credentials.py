@@ -15,10 +15,12 @@ reached through /api/bugs/* on the internal-dashboards Worker, which holds that
 key server-side and exposes only the bug system. The credentials, and what each
 unlocks:
 
-  1. Dashboard team password          REQUIRED -- reports, tickets, in-game chat
-  2. Discord webhook(s)               closeout step 3 (the reply)
-  3. Discord bot token                closeout step 4 (archiving the thread)
-  4. Worker ADMIN_SECRET              send-game-chat into a DurableObjects game
+  1. Dashboard team password          REQUIRED -- the only one a dev holds
+  2. Worker ADMIN_SECRET              send-game-chat into a DurableObjects game
+
+The Discord webhooks and bot token are Worker secrets on the dashboard, which
+makes the Discord calls itself; this check reports whether they are configured
+THERE, which is a property of the deployment rather than of this machine.
 
 See CREDENTIALS.md next to this script for how to obtain each one.
 """
@@ -60,7 +62,7 @@ def main():
 
     cfg = lib.load_config()
     cfg_path = cfg.get("_configPath")
-    print("config:   %s" % (cfg_path or "(none -- optional; only the Discord steps need it)"))
+    print("config:   %s" % (cfg_path or "(none -- optional, and nothing here needs it)"))
     if cfg.get("_credentialsDir"):
         print("creds dir: %s" % cfg["_credentialsDir"])
     print("dashboard: %s" % lib.dashboard_url(cfg))
@@ -105,35 +107,45 @@ def main():
                   "if that is a 404, the Worker predates /api/bugs/* -- deploy",
                   "internal-dashboards (npm run deploy)"])
 
-    # 2 -- Discord webhooks. Closeout step 3 posts the 'Fixed and Closed' reply.
-    hooks = []
-    if cfg.get("discordWebhook"):
-        hooks.append("default")
-    for k in (cfg.get("channels") or {}):
-        if (cfg["channels"][k] or {}).get("webhook"):
-            hooks.append(k)
-    placeholder = "REPLACE_ME" in str(cfg.get("discordWebhook", ""))
-    if hooks and not placeholder:
-        line(True, "Discord webhook(s) -- closeout: reply to the thread",
-             ["channels configured: %s" % ", ".join(hooks)])
-    else:
-        line(None, "Discord webhook(s) -- closeout: reply to the thread (OPTIONAL)",
-             ["not set: closeout can still do the ticket half, not the Discord half",
-              "set 'discordWebhook' (and optionally 'channels') in %s"
-              % (cfg_path or "bug-report-config.json"),
-              "Discord: channel > Edit Channel > Integrations > Webhooks"])
+    # 2 + 3 -- Discord. The webhooks and bot token are Worker secrets now; the
+    #          dashboard performs the calls, so all we can (and should) learn
+    #          from here is whether it is able to.
+    dstat = None
+    if ok:
+        try:
+            dstat = (lib.bugs().status().get("discord") or {})
+        except Exception:
+            dstat = None
 
-    # 3 -- Discord bot token. ONLY archives the thread; absence is not fatal.
-    token = os.environ.get("DISCORD_BOT_TOKEN") or cfg.get("discordBotToken")
-    if token:
-        line(True, "Discord bot token -- closeout: archive the thread",
-             ["source: %s" % ("$DISCORD_BOT_TOKEN" if os.environ.get("DISCORD_BOT_TOKEN")
-                              else "config discordBotToken")])
+    if dstat is None:
+        line(None, "Discord -- closeout: reply + archive",
+             ["unknown: could not ask the dashboard (see above)"])
     else:
-        line(None, "Discord bot token -- closeout: archive the thread (OPTIONAL)",
-             ["not set: closeout still posts the reply, just leaves the thread open",
-              "set $DISCORD_BOT_TOKEN or config 'discordBotToken'",
-              "needs a bot in the guild with Manage Threads on both forums"])
+        if dstat.get("webhookError"):
+            line(False, "Discord webhook(s) -- closeout: reply to the thread",
+                 ["the dashboard's DISCORD_WEBHOOKS is malformed: %s" % dstat["webhookError"],
+                  "fix it with: cd internal-dashboards && npx wrangler secret put DISCORD_WEBHOOKS"])
+            ok = False
+        elif dstat.get("webhooks"):
+            line(True, "Discord webhook(s) -- closeout: reply to the thread",
+                 ["held by the dashboard; channels: %s" % ", ".join(sorted(dstat["webhooks"]))])
+        else:
+            line(None, "Discord webhook(s) -- closeout: reply to the thread (OPTIONAL)",
+                 ["not configured on the dashboard: closeout can do the ticket half only",
+                  "set it with: cd internal-dashboards",
+                  "             npx wrangler secret put DISCORD_WEBHOOKS",
+                  'value is a JSON map, e.g. {"default":"https://...","bug":"https://..."}'])
+
+        if dstat.get("botToken"):
+            line(True, "Discord bot token -- closeout: archive the thread",
+                 ["held by the dashboard"])
+        else:
+            line(None, "Discord bot token -- closeout: archive the thread (OPTIONAL)",
+                 ["not configured on the dashboard: closeout still posts the reply,",
+                  "it just leaves the thread open",
+                  "set it with: cd internal-dashboards",
+                  "             npx wrangler secret put DISCORD_BOT_TOKEN",
+                  "needs a bot in the guild with Manage Threads on both forums"])
 
     # 4 -- Worker ADMIN_SECRET. Only send-game-chat into a DO-backed game; a
     #      Firebase-backed game is written by the dashboard and needs nothing.
@@ -158,7 +170,8 @@ def main():
     if ok:
         print("Core credential OK: reports can be loaded and fixes worked on.")
         print("Anything marked [--] above only limits the closeout / notify steps.")
-        print("No Firebase key is needed, or wanted, on this machine.")
+        print("No Firebase key and no Discord secret are needed on this machine --")
+        print("the dashboard holds those and acts on your behalf.")
     else:
         print("NOT usable yet: fix the [MISSING] items above.")
     return 0 if ok else 1

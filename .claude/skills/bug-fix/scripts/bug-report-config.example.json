@@ -1,27 +1,12 @@
 {
-  "_comment_location": "Copy this to bug-report-config.json in a credentials directory OUTSIDE the repo (default ~/.dmhub), NOT next to the scripts. See CREDENTIALS.md. The whole file is OPTIONAL now -- without it the skill still reads reports and closes tickets; only the Discord steps need it.",
-  "_comment_keyPath": "LEGACY, and not needed by the bug-fix skill: it reaches the bug system through the dashboard API, which holds the service account server-side. Only the older dmhub-admin tooling that shares bugreport_lib.py uses these two. A relative keyPath resolves against this file's own directory.",
-  "keyPath": "mcdm-key.json",
-  "databaseURL": "https://mcdm-385cf-default-rtdb.firebaseio.com/",
-  "_comment_discordWebhook": "Default channel (#user-feedback): anything not listed in 'channels' posts here.",
-  "discordWebhook": "https://discord.com/api/webhooks/REPLACE_ME/REPLACE_ME",
-  "discordMaxUploadBytes": 8388608,
-  "_comment_channels": "Per-type overrides. A webhook is bound to one channel, so routing bugs elsewhere needs that channel's own webhook; 'tag' is a forum tag id IN THAT CHANNEL (optional -- omit for a single-purpose forum).",
-  "channels": {
-    "bug": {
-      "webhook": "https://discord.com/api/webhooks/REPLACE_ME/REPLACE_ME",
-      "tag": ""
-    }
-  },
-  "_comment_tags": "Forum tag ids in the DEFAULT channel, per type (see bug-report-list-tags.py).",
-  "tags": {
-    "feature": "",
-    "feedback": ""
-  },
-  "_comment_discordBotToken": "Only used to ARCHIVE a thread on closeout -- webhook tokens cannot touch /channels. Needs a bot in the guild with Manage Threads on both forums. Override with $DISCORD_BOT_TOKEN. Leave empty to skip archiving.",
-  "discordBotToken": "",
-  "_comment_dmhubRepo": "Path to the dmhub checkout. Lets the closeout read TICKETS_PASSWORD out of internal-dashboards/wrangler.jsonc instead of duplicating it here. Not needed when the scripts run from inside that repo.",
+  "_comment_location": "Copy this to bug-report-config.json in a credentials directory OUTSIDE the repo (default ~/.dmhub), NOT next to the scripts. See CREDENTIALS.md. The whole file is OPTIONAL: with the dashboard holding the Firebase and Discord credentials, a checkout of the dmhub repo needs no config at all.",
+  "_comment_discord": "The Discord webhooks and bot token used to live here. They are Worker secrets on the internal-dashboards deployment now (DISCORD_WEBHOOKS / DISCORD_BOT_TOKEN) -- the dashboard makes those calls itself. Do not put them back.",
+  "_comment_dmhubRepo": "Path to the dmhub checkout. Lets the scripts read TICKETS_PASSWORD out of internal-dashboards/wrangler.jsonc. Not needed when running from inside that repo.",
   "dmhubRepo": "C:\\dev\\dmhub",
   "_comment_ticketsPassword": "Only set this if wrangler.jsonc is unreachable. $BUG_TICKETS_PASSWORD overrides it.",
-  "ticketsPassword": ""
+  "ticketsPassword": "",
+  "_comment_dashboardUrl": "Override the dashboard base url. $BUG_DASHBOARD_URL overrides this in turn.",
+  "_comment_legacy": "keyPath/databaseURL are LEGACY: only the older dmhub-admin tooling that shares bugreport_lib.py uses the Firebase service-account path. The bug-fix skill never does.",
+  "keyPath": "mcdm-key.json",
+  "databaseURL": "https://mcdm-385cf-default-rtdb.firebaseio.com/"
 }

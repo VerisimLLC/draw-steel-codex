@@ -1,9 +1,10 @@
 # bug-fix credentials
 
-**There is no Firebase key here, and there should never be one.** The bug system is
-reached through `/api/bugs/*` on the internal-dashboards Worker, which holds the Firebase
-service account as a Worker secret and exposes only the bug system. This machine needs
-the shared team password and nothing else.
+**There is no Firebase key here, and no Discord secret either -- and there should never
+be.** The bug system is reached through `/api/bugs/*` on the internal-dashboards Worker,
+which holds those credentials as Worker secrets, exposes only the bug system, and makes
+the Discord calls on your behalf. A developer needs the shared team password, plus
+`ADMIN_SECRET` only for chat sends into a DurableObjects game.
 
 Check what is configured at any time:
 
@@ -28,6 +29,8 @@ keyed by a report id the caller names:
 | read | `/games/{gameid}/storage` | which backend the reporter's game is on |
 | write | `/GameDetails/{gameid}/chat/{guid}` | one "Codex Team" chat line |
 
+Plus two Discord actions, both scoped to one thread: post an embed into it, and archive it.
+
 It cannot be pointed at an arbitrary path, it does not enumerate the database, and the
 single write appends one record at a fresh guid, so it cannot overwrite anything. The
 `allowGameEntry` consent gate is checked **in the Worker**, which means it is no longer
@@ -50,29 +53,34 @@ ticket message, and closing a ticket.
 
 Without it: nothing works.
 
-### 2. Discord webhook(s) -- needed to close a bug out
+### 2 + 3. Discord -- held by the dashboard, not by you
 
-**Config keys:** `discordWebhook` (default channel, `#user-feedback`) and
-`channels.bug.webhook` (`#bugs`).
+**Nothing to configure locally.** The webhooks and the bot token are Worker secrets, and
+the dashboard makes the Discord calls on your behalf via `/api/bugs/discord-reply` and
+`/api/bugs/discord-archive`. A bot token handed to a client is a bot token you no longer
+control -- it can be kept, copied and used from anywhere, forever, outside any audit
+path -- so it stays on the Worker, which also makes every use loggable.
 
-A webhook is bound to one channel, so routing bug threads to `#bugs` and everything else
-to `#user-feedback` takes one webhook each. Create them in Discord: *channel > Edit
-Channel > Integrations > Webhooks > New Webhook > Copy Webhook URL*.
+`check-credentials.py` reports whether the *deployment* has them; that is a property of
+the Worker, not of your machine. To set or rotate them:
 
-Without them: `bug-close-out.py` cannot post the "Fixed and Closed" reply. The ticket half
-still runs.
+```bash
+cd internal-dashboards
+npx wrangler secret put DISCORD_WEBHOOKS   # JSON map: {"default":"https://...","bug":"https://..."}
+npx wrangler secret put DISCORD_BOT_TOKEN  # archiving only
+```
 
-### 3. Discord bot token -- optional, closeout thread archiving only
+Pipe from a file rather than pasting, so the value never reaches your shell history.
 
-**Env:** `$DISCORD_BOT_TOKEN`, or config `discordBotToken`.
-
-Webhook tokens cannot touch `/channels`, so archiving a thread needs a real bot in the
-guild with **Manage Threads** on both forum channels. Create it at the
-[Discord developer portal](https://discord.com/developers/applications) > *Bot > Reset
-Token*, then invite it with that permission.
-
-Without it: closeout still posts the reply, then reports that the archive step was
-skipped. That is a note, not a failure.
+- **Webhooks** route by the thread's `channelKey`, which the Worker reads from the issue
+  registry -- a caller cannot post into the wrong forum by claiming a different one.
+  Absent (pre-split threads) falls back to `default`. Create them in Discord: *channel >
+  Edit Channel > Integrations > Webhooks*. Without them, closeout does the ticket half only.
+- **Bot token** is archive-only: a webhook token cannot touch `/channels/{id}`, where
+  thread state lives, so archiving needs a real bot in the guild with **Manage Threads**
+  on both forums ([developer portal](https://discord.com/developers/applications) > *Bot >
+  Reset Token*). Without it, closeout still posts the reply and reports the archive step
+  as skipped -- a note, not a failure.
 
 ### 4. Worker ADMIN_SECRET -- optional, only for a DurableObjects game
 
@@ -95,7 +103,8 @@ Everything else works.
 
 ## The credentials directory
 
-Optional now -- it holds only the Discord settings and any admin-secret files. The first
+Optional now -- with Discord moved to the Worker it holds only the admin-secret files
+(and a `dmhubRepo` pointer, if the scripts run from outside the dmhub checkout). The first
 of these that contains a `bug-report-config.json` wins:
 
 | Order | Location |

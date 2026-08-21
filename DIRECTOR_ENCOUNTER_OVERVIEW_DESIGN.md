@@ -969,6 +969,27 @@ session, live-verified; zero console errors; regression check passed.**
   rather than bolt on); P2-e threat estimate awaiting his answers to the
   three questions in the P2-e row; sub-filter chips; hotkeys (X4).
 
+**2026-08-19, tenth user field test (Ricky) - stamina numbers removed, DMG
+chip badge added. Live-verified.**
+- **Stamina numbers REMOVED from the footer** (Ricky: not needed; also the
+  "50/80 - Dazed" line duplicated the risk box's named bullets). The signal
+  line now carries ONLY the acted state ("Turn already taken" / "Acting
+  now"); mini-rows likewise. Stamina survives only as the "Low Stamina" risk
+  bullet. Arc note for the copy pass: F2-5 raw numbers -> field test 6 amber
+  label -> field test 7 raw only -> field test 10 REMOVED; the number
+  earned no decision the risk box did not already make.
+- **DMG chip badge**: red (#E06464) surge glyph (game-icons/surge.png) +
+  bold "DMG" beneath, floating at the chip's right edge, tooltip "This
+  ability does high damage" (opens above). Shown ONLY on overview monster
+  chips (never hero menus - only the overview path sets it), ONLY under the
+  All / Damage lenses, and ONLY on (1) the highest-tier-2-damage ability
+  displayed and (2) the highest among creatures at red death risk - ties
+  share the badge. Thresholds ride the column records
+  (column.dmgMax/dmgRedMax from PopulateUniqueColumns); chips get a
+  setDamageBadge event; presses bubble through the badge so clicking it
+  still casts. Live: both Monarch Handaxes (tied selection best) + Sword
+  Stab (best among reds); 0 badges under Forced Move, back under Damage/All.
+
 **2026-08-19, ninth user field test (Ricky) - the risk box speaks in real
 names and actions, and calls out the damage dealers. Live-verified.**
 - **Threat bullets name the ACTUAL effect and caster** ("Dazed by High Elf

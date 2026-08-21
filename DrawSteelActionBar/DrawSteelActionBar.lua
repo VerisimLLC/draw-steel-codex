@@ -1560,6 +1560,31 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "abilityHeading", "offLens" },
         opacity = 0.45,
     },
+    --Field test 10: the DMG badge (red surge + label) on standout damage
+    --chips; clear backing so the chip behind still hovers/presses.
+    {
+        selectors = { "overviewDmgBadge" },
+        width = 26,
+        height = "auto",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewDmgIcon" },
+        width = 16,
+        height = 16,
+        halign = "center",
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewDmgLabel" },
+        width = "auto",
+        height = "auto",
+        fontSize = 11,
+        bold = true,
+        color = "#E06464",
+        halign = "center",
+        textAlignment = "center",
+    },
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
     {
         selectors = { "overviewFooterRisk" },
@@ -3101,6 +3126,30 @@ local function AbilityHeading(args)
     --marker has been dismissed by opening the menu.
     local m_novelMarker = NovelContentMarker("onAbility")
 
+    --Field test 10: red surge + "DMG" for the standout damage ability in the
+    --director overview (never on hero chips - only the overview sets it).
+    --Presses bubble through to the chip, so clicking the badge still casts.
+    local m_dmgBadge = gui.Panel {
+        classes = { "overviewDmgBadge", "collapsed" },
+        floating = true,
+        bgimage = "panels/square.png",
+        halign = "right",
+        valign = "center",
+        rmargin = 4,
+        flow = "vertical",
+        hover = gui.Tooltip{ text = "This ability does high damage", valign = "top" },
+        gui.Panel {
+            classes = { "overviewDmgIcon" },
+            bgimage = "game-icons/surge.png",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewDmgLabel" },
+            text = "DMG",
+            interactable = false,
+        },
+    }
+
     resultPanel = gui.Panel {
         classes = { "abilityHeading" },
 
@@ -3113,6 +3162,10 @@ local function AbilityHeading(args)
         setCasterToken = function(element, casterToken, overviewPress)
             args.casterToken = casterToken
             args.overviewPress = overviewPress
+        end,
+
+        setDamageBadge = function(element, flag)
+            m_dmgBadge:SetClass("collapsed", flag ~= true)
         end,
 
         ability = function(element, ability)
@@ -3625,6 +3678,7 @@ local function AbilityHeading(args)
         },
 
         m_novelMarker,
+        m_dmgBadge,
     }
 
     if args.ability ~= nil then
@@ -4598,25 +4652,12 @@ end
 --the bare current/max readout every token nameplate in the app already uses
 --(a "Stamina " prefix pushed the acted state past the 151px text column and
 --got it ellipsized - measured live).
+--Field test 10: the signal line carries ONLY the acted state. The raw
+--stamina number is gone (Low Stamina lives as a risk bullet) and the
+--hero-applied effect names live in the risk box bullets - printing either
+--here doubled the information.
 local function OverviewSignalText(member, inCombat)
-    local parts = {}
-    if member.stamina ~= nil then
-        parts[#parts + 1] = member.stamina
-    end
-    local acted = OverviewActedText(member, inCombat)
-    if acted ~= nil then
-        parts[#parts + 1] = acted
-    end
-    --P2-a: hero-applied marks/conditions are the threat flag, in red.
-    local plainLength = 0
-    for _, part in ipairs(parts) do
-        plainLength = plainLength + #string.gsub(part, "<[^>]*>", "") + 3
-    end
-    local threat = OverviewThreatText(member.statuses, plainLength)
-    if threat ~= nil then
-        parts[#parts + 1] = threat
-    end
-    return table.concat(parts, " - ")
+    return OverviewActedText(member, inCombat) or ""
 end
 
 --Slice (e): the members of a column that could still take a turn, one per
@@ -5690,6 +5731,21 @@ local function ActionSubMenu(args)
                 end
                 m_chips[i]:SetClass("onLens", onLens)
                 m_chips[i]:SetClass("offLens", offLens)
+                --Field test 10: red surge DMG badge on (1) the highest-damage
+                --ability displayed and (2) the highest among creatures at red
+                --death risk (ties share it). Overview monsters only, and only
+                --under the All / Damage lenses.
+                local dmgBadge = false
+                if overview and (lens == "all" or lens == "damage") and m_column ~= nil then
+                    local facets = facetsByAbility[abilities[i]]
+                    if facets ~= nil and facets.damageValue > 0 then
+                        if (m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax)
+                            or (m_column.anyRed and m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax) then
+                            dmgBadge = true
+                        end
+                    end
+                end
+                m_chips[i]:FireEvent("setDamageBadge", dmgBadge)
             end
 
             for i = #abilities + 1, #m_chips do
@@ -6218,6 +6274,10 @@ ActionMenu = function()
         for _, column in ipairs(columns) do
             column.highDamage = column.bestDamage > 0
                 and (column.bestDamage == maxDamage or (column.anyRed and column.bestDamage == redMaxDamage))
+            --Field test 10: chip-level DMG badge thresholds (same numbers,
+            --checked per ability in the column populate).
+            column.dmgMax = maxDamage > 0 and maxDamage or nil
+            column.dmgRedMax = redMaxDamage > 0 and redMaxDamage or nil
         end
 
         local populated = 0

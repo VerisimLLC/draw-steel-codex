@@ -1546,6 +1546,16 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "abilityHeading", "offLens" },
         opacity = 0.45,
     },
+    --P2-e threat-estimate line: allowed to wrap (reasons can be long).
+    {
+        selectors = { "overviewFooterRisk" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = true,
+    },
     --P2-a status strip: the token HUD's status icons at >= 16px (X15);
     --threat flags (hero-applied marks/conditions) carry a red ring.
     {
@@ -3970,6 +3980,176 @@ local function OverviewReachText(reach, short)
     return string.format("%d heroes in reach", reach.count)
 end
 
+--P2-e THREAT ESTIMATE (F2-5c, signed off by Ricky 2026-08-19): "if the
+--heroes strike this monster, could it die before it acts?" A risk band with
+--REASONS, never a verdict - always "could", crits are luck (Decision 48).
+--Silent when safe (never label the default state).
+--
+--Model, per monster member:
+--  * heroes who can STRIKE it: hero speed + the hero's longest damaging
+--    range >= straight-line distance (same Chebyshev estimate as P2-d,
+--    walls/terrain ignored);
+--  * each hero's BURST = best tier-2 damage across their abilities (same
+--    parser as the lenses) + a flat RIDER allowance for a triggered action /
+--    mark benefit (the Cursespitter died to crit + Mark trigger + a second
+--    ability - one hit is never the yardstick);
+--  * a hero who has ALREADY ACTED counts at HALF weight, not zero (Ricky:
+--    Strike Now can invoke a spent hero, so the risk is lower, not gone);
+--  * a monster MARKED/JUDGED by a hero is a declared kill target: red
+--    whenever anyone can reach it.
+--Bands: RED "High target risk" = marked with a hero in reach, or stamina <=
+--best single adjusted burst + rider; AMBER "At risk" = stamina <= the two
+--best adjusted bursts + rider, or marked with nobody in reach.
+--One local for the whole P2-e feature (the file is near Lua's 200
+--top-level-locals limit): constants + the hero-profile cache.
+local g_overviewRisk = {
+    allowance = 4,
+    red = "#E06464",
+    amber = "#E0A050",
+    cache = { time = -1, list = {} },
+}
+
+--Hero combat profiles (speed, longest damaging range, best tier-2 burst,
+--acted), cached briefly: several columns x members all ask within one
+--populate pass, and hero kits do not change mid-frame.
+local function OverviewHeroProfiles()
+    local now = dmhub.Time()
+    if g_overviewRisk.cache.time == now then
+        return g_overviewRisk.cache.list
+    end
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+    local list = {}
+    for _, hero in ipairs(OverviewHeroTokens()) do
+        local profile = { token = hero, speed = 0, range = 1, burst = 0, spent = false }
+        pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
+        pcall(function()
+            local abilities = hero.properties:GetActivatedAbilities { bindCaster = true } or {}
+            for _, ability in ipairs(abilities) do
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    local facets = OverviewAbilityFacets(variation)
+                    if facets.damageValue > profile.burst then
+                        profile.burst = facets.damageValue
+                    end
+                    if facets.damage then
+                        local tt = variation.targetType
+                        if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
+                            local r = tonumber(variation:GetRange(hero.properties))
+                            if r ~= nil and r > profile.range then
+                                profile.range = r
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        if q ~= nil then
+            pcall(function() profile.spent = q:HasHadTurn(InitiativeQueue.GetInitiativeId(hero)) == true end)
+        end
+        list[#list + 1] = profile
+    end
+    g_overviewRisk.cache = { time = now, list = list }
+    return list
+end
+
+--nil when safe (or no queue/stamina data), else {level, text, tooltip}.
+--marked = the member carries a hero-applied threat flag (P2-a statuses).
+local function OverviewThreatEstimate(tok, marked, inCombat)
+    if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
+        return nil
+    end
+    local cur = nil
+    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
+    if cur == nil or cur <= 0 then
+        return nil
+    end
+
+    local locs = nil
+    pcall(function()
+        locs = tok.locsOccupying
+        if locs == nil or #locs == 0 then
+            locs = { tok.loc }
+        end
+    end)
+    if locs == nil then
+        return nil
+    end
+
+    local inReach = {}
+    local spentCount = 0
+    for _, profile in ipairs(OverviewHeroProfiles()) do
+        local hloc = nil
+        pcall(function() hloc = profile.token.loc end)
+        if hloc ~= nil then
+            local nearest = nil
+            for _, loc in ipairs(locs) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if nearest == nil or d < nearest then
+                    nearest = d
+                end
+            end
+            if nearest ~= nil and nearest <= profile.speed + profile.range then
+                local adjusted = profile.burst
+                if profile.spent then
+                    adjusted = adjusted * 0.5
+                    spentCount = spentCount + 1
+                end
+                inReach[#inReach + 1] = { profile = profile, adjusted = adjusted }
+            end
+        end
+    end
+    table.sort(inReach, function(a, b) return a.adjusted > b.adjusted end)
+
+    local best1 = inReach[1] ~= nil and inReach[1].adjusted or 0
+    local best2 = inReach[2] ~= nil and inReach[2].adjusted or 0
+
+    local level = nil
+    if (marked and #inReach > 0) or (best1 > 0 and cur <= best1 + g_overviewRisk.allowance) then
+        level = "red"
+    elseif (best2 > 0 and cur <= best1 + best2 + g_overviewRisk.allowance) or marked then
+        level = "amber"
+    end
+    if level == nil then
+        return nil
+    end
+
+    local reasons = {}
+    if marked then
+        reasons[#reasons + 1] = "marked by heroes"
+    end
+    if #inReach > 0 then
+        local striking = string.format("%d hero%s in striking range", #inReach, #inReach == 1 and "" or "es")
+        if spentCount == #inReach and spentCount > 0 then
+            striking = striking .. " (all spent)"
+        end
+        reasons[#reasons + 1] = striking
+    end
+
+    local color = level == "red" and g_overviewRisk.red or g_overviewRisk.amber
+    local headline = level == "red" and "High target risk" or "At risk"
+    local text = string.format("<color=%s><b>%s</b></color> - %s", color, headline, table.concat(reasons, ", "))
+
+    local tooltipParts = {}
+    tooltipParts[#tooltipParts + 1] = string.format("%s: %s.", headline, table.concat(reasons, "; "))
+    if best1 > 0 then
+        tooltipParts[#tooltipParts + 1] = string.format(
+            "Hardest reachable hit ~%d damage (+%d for a triggered action or mark benefit) vs %d Stamina. Spent heroes count at half weight.",
+            math.floor(best1), g_overviewRisk.allowance, math.floor(cur))
+    end
+    tooltipParts[#tooltipParts + 1] = "Hint: consider using this monster's turn before the heroes strike. Straight-line estimate; crits and choices can beat it either way."
+    return {
+        level = level,
+        text = text,
+        tooltip = table.concat(tooltipParts, "\n"),
+    }
+end
+
 --Acted-this-round from the live initiative queue: true / false, or nil when
 --there is no (visible) queue or the token has no entry in it.
 local function OverviewActedState(q, tok)
@@ -4108,6 +4288,7 @@ local function OverviewColumnSignals(column)
                     statuses = OverviewStatusEntries(tok),
                     --P2-d: only in combat (heroes nil otherwise -> nil).
                     reach = cond(heroes ~= nil, OverviewReach(tok, column.abilities, heroes), nil),
+                    risk = nil,
                     acted = OverviewActedState(q, tok),
                     --Slice (e): mid-turn (HasHadTurn only flips at turn
                     --end), so the signal line can read "acting now".
@@ -4116,6 +4297,14 @@ local function OverviewColumnSignals(column)
                 if q ~= nil then
                     pcall(function() member.acting = q.currentTurn == InitiativeQueue.GetInitiativeId(tok) end)
                 end
+                --P2-e: threat estimate (nil when safe / out of combat).
+                local marked = false
+                for _, entry in ipairs(member.statuses or {}) do
+                    if entry.threat then
+                        marked = true
+                    end
+                end
+                member.risk = OverviewThreatEstimate(tok, marked, q ~= nil)
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -4459,6 +4648,19 @@ local function OverviewColumnFooter()
             end
         end,
     }
+    --P2-e: the threat-estimate line ("High target risk - marked by heroes,
+    --3 heroes in striking range"); collapsed when safe. Hover = the
+    --arithmetic + the hint.
+    local m_riskTooltip = nil
+    local riskLabel = gui.Label {
+        classes = { "overviewFooterRisk", "collapsed" },
+        text = "",
+        hover = function(element)
+            if m_riskTooltip ~= nil then
+                gui.Tooltip(m_riskTooltip)(element)
+            end
+        end,
+    }
 
     --P2-a: status strip - the token HUD's status icons for a single-member
     --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
@@ -4537,6 +4739,7 @@ local function OverviewColumnFooter()
             roleLabel,
             signalLabel,
             reachLabel,
+            riskLabel,
             statusStrip,
         },
     }
@@ -4652,6 +4855,16 @@ local function OverviewColumnFooter()
                         signal = reach
                     else
                         signal = signal .. " - " .. reach
+                    end
+                end
+                --P2-e short tag on the member row.
+                if member.risk ~= nil then
+                    local color = member.risk.level == "red" and g_overviewRisk.red or g_overviewRisk.amber
+                    local tag = string.format("<color=%s><b>%s</b></color>", color, member.risk.level == "red" and "high risk" or "at risk")
+                    if signal == "" then
+                        signal = tag
+                    else
+                        signal = signal .. " - " .. tag
                     end
                 end
                 rowSignal.text = signal
@@ -5025,6 +5238,18 @@ local function OverviewColumnFooter()
             else
                 statusStrip:FireEvent("setStatuses", nil)
             end
+
+            --P2-e: risk line for a single actor; a multi-member column
+            --shows the WORST member's line (its rows carry short tags).
+            local risk = nil
+            for _, member in ipairs(members) do
+                if member.risk ~= nil and (risk == nil or (member.risk.level == "red" and risk.level ~= "red")) then
+                    risk = member.risk
+                end
+            end
+            m_riskTooltip = risk and risk.tooltip or nil
+            riskLabel.text = risk and risk.text or ""
+            riskLabel:SetClass("collapsed", risk == nil)
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil

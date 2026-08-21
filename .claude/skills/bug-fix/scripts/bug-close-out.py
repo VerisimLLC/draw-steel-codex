@@ -119,11 +119,16 @@ def main():
     rid = o["rid"]
     tag = "[dry-run] " if o["dry_run"] else ""
 
-    source, report = lib.load_report(rid)
+    data = lib.bugs().report(rid)
+    source, report = data.get("source"), data.get("report")
     if report is None:
         raise SystemExit("Report %s not found in /BugReports or /BugReportsArchive." % rid)
     uid = report.get("userid")
     thread_id = o["thread"] or (report.get("triage") or {}).get("issueId")
+    # Which forum the thread lives in, so the reply uses that channel's webhook.
+    # Absent for pre-split threads and for a --thread override; both fall back
+    # to the default channel.
+    channel_key = (data.get("issue") or {}).get("channelKey")
 
     print("Report %s (%s)" % (rid, source))
     print("  user    : %s" % (uid or "(none)"))
@@ -167,7 +172,7 @@ def main():
     else:
         print("\n%sdiscord reply -> thread %s:\n  %s" % (tag, thread_id, o["discord_text"]))
         if not o["dry_run"]:
-            lib.discord_reply(cfg, thread_id, o["discord_text"])
+            lib.discord_reply(cfg, thread_id, o["discord_text"], channel_key=channel_key)
             steps.append(("discord", True, "replied to thread %s" % thread_id))
         else:
             steps.append(("discord", None, "would reply"))

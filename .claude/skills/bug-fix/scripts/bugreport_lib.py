@@ -617,15 +617,17 @@ class TicketsClient:
 DISCORD_COLOR_RESOLVED = 0x2ECC71  # green: resolved
 
 
-def discord_reply(cfg, thread_id, text, color=DISCORD_COLOR_RESOLVED):
+def discord_reply(cfg, thread_id, text, color=DISCORD_COLOR_RESOLVED, channel_key=None):
     """Reply into an existing forum thread via the webhook owning its channel.
 
     Bugs and other feedback live in different forums, so the webhook depends on
-    the thread: take it from the issue node's channelKey, which is absent (=>
-    default channel) for threads created before that split.
+    the thread: `channel_key` is the issue node's channelKey, which the caller
+    reads off the /api/bugs/report payload. It is absent (=> default channel)
+    for threads created before the bug/feedback channel split, and for a
+    --thread override on an untriaged report -- both of which are exactly what
+    the default-channel fallback is for.
     """
-    key = ref("/BugReportTriage/issues/%s/channelKey" % thread_id).get()
-    webhook = webhook_for_key(cfg, key)
+    webhook = webhook_for_key(cfg, channel_key)
     if not webhook or "REPLACE_ME" in webhook:
         raise SystemExit("Discord webhook is not configured in bug-report-config.json")
     url = webhook + "?wait=true&thread_id=%s" % thread_id

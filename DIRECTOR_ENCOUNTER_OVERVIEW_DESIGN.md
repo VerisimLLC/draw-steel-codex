@@ -1000,7 +1000,14 @@ icon is working") - multi-target and summon chip badges. Live-verified.**
   center, the keywords own the bottom, the novel pip owns the top-left.
   CHIP CORNER MAP for anyone adding decorations: top-left = novel pip,
   top-right = badge row, center-right = cost diamond, bottom span =
-  keywords/action type/condition glyphs.
+  keywords/action type/condition glyphs. Second nudge (Ricky): on a SHORT
+  chip (2 lines, e.g. Get in Here!) the centered diamond rides high enough
+  to reach the top corner - badge row rmargin is 18 because the diamond
+  (30px, hmargin -15) intrudes exactly 15px into the chip. Not re-verified
+  on screen: Ricky restarted into a different live game (Gorek/Targon
+  demo) mid-fix; geometry is deterministic. Note: overview confirmed
+  correctly ABSENT for a mixed monster+hero selection in that game (F2-1
+  holds outside A5).
 
 **2026-08-19, twelfth user field test (Ricky) - map clutter under the lens
 bar + minion copy.**

@@ -3238,7 +3238,11 @@ local function AbilityHeading(args)
         floating = true,
         halign = "right",
         valign = "top",
-        rmargin = 4,
+        --rmargin clears the malice cost diamond, which floats half-out of
+        --the right edge and intrudes 15px into the chip (on a SHORT chip its
+        --centre rides high enough to reach the top corner - seen live on
+        --Get in Here!).
+        rmargin = 18,
         tmargin = 3,
         flow = "horizontal",
         m_summonBadge,

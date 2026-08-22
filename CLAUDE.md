@@ -233,6 +233,10 @@ local s = "This creature"
 if token.canLocalPlayerSeeName and token.name ~= nil then s = "The " .. token.name end
 ```
 
+## Comment Style
+
+Write comments (and notes on multiline changes) for a junior dev unfamiliar with this system: concise, plain language, 1-3 lines max. Never simply restate what the code does -- explain what is happening, how to use it, or why it exists. A comment documenting a new function and its variables may run longer than 3 lines.
+
 ## Monster Reference Documentation
 
 **[monster-reference.md](monster-reference.md)** contains the complete stat blocks for every monster in Draw Steel Book Two: Monsters. Use this as the authoritative source when implementing or auditing monster YAML files in `compendium/bestiary/`. It includes all abilities, traits, villain actions, malice features, power roll tiers, and stat tables for every creature.

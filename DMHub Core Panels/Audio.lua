@@ -6089,9 +6089,12 @@ local function BuildSoundPanelContent()
 				vmargin = 4,
 			}
 
-			local searchInput = gui.Input{
+			--the canonical search field; look comes from DefaultStyles'
+			--searchInput rules, borderBox keeps its hpad 24 inside the width.
+			local searchInput = gui.SearchInput{
 				placeholderText = "Search sounds",
 				text = "",
+				borderBox = true,
 				width = "100%",
 				height = 24,
 				editlag = 0.1,
@@ -8425,9 +8428,12 @@ local CreateStudioSoundboard = function()
 			vmargin = 4,
 		}
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		local searchInput = gui.SearchInput{
 			placeholderText = "Search clips and pools",
 			text = "",
+			borderBox = true,
 			width = "100%",
 			height = 24,
 			editlag = 0.1,

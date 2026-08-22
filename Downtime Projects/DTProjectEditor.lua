@@ -906,10 +906,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Title:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-160",
+                hmargin = 4,
                 data = {
                     ownerName = ownerName,
                     ownerColor = ownerColor,
@@ -941,18 +945,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Progress field
     local progressField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Progress:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -988,10 +996,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Project Source:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-60",
+                hmargin = 4,
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1016,18 +1028,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Characteristic field (read-only, displays comma-separated list)
     local characteristicField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Project Roll Characteristic:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1058,18 +1074,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Language field
     local languageField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Language Penalty:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1097,18 +1117,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Status field
     local statusField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Status:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1155,17 +1179,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 height = "auto",
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {titleField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {statusField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {progressField}
                     }
@@ -1177,17 +1201,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {sourceField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {languageField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {characteristicField}
                     }

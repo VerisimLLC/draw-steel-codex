@@ -4492,7 +4492,6 @@ ScheduleDriver()
 --options:
 --  width        : block width (default 700)
 --  height       : code area height (default 340)
---  filenameHint : used for the external editor's temp filename
 --  getText      : function() -> current code
 --  setText      : function(newCode) called whenever the code changes
 function EncounterScript.CreateCodePanel(options)
@@ -4583,17 +4582,7 @@ function EncounterScript.CreateCodePanel(options)
             vmargin = 4,
             click = function(element)
                 DestroyWatcher()
-                --OpenTextFileInConnectedEditor caps filenames at 48 chars and
-                --returns nil past it. filenameHint is a 36-char data-table GUID,
-                --so the full "encounterscript-<guid>.lua" (56 chars) always
-                --overflowed. Keep the prefix short and truncate the hint so the
-                --result stays well under the limit.
-                local hint = tostring(options.filenameHint or "script")
-                if #hint > 24 then
-                    hint = hint:sub(1, 24)
-                end
-                local filename = string.format("encounter-%s.lua", hint)
-                watcher = dmhub.OpenTextFileInConnectedEditor(filename, options.getText() or "", function(contents)
+                watcher = dmhub.OpenTextFileInConnectedEditor(options.getText() or "", function(contents)
                     if mod.unloaded or not resultPanel.valid then
                         return
                     end
@@ -4616,7 +4605,6 @@ end
 --The modal editor for an attachment's custom Lua. options:
 --  title            : dialog title (default "Encounter Script")
 --  code             : initial code
---  filenameHint     : external-editor temp filename hint
 --  onSave           : function(newCode) - called when Save is pressed
 --  canSaveToLibrary : offer the "Save to Library..." button
 --  onSavedToLibrary : function(scriptid) - called after the library item is
@@ -4628,7 +4616,6 @@ function EncounterScript.ShowCodeEditorDialog(options)
     local codePanel = EncounterScript.CreateCodePanel{
         width = "100%",
         height = 380,
-        filenameHint = options.filenameHint,
         getText = function() return currentCode end,
         setText = function(text) currentCode = text end,
     }
@@ -4812,7 +4799,6 @@ local ScriptCompendiumSetData = function(tableName, scriptPanel, keyid)
     children[#children + 1] = EncounterScript.CreateCodePanel{
         width = 800,
         height = 420,
-        filenameHint = keyid,
         getText = function()
             return script:try_get("code", "")
         end,

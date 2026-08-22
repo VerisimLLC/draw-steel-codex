@@ -5985,7 +5985,7 @@ local LibraryPanel = function()
 	-- text, clears the filter on press.
 	local clearSearchButton = gui.Panel{
 		floating = true,
-		bgimage = "ui-icons/close.png",
+		bgimage = "phosphor/x-bold.png",
 		bgcolor = "@fgMuted",
 		width = 14,
 		height = 14,

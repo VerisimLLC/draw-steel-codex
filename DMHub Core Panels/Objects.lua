@@ -929,13 +929,15 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 	--the root folder gets additional UI, such as a search and ways to add objects.
 	local rootPanel = nil
-	local clearSearchButton = nil
+	--hoisted out of the root-only block: the collapse handler below the
+	--block clears the search through it. The clear x itself is built into
+	--gui.SearchInput now, so there is no separate clear button any more.
+	local searchInput = nil
 	if nodeid == '' then
 
 		isCollapsed = false
 
 		local updateSearch = function(element)
-			clearSearchButton:SetClass('collapsed', element.text == '')
 			local text = element.text
 			if string.len(text) <= 1 then
 				--one character searches just count as no search.
@@ -967,16 +969,17 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			folderPane.data.search(text)
 		end
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		--Its built-in clear x replaces the old separate clear button.
+		searchInput = gui.SearchInput{
 			id = 'ObjectSearch',
 			placeholderText = 'Search Objects...',
 			halign = 'left',
 			valign = 'center',
-			style = {
-				fontSize = '50%',
-				width = '80%',
-				height = '100%',
-			},
+			borderBox = true,
+			width = '80%',
+			height = 24,
 
 			editlag = 0.25,
 			events = {
@@ -986,23 +989,6 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 				end,
 			}
 		}
-
-		clearSearchButton = gui.Button{
-			icon = 'ui-icons/close.png',
-			classes = {'collapsed'},
-			width = 16,
-			height = 16,
-			halign = 'left',
-			valign = 'center',
-
-			events = {
-				click = function(element)
-					searchInput.text = ''
-					updateSearch(searchInput)
-				end,
-			}
-		}
-
 
 		rootPanel =
 		gui.Panel{
@@ -1025,7 +1011,6 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					},
 					children = {
 						searchInput,
-						clearSearchButton,
 						gui.Panel{
 							floating = true,
 							halign = "right",
@@ -1138,8 +1123,9 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 							element:SetClass('search', false)
 							searchActive = false
 
-							if clearSearchButton ~= nil then --is root panel, clear search.
-								clearSearchButton:FireEvent('click')
+							if searchInput ~= nil then --is root panel, clear search.
+								searchInput.text = ''
+								searchInput:FireEvent('edit')
 							end
 						end
 

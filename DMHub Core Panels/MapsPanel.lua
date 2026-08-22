@@ -382,23 +382,10 @@ local function BuildMapListStyles()
 			valign = "center",
 			lmargin = 4,
 		},
-		--The search field: DefaultStyles ships searchInput borderless (its
-		--comment says surfaces wanting a frame add one locally); use the
-		--title bar's thin @border treatment, with quieter type than the
-		--16px bold default so the field does not outshout the rows.
-		{
-			selectors = {"searchInput"},
-			fontSize = 13,
-			bold = false,
-			borderWidth = 1,
-			borderColor = "@border",
-			priority = 10,
-		},
-		{
-			selectors = {"searchInput", "focus"},
-			borderColor = "@fgStrong",
-			priority = 10,
-		},
+		--(The search field's local thin-frame/quiet-type variant was
+		--promoted to the app-wide canonical searchInput look in
+		--DefaultStyles -- Control Zoo decision 2026-08-20 -- so this
+		--surface no longer re-styles it.)
 		--The create-map button takes the Phosphor plus instead of the shared
 		--ui-icons/Plus.png, matching the caret/gear masks used in this panel
 		--(and the same swap the floors list makes). Scoped here so the

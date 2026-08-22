@@ -894,6 +894,7 @@ function GameHud:RequireRollListenerPanel()
 												req:BeginChanges()
 												req.info.tokens[tokid].status = 'complete'
 												req.info.tokens[tokid].result = rollInfo.total
+												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
 

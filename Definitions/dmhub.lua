@@ -421,12 +421,11 @@ function dmhub.ParseJsonFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
---- OpenTextFileInConnectedEditor: Opens a text file in the user's default editor and watches for changes. Returns a file watcher object, or nil if the filename is invalid.
---- @param filename string The filename to create and open.
+--- OpenTextFileInConnectedEditor: During a native user action, opens an engine-owned temporary .txt file in the user's default text editor and watches for changes. Lua cannot choose the path or extension. Returns a file watcher object, or nil if the request is rejected.
 --- @param contents string The initial contents to write to the file.
 --- @param callback fun(newContents: string): nil Called when the file is modified externally.
 --- @return LuaFileWatcher|nil
-function dmhub.OpenTextFileInConnectedEditor(filename, contents, callback)
+function dmhub.OpenTextFileInConnectedEditor(contents, callback)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1577,16 +1576,16 @@ function dmhub.OpenCharacterPopout(characterId, extraParams, onError)
 	-- dummy implementation for documentation purposes only
 end
 
---- RunSteamHandoffDiagnostic: DEV ONLY. Runs the Steam companion-popout handoff end-to-end against the live cloud function and reports every captured datapoint back to onComplete as a table. Use this to diagnose why drawSteelCompanion authentication might be failing on a particular machine. The variant argument selects the test scenario; pass 0 for the happy path or 1-5 to deliberately break a specific step (see SteamHandoffVariant in LoginController.cs).
+--- RunSteamHandoffDiagnostic: ADMIN ONLY. Runs the Steam companion-popout handoff end-to-end against the live cloud function and reports every captured datapoint back to onComplete as a table. The engine rejects non-admin accounts before requesting a Steam ticket or starting any network work. Use this to diagnose why drawSteelCompanion authentication might be failing on a particular machine. The variant argument selects the test scenario; pass 0 for the happy path or 1-5 to deliberately break a specific step (see SteamHandoffVariant in LoginController.cs).
 --- @param variant integer 0=HappyPath, 1=WrongIdentityCasing, 2=DashedHex, 3=Base64Ticket, 4=OldApiNoIdentity, 5=WrongAppId.
 --- @param onComplete function Called with a single result table containing variant, steamInitialized, steamLoggedOn, steamId, personaName, appId, identityRequested, identityRequestedLength, methodUsed, ticketHandle, callbackFired, callbackResult, callbackElapsedSeconds, ticketSize, ticketEncoding, ticketEncodedLength, ticketEncodedFirst16, appIdSent, mintUrl, httpStatus, httpElapsedSeconds, responseBody, nonce, consumeUrl, ok, error, errorStep.
 function dmhub.RunSteamHandoffDiagnostic(variant, onComplete)
 	-- dummy implementation for documentation purposes only
 end
 
---- RunSteamHandoffConsume: DEV ONLY. POSTs the given nonce to steamHandoffConsume and reports the server response. Use this to verify the browser-side leg of the popout handoff (without actually opening a browser) after RunSteamHandoffDiagnostic returns a nonce.
+--- RunSteamHandoffConsume: ADMIN ONLY. POSTs the given nonce to steamHandoffConsume and reports the server response. The engine rejects non-admin accounts before starting any network work. Use this to verify the browser-side leg of the popout handoff (without actually opening a browser) after RunSteamHandoffDiagnostic returns a nonce.
 --- @param nonce string A nonce returned from a successful RunSteamHandoffDiagnostic call.
---- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, and on success also uid, steamid, tokenLength, tokenPrefix.
+--- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
 function dmhub.RunSteamHandoffConsume(nonce, onComplete)
 	-- dummy implementation for documentation purposes only
 end

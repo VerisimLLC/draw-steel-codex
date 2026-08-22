@@ -817,9 +817,17 @@ local function GatherAllAssetsChildren(children, knownAssetsInCore)
 	local assetsByType = {}
 
 	for k,v in pairs(all) do
-		local items = assetsByType[v.assetType] or {}
+		local assetType = v.assetType
+		if assetType == "Folder" and assets.monsterFolders[k] ~= nil then
+			--AssetFolder is shared by several asset systems, so the engine-level
+			--assetType is only "Folder". Split bestiary folders out here so their
+			--create/modify/delete records are visible and understandable to publishers.
+			assetType = "Bestiary Folder"
+		end
+
+		local items = assetsByType[assetType] or {}
 		items[k] = v
-		assetsByType[v.assetType] = items
+		assetsByType[assetType] = items
 	end
 
 	for t,items in pairs(assetsByType) do
@@ -5110,9 +5118,12 @@ mod.shared.ShowDownloadShareDialog = function(options)
 
 		styles = ThemeEngine.MergeTokens(moduleDisplayCustomStyles),
 
-		gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules.
+		gui.SearchInput{
 			valign = "top",
 			vmargin = 20,
+			borderBox = true,
 			placeholderText = "Search for modules...",
 			editlag = 0.3,
 			edit = function(element)

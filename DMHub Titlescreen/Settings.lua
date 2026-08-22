@@ -2901,6 +2901,14 @@ setting{
 	editor = "dropdown",
 		enum = {
 		{
+			value = 60,
+			text = "60%",
+		},
+		{
+			value = 70,
+			text = "70%",
+		},
+		{
 			value = 80,
 			text = "80%",
 		},

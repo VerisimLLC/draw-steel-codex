@@ -186,6 +186,18 @@ function game.EndRecordingMapModification()
 	-- dummy implementation for documentation purposes only
 end
 
+--- BeginWallVoxelBatch: Begin batching wall-voxel column synchronization. Column terrain operations remain current locally, but their server patches and the expensive map rebuild are deferred until EndWallVoxelBatch. Safe to call when a batch is already active.
+--- @return nil
+function game.BeginWallVoxelBatch()
+	-- dummy implementation for documentation purposes only
+end
+
+--- EndWallVoxelBatch: End the active wall-voxel batch, publishing all accumulated terrain-operation edits in one non-undoable patch and rebuilding the map once if any column changed. Safe to call when no batch is active.
+--- @return nil
+function game.EndWallVoxelBatch()
+	-- dummy implementation for documentation purposes only
+end
+
 --- AddMapModificationVoxel: Attach a wall-voxel object (as returned by floor:SpawnObjectLocal) to the active map modification recording. Wall voxels persist outside the map document, so recordings reference them directly instead of capturing commands; deleting the record destroys whichever of its voxels still survive. No-op if no recording is active.
 --- @param obj ObjectInstance The spawned wall-voxel object.
 function game.AddMapModificationVoxel(obj)

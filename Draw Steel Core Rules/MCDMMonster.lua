@@ -505,6 +505,12 @@ function monster:SizeDescription()
     return self:GetBaseCreatureSize()
 end
 
+--the statblock's title-line role text, e.g. "Level 1 Horde Harrier" or
+--"Level 2 Ruinant minion".
+function monster:RoleDescription()
+    return string.format("Level %d %s%s", round(tonumber(self.cr) or 0), self.role, cond(self.minion, " minion", ""))
+end
+
 --render a 'statblock' for the creature.
 function monster:Render(args, options)
 
@@ -565,8 +571,9 @@ function monster:Render(args, options)
     local normalActions = {}
 
     for _,ability in ipairs(abilities) do
+        --No extra pad: the card carries its own insets now that it draws as
+        --a bordered rounded card.
         normalActions[#normalActions+1] = ability:Render({
-            pad = 12,
             width = "100%",
         }, {
             token = token,
@@ -615,6 +622,7 @@ function monster:Render(args, options)
 				halign = "left",
 
                 gui.Panel{
+                    classes = {"statblockNameRow"},
                     width = "100%",
                     height = 28,
                     flow = "horizontal",
@@ -636,7 +644,7 @@ function monster:Render(args, options)
                         width = "auto",
                         height = "auto",
                         halign = "right",
-                        text = string.format("Level %d %s%s", round(tonumber(self.cr) or 0), self.role, cond(self.minion, " minion", "")),
+                        text = self:RoleDescription(),
                     }
                 },
 

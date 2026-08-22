@@ -5453,14 +5453,20 @@ local function CreateShopScreenInternal(arguments)
 						element:SetClass("viewingItem", false)
 					end,
 
-					gui.Input{
+					--the canonical search field (gui.SearchInput brings its own
+					--magnifier and the DefaultStyles searchInput look; the old
+					--hand-placed icon child is gone).
+					gui.SearchInput{
 						placeholderText = "Search",
 						halign = "right",
 						editlag = 0.2,
 						--Wipe the typed text without re-running the search; the
 						--caller resets the results itself (see the redeem toggle).
+						--The programmatic set fires no edit/change, so nudge the
+						--component's clear x to re-hide itself.
 						clearSearch = function(element)
 							element.text = ""
+							element:FireEventTree("refreshSearchClear")
 						end,
 						edit = function(element)
 							element:FireEvent("change")
@@ -5474,16 +5480,6 @@ local function CreateShopScreenInternal(arguments)
 							}
 
 						end,
-
-						gui.Panel{
-							halign = "left",
-							x = -22,
-							y = 4,
-							width = 16,
-							height = 16,
-							bgcolor = "white",
-							bgimage = "icons/icon_tool/icon_tool_42.png",
-						},
 					},
 				},
 

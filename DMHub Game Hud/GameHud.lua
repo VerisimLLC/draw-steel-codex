@@ -1466,8 +1466,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:RequireRollListenerPanel(),
 			FullscreenDisplay.Create{belowui = true},
 			--gamehud:CreateSidePanel(),
-			gamehud:CreateActionBar(dialog, tokenInfo),
-			gamehud:CreateReactionBar(dialog, tokenInfo),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
 			gamehud:CreateFrozenLabel(),
@@ -1486,6 +1484,31 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--while still leaving it below mainDialog / modal / popup / rollDialog,
 			--so modals and the dice dialog continue to win.
 			gamehud:CreateDocumentsPanel(),
+
+			--The action bar sits ABOVE the documents layer for the same reason.
+			--Everything the bar floats out of its strip -- the drawer menus, the
+			--cast controls (abilityController / Confirm), the Respite Activity
+			--drawer -- reaches up to ~900px into map space, so a window parked
+			--anywhere near the bottom centre swallowed the control AND its
+			--clicks. Reported three times over: UECH333Y (drawer cards),
+			--58DDT3EB (Confirm), TR4BXVG8 (Respite Activity).
+			--
+			--Promoting the whole bar rather than re-homing the individual popups
+			--is deliberate. The popups cannot leave the bar's subtree: drawer
+			--menus re-parent into their own drawer to position themselves and
+			--route events through FindParentWithClass("actionBar")
+			--(DrawSteelActionBar.lua, the ActionMenu "menu" handler), and the
+			--rest ride the bar's FireEventTree. renderOnTop is no help either --
+			--it draws on the top-most sorting canvas, which the raycaster does
+			--not reach, so the control would paint but stay unclickable.
+			--
+			--The price is that the bar's own strip (its gradient backdrop and the
+			--drawer buttons, ~58px tall and panelWidth wide, not full screen) now
+			--draws over the bottom of a window parked at bottom centre. That is
+			--much the smaller footprint of the two, and the bar hides itself
+			--entirely when no token is selected.
+			gamehud:CreateActionBar(dialog, tokenInfo),
+			gamehud:CreateReactionBar(dialog, tokenInfo),
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
 			mainDialogPanel,
@@ -1548,18 +1571,22 @@ end
 --roll host). With the legacy docks a fixed 364 column is reserved for
 --the right dock. In icon-rail mode the dock is gone, so the hosts sit
 --near the right edge -- clearing only the rail's button column -- and
---slide left, up to the legacy 364, when floating panel windows are
---parked against the right edge (RailWindowsRightIntrusion).
+--slide left, as far as needed to fully clear floating panel windows
+--parked against the right edge (RailWindowsRightIntrusion), stopping
+--only when the host itself would run off the left of the screen.
 local RIGHT_HOST_LEGACY_MARGIN = 364
 --rail column: 12 edge margin + 40 button + a small gap.
 local RIGHT_HOST_RAIL_MARGIN = 60
-local function RightHostMargin()
+local function RightHostMargin(hostWidth)
     if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
         return RIGHT_HOST_LEGACY_MARGIN
     end
     local intrusion = 0
     if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
-        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN)
+        --the reserve keeps the host on screen: its own width plus a
+        --left rail column's worth of clearance.
+        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN,
+            hostWidth + RIGHT_HOST_RAIL_MARGIN)
     end
     return math.max(RIGHT_HOST_RAIL_MARGIN, intrusion)
 end
@@ -1568,6 +1595,12 @@ end
 --the inputs (the iconrail setting, window drags/opens/closes) have no
 --single change event, and the check is a handful of table reads.
 local function TrackRightHostMargin(panel)
+    --both hosts declare fixed numeric widths; fall back to the wider of
+    --the two so a non-numeric width just means a slightly shorter slide.
+    local hostWidth = panel.selfStyle.width
+    if type(hostWidth) ~= "number" then
+        hostWidth = 540
+    end
     local currentMargin = nil
     panel.thinkTime = 0.25
     --panels built with no event handlers have a nil events table; reading
@@ -1576,7 +1609,7 @@ local function TrackRightHostMargin(panel)
         panel.events = {}
     end
     panel.events.think = function(element)
-        local m = RightHostMargin()
+        local m = RightHostMargin(hostWidth)
         if m ~= currentMargin then
             currentMargin = m
             element.selfStyle.rmargin = m
@@ -1891,9 +1924,9 @@ end
 function GameHud:CreateFrozenLabel()
 
 	local freezebind = dmhub.GetCommandBinding("togglefreeze")
-	local bindtext = "(Players cannot move.)"
+	local bindtext = "(Players cannot act.)"
 	if freezebind ~= nil and dmhub.isDM then
-		bindtext = string.format("(Players cannot move. %s to toggle.)", freezebind)
+		bindtext = string.format("(Players cannot act. %s to toggle.)", freezebind)
 	end
 
 

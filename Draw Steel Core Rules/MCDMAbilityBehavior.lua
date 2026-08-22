@@ -17,7 +17,7 @@ end
 --- Executes a GoblinScript "rule" as part of the ability's power table effect resolution.
 ActivatedAbilityDrawSteelCommandBehavior = RegisterGameType("ActivatedAbilityDrawSteelCommandBehavior", "ActivatedAbilityBehavior")
 
-ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Roll Effect'
+ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Table Effect'
 ActivatedAbilityDrawSteelCommandBehavior.rule = ''
 
 ActivatedAbility.RegisterType

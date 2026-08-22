@@ -1493,6 +1493,51 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     return result
 end
 
+--- Evaluates only the authored filter formulas -- customTargetFilters
+--- (Ability Filters), the Target Filter formula, and Reasoned Filters --
+--- against a prospective target. None of TargetPassesFilter's structural
+--- gates (allegiance, untargetable, line of sight) run here. Use where the
+--- target is predetermined (e.g. a triggered ability targeting its subject)
+--- and only the author's filters should gate it.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean, nil|string
+function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+	local reasonedFilters = self:try_get("reasonedFilters", {})
+	local customFilters = self:try_get("customTargetFilters", {})
+	local filter = self.targetFilter
+	if filter == "" and #reasonedFilters == 0 and #customFilters == 0 then
+		return true
+	end
+
+	--Same symbol environment TargetPassesFilter builds for its formulas.
+	local caster = GenerateSymbols(casterToken.properties)
+	symbols = table.shallow_copy(symbols or {})
+	symbols.invoker = symbols.invoker or caster
+	symbols.caster = caster
+	symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+	symbols.target = GenerateSymbols(targetToken.properties)
+
+	for _,customFilter in ipairs(customFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(customFilter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+			return false
+		end
+	end
+
+	if filter ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+		return false
+	end
+
+	for _,reasonedFilter in ipairs(reasonedFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name))) then
+			return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+		end
+	end
+
+	return true
+end
+
 --- @return boolean
 function ActivatedAbility:CanDuplicateTargets()
 	return self.repeatTargets
@@ -2654,6 +2699,14 @@ end
 --- @param targets { loc = Loc, token = CharacterToken }[]
 --- @param options table
 function ActivatedAbility:Cast(casterToken, targets, options)
+	--While the Director has the game frozen, players cannot act. Refuse here,
+	--before the chat message and before any resources are spent -- this is the
+	--central funnel every ability activation path goes through.
+	if dmhub.frozen and not dmhub.isDM then
+		print("Cast:: refused; the game is frozen")
+		return
+	end
+
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()

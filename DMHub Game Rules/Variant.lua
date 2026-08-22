@@ -767,11 +767,14 @@ local ShowChoiceDialog = function(argOptions)
 
 			checksPanel,
 
-			gui.Input{
+			--the canonical search field; look comes from DefaultStyles'
+			--searchInput rules, borderBox keeps its hpad 24 inside the width.
+			gui.SearchInput{
 				halign = "left",
 				valign = "center",
 				hmargin = 20,
 				placeholderText = "Search...",
+				borderBox = true,
 				width = 180,
 				height = 20,
 				editlag = 0.25,

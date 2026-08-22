@@ -1485,7 +1485,7 @@ function CustomDocument:CreateInterface(args)
                         return
                     end
                     resultPanel.data.watcherContent = self:GetTextContent()
-                    resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self.description, self:GetTextContent(),
+                    resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self:GetTextContent(),
                         function(contents)
                             if resultPanel.data == nil then
                                 return
@@ -6599,6 +6599,19 @@ setting{
     default = "",
 }
 
+--Per-panel zoom override for popped-out windows: { [panelKey] = percent }
+--in the same units as the Font Size setting. A panel absent from the
+--table simply follows Font Size (see PopoutContentScale); an entry
+--detaches that one window from the setting until it is stepped back
+--onto the setting's own value. Unlike popoutwindows this is NOT
+--session-stamped -- a zoom the user chose for a panel is a lasting
+--preference, and it applies again the next time that panel pops out.
+setting{
+    id = "popoutzoom",
+    storage = "preference",
+    default = {},
+}
+
 --Which rail each panel button lives on and in what order:
 --{ [panelKey] = { side = "left"|"right", ord = number } }. Panels absent
 --from the table default to the left rail in curated order. Written when
@@ -6890,7 +6903,36 @@ end
 local ICON_RAIL_BUTTON = 40
 local ICON_RAIL_GAP = 8
 local ICON_RAIL_LEFT = 12
-local ICON_RAIL_TOP = 64
+--The gap the rearrange-mode stop button leaves below itself (its own y
+--offset, in pre-scale rail units) AND above itself (in layer units) --
+--see IconRailTop. A field rather than a local because this file sits on
+--Lua's 200-locals-per-chunk ceiling; PanelDocument already carries
+--constants this way (CHAT_BUBBLE_WIDTH and friends).
+PanelDocument.RAIL_STOP_GAP = 12
+
+--The column's top inset in LAYER units: 64, the flat gap between the
+--title bar and slot 0 -- except that same gap is also the stop button's
+--home in rearrange mode, a floating ICON_RAIL_BUTTON that renders at
+--the Font Size zoom (setRailScale) while the gap itself does not zoom.
+--Past ~120% the scaled button no longer fitted and the title bar
+--clipped its top edge, so the inset grows to hold it plus a matching
+--margin above.
+--
+--Unconditional rather than only-while-rearranging on purpose: the inset
+--also sets the column's slot capacity (WrapRailOverflow), so an inset
+--that moved with the mode would shunt a full column's last button over
+--to the other rail on entering rearrange and back again on leaving. At
+--100% the two expressions are equal, so nothing moves at the default
+--zoom. (The 64 lives inline rather than in an ICON_RAIL_TOP constant
+--because this chunk is at the 200-locals ceiling -- replacing the
+--constant with this function is what kept the count flat.)
+local function IconRailTop()
+    local needed = (ICON_RAIL_BUTTON + PanelDocument.RAIL_STOP_GAP) * WindowUIScale() + PanelDocument.RAIL_STOP_GAP
+    if needed > 64 then
+        return needed
+    end
+    return 64
+end
 --the group-shadow image (core cloud asset, uploaded 2026-08-08): a
 --40x40 rounded card with the rail button's own silhouette subtracted
 --at the (-5,+5) stack offset, so the shadow's inner edge follows the
@@ -7577,7 +7619,7 @@ end
 --button's width scale too.
 local function RailAnchor(side, index)
     local scale = WindowUIScale()
-    local anchorY = ICON_RAIL_TOP + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local anchorY = IconRailTop() + index * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     local maxY = 1080 - PanelDocument.DefaultHeight * scale - 40
     --a zoom big enough that the window cannot fit at all still opens it
     --pinned to the top rather than pushed above the screen.
@@ -7689,7 +7731,7 @@ local function RailBandTarget(dialog, lx, ly)
     --the rail renders at the Font Size zoom (setRailScale), so slot
     --geometry in layer units carries the same factor.
     local pitch = (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * WindowUIScale()
-    local desired = math.floor((ly - ICON_RAIL_TOP) / pitch + 0.5)
+    local desired = math.floor((ly - IconRailTop()) / pitch + 0.5)
     local maxTop = ICON_RAIL_MAX_SLOT - (span - 1)
     if desired < 0 then
         desired = 0
@@ -8048,7 +8090,12 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         local d = doc:try_get("_tmp_dialog")
         local geometry = nil
         if d ~= nil and d.valid then
-            geometry = { width = d.renderedWidth, height = d.renderedHeight }
+            --renderedWidth/Height are PRE-uiscale panel units, so the
+            --window's own scale rides along: the popout is born with the
+            --same on-screen footprint even when it renders at a different
+            --zoom (see OpenPanelPopout).
+            geometry = { width = d.renderedWidth, height = d.renderedHeight,
+                scale = d.data.windowScale }
         end
         doc:ClosePanel()
         OpenPanelPopout(key, geometry)
@@ -8103,7 +8150,7 @@ local function RailDropPoint(dropX, dropY, excludeKey)
     --2026-08-08: vacant-slot drops landing one space too low).
     --slot bands are scaled by the rail's Font Size zoom (setRailScale).
     local railScale = WindowUIScale()
-    local targetSlot = math.floor((dropY - ICON_RAIL_TOP + ICON_RAIL_GAP * railScale / 2) / ((ICON_RAIL_BUTTON + ICON_RAIL_GAP) * railScale))
+    local targetSlot = math.floor((dropY - IconRailTop() + ICON_RAIL_GAP * railScale / 2) / ((ICON_RAIL_BUTTON + ICON_RAIL_GAP) * railScale))
     if targetSlot < 0 then
         targetSlot = 0
     end
@@ -8194,7 +8241,7 @@ end
 local function RailButtonDragPointer(side, slot, element)
     local scale = WindowUIScale()
     local baseX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    local baseY = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local baseY = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -8222,7 +8269,7 @@ local function RailMemberDragPointer(side, ownerSlot, memberIndex, memberCount, 
         --member that much further left.
         baseX = railX - (memberCount + 1) * pitch + 4 * scale + (memberIndex - 1) * pitch
     end
-    local baseY = ICON_RAIL_TOP + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local baseY = IconRailTop() + ownerSlot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     return RailDragPointer(baseX, baseY, element)
 end
 
@@ -8303,7 +8350,7 @@ local function RailGroupZoneAt(px, py, draggedKey)
     local pitch = (ICON_RAIL_BUTTON + 8) * scale
     for _, z in ipairs(g_railStripZones) do
         if string.lower(z.ownerKey) ~= draggedKey then
-            local rowTop = ICON_RAIL_TOP + z.ownerSlot * rowPitch
+            local rowTop = IconRailTop() + z.ownerSlot * rowPitch
             if py >= rowTop - ICON_RAIL_GAP * scale / 2 and py <= rowTop + (ICON_RAIL_BUTTON + ICON_RAIL_GAP / 2) * scale then
                 local railX = cond(z.side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
                 local stripStart = cond(z.side == "left", railX + ICON_RAIL_BUTTON * scale, railX - (z.memberCount + 1) * pitch)
@@ -8472,7 +8519,12 @@ local function OpenIconRailWindow(panelName, placement)
             local d = doc:try_get("_tmp_dialog")
             local geometry = nil
             if d ~= nil and d.valid then
-                geometry = { width = d.renderedWidth, height = d.renderedHeight }
+                --renderedWidth/Height are PRE-uiscale panel units, so the
+                --window's own scale rides along: the popout is born with
+                --the same on-screen footprint even when it renders at a
+                --different zoom (see OpenPanelPopout).
+                geometry = { width = d.renderedWidth, height = d.renderedHeight,
+                    scale = d.data.windowScale }
             end
             doc:ClosePanel()
             OpenPanelPopout(key, geometry)
@@ -8552,6 +8604,16 @@ local function PopoutWindowStyles()
                 opacity = 1,
                 bgcolor = "@fgStrong",
             },
+            --a zoom control sitting at the end of its ladder. It stays in
+            --the header (the row must not reflow as the zoom changes) and
+            --just reads as inert; the priority is what keeps the hover
+            --rule above from brightening it back up.
+            {
+                selectors = {"panelDocumentCloseButton", "popoutZoomDisabled"},
+                priority = 10,
+                opacity = 0.2,
+                bgcolor = "@fg",
+            },
         }),
     }
 end
@@ -8582,6 +8644,7 @@ local function PopoutRememberWindow(key, geometry)
         geometry.y = geometry.y or prev.y
         geometry.width = geometry.width or prev.width
         geometry.height = geometry.height or prev.height
+        geometry.scale = geometry.scale or prev.scale
     end
     geometry.session = PopoutSessionId()
     records[key] = geometry
@@ -8594,6 +8657,73 @@ local function PopoutForgetWindow(key)
         records[key] = nil
         dmhub.SetSettingValue("popoutwindows", records)
     end
+end
+
+--===== popout zoom =====
+--A popped-out window scales exactly like an in-app rail window does --
+--the Font Size setting as a flat zoom on the whole window (see
+--WindowUIScale) -- with a per-panel override on top, stepped from the
+--window's own header. The override is what the +/- controls write.
+--
+--These hang off PanelDocument rather than being file locals because this
+--chunk is AT Lua's ceiling of 200 locals in a function: one more
+--top-level `local` in this file and it stops compiling outright.
+
+--This panel's zoom override in percent, or nil when it has none and the
+--window is following the Font Size setting.
+function PanelDocument.PopoutZoomOverride(key)
+    local zooms = dmhub.GetSettingValue("popoutzoom") or {}
+    local percent = zooms[key]
+    if type(percent) == "number" then
+        return percent
+    end
+    return nil
+end
+
+--Write (percent) or clear (nil) this panel's override. Every live popout
+--host monitors the setting, so the window re-scales off the back of this.
+function PanelDocument.SetPopoutZoomOverride(key, percent)
+    local zooms = dmhub.GetSettingValue("popoutzoom") or {}
+    zooms[key] = percent
+    dmhub.SetSettingValue("popoutzoom", zooms)
+end
+
+--The scale a popped-out window renders its content at. Outside rail mode
+--WindowUIScale is 1 (the engine magnifies fonts instead), so an
+--un-overridden popout there is unscaled exactly as it has always been.
+function PanelDocument.PopoutContentScale(key)
+    local override = PanelDocument.PopoutZoomOverride(key)
+    if override ~= nil then
+        return override * 0.01
+    end
+    return WindowUIScale()
+end
+
+--Keep the popout zoom controls on the same ladder as the General > Font Size
+--setting, so reaching that setting's value can always clear the override.
+PanelDocument.PopoutZoomSteps = {60, 70, 80, 90, 100, 110, 120, 130, 140}
+
+--The next rung above (dir > 0) or below (dir < 0) the given percentage,
+--or nil at the end of the ladder -- which is also how the controls know
+--to show themselves as inert. The epsilon keeps a percentage that IS a
+--rung (the common case) from matching itself.
+function PanelDocument.PopoutZoomStep(current, dir)
+    local steps = PanelDocument.PopoutZoomSteps
+    if dir > 0 then
+        for _, step in ipairs(steps) do
+            if step > current + 0.001 then
+                return step
+            end
+        end
+        return nil
+    end
+    for i = #steps, 1, -1 do
+        local step = steps[i]
+        if step < current - 0.001 then
+            return step
+        end
+    end
+    return nil
 end
 
 --Open the named panel in a native OS popout window. geometry (optional)
@@ -8624,9 +8754,28 @@ OpenPanelPopout = function(panelName, geometry)
         return
     end
 
-    local width = (geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth
+    --The window's content scale: the Font Size zoom an in-app rail window
+    --gets from setWindowScale, or this panel's own override.
+    --
+    --A native OS window can only be resized BY the user -- the companion
+    --owns its geometry, and the protocol carries no engine-to-companion
+    --resize. So the scale is applied the way a browser's page zoom is:
+    --the window keeps its pixel footprint and the content re-lays out denser
+    --or sparser inside it. The panel's own size is therefore always
+    --(window pixels / scale), and at creation the reverse holds: the OS
+    --window is born (panel size * scale) pixels, because that is what
+    --MoveToNativeWindow measures.
+    --
+    --geometry.scale is the scale the incoming width/height were measured
+    --at (the rail window's on a pop-out, the recorded one on a restore),
+    --so the pixel footprint carries across even when the two differ.
+    local scale = PanelDocument.PopoutContentScale(key)
+    local sourceScale = (geometry ~= nil and geometry.scale) or scale
+    local width = ((geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth) *
+        sourceScale / scale
     local height = PanelDocument.ClampHeight(panelName,
-        (geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight)
+        ((geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight) *
+            sourceScale / scale)
 
     local host
 
@@ -8672,15 +8821,67 @@ OpenPanelPopout = function(panelName, geometry)
         }
     end
 
+    --The window's own zoom, in percent -- what the controls step from and
+    --what their tooltips report. Read live rather than cached: the Font
+    --Size setting moves under a window with no override of its own.
+    local ZoomPercent = function()
+        return math.floor(PanelDocument.PopoutContentScale(key) * 100 + 0.5)
+    end
+
+    --Step the zoom one rung. Landing back exactly on what Font Size means
+    --CLEARS the override instead of freezing the window at today's value,
+    --so a window stepped back to the setting starts following it again.
+    local StepZoom = function(dir)
+        local percent = PanelDocument.PopoutZoomStep(ZoomPercent(), dir)
+        if percent == nil then
+            return
+        end
+        if percent == math.floor(WindowUIScale() * 100 + 0.5) then
+            percent = nil
+        end
+        PanelDocument.SetPopoutZoomOverride(key, percent)
+    end
+
+    --The zoom controls. A popped-out window is the one window Font Size
+    --cannot be adjusted from (the settings screen lives in the main app
+    --window), which is exactly why the override is offered here, next to
+    --the pop-in control.
+    local MakeZoomButton = function(dir, icon, verb)
+        return gui.Panel{
+            classes = {"panelDocumentCloseButton"},
+            bgimage = icon,
+            width = 15,
+            height = 15,
+            valign = "center",
+            rmargin = 6,
+            swallowPress = true,
+            linger = function(element)
+                gui.Tooltip(string.format("%s (currently %d%%)", verb, ZoomPercent()))(element)
+            end,
+            click = function(element)
+                StepZoom(dir)
+            end,
+            --fired across the window whenever its scale actually changes,
+            --plus once at build time, so the end-of-ladder state is right
+            --from the first frame.
+            popoutZoomChanged = function(element)
+                element:SetClass("popoutZoomDisabled", PanelDocument.PopoutZoomStep(ZoomPercent(), dir) == nil)
+            end,
+            create = function(element)
+                element:FireEvent("popoutZoomChanged")
+            end,
+        }
+    end
+
+    local zoomOutButton = MakeZoomButton(-1, "phosphor/magnifying-glass-minus-bold.png", "Zoom out")
+    local zoomInButton = MakeZoomButton(1, "phosphor/magnifying-glass-plus-bold.png", "Zoom in")
+
     local popInButton = gui.Panel{
         classes = {"panelDocumentCloseButton"},
         bgimage = "drawsteel/Icons_Nav_MinWindow.png",
         width = 16,
         height = 16,
-        floating = true,
-        halign = "right",
         valign = "center",
-        x = -8,
         swallowPress = true,
         linger = function(element)
             gui.Tooltip("Return to the app")(element)
@@ -8699,6 +8900,20 @@ OpenPanelPopout = function(panelName, geometry)
         end,
     }
 
+    --One floating right-anchored row for the window's controls, the shape
+    --the rail window's header uses: they share a single corner anchor
+    --instead of each carrying its own hand-tuned offset.
+    local headerControls = gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        floating = true,
+        halign = "right",
+        valign = "center",
+        x = -8,
+        children = {zoomOutButton, zoomInButton, popInButton},
+    }
+
     local header = gui.Panel{
         classes = {"panelDocumentHeader"},
         width = "100%",
@@ -8714,7 +8929,7 @@ OpenPanelPopout = function(panelName, geometry)
             valign = "center",
             lmargin = 10,
         },
-        popInButton,
+        headerControls,
     }
 
     local hairline = gui.Panel{
@@ -8759,13 +8974,19 @@ OpenPanelPopout = function(panelName, geometry)
             --an owner under this root route into the window's own modal
             --layer (Hud.ResolveModalLayer) instead of the main window's.
             nativeWindowRoot = true,
-            --the live geometry record: width/height in panel units, x/y
+            --the content scale this window is currently rendering at, so
+            --setPopoutScale can tell what changed and convert between
+            --panel units and the OS window's pixels.
+            popoutScale = scale,
+            --the live geometry record: width/height in panel units at
+            --`scale` (so the OS window is width*scale pixels wide), x/y
             --in OS screen pixels once the companion reports them.
             popoutGeometry = {
                 x = geometry ~= nil and geometry.x or nil,
                 y = geometry ~= nil and geometry.y or nil,
                 width = width,
                 height = height,
+                scale = scale,
             },
             popoutSavePending = false,
             TooltipAlignment = function()
@@ -8776,12 +8997,52 @@ OpenPanelPopout = function(panelName, geometry)
         },
 
         --fired by NativeWindowCanvas when the user resizes the OS window.
+        --w/h arrive already divided by the panel's own scale, so they are
+        --panel units at the window's current zoom -- the same space
+        --popoutGeometry records.
         resize = function(element, w, h)
             element.selfStyle.width = w
             element.selfStyle.height = h
             element.data.popoutGeometry.width = w
             element.data.popoutGeometry.height = h
             element:FireEvent("queuePopoutSave")
+        end,
+
+        --Re-apply the window's content scale after a Font Size, rail-mode
+        --or zoom-override change. The OS window keeps its pixel size (the
+        --app cannot resize it), so the panel's own size moves the other
+        --way by the same factor and the content simply gets denser or
+        --sparser inside the same frame -- browser page zoom, not a
+        --window resize.
+        --
+        --No pivot write here, deliberately: the native canvas centres the
+        --panel in the window (SheetPanel.PlaceWithinParent), so a panel
+        --sized (window pixels / scale) fills the window exactly when it
+        --scales about its own centre. Anchoring it to a corner the way
+        --the in-app window does would push the content off-window.
+        setPopoutScale = function(element)
+            local newScale = PanelDocument.PopoutContentScale(key)
+            local oldScale = element.data.popoutScale or 1
+            if newScale == oldScale then
+                return
+            end
+            local geo = element.data.popoutGeometry
+            local w = (geo.width or PanelDocument.DefaultWidth) * oldScale / newScale
+            local h = (geo.height or PanelDocument.DefaultHeight) * oldScale / newScale
+            element.data.popoutScale = newScale
+            element.selfStyle.uiscale = newScale
+            element.selfStyle.width = w
+            element.selfStyle.height = h
+            geo.width = w
+            geo.height = h
+            geo.scale = newScale
+            element:FireEvent("queuePopoutSave")
+            element:FireEventTree("popoutZoomChanged")
+        end,
+
+        multimonitor = {"fontsize", "iconrail", "popoutzoom"},
+        monitor = function(element)
+            element:FireEvent("setPopoutScale")
         end,
 
         --fired by the engine when the OS window moves (and once at
@@ -8810,6 +9071,7 @@ OpenPanelPopout = function(panelName, geometry)
             local geo = element.data.popoutGeometry
             PopoutRememberWindow(key, {
                 x = geo.x, y = geo.y, width = geo.width, height = geo.height,
+                scale = geo.scale,
             })
         end,
 
@@ -8821,18 +9083,13 @@ OpenPanelPopout = function(panelName, geometry)
             PopoutForgetWindow(key)
         end,
 
-        --Escape pressed IN the popout window (the engine routes it to this
-        --window's own escape chain; popups in the window outrank us via
-        --listener priority). Closing = destroying the host -- the engine
-        --closes the OS window, and the rail's records stay, same contract
-        --as the rail window's escape. A deliberate dismissal, so the
-        --persistence record goes too.
-        captureEscape = true,
-        escapePriority = EscapePriority.EXIT_DIALOG,
-        escape = function(element)
-            PopoutForgetWindow(key)
-            element:DestroySelf()
-        end,
+        --Escape pressed IN the popout window deliberately has NO handler
+        --here: an OS window is not an in-app dialog, and Escape must not
+        --close it. The engine runs the window's own escape chain (popups,
+        --dropdowns and the content's own handlers, by listener priority),
+        --and a press nothing in the window consumes falls through to the
+        --main app's escape path (NativeWindowCanvas.KeyDown). Closing the
+        --window is the OS close button or the pop-in control.
 
         --recolor on a theme / color-scheme switch, exactly like the rail
         --window root: this host owns its cascade, so nothing else will.
@@ -8886,6 +9143,14 @@ OpenPanelPopout = function(panelName, geometry)
     GameHud.instance.documentsPanel:AddChild(host)
     g_panelPopouts[key] = host
 
+    --the content scale, applied on the ATTACHED host so it is in the
+    --panel's style before the scheduled move measures the rect: the OS
+    --window is created (width * scale) pixels across. Written through
+    --selfStyle rather than the constructor for the same reason the docks
+    --and the in-app windows do -- a style write takes with the layout
+    --pass that follows it.
+    host.selfStyle.uiscale = scale
+
     --record the popout immediately so it survives a Lua reload that
     --happens before the first move/resize report arrives.
     PopoutRememberWindow(key, {
@@ -8893,6 +9158,7 @@ OpenPanelPopout = function(panelName, geometry)
         y = geometry ~= nil and geometry.y or nil,
         width = width,
         height = height,
+        scale = scale,
     })
 
     wrapper:ScheduleEvent("buildPanelContent", 0.01)
@@ -9542,7 +9808,7 @@ ShowRailGhost = function(side, slot, excludeKey)
     --the rails, and DestroyIconRails takes the cached ghosts with it.
     local scale = WindowUIScale()
     local railX = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    local slotTop = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local slotTop = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
 
     --An OCCUPIED slot gets the insertion LINE in the gap above it ("slots
     --in between these two"); an EMPTY slot gets the dotted BOX ("lands in
@@ -9916,7 +10182,7 @@ ShowRailCardGhost = function(side, slot, charid)
     end
 
     g_railCardGhost.x = cond(side == "left", ICON_RAIL_LEFT, IconRailUIWidth() - ICON_RAIL_LEFT - ICON_RAIL_BUTTON * scale)
-    g_railCardGhost.y = ICON_RAIL_TOP + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    g_railCardGhost.y = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
     g_railCardGhost:SetClass("hidden", false)
 end
 
@@ -10101,14 +10367,24 @@ function RailModeActive()
 end
 
 --How deeply floating rail panel windows currently intrude into the
---right edge of the screen, in UI units, clamped to [0, maxDepth].
---A window counts only when it actually reaches into the rightmost
---maxDepth band; the answer is how far the leftmost such window's left
---edge sits from the right screen edge. 0 means the band is clear.
+--right edge of the screen, in UI units. A window counts only when it
+--actually reaches into the rightmost maxDepth band; the answer is how
+--far the leftmost such window's left edge sits from the right screen
+--edge. 0 means the band is clear.
 --Exported for the right-side ability sidebar / roll host (GameHud),
 --which in rail mode sit near the right edge unless windows float there.
-function RailWindowsRightIntrusion(maxDepth)
+--Without hostReserve the result is clamped to maxDepth. With it, the
+--slide may go past maxDepth to FULLY clear the counted windows, but
+--never deeper than uiW - hostReserve -- hostReserve is the horizontal
+--room the sliding host needs (its width plus a left-edge reserve), so
+--the host always stays fully on screen even when a window covers most
+--of the width.
+function RailWindowsRightIntrusion(maxDepth, hostReserve)
     local uiW = IconRailUIWidth()
+    local slideLimit = maxDepth
+    if hostReserve ~= nil then
+        slideLimit = math.max(maxDepth, uiW - hostReserve)
+    end
     local result = 0
     for _, doc in pairs(g_panelDocuments) do
         local d = doc:try_get("_tmp_dialog")
@@ -10128,8 +10404,8 @@ function RailWindowsRightIntrusion(maxDepth)
             end
         end
     end
-    if result > maxDepth then
-        result = maxDepth
+    if result > slideLimit then
+        result = slideLimit
     elseif result < 0 then
         result = 0
     end
@@ -10776,6 +11052,584 @@ local function RailSlashOpensChat()
     local dialog = doc:try_get("_tmp_dialog")
     if dialog ~= nil and dialog.valid then
         dialog:FireEventTree("slashChat")
+    end
+end
+
+----------------------------------------------------------------------
+-- Chat speech bubble
+-- ------------------
+-- A chat message landing while the chat panel is nowhere on screen --
+-- not the shown tab of any rail window, not popped out, not in an
+-- on-screen dock -- and the chat button IS on screen gets previewed in
+-- a small speech bubble beside the button: frosted translucent plate,
+-- rounded corners, each message fading in and drifting up into place.
+-- The bubble lingers 5 seconds past the LAST message it shows, then
+-- fades as one; messages beyond the row cap shed from the top early.
+-- Placement probes a few spots anchored to the button and takes the
+-- first that overlaps no open window; when every spot is covered the
+-- bubble keeps its default spot but lives at the BOTTOM of the layer's
+-- sibling order, so windows always draw over it rather than it over
+-- them. Clicking the bubble opens chat exactly as the button would.
+--
+-- All state hangs off PanelDocument: this file's main chunk is at
+-- Lua's 200-local ceiling, so no new file-scope locals.
+
+PanelDocument.chatBubbleState = { seen = {}, seenCount = 0, panel = nil }
+PanelDocument.CHAT_BUBBLE_WIDTH = 300
+PanelDocument.CHAT_BUBBLE_LINGER = 5
+PanelDocument.CHAT_BUBBLE_MAX_ROWS = 4
+PanelDocument.CHAT_BUBBLE_TRUNCATE = 220
+
+function PanelDocument.ChatBubbleStyles()
+    return ThemeEngine.MergeTokens({
+        --the rail's own frosted-black treatment (see IconRailStyles):
+        --the bubble reads as an outgrowth of the button it hangs off.
+        --blurBackground rides on the panel itself.
+        {
+            selectors = {"chatSpeechBubble"},
+            bgcolor = "#000000cc",
+            cornerRadius = 12,
+            opacity = 1,
+            scale = 1,
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"chatSpeechBubble", "entering"},
+            opacity = 0,
+            scale = 0.85,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"chatSpeechBubble", "fadeout"},
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        {
+            selectors = {"chatSpeechBubbleTail"},
+            bgcolor = "#000000cc",
+            opacity = 1,
+            transitionTime = 0.2,
+        },
+        --opacity is strictly PER-ELEMENT in the engine (it tints the
+        --panel's own image/border only; there is no canvas-group
+        --multiply down the subtree), so the root's entering/fadeout
+        --rules never touch the text. Every visible descendant carries
+        --its own opacity rules instead, matched against the ROOT's
+        --state via inherit_selectors (a selector class matches on any
+        --ancestor). The same rules make labels of an individually
+        --shedding row fade, since the row is their ancestor too.
+        {
+            selectors = {"chatSpeechBubbleTail", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"chatSpeechBubbleTail", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        --rows enter transparent and 14 units low, then settle: the
+        --fade-in-and-drift-up. y here is the post-layout style offset
+        --(it lerps like opacity does), not the inline positioning x/y.
+        {
+            selectors = {"chatBubbleRow"},
+            opacity = 1,
+            y = 0,
+            vmargin = 3,
+            transitionTime = 0.25,
+        },
+        {
+            selectors = {"chatBubbleRow", "entering"},
+            opacity = 0,
+            y = 14,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"chatBubbleRow", "fadeout"},
+            opacity = 0,
+            transitionTime = 0.4,
+        },
+        --auto width up to the bubble's content cap (bubble maxWidth
+        --minus its hpad), so short messages produce a snug bubble and
+        --long ones wrap at the cap.
+        {
+            selectors = {"label", "chatBubbleNick"},
+            color = "@accent",
+            fontSize = 12,
+            bold = true,
+            width = "auto",
+            maxWidth = PanelDocument.CHAT_BUBBLE_WIDTH - 24,
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            opacity = 1,
+            transitionTime = 0.25,
+        },
+        {
+            selectors = {"label", "chatBubbleText"},
+            color = "@fg",
+            fontSize = 14,
+            width = "auto",
+            maxWidth = PanelDocument.CHAT_BUBBLE_WIDTH - 24,
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+            opacity = 1,
+            transitionTime = 0.25,
+        },
+        --the text's own halves of the row fade-in and the bubble/row
+        --fade-out (see the tail's note: per-element opacity).
+        {
+            selectors = {"label", "chatBubbleNick", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"label", "chatBubbleText", "entering"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.05,
+        },
+        {
+            selectors = {"label", "chatBubbleNick", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+        {
+            selectors = {"label", "chatBubbleText", "fadeout"},
+            inherit_selectors = true,
+            opacity = 0,
+            transitionTime = 0.7,
+        },
+    })
+end
+
+--Builds the (singleton) bubble beside the chat button at side/slot and
+--registers it in chatBubbleState. Returns nil when the documents layer
+--is not available.
+function PanelDocument.CreateChatBubble(side, slot)
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return nil
+    end
+
+    --the bubble is a LAYER child (like the drag ghosts and trash
+    --zones): outside the zoomed rail, so it carries the Font Size zoom
+    --itself via uiscale -- internal units stay unscaled, the on-screen
+    --footprint is units * scale, same convention as the rail windows.
+    local scale = WindowUIScale()
+    local bubbleW = PanelDocument.CHAT_BUBBLE_WIDTH
+    local effW = bubbleW * scale
+    local buttonTop = IconRailTop() + slot * (ICON_RAIL_BUTTON + ICON_RAIL_GAP) * scale
+    local buttonSize = ICON_RAIL_BUTTON * scale
+    local gap = 12 * scale
+    --the bubble is ANCHORED by the edge nearest its rail (halign =
+    --side, plus the matching pivot corner for the uiscale below): left
+    --edge beside a left-rail button, right edge beside a right-rail
+    --button. Width is auto up to CHAT_BUBBLE_WIDTH, so a short message
+    --gets a snug bubble and a longer one grows it AWAY from the button
+    --only, the anchored edge (and the tail on it) never moving.
+    --x is the offset from the anchored screen edge; sx is the leftmost
+    --screen x the bubble can REACH at full width -- the avoidance band
+    --below deliberately tests the maximum footprint, since a later
+    --message may widen the bubble in place.
+    local x, sx
+    if side == "left" then
+        x = ICON_RAIL_LEFT + buttonSize + gap
+        sx = x
+    else
+        x = -(ICON_RAIL_LEFT + buttonSize + gap)
+        sx = IconRailUIWidth() - ICON_RAIL_LEFT - buttonSize - gap - effW
+    end
+
+    --window avoidance: probe spots anchored to the button (top-aligned,
+    --bottom-aligned, below, above) with an estimated footprint, first
+    --clear one wins. All covered = keep the default spot; the bubble
+    --sits under the windows (SetAsFirstSibling below) so it never
+    --draws over one. NOT RailWindowIntersectsBand: that reads
+    --renderedWidth/Height, which are PRE-uiscale units, so at a zoomed
+    --Font Size it understates every window's footprint by the zoom --
+    --the on-screen rect is w/h times the window's own scale.
+    local obstacles = {}
+    for _, pdoc in pairs(g_panelDocuments) do
+        local d = pdoc:try_get("_tmp_dialog")
+        if d ~= nil and d.valid then
+            local ws = 1
+            if type(d.data) == "table" then
+                ws = d.data.windowScale or 1
+            end
+            local wx = tonumber(d.x) or 0
+            local wy = tonumber(d.y) or 0
+            local ww = (tonumber(d.renderedWidth) or 0) * ws
+            local wh = (tonumber(d.renderedHeight) or 0) * ws
+            if ww > 0 and wh > 0 then
+                obstacles[#obstacles + 1] = { x1 = wx, y1 = wy, x2 = wx + ww, y2 = wy + wh }
+            end
+        end
+    end
+    local estH = 110 * scale
+    local maxY = IconRailUIHeight() - estH - 8
+    local candidates = {
+        buttonTop,
+        buttonTop + buttonSize - estH,
+        buttonTop + buttonSize + 10 * scale,
+        buttonTop - estH - 10 * scale,
+    }
+    local y = nil
+    for _, cy in ipairs(candidates) do
+        if cy >= 8 and cy <= maxY then
+            local clear = true
+            for _, r in ipairs(obstacles) do
+                if sx < r.x2 and sx + effW > r.x1 and cy < r.y2 and cy + estH > r.y1 then
+                    clear = false
+                    break
+                end
+            end
+            if clear then
+                y = cy
+                break
+            end
+        end
+    end
+    if y == nil then
+        y = buttonTop
+        if y > maxY then
+            y = maxY
+        end
+        if y < 8 then
+            y = 8
+        end
+    end
+
+    --the tail: a filled caret in the gap, pointing back at the button.
+    --Its y aims at the button's centre, clamped onto the bubble's edge
+    --when the bubble had to move away from the button's band.
+    local tailY = (buttonTop + buttonSize / 2 - y) / scale - 11
+    if tailY < 6 then
+        tailY = 6
+    end
+    if tailY > 72 then
+        tailY = 72
+    end
+
+    local bubble
+    bubble = gui.Panel{
+        classes = {"chatSpeechBubble", "entering"},
+        --a layer child sits outside every theme cascade, so it carries
+        --its own resolved styles, like the rail's ghosts and trash zone.
+        styles = PanelDocument.ChatBubbleStyles(),
+        bgimage = true,
+        blurBackground = true,
+        halign = side,
+        valign = "top",
+        x = x,
+        y = y,
+        width = "auto",
+        minWidth = 110,
+        maxWidth = bubbleW,
+        height = "auto",
+        flow = "vertical",
+        hpad = 12,
+        vpad = 9,
+        borderBox = true,
+        swallowPress = true,
+        data = {
+            side = side,
+            slot = slot,
+            lastMessage = dmhub.Time(),
+            rows = {},
+        },
+
+        create = function(element)
+            element:ScheduleEvent("settleIn", 0.02)
+        end,
+        settleIn = function(element)
+            element:SetClass("entering", false)
+        end,
+
+        --a press on the bubble is "show me": open the chat window
+        --exactly as its rail button would, and let the bubble go.
+        click = function(element)
+            local data = element.data
+            element:FireEvent("bubbleFade")
+            RailSweepTransient("chat")
+            local anchorX, anchorY = RailAnchor(data.side, data.slot)
+            OpenIconRailWindow("Chat", { x = anchorX, y = anchorY, anchor = true })
+            RefreshRails()
+        end,
+
+        addChatMessage = function(element, message)
+            local data = element.data
+            data.lastMessage = dmhub.Time()
+            --a message landing mid-fade rescues the bubble; the pending
+            --bubbleDie checks the class and stands down.
+            if element:HasClass("fadeout") then
+                element:SetClass("fadeout", false)
+                element.blurBackground = true
+            end
+
+            local text = ""
+            pcall(function() text = tostring(message.message or "") end)
+            local limit = PanelDocument.CHAT_BUBBLE_TRUNCATE
+            if #text > limit then
+                --byte cap, backed off past any UTF-8 continuation bytes
+                --so the cut never splits a codepoint.
+                local cut = limit
+                while cut > 1 do
+                    local b = string.byte(text, cut)
+                    if b ~= nil and b >= 0x80 and b < 0xc0 then
+                        cut = cut - 1
+                    else
+                        break
+                    end
+                end
+                text = string.sub(text, 1, cut - 1) .. "..."
+            end
+
+            local nick = nil
+            pcall(function() nick = message.nick end)
+            if nick == nil or nick == "" then
+                nick = "Player"
+            end
+            local nickColor = nil
+            pcall(function() nickColor = message.nickColor end)
+
+            local nickLabel = gui.Label{
+                classes = {"chatBubbleNick"},
+                text = nick,
+                interactable = false,
+            }
+            if nickColor ~= nil then
+                pcall(function() nickLabel.selfStyle.color = nickColor end)
+            end
+
+            local row = gui.Panel{
+                classes = {"chatBubbleRow", "entering"},
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                flow = "vertical",
+                --older rows glide up when one above them sheds.
+                moveTime = 0.2,
+                interactable = false,
+                create = function(r)
+                    r:ScheduleEvent("settleRow", 0.02)
+                end,
+                settleRow = function(r)
+                    r:SetClass("entering", false)
+                end,
+                rowFade = function(r)
+                    r:SetClass("fadeout", true)
+                    r:ScheduleEvent("rowDie", 0.45)
+                end,
+                rowDie = function(r)
+                    r:DestroySelf()
+                end,
+
+                nickLabel,
+                gui.Label{
+                    classes = {"chatBubbleText"},
+                    text = text,
+                    interactable = false,
+                },
+            }
+            element:AddChild(row)
+
+            --row bookkeeping + overflow: past the cap, rows shed from
+            --the top early rather than letting the bubble grow forever.
+            local live = {}
+            for _, r in ipairs(data.rows) do
+                if r.valid then
+                    live[#live + 1] = r
+                end
+            end
+            live[#live + 1] = row
+            data.rows = live
+            local excess = #live - PanelDocument.CHAT_BUBBLE_MAX_ROWS
+            for i = 1, excess do
+                if not live[i]:HasClass("fadeout") then
+                    live[i]:FireEvent("rowFade")
+                end
+            end
+
+            element:ScheduleEvent("bubbleMaybeExpire", PanelDocument.CHAT_BUBBLE_LINGER)
+        end,
+
+        --one of these fires per message; only the one scheduled by the
+        --LAST message finds the linger actually elapsed.
+        bubbleMaybeExpire = function(element)
+            if dmhub.Time() - element.data.lastMessage < PanelDocument.CHAT_BUBBLE_LINGER - 0.1 then
+                return
+            end
+            element:FireEvent("bubbleFade")
+        end,
+        bubbleFade = function(element)
+            if element:HasClass("fadeout") then
+                return
+            end
+            --the blur backdrop paints at full strength whatever the
+            --panel's opacity, so it goes out with the lights.
+            element.blurBackground = false
+            element:SetClass("fadeout", true)
+            element:ScheduleEvent("bubbleDie", 0.8)
+        end,
+        bubbleDie = function(element)
+            --stand down if a late message rescued the bubble.
+            if element:HasClass("fadeout") then
+                element:DestroySelf()
+            end
+        end,
+        destroy = function(element)
+            if PanelDocument.chatBubbleState.panel == element then
+                PanelDocument.chatBubbleState.panel = nil
+            end
+        end,
+
+        thinkTime = 0.5,
+        think = function(element)
+            if mod.unloaded then
+                element:DestroySelf()
+                return
+            end
+            --chat opened by any path while the bubble is up: the
+            --preview has done its job.
+            if PanelDocument.IsPanelActive("chat") or PanelDocument.IsPoppedOut("chat") then
+                element:FireEvent("bubbleFade")
+            end
+        end,
+
+        gui.Panel{
+            classes = {"chatSpeechBubbleTail"},
+            floating = true,
+            bgimage = cond(side == "left", "phosphor/caret-left-fill.png", "phosphor/caret-right-fill.png"),
+            width = 16,
+            height = 22,
+            halign = cond(side == "left", "left", "right"),
+            valign = "top",
+            x = cond(side == "left", -13, 13),
+            y = tailY,
+            interactable = false,
+        },
+    }
+    layer:AddChild(bubble)
+    --the Font Size zoom, the rail's way (see setRailScale): pivot to
+    --the corner the bubble is anchored by FIRST -- uiscale scales
+    --around the pivot, and the default centre pivot slides the scaled
+    --bubble back over the rail. Pivot writes need an attached panel.
+    bubble.selfStyle.pivot = {x = cond(side == "left", 0, 1), y = 1}
+    bubble.selfStyle.uiscale = scale
+    --the deference half of window awareness: bubble at the BOTTOM of
+    --the layer, so any window it could not avoid draws over it.
+    bubble:SetAsFirstSibling()
+    PanelDocument.chatBubbleState.panel = bubble
+    return bubble
+end
+
+--Fired on the rail root (the chat listener, see BuildIconRails) with
+--the engine's chat changeInfo. Decides whether a bubble is warranted
+--and routes the fresh messages into it.
+function PanelDocument.ChatBubbleNotify(changeInfo)
+    --changeInfo == nil is the create/full pass (replayed history);
+    --new messages always arrive with their key in `changed`.
+    if changeInfo == nil or type(changeInfo.changed) ~= "table" then
+        return
+    end
+    local state = PanelDocument.chatBubbleState
+
+    --collect the genuinely fresh people-typed messages: plain chat
+    --text, not our own, recent by server timestamp (reconnects replay
+    --history through the same event), and never bubbled before
+    --(`changed` re-fires the same key for amendments and reactions).
+    local fresh = {}
+    local nowMs = os.time() * 1000
+    for key, _ in pairs(changeInfo.changed) do
+        if not state.seen[key] then
+            local message = chat.GetRollInfo(key)
+            if message ~= nil and message.messageType == "chat" then
+                local ts = nil
+                pcall(function() ts = message.timestamp end)
+                if type(ts) == "number" and nowMs - ts < 10000 then
+                    state.seen[key] = true
+                    state.seenCount = state.seenCount + 1
+                    local uid = nil
+                    pcall(function() uid = message.userid end)
+                    local gmonly = false
+                    pcall(function() gmonly = message.gmonly end)
+                    if uid ~= dmhub.userid and ((not gmonly) or dmhub.isDM) then
+                        fresh[#fresh + 1] = message
+                    end
+                end
+            end
+        end
+    end
+    --the recency guard is the real re-bubble protection; the seen set
+    --only needs to cover the recent past, so it can reset when large.
+    if state.seenCount > 800 then
+        state.seen = {}
+        state.seenCount = 0
+    end
+    if #fresh == 0 then
+        return
+    end
+    table.sort(fresh, function(a, b)
+        local ta, tb = 0, 0
+        pcall(function() ta = a.timestamp or 0 end)
+        pcall(function() tb = b.timestamp or 0 end)
+        return ta < tb
+    end)
+
+    --no bubble while chat is already on screen: the shown tab of a
+    --rail window, a native popout, or an on-screen dock instance.
+    if PanelDocument.IsPanelActive("chat") or PanelDocument.IsPoppedOut("chat") then
+        return
+    end
+    local reg = DockablePanel.GetRegistration("Chat")
+    if reg ~= nil and reg.identifier ~= nil then
+        local instance = DockablePanel.FindInstance(reg.identifier)
+        if instance ~= nil and instance.valid and instance:FindParentWithClass("offscreen") == nil then
+            return
+        end
+    end
+
+    --the bubble hangs off the chat button, so there must BE one: a
+    --live, un-collapsed top-level rail button. Grouped-away or
+    --overflow-parked chat has no button; dock mode collapses the
+    --rails' children (enabled goes false).
+    local side, slot = nil, nil
+    for railSide, rail in pairs(g_iconRails) do
+        if rail ~= nil and rail.valid then
+            for _, child in ipairs(rail.children) do
+                if child.valid and child:HasClass("iconRailButton") and child.enabled then
+                    local d = child.data
+                    if type(d) == "table" and d.key == "chat" then
+                        side = railSide
+                        slot = d.slot
+                    end
+                end
+            end
+        end
+    end
+    if side == nil or slot == nil then
+        return
+    end
+
+    local bubble = state.panel
+    if bubble ~= nil and not bubble.valid then
+        bubble = nil
+        state.panel = nil
+    end
+    if bubble == nil then
+        bubble = PanelDocument.CreateChatBubble(side, slot)
+    end
+    if bubble == nil then
+        return
+    end
+    for _, message in ipairs(fresh) do
+        bubble:FireEvent("addChatMessage", message)
     end
 end
 
@@ -11971,7 +12825,7 @@ local function RailEditToolkit(id)
     local iconEditor = RailToolkitIconPicker(tk.icon or "phosphor/toolbox.png")
 
     gamehud:ModalDialog{
-        title = "Edit tool panel",
+        title = "Edit toolkit",
         width = 480,
         height = 470,
         buttonsHalign = "center",
@@ -12044,7 +12898,7 @@ local function RailCreateToolkit(side)
     local iconEditor = RailToolkitIconPicker("phosphor/toolbox.png")
 
     gamehud:ModalDialog{
-        title = "New tool panel",
+        title = "New toolkit",
         width = 480,
         height = 470,
         buttonsHalign = "center",
@@ -12206,7 +13060,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
         for _, e in ipairs(sorted) do
             options[#options + 1] = { id = e.id, text = e.name }
         end
-        options[#options + 1] = { id = "__new", text = "New tool panel" }
+        options[#options + 1] = { id = "__new", text = "New toolkit" }
         targetDropdown = gui.Dropdown{
             options = options,
             idChosen = "__rail",
@@ -12347,14 +13201,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
                     seed = SCRIPT_BUTTON_TEMPLATE
                 end
 
-                --OpenTextFileInConnectedEditor caps filenames at 48
-                --chars: "railbutton-" (11) + up to 33 of the name + ".lua".
-                local base = string.gsub(nameInput.text or "", "[^%w%-]", "")
-                if base == "" then
-                    base = "button"
-                end
-                local filename = string.sub("railbutton-" .. base, 1, 44) .. ".lua"
-                m_watcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+                m_watcher = dmhub.OpenTextFileInConnectedEditor(seed, function(contents)
                     m_script = contents or ""
                     RefreshScriptStatus()
 
@@ -12785,15 +13632,50 @@ end
 --the two surfaces render identically.
 local function PanelLibraryStyles()
     return ThemeEngine.MergeStyles({
+        --Library visual language (redesign 2026-08-20, iterated to match
+        --ui-mockup/panel-library-redesign.html IN THE HARNESS -- see the
+        --ledger's reverted first attempt for why that matters): soft
+        --fills over borders, label-anchored section rules, tile plates.
         {
             selectors = {"label", "libSection"},
             color = "@fgMuted",
             fontSize = 11,
             bold = true,
         },
+        --hairlines are soft: full @border stripes read as chopping.
         {
             selectors = {"libRule"},
-            bgcolor = "@border",
+            bgcolor = "#ffffff17",
+        },
+        --the tile PLATE: face + name as one object on a faint lifted
+        --fill -- NO border (1px borders over near-black read as a harsh
+        --grid; harness-verified). Create tiles carry the one accent per
+        --section: a parchment-alpha outline.
+        {
+            selectors = {"libTile"},
+            bgcolor = "#ffffff08",
+            cornerRadius = 10,
+            transitionTime = 0.12,
+        },
+        {
+            selectors = {"libTile", "hover"},
+            bgcolor = "#ffffff10",
+        },
+        {
+            selectors = {"libTile", "create"},
+            bgcolor = "clear",
+            border = 1,
+            borderColor = "#E4DDD04d",
+        },
+        {
+            selectors = {"libTile", "create", "hover"},
+            borderColor = "#E4DDD08c",
+        },
+        --the ALL PANELS rows' glyph chip: the plate grammar at row scale.
+        {
+            selectors = {"libRowChip"},
+            bgcolor = "#ffffff08",
+            cornerRadius = 8,
         },
         --the replica face mirrors the rail's iconRailButton rules; the
         --hex is deliberate (it must match the rail's own scrim exactly).
@@ -12872,23 +13754,23 @@ local function PanelLibraryStyles()
         --replica face -- name, description, author, downloads, hearts.
         {
             selectors = {"libPackCard"},
-            bgcolor = "@bg",
+            bgcolor = "#ffffff08",
             border = 1,
-            borderColor = "@border",
-            cornerRadius = 8,
+            borderColor = "#ffffff14",
+            cornerRadius = 10,
             transitionTime = 0.1,
         },
         {
             selectors = {"libPackCard", "hover"},
-            bgcolor = "#ffffff08",
+            bgcolor = "#ffffff10",
             borderColor = "@accent",
         },
         --an added card is inert: no hover response, or the card would
         --promise a click it refuses to honor.
         {
             selectors = {"libPackCard", "added", "hover"},
-            bgcolor = "@bg",
-            borderColor = "@border",
+            bgcolor = "#ffffff08",
+            borderColor = "#ffffff14",
         },
         {
             selectors = {"label", "libCardName"},
@@ -13049,8 +13931,11 @@ local function ScriptButtonFacePanel(def, args)
     end
 
     local content
+    --@label preview: only when it actually evaluates. A dash for "no
+    --character right now" read as a broken tile (screenshot
+    --2026-08-20); the icon is the honest fallback.
+    local labelText = nil
     if style ~= nil and style.label ~= nil then
-        local text = "-"
         local token = dmhub.currentToken
         if token ~= nil and token.properties ~= nil then
             pcall(function()
@@ -13058,13 +13943,15 @@ local function ScriptButtonFacePanel(def, args)
                 if value ~= nil then
                     local n = tonumber(value)
                     if n ~= nil and n == math.floor(n) then
-                        text = string.format("%d", n)
+                        labelText = string.format("%d", n)
                     else
-                        text = tostring(value)
+                        labelText = tostring(value)
                     end
                 end
             end)
         end
+    end
+    if labelText ~= nil and labelText ~= "" then
         content = gui.Label{
             width = "auto",
             height = "auto",
@@ -13074,7 +13961,7 @@ local function ScriptButtonFacePanel(def, args)
             bold = true,
             color = "#ffffffee",
             interactable = false,
-            text = text,
+            text = labelText,
         }
     else
         content = gui.Panel{
@@ -13183,18 +14070,29 @@ local function CommunityButtonCard(pack, button, packStats, opts)
     --the ADDED overlay: darkens the card and labels it, so it reads as
     --done rather than clickable. interactable = false so the heart
     --beneath still receives its clicks; the add-click gate is in the
-    --card's own handler.
+    --card's own handler. COMPACT tiles get the check alone, centered
+    --on the face zone -- the wide card's centered check+label landed
+    --exactly on the tile's name and struck it through (screenshot
+    --2026-08-20); the darkening plus the check carries the meaning,
+    --and the name stays legible beneath.
     local addedOverlay = nil
     if isAdded then
-        addedOverlay = gui.Panel{
-            floating = true,
-            width = "100%",
-            height = "100%",
-            bgimage = true,
-            bgcolor = "#000000a6",
-            cornerRadius = 8,
-            interactable = false,
-            gui.Panel{
+        local marker
+        if opts.compact then
+            marker = gui.Panel{
+                classes = {"libCardStatIcon"},
+                bgimage = "phosphor/check-circle-fill.png",
+                width = 18,
+                height = 18,
+                halign = "center",
+                valign = "top",
+                --centered on the face: the face sits 10px down and is
+                --40px tall, so its middle is 30px from the tile top.
+                y = 21,
+                interactable = false,
+            }
+        else
+            marker = gui.Panel{
                 flow = "horizontal",
                 width = "auto",
                 height = "auto",
@@ -13218,7 +14116,17 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                     valign = "center",
                     interactable = false,
                 },
-            },
+            }
+        end
+        addedOverlay = gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "#000000a6",
+            cornerRadius = 8,
+            interactable = false,
+            marker,
         }
     end
 
@@ -13698,7 +14606,7 @@ local function RailShowCommunityBrowser(side, opts)
         halign = "center",
         valign = "center",
         width = 900,
-        height = 700,
+        height = 760,
         pad = 28,
         borderBox = true,
         flow = "vertical",
@@ -14320,15 +15228,20 @@ RailShowAddPicker = function(element, side)
     end
 
     --a faithful rail-button replica (the rail's 40px #000000cc rounded
-    --face, 20px @fg glyph) with its name beneath: an honest preview of
-    --exactly what lands on the rail.
+    --face, 20px @fg glyph) with its name beneath, together on a soft
+    --tile PLATE (harness-verified 2026-08-20) -- face and name read as
+    --one object; create tiles wear the section's one accent outline.
     local function ButtonReplica(icon, text, opts)
         opts = opts or {}
         return gui.Panel{
+            classes = {"libTile", cond(opts.create, "create")},
             flow = "vertical",
-            width = 72,
+            width = 84,
             height = "auto",
-            hmargin = 5,
+            hmargin = 4,
+            tpad = 8,
+            bpad = 7,
+            borderBox = true,
             bgimage = true,
             click = opts.click,
             linger = cond(opts.tooltip ~= nil, gui.Tooltip(opts.tooltip or "")),
@@ -14342,37 +15255,45 @@ RailShowAddPicker = function(element, side)
             gui.Label{
                 classes = {"libButtonLabel"},
                 text = text,
-                width = "100%",
+                width = "100%-6",
                 height = "auto",
                 textAlignment = "center",
                 halign = "center",
-                tmargin = 6,
+                tmargin = 7,
                 textWrap = false,
                 interactable = false,
             },
         }
     end
 
+    --Section header (harness-verified 2026-08-20): the hairline fills
+    --the REST of the row ("100% available" works horizontally) -- the
+    --line runs FROM the label, giving each section a left anchor
+    --instead of a full-width underline stripe. Margins tuned so the
+    --fixed 700px window still leaves the ALL PANELS scroll region 2+
+    --visible rows. (Count chips shipped here briefly and were removed
+    --at the owner's request 2026-08-20.)
     local function SectionHeader(text)
         return gui.Panel{
-            flow = "vertical",
+            flow = "horizontal",
             width = "100%",
-            height = "auto",
-            tmargin = 20,
+            height = 16,
+            tmargin = 16,
             bmargin = 10,
             gui.Label{
                 classes = {"libSection"},
                 text = text,
                 width = "auto",
                 height = "auto",
-                halign = "left",
+                valign = "center",
             },
             gui.Panel{
                 classes = {"libRule"},
                 bgimage = true,
-                width = "100%",
+                width = "100% available",
                 height = 1,
-                tmargin = 5,
+                valign = "center",
+                lmargin = 12,
             },
         }
     end
@@ -14384,7 +15305,7 @@ RailShowAddPicker = function(element, side)
         local row = gui.Panel{
             classes = {"libRow"},
             width = 420,
-            height = 32,
+            height = 36,
             bgimage = true,
             flow = "horizontal",
             data = { searchText = string.lower(name) },
@@ -14392,15 +15313,26 @@ RailShowAddPicker = function(element, side)
                 RailAddPanel(name, side)
                 CloseLibrary()
             end,
+            --the glyph sits in a small soft chip (harness-verified
+            --2026-08-20): rows get structure without borders.
             gui.Panel{
-                classes = {"libRowIcon"},
-                bgimage = (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png",
-                width = 18,
-                height = 18,
+                classes = {"libRowChip"},
+                bgimage = true,
+                width = 28,
+                height = 28,
                 valign = "center",
-                lmargin = 10,
-                rmargin = 10,
+                lmargin = 6,
+                rmargin = 11,
                 interactable = false,
+                gui.Panel{
+                    classes = {"libRowIcon"},
+                    bgimage = (reg ~= nil and reg.icon) or "icons/icon_app/icon_app_107.png",
+                    width = 15,
+                    height = 15,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                },
             },
             gui.Label{
                 classes = {"libRowLabel"},
@@ -14408,7 +15340,7 @@ RailShowAddPicker = function(element, side)
                 --fills the rest of the row: a horizontal flow centres its
                 --children as a group, so the label eating the remaining
                 --width is what pins each icon+label pair to the left.
-                width = "100%-38",
+                width = "100%-45",
                 height = "auto",
                 halign = "left",
                 textAlignment = "left",
@@ -14450,7 +15382,7 @@ RailShowAddPicker = function(element, side)
     --one kind of thing, buttons another (owner decision 2026-08-17 --
     --"new button can't be under tool panels").
     local tkTiles = {
-        ButtonReplica("phosphor/plus-bold.png", "New tool panel", {
+        ButtonReplica("phosphor/plus-bold.png", "New toolkit", {
             create = true,
             click = function()
                 CloseLibrary()
@@ -14468,7 +15400,9 @@ RailShowAddPicker = function(element, side)
     end
 
     local buttonTiles = {
-        ButtonReplica("phosphor/lightning.png", "New button", {
+        --plus, not lightning: both create tiles share the + (owner
+        --2026-08-20), so "create" reads the same in every section.
+        ButtonReplica("phosphor/plus-bold.png", "New button", {
             create = true,
             click = function()
                 CloseLibrary()
@@ -14524,7 +15458,9 @@ RailShowAddPicker = function(element, side)
             --windows read as the same surface, so navigating between them
             --must not change the frame (owner decision 2026-08-17). The
             --ALL PANELS scroll region absorbs the slack via "available".
-            height = 700,
+            --760 rather than 700 (owner 2026-08-20): the extra height goes
+            --entirely to the panel list.
+            height = 760,
             flow = "vertical",
             pad = 28,
             borderBox = true,
@@ -14621,7 +15557,7 @@ RailShowAddPicker = function(element, side)
                 },
             },
 
-            SectionHeader("YOUR TOOL PANELS"),
+            SectionHeader("YOUR TOOLKITS"),
             gui.Panel{
                 flow = "horizontal",
                 width = "auto",
@@ -14998,6 +15934,10 @@ local function CreateIconRail(side, entries)
     --than sitting in the flow: slot 0 is the top of the rail now that
     --nothing else lives up there, and a button in the flow would push
     --every icon down and invalidate the slot geometry (RailDropPoint).
+    --The band it floats into is reserved by IconRailTop, which grows
+    --the column's inset with the Font Size zoom so the scaled button
+    --always clears the title bar; RAIL_STOP_GAP is the same gap on
+    --both sides of it.
     --Escape exits the mode too: escapeActivates fires the click handler.
     if g_railRearranging then
         buttons[#buttons + 1] = gui.Panel{
@@ -15005,7 +15945,7 @@ local function CreateIconRail(side, entries)
             bgimage = true,
             blurBackground = true,
             floating = true,
-            y = -(ICON_RAIL_BUTTON + 12),
+            y = -(ICON_RAIL_BUTTON + PanelDocument.RAIL_STOP_GAP),
             width = ICON_RAIL_BUTTON,
             height = ICON_RAIL_BUTTON,
             flow = "none",
@@ -16349,7 +17289,7 @@ local function CreateIconRail(side, entries)
                 --on-screen band scales with the Font Size zoom.
                 local railScale = WindowUIScale()
                 local stripWidth = (#groupMembers * (ICON_RAIL_BUTTON + 8) + 160) * railScale
-                local sy = ICON_RAIL_TOP + buttonTop * railScale
+                local sy = IconRailTop() + buttonTop * railScale
                 local sx1
                 if side == "left" then
                     sx1 = ICON_RAIL_LEFT + ICON_RAIL_BUTTON * railScale
@@ -17357,7 +18297,7 @@ local function CreateIconRail(side, entries)
         valign = "top",
         lmargin = cond(side == "left", ICON_RAIL_LEFT, 0),
         rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
-        tmargin = ICON_RAIL_TOP,
+        tmargin = IconRailTop(),
         width = ICON_RAIL_BUTTON,
         --ALWAYS auto, never a fixed column height: the vertical flow
         --distributes children across a fixed height, spreading the
@@ -17522,7 +18462,7 @@ local function CreateIconRail(side, entries)
                 end,
             })
             table.insert(menuEntries, 2, {
-                text = "New Toolkit",
+                text = "New toolkit",
                 click = function()
                     element.popup = nil
                     RailCreateToolkit(side)
@@ -17593,6 +18533,13 @@ local function CreateIconRail(side, entries)
         --this runs once, whichever rail the chat button lives on.
         slash = function(element)
             RailSlashOpensChat()
+        end,
+
+        --a chat message landing while the chat panel is closed: the same
+        --listener registration delivers the engine's chat refresh here,
+        --and the speech-bubble preview hangs off it.
+        refreshChat = function(element, changeInfo)
+            PanelDocument.ChatBubbleNotify(changeInfo)
         end,
 
         --self-heal: track windows closed by any path and keep the active
@@ -17730,8 +18677,8 @@ local function WrapRailOverflow(sides)
     local pitch = ICON_RAIL_BUTTON + ICON_RAIL_GAP
     --the column's usable run in layer units, converted to whole slots at
     --the current zoom: slots 0..maxSlots-1 fit (slot n's button bottom
-    --sits at (n+1)*pitch - GAP, scaled, below ICON_RAIL_TOP).
-    local avail = IconRailUIHeight() - ICON_RAIL_TOP - 16
+    --sits at (n+1)*pitch - GAP, scaled, below IconRailTop()).
+    local avail = IconRailUIHeight() - IconRailTop() - 16
     local maxSlots = math.floor((avail / scale + ICON_RAIL_GAP) / pitch)
     if maxSlots < 1 then
         maxSlots = 1
@@ -18044,7 +18991,13 @@ function EnsureIconRail()
         if p.session ~= session then
             PopoutForgetWindow(key)
         elseif not PanelDocument.IsPoppedOut(key) then
-            OpenPanelPopout(key, { x = p.x, y = p.y, width = p.width, height = p.height })
+            OpenPanelPopout(key, {
+                x = p.x, y = p.y, width = p.width, height = p.height,
+                --the scale the recorded size was measured at, so the
+                --window comes back the same number of SCREEN pixels even
+                --if Font Size moved while it was down.
+                scale = p.scale,
+            })
         end
     end
 
@@ -19163,7 +20116,7 @@ function ViewsToast(text, undoFn, actions)
         valign = "top",
         --where the view chip used to sit, above the left rail.
         x = ICON_RAIL_LEFT,
-        y = ICON_RAIL_TOP - 34,
+        y = IconRailTop() - 34,
         width = "auto",
         height = 26,
         flow = "horizontal",

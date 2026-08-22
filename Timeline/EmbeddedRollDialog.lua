@@ -3401,6 +3401,20 @@ function GameHud.CreateEmbeddedRollDialog()
                             change = function(element)
                                 mod.override = element.value
 
+                                -- A named after-roll group is a single choice,
+                                -- not a set of independent checkboxes. Enabling
+                                -- one member clears every peer before the roll
+                                -- is recalculated.
+                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                if element.value and group ~= "" then
+                                    for _, peer in ipairs(m_options.modifiers or {}) do
+                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                            peer.override = false
+                                        end
+                                    end
+                                end
+
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText()
                                 RecalculateMultiTargets()
@@ -4343,6 +4357,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
                 local effectiveRollInfo = {
                     total        = correctedTotal,
+                    naturalRoll  = m_rollInfo and m_rollInfo.naturalRoll or correctedTotal,
                     boons        = rollInfo.boons,
                     banes        = rollInfo.banes,
                     tiers        = rollInfo.tiers,
@@ -5705,6 +5720,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     --roll re-resolves in ShowDialog.)
                     SetRollDiceOverride(nil)
 
+                    -- After-roll choices are not present when the dice are
+                    -- submitted. Snapshot again at acceptance so single-target
+                    -- costs and triggers include the accepted choices.
+                    modifiersUsed = DeepCopy(m_activeModifiers)
+
                     local resourceConsumed = false
 
                     local surgesUsed = 0
@@ -5714,6 +5734,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     local triggerCostsPaid = {}
 
                     local modifiersAccountedFor = {}
+
+                    local consumeOnceModifiers = {}
 
                     if multitargetsUsed ~= nil then
                         for i, target in ipairs(multitargetsUsed) do
@@ -5807,6 +5829,20 @@ function GameHud.CreateEmbeddedRollDialog()
                                             c = token.properties
                                         end
                                         modifiersAccountedFor[modifier.guid] = true
+                                    end
+                                end
+
+                                -- Roll-wide modifiers can be copied into every
+                                -- target snapshot. Keep their effect on every
+                                -- target but bill the resource only once.
+                                if c ~= nil and modifier:try_get("consumeOncePerRoll", false) then
+                                    local onceKey = modifier:try_get("guid")
+                                        or modifier:try_get("resourceCost")
+                                        or modifier:try_get("name")
+                                    if consumeOnceModifiers[onceKey] then
+                                        c = nil
+                                    else
+                                        consumeOnceModifiers[onceKey] = true
                                     end
                                 end
 
@@ -5976,6 +6012,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             m_symbols.cast.naturalRoll = natRoll > 0 and natRoll or correctedTotal
                             local tierRollInfo = {
                                 total        = correctedTotal,
+                                naturalRoll  = natRoll > 0 and natRoll or correctedTotal,
                                 boons        = rollInfo.boons,
                                 banes        = rollInfo.banes,
                                 tiers        = rollInfo.tiers,
@@ -6085,7 +6122,10 @@ function GameHud.CreateEmbeddedRollDialog()
                             -- m_crowsResolved guard stops `complete` (or an AI
                             -- auto-proceed) from applying the result a second time.
                             local fn = GameSystem:try_get("RollDialogAutoProceed")
-                            if (not m_crowsResolved) and fn ~= nil and type(fn) == "function" and fn(m_options) then
+                            if (not m_crowsResolved) and fn ~= nil and type(fn) == "function" and fn(m_options, {
+                                    rollInfo = rollInfo,
+                                    afterRollModifiers = m_afterRollModifierEntries,
+                                }) then
                                 m_crowsResolved = true
                                 rollAgainButton:SetClass("collapsed", true)
                                 proceedAfterRollButton:SetClass("collapsed", true)

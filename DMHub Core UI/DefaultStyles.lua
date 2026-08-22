@@ -19,6 +19,11 @@ ThemeEngine.RegisterColorScheme{
         -- Surfaces (design ladder: #0a0a0b page, #1a1a1e nested strip)
         bg            = "#0A0A0B",
         bgAlt         = "#1A1A1E",
+        -- The hover/focus "lift" fill for interactive text fields (search
+        -- bar, inputs): the whole control raises to this gray and holds it
+        -- while focused. Introduced 2026-08-22 to unify the value the
+        -- search-bar rules had shipped as literal #2E2E33.
+        bgRaised      = "#2E2E33",
         bgInverse     = "#E4DDD0", -- parchment "primary by value" fill
 
         -- Foreground / text (parchment ladder - the "less stark white")
@@ -30,6 +35,12 @@ ThemeEngine.RegisterColorScheme{
 
         -- Borders (design: depth from quiet 1px edges, not bright frames)
         border        = "#FFFFFF29", -- control border, white at 0.16
+        -- @border pre-composited over @bg at FULL alpha. The rounded
+        -- `border` frame shader ignores the color's alpha channel
+        -- (measured 2026-08-21: #FFFFFF29 renders as a full-contrast
+        -- ~#909090 line), so any rule drawing a QUIET rounded frame must
+        -- use this token instead of @border.
+        borderSolid   = "#313134",
         borderInverse = "#7A7468",
 
         -- Accent + interactive (achromatic: emphasis by value, not hue)
@@ -138,6 +149,7 @@ ThemeEngine.RegisterColorScheme{
         -- Surfaces
         bg            = "#1B1310",
         bgAlt         = "#2A1E15",
+        bgRaised      = "#3A2B1E", -- text-field hover/focus lift (see default scheme)
         bgInverse     = "#E9B86F",
 
         -- Foreground / text
@@ -149,6 +161,10 @@ ThemeEngine.RegisterColorScheme{
 
         -- Borders
         border        = "#C49562",
+        -- This scheme's @border is already full-alpha, but the rounded
+        -- frame shader path wants a QUIET resting frame; the dark leather
+        -- brown (= this scheme's borderInverse) plays that role.
+        borderSolid   = "#5A4128",
         borderInverse = "#5A4128",
 
         -- Accent + interactive
@@ -583,6 +599,21 @@ ThemeEngine.RegisterTheme{
         },
 
         --[[ Input ]]
+        -- The ONE canonical text-field look (Control Zoo pass 2026-08-22),
+        -- sharing the search bar's interaction language -- quiet at rest,
+        -- the fill lifts to @bgRaised on hover, the lift holds on focus --
+        -- with two deliberate differences from searchInput:
+        --   1. An editing field keeps an honest 1px resting frame for
+        --      "type here" affordance; a search bar's magnifier already
+        --      carries that job, so search rests frameless.
+        --   2. Focus paints the frame @fgStrong: in a form, the frame is
+        --      what answers "where will my keystrokes go", so the input's
+        --      state ladder tops out above search's fill-only hold.
+        -- Ladder: @borderSolid -> @fgMuted (hover) -> @fgStrong (focus),
+        -- monotonic in both schemes. `border`, NOT `borderWidth` (the
+        -- square widget outline -- see the searchInput comment below), and
+        -- @borderSolid, NOT @border, because the rounded frame shader
+        -- ignores alpha and renders @border as a full-contrast line.
         {
             selectors = {"input"},
             bgimage = true,
@@ -590,8 +621,12 @@ ThemeEngine.RegisterTheme{
             fontSize = 14,
             color = "@fg",
             bgcolor = "@bg",
-            borderColor = "@border",
-            border = 2,
+            -- Frameless at rest (trial 2026-08-22): painted fill-color,
+            -- like searchInput; the 1px geometry stays so hover/focus
+            -- recolor without shifting pixels.
+            borderColor = "@bg",
+            border = 1,
+            borderWidth = 0,
             bold = false,
             height = 26,
             -- The dims below mirror the legacy Styles.Default 'input-main' rule
@@ -608,9 +643,33 @@ ThemeEngine.RegisterTheme{
             vpad = 4,
             selectedColor = "#444444",
         },
+        -- Opt-in resting frame for inputs on surfaces at or below @bg,
+        -- where the frameless well has nothing to contrast against:
+        -- compose `classes = {"bordered"}`. The conjunct rule redirects
+        -- the generic {bordered} @border (alpha token -- renders
+        -- full-contrast through the rounded frame shader) to the quiet
+        -- @borderSolid. Hover/focus below take over the frame color in
+        -- both variants.
         {
-            selectors = {"input", "focus"},
-            borderColor = "@fg",
+            selectors = {"input", "bordered"},
+            borderColor = "@borderSolid",
+        },
+        -- ~searchInput: search fields are {input} too, and without the
+        -- exclusion these frame rules race the frameless {searchInput}
+        -- state rules on hover-enter -- the frame won the first resolve
+        -- pass and then faded out as the searchInput override landed
+        -- (flashing frame, MonsterSearch 2026-08-22). Search fields are
+        -- governed entirely by their own state rules below.
+        {
+            selectors = {"input", "hover", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgMuted",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"input", "focus", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgStrong",
         },
         {
             selectors = {"inputFaded"},
@@ -661,8 +720,8 @@ ThemeEngine.RegisterTheme{
             --invisible -- leaving it at the resting @bg would draw a
             --dark ring around the lightened bar.
             selectors = {"searchInput", "hover"},
-            bgcolor = "#2E2E33",
-            borderColor = "#2E2E33",
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
             transitionTime = 0.15,
         },
         {
@@ -670,8 +729,8 @@ ThemeEngine.RegisterTheme{
             --still no frame (Venla 2026-08-21). The caret and typed
             --text carry the active signal beyond the fill.
             selectors = {"searchInput", "focus"},
-            bgcolor = "#2E2E33",
-            borderColor = "#2E2E33",
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
         },
         -- Magnifying-glass icon child auto-created by gui.SearchInput.
         -- Tinted to @fg so the glyph follows the active scheme; the
@@ -1293,9 +1352,20 @@ ThemeEngine.RegisterTheme{
             selectors = {"panel", "buttonIcon", "parent:addButton"},
             bgimage = "ui-icons/Plus.png",
         },
+        -- Note on hover-circle backplates (tried and removed 2026-08-22):
+        -- a hover-only circle behind the X was prototyped as
+        -- `{iconButton, closeButton}` bgimage = "game-icons/plain-circle.png"
+        -- (a TEXTURE, not cornerRadius -- the rounded shader's radius must
+        -- stay under half the rendered height at any window scale) with a
+        -- clear rest tint and @bgRaised on hover, plus an 85% glyph inset
+        -- for ring clearance (62% shrank the X to ~10px on sizeXs chrome
+        -- buttons). Venla preferred the plain glyph; the generic
+        -- {iconButton, hover} brightness lift is the whole hover state.
         {
             selectors = {"panel", "buttonIcon", "parent:closeButton"},
-            bgimage = "ui-icons/close.png",
+            -- phosphor's geometric X (Control Zoo pass 2026-08-22),
+            -- replacing the legacy ui-icons/close.png glyph app-wide.
+            bgimage = "phosphor/x-bold.png",
         },
         -- Standard inset for close buttons. They are almost always pinned to a
         -- top corner (halign right/left + valign top + floating), and sitting

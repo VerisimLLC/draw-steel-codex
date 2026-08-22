@@ -351,15 +351,40 @@ Styles = {
 			width = 240,
 			pad = 4,
 			hpad = 10,
-			borderColor = "#999999",
-			borderWidth = 2,
+			--aligned with the canonical {input} look in DefaultStyles
+			--(Control Zoo pass 2026-08-22). Raw colors, as everywhere in
+			--this legacy sheet. border, NOT borderWidth: the old square
+			--borderWidth = 2 outline in #999999 was what every in-game
+			--input actually showed -- it overpowered the themed rounded
+			--frame, and borderWidth = 0 in a deeper sheet cannot clear
+			--it (see the dropdownSearch note in DefaultStyles).
+			border = 1,
+			borderColor = "#0A0A0B",
 			selectedColor = '#444444',
-			bgcolor = 'black',
+			bgcolor = "#0A0A0B",
+		},
+
+		gui.Style{
+			--mirror of the theme's {input, bordered} opt-in frame, so
+			--the class agrees whichever sheet wins the cascade.
+			selectors = {'input', 'bordered'},
+			borderColor = "#313134",
+		},
+
+		gui.Style{
+			--~searchInput: see the canonical rule in DefaultStyles --
+			--without it these frame rules race the frameless
+			--searchInput state rules and the frame flashes on hover.
+			selectors = {'input', 'hover', '~searchInput'},
+			bgcolor = "#2E2E33",
+			borderColor = "#8A8A8A",
+			transitionTime = 0.15,
 		},
 
         gui.Style{
-            selectors = {'input', 'focus'},
-			borderColor = "white",
+            selectors = {'input', 'focus', '~searchInput'},
+			bgcolor = "#2E2E33",
+			borderColor = "#F2EDE1",
         },
 
         gui.Style{

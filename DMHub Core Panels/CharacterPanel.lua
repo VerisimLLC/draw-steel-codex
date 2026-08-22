@@ -1835,9 +1835,9 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                 element.text = node.description
                 RefreshFolderNovelAlert()
             end,
-            press = function()
-                triangle:FireEvent('press')
-            end,
+            --No press handler here: presses bubble to the headerPanel, which
+            --does the toggle. A handler here too made one label click toggle
+            --twice (expand + immediately collapse).
             editname = function(element)
                 element:BeginEditing()
             end,
@@ -1893,9 +1893,14 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             end,
 
             --The whole band toggles the folder; the caret alone was too
-            --small a target. (The label forwards its own press the same
-            --way; renaming stays on double-click.)
+            --small a target. Label presses bubble up to here (the label has
+            --no handler of its own -- two handlers made one click toggle
+            --twice). While the label is being renamed, clicks inside it are
+            --for cursor placement, not toggling.
             press = function(element)
+                if folderLabel ~= nil and folderLabel.valid and folderLabel.editing then
+                    return
+                end
                 triangle:FireEvent("press")
             end,
 

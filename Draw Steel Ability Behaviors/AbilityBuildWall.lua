@@ -598,13 +598,19 @@ ActivatedAbility.RegisterType
     end
 }
 
+--Loc:Equals() is a C# Equals(object) override, which the Lua binding always
+--passes nil for, so it always returns false. Compare tiles by value instead.
+local function LocsEqual(a, b)
+    return a ~= nil and b ~= nil and a.x == b.x and a.y == b.y and a.floor == b.floor
+end
+
 --the straight-line squares from origLoc to (exclusive of) destLoc, including
 --origLoc itself. Approximates the squares a pushed creature vacated.
 local function VacatedSquares(origLoc, destLoc)
     local result = {}
     local loc = origLoc
     local sanity = 0
-    while loc ~= nil and (not loc:Equals(destLoc)) and sanity < 100 do
+    while loc ~= nil and (not LocsEqual(loc, destLoc)) and sanity < 100 do
         result[#result+1] = loc
         local dx = 0
         local dy = 0
@@ -670,7 +676,7 @@ function ActivatedAbilityShiftWallVoxelBehavior:Cast(ability, casterToken, targe
                 currentLoc = creatureTarget.token.loc
             end
 
-            if origLoc ~= nil and currentLoc ~= nil and (not origLoc:Equals(currentLoc)) then
+            if origLoc ~= nil and currentLoc ~= nil and (not LocsEqual(origLoc, currentLoc)) then
                 local vacated = VacatedSquares(origLoc, currentLoc)
 
                 local destLoc = nil

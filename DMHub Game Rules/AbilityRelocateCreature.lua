@@ -687,8 +687,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     tok.properties._tmp_forcedMovementCast = options.symbols.cast
 					tok.properties:TriggerEvent("collide", {
 						speed = collisionInfo.speed,
-                        withobject = withobject,
-                        withcreature = not withobject,
+                        withobject = casterToken.isObject,
+                        withcreature = not casterToken.isObject,
                         nocollisiondamage = suppressCollisionDamage,
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,

@@ -446,12 +446,34 @@ ActivatedAbility.ForcedMovementTypes = {
 }
 
 --This gets a full list of options to display in the dropdown
+--Contextual target choices for a modifier-fired custom trigger (an ability
+--with modifierCustomTrigger set). Synthetic dropdown ids following the
+--target_ally pattern below: choosing one stores targetType = "subject" plus
+--the customTriggerSubject the fire site resolves into symbols.subject.
+local g_customTriggerTargetOptions = {
+    {id = "subject_abilitycaster", text = "Ability Caster"},
+    {id = "subject_abilitytarget", text = "Ability Target"},
+    {id = "subject_triggerer",     text = "Triggerer"},
+}
+
+local g_customTriggerSubjectsById = {
+    subject_abilitycaster = "abilitycaster",
+    subject_abilitytarget = "abilitytarget",
+    subject_triggerer = "triggerer",
+}
+
 function ActivatedAbility:GetDisplayedTargetTypeOptions()
     local targetTypes = self:GetTargetTypes()
 
+    --A modifier-fired custom trigger swaps the generic "The Trigger Subject"
+    --entry for explicit contextual creatures, appended after the loop.
+    local customTrigger = self:try_get("modifierCustomTrigger", false)
+
     local result = {}
     for _,option in ipairs(targetTypes) do
-        result[#result+1] = option
+        if not (customTrigger and option.id == "subject") then
+            result[#result+1] = option
+        end
 
         --just "target" means "target" with objectTarget = false.
         if option.id == "target" then
@@ -486,6 +508,12 @@ function ActivatedAbility:GetDisplayedTargetTypeOptions()
         end
     end
 
+    if customTrigger then
+        for _,option in ipairs(g_customTriggerTargetOptions) do
+            result[#result+1] = option
+        end
+    end
+
     return result
 end
 
@@ -503,6 +531,15 @@ function ActivatedAbility:GetChosenTargetTypeInDropdown()
             return "target_object"
         else
             return "target"
+        end
+    end
+
+    --Modifier-fired custom trigger: "subject" targeting is presented as the
+    --contextual creature the customTriggerSubject choice resolves to.
+    if self.targetType == "subject" and self:try_get("modifierCustomTrigger", false) then
+        local choice = self:try_get("customTriggerSubject", "self")
+        if g_customTriggerSubjectsById["subject_" .. choice] ~= nil then
+            return "subject_" .. choice
         end
     end
 
@@ -534,9 +571,23 @@ function ActivatedAbility:SetChosenTargetTypeFromDropdown(idChosen)
         self.targetType = "target"
         self.targetAllegiance = "dead"
         self.objectTarget = false
+    elseif g_customTriggerSubjectsById[idChosen] ~= nil then
+        --Contextual target on a modifier-fired custom trigger. Stored as
+        --"subject" targeting plus the customTriggerSubject the fire site
+        --resolves; subject = "any" keeps the runtime subject gates passing.
+        self.targetType = "subject"
+        self.targetAllegiance = nil
+        self.customTriggerSubject = g_customTriggerSubjectsById[idChosen]
+        self.subject = "any"
     else
         self.targetType = idChosen
         self.targetAllegiance = nil
+        --Leaving a contextual target choice reverts the trigger's subject
+        --to plain self so Requires Condition and formulas read the owner.
+        if self:try_get("modifierCustomTrigger", false) then
+            self.customTriggerSubject = nil
+            self.subject = "self"
+        end
     end
 end
 
@@ -3840,6 +3891,14 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	local hideEffectsSection = options.hideEffectsSection
 	options.hideEffectsSection = nil
 
+	--Custom-trigger context: set when editing a trigger fired directly by a
+	--modifier (e.g. a power roll modifier's custom trigger) rather than by a
+	--trigger event. The sectioned triggered-ability editor collapses the
+	--event-dispatch fields when this is present. Consumed here so the
+	--args-copy loop below doesn't leak it onto the dialog panel.
+	local customTriggerContext = options.customTriggerContext
+	options.customTriggerContext = nil
+
 
 	if options.hide ~= nil then
 		for _,item in ipairs(options.hide) do
@@ -4019,7 +4078,7 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 				-- re-navigates the user to the original entry point.
 				-- Other GenerateEditor variants ignore the field.
 				mainFormPanel.children = {
-					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection}),
+					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection, customTriggerContext = customTriggerContext}),
 				}
 
 			end,

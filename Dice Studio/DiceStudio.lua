@@ -4522,8 +4522,7 @@ end
 							seed = g_scriptTemplate
 						end
 
-						local filename = "dicescript-" .. tostring(diceDropdown.idChosen or "set") .. ".lua"
-						g_scriptWatcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+						g_scriptWatcher = dmhub.OpenTextFileInConnectedEditor(seed, function(contents)
 							dicestudio.script = contents
 							RefreshScriptUI()
 							RefreshDice()

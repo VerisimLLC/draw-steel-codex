@@ -1485,7 +1485,7 @@ function CustomDocument:CreateInterface(args)
                         return
                     end
                     resultPanel.data.watcherContent = self:GetTextContent()
-                    resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self.description, self:GetTextContent(),
+                    resultPanel.data.watcher = dmhub.OpenTextFileInConnectedEditor(self:GetTextContent(),
                         function(contents)
                             if resultPanel.data == nil then
                                 return
@@ -13201,14 +13201,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
                     seed = SCRIPT_BUTTON_TEMPLATE
                 end
 
-                --OpenTextFileInConnectedEditor caps filenames at 48
-                --chars: "railbutton-" (11) + up to 33 of the name + ".lua".
-                local base = string.gsub(nameInput.text or "", "[^%w%-]", "")
-                if base == "" then
-                    base = "button"
-                end
-                local filename = string.sub("railbutton-" .. base, 1, 44) .. ".lua"
-                m_watcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+                m_watcher = dmhub.OpenTextFileInConnectedEditor(seed, function(contents)
                     m_script = contents or ""
                     RefreshScriptStatus()
 

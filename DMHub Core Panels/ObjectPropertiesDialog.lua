@@ -249,12 +249,9 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
     print("EDITOR::", fieldInfo.type)
     if fieldInfo.type == "externaltexteditor" then
-        local extension = fieldInfo.fieldList[1].arguments[1] or ".txt"
         local objid = tostring(fieldInfo.component.objid or "obj")
         local componentid = tostring(fieldInfo.component.componentid or "comp")
         local floorid = fieldInfo.component.floorid
-        local objidShort = string.sub(objid, 1, 8)
-        local filename = string.format("%s_%s%s", fieldInfo.id, objidShort, extension)
         local watcherKey = string.format("%s/%s/%s", objid, componentid, fieldInfo.id)
 
         local labelIdle = "Edit Externally"
@@ -279,7 +276,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
                 local currentValue = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or "")
 
-                local watcher = dmhub.OpenTextFileInConnectedEditor(filename, currentValue,
+                local watcher = dmhub.OpenTextFileInConnectedEditor(currentValue,
                     function(contents)
                         -- If the object went away (deleted) and the poll
                         -- hasn't caught it yet, drop the watcher and bail

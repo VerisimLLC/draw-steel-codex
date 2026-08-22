@@ -571,8 +571,9 @@ function monster:Render(args, options)
     local normalActions = {}
 
     for _,ability in ipairs(abilities) do
+        --No extra pad: the card carries its own insets now that it draws as
+        --a bordered rounded card.
         normalActions[#normalActions+1] = ability:Render({
-            pad = 12,
             width = "100%",
         }, {
             token = token,

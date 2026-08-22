@@ -1838,7 +1838,9 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         borderBox = true,
     },
 
-    -- One ability / trigger / trait card.
+    -- One ability / trigger / trait card. Padding lives on the header band
+    -- and the body wrapper (not here) so the color-keyed header can bleed
+    -- all the way to the card edges.
     {
         selectors = {"panel", "ms-card"},
         width = "100%",
@@ -1850,9 +1852,19 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         border = 1,
         borderColor = "@border",
         cornerRadius = 6,
+        vmargin = 4,
+        borderBox = true,
+    },
+    -- Everything below the header band gets the padding the card used to
+    -- carry.
+    {
+        selectors = {"panel", "ms-card-body"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
         hpad = 10,
         vpad = 8,
-        vmargin = 4,
         borderBox = true,
     },
     -- A minion's With Captain bonus only applies while the squad actually
@@ -1868,12 +1880,52 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     },
 
     -- Header row: name on the left, categorization or cost on the right.
+    -- Drawn as a full-bleed band across the top of the card, color coded by
+    -- the ability's action economy (see the ms-action-* rules below).
     {
         selectors = {"panel", "ms-head"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
         halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        hpad = 10,
+        vpad = 5,
+        cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+        borderBox = true,
+    },
+    -- The action color key (Main Action = red, Maneuver = blue, Triggered =
+    -- green, Move = orange, No Action = black, Traits/Other = purple).
+    -- Defined once on ActivatedAbility (MCDMActivatedAbility.lua, which
+    -- loads before this file) and shared with the ability card header.
+    {
+        selectors = {"panel", "ms-head", "ms-action-main"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-main"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-maneuver"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-maneuver"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-triggered"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-triggered"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-move"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-move"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-none"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-none"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-other"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-other"],
+    },
+    {
+        selectors = {"panel", "ms-head", "ms-action-malice"},
+        bgcolor = ActivatedAbility.actionColorKey["ms-action-malice"],
     },
     {
         selectors = {"label", "ms-name"},
@@ -1894,6 +1946,16 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         fontSize = 10,
         uppercase = true,
         color = "@fgMuted",
+    },
+    -- The header bands are fixed dark colors, so the text on them is fixed
+    -- light -- theme fg tokens could go dark-on-dark under a light scheme.
+    {
+        selectors = {"label", "ms-name", "parent:ms-head"},
+        color = "#FFFFFF",
+    },
+    {
+        selectors = {"label", "ms-tag", "parent:ms-head"},
+        color = "#EDEDED",
     },
     -- Resource cost ("2 MALICE") reads as a chip, not as running text.
     {
@@ -7149,8 +7211,8 @@ local function MonsterSheetAbilityCard(ability, token)
         end
     end
 
-    children[#children+1] = gui.Panel{
-        classes = {"ms-head"},
+    local headPanel = gui.Panel{
+        classes = {"ms-head", ability:ActionColorKeyClass()},
         gui.Label{ classes = {"ms-name"}, text = ability.name or "" },
         gui.Panel{ width = "100%", height = 1, bgcolor = "clear" },
         tagLabel,
@@ -7250,7 +7312,11 @@ local function MonsterSheetAbilityCard(ability, token)
 
     return gui.Panel{
         classes = {"ms-card"},
-        children = children,
+        headPanel,
+        gui.Panel{
+            classes = {"ms-card-body"},
+            children = children,
+        },
     }
 end
 
@@ -7268,12 +7334,15 @@ local function MonsterSheetTextCard(name, text, props, live)
     return gui.Panel{
         classes = classes,
         gui.Panel{
-            classes = {"ms-head"},
+            classes = {"ms-head", "ms-action-other"},
             gui.Label{ classes = {"ms-name"}, text = name },
         },
-        gui.Label{
-            classes = {"ms-body"},
-            text = StringInterpolateGoblinScript(text, props),
+        gui.Panel{
+            classes = {"ms-card-body"},
+            gui.Label{
+                classes = {"ms-body"},
+                text = StringInterpolateGoblinScript(text, props),
+            },
         },
     }
 end

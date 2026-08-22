@@ -37,6 +37,13 @@ EncounterWrangler = {
 local STATBLOCK_WIDTH = 500
 --borderBox card: statblock width + the card's own padding.
 local CARD_WIDTH = STATBLOCK_WIDTH + 16
+--Cards are packed into fixed-width columns; a column is a card plus the
+--hmargin it carries on each side.
+local COLUMN_WIDTH = CARD_WIDTH + 12
+--the vscroll host's scrollbar overlays the right edge of its 100%-wide
+--child once the content overflows; keep the last column clear of it.
+local SCROLLBAR_GUTTER = 16
+local MAX_COLUMNS = 12
 
 local g_wranglerStyles = {
     {
@@ -48,9 +55,22 @@ local g_wranglerStyles = {
     },
     {
         selectors = {"wranglerCardTitle"},
-        fontSize = 18,
+        fontSize = 24,
         bold = true,
         color = "white",
+    },
+    --the xN multiplier riding next to a monster card's title.
+    {
+        selectors = {"wranglerCardCount"},
+        fontSize = 15,
+        bold = true,
+        color = "#cccccc",
+    },
+    --the level/role line on the right of a monster card's header.
+    {
+        selectors = {"wranglerCardRole"},
+        fontSize = 13,
+        color = "#cccccc",
     },
     {
         selectors = {"wranglerRow"},
@@ -972,10 +992,11 @@ end
 --statblock. While a monster of this card's type has the turn, the overlay
 --is interactable: pressing starts using the ability through the action
 --bar's own invoke flow (targeting UI and all), cast by the current-turn
---monster. All visual feedback goes through the ability's own NAME label
---(nameLabel, the 'spellName' label inside the render): a gentle
---brightness pulse invites the click while the ability is affordable, and
---hovering steadies it fully bright. No area tint on the card itself.
+--monster. Visual feedback goes through the ability's color-keyed title
+--band (the abilityHeadBand holding nameLabel, the 'spellName' label
+--inside the render): while the ability is affordable the band's colored
+--background pulses gently to invite the click -- the name itself holds
+--solid white -- and hovering steadies the band fully bright.
 --State arrives via updateAbilityUsable from the card's refresh handler.
 --includeGlobal is passed through to the by-name ability lookup on press:
 --the Malice card's overlays need it because malice features are
@@ -985,9 +1006,15 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
     local m_usable = false
     local m_active = false
 
-    local function SetLabelBrightness(b)
-        if nameLabel ~= nil and nameLabel.valid then
-            nameLabel.selfStyle.brightness = b
+    --the name label sits directly inside the abilityHeadBand.
+    local m_headBand = nil
+    if nameLabel ~= nil and nameLabel.valid then
+        m_headBand = nameLabel.parent
+    end
+
+    local function SetBandBrightness(b)
+        if m_headBand ~= nil and m_headBand.valid then
+            m_headBand.selfStyle.brightness = b
         end
     end
 
@@ -1023,6 +1050,8 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
 
             if nameLabel ~= nil and nameLabel.valid then
                 nameLabel.selfStyle.underline = m_active
+                --the name holds solid white; the band carries the pulse.
+                nameLabel.selfStyle.brightness = 1
             end
 
             if m_usable then
@@ -1031,33 +1060,35 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
                 element.thinkTime = nil
                 local brightness = 1
                 if m_active then
-                    brightness = 1.4
+                    brightness = 1.3
                 elseif element.interactable and element:HasClass("hover") then
-                    brightness = 1.6
+                    brightness = 1.4
                 end
-                SetLabelBrightness(brightness)
+                SetBandBrightness(brightness)
             end
         end,
 
-        --a slow sine shimmer on the ability's name while it is usable.
+        --a slow sine pulse on the band's background while the ability is
+        --usable. Only ever brightens (>= 1), so the white name stays
+        --solid white even though brightness reaches the band's children.
         think = function(element)
             if element:HasClass("hover") then
-                SetLabelBrightness(1.6)
+                SetBandBrightness(1.4)
                 return
             end
             local r = math.sin(dmhub.Time() * 2 * math.pi / 1.8)
-            SetLabelBrightness(1.2 + r * 0.15)
+            SetBandBrightness(1.15 + r * 0.15)
         end,
 
         hover = function(element)
-            SetLabelBrightness(1.6)
+            SetBandBrightness(1.4)
         end,
 
         dehover = function(element)
             if m_active then
-                SetLabelBrightness(1.4)
+                SetBandBrightness(1.3)
             else
-                SetLabelBrightness(cond(m_usable, 1.2, 1))
+                SetBandBrightness(cond(m_usable, 1.15, 1))
             end
         end,
 
@@ -1079,6 +1110,32 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
             end)
         end,
     }
+end
+
+--Compact one rendered ability card's title band for the wrangler's
+--density: less padding and a smaller name/cost than the full-size
+--render. The render carries its own style root, so a cascaded wrangler
+--rule cannot reach inside it; the band and name label are restyled
+--directly, the same way the goldTab cleanup works.
+local function CompactAbilityHeadBand(rendered)
+    pcall(function()
+        local band = rendered:FindChildRecursive(function(p)
+            return p:HasClass("abilityHeadBand")
+        end)
+        if band ~= nil then
+            band.selfStyle.hpad = 8
+            band.selfStyle.vpad = 4
+        end
+        local nameLabel = rendered:FindChildRecursive(function(p)
+            return p:HasClass("abilityName")
+        end)
+        if nameLabel ~= nil then
+            nameLabel.selfStyle.fontSize = 18
+            --the cost rides inside the text as a rich-text size tag keyed
+            --to the full-size render; scale it down to match.
+            nameLabel.text = string.gsub(nameLabel.text, "<size=18>", "<size=14>")
+        end
+    end)
 end
 
 --Every malice ability available in the encounter, aggregated across the
@@ -1288,6 +1345,8 @@ local function CreateMaliceCard(groups)
                     end
                 end)
 
+                CompactAbilityHeadBand(rendered)
+
                 local nameLabel = rendered:FindChildRecursive(function(p)
                     return p:HasClass("abilityName")
                 end)
@@ -1303,12 +1362,71 @@ local function CreateMaliceCard(groups)
         end
     end
 
+    --The malice pool readout: the Draw Steel "cost diamond" from the action
+    --bar -- a square rotated 45 degrees (white base + maliceDiamondGradient
+    --shading) with a red inner diamond. The value label is counter-rotated
+    --so it stays upright; the outer wrapper reserves room for the rotated
+    --bounding box.
     local maliceValueLabel = gui.Label{
-        classes = {"wranglerCardTitle"},
         width = "auto",
         height = "auto",
-        halign = "right",
+        minWidth = 24,
+        fontSize = 14,
+        bold = true,
+        color = "white",
+        textAlignment = "center",
+        halign = "center",
+        valign = "center",
+        rotate = -135,
         text = "",
+
+        --editable, exactly like the action bar's malice drawer counter.
+        editable = true,
+        numeric = true,
+        characterLimit = 2,
+        swallowPress = true,
+        change = function(element)
+            local value = tonumber(element.text) or 0
+            if value < 0 then
+                value = 0
+            end
+            CharacterResource.SetMalice(value, "Manually set")
+            element.text = string.format("%d", value)
+        end,
+        hover = function(element)
+            local history = CharacterResource.GetGlobalResourceHistory(CharacterResource.maliceResourceId)
+            element.tooltip = gui.StatsHistoryTooltip{ description = "Malice", entries = history }
+        end,
+    }
+
+    local maliceDiamond = gui.Panel{
+        width = 40,
+        height = 40,
+        halign = "right",
+        valign = "center",
+        gui.Panel{
+            width = 27,
+            height = 27,
+            halign = "center",
+            valign = "center",
+            rotate = 135,
+            bgimage = true,
+            bgcolor = "white",
+            gradient = Styles.Ability.maliceDiamondGradient,
+            border = { x1 = 0, y1 = 2, x2 = 2, y2 = 0 },
+            borderColor = "grey",
+            gui.Panel{
+                width = "65%",
+                height = "65%",
+                halign = "center",
+                valign = "center",
+                bgimage = true,
+                bgcolor = "#DE1E47",
+                borderWidth = 2,
+                borderColor = "#FF5076",
+                maliceValueLabel,
+            },
+        },
     }
 
     local card
@@ -1340,7 +1458,7 @@ local function CreateMaliceCard(groups)
 
         refresh = function(element)
             pcall(function()
-                maliceValueLabel.text = string.format("Malice: %d", CharacterResource.GetMalice())
+                maliceValueLabel.text = string.format("%d", CharacterResource.GetMalice())
             end)
 
             local castingName = GetCastingAbilityName()
@@ -1381,9 +1499,10 @@ local function CreateMaliceCard(groups)
                 width = "auto",
                 height = "auto",
                 halign = "left",
+                valign = "center",
                 text = "Malice",
             },
-            maliceValueLabel,
+            maliceDiamond,
         },
 
         gui.Panel{
@@ -1433,7 +1552,9 @@ local function WireStatblockAbilities(statblock, reference)
     end
 
     for i,panel in ipairs(abilityPanels) do
-        --the ability's own title label carries all the highlight visuals.
+        CompactAbilityHeadBand(panel)
+
+        --the ability's title band carries the highlight visuals.
         local nameLabel = panel:FindChildRecursive(function(p)
             return p:HasClass("abilityName")
         end)
@@ -1576,10 +1697,37 @@ local function CreateGroupCard(group)
         end)
     end
 
-    local titleText = group.name
+    --header children are built as a list so the xN count can be omitted
+    --without leaving a nil hole in the positional child args.
+    local headerChildren = {
+        gui.Label{
+            classes = {"wranglerCardTitle"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            text = group.name,
+        },
+    }
     if #group.tokens > 1 then
-        titleText = string.format("%s x%d", group.name, #group.tokens)
+        headerChildren[#headerChildren+1] = gui.Label{
+            classes = {"wranglerCardCount"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            lmargin = 6,
+            text = string.format("x%d", #group.tokens),
+        }
     end
+    headerChildren[#headerChildren+1] = gui.Label{
+        classes = {"wranglerCardRole"},
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        text = roleText,
+    }
 
     return gui.Panel{
         classes = {"wranglerCard"},
@@ -1599,20 +1747,7 @@ local function CreateGroupCard(group)
             height = "auto",
             flow = "horizontal",
             bmargin = 4,
-            gui.Label{
-                classes = {"wranglerCardTitle"},
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                text = titleText,
-            },
-            gui.Label{
-                classes = {"wranglerCardTitle"},
-                width = "auto",
-                height = "auto",
-                halign = "right",
-                text = roleText,
-            },
+            children = headerChildren,
         },
         rowsPanel,
         statblockHost,
@@ -1622,13 +1757,132 @@ end
 function EncounterWrangler.CreateContent()
     local m_signature = nil
 
-    local cardsPanel = gui.Panel{
+    --Masonry packing state. m_cards is every card in build order, m_heights
+    --their measured heights (a parallel array, nil until they have been laid
+    --out once), m_fitColumns the column count the current pack was made for.
+    local m_cards = {}
+    local m_heights = nil
+    local m_columns = {}
+    local m_fitColumns = 0
+    local m_measureTries = 0
+
+    local cardsPanel
+
+    local function NewColumn()
+        return gui.Panel{
+            classes = {"collapsed"},
+            width = COLUMN_WIDTH,
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+        }
+    end
+
+    --how many fixed-width columns fit across the given width.
+    local function ColumnsForWidth(width)
+        local n = math.floor(((width or 0) - SCROLLBAR_GUTTER) / COLUMN_WIDTH)
+        return math.max(1, math.min(n, MAX_COLUMNS))
+    end
+
+    --Moves every card into the column it has been assigned. Detach
+    --everything first: a card moving from one column to another would
+    --otherwise be marked as orphaned by its old column AFTER the new one had
+    --already claimed it, and orphans are destroyed at the end of the frame.
+    --Both passes run inside this one call, so the re-attach rescues it.
+    local function AssignColumns(assignments, ncolumns)
+        if #m_columns < ncolumns then
+            while #m_columns < ncolumns do
+                m_columns[#m_columns+1] = NewColumn()
+            end
+            cardsPanel.children = m_columns
+        end
+
+        for _,column in ipairs(m_columns) do
+            column.children = {}
+        end
+
+        for i,column in ipairs(m_columns) do
+            column.children = assignments[i] or {}
+            column:SetClass("collapsed", i > ncolumns)
+        end
+    end
+
+    --Greedy masonry: each card drops into whichever column is shortest so
+    --far. The engine's wrap flow is row-based -- it starts each wrapped row
+    --below the TALLEST card of the row above -- so a short card leaves a
+    --gap the height of its row-mates beneath it, glaring next to the Malice
+    --card that dwarfs a small statblock. Cards are a fixed width, so a
+    --card's height does not depend on which column it lands in: one
+    --measurement pass is enough, and repacking never invalidates it.
+    local function PackCards(width)
+        m_fitColumns = ColumnsForWidth(width)
+        local ncolumns = math.min(m_fitColumns, math.max(#m_cards, 1))
+
+        local assignments = {}
+        local totals = {}
+        for i=1,ncolumns do
+            assignments[i] = {}
+            totals[i] = 0
+        end
+
+        for i,card in ipairs(m_cards) do
+            local best = 1
+            for j=2,ncolumns do
+                --ties break to the leftmost column, so an unmeasured set of
+                --cards falls back to a plain round robin.
+                if totals[j] < totals[best] - 0.5 then
+                    best = j
+                end
+            end
+
+            local column = assignments[best]
+            column[#column+1] = card
+            totals[best] = totals[best] + ((m_heights ~= nil and m_heights[i]) or 1)
+        end
+
+        AssignColumns(assignments, ncolumns)
+    end
+
+    cardsPanel = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        wrap = true,
         halign = "left",
         valign = "top",
+
+        --run a frame after a rebuild, once layout has given every card its
+        --natural height, and then repacked for real.
+        measurecards = function(element)
+            local heights = {}
+            for i,card in ipairs(m_cards) do
+                local h = card.renderedHeight
+                if h == nil or h <= 0 then
+                    --layout has not caught up with the rebuild yet.
+                    m_measureTries = m_measureTries + 1
+                    if m_measureTries < 40 then
+                        element:ScheduleEvent("measurecards", 0.05)
+                    end
+                    --otherwise leave the round-robin pack in place.
+                    return
+                end
+
+                --the card carries a vmargin on each side.
+                heights[i] = h + 12
+            end
+
+            m_heights = heights
+            PackCards(element.renderedWidth)
+        end,
+
+        --the window is resizable, so repack when a different number of
+        --columns fits. Packing changes the height, which fires this event
+        --again -- hence the guard on the fitting column count, not on size.
+        rendered = function(element, width, height)
+            if #m_cards > 0 and ColumnsForWidth(width) ~= m_fitColumns then
+                PackCards(width)
+            end
+        end,
     }
 
     local emptyLabel = gui.Label{
@@ -1680,7 +1934,15 @@ function EncounterWrangler.CreateContent()
             for _,group in ipairs(groups) do
                 cards[#cards+1] = CreateGroupCard(group)
             end
-            cardsPanel.children = cards
+
+            --the measured heights belong to the cards we just threw away;
+            --pack round robin for the one frame it takes to measure these.
+            m_cards = cards
+            m_heights = nil
+            m_measureTries = 0
+            PackCards(cardsPanel.renderedWidth)
+            cardsPanel:ScheduleEvent("measurecards", 0.01)
+
             emptyLabel:SetClass("collapsed", #groups > 0)
         end,
 

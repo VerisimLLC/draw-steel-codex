@@ -17,10 +17,15 @@ local mod = dmhub.GetModLoading()
 --- @field implementation nil|number Choice implementation index (1-based enum).
 --- @field options nil|table[] Optional list of sub-options for multi-option features.
 --- @field costsPoints nil|boolean If true, selecting this feature costs character build points.
+--- @field tags nil|table<string,boolean> Set of tags from GameSystem.featureTags (e.g. "Combat", "Hidden"). Absent/empty = untagged.
 CharacterFeature = RegisterGameType("CharacterFeature")
 
 CharacterFeature.canHavePrerequisites = false
 CharacterFeature.modifiers = {}
+
+--Shared class-level default; readers may iterate it but must NEVER mutate
+--it. Writers always assign a fresh table (or nil to clear) on the instance.
+CharacterFeature.tags = {}
 
 --- Creates a new CharacterFeature with default fields and optional overrides.
 --- @param options nil|table Field overrides to apply after defaults.
@@ -56,6 +61,32 @@ function CharacterFeature.OnDeserialize(self)
 			mod.source = source
 		end
 	end
+end
+
+--- How this feature renders, from its display-kind tags. Precedence:
+--- Hidden > Trigger > Ability > normal (a feature tagged both Trigger and
+--- Ability renders as a trigger). Consumers (sheet, panel, monster
+--- builder) branch on this instead of inspecting modifiers:
+---   "normal"  - ordinary trait/feature row
+---   "ability" - displays as an ability card; feature row suppressed
+---   "trigger" - displays as a triggered action; feature row suppressed
+---   "hidden"  - plumbing; not shown at all
+--- @return string
+function CharacterFeature:DisplayKind()
+	local tags = self:try_get("tags")
+	if tags == nil then
+		return "normal"
+	end
+	if tags["Hidden"] then
+		return "hidden"
+	end
+	if tags["Trigger"] then
+		return "trigger"
+	end
+	if tags["Ability"] then
+		return "ability"
+	end
+	return "normal"
 end
 
 --- Appends this feature's active modifiers to the result list.
@@ -791,6 +822,38 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 		end,
 	}
 
+	-- Feature tags (Hidden, Core Feature, game modes). Only rendered when
+	-- the active game system registers tags (Draw Steel does; 5e does not).
+	-- No label row: the "Add Tag..." placeholder self-describes, mirroring
+	-- the Add Prerequisite dropdown it shares a row with. Writers assign
+	-- nil rather than an empty table so serialized data only carries
+	-- deliberate opt-ins.
+	local tagsEditor = nil
+	if #GameSystem.featureTags > 0 then
+		local tagOptions = {}
+		for _,tag in ipairs(GameSystem.featureTags) do
+			tagOptions[#tagOptions+1] = { id = tag.name, text = tag.name }
+		end
+
+		tagsEditor = gui.Multiselect{
+			halign = "left",
+			addItemText = "Add Tag...",
+			options = tagOptions,
+			value = self:try_get("tags", {}),
+			change = function(element, value)
+				local newTags = nil
+				for tagName,selected in pairs(value) do
+					if selected then
+						newTags = newTags or {}
+						newTags[tagName] = true
+					end
+				end
+				--nil when empty so untagged features serialize clean.
+				self.tags = newTags
+			end,
+		}
+	end
+
 	local descriptionInput = gui.Input{
 		text = self:GetDescription(),
 		multiline = true,
@@ -820,14 +883,49 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 	-- children across that height (~700px), producing large gaps between
 	-- rows and before the + Add Modifier button. The Create New Ability
 	-- modal uses the same pattern at AbilityEditorTemplates.lua:1436-1453.
-	local innerRows = {
+	-- Prerequisites and tags share one horizontal row when both exist.
+	local metaRow = nil
+	if prerequisitesPanel ~= nil and tagsEditor ~= nil then
+		metaRow = gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			halign = "left",
+			gui.Panel{
+				flow = "vertical",
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				valign = "top",
+				prerequisitesPanel,
+			},
+			gui.Panel{
+				flow = "vertical",
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				valign = "top",
+				tagsEditor,
+			},
+		}
+	else
+		metaRow = prerequisitesPanel or tagsEditor
+	end
+
+	-- Built incrementally rather than as a literal: metaRow can be nil, and
+	-- a holed list makes the later #innerRows+1 append
+	-- implementation-defined.
+	local innerRows = {}
+	for _,row in ipairs{
 		makeFormRow("Name:", nameInput, "namePanel"),
 		makeFormRow("Source:", sourceInput, "sourcePanel"),
 		makeInlineRow("Implementation:", implementationWidget),
 		makeFormRow("Description:", descriptionInput, "descriptionPanel"),
-		prerequisitesPanel,
-		modifiersPanel,
-	}
+	} do
+		innerRows[#innerRows+1] = row
+	end
+	innerRows[#innerRows+1] = metaRow
+	innerRows[#innerRows+1] = modifiersPanel
 
 	-- Themed mode builds a persistent Add / Paste Modifier bottom bar. In
 	-- normal (scrolling) editors the bar is kept outside the scroll area so

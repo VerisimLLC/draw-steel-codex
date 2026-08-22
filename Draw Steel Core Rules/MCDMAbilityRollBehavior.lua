@@ -20,6 +20,18 @@ setting{
     storage = "transient",
 }
 
+-- Forces every ability power roll resolved on this client to the given tier
+-- (1-3; 0 = off), as if that tier row had been clicked after the roll. Set and
+-- cleared by "/testai <ability> tier2" -- see the testai macro in MonsterAI.lua.
+-- Storage is transient so a crashed/aborted run cannot leave it set across a
+-- restart.
+setting{
+    id = "test:aiforcetier",
+    description = "Test: Force Power Roll Tier",
+    default = 0,
+    storage = "transient",
+}
+
 --register the ability to modify power roll damage during spell casting.
 ActivatedAbilityModifyCastBehavior.RegisterParam{
     id = "ability_damage",
@@ -266,6 +278,15 @@ RollUtils = {}
 
 --result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
+    -- A game system may define absolute natural-roll outcomes without
+    -- replacing this shared helper (important because several files cache the
+    -- function itself during load). Returning nil keeps the standard rules.
+    local naturalTierFn = GameSystem:try_get("PowerRollNaturalTierOverride")
+    if naturalTierFn ~= nil and type(naturalTierFn) == "function" then
+        local naturalTier = naturalTierFn(result)
+        if naturalTier ~= nil then return naturalTier end
+    end
+
     if result.autosuccess then
         return 3
     end
@@ -737,7 +758,11 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         --SetClassTree so the descendant labels can gate their hover
                         --recolor on "selectable" too (see the {label, selectable, hover}
                         --rule); the press guard above still reads it off the row itself.
-                        element:SetClassTree("selectable", true)
+                        --Not while the Monster AI is driving the dialog: it completes
+                        --the roll itself, so the rows must offer no click-to-override
+                        --affordance. "aiDriven" is put on this subtree by the embedded
+                        --roll dialog's ShowDialog before the dice land.
+                        element:SetClassTree("selectable", not element:HasClass("aiDriven"))
                     end
                 end,
                 tierIcon,
@@ -1530,6 +1555,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
     end
 
+    --Test hook: "/testai <ability> tier2" forces the result. Stamped on
+    --rollProperties BEFORE the roll rather than after it, which is what makes it
+    --show: rollProperties rides along on dmhub.Roll, so the power table's own
+    --finish path (`tier = m_rollInfo.properties:try_get("overrideTier") or tier`)
+    --lands the highlight + flash on the forced row, the per-target tiers come out
+    --of CalculateMultitargetsFromRollProperties already overridden, and remote
+    --clients see it without an extra upload. The dice still animate to their
+    --natural tier and then snap -- exactly like a click on that row.
+    --overrideMessage is what the chat card prints as the reason.
+    local forcedTier = dmhub.GetSettingValue("test:aiforcetier")
+    if type(forcedTier) == "number" and forcedTier >= 1 and forcedTier <= #rollProperties.tiers then
+        rollProperties.overrideTier = forcedTier
+        rollProperties.overrideMessage = string.format("%s forced tier %d (/testai)", dmhub.userDisplayName, forcedTier)
+    end
+
     local m_rollInfo = nil
 
     --Acquire the embedded roll dialog, queuing behind any other ability roll
@@ -2047,6 +2087,28 @@ end
 function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
+end
+
+--An invoked custom ability carries its own power roll (e.g. the Reaver's
+--Phalanx Breaker shifts, then invokes a three-target power roll). The card's
+--render pass already unwraps those nested tiers to display them, so this
+--lookup has to find the same roll -- it gates the whole power-roll section,
+--which stays collapsed while it returns "".
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
+    if self.abilityType ~= "custom" then
+        return nil
+    end
+
+    --Take the last matching subbehavior, which is what the render pass shows.
+    local customAbility = self:try_get("customAbility")
+    local result = nil
+    for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
+        if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            result = subbehavior:GetPowerRollDisplay()
+        end
+    end
+
+    return result
 end
 
 --Resolves the value of the characteristic this power roll uses for `caster`,
@@ -2756,6 +2818,17 @@ function RollPropertiesPowerTable:ApplyCreatureTierDamage(caster, ability)
         for i=1,3 do
             perTier[i] = perTier[i] + strikeBonus
         end
+    end
+
+    --Signature-only damage bonuses (retainer level advancement grants these:
+    --a retainer's signature ability grows with level while their other
+    --abilities do not).
+    if ability ~= nil and ability:try_get("categorization") == "Signature Ability" then
+        local sig1 = caster:CalculateNamedCustomAttribute("Tier 1 Damage") or 0
+        local sig23 = caster:CalculateNamedCustomAttribute("Tier 2 and 3 Damage") or 0
+        perTier[1] = perTier[1] + sig1
+        perTier[2] = perTier[2] + sig23
+        perTier[3] = perTier[3] + sig23
     end
 
     for i=1,math.min(#self.tiers, 3) do
@@ -3472,7 +3545,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 options.symbols.cast:SetTierResult(target.token, tier)
                 local command = self.tiers[tier]
                 self:ExecuteCommand(ability, casterToken, target.token, options, command)
@@ -3529,7 +3602,7 @@ function ActivatedAbilityPowerRollBehavior:CastCustom(ability, casterToken, targ
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 if self:has_key("callback") then
                     self.callback(target.token, tier)
                 end

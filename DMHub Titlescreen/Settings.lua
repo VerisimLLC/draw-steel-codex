@@ -23,6 +23,18 @@ setting{
     default = 0,
 }
 
+--Gates the Patreon feature: the Patreon tab in the module browser and the
+--Patreon/email sections of the account settings. On by default now that the
+--feature ships; no editor field, so it never appears in the settings menus.
+--Turn it off for a session with /set patreonsub false. Remove this setting
+--once the gating is no longer needed at all.
+setting{
+    id = "patreonsub",
+    description = "Show the Patreon features.",
+    storage = "preference",
+    default = true,
+}
+
 setting{
     id = "disableparallax",
     description = "Disable Parallax",
@@ -33,14 +45,129 @@ setting{
 }
 
 setting{
+    id = "popoutgpu",
+    description = "Use GPU Rendering for Popout Windows",
+    help = "Shares popout frames with the companion app through DirectX. Disable this to use the slower CPU shared-memory path for troubleshooting or comparison.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsfocused",
+    description = "Popout Frame Rate (Focused)",
+    help = "Maximum frame rate for a popout window while it has focus. The actual rate cannot exceed DMHub's current frame rate.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 60,
+}
+
+setting{
+    id = "popoutattached",
+    description = "Attach Popout Windows to Main Window",
+    help = "Popped-out panels behave as part of the main app window: no separate taskbar button, they stay in front of it, and they minimize and restore together with it. Turn this off to make each popout a fully independent OS window.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsunfocused",
+    description = "Popout Frame Rate (Unfocused)",
+    help = "Maximum frame rate for a popout window while it does not have focus. Lower values reduce background rendering cost.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 2,
+}
+
+--The old single "Show Map Overlay" preference, superseded by the split
+--mapoverlay:* settings below. Kept registered (no editor/section, so it never
+--appears in the settings menus) so the one-time migration can still read the
+--stored value; safe to remove once the migration has been out for a while.
+setting{
     id = "tileheight:overlay",
-    description = "Show Map Overlay",
-    help = "Draws contour lines and integer labels showing the game-rules height of each tile on the current floor.",
+    description = "Show Map Overlay (legacy)",
+    storage = "preference",
+    default = false,
+}
+
+--The map overlay, split into layers. Each is also reachable from the map
+--overlay menu on the title bar's terrain chip (see CodexTitleBar), which
+--additionally lists a per-zone-type toggle for every zone type present on the
+--current map. Players only see overlay information on tiles currently inside
+--their vision.
+setting{
+    id = "mapoverlay:walls",
+    description = "Show Walls",
+    help = "Draws the map's walls as lines colored by the cover they grant: black for full cover, greys for partial cover.",
     storage = "preference",
     section = "Map",
     editor = "check",
     default = false,
 }
+
+setting{
+    id = "mapoverlay:elevation",
+    description = "Show Elevation",
+    help = "Draws contour lines wherever tile elevation changes, and an integer height label inside each region.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+--';'-joined environmental keyword ids whose zones are hidden from the map
+--overlay for this user. Zone types default to VISIBLE; this records opt-outs.
+--No editor: managed from the title bar's map overlay menu.
+setting{
+    id = "mapoverlay:hiddenzones",
+    description = "Hidden Map Overlay Zone Types",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined built-in terrain rule types (water/difficult/concealment/
+--climbable) whose tile-art stripes are shown. Unlike zones these default
+--HIDDEN: a DM paints zones deliberately, but tile-art rules would stripe
+--every pond on every map by default. No editor: managed from the title
+--bar's map overlay menu, which lists only the types actually present on
+--the map's terrain tiles (dmhub.GetBuiltinTerrainTypesOnMap).
+setting{
+    id = "mapoverlay:shownbuiltins",
+    description = "Shown Built-in Terrain Types",
+    storage = "preference",
+    default = "",
+}
+
+--One-time migration: a user who had the old combined preference on gets the
+--equivalent full overlay from the split settings.
+setting{
+    id = "mapoverlay:migrated",
+    description = "Map overlay settings migrated",
+    storage = "preference",
+    default = false,
+}
+
+if not dmhub.GetSettingValue("mapoverlay:migrated") then
+    dmhub.SetSettingValue("mapoverlay:migrated", true)
+    if dmhub.GetSettingValue("tileheight:overlay") then
+        dmhub.SetSettingValue("mapoverlay:walls", true)
+        dmhub.SetSettingValue("mapoverlay:elevation", true)
+        dmhub.SetSettingValue("mapoverlay:shownbuiltins", "climbable;concealment;difficult;water")
+    end
+end
 
 setting{
     id = "canopy:defaultradius",
@@ -781,6 +908,10 @@ setting{
             value = "dither",
             text = "Dim",
         },
+        {
+            value = "roof",
+            text = "Roof",
+        },
     }
 }
 
@@ -843,11 +974,39 @@ setting{
 --dev-only: when set for a game, the game's cloud assets are replaced by a
 --local directory tree of YAML files (see the /localassets macro). Takes
 --effect on the next game load. Edited via the custom Local Assets section
---in the Editing settings tab (no generic editor).
+--in the Editing settings tab (no generic editor). Superseded by
+--localassets:dirs when that is non-empty; kept as a fallback so games
+--configured before the multi-directory feature keep working.
 setting{
 	id = "localassets:dir",
 	description = "Local Assets Directory (dev)",
 	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only: ordered list of local asset directories, stored as a single
+--newline-delimited string. The FIRST entry is the "top" directory: highest
+--precedence (an item present in several directories loads from the top-most
+--one holding it) and the home for newly created entries. Edited via the
+--custom Local Assets section in the Editing settings tab (no generic
+--editor); the engine reads it in LocalAssetDirectory.MaybeActivate.
+setting{
+	id = "localassets:dirs",
+	description = "Local Assets Directories (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): explicit path to the git executable used
+--by the local-assets read-only git integration (status badges in the file
+--browser). When empty, the engine auto-detects git from PATH and common
+--install locations; set this only when auto-detection fails. Edited via the
+--git row in the Local Assets settings section; the engine reads it in
+--GitStatusService.ResolveGitPath.
+setting{
+	id = "localassets:gitpath",
+	description = "Git Executable for Local Assets (dev)",
+	storage = "preference",
 	default = "",
 }
 
@@ -2689,6 +2848,18 @@ setting{
 	default = false,
 }
 
+--Read by the engine (NativeWindowManager.CanUseGpuBridge): when false,
+--popout windows use the CPU shared-memory transport instead of the DXGI
+--shared-texture bridge. Debug/test switch; takes effect per-frame, even
+--for windows that are already open.
+setting{
+	id = "popoutgpu",
+	description = "Popout windows use GPU rendering",
+	storage = "preference",
+	editor = "check",
+	default = true,
+}
+
 setting{
 	id = "autoreloadlua",
 	description = "Auto Reload Lua Changes",
@@ -2729,6 +2900,14 @@ setting{
 	storage = "preference",
 	editor = "dropdown",
 		enum = {
+		{
+			value = 60,
+			text = "60%",
+		},
+		{
+			value = 70,
+			text = "70%",
+		},
 		{
 			value = 80,
 			text = "80%",

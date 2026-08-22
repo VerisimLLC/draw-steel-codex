@@ -101,7 +101,7 @@
 --- @field mapfocus boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts to be dragged onto it from Windows. When files with matching extensions are dropped onto this panel, the 'dropfiles' event is filed, which takes a string[] of the filenames dropped.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
 --- @field distancesToScreenEdge Vector4 The distances to the edge of the screen from the edges of this panel.
@@ -172,6 +172,20 @@ end
 --- @param args any
 --- @return nil
 function Panel:MoveToNativeWindow(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), raise that OS window -- or flash its taskbar button when the OS denies the focus steal. Returns false if the panel is not in a native window.
+--- @return boolean
+function Panel:RaiseNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetInheritedNativeWindowUIScale
+--- @param sourcePanel any
+--- @param panelLocalScale any
+--- @return any
+function Panel.GetInheritedNativeWindowUIScale(sourcePanel, panelLocalScale)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -467,7 +481,7 @@ end
 --- @field mapfocus nil|boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll nil|boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest nil|boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts to be dragged onto it from Windows. When files with matching extensions are dropped onto this panel, the 'dropfiles' event is filed, which takes a string[] of the filenames dropped.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos nil|Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands nil|string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
 --- @field distancesToScreenEdge nil|Vector4 The distances to the edge of the screen from the edges of this panel.

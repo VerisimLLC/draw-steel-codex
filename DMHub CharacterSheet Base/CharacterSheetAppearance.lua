@@ -115,6 +115,19 @@ local AppearanceStyles = {
         borderWidth = 2,
     },
 
+    -- Privacy (eye) toggle beside the character name.  Its bgimage comes from
+    -- the character sheet framework's {"privacyIcon"} rule, but its bgcolor
+    -- cannot: this panel's style set is the one carrying the theme cascade, and
+    -- the theme's generic {"panel"} rule paints bgcolor with @bg.  Sitting
+    -- closer to the icon than the framework's rule, it wins at equal
+    -- specificity -- which tinted the white eye PNG the exact colour of the
+    -- surface behind it.  Re-state the tint here so it resolves in the same set
+    -- and wins on order, matching what the Draw Steel sheet already uses.
+    {
+        selectors = { "privacyIcon" },
+        bgcolor = "@fgStrong",
+    },
+
     {
         selectors = { "framePanel" },
         halign = "left",
@@ -1243,6 +1256,18 @@ local mountOptions = {
     {
         id = "17",
         text = "Seventeen Saddles",
+    },
+    {
+        id = "18",
+        text = "Eighteen Saddles",
+    },
+    {
+        id = "19",
+        text = "Nineteen Saddles",
+    },
+    {
+        id = "20",
+        text = "Twenty Saddles",
     },
 }
 
@@ -2696,7 +2721,17 @@ function CharSheet.AppearancePanel()
                     valign = "center",
                     hmargin = 32,
                     autoplay = true,
+                    --Route the audition through the anthem bus so it obeys the player's
+                    --Anthem volume setting (and the DM's anthem broadcast level) exactly
+                    --like real anthem playback in the initiative bar does.
+                    autoplaymixgroup = "anthem",
                     refreshAppearance = function(element, info)
+                        --Seed the preview volume with the token's own anthemVolume BEFORE
+                        --setting the value, since assigning the value is what starts
+                        --playback. Without this the audition always started at full
+                        --volume and only picked up the slider once it was dragged.
+                        local anthemVolume = CharacterSheet.instance.data.info.token.anthemVolume
+                        element:FireEvent("volume", anthemVolume or 1)
                         element.value = CharacterSheet.instance.data.info.token.anthem
                     end,
                     change = function(element)
@@ -2893,6 +2928,186 @@ function CharSheet.AppearancePanel()
         },
     }
 
+    --Per-token dice: which dice this token rolls with, rather than simply using
+    --whatever the rolling player has equipped in their own inventory. Stored on the
+    --creature as 'diceLoadout' -- absent = "use my dice", the default for every
+    --token. See the Per-token dice preference section of Creature.lua for the shape
+    --and for how entitlement is enforced.
+    --
+    --Three rows, one per slot of the loadout the engine understands: the token's
+    --dice, an optional different second power d10 (so a 2d10 power roll can show a
+    --mixed pair -- or the same die twice, by leaving it on "Same as Dice"), and an
+    --optional different d3/d6. Each row carries a live spinning render of the die
+    --that row will actually roll, using the same pooled
+    --"#DicePreview:<set>:<seq>:<scale>:<spin>:<faces>" scene as the shop's equip
+    --panel. Setting the first row back to "Use My Dice" drops the whole loadout, so
+    --the other two rows only exist while the token is customized.
+    local g_tokenDiceSlots = {
+        { key = "model", seq = "tokendice1", faces = 10, text = "Dice:",
+          inheritText = "Use My Dice",
+          tooltip = "The dice this token rolls with. On 'Use My Dice' it simply uses whatever dice the rolling player has equipped." },
+        { key = "model2", seq = "tokendice2", faces = 10, text = "2nd Power Die:",
+          inheritText = "Same as Dice",
+          tooltip = "Rolls with multiple d10s -- power rolls included -- alternate between this token's dice and this set, so the pair is mismatched. Leave it on 'Same as Dice' to roll two of the same." },
+        { key = "modelD6", seq = "tokendiced6", faces = 6, text = "D3 / D6:",
+          inheritText = "Same as Dice",
+          tooltip = "A different set for this token's d3 and d6 rolls." },
+    }
+
+    --The dice set the account has equipped for a slot -- what an uncustomized token
+    --actually rolls, and so what its preview shows.
+    local function EquippedDiceForSlot(key)
+        local equipped = dmhub.GetSettingValue("diceequipped")
+        if equipped == nil or equipped == "" then
+            equipped = "Default"
+        end
+
+        if key == "model" then
+            return equipped
+        end
+
+        local id = dmhub.GetSettingValue(cond(key == "model2", "diceequipped2", "diceequippedd6"))
+        if id == nil or id == "" then
+            return equipped
+        end
+        return id
+    end
+
+    --Options for a slot's picker: the slot's "inherit" entry, then every dice set
+    --this account owns. Only owned sets are offered -- and at roll time the ROLLING
+    --player's ownership is what counts (creature:ResolveDiceLoadout), so a DM
+    --customizing a monster can never hand out dice a player has not bought.
+    local function TokenDiceOptions(slot)
+        local sets = {}
+        --pcall: an engine build without the bridge just offers the inherit entry.
+        local ok, list = pcall(function() return dice.GetAvailableDice() end)
+        if ok and type(list) == "table" then
+            for _,entry in ipairs(list) do
+                if entry ~= nil and entry.value ~= nil and entry.value ~= "" then
+                    sets[#sets+1] = { id = entry.value, text = entry.text or entry.value }
+                end
+            end
+        end
+        table.sort(sets, function(a, b) return a.text < b.text end)
+
+        local options = { { id = "", text = slot.inheritText } }
+        for _,entry in ipairs(sets) do
+            options[#options+1] = entry
+        end
+        return options
+    end
+
+    local function SaveTokenDice(key, assetid)
+        local tok = CharacterSheet.instance.data.info.token
+        tok:ModifyProperties{
+            description = "Change token dice",
+            execute = function()
+                tok.properties:SetDiceLoadoutSlot(key, assetid)
+            end,
+        }
+        CharacterSheet.instance:FireEvent("refreshAll")
+    end
+
+    local function MakeTokenDiceRow(slot)
+        --Live 3D die for this slot (pooled preview scene -- the same mechanism as the
+        --shop's equip columns). The RT is premultiplied with reconstructed alpha. The
+        --trailing key segments are dice scale, spin-axis angle, and the die geometry;
+        --an engine build that predates the faces segment ignores it and shows a d10.
+        --bgimage is only re-set when the key actually changes, so the die does not
+        --restart every time the sheet refreshes.
+        local diePanel = gui.Panel{
+            interactable = false,
+            bgcolor = "white",
+            blend = "premultiplied",
+            width = 48,
+            height = 48,
+            halign = "left",
+            valign = "center",
+            hmargin = 4,
+            data = { dieKey = nil },
+        }
+
+        local dropdown = gui.Dropdown{
+            width = 180,
+            valign = "center",
+            halign = "right",
+            options = {},
+            change = function(element)
+                SaveTokenDice(slot.key, element.idChosen or "")
+            end,
+        }
+
+        return gui.Panel{
+            flow = "horizontal",
+            width = 400,
+            height = 56,
+            halign = "center",
+            valign = "top",
+
+            linger = function(element)
+                gui.Tooltip{
+                    text = slot.tooltip,
+                    halign = "center",
+                    valign = "top",
+                }(element)
+            end,
+
+            refreshAppearance = function(element, info)
+                local loadout = info.token.properties:GetDiceLoadout()
+
+                --The override rows only make sense once the token has dice of its own.
+                if slot.key ~= "model" then
+                    element:SetClass("collapsed", loadout.model == nil)
+                end
+
+                dropdown.options = TokenDiceOptions(slot)
+                dropdown.idChosen = loadout[slot.key] or ""
+
+                --The die this row will actually roll: the token's own choice, the
+                --token's primary set for an un-overridden 2nd/d6 row, or the account's
+                --equipped set while the token is uncustomized.
+                local previewSet = loadout[slot.key] or loadout.model
+                if previewSet == nil then
+                    previewSet = EquippedDiceForSlot(slot.key)
+                end
+
+                local dieKey = string.format("#DicePreview:%s:%s:%.2f:%.2f:%d",
+                    tostring(previewSet), slot.seq, 3.0, 0, slot.faces)
+                if diePanel.data.dieKey ~= dieKey then
+                    diePanel.data.dieKey = dieKey
+                    diePanel.bgimage = dieKey
+                end
+            end,
+
+            diePanel,
+
+            gui.Label{
+                classes = {"sizeM"},
+                text = slot.text,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+            },
+
+            dropdown,
+        }
+    end
+
+    local tokenDicePanel = gui.Panel{
+        width = 400,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        vmargin = 16,
+
+        MakeTokenDiceRow(g_tokenDiceSlots[1]),
+        MakeTokenDiceRow(g_tokenDiceSlots[2]),
+        MakeTokenDiceRow(g_tokenDiceSlots[3]),
+    }
+
     local effectsPanel = gui.Panel {
         width = "100%",
         height = "100%-30",
@@ -3021,7 +3236,9 @@ function CharSheet.AppearancePanel()
                     element.idChosen = current
                 end,
             }
-        }
+        },
+
+        tokenDicePanel,
     }
 
     local m_currentPreviewLighting = 1

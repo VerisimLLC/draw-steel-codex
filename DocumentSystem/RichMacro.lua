@@ -150,7 +150,10 @@ function RichMacro.CreateDisplay(self)
         end,
         press = function(element)
             if m_strike ~= "~" then
-                dmhub.Execute(RichMacro.Unescape(m_command))
+                --steps built by the command builder may carry "{Name}"
+                --annotations; those are metadata for re-editing, not part of
+                --the executable command.
+                dmhub.Execute(CommandBuilder.StripAnnotations(RichMacro.Unescape(m_command)))
             end
 
             if m_strike ~= nil and m_token ~= nil and self:GetDocument() ~= nil then
@@ -165,7 +168,10 @@ function RichMacro.CreateDisplay(self)
                     {
                         text = "Copy Command",
                         click = function()
-                            dmhub.CopyToClipboard("/" .. RichMacro.Unescape(m_command))
+                            --copy the executable form: pasting into chat (or
+                            --another button) should not carry the builder's
+                            --"{Name}" annotations.
+                            dmhub.CopyToClipboard("/" .. CommandBuilder.StripAnnotations(RichMacro.Unescape(m_command)))
                             element.popup = nil
                         end,
                     }

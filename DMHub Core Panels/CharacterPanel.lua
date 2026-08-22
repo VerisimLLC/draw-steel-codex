@@ -13,6 +13,69 @@ end
 
 CharacterPanel = {}
 
+--Party Member Controls: a game-wide Director option controlling whether
+--players can view (or view and edit) the character panels of party members
+--they don't control. "Party member" means any player-controlled token.
+local g_partyMemberControlsSetting = setting{
+    id = "partymembercontrols",
+    description = "Party Member Controls",
+    help = "None: Players cannot view the stats of other party members.\nView: Players can view the stats of other party members.\nView & Edit: Players can view and edit the stats of other party members.",
+    editor = "dropdown",
+    default = "none",
+    storage = "game",
+    section = "game",
+    classes = {"dmonly"},
+    enum = {
+        { value = "none", text = "None", help = "Players cannot view the stats of other party members" },
+        { value = "view", text = "View", help = "Players can view the stats of other party members" },
+        { value = "edit", text = "View & Edit", help = "Players can view and edit the stats of other party members" },
+    },
+}
+
+--The id of the Party Member Controls setting, for panels that want to
+--monitor it for changes.
+CharacterPanel.partyMemberControlsSettingId = "partymembercontrols"
+
+--- The access the local player has to a token's character panel:
+--- "edit" (may view and change it), "view" (look but not touch), or
+--- "none" (may not even open the panel). Anyone who can control the
+--- token gets "edit"; the Party Member Controls game setting can extend
+--- view or edit access to party members (player-controlled tokens) the
+--- local player doesn't control.
+--- @param token nil|CharacterToken
+--- @return "edit"|"view"|"none"
+function CharacterPanel.TokenAccessLevel(token)
+    if token == nil or not token.valid then
+        return "none"
+    end
+    if token.canControl then
+        return "edit"
+    end
+    if not token.playerControlled then
+        return "none"
+    end
+    local access = g_partyMemberControlsSetting:Get()
+    if access == "edit" or access == "view" then
+        return access
+    end
+    return "none"
+end
+
+--- True if the local player may open this token's character panel at all.
+--- @param token nil|CharacterToken
+--- @return boolean
+function CharacterPanel.CanViewToken(token)
+    return CharacterPanel.TokenAccessLevel(token) ~= "none"
+end
+
+--- True if the local player may look at this token's character panel but
+--- not change anything in it (Party Member Controls = View).
+--- @param token nil|CharacterToken
+--- @return boolean
+function CharacterPanel.TokenIsReadOnly(token)
+    return CharacterPanel.TokenAccessLevel(token) == "view"
+end
+
 --Remembers which party folders the local user has collapsed, on a per-user-per-game
 --basis. Value is a map of party key -> collapsed boolean.
 setting{
@@ -147,6 +210,238 @@ local g_sidebarExtras = {
     },
 }
 
+--Character-list fork of the sidebar styles: the Character and Bestiary
+--tabs follow the STYLE_GUIDE.md quiet-dark grammar (transparent rows,
+--@bgAlt hover, accent edge for selection, no inverse fills); the pinned
+--character window keeps g_sidebarExtras. The class NAMES stay shared; the
+--fork happens at each root's styles, which scope to their own subtree.
+local g_characterListExtras = {
+    {
+        selectors = { "bestiaryLabel" },
+        color = "@fg",
+        fontSize = 14,
+        bold = false,
+        height = "auto",
+        width = "auto",
+        minWidth = 200,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+    },
+    --Party headers: section-header grammar. Uppercase stays -- party names
+    --are user text, and the caps band is what separates group bands from
+    --member rows at a glance in this dense list.
+    {
+        selectors = { "bestiaryLabel", "folder" },
+        uppercase = true,
+        fontSize = 13,
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:hover" },
+        color = "@fgStrong",
+        transitionTime = 0.1,
+    },
+    --Empty folders cannot be opened: grey the band so it reads inert.
+    --The hover variant pins the muted color so the band does not light
+    --up and promise an interaction it will not deliver.
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:emptyFolder" },
+        color = "@fgMuted",
+        priority = 10,
+    },
+    {
+        selectors = { "bestiaryLabel", "folder", "parent:emptyFolder", "parent:hover" },
+        color = "@fgMuted",
+        priority = 15,
+    },
+    {
+        selectors = { "triangle", "empty" },
+        bgcolor = "@fgMuted",
+        opacity = 0.4,
+        priority = 10,
+    },
+    {
+        selectors = { "charPartyCount", "parent:emptyFolder" },
+        opacity = 0.4,
+        priority = 10,
+    },
+    --Selection and focus brighten the NAME; the fill lives on the row.
+    {
+        selectors = { "bestiaryLabel", "parent:selected" },
+        color = "@fgStrong",
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "parent:focus" },
+        color = "@fgStrong",
+        bold = true,
+    },
+    {
+        selectors = { "bestiaryLabel", "invisible" },
+        color = "@fgMuted",
+        italics = true,
+    },
+    {
+        selectors = { "bestiarySearchNote" },
+        color = "@fgMuted",
+        italics = true,
+        fontSize = 12,
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    {
+        selectors = { "headerPanel" },
+        bgcolor = "clear",
+    },
+    --Member count at the header's right edge.
+    {
+        selectors = { "charPartyCount" },
+        fontSize = 11,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        rmargin = 8,
+    },
+    --The header's underline: one step louder than row seams would be.
+    {
+        selectors = { "charHeaderRule" },
+        bgcolor = "@border",
+        opacity = 0.35,
+        width = "100%",
+        height = 1,
+    },
+    --Two-line character rows: bold name over a muted summary line.
+    {
+        selectors = { "charName" },
+        fontSize = 15,
+        bold = true,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    {
+        selectors = { "charName", "parent:selected" },
+        color = "@fgStrong",
+    },
+    {
+        selectors = { "charName", "parent:focus" },
+        color = "@fgStrong",
+    },
+    {
+        selectors = { "charName", "invisible" },
+        color = "@fgMuted",
+        italics = true,
+    },
+    {
+        selectors = { "charSubtitle" },
+        fontSize = 11,
+        italics = true,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+    },
+    --Square portrait at the row's left, sitting in a subtle @bgAlt tile so
+    --any cutout-art fallback still has a defined square.
+    {
+        selectors = { "charPortraitTile" },
+        --portrait-shaped, not square: matches how portraits are normally
+        --framed. The charPortrait imageLoaded crop keeps this 28:34 aspect
+        --(update both together).
+        width = 28,
+        height = 34,
+        halign = "left",
+        valign = "center",
+        --matches the folder caret's inset (ExpandoArrow margin 5), so the
+        --portrait column and the carets read as one left edge.
+        lmargin = 5,
+        bgcolor = "@bgAlt",
+        borderWidth = 1,
+        borderColor = "@border",
+    },
+    {
+        selectors = { "charPortrait" },
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        bgcolor = "white",
+    },
+    --Rows: quiet at rest, surface on hover, accent edge when part of the
+    --selection working set or focused. No per-row seams here (dense list;
+    --see STYLE_GUIDE.md).
+    {
+        selectors = { "characterEntry" },
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "characterEntry", "hover" },
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "characterEntry", "selected" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    {
+        selectors = { "characterEntry", "focus" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    --Create-character button takes the Phosphor plus, scoped to this panel
+    --like the floors and maps lists.
+    {
+        selectors = { "panel", "buttonIcon", "parent:addButton" },
+        bgimage = "phosphor/plus-bold.png",
+        priority = 10,
+    },
+}
+
+--Bestiary fork: the Character tab's quiet-dark grammar verbatim (the class
+--vocabulary is shared), plus rules for the monster rows -- the bestiary's
+--selection is focus-driven (gui.SetFocus) rather than the character list's
+--selected class, so the accent-edge treatment keys off "focus" here.
+local g_bestiaryListExtras = {}
+for _, rule in ipairs(g_characterListExtras) do
+    g_bestiaryListExtras[#g_bestiaryListExtras + 1] = rule
+end
+for _, rule in ipairs({
+    {
+        selectors = { "monsterEntry" },
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "monsterEntry", "hover" },
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "monsterEntry", "focus" },
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+    },
+    --the bestiary hosts in a vscroll whose scrollbar overlays the last
+    --few pixels of every row (children lay out at full width; the
+    --viewport then shrinks), so the counts need a deeper inset than the
+    --character list's 8px to stay clear of it.
+    {
+        selectors = { "charPartyCount" },
+        rmargin = 18,
+        priority = 5,
+    },
+}) do
+    g_bestiaryListExtras[#g_bestiaryListExtras + 1] = rule
+end
+
 DockablePanel.Register {
     name = "Character",
 	icon = "phosphor/user.png",
@@ -163,15 +458,53 @@ DockablePanel.Register {
     hasNewContent = function()
         return module.HasNovelContent("character")
     end,
+    newContentCount = function()
+        return gui.NovelContentCount("character")
+    end,
+    --having the panel open counts as seeing the new characters: the rail
+    --calls this while the panel is shown. The rows' pips only re-check on
+    --moduleInstalled, so they stay visible for this viewing and are gone
+    --the next time the panel is built.
+    markContentSeen = function()
+        gui.ClearNovelContent("character")
+    end,
+    clearNewContent = function()
+        gui.ClearNovelContent("character")
+    end,
 }
+
+--live root panels built by CreateBestiaryPanel, so the Bestiary
+--registration's markContentSeen (below) can reach the trees the user is
+--actually looking at. Pruned of dead panels as they're visited.
+local g_bestiaryPanelRoots = {}
+
+--whether any monster in this asset-node subtree is recorded as novel
+--(added or updated by a module install). Walks the ASSET nodes, not the
+--panels, so collapsed (never-materialized) folders are covered too.
+local function SubtreeHasNovelMonsters(node)
+    for _, v in ipairs(node.children) do
+        if not v.hidden then
+            if v.folder ~= nil then
+                if SubtreeHasNovelMonsters(v) then
+                    return true
+                end
+            elseif module.HasNovelContent("monsters", v.id) then
+                return true
+            end
+        end
+    end
+    return false
+end
 
 DockablePanel.Register {
     name = "Bestiary",
 	icon = "icons/standard/Icon_App_Bestiary.png",
     minHeight = 140,
     dmonly = true,
-    vscroll = true,
-    hideObjectsOutOfScroll = false,
+    --no host scroll: the panel builds its own scroll region below a
+    --pinned header (search + new folder/entry), so the header stays put
+    --while the tree scrolls under it.
+    vscroll = false,
     content = function()
         track("panel_open", {
             panel = "Bestiary",
@@ -181,6 +514,33 @@ DockablePanel.Register {
     end,
     hasNewContent = function()
         return module.HasNovelContent("monsters")
+    end,
+    newContentCount = function()
+        return gui.NovelContentCount("monsters")
+    end,
+    --while the panel is on screen, every monster row actually on display
+    --retires its novel record -- the pip stays visible for this viewing,
+    --but won't come back next time. Monsters hidden inside collapsed
+    --folders keep their records (and their folder keeps its alert pip)
+    --until the folder is expanded. The rail calls this on its refresh
+    --cadence whenever the panel is shown.
+    markContentSeen = function()
+        if not module.HasNovelContent("monsters") then
+            return
+        end
+        for i = #g_bestiaryPanelRoots, 1, -1 do
+            local p = g_bestiaryPanelRoots[i]
+            if p == nil or not p.valid then
+                table.remove(g_bestiaryPanelRoots, i)
+            else
+                p.data.retireVisibleNovel(p)
+            end
+        end
+    end,
+    --clicking a bestiary row clears that one monster (ClearNovelContent
+    --below); this is the bulk escape for a module that flagged hundreds.
+    clearNewContent = function()
+        gui.ClearNovelContent("monsters")
     end,
 }
 
@@ -579,13 +939,116 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
     local resultPanel = nil
 
+    --novel-content pip: lit while this monster is recorded as novel
+    --(added or updated by a module install). Viewing the monster --
+    --focusing its row or lingering for the stat block -- dismisses the
+    --record, which in turn lets the Bestiary rail/tab marker go out
+    --once every novel monster has been seen. Merely having the row on
+    --display (folder expanded, panel open) retires the RECORD too, but
+    --keeps the pip showing for this viewing: m_pipRetained marks that
+    --state so refreshAssets doesn't take the pip down early.
+    local novelContentAlert = gui.NewContentAlertConditional("monsters", nodeid)
+    local m_pipRetained = false
+    local nameLabel = nil --forward-declared; the label the pip rides on.
+    local function ClearNovelContent()
+        if module.HasNovelContent("monsters", nodeid) then
+            module.RemoveNovelContent("monsters", nodeid)
+        end
+        if novelContentAlert ~= nil and novelContentAlert.valid then
+            novelContentAlert:DestroySelf()
+        end
+        novelContentAlert = nil
+        m_pipRetained = false
+    end
+
+    --"Level 3 Elite Brute" style summary line: the monster's level plus its
+    --role string (which encodes organization and role). Falls back to the
+    --monster type for entries without either (followers, imports). Guarded
+    --with pcall throughout -- properties may be follower- or plain
+    --creature-typed, and game-type objects raise on missing methods.
+    local function MonsterSubtitleText()
+        local props = monster ~= nil and monster.properties or nil
+        if props == nil then
+            return ""
+        end
+
+        local parts = {}
+
+        local level = nil
+        pcall(function() level = props:Level() end)
+        if level ~= nil and level > 0 then
+            parts[#parts + 1] = string.format("Level %d", level)
+        end
+
+        local role = nil
+        pcall(function() role = props:try_get("role", nil) end)
+        if role ~= nil and role ~= "" then
+            --stored lowercase ("elite brute"); read it title-cased.
+            parts[#parts + 1] = string.gsub(role, "(%a)([%w]*)", function(a, b)
+                return string.upper(a) .. b
+            end)
+        end
+
+        if #parts == 0 then
+            local kind = nil
+            pcall(function() kind = props:RaceOrMonsterType() end)
+            if kind ~= nil and kind ~= "" then
+                parts[#parts + 1] = kind
+            end
+        end
+
+        return table.concat(parts, " ")
+    end
+
+    nameLabel = gui.Label({
+        classes = { "charName" },
+        text = creature.GetTokenDescription(monster),
+        novelContentAlert,
+        refreshAssets = function(element)
+            --a module install updates assets and fires this, so
+            --an already-built row gains its pip when the monster
+            --it shows is re-delivered (updated) by a module.
+            if module.HasNovelContent("monsters", nodeid) then
+                --a live record trumps any earlier retirement: the
+                --monster was (re-)delivered, so it's news again.
+                m_pipRetained = false
+                if novelContentAlert == nil then
+                    novelContentAlert = gui.NewContentAlert{}
+                    element:AddChild(novelContentAlert)
+                end
+            elseif novelContentAlert ~= nil and not m_pipRetained then
+                if novelContentAlert.valid then
+                    novelContentAlert:DestroySelf()
+                end
+                novelContentAlert = nil
+            end
+            local desc = creature.GetTokenDescription(monster)
+            local showImportStatus = false --disabled for now.
+            if showImportStatus and devmode() then
+                if monster.properties:has_key("import") then
+                    local postfix = " <size=60%><color=#bbbbff>(imported)"
+                    if monster.properties.import.override then
+                        postfix = " <size=60%><color=#ffbbbb>(overridden)"
+                    end
+                    element.text = desc .. postfix
+                else
+                    element.text = desc
+                end
+            else
+                element.text = desc
+            end
+        end
+    })
+
     resultPanel = gui.Panel({
         classes = { cond(startHidden, "collapsed"), "monsterEntry" },
         id = nodeid,
         bgimage = true,
         valign = "top",
         width = "100%",
-        height = BestiaryPanelHeight,
+        --two-line row: bold name over a muted summary line, square portrait
+        --at the left (the Character tab's row grammar).
+        height = 40,
         flow = "horizontal",
         draggable = nodeid ~= '',
         canDragOnto = function(element, target)
@@ -618,10 +1081,20 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                --Reserved gutter: a vscroll panel lays its children out at the
+                --panel's FULL width, but once the content overflows the
+                --scrollbar appears and the scroll viewport shrinks by the
+                --scrollbar's width -- so the last few pixels of every child get
+                --masked off. The stat block right-aligns its header text
+                --("Level 6 Elite Controller", "EV 32", "Free Strike") to 100%
+                --width, so it was the visible casualty. borderBox keeps the
+                --padding inside the declared 800 rather than widening the panel.
                 local panel = monsterEntry:Render {
                     width = 800,
                     maxHeight = lockedHeight,
                     vscroll = true,
+                    rpad = 12,
+                    borderBox = true,
                 }
 
                 if panel ~= nil then
@@ -633,6 +1106,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
                             interactable = true,
                         }
                     )
+
+                    --the stat block is showing: this monster has been seen.
+                    ClearNovelContent()
                 end
             end,
 
@@ -650,10 +1126,13 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
 
                 local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+                --see the linger handler above for why the right gutter is reserved.
                 local panel = monsterEntry:Render {
                     width = 800,
                     maxHeight = lockedHeight,
                     vscroll = true,
+                    rpad = 12,
+                    borderBox = true,
                 }
                 if panel == nil then
                     return
@@ -698,7 +1177,11 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     element:FireEvent('focus')
                 end
 
-                element.x = element.data.depth * 10
+                --rows sit flush at the panel edge at every depth: the
+                --folder bands' own indent carries the hierarchy, and the
+                --two-line rows read as contents without a second indent
+                --(Venla 2026-08-12).
+                element.x = 0
             end,
 
             press = function(element)
@@ -708,6 +1191,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     gui.SetFocus(element)
                 end
                 element.popup = nil
+                ClearNovelContent()
             end,
 
             rightClick = function(element)
@@ -791,6 +1275,26 @@ local function CreateMonsterEntry(nodeid, startHidden)
             nodeid = nodeid, --storing the nodeid with the panel for drag and drop.
             monsterid = nodeid, --makes it so this reports the monster id to GetSelectedMonster()
 
+            --the row is being displayed to the user (folder expanded, or a
+            --search is showing it, while the panel is open): its novel
+            --record retires now so the alert won't return next time, but
+            --the pip stays up for this viewing. Press/linger (a real look)
+            --still dismisses the pip itself via ClearNovelContent.
+            retireVisibleNovel = function(element)
+                if element:HasClass("collapsed") then
+                    return
+                end
+                if not module.HasNovelContent("monsters", nodeid) then
+                    return
+                end
+                module.RemoveNovelContent("monsters", nodeid)
+                if novelContentAlert == nil and nameLabel ~= nil and nameLabel.valid then
+                    novelContentAlert = gui.NewContentAlert{}
+                    nameLabel:AddChild(novelContentAlert)
+                end
+                m_pipRetained = true
+            end,
+
             search = function(text, matchedParent, budget)
                 searchActive = text ~= ''
                 matchesSearch = matchedParent or text == '' or node:MatchesSearch(text)
@@ -831,59 +1335,138 @@ local function CreateMonsterEntry(nodeid, startHidden)
         },
 
         children = {
+            --Square portrait in a subtle tile at the row's left: the token
+            --art, cover-cropped to the tile (no token ring/frame -- the
+            --Character tab's portrait treatment).
             gui.Panel({
-                classes = {"image"},
-                bgimageStreamed = monster.portrait,
-                bgimageTokenMask = monster.portraitFrame,
+                classes = { "charPortraitTile" },
+                interactable = false,
+                bgimage = "panels/square.png",
 
-                selfStyle = {
-                    imageRect = monster.portraitRect,
-                },
+                gui.Panel({
+                    classes = { "charPortrait" },
+                    interactable = false,
 
-                style = {
-                    halign = 'left',
-                    valign = 'center',
-                    width = BestiaryPanelHeight,
-                    height = BestiaryPanelHeight,
-                },
+                    data = {
+                        --the crop region the current image starts from; the
+                        --imageLoaded handler aspect-fits WITHIN this region
+                        --so nothing stretches.
+                        baseRect = nil,
+                    },
 
-                events = {
-                    refreshAssets = function(element)
-                        element.bgimageStreamed = monster.portrait
-                        element.bgimageTokenMask = monster.portraitFrame
-                        element.selfStyle.imageRect = monster.portraitRect
+                    create = function(element)
+                        element:FireEvent("refreshAssets")
                     end,
-                },
 
-                children = {
-                    gui.Panel({
-                        classes = {"image"},
-                        bgimage = monster.portraitFrame,
-                        selfStyle = {
-                            hueshift = monster.portraitFrameHueShift,
-                            width = BestiaryPanelHeight,
-                            height = BestiaryPanelHeight,
-                        }
-                    })
-                },
+                    refreshAssets = function(element)
+                        local popout = false
+                        pcall(function() popout = monster.popoutPortrait end)
+                        if popout then
+                            --popout art overflows its nominal rect; use the
+                            --inset crop CreateTokenImage uses for it.
+                            local b = 0.14
+                            element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                        else
+                            element.data.baseRect = monster.portraitRect
+                        end
+                        element.bgimage = monster.portrait
+                        element.selfStyle.imageRect = element.data.baseRect
+                    end,
+
+                    --center-crop the base region's longer axis so the
+                    --displayed rect has exactly the tile's 28:34 aspect
+                    --(same recipe as the Character rows -- update both
+                    --together).
+                    imageLoaded = function(element)
+                        if element.bgsprite == nil then
+                            return
+                        end
+
+                        local src_w = element.bgsprite.dimensions.x
+                        local src_h = element.bgsprite.dimensions.y
+                        if src_w <= 0 or src_h <= 0 then
+                            return
+                        end
+
+                        local base = element.data.baseRect or {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                        local baseW = (base.x2 - base.x1) * src_w
+                        local baseH = (base.y2 - base.y1) * src_h
+                        if baseW <= 0 or baseH <= 0 then
+                            return
+                        end
+
+                        local dstAspect = 28 / 34
+                        local srcAspect = baseW / baseH
+
+                        if srcAspect > dstAspect then
+                            --region wider than the tile: shrink its x-span, centered.
+                            local keep = dstAspect / srcAspect
+                            local inset = (base.x2 - base.x1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1 + inset,
+                                y1 = base.y1,
+                                x2 = base.x2 - inset,
+                                y2 = base.y2,
+                            }
+                        elseif srcAspect < dstAspect then
+                            --region taller than the tile: shrink its y-span, centered.
+                            local keep = srcAspect / dstAspect
+                            local inset = (base.y2 - base.y1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1,
+                                y1 = base.y1 + inset,
+                                x2 = base.x2,
+                                y2 = base.y2 - inset,
+                            }
+                        else
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+                }),
             }),
 
-            --Implementation status diamond next to the monster's name,
-            --mirroring the diamond on ability cards. Styled inline because
-            --the implementationDiamond style rules live in SpellRenderStyles,
-            --which is scoped to ability rendering. Hover for an explanation
-            --of the tiers plus this monster's per-ability/trait accounting.
-            --Only shown for creature types with the implementation-status
-            --API (Draw Steel monsters).
+            --name over summary line; top-aligned so the name's cap line
+            --sits level with the portrait tile's top edge (see the
+            --Character rows for the margin math).
+            gui.Panel {
+                flow = "vertical",
+                --reserves the portrait column on the left and the
+                --implementation diamond's corner on the right.
+                width = "100%-60",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                lmargin = 8,
+
+                nameLabel,
+
+                gui.Label({
+                    classes = { "charSubtitle" },
+                    text = MonsterSubtitleText(),
+                    refreshAssets = function(element)
+                        element.text = MonsterSubtitleText()
+                    end,
+                }),
+            },
+
+            --Implementation status diamond, mirroring the diamond on
+            --ability cards; anchored to the row's right edge, out of the
+            --text's way. Styled inline because the implementationDiamond
+            --style rules live in SpellRenderStyles, which is scoped to
+            --ability rendering. Hover for an explanation of the tiers plus
+            --this monster's per-ability/trait accounting. Only shown for
+            --creature types with the implementation-status API (Draw Steel
+            --monsters).
             gui.Panel({
                 classes = { "implementationDiamond" },
                 rotate = 45,
                 width = 10,
                 height = 10,
                 bgimage = "panels/square.png",
-                halign = "left",
+                floating = true,
+                halign = "right",
                 valign = "center",
-                hmargin = 6,
+                x = -10,
                 events = {
                     create = function(element)
                         element:FireEvent("refreshAssets")
@@ -923,29 +1506,6 @@ local function CreateMonsterEntry(nodeid, startHidden)
                     end,
                 },
             }),
-
-            gui.Label({
-                classes = { "bestiaryLabel" },
-                text = creature.GetTokenDescription(monster),
-                gui.NewContentAlertConditional("monsters", nodeid),
-                refreshAssets = function(element)
-                    local desc = creature.GetTokenDescription(monster)
-                    local showImportStatus = false --disabled for now.
-                    if showImportStatus and devmode() then
-                        if monster.properties:has_key("import") then
-                            local postfix = " <size=60%><color=#bbbbff>(imported)"
-                            if monster.properties.import.override then
-                                postfix = " <size=60%><color=#ffbbbb>(overridden)"
-                            end
-                            element.text = desc .. postfix
-                        else
-                            element.text = desc
-                        end
-                    else
-                        element.text = desc
-                    end
-                end
-            })
         }
     })
 
@@ -962,16 +1522,43 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
     local folderPane = nil
 
+    --novel-content pip on the folder row: lit while any monster anywhere
+    --in this folder's subtree is recorded as novel, so a collapsed folder
+    --advertises the new arrivals inside it. Goes out as the records
+    --retire (rows displayed via expansion, or individually viewed). The
+    --root folder skips it -- the rail badge already covers the whole
+    --bestiary.
+    local folderNovelAlert = nil
+    local folderLabel = nil
+    local function RefreshFolderNovelAlert()
+        if nodeid == '' or folderLabel == nil or not folderLabel.valid then
+            return
+        end
+        local has = module.HasNovelContent("monsters") and SubtreeHasNovelMonsters(node)
+        if has then
+            if folderNovelAlert == nil then
+                folderNovelAlert = gui.NewContentAlert{}
+                folderLabel:AddChild(folderNovelAlert)
+            end
+        elseif folderNovelAlert ~= nil then
+            if folderNovelAlert.valid then
+                folderNovelAlert:DestroySelf()
+            end
+            folderNovelAlert = nil
+        end
+    end
+
     --the root folder gets additional UI, such as a search and ways to add objects.
-    local clearSearchButton = nil
+    --searchInput is hoisted out of the root-only block: the collapse handler
+    --below it clears the search through it. The clear x is built into
+    --gui.SearchInput now, so there is no separate clear button any more.
+    local searchInput = nil
     local searchLimitLabel = nil
     local rootPanel = nil
     if nodeid == '' then
         isCollapsed = false
 
         local updateSearch = function(element)
-            clearSearchButton:SetClass("hidden", element.text == "")
-
             local budget = { remaining = MaxBestiarySearchResults, truncated = false }
             folderPane.data.search(element.text, nil, budget)
 
@@ -990,31 +1577,23 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             end
         end
 
-        local searchInput = gui.SearchInput {
+        searchInput = gui.SearchInput {
             id = 'MonsterSearch',
-            classes = {"bordered"},
             placeholderText = 'Search for Monsters...',
             editlag = 0.25,
-            width = '65%',
-            height = "100%-8",
+            --fills the row up to the right-side controls (folder + add;
+            --the old separate clear x is now built into the field). The
+            --themed searchInput look is borderless with its own
+            --magnifier; borderBox keeps the magnifier padding inside
+            --the declared width (see the Maps panel).
+            width = '100%-64',
+            height = 24,
+            borderBox = true,
             halign = 'left',
             valign = 'center',
+            rmargin = 6,
             edit = updateSearch,
             change = updateSearch,
-        }
-
-        clearSearchButton = gui.Button {
-            icon = "ui-icons/close.png",
-            classes = {"hidden"},
-            valign = "center",
-            pad = 4,
-
-            events = {
-                press = function(element)
-                    searchInput.text = ""
-                    updateSearch(searchInput)
-                end,
-            }
         }
 
         --shown when a search has more matches than the result cap.
@@ -1025,7 +1604,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         local createBestiaryFolderButton = gui.Button {
             id = "CreateBestiaryFolderButton",
-            icon = "game-icons/open-folder.png",
+            icon = "phosphor/folder-plus-duotone.png",
+            width = 26,
+            height = 26,
+            hmargin = 2,
             valign = "center",
             hover = gui.Tooltip("Create a bestiary folder"),
             press = function(element)
@@ -1047,6 +1629,9 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         local addBestiaryEntryButton = gui.Button {
             id = "AddBestiaryEntryButton",
             classes = {"addButton"},
+            width = 26,
+            height = 26,
+            hmargin = 2,
             valign = "center",
             hover = gui.Tooltip("Create a bestiary entry"),
             press = function(element)
@@ -1116,16 +1701,32 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         rootPanel =
             gui.Panel {
                 id = 'RootUIPanel',
+                --left-anchored with an explicit right reserve: the old
+                --centered-90%-plus-x-offset arithmetic pushed the add
+                --buttons past the window edge (and half under the
+                --scrollbar), clipping the plus to a bar.
                 x = 10,
                 style = {
                     height = 'auto',
-                    width = '90%',
+                    width = '100%-30',
+                    halign = 'left',
                     flow = 'vertical',
                 },
 
                 children = {
                     gui.Panel {
                         id = 'ObjectSearchPanel',
+                        --the root drop target: with the root "Bestiary"
+                        --band gone (redundant under the window title),
+                        --dragging a monster or folder onto the search row
+                        --files it back at the top level.
+                        classes = { 'monster-drag-target' },
+                        dragTarget = true,
+                        bgimage = true,
+                        bgcolor = "clear",
+                        data = {
+                            nodeid = '',
+                        },
                         style = {
                             height = 30,
                             width = '100%',
@@ -1133,7 +1734,6 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                         },
                         children = {
                             searchInput,
-                            clearSearchButton,
                             createBestiaryFolderButton,
                             addBestiaryEntryButton,
                         },
@@ -1143,8 +1743,23 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             }
     end
 
+    --non-hidden children only: hidden (soft-deleted) nodes should not
+    --keep a folder reading occupied.
+    local function VisibleChildCount()
+        local n = 0
+        for _, v in ipairs(node.children) do
+            if not v.hidden then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
     local triangle = nil
     triangle = gui.ExpandoArrow({
+        --Phosphor mask: the default triangle bitmap reads fuzzy at header
+        --size (same swap as the character, floors and maps lists).
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -1164,10 +1779,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                     element:SetClass("collapsed", true)
                 end
                 element:SetClass("expanded", not isCollapsed)
-                element:SetClass("empty", #node.children < 1)
+                element:SetClass("empty", VisibleChildCount() < 1)
             end,
             refreshAssets = function(element)
-                element:SetClass('empty', #node.children < 1)
+                element:SetClass('empty', VisibleChildCount() < 1)
             end,
             press = function(element)
                 if element:HasClass("collapsed") then
@@ -1183,8 +1798,9 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
                     element:SetClass('search', false)
                     searchActive = false
 
-                    if clearSearchButton ~= nil then --is root panel, clear search.
-                        clearSearchButton:FireEvent('press')
+                    if searchInput ~= nil then --is root panel, clear search.
+                        searchInput.text = ""
+                        searchInput:FireEvent('edit')
                     end
                 end
 
@@ -1193,16 +1809,48 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
                 if not isCollapsed then
                     folderPane:FireEvent('expand')
+
+                    --the rows inside are on display now: their novel
+                    --records retire (pips stay up for this viewing), and
+                    --this folder's own pip follows suit.
+                    folderPane.data.retireVisibleNovel(folderPane)
                 end
             end,
         },
     })
 
 
+    folderLabel = gui.Label({
+        text = 'Bestiary',
+        classes = { "bestiaryLabel", "folder", cond(nodeid == '', "noHoverColor") },
+        x = 4,
+        editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
+        characterLimit = 24,
+        events = {
+            change = function(element)
+                node.description = element.text
+                node:Upload()
+            end,
+            refreshAssets = function(element)
+                element.text = node.description
+                RefreshFolderNovelAlert()
+            end,
+            --No press handler here: presses bubble to the headerPanel, which
+            --does the toggle. A handler here too made one label click toggle
+            --twice (expand + immediately collapse).
+            editname = function(element)
+                element:BeginEditing()
+            end,
+        },
+    })
+
     local headerPanel = gui.Panel({
 
         bgimage = true,
-        classes = { 'headerPanel', 'monster-drag-target' },
+        --the ROOT band is hidden entirely: the window's own title bar
+        --already says Bestiary, so a second title band was noise. Its
+        --drop-to-root duty moved to the search row (see RootUIPanel).
+        classes = { 'headerPanel', 'monster-drag-target', cond(nodeid == '', 'collapsed') },
         dragTarget = true,
 
         draggable = nodeid ~= '',
@@ -1215,7 +1863,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             valign = 'top',
             halign = 'left',
             width = "100%",
-            height = BestiaryPanelHeight,
+            --a step taller than the old rows, with air above, so folder
+            --bands read as section headers (the Character tab's grammar).
+            height = 30,
+            tmargin = 6,
             flow = 'horizontal',
         },
 
@@ -1224,7 +1875,33 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         },
 
         events = {
+            --An empty folder cannot usefully be opened; grey the whole
+            --band (label, caret, count) so it reads inert. Dropping a
+            --monster on the band still files it inside.
+            --The band also takes the tree indent here (top-level bands
+            --flush at 0, one 10px step per nesting level) -- the panes
+            --carry no offset of their own, so this x IS the absolute
+            --indent.
+            create = function(element)
+                element:SetClass("emptyFolder", nodeid ~= '' and VisibleChildCount() < 1)
+            end,
             refreshAssets = function(element)
+                element:SetClass("emptyFolder", nodeid ~= '' and VisibleChildCount() < 1)
+                if folderPane ~= nil and folderPane.valid then
+                    element.x = math.max(0, (folderPane.data.depth - 1) * 10)
+                end
+            end,
+
+            --The whole band toggles the folder; the caret alone was too
+            --small a target. Label presses bubble up to here (the label has
+            --no handler of its own -- two handlers made one click toggle
+            --twice). While the label is being renamed, clicks inside it are
+            --for cursor placement, not toggling.
+            press = function(element)
+                if folderLabel ~= nil and folderLabel.valid and folderLabel.editing then
+                    return
+                end
+                triangle:FireEvent("press")
             end,
 
             drag = mod.shared.CreateDragTargetFunction(node, function(nodeid) return assets:GetMonsterNode(nodeid) end,
@@ -1233,31 +1910,30 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         children = {
             triangle,
+            folderLabel,
 
-            gui.Label({
-                text = 'Bestiary',
-                classes = { "bestiaryLabel", "folder", cond(nodeid == '', "noHoverColor") },
-                x = 4,
-                editableOnDoubleClick = (nodeid ~= ''), --all folders except the root Bestiary folder can be renamed.
-                characterLimit = 24,
+            --Glanceable size of the folder. The root band skips it -- the
+            --whole bestiary's count is not a useful number.
+            gui.Label {
+                classes = { "charPartyCount", cond(nodeid == '', "collapsed") },
+                text = tostring(VisibleChildCount()),
+                interactable = false,
                 events = {
-                    change = function(element)
-                        node.description = element.text
-                        node:Upload()
-                    end,
                     refreshAssets = function(element)
-                        element.text = node.description
-                    end,
-                    press = function()
-                        triangle:FireEvent('press')
-                    end,
-                    editname = function(element)
-                        element:BeginEditing()
+                        element.text = tostring(VisibleChildCount())
                     end,
                 },
-            }),
+            },
         },
     })
+
+    --The header's underline, per the section-header grammar (hidden with
+    --the root band).
+    local headerRule = gui.Panel {
+        classes = { "charHeaderRule", cond(nodeid == '', 'collapsed') },
+        interactable = false,
+        bgimage = "panels/square.png",
+    }
 
     local dragPanels = {}
 
@@ -1269,10 +1945,11 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
     --materializes immediately.
     local m_materialized = not isCollapsed
 
-    --Assigns the folder's children: header, root UI (if any), then
-    --whichever child panels currently exist, in display order.
+    --Assigns the folder's children: header (with its underline), root UI
+    --(if any), then whichever child panels currently exist, in display
+    --order.
     local AssembleChildren = function(element)
-        local newChildren = { headerPanel, rootPanel }
+        local newChildren = { headerPanel, headerRule, rootPanel }
 
         local newNodes = {}
         for _, v in ipairs(node.children) do
@@ -1332,6 +2009,13 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
         classes = { cond(parentCollapsed, "collapsed-anim"), "bestiaryPanel", "ignoreDrag" },
 
         data = {
+            --The root folder's header (search box, new-folder and
+            --new-entry buttons). Published rather than parented:
+            --CreateBestiaryPanel pins it above its scroll region so it
+            --stays put while the tree scrolls under it. nil on every
+            --non-root folder.
+            rootUIPanel = rootPanel,
+
             ord = function()
                 return "a" .. node.description
             end,
@@ -1341,6 +2025,25 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
             end,
             isCollapsed = function()
                 return isCollapsed
+            end,
+
+            --retire the novel records of every row currently on display
+            --under this folder: direct monster rows retire theirs (keeping
+            --their pips up for this viewing), expanded subfolders recurse,
+            --and collapsed subfolders are left alone so their alerts keep
+            --until they too are expanded. An active search overrides the
+            --collapse (matching rows display through it), mirroring how
+            --the rows' own visibility works.
+            retireVisibleNovel = function(element)
+                if isCollapsed and not searchActive then
+                    return
+                end
+                for _, v in pairs(elements) do
+                    if v.valid and v.data.retireVisibleNovel ~= nil then
+                        v.data.retireVisibleNovel(v)
+                    end
+                end
+                RefreshFolderNovelAlert()
             end,
 
             setParentCollapsed = function(element, newValue)
@@ -1572,7 +2275,10 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
                 RebuildChildren(element)
 
-                element.x = element.data.depth * 10
+                --NO x offset on the pane itself: panes nest, so a per-pane
+                --shift compounds down the tree (and pushed even top-level
+                --bands off the panel's left edge). Indentation lives on
+                --the contents -- the header band and the monster rows.
 
                 element.data.refreshCollapsed(element)
             end,
@@ -1593,7 +2299,6 @@ local CreateBestiaryFolder = function(nodeid, startHidden)
 
         children = {
             headerPanel,
-            rootPanel,
         }
     })
 
@@ -1624,27 +2329,88 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
         novelContentAlert = gui.NewContentAlert { x = -14 }
     end
 
-    local playerStar = gui.Panel {
-        bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
-        width = 16,
-        height = 16,
-        valign = "center",
-        classes = {"playerStar"},
-        prepareRefresh = function(element)
-            resultPanel.data.primaryCharacter = token.playerControlledAndPrimary
-            element:SetClass("hidden", not resultPanel.data.primaryCharacter)
-        end,
-    }
-
     local clickTime = nil
 
+
+    --"Level 1 Human Censor" style summary line: level + ancestry, plus the
+    --class for heroes. Guarded with the same patterns the rest of this file
+    --uses (GetClass is hero-only; monster-typed properties can raise on
+    --missing methods).
+    local function SubtitleText()
+        local props = token ~= nil and token.valid and token.properties or nil
+        if props == nil then
+            return ""
+        end
+
+        local parts = {}
+
+        local level = nil
+        pcall(function() level = props:CharacterLevel() end)
+        if level ~= nil and level > 0 then
+            parts[#parts + 1] = string.format("Level %d", level)
+        end
+
+        local ancestry = nil
+        pcall(function() ancestry = props:RaceOrMonsterType() end)
+        if ancestry ~= nil and ancestry ~= "" then
+            --race names are stored comma-inverted ("Elf, High"); read them
+            --naturally ("High Elf") on the summary line.
+            local base, qualifier = string.match(ancestry, "^(.-),%s*(.+)$")
+            if base ~= nil then
+                ancestry = qualifier .. " " .. base
+            end
+            parts[#parts + 1] = ancestry
+        end
+
+        local classInfo = props:IsHero() and props:GetClass() or nil
+        if classInfo ~= nil then
+            parts[#parts + 1] = classInfo.name
+        end
+
+        local result = table.concat(parts, " ")
+
+        --the owning player's name, in their color, rides the summary line.
+        local playerName = token.playerNameOrNil
+        if playerName ~= nil then
+            local color = token.playerColor.tostring
+            if result == "" then
+                result = string.format("<color=%s>%s</color>", color, playerName)
+            else
+                result = string.format("%s -- <color=%s>%s</color>", result, color, playerName)
+            end
+        end
+
+        return result
+    end
+
+    --The row panel is cached in memberPanes for the life of the character
+    --list, and a repopulate only fires "prepareRefresh" down it (see
+    --PopulatePartyMembers) -- a tree-wide "refresh" happens just once, when the
+    --panel is first built. So both text lines listen on BOTH events: bound to
+    --"refresh" alone they froze at creation time, which left a character made
+    --with the panel's add button (blank at that moment: "Level 1 Human", no
+    --class) showing those defaults forever after the player built them in the
+    --sheet.
+    local function RefreshNameText(element)
+        element.text = creature.GetTokenDescription(token)
+        element:SetClass("invisible", token.invisibleToPlayers)
+    end
+
+    local function RefreshSubtitleText(element)
+        element.text = SubtitleText()
+    end
 
     resultPanel = gui.Panel {
         classes = { "characterEntry" },
         bgimage = true,
         valign = "top",
-        width = "100%-6",
-        height = BestiaryPanelHeight,
+        halign = "left",
+        --full width like the headers: the old 100%-6 default-centered the
+        --row, leaving its fill and portrait 3px right of the header band.
+        width = "100%",
+        --two-line row: bold name over a muted summary line, square portrait
+        --at the left.
+        height = 40,
         flow = "horizontal",
         draggable = true,
         canDragOnto = function(element, target)
@@ -1686,8 +2452,13 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                 end
             end,
 
-            --render a tooltip of the character.
-            hover = function(element)
+            --render a tooltip of the character. On LINGER, not hover:
+            --token:Render{} builds the full stat block (~10ms of Lua plus
+            --engine layout, measured), and hover fires for every row the
+            --cursor crosses while scrolling -- which made scrolling the
+            --list visibly hitch. Linger fires only once the cursor rests
+            --on a row, so scroll-past costs nothing.
+            linger = function(element)
                 local dock = element:FindParentWithClass("dock")
 
                 local panel = token:Render {}
@@ -1976,38 +2747,158 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
 
         children = {
 
-            playerStar,
             novelContentAlert,
 
-            gui.CreateTokenImage(token, {
-                width = BestiaryPanelHeight,
-                height = BestiaryPanelHeight,
-                halign = "left",
+            --Square portrait in a subtle tile at the row's left. Uses the
+            --token's OFF-token portrait (the square art the sheet shows)
+            --rather than the on-token image, so no token ring or crop
+            --gymnastics are needed; falls back to the token art for tokens
+            --that never set one (same fallback Creature.lua uses).
+            gui.Panel({
+                classes = { "charPortraitTile" },
+                interactable = false,
+                bgimage = "panels/square.png",
 
-                refresh = function(element)
-                    if token == nil or not token.valid then
-                        return
-                    end
+                gui.Panel({
+                    classes = { "charPortrait" },
+                    interactable = false,
 
-                    element:FireEventTree("token", token)
-                end,
+                    data = {
+                        --the crop region the current image starts from:
+                        --nil = the full image (off-token portrait), else
+                        --the token art's own rect. imageLoaded aspect-fits
+                        --WITHIN this region so nothing stretches.
+                        baseRect = nil,
+                    },
+
+                    create = function(element)
+                        element:FireEvent("refresh")
+                    end,
+
+                    refresh = function(element)
+                        if token == nil or not token.valid then
+                            return
+                        end
+
+                        local offToken = nil
+                        pcall(function() offToken = token.offTokenPortrait end)
+                        if offToken ~= nil and offToken ~= "" then
+                            element.data.baseRect = nil
+                            element.bgimage = offToken
+                        else
+                            if token.popoutPortrait then
+                                --popout art overflows its nominal rect; use
+                                --the inset crop CreateTokenImage uses for it.
+                                local b = 0.14
+                                element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                            else
+                                element.data.baseRect = token.portraitRect
+                            end
+                            element.bgimage = token.portrait
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+
+                    --Portraits rarely match the tile's aspect; stretching
+                    --distorts them. Once the image's real dimensions are
+                    --known, center-crop the base region's longer axis so the
+                    --displayed rect has exactly the tile's 28:34 aspect (the
+                    --loading screen's cover-fit recipe, generalized to a
+                    --non-square destination and a sub-rect source).
+                    imageLoaded = function(element)
+                        if element.bgsprite == nil then
+                            return
+                        end
+
+                        local src_w = element.bgsprite.dimensions.x
+                        local src_h = element.bgsprite.dimensions.y
+                        if src_w <= 0 or src_h <= 0 then
+                            return
+                        end
+
+                        local base = element.data.baseRect or {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                        local baseW = (base.x2 - base.x1) * src_w
+                        local baseH = (base.y2 - base.y1) * src_h
+                        if baseW <= 0 or baseH <= 0 then
+                            return
+                        end
+
+                        local dstAspect = 28 / 34
+                        local srcAspect = baseW / baseH
+
+                        if srcAspect > dstAspect then
+                            --region wider than the tile: shrink its x-span, centered.
+                            local keep = dstAspect / srcAspect
+                            local inset = (base.x2 - base.x1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1 + inset,
+                                y1 = base.y1,
+                                x2 = base.x2 - inset,
+                                y2 = base.y2,
+                            }
+                        elseif srcAspect < dstAspect then
+                            --region taller than the tile: shrink its y-span, centered.
+                            local keep = srcAspect / dstAspect
+                            local inset = (base.y2 - base.y1) * (1 - keep) * 0.5
+                            element.selfStyle.imageRect = {
+                                x1 = base.x1,
+                                y1 = base.y1 + inset,
+                                x2 = base.x2,
+                                y2 = base.y2 - inset,
+                            }
+                        else
+                            element.selfStyle.imageRect = element.data.baseRect
+                        end
+                    end,
+                }),
+
+                --Player-controlled-primary marker: the same corner dot the
+                --Maps panel puts on its portraits (replaces the old in-flow
+                --star column). Also keeps data.primaryCharacter fresh for
+                --the member sort.
+                gui.Panel {
+                    classes = { cond(not token.playerControlledAndPrimary, "hidden") },
+                    width = 9,
+                    height = 9,
+                    halign = "right",
+                    valign = "bottom",
+                    floating = true,
+                    bgimage = "icons/icon_simpleshape/icon_simpleshape_31.png",
+                    bgcolor = "#ffffaaff",
+                    prepareRefresh = function(element)
+                        resultPanel.data.primaryCharacter = token.playerControlledAndPrimary
+                        element:SetClass("hidden", not resultPanel.data.primaryCharacter)
+                    end,
+                },
             }),
 
-            gui.Label({
-                classes = { "bestiaryLabel" },
+            --name over summary line; top-aligned so the name's cap line
+            --sits level with the portrait tile's top edge. No top margin:
+            --the tile's top is 3px in (34px tile centered in the 40px row)
+            --and the 15px font's own leading supplies almost exactly that,
+            --so the label box starts at 0 for the caps to land level.
+            gui.Panel {
+                flow = "vertical",
+                width = "100%-46",
+                height = "auto",
                 halign = "left",
-                text = creature.GetTokenDescription(token),
-                refresh = function(element)
-                    local desc = creature.GetTokenDescription(token)
-                    local playerName = token.playerNameOrNil
-                    if playerName ~= nil then
-                        local color = token.playerColor.tostring
-                        desc = string.format("%s (<color=%s>%s</color>)", desc, color, playerName)
-                    end
-                    element.text = desc
-                    element:SetClass("invisible", token.invisibleToPlayers)
-                end,
-            })
+                valign = "top",
+                lmargin = 8,
+
+                gui.Label({
+                    classes = { "charName" },
+                    text = creature.GetTokenDescription(token),
+                    refresh = RefreshNameText,
+                    prepareRefresh = RefreshNameText,
+                }),
+
+                gui.Label({
+                    classes = { "charSubtitle" },
+                    text = SubtitleText(),
+                    refresh = RefreshSubtitleText,
+                    prepareRefresh = RefreshSubtitleText,
+                }),
+            },
         }
     }
 
@@ -2106,11 +2997,34 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 
     local folderPane
     local selectAllPanel = nil
-
     local triangle = nil
+
+    --Toggle the folder open/closed. Shared by the caret AND a press
+    --anywhere on the header band -- the caret alone was too small a
+    --target for the folder's primary action.
+    local ToggleCollapsed = function()
+        if #partyMembers == 0 then
+            return
+        end
+
+        isCollapsed = not isCollapsed
+        SetPartyCollapsed(partyid, isCollapsed)
+
+        triangle:SetClass('expanded', not isCollapsed)
+        folderPane:FireEvent("refreshCollapsed")
+        if selectAllPanel ~= nil then
+            selectAllPanel:FireEvent("refreshCollapsed")
+        end
+
+        if not isCollapsed then
+            folderPane:FireEvent('expand')
+        end
+    end
+
     triangle = gui.ExpandoArrow({
-        -- width = 8,
-        -- height = 8,
+        --Phosphor mask: the default triangle bitmap reads fuzzy at header
+        --size (same swap as the floors and maps lists).
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -2126,28 +3040,12 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 element:SetClass('empty', #partyMembers < 1)
             end,
             press = function(element)
-                print("PRESS:: TRIANGLE PRESSED")
                 if element:HasClass("collapsed") then
                     --the triangle itself isn't usable.
                     return
                 end
 
-                if #partyMembers == 0 then
-                    return
-                end
-
-                isCollapsed = not isCollapsed
-                SetPartyCollapsed(partyid, isCollapsed)
-
-                triangle:SetClass('expanded', not isCollapsed)
-                folderPane:FireEvent("refreshCollapsed")
-                if selectAllPanel ~= nil then
-                    selectAllPanel:FireEvent("refreshCollapsed")
-                end
-
-                if not isCollapsed then
-                    folderPane:FireEvent('expand')
-                end
+                ToggleCollapsed()
             end,
         },
     })
@@ -2173,7 +3071,10 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             valign = 'top',
             halign = 'left',
             width = "100%",
-            height = BestiaryPanelHeight,
+            --a step taller than member rows, with air above, so party bands
+            --read as section headers rather than more rows.
+            height = 30,
+            tmargin = 6,
             flow = 'horizontal',
         },
 
@@ -2181,22 +3082,47 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
             refreshAssets = function(element)
             end,
 
+            --An empty folder cannot be opened; grey the whole band (label,
+            --caret, count) so it reads inert rather than broken.
+            create = function(element)
+                element:SetClass("emptyFolder", #partyMembers < 1)
+            end,
+            refresh = function(element)
+                element:SetClass("emptyFolder", #partyMembers < 1)
+            end,
+
+            --The whole header band toggles the folder (the caret alone was
+            --too small a target). Select-all-members, which used to be the
+            --header's press action, moved to the right-click menu.
             press = function(element, synthetic)
                 if not synthetic then
-                    element.parent:FireEventTree("select")
+                    ToggleCollapsed()
                 end
             end,
 
             rightClick = function(element)
+                local selectAllEntry = nil
+                if #partyMembers > 0 then
+                    selectAllEntry = {
+                        text = "Select All Members",
+                        click = function()
+                            element.popup = nil
+                            element.parent:FireEventTree("select")
+                        end,
+                    }
+                end
+
                 if party ~= nil then
-                    local entries = {
-                        {
-                            text = "Party Settings",
-                            click = function()
-                                Compendium.ShowModalEditDialog(Party, party.id)
-                                element.popup = nil
-                            end,
-                        },
+                    local entries = {}
+                    if selectAllEntry ~= nil then
+                        entries[#entries + 1] = selectAllEntry
+                    end
+                    entries[#entries + 1] = {
+                        text = "Party Settings",
+                        click = function()
+                            Compendium.ShowModalEditDialog(Party, party.id)
+                            element.popup = nil
+                        end,
                     }
                     local DeleteParty = function()
                         party.hidden = true
@@ -2238,36 +3164,41 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                     }
                     element.popup = gui.ContextMenu { entries = entries }
                 elseif partyid == "graveyard" then
-                    element.popup = gui.ContextMenu{
-                        entries = {
-                            {
-                                text = "Clear Dead Monsters",
-                                click = function()
-                                    local tokens = dmhub.despawnedTokens
-                                    local charids = {}
-                                    local objectTokens = dmhub.allObjectTokens
-                                    for _,tok in ipairs(tokens) do
-                                        charids[#charids+1] = tok.charid
+                    local entries = {}
+                    if selectAllEntry ~= nil then
+                        entries[#entries + 1] = selectAllEntry
+                    end
+                    entries[#entries + 1] = {
+                        text = "Clear Dead Monsters",
+                        click = function()
+                            local tokens = dmhub.despawnedTokens
+                            local charids = {}
+                            local objectTokens = dmhub.allObjectTokens
+                            for _,tok in ipairs(tokens) do
+                                charids[#charids+1] = tok.charid
 
-                                        local corpse = tok:FindCorpse()
-                                        if corpse ~= nil then
-                                            corpse.objectInstance:Destroy()
-                                        end
+                                local corpse = tok:FindCorpse()
+                                if corpse ~= nil then
+                                    corpse.objectInstance:Destroy()
+                                end
 
-                                        local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
-                                        track("character_delete", {
-                                            class = classInfo and classInfo.name or "",
-                                            ancestry = tok.properties:RaceOrMonsterType() or "",
-                                            level = tok.properties:CharacterLevel(),
-                                            dailyLimit = 5,
-                                        })
-                                    end
-                                    game.DeleteCharacters(charids)
-                                    element.popup = nil
-                                end,
-                            }
-                        }
+                                local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
+                                track("character_delete", {
+                                    class = classInfo and classInfo.name or "",
+                                    ancestry = tok.properties:RaceOrMonsterType() or "",
+                                    level = tok.properties:CharacterLevel(),
+                                    dailyLimit = 5,
+                                })
+                            end
+                            game.DeleteCharacters(charids)
+                            element.popup = nil
+                        end,
                     }
+                    element.popup = gui.ContextMenu{ entries = entries }
+                elseif selectAllEntry ~= nil then
+                    --Director Controlled and other synthetic folders still
+                    --offer the relocated select-all.
+                    element.popup = gui.ContextMenu{ entries = { selectAllEntry } }
                 end
             end,
 
@@ -2292,7 +3223,25 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                 },
             },
 
+            --Glanceable size of the party.
+            gui.Label {
+                classes = { "charPartyCount" },
+                text = tostring(#partyMembers),
+                events = {
+                    refresh = function(element)
+                        element.text = tostring(#partyMembers)
+                    end,
+                },
+            },
+
         },
+    }
+
+    --The header's underline, per the section-header grammar.
+    local headerRule = gui.Panel {
+        classes = { "charHeaderRule" },
+        interactable = false,
+        bgimage = "panels/square.png",
     }
 
 
@@ -2363,6 +3312,7 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
         end,
 
         headerPanel,
+        headerRule,
         folderPane,
 
     }
@@ -2371,24 +3321,59 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
 end
 
 
---Creates the "Map Modifications" folder, which lists destructive map edits
---recorded from ability casts (pits dug, terrain changed - see
---game.GetMapModifications). Double-click an entry to jump to it; right-click
---to jump or revert. Returns nil on engine builds without the recording API.
-CharacterPanel.CreateMapModificationsFolder = function()
-    if game.GetMapModifications == nil then
-        return nil
-    end
-
+--Creates the "Map Effects" folder, which lists what has been left behind on the
+--current map: destructive map edits recorded from ability casts (pits dug,
+--terrain changed, walls built - see game.GetMapModifications), and the auras
+--anchored to the map rather than emanating from a creature (see
+--Aura.GetMapAnchoredAuras -- Goblin Malice's Swamp Stink is the canonical one).
+--Double-click an entry to jump to it; right-click to jump, revert a modification
+--or remove an aura. The folder hides itself entirely when there is nothing on
+--the map to list.
+CharacterPanel.CreateMapEffectsFolder = function()
     local collapsedKey = "mapmodifications"
     local isCollapsed = GetPartyCollapsed(collapsedKey, true)
 
     local folderPane
     local resultPanel
     local modPanels = {}
+    local auraPanels = {}
 
     local triangle
+
+    --Absent on engine builds that predate the modification-recording API. The
+    --aura half of the folder is pure Lua and works everywhere.
+    local GetModifications = function()
+        if game.GetMapModifications == nil then
+            return {}
+        end
+
+        return game.GetMapModifications()
+    end
+
+    local CountEffects = function()
+        return #GetModifications() + #Aura.GetMapAnchoredAuras()
+    end
+
+    --Shared by the caret and a press anywhere on the header band, like the
+    --party folders.
+    local ToggleCollapsed = function()
+        if CountEffects() == 0 then
+            return
+        end
+
+        isCollapsed = not isCollapsed
+        SetPartyCollapsed(collapsedKey, isCollapsed)
+
+        triangle:SetClass("expanded", not isCollapsed)
+        folderPane:FireEvent("refreshCollapsed")
+
+        if not isCollapsed then
+            folderPane:FireEvent("expand")
+        end
+    end
+
     triangle = gui.ExpandoArrow{
+        bgimage = "phosphor/caret-down-fill.png",
         halign = "left",
         margin = 5,
         valign = "center",
@@ -2398,10 +3383,10 @@ CharacterPanel.CreateMapModificationsFolder = function()
         events = {
             create = function(element)
                 element:SetClass("expanded", not isCollapsed)
-                element:SetClass("empty", #game.GetMapModifications() < 1)
+                element:SetClass("empty", CountEffects() < 1)
             end,
             refresh = function(element)
-                element:SetClass("empty", #game.GetMapModifications() < 1)
+                element:SetClass("empty", CountEffects() < 1)
             end,
             press = function(element)
                 if element:HasClass("collapsed") then
@@ -2409,19 +3394,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
                     return
                 end
 
-                if #game.GetMapModifications() == 0 then
-                    return
-                end
-
-                isCollapsed = not isCollapsed
-                SetPartyCollapsed(collapsedKey, isCollapsed)
-
-                triangle:SetClass("expanded", not isCollapsed)
-                folderPane:FireEvent("refreshCollapsed")
-
-                if not isCollapsed then
-                    folderPane:FireEvent("expand")
-                end
+                ToggleCollapsed()
             end,
         },
     }
@@ -2438,10 +3411,11 @@ CharacterPanel.CreateMapModificationsFolder = function()
             }
         end
 
-        --wall-building records (e.g. Motivate Earth) reference the wall voxels
-        --they placed; reverting one removes whatever remains of the wall.
-        --voxelCount/voxelsRemaining are nil on engine builds without wall records.
-        local IsWallRecord = function()
+        --Object-placing records (walls from Motivate Earth, the brambles from a
+        --Bramble Barricade) reference the objects they placed rather than captured
+        --map edits; reverting one removes whatever of the placement still stands.
+        --voxelCount/voxelsRemaining are nil on engine builds without object records.
+        local IsPlacementRecord = function()
             return (modInfo.voxelCount or 0) > 0 and (modInfo.count or 0) == 0
         end
 
@@ -2455,7 +3429,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
 
         local EntryText = function()
             local text = BaseText()
-            if IsWallRecord() and (modInfo.voxelsRemaining or 0) == 0 then
+            if IsPlacementRecord() and (modInfo.voxelsRemaining or 0) == 0 then
                 text = text .. " (destroyed)"
             end
             return text
@@ -2470,7 +3444,8 @@ CharacterPanel.CreateMapModificationsFolder = function()
             classes = { "characterEntry" },
             bgimage = true,
             valign = "top",
-            width = "100%-6",
+            halign = "left",
+            width = "100%",
             height = BestiaryPanelHeight,
             flow = "horizontal",
 
@@ -2497,13 +3472,13 @@ CharacterPanel.CreateMapModificationsFolder = function()
                     local revertEntryText = "Revert Modification"
                     local confirmTitle = "Revert Map Modification?"
                     local confirmMessage = string.format("This will restore the map to how it was before %s. Overlapping edits made since then may also be affected.", BaseText())
-                    if IsWallRecord() then
-                        revertEntryText = "Remove Wall"
-                        confirmTitle = "Remove Wall?"
+                    if IsPlacementRecord() then
+                        revertEntryText = "Remove Placement"
+                        confirmTitle = "Remove Placement?"
                         if (modInfo.voxelsRemaining or 0) > 0 then
-                            confirmMessage = string.format("This will remove what remains of the wall created by %s.", BaseText())
+                            confirmMessage = string.format("This will remove what remains of what %s placed on the map.", BaseText())
                         else
-                            confirmMessage = string.format("The wall created by %s has already been destroyed. This will remove its record.", BaseText())
+                            confirmMessage = string.format("What %s placed on the map has already been destroyed. This will remove its record.", BaseText())
                         end
                     end
 
@@ -2525,8 +3500,16 @@ CharacterPanel.CreateMapModificationsFolder = function()
                                         message = confirmMessage,
                                         options = {
                                             {
-                                                text = cond(IsWallRecord(), "Remove", "Revert"),
+                                                text = cond(IsPlacementRecord(), "Remove", "Revert"),
                                                 execute = function()
+                                                    --The engine's own revert only collapses wall-voxel
+                                                    --columns, so plain created objects (brambles and
+                                                    --the like) have to be torn down from Lua first;
+                                                    --they are stamped with this record's key at spawn.
+                                                    local createObject = rawget(_G, "ActivatedAbilityCreateObjectBehavior")
+                                                    if createObject ~= nil and createObject.DestroyRecordedObjects ~= nil then
+                                                        createObject.DestroyRecordedObjects(modInfo.key)
+                                                    end
                                                     game.DeleteMapModification(modInfo.id)
                                                     resultPanel:FireEventTree("refresh")
                                                 end,
@@ -2549,6 +3532,122 @@ CharacterPanel.CreateMapModificationsFolder = function()
         }
     end
 
+    --One row per map-anchored aura. Same grammar as the modification rows, with
+    --an "(Aura)" suffix so a mixed list stays readable (the aura chips on the
+    --character panel label themselves the same way).
+    local CreateAuraEntry = function(auraEntry)
+        local clickTime = nil
+
+        local CanJump = function()
+            return auraEntry.x ~= nil and auraEntry.y ~= nil
+        end
+
+        local JumpToAura = function()
+            if not CanJump() then
+                return
+            end
+
+            dmhub.CenterOnLoc{
+                x = auraEntry.x,
+                y = auraEntry.y,
+                floorid = auraEntry.floorid,
+                smooth = true,
+            }
+        end
+
+        local BaseText = function()
+            if auraEntry.casterName ~= nil and auraEntry.casterName ~= "" then
+                return string.format("%s (%s)", auraEntry.name, auraEntry.casterName)
+            end
+
+            return auraEntry.name
+        end
+
+        local EntryText = function()
+            return string.format("%s (Aura)", BaseText())
+        end
+
+        local label = gui.Label{
+            text = EntryText(),
+            classes = { "bestiaryLabel" },
+        }
+
+        return gui.Panel{
+            classes = { "characterEntry" },
+            bgimage = true,
+            valign = "top",
+            halign = "left",
+            width = "100%",
+            height = BestiaryPanelHeight,
+            flow = "horizontal",
+
+            events = {
+                --fired on refresh with the latest entry so a cached row picks up
+                --a changed caster or area without being rebuilt.
+                updateAura = function(element, entry)
+                    auraEntry = entry
+                    label.text = EntryText()
+                end,
+
+                press = function(element)
+                    if clickTime ~= nil and clickTime > dmhub.Time() - 0.4 then
+                        --double-click
+                        clickTime = nil
+                        JumpToAura()
+                        return
+                    end
+
+                    clickTime = dmhub.Time()
+                end,
+
+                rightClick = function(element)
+                    local entries = {}
+
+                    if CanJump() then
+                        entries[#entries+1] = {
+                            text = "Jump to Location",
+                            click = function()
+                                element.popup = nil
+                                JumpToAura()
+                            end,
+                        }
+                    end
+
+                    entries[#entries+1] = {
+                        text = "Remove Aura",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Remove Aura?",
+                                message = string.format("This will remove %s from the map, along with anything it is doing to the creatures inside it.", BaseText()),
+                                options = {
+                                    {
+                                        text = "Remove",
+                                        execute = function()
+                                            Aura.RemoveMapAnchoredAura(auraEntry)
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+
+                    element.popup = gui.ContextMenu{
+                        entries = entries,
+                    }
+                end,
+            },
+
+            label,
+        }
+    end
+
     local headerPanel = gui.Panel{
         bgimage = true,
         classes = { "headerPanel" },
@@ -2557,45 +3656,99 @@ CharacterPanel.CreateMapModificationsFolder = function()
             valign = "top",
             halign = "left",
             width = "100%",
-            height = BestiaryPanelHeight,
+            --matches the party headers' section-header band.
+            height = 30,
+            tmargin = 6,
             flow = "horizontal",
         },
 
         events = {
+            press = function(element, synthetic)
+                if not synthetic then
+                    ToggleCollapsed()
+                end
+            end,
+
             rightClick = function(element)
-                if #game.GetMapModifications() == 0 then
+                local entries = {}
+
+                if #GetModifications() > 0 then
+                    entries[#entries+1] = {
+                        text = "Clear All Map Modifications",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Revert All Map Modifications?",
+                                message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
+                                options = {
+                                    {
+                                        text = "Revert All",
+                                        execute = function()
+                                            --see the per-record revert above: created objects
+                                            --are torn down from Lua, the engine handles the rest.
+                                            local createObject = rawget(_G, "ActivatedAbilityCreateObjectBehavior")
+                                            for _,m in ipairs(GetModifications()) do
+                                                if createObject ~= nil and createObject.DestroyRecordedObjects ~= nil then
+                                                    createObject.DestroyRecordedObjects(m.key)
+                                                end
+                                                game.DeleteMapModification(m.id)
+                                            end
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+                end
+
+                if #Aura.GetMapAnchoredAuras() > 0 then
+                    entries[#entries+1] = {
+                        text = "Remove All Auras",
+                        click = function()
+                            element.popup = nil
+                            gamehud:ModalMessage{
+                                title = "Remove All Auras?",
+                                message = "This will remove every aura on this map that is not attached to a creature.",
+                                options = {
+                                    {
+                                        text = "Remove All",
+                                        execute = function()
+                                            --the list is rebuilt as auras go, so
+                                            --snapshot it before removing any.
+                                            local auras = {}
+                                            for _,auraEntry in ipairs(Aura.GetMapAnchoredAuras()) do
+                                                auras[#auras+1] = auraEntry
+                                            end
+
+                                            for _,auraEntry in ipairs(auras) do
+                                                Aura.RemoveMapAnchoredAura(auraEntry)
+                                            end
+                                            resultPanel:FireEventTree("refresh")
+                                        end,
+                                    },
+                                    {
+                                        text = "Cancel",
+                                        execute = function()
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+                    }
+                end
+
+                if #entries == 0 then
                     return
                 end
 
                 element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Clear All Map Modifications",
-                            click = function()
-                                element.popup = nil
-                                gamehud:ModalMessage{
-                                    title = "Revert All Map Modifications?",
-                                    message = "This will revert every recorded map modification on this map, restoring the map to how it was before them.",
-                                    options = {
-                                        {
-                                            text = "Revert All",
-                                            execute = function()
-                                                for _,m in ipairs(game.GetMapModifications()) do
-                                                    game.DeleteMapModification(m.id)
-                                                end
-                                                resultPanel:FireEventTree("refresh")
-                                            end,
-                                        },
-                                        {
-                                            text = "Cancel",
-                                            execute = function()
-                                            end,
-                                        },
-                                    },
-                                }
-                            end,
-                        },
-                    },
+                    entries = entries,
                 }
             end,
         },
@@ -2604,7 +3757,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
             triangle,
 
             gui.Label{
-                text = "Map Modifications",
+                text = "Map Effects",
                 classes = { "bestiaryLabel", "folder" },
             },
         },
@@ -2629,10 +3782,24 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 return
             end
 
-            local mods = game.GetMapModifications()
-            local newModPanels = {}
             local children = {}
-            for _,m in ipairs(mods) do
+
+            --auras first: they are live effects on the creatures standing in them,
+            --where the modifications below are already-applied terrain changes.
+            local newAuraPanels = {}
+            for _,auraEntry in ipairs(Aura.GetMapAnchoredAuras()) do
+                local entryPanel = auraPanels[auraEntry.guid]
+                if entryPanel ~= nil then
+                    entryPanel:FireEvent("updateAura", auraEntry)
+                else
+                    entryPanel = CreateAuraEntry(auraEntry)
+                end
+                newAuraPanels[auraEntry.guid] = entryPanel
+                children[#children+1] = entryPanel
+            end
+
+            local newModPanels = {}
+            for _,m in ipairs(GetModifications()) do
                 local entryPanel = modPanels[m.id]
                 if entryPanel ~= nil then
                     entryPanel:FireEvent("updateMod", m)
@@ -2643,6 +3810,7 @@ CharacterPanel.CreateMapModificationsFolder = function()
                 children[#children+1] = entryPanel
             end
 
+            auraPanels = newAuraPanels
             modPanels = newModPanels
             element.children = children
         end,
@@ -2669,11 +3837,16 @@ CharacterPanel.CreateMapModificationsFolder = function()
         },
 
         refresh = function(element)
-            --hide the folder entirely when there are no modifications.
-            element:SetClass("collapsed", #game.GetMapModifications() == 0)
+            --hide the folder entirely when the map has nothing to show.
+            element:SetClass("collapsed", CountEffects() == 0)
         end,
 
         headerPanel,
+        gui.Panel {
+            classes = { "charHeaderRule" },
+            interactable = false,
+            bgimage = "panels/square.png",
+        },
         folderPane,
     }
 
@@ -2682,7 +3855,7 @@ end
 
 local CreateBestiaryAndPartyPanel = function(noBestiary)
     local partyPanels = {}
-    local mapModificationsPanel = nil
+    local mapEffectsPanel = nil
 
     local bestiaryPanel = nil
     if not noBestiary then
@@ -2718,13 +3891,13 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
 
             table.sort(children, function(a, b) return a.data.ord() < b.data.ord() end)
 
-            --the Map Modifications folder goes directly beneath the party folders
+            --the Map Effects folder goes directly beneath the party folders
             --(after the sort so it always lands below Dead Monsters).
-            if mapModificationsPanel == nil then
-                mapModificationsPanel = CharacterPanel.CreateMapModificationsFolder()
+            if mapEffectsPanel == nil then
+                mapEffectsPanel = CharacterPanel.CreateMapEffectsFolder()
             end
-            if mapModificationsPanel ~= nil then
-                children[#children + 1] = mapModificationsPanel
+            if mapEffectsPanel ~= nil then
+                children[#children + 1] = mapEffectsPanel
             end
 
             children[#children + 1] = gui.Panel {
@@ -2869,7 +4042,7 @@ CreateCharacterPanel = function()
 
     local resultPanel
     resultPanel = gui.Panel {
-        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
+        styles = ThemeEngine.MergeStyles(g_characterListExtras),
 
         flow = "vertical",
         width = "100%",
@@ -2918,6 +4091,7 @@ CreateCharacterPanel = function()
 
                 if token.valid then
                     hasVisible = true
+                    panel:SetClass("readonly", CharacterPanel.TokenIsReadOnly(token))
                     panel:FireEvent("setToken", token)
                 end
             end
@@ -2940,6 +4114,7 @@ CreateCharacterPanel = function()
 
                 singleTokenDetailsPanel:SetClass("collapsed", false)
                 if tokens[1] ~= nil and tokens[1].properties ~= nil then
+                    singleTokenDetailsPanel:SetClass("readonly", CharacterPanel.TokenIsReadOnly(tokens[1]))
                     singleTokenDetailsPanel:FireEvent("dirtyToken", tokens[1])
                 end
 
@@ -2988,7 +4163,7 @@ CreateCharacterPanel = function()
 
     ThemeEngine.OnThemeChanged(mod, function()
         if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+            resultPanel.styles = ThemeEngine.MergeStyles(g_characterListExtras)
         end
     end)
 
@@ -3001,10 +4176,17 @@ end
 --framed rather than recreated: any change to the sidebar panel flows
 --here automatically. Live updates ride the details panel's own
 --monitorGame wiring (dirtyToken sets it to the token's monitorPath).
-CharacterPanel.CreatePinnedCharacterPanel = function(charid)
+CharacterPanel.CreatePinnedCharacterPanel = function(charid, options)
+    options = options or {}
     local summaryPanel = nil
     local detailsPanel = nil
     local missingLabel = nil
+
+    --options.deferBuild: the first refresh only schedules the real build
+    --for the next frame, so a window hosting this content can render its
+    --chrome immediately instead of blocking the click on the full
+    --summary + details build.
+    local m_deferred = options.deferBuild == true
 
     local resultPanel
     resultPanel = gui.Panel {
@@ -3014,20 +4196,46 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
         width = "100%",
         height = "auto",
 
+        --re-evaluate access when the Director changes Party Member
+        --Controls while the window is open.
+        monitor = CharacterPanel.partyMemberControlsSettingId,
+        events = {
+            monitor = function(element)
+                element:FireEvent("refresh")
+            end,
+        },
+
+        deferredBuild = function(element)
+            element:FireEvent("refresh")
+        end,
+
         refresh = function(element)
+            if m_deferred then
+                m_deferred = false
+                element:ScheduleEvent("deferredBuild", 0.01)
+                return
+            end
             local token = dmhub.GetCharacterById(charid)
-            if token == nil or not token.valid or token.properties == nil then
-                --the character is gone (deleted or unloaded); leave a
-                --note rather than an empty window.
+            local access = CharacterPanel.TokenAccessLevel(token)
+            if token == nil or not token.valid or token.properties == nil or access == "none" then
+                --the character is gone (deleted or unloaded), or the
+                --Director revoked party member viewing; leave a note
+                --rather than an empty window.
+                local message = "This character is no longer available."
+                if token ~= nil and token.valid then
+                    message = "You do not have access to view this character."
+                end
                 if missingLabel == nil then
                     missingLabel = gui.Label {
                         classes = {"modalMessage"},
-                        text = "This character is no longer available.",
+                        text = message,
                         width = "100%",
                         height = "auto",
                         vmargin = 24,
                     }
                     element:AddChild(missingLabel)
+                else
+                    missingLabel.text = message
                 end
                 if summaryPanel ~= nil then
                     summaryPanel:SetClass("collapsed", true)
@@ -3043,10 +4251,18 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
                 missingLabel = nil
             end
 
+            --look but not touch: the readonly class descends to every
+            --control in the panel; mutating handlers check it via
+            --TacPanel.IsReadOnly and edit-only chrome hides via the
+            --readonly styles.
+            element:SetClass("readonly", access == "view")
+
+            local createdDetailsPanel = false
             if summaryPanel == nil then
                 summaryPanel = CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 detailsPanel = CharacterDetailsPanel(token)
                 element.children = { summaryPanel, detailsPanel }
+                createdDetailsPanel = true
             end
 
             summaryPanel:SetClass("collapsed", false)
@@ -3059,7 +4275,16 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
             --keeps its own monitorGame wiring via dirtyToken.
             summaryPanel:FireEvent("setToken", token)
             summaryPanel:FireEvent("refresh")
-            detailsPanel:FireEvent("dirtyToken", token)
+            if createdDetailsPanel then
+                --a details panel built THIS pass is still showing its
+                --placeholder zeroes; populate it now that it is parented
+                --rather than letting dirtyToken's ScheduleEvent do it a
+                --frame later and flash zeroed stats. Steady-state updates
+                --keep the debounce.
+                detailsPanel:FireEvent("refreshTokenNow", token)
+            else
+                detailsPanel:FireEvent("dirtyToken", token)
+            end
 
             --outside the dock nothing refreshes us on its own: follow the
             --character's own data so stamina, conditions and resources
@@ -3078,7 +4303,11 @@ CharacterPanel.CreatePinnedCharacterPanel = function(charid)
         end
     end)
 
-    resultPanel:FireEvent("refresh")
+    --deferred content builds from the host's create-time refresh instead
+    --(see deferBuild above); an immediate refresh here would defeat it.
+    if not options.deferBuild then
+        resultPanel:FireEvent("refresh")
+    end
 
     return resultPanel
 end
@@ -3090,13 +4319,39 @@ CreateBestiaryPanel = function()
     bestiaryPanel = CreateBestiaryFolder('')
     bestiaryPanel:FireEventTree("refreshAssets")
     bestiaryPanel:FireEventTree("refresh")
+
+    --registered so the Bestiary registration's markContentSeen can retire
+    --the records of rows on display while the panel is shown.
+    g_bestiaryPanelRoots[#g_bestiaryPanelRoots + 1] = bestiaryPanel
+
+    --The search / new-folder / new-entry row, lifted out of the tree so it
+    --can sit above the scroll region rather than inside it. The panel
+    --registers with vscroll = false and scrolls the tree itself, which is
+    --what keeps this header pinned to the top.
+    local headerPanel = bestiaryPanel.data.rootUIPanel
+
+    --The tree scrolls; "100% available" takes whatever height the header
+    --leaves, so the header growing (the "showing the first N matches"
+    --note appearing) shrinks the scroll region instead of overflowing the
+    --panel.
+    local scrollPanel = gui.Panel {
+        id = "BestiaryScrollPanel",
+        width = "100%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+        vscroll = true,
+        hideObjectsOutOfScroll = false,
+        bestiaryPanel,
+    }
+
     local resultPanel
     resultPanel = gui.Panel {
-        styles = ThemeEngine.MergeStyles(g_sidebarExtras),
+        styles = ThemeEngine.MergeStyles(g_bestiaryListExtras),
 
         flow = "vertical",
         width = "100%",
-        height = "auto",
+        height = "100%",
         monitorAssets = cond(bestiaryPanel ~= nil, "Monsters"),
         refreshAssets = function(element)
             if bestiaryPanel ~= nil then
@@ -3107,12 +4362,13 @@ CreateBestiaryPanel = function()
 
         end,
 
-        bestiaryPanel,
+        headerPanel,
+        scrollPanel,
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
         if resultPanel ~= nil and resultPanel.valid then
-            resultPanel.styles = ThemeEngine.MergeStyles(g_sidebarExtras)
+            resultPanel.styles = ThemeEngine.MergeStyles(g_bestiaryListExtras)
         end
     end)
 

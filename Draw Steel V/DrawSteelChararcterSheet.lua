@@ -934,7 +934,10 @@ local function CreateAbilityListPanel()
         m_villainActionsLabel,
         m_villainSlotsPanel,
         styles = buildActionMenuStyles(),
-        width = "100%-12",
+        --The malice/heroic cost diamond on each ability row deliberately sticks
+        --out past the row's right edge, so leave a wide gutter here. Without it
+        --the diamond ends up under the scroll bar and looks cut in half.
+        width = "100%-32",
         height = "auto",
         bgimage = true,
         bgcolor = "clear",
@@ -1250,7 +1253,9 @@ function CharSheet.CharacterSheetAndAvatarPanel()
     local controllerDropdown
     if dmhub.isDM then
         controllerDropdown = gui.Dropdown {
-            width = 220,
+            --240 matches the default dropdown width, which is what the Titles
+            --multiselect below uses, so the two line up edge to edge.
+            width = 240,
             height = 26,
             vmargin = 4,
             fontSize = 15,
@@ -2139,6 +2144,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             -- Titles
             gui.Multiselect {
+                --Sized and centered to match the controller dropdown above
+                --instead of the default 98%-of-parent controller, which left
+                --the inner dropdown wider and offset from it.
+                width = 240,
+                halign = "center",
+                dropdown = { width = "100%" },
                 options = Title.GetDropdownList(),
                 addItemText = "Grant title...",
                 refreshToken = function(element, info)
@@ -2733,6 +2744,10 @@ local function ScalingSignedString(n)
     return string.format("%d", n)
 end
 
+-- Forward-declared: the leveler launches the post-conversion summary, and the
+-- summary reopens the leveler when it closes. Defined below the leveler.
+local ShowCustomRetainerSummary
+
 local function ShowAdjustLevelDialog(token)
     if token == nil or token.properties == nil then
         return
@@ -2745,6 +2760,16 @@ local function ShowAdjustLevelDialog(token)
     local org, role = props:ScalingOrgRole()
     local isLeaderSolo = (org == "leader" or org == "solo")
     local dtype = MCDMMonsterScaling.DamageType(org, role)
+
+    --Retainers use the same adjustment machinery but advance on their own
+    --track (stamina, free strikes, signature ability damage), cap at level 10,
+    --and have no org/role table, echelon, or potency scaling.
+    local isRetainer = props:IsRetainer()
+
+    --Whether this monster can convert into a custom retainer (not a minion,
+    --leader, solo, or existing follower). Drives the Make Custom Retainer
+    --footer button.
+    local canBecomeRetainer = props:CanBecomeCustomRetainer()
 
     -- Strikes add the highest characteristic on top of the table damage and so
     -- scale differently from non-strike power rolls (table delta + characteristic
@@ -2760,6 +2785,9 @@ local function ShowAdjustLevelDialog(token)
 
     local minLevel = MCDMMonsterScaling.minLevel
     local maxLevel = MCDMMonsterScaling.maxLevel
+    if isRetainer then
+        maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    end
     local baseLevel = props:GetScalingBaseLevel()
     local currentLevel = round(tonumber(props:CharacterLevel()) or baseLevel)
     currentLevel = math.max(minLevel, math.min(maxLevel, currentLevel))
@@ -2886,6 +2914,41 @@ local function ShowAdjustLevelDialog(token)
             rows[#rows+1] = CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
         end
 
+        -- Retainers: their own advancement track (see ComputeRetainerDeltas).
+        -- Stamina and free strike are per-creature values; the signature
+        -- damage rows show the creature's current bonus attributes + delta.
+        if isRetainer then
+            local rDeltas = MCDMMonsterScaling.ComputeRetainerDeltas(currentLevel, targetLevel) or {}
+
+            add("Stamina",
+                string.format("%d", nowStamina),
+                string.format("%d", nowStamina + (rDeltas.stamina or 0)),
+                adjStr(rDeltas.stamina or 0), signum(rDeltas.stamina or 0), false)
+
+            add("Free strike",
+                string.format("%d", nowFreeStrike),
+                string.format("%d", nowFreeStrike + (rDeltas.freeStrike or 0)),
+                adjStr(rDeltas.freeStrike or 0), signum(rDeltas.freeStrike or 0), false)
+
+            -- Current signature bonuses: the retainer "Tier 1 Damage" and
+            -- "Tier 2 and 3 Damage" custom attributes.
+            local sig1Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 1 Damage")) or 0)
+            local sig23Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 2 and 3 Damage")) or 0)
+            local d1 = rDeltas.sig1 or 0
+            local d23 = rDeltas.sig23 or 0
+            local sigChanged = d1 ~= 0 or d23 ~= 0
+            local sigStr = ""
+            if sigChanged then
+                sigStr = string.format("%s / %s", ScalingSignedString(d1), ScalingSignedString(d23))
+            end
+            add("Signature damage bonus (T1 / T2 & 3)",
+                string.format("%s / %s", ScalingSignedString(sig1Now), ScalingSignedString(sig23Now)),
+                string.format("%s / %s", ScalingSignedString(sig1Now + d1), ScalingSignedString(sig23Now + d23)),
+                sigStr, cond(sigChanged, signum(targetLevel - currentLevel), 0), false)
+
+            return rows
+        end
+
         -- Encounter value (per-creature)
         add("Encounter value",
             string.format("%d", nowEV),
@@ -2985,7 +3048,45 @@ local function ShowAdjustLevelDialog(token)
         local curEch = MCDMMonsterScaling.Echelon(currentLevel)
         local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
         local crossing = (tgtEch ~= curEch)
-        if echelonBanner ~= nil and echelonBanner.valid then
+        if echelonBanner ~= nil and echelonBanner.valid and isRetainer then
+            -- Retainers have no echelons. Repurpose the banner to flag the
+            -- advancement milestones this change spans: characteristic
+            -- increases (levels 2/5/8) and advancement abilities (levels
+            -- 4/7/10), which are granted through the creature template.
+            local lo = math.min(currentLevel, targetLevel)
+            local hi = math.max(currentLevel, targetLevel)
+            local function milestonesIn(levels)
+                local hits = {}
+                for _,l in ipairs(levels) do
+                    if l > lo and l <= hi then
+                        hits[#hits+1] = l
+                    end
+                end
+                return hits
+            end
+            local function levelPhrase(list)
+                if #list == 1 then
+                    return "level " .. table.concat(list, ", ")
+                end
+                return "levels " .. table.concat(list, ", ")
+            end
+            local charLevels = milestonesIn({2, 5, 8})
+            local abilityLevels = milestonesIn({4, 7, 10})
+            local parts = {}
+            if #charLevels > 0 then
+                parts[#parts+1] = string.format("characteristic increases (%s)", levelPhrase(charLevels))
+            end
+            if #abilityLevels > 0 then
+                parts[#parts+1] = string.format("advancement abilities (%s)", levelPhrase(abilityLevels))
+            end
+            local show = #parts > 0
+            echelonBanner:SetClass("collapsed", not show)
+            if show then
+                echelonBanner.text = string.format(
+                    "This change also spans %s, granted through the retainer's creature template.",
+                    table.concat(parts, " and "))
+            end
+        elseif echelonBanner ~= nil and echelonBanner.valid then
             -- Report the ACTUAL characteristic and potency deltas, not the echelon
             -- difference: they diverge at the echelon-4 leader/solo boundary, where
             -- the characteristic is capped at +5 while potency reaches 6, so
@@ -3214,6 +3315,58 @@ local function ShowAdjustLevelDialog(token)
         squadCheck,
         footerLabel,
 
+        --Make Custom Retainer (Draw Steel: Monsters, "Retainers"): most stat
+        --blocks can become retainers, provided the creature is not a minion,
+        --a leader, or a solo. Converts in place (retainer typing, stamina
+        --baseline, single-target signature, retainer + role ability
+        --templates) behind a confirm prompt, then shows a summary of what
+        --changed and rebuilds this dialog so the retainer track shows.
+        gui.Button{
+            classes = cond(canBecomeRetainer, nil, { "collapsed" }),
+            text = "Make Custom Retainer",
+            width = 200,
+            height = 30,
+            halign = "center",
+            tmargin = 12,
+            click = function(element)
+                gui.ModalMessage{
+                    title = "Make Custom Retainer",
+                    message = string.format(
+                        "Convert %s into a custom retainer?\n\nThis rewrites the monster's stat block and CANNOT BE UNDONE. \n\nStamina is reset to the retainer baseline, the signature ability affects a single target, role advancement abilities replace creature-specific ones, and abilities that require Malice can no longer be used.",
+                        token.name or "this creature"),
+                    options = {
+                        {
+                            text = "Cancel",
+                        },
+                        {
+                            text = "Convert Permanently",
+                            execute = function()
+                                --The message dialog has already popped itself,
+                                --so this CloseModal pops the leveler. The
+                                --summary then takes its place, and reopens the
+                                --leveler on Close so the retainer advancement
+                                --track replaces the org/role one.
+                                local report = nil
+                                token:ModifyProperties{
+                                    description = "Convert to custom retainer",
+                                    execute = function()
+                                        report = token.properties:ConvertToCustomRetainer()
+                                    end,
+                                }
+                                if CharacterSheet.instance ~= nil then
+                                    CharacterSheet.instance:FireEvent("refreshAll")
+                                end
+                                gui.CloseModal()
+                                if not ShowCustomRetainerSummary(token, report) then
+                                    ShowAdjustLevelDialog(token)
+                                end
+                            end,
+                        },
+                    },
+                }
+            end,
+        },
+
         -- Cancel / Reset / Apply
         gui.Panel{
             width = "100%",
@@ -3276,6 +3429,278 @@ local function ShowAdjustLevelDialog(token)
 
     Refresh()
     gui.ShowModal(dialog)
+end
+
+--==============================================================
+-- Make Custom Retainer: the post-conversion summary.
+--
+-- ConvertToCustomRetainer overwrites the stat block in place with no way
+-- back, so the Director gets a receipt: what the stats were and are, which
+-- abilities were retargeted or can no longer be paid for, and the things
+-- the conversion could not decide on its own.
+--
+-- Sequencing: the leveler is closed before this opens, so the modal stack
+-- never goes two deep; Close pops this and reopens the leveler, which now
+-- shows the retainer advancement track. Returns false (showing nothing)
+-- when there is no report, so the caller can fall back to the old flow.
+--==============================================================
+ShowCustomRetainerSummary = function(token, report)
+    if token == nil or report == nil then
+        return false
+    end
+    local stats = report.stats or {}
+    local abilities = report.abilities or {}
+    local review = report.review or {}
+    if #stats == 0 and #abilities == 0 and #review == 0 then
+        return false
+    end
+
+    -- Close pops this dialog and brings the leveler back.
+    local function CloseSummary()
+        gui.CloseModal()
+        ShowAdjustLevelDialog(token)
+    end
+
+    -- Same four-column compare row as the leveler's preview table.
+    local function SummaryRow(idx, labelText, beforeText, afterText, changeText, dir)
+        local changeClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            changeClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            changeClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = beforeText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = changeClass, text = changeText, width = "30%", height = "auto", textAlignment = "center" },
+        }
+    end
+
+    local statRows = {}
+    statRows[#statRows + 1] = gui.Panel{
+        classes = { "row", "headerRow" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        borderBox = true,
+        hpad = 10,
+        vpad = 8,
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Before", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Change", width = "30%", height = "auto", textAlignment = "center" },
+    }
+    statRows[#statRows + 1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+    for i, stat in ipairs(stats) do
+        -- Show a signed delta only when both sides are plain numbers.
+        local changeText = ""
+        local a = tonumber(stat.before)
+        local b = tonumber(stat.after)
+        if a ~= nil and b ~= nil and b - a ~= 0 then
+            changeText = ScalingSignedString(b - a)
+        end
+        statRows[#statRows + 1] = SummaryRow(i, tostring(stat.label), tostring(stat.before), tostring(stat.after), changeText, stat.dir or 0)
+    end
+
+    -- One row per changed ability. Hovering shows the real ability card
+    -- rather than a hand-rolled re-render of it.
+    local abilityRows = {}
+    for i, entry in ipairs(abilities) do
+        local abilityObject = entry.ability
+        local detailClass = { "tableLabel", "changeRetarget" }
+        if entry.change == "malice" then
+            detailClass = { "tableLabel", "changeMalice" }
+        end
+        abilityRows[#abilityRows + 1] = gui.Panel{
+            classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            linger = function(element)
+                element.tooltip = CreateAbilityTooltip(abilityObject, {
+                    token = token,
+                    width = 380,
+                    pad = 8,
+                })
+            end,
+
+            gui.Label{ classes = { "tableLabel", "bold" }, text = tostring(entry.name or ""), width = "40%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = detailClass, text = tostring(entry.detail or ""), width = "60%", height = "auto", halign = "left", textWrap = true },
+        }
+    end
+
+    local reviewLines = {}
+    for _, line in ipairs(review) do
+        reviewLines[#reviewLines + 1] = gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = string.format("- %s", tostring(line)),
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textAlignment = "left",
+            textWrap = true,
+            vmargin = 2,
+        }
+    end
+
+    local dialog = gui.Panel{
+        classes = { "dialog" },
+        -- tableLabel sets @fg, so the tinted columns need to outrank it (same
+        -- shape as the leveler's Adjustment column rules).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeMalice" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeRetarget" }, color = "@warning", priority = 100 },
+            { selectors = { "reviewLine" }, color = "@warning", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Custom Retainer Created",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                CloseSummary()
+            end,
+        },
+
+        --Same identity line as the leveler, then the permanence note.
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster",
+                token.properties:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = "Now a custom retainer. This change is permanent.",
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 2,
+            bmargin = 8,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = statRows,
+        },
+
+        -- Abilities section. Collapsed away entirely when nothing changed.
+        gui.Panel{
+            classes = cond(#abilityRows > 0, nil, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold" },
+                text = "Abilities changed (hover for the full card)",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = abilityRows,
+            },
+        },
+
+        -- For your review. Omitted when the conversion flagged nothing.
+        gui.Panel{
+            classes = cond(#reviewLines > 0, { "bordered", "borderWarning" }, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderBox = true,
+            pad = 10,
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold", "reviewLine" },
+                text = "For your review",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = reviewLines,
+            },
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Close",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    CloseSummary()
+                end,
+            },
+        },
+    }
+
+    gui.ShowModal(dialog)
+    return true
 end
 
 -- Maps an implementation-status value (gui.ImplementationStatus) to the status
@@ -4799,6 +5224,25 @@ local function DSCharSheet()
                         text = "Paste Ability",
                         press = function(element)
                             local clipboardItem = DeepCopy(dmhub.GetInternalClipboard())
+                            if clipboardItem == nil then
+                                return
+                            end
+
+                            --A pasted ability is a NEW ability, not the one that was
+                            --copied. Without a fresh guid the creature ends up with two
+                            --innate abilities sharing one guid, and guid-keyed lookups
+                            --(creature:IsActivatedAbilityInnate) resolve both sheet rows
+                            --to the same object, so one copy can never be edited (and
+                            --RemoveInnateActivatedAbility deletes both).
+                            clipboardItem.guid = dmhub.GenerateGuid()
+                            local behaviors = clipboardItem:try_get("behaviors")
+                            if behaviors ~= nil then
+                                for _, b in ipairs(behaviors) do
+                                    if b:try_get("guid") ~= nil then
+                                        b.guid = dmhub.GenerateGuid()
+                                    end
+                                end
+                            end
 
                             CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(
                                 clipboardItem)
@@ -7525,6 +7969,48 @@ local function CommitCustomFeature(feature)
     c.characterFeatures = items
 end
 
+--Options for an "Add Creature Template..." dropdown, for this creature.
+--A template's prerequisite is a GoblinScript expression (e.g. "Retainer",
+--"minion"); templates the creature does not qualify for are left out.
+local function CreatureTemplateDropdownOptions(creature)
+    local choices = {
+        { id = "none", text = "Add Creature Template..." },
+    }
+
+    for k,entry in pairs(dmhub.GetTable("creatureTemplates") or {}) do
+        if not entry:try_get("hidden", false) then
+            local passes = true
+            local prerequisite = entry:try_get("prerequisite", "")
+            if creature ~= nil and trim(prerequisite) ~= "" then
+                pcall(function()
+                    passes = GoblinScriptTrue(ExecuteGoblinScript(prerequisite, creature:LookupSymbol(), 0,
+                        string.format("Creature template %s prerequisite", entry.name)))
+                end)
+            end
+
+            if passes then
+                choices[#choices+1] = { id = k, text = entry.name }
+            end
+        end
+    end
+
+    return choices
+end
+
+--Per-user "Show All" preference for the Features tab eye toggle: reveals
+--rows suppressed by their display-kind tag (Hidden / Ability / Trigger),
+--each labeled with the tag so the author can see why it was suppressed
+--and re-tag it. Off = the play view (suppressed rows dropped).
+local g_featuresShowAllSetting = setting{
+    id = "featuretags:showall",
+    description = "Show all features",
+    help = "Show features hidden from the Features list by their tags (Hidden, Ability, Trigger).",
+    storage = "preference",
+    section = "general",
+    default = false,
+    editor = "check",
+}
+
 local function FeaturesIndexPanel()
     local resultPanel
 
@@ -7583,11 +8069,25 @@ local function FeaturesIndexPanel()
             selectors = {"featureClearFilter"},
             bgcolor = "@fgMuted",
         },
+        {
+            selectors = {"featureShowAllEye"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureShowAllEye", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"featureShowAllEye", "on"},
+            bgcolor = "@accent",
+        },
     }
 
     local function entrySearchText(entry)
         if entry._searchText == nil then
-            local parts = {entry.name or "", FeatureEntryDescription(entry) or ""}
+            --subName keeps a Title's granted benefit findable now that the row
+            --leads with the title's own name (report GETSJ9FB).
+            local parts = {entry.name or "", entry.subName or "", FeatureEntryDescription(entry) or ""}
             --Chosen option features are folded into the slot entry, so the
             --filter must reach their names and descriptions too.
             for _,chosenFeature in ipairs(entry.chosen or {}) do
@@ -7623,6 +8123,15 @@ local function FeaturesIndexPanel()
             local desc = FeatureEntryDescription(entry)
             if desc ~= nil then
                 descs[#descs+1] = desc
+            end
+        end
+        --A Title row is named after the title, so its expansion leads with the
+        --title's own description, then the granted benefit's (report GETSJ9FB).
+        if entry.bucket == "title" and entry.origin ~= nil then
+            local originDesc = nil
+            pcall(function() originDesc = entry.origin:try_get("description") end)
+            if originDesc ~= nil and originDesc ~= "" then
+                table.insert(descs, 1, originDesc)
             end
         end
         for _,desc in ipairs(descs) do
@@ -7783,10 +8292,27 @@ local function FeaturesIndexPanel()
 
         local titleText = entry.name or "Feature"
         local subParts = {}
+        --What this row resolved to: the chosen options of a made choice slot,
+        --else the benefit a Title arrived as (the index's subName).
+        local grantedText = nil
         if entry.kind == "build" and (entry._unspent or 0) == 0 then
             local texts = FeatureChosenTexts(entry.feature, creature)
             if #texts > 0 then
-                titleText = table.concat(texts, ", ")
+                grantedText = table.concat(texts, ", ")
+            end
+        end
+        if grantedText == nil and entry.subName ~= nil and entry.subName ~= "" then
+            grantedText = entry.subName
+        end
+        if grantedText ~= nil then
+            --A Title keeps its own name in the lead: the title is what the
+            --player earned, and naming the row after the benefit hid it
+            --entirely (report GETSJ9FB). Other buckets still read better as
+            --"Forgettable Face" over a muted "Agent Perk".
+            if entry.bucket == "title" then
+                subParts[#subParts+1] = grantedText
+            else
+                titleText = grantedText
                 subParts[#subParts+1] = entry.name
             end
         end
@@ -7850,6 +8376,25 @@ local function FeaturesIndexPanel()
         --arrow keeps a fixed position on every row; the "Choose" pill sits to
         --its left rather than pushing the arrow inward.
         local rightChildren = {}
+        --Suppressed rows only render while the Show All eye toggle is on;
+        --the tag chip says WHY the row is normally hidden (Hidden / Ability
+        --/ Trigger) so the author can spot mis-tagged content at a glance.
+        if entry.displayKind ~= nil and entry.displayKind ~= "normal" then
+            local tagNames = { hidden = "Hidden", ability = "Ability", trigger = "Trigger" }
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                italics = true,
+                text = tagNames[entry.displayKind] or entry.displayKind,
+            }
+        end
         if (entry._unspent or 0) > 0 then
             rightChildren[#rightChildren+1] = gui.Label{
                 classes = {"featureChoiceBadge"},
@@ -8176,15 +8721,25 @@ local function FeaturesIndexPanel()
 
         local index = FeatureCategoriser.BuildIndex(creature)
 
+        --Rows whose display-kind tag suppresses them (Hidden / Ability /
+        --Trigger) are dropped unless the Show All eye toggle is on.
+        local showAll = g_featuresShowAllSetting:Get()
+
         local groupsChildren = {}
         local total = 0
         local matchedTotal = 0
+        local suppressedTotal = 0
         for _,bucketId in ipairs(index.order) do
             local group = index.groups[bucketId]
             local entries = {}
             for _,e in ipairs(group.items) do
-                e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
-                entries[#entries+1] = e
+                local suppressed = e.displayKind ~= nil and e.displayKind ~= "normal"
+                if suppressed and not showAll then
+                    suppressedTotal = suppressedTotal + 1
+                else
+                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                    entries[#entries+1] = e
+                end
             end
             if #entries > 0 then
                 total = total + #entries
@@ -8234,7 +8789,7 @@ local function FeaturesIndexPanel()
     clearButton = gui.Panel{
         floating = true,
         classes = {"featureClearFilter", "collapsed"},
-        bgimage = "ui-icons/close.png",
+        bgimage = "phosphor/x-bold.png",
         width = 14,
         height = 14,
         halign = "right",
@@ -8385,16 +8940,7 @@ local function FeaturesIndexPanel()
             vmargin = 4,
             idChosen = "none",
             create = function(dropdown)
-                local choices = {
-                    { id = "none", text = "Add Creature Template..." },
-                }
-                local templateTable = dmhub.GetTable("creatureTemplates") or {}
-                for k,entry in pairs(templateTable) do
-                    if not entry:try_get("hidden", false) then
-                        choices[#choices+1] = { id = k, text = entry.name }
-                    end
-                end
-                dropdown.options = choices
+                dropdown.options = CreatureTemplateDropdownOptions(creature)
             end,
             change = function(dropdown)
                 local c = CharacterSheet.instance.data.info.token.properties
@@ -8491,6 +9037,41 @@ local function FeaturesIndexPanel()
         m_groupsContainer,
     }
 
+    --Show All eye toggle: reveals tag-suppressed rows (Hidden / Ability /
+    --Trigger). Per-user preference; the sheet is simultaneously a play and
+    --an edit surface (monster sheets always, hero sheets for custom
+    --features), so this is the one reveal mechanism that keeps suppressed
+    --containers reachable for editing.
+    --Plain icon panel, NOT the settingsButton class: that class paints
+    --its own gear glyph over any bgimage. Tint comes from the tab's
+    --featureShowAllEye theme rules (@fgMuted / hover @fgStrong / on
+    --@accent) so it follows scheme switches.
+    local m_showAllButton
+    m_showAllButton = gui.Panel{
+        classes = {"featureShowAllEye", cond(g_featuresShowAllSetting:Get(), "on")},
+        bgimage = cond(g_featuresShowAllSetting:Get(), "phosphor/eye-light.png", "phosphor/eye-closed-light.png"),
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 4,
+        linger = function(element)
+            --Tooltip states the ACTION the click will take, from current state.
+            local text = "Show hidden features"
+            if g_featuresShowAllSetting:Get() then
+                text = "Hide hidden features"
+            end
+            gui.Tooltip(text)(element)
+        end,
+        press = function(element)
+            local newValue = not g_featuresShowAllSetting:Get()
+            g_featuresShowAllSetting:Set(newValue)
+            element.bgimage = cond(newValue, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
+            element:SetClass("on", newValue)
+            Rebuild()
+        end,
+    }
+
     --The filter/count/settings row is returned SEPARATELY so the tab can
     --pin it above the scroll area (it must survive scrolling).
     m_headerPanel = gui.Panel{
@@ -8500,6 +9081,7 @@ local function FeaturesIndexPanel()
         styles = styles,
         m_countLabel,
         m_filterInput,
+        m_showAllButton,
         m_gearButton,
     }
 
@@ -8660,25 +9242,16 @@ function CharSheet.InnerFeaturesPanel()
                         element:FireEvent("refreshAssets")
                     end,
 
+                    --Rebuild on token change too: the options depend on the
+                    --creature, not just on the template table.
+                    refreshToken = function(element, info)
+                        element.options = CreatureTemplateDropdownOptions(info.token.properties)
+                    end,
+
                     refreshAssets = function(element)
-                        local choices = {
-                            {
-                                id = "none",
-                                text = "Add Creature Template...",
-                            },
-                        }
-
-                        local templateTable = dmhub.GetTable("creatureTemplates") or {}
-                        for k, entry in pairs(templateTable) do
-                            if not entry:try_get("hidden", false) then
-                                choices[#choices + 1] = {
-                                    id = k,
-                                    text = entry.name,
-                                }
-                            end
-                        end
-
-                        element.options = choices
+                        local creature = nil
+                        pcall(function() creature = CharacterSheet.instance.data.info.token.properties end)
+                        element.options = CreatureTemplateDropdownOptions(creature)
                     end,
 
                     change = function(element)

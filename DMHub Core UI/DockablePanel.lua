@@ -9,6 +9,31 @@ setting{
     storage = "transient",
 }
 
+--The icon-rail ("New Experimental UI") mode toggle. Registered HERE
+--rather than in DocumentSystem (which owns the rail itself) because this
+--file loads long before it and the setting is read at STARTUP: the title
+--bar is built at CodexTitleBar.lua load time and sizes its search box
+--via DockablePanel.EffectiveDockScale, and reading a not-yet-registered
+--setting logs an engine "Could not find setting" error. The behavior
+--stays in DocumentSystem: its rail/dock sync work is reached through the
+--IconRailSettingChanged global it defines. rawget because the global is
+--nil until DocumentSystem loads -- harmless, since the setting can only
+--change from UI that exists well after load.
+setting{
+    id = "iconrail",
+    description = "New Experimental UI",
+    help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
+    storage = "preference",
+    editor = "check",
+    default = false,
+    onchange = function()
+        local fn = rawget(_G, "IconRailSettingChanged")
+        if fn ~= nil then
+            fn()
+        end
+    end,
+}
+
 setting{
     id = "dockscale",
     description = "Dock Scale",
@@ -19,6 +44,14 @@ setting{
     default = 1.0,
     min = 0.5,
     max = 1.5,
+    --The icon-rail UI ignores dock scaling entirely (docks are slid away
+    --there and every reader goes through DockablePanel.EffectiveDockScale,
+    --which reads 1 while iconrail is on), so hide the slider with it. The
+    --stored preference is kept and comes back when the rail is turned off.
+    visible = function()
+        return dmhub.GetSettingValue("iconrail") ~= true
+    end,
+    monitorVisible = {"iconrail"},
     onchange = function()
         --Apply the new scale live to any docks that already exist. Docks are
         --only created once a game is active; bail out otherwise.
@@ -117,7 +150,10 @@ function GameHud:CreateSingleDock(params)
             classes = {"dockHandle", params.halign},
             floating = true,
             interactable = false,
-            vscroll = true,
+            --NOT vscroll: this carried vscroll = true for a while, and since
+            --the handle's image child lays out taller than the handle, the
+            --engine drew a native scroll track + thumb -- a stray grey bar
+            --with a white slider floating at each dock edge over the map.
 
             gui.Panel{
                 classes = {"dockHandleImage"},
@@ -129,8 +165,23 @@ function GameHud:CreateSingleDock(params)
                     end,
 
                     monitor = function(element)
+                        local wasOffscreen = resultPanel:HasClass("offscreen")
                         resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
                         dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
+
+                        --Sliding the dock away leaves every panel in it alive and
+                        --still focused, just invisible. That is not harmless: a
+                        --panel that arms a mode off focus keeps it armed with
+                        --nothing on screen to say so (the Objects panel arms
+                        --object editing mode, which turns off regular play mode
+                        --and with it creature rectangle-select). hidepanel is the
+                        --same event a tab switch fires, and each panel's handler
+                        --already knows how to give up focus -- including the
+                        --focus-here-first dance the panels whose childdefocus
+                        --re-grabs a nil focus need.
+                        if resultPanel:HasClass("offscreen") and not wasOffscreen then
+                            resultPanel:FireEventTree("hidepanel")
+                        end
                     end,
 
                     create = function(element)
@@ -150,7 +201,7 @@ function GameHud:CreateSingleDock(params)
 	--NOTE: DockHeight is captured as an upvalue by fitChildren/sizeChild below;
 	--the setScale event reassigns it so those closures pick up the new value.
 	local baseDockHeight = (params.height or 1080)
-	local dockScale = cond(floating, 1, dmhub.GetSettingValue("dockscale") or 1)
+	local dockScale = cond(floating, 1, DockablePanel.EffectiveDockScale())
 	local DockHeight = baseDockHeight / dockScale
 	--The dock is created at base size / uiscale 1 / default pivot, then setScale
 	--is fired once after construction to apply the real scale+pivot+height. This
@@ -356,7 +407,7 @@ function GameHud:CreateSingleDock(params)
 			if floating then
 				return
 			end
-			dockScale = dmhub.GetSettingValue("dockscale") or 1
+			dockScale = DockablePanel.EffectiveDockScale()
 			DockHeight = baseDockHeight / dockScale
 			element.data.DockHeight = DockHeight
 			--Set pivot in selfStyle (the form that actually takes effect) and
@@ -838,6 +889,86 @@ local function NotifyDockablePanelClosed(name)
 	end
 end
 
+--An alternative HOST for opening a panel. The docks are not the only
+--surface panels live on any more: with the icon rail on, the docks are
+--slid away and panels belong on the rail as buttons and floating
+--windows. Without this hook, opening a panel from a menu built a dock
+--container and -- worse -- pulled the slid-away dock back on screen to
+--show it (see the targetDock branch in GetMenuItems' click).
+--
+--The handler returns true if it took ownership of the open/toggle, in
+--which case the dock path is skipped entirely. Registered by the icon
+--rail; keyed by id so a Lua reload replaces rather than duplicates.
+g_dockablePanelOpenHandlers = rawget(_G, "g_dockablePanelOpenHandlers") or {}
+
+--- @param id string unique id for this handler
+--- @param fn fun(panelName: string, operation: nil|'toggle'|'show'|'hide'): boolean
+function RegisterDockablePanelOpenHandler(id, fn)
+	g_dockablePanelOpenHandlers[id] = fn
+end
+
+--Returns true if some handler hosted the panel itself.
+local function NotifyDockablePanelOpen(name, operation)
+	if name == nil then
+		return false
+	end
+	local ids = {}
+	for id, _ in pairs(g_dockablePanelOpenHandlers) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken handler must not stop the panel from opening: fall
+		--through to the dock rather than doing nothing at all.
+		local ok, handled = pcall(g_dockablePanelOpenHandlers[id], name, operation)
+		if not ok then
+			print(string.format("DOCKPANEL:: open handler '%s' failed: %s", id, tostring(handled)))
+		elseif handled then
+			return true
+		end
+	end
+	return false
+end
+
+--Give a panel's content tree GUI focus, as though one of its own controls
+--had been pressed. Focus goes on the content ROOT specifically: the
+--panels that gate on focus test `gui.ChildHasFocus(<their own root>)`,
+--which counts the element itself and its descendants but not its
+--ancestors -- so focusing the host would leave them reading unfocused.
+--
+--The "panelFocused" event afterwards lets a panel re-arm immediately.
+--Map Markup needs it: its map tools are registered from think handlers
+--that bail without focus, and those poll every 0.3s, so without a nudge
+--the click right after the one that focused the panel can land with no
+--tool registered and silently do nothing.
+function FocusPanelContent(instance)
+	if instance == nil or not instance.valid then
+		return false
+	end
+	local root = instance.data.contentRoot
+	if root == nil or not root.valid then
+		return false
+	end
+
+	--Already ours: leave focus exactly where it is. Presses do not swallow
+	--by default, so a press on one of the panel's OWN controls bubbles up
+	--to the host and lands here too -- and re-grabbing to the content root
+	--wipes whatever the panel's controls were tracking through focus. The
+	--Objects palette reads "which entry was focused" inside its click
+	--handler to build a ctrl/shift multi-selection, and press runs before
+	--click, so the unguarded grab made every multi-select see the root
+	--instead of the previous entry (report YYDRFNXP). The panel is already
+	--armed in this case, so there is nothing to re-arm and no panelFocused
+	--to fire.
+	if gui.ChildHasFocus(root) then
+		return true
+	end
+
+	gui.SetFocus(root)
+	root:FireEventTree("panelFocused")
+	return true
+end
+
 local CreateDockablePanelTabbedContainer
 CreateDockablePanelTabbedContainer = function(options)
 
@@ -863,7 +994,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		--renders at dockscale (via uiscale) and its logical height is the screen
 		--height divided by that scale, so a panel needs a proportionally larger
 		--logical max height to still stretch to the full screen when scaled down.
-		local dockScale = dmhub.GetSettingValue("dockscale") or 1
+		local dockScale = DockablePanel.EffectiveDockScale()
 
 		return {
 			minHeight = min + tabSpacing, -- + panelSpacing*2,
@@ -1624,6 +1755,52 @@ CreateDockablePanelTabbedContainer = function(options)
         end,
     }
 
+	--The FOCUS ring. Several panels are "armed" only while their content
+	--tree holds GUI focus -- the Map Markup panel's drawing tools, the
+	--Building editor, the Objects panel and ability targeting all gate on
+	--it, and losing focus silently disarms them. Nothing showed which
+	--panel held it, so this traces the focused panel's frame.
+	--
+	--A dedicated floating child rather than a border on the frame itself:
+	--the frame sets borderColor/border inline (selfStyle wins over class
+	--styles), so a class rule there could never take effect.
+	local focusOutline = gui.Panel{
+		classes = {"dockPanelFocusOutline"},
+		bgimage = true,
+		floating = true,
+		interactable = false,
+		width = "100%",
+		height = "100%",
+		halign = "center",
+		valign = "center",
+		--the focus edge's one-sided border is INLINE: a border TABLE in a
+		--styles list verifiably never reaches this panel (scalar properties
+		--do -- the old full ring worked; tested live on the rail-window
+		--copy), while selfStyle renders it. Color and opacity still come
+		--from the dockPanelFocusOutline style rules, so theming is intact.
+		border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+	}
+
+	--the framed surface every panel in this container sits on; hoisted out
+	--of the container's child list so the focus poll can class it.
+	local panelFrame = gui.Panel{
+		bgimage = true,
+		bgcolor = "#222222e9",
+		flow = "vertical",
+		height = string.format("100%%-%d", round(g_dockGap + cond(g_dockGap == 0, -1, 0))),
+		width = "100%",
+		borderColor = Styles.Gold02,
+		border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+
+		dragGhost,
+		verticalDragHandle,
+		verticalDragDivider,
+		tabPanel,
+		minimizeArrow,
+		collapseArrow,
+		contentPanel,
+		focusOutline,
+	}
 
 	resultPanel = gui.Panel{
 		idprefix = "dockablePanelContainer",
@@ -1872,23 +2049,44 @@ CreateDockablePanelTabbedContainer = function(options)
 			end
 		end,
 
-        gui.Panel{
-            bgimage = true,
-            bgcolor = "#222222e9",
-            flow = "vertical",
-            height = string.format("100%%-%d", round(g_dockGap + cond(g_dockGap == 0, -1, 0))),
-            width = "100%",
-            borderColor = Styles.Gold02,
-            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+        --Which panel holds GUI focus is polled, not evented: focus moves
+        --for reasons no single panel sees (another panel's control taking
+        --it, a refresh destroying the focused element, Escape), and there
+        --is no focus-changed event to hang this on. A quarter-second poll
+        --over the handful of open containers is cheap and the ring is not
+        --something that needs to be frame-exact.
+        --Press anywhere on a panel that asked for it -- its background, an
+        --empty stretch of its content, its tab strip -- claims focus for
+        --it. Presses propagate up from any child that does not swallow
+        --them, which is exactly the chrome that has no focus handling of
+        --its own; the panel's own controls keep managing focus themselves.
+        press = function(element)
+            local instances = element.data.GetPanelInstances()
+            local index = element.data.GetSelectedTabIndex() or 1
+            local instance = instances[index]
+            if instance ~= nil and instance.valid and instance.data.focusOnClick then
+                FocusPanelContent(instance)
+            end
+        end,
 
-            dragGhost,
-            verticalDragHandle,
-            verticalDragDivider,
-            tabPanel,
-            minimizeArrow,
-            collapseArrow,
-            contentPanel,
-        },
+        thinkTime = 0.25,
+        think = function(element)
+            --GUI focus, and nothing else. It is singular by construction,
+            --which is what makes the ring exclusive: exactly one panel can
+            --be the active tool. Every panel that drives a map mode now
+            --tracks focus for its own arming too (the Measuring Tool used
+            --to arm on merely existing, which is what let two panels claim
+            --the mode at once).
+            local focused = gui.ChildHasFocus(element)
+            if element.data.hasPanelFocus ~= focused then
+                element.data.hasPanelFocus = focused
+                if panelFrame.valid then
+                    panelFrame:SetClass("focused", focused)
+                end
+            end
+        end,
+
+        panelFrame,
         dragHandle,
 	}
 
@@ -1924,11 +2122,23 @@ local CreateDockablePanelInstance = function(panelOptions)
 				name = options.name,
 				icon = options.icon,
 				stickyFocus = options.stickyFocus,
+				--Set by panels that want a press ANYWHERE on them -- their
+				--background, their title bar -- to claim GUI focus, not
+				--just their individual controls. See FocusPanelContent.
+				focusOnClick = options.focusOnClick,
 				identifier = options.identifier,
 				minHeight = (options.minHeight or 40),
 				maxHeight = (options.maxHeight or 1080),
 				locked = false,
 			}
+
+			--The element the panel's content() returned. Focus-gated panels
+			--test `gui.ChildHasFocus(<their own root>)`, so click-to-focus
+			--has to focus THIS -- focusing the host container would put
+			--focus on an ANCESTOR, and the panel's own gate would still
+			--read false.
+			local contentRoot = options.content()
+			element.data.contentRoot = contentRoot
 
 			if options.vscroll ~= false then
 				local hideObjectsOutOfScroll = options.hideObjectsOutOfScroll
@@ -1945,7 +2155,7 @@ local CreateDockablePanelInstance = function(panelOptions)
 						vscroll = true,
 						hideObjectsOutOfScroll = hideObjectsOutOfScroll,
 						children = {
-							options.content(),
+							contentRoot,
 						},
 					}
 				}
@@ -1959,7 +2169,7 @@ local CreateDockablePanelInstance = function(panelOptions)
 						idprefix = "dockablePanelNoScrollParent",
 						height = "100%",
 						children = {
-							options.content()
+							contentRoot
 						}
 					}
 				}
@@ -1986,13 +2196,73 @@ end
 
 
 
+--May THIS user have this panel at all? devonly panels need dev mode, dmonly
+--panels need the Director.
+--
+--This has to be asked everywhere a panel is instantiated, not just where the
+--Panels menu is built. It previously guarded only the menu, so a player who
+--had docked a Director-only panel BEFORE it was flagged kept getting it
+--restored from their saved layout on every launch -- report XRA4WE35, a
+--player's dock listing the Director's encounter rosters, monster counts, EV
+--and all. Hiding the menu entry does nothing for a panel that is already
+--docked.
+--
+--Checking dmhub.isDM here is no more fragile than what the layout already
+--does: GetDockablePanelsSetting picks which saved layout to read from the
+--same flag, so if it were unresolved the wrong dock config would load
+--wholesale. Player and Director layouts are separate settings, so a panel
+--dropped from a player's layout can never cost a Director theirs.
+local PanelPermittedForUser = function(p)
+	if p == nil then
+		--unknown identifier (a mod that is not loaded): leave it to the
+		--caller, which finds no registration and adds nothing.
+		return true
+	end
+	if p.devonly and not devmode() then
+		return false
+	end
+	if p.dmonly and not dmhub.isDM then
+		return false
+	end
+	return true
+end
+
 DockablePanel = {}
 
 DockablePanel = {
+	--Exposed because the icon rail and the panel windows restore panels from
+	--their own saved config, not from the docks, and must apply the same rule.
+	PanelPermittedForUser = PanelPermittedForUser,
+
 	ContentWidth = 364,
 	DockWidth = 364,
     FloatingDockMargin = 100,
 
+	--The dock scale actually in effect. The icon-rail UI ignores the Dock
+	--Scale setting (the docks are slid away there and the slider is hidden
+	--from the settings screen), so it reads as 1 while iconrail is on; the
+	--stored preference is untouched and applies again when the rail is
+	--turned off. All dockscale readers must go through this rather than
+	--reading the setting directly.
+	EffectiveDockScale = function()
+		if dmhub.GetSettingValue("iconrail") == true then
+			return 1
+		end
+		return dmhub.GetSettingValue("dockscale") or 1
+	end,
+
+	--args: name, icon, content(), vscroll, minHeight/maxHeight (content
+	--bounds used by the dock AND as vertical bounds for the panel's
+	--standalone icon-rail window; equal values pin a fixed height and
+	--make the window vertically unresizable), dmonly, devonly, ...
+	--Standalone-window extras: resizableWidth/resizableHeight = false
+	--lock window resizing on that axis (default: both freely resizable);
+	--minWidth/maxWidth bound the window's width.
+	--preferFloating = true opens the panel on the floating (center) dock
+	--as a window over the map instead of claiming a side dock;
+	--floatingHalign = "right" places that window on the right.
+	--menu = "codex"|"game"|"tools" lists the panel in that title-bar menu
+	--INSTEAD of the Panels menu.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -2028,9 +2298,32 @@ DockablePanel = {
 		end
 	end,
 
+	--Open a panel by its registered name, or raise it if it is already
+	--open. The counterpart of the launchable panels' GetOrLaunchPanel, for
+	--the callers that summon a specific panel rather than toggling one --
+	--journal command links, and the remote present-a-dialog request --
+	--which have to search both registries now that panels like Maps live
+	--here. Returns true if a panel by that name exists here. Filtered
+	--panels are included: being hidden from the menus does not mean a
+	--direct request for it should fail.
+	ShowPanelByName = function(name)
+		if name == nil then
+			return false
+		end
+		name = string.lower(name)
+		for _,item in ipairs(DockablePanel.GetMenuItems(true, true)) do
+			if item.name ~= nil and string.lower(item.name) == name then
+				item.click("show")
+				return true
+			end
+		end
+		return false
+	end,
+
 	--Look up a panel registration by its registered name (case-insensitive).
 	--Returns the registration args table (name, icon, content, vscroll,
-	--minHeight, maxHeight, dmonly, devonly, ...) or nil. Used by the document
+	--minHeight, maxHeight, minWidth, maxWidth, resizableWidth,
+	--resizableHeight, dmonly, devonly, ...) or nil. Used by the document
 	--system's PanelDocument bridge to host dockable panel content inside
 	--document windows.
 	GetRegistration = function(name)
@@ -2041,6 +2334,20 @@ DockablePanel = {
 			end
 		end
 		return nil
+	end,
+
+	--Registrations whose new-content alert is currently lit AND which offer
+	--a way to retire it (clearNewContent, or markContentSeen as a fallback).
+	--Drives the icon rail's "Clear All Alerts" context-menu entry, which only
+	--appears when more than one panel has an alert to clear.
+	GetAlertedRegistrations = function()
+		local result = {}
+		for _,p in pairs(dockablePanels) do
+			if p.hasNewContent ~= nil and (p.clearNewContent ~= nil or p.markContentSeen ~= nil) and p.hasNewContent() then
+				result[#result+1] = p
+			end
+		end
+		return result
 	end,
 
 	--The ordered list of panel names currently docked in one side's dock
@@ -2105,7 +2412,7 @@ DockablePanel = {
 
 		for _,name in ipairs(names) do
 			for k,p in pairs(dockablePanels) do
-				if string.lower(p.name) == string.lower(name) then
+				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
 					local instance = existing[p.identifier]
 					existing[p.identifier] = nil
 					if instance == nil or not instance.valid then
@@ -2130,15 +2437,21 @@ DockablePanel = {
 		DockablePanel.Serialize()
 	end,
 
-	GetMenuItems = function(flat)
+	GetMenuItems = function(flat, includeFiltered)
 		local subfolders = {}
 		local result = {}
 		for k,p in pairs(dockablePanels) do
 
-			local available = (not p.devonly) or devmode()
-            if p.dmonly and not dmhub.isDM then
-                available = false
-            end
+			local available = PanelPermittedForUser(p)
+
+			--A panel may hide itself from the menus in this context --
+			--Maps, for one, which players only get when there is a map
+			--they can browse. Same contract the launchable panels have
+			--always had. includeFiltered is for by-name lookups, which
+			--must still find them.
+			if available and (not includeFiltered) and p.filtered ~= nil and p.filtered() then
+				available = false
+			end
 
 			if available then
 
@@ -2166,6 +2479,18 @@ DockablePanel = {
 
 				target[#target+1] = {
 					id = string.format("Menu%s", p.name),
+					--name/identifier/menu/group/ord/hasNewContent/geticon
+					--mirror what the launchable-panel menu items carry, so
+					--the title bar and the journal's link resolution can
+					--treat both registries the same way. `menu` is what
+					--sorts a panel into the Codex/Game/Tools menus.
+					name = p.name,
+					identifier = p.identifier,
+					menu = p.menu,
+					group = p.group or "",
+					ord = p.ord or 0,
+					hasNewContent = p.hasNewContent,
+					geticon = p.geticon,
 					text = p.name,
 					icon = p.icon,
 					bind = bind,
@@ -2176,6 +2501,14 @@ DockablePanel = {
 						-- Docks are only created once a game is active. Bail out
 						-- silently when invoked from the lobby.
 						if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+							return
+						end
+
+						-- Another surface may host panels instead of the docks
+						-- (the icon rail does). Ask before touching a dock at
+						-- all: the dock path would otherwise slide a hidden
+						-- dock back on screen to show the panel.
+						if NotifyDockablePanelOpen(p.name, operation) then
 							return
 						end
 
@@ -2218,13 +2551,36 @@ DockablePanel = {
 
 							local targetDock = gamehud.leftDock
 
-							if dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
+							--A panel that declares preferFloating opens on the
+							--floating (center) dock -- a window over the map --
+							--rather than claiming a side dock. It can still be
+							--dragged into a dock afterwards, and that placement
+							--persists via Serialize like any other.
+							if p.preferFloating and gamehud.floatingDock ~= nil and gamehud.floatingDock.valid then
+								targetDock = gamehud.floatingDock
+							elseif dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
 								targetDock = gamehud.rightDock
 							elseif dmhub.GetSettingValue("leftdockoffscreen") then
 								dmhub.SetSettingValue("leftdockoffscreen", false)
 							end
 
 							targetDock:FireEvent("addPanel", newPanel)
+
+							if targetDock == gamehud.floatingDock then
+								--the floating dock does not size or place its
+								--children (sizeChild/fitChildren no-op there),
+								--so give the fresh window its own geometry:
+								--dock width, content-bounded height, near the
+								--top of the map on the panel's preferred side.
+								newPanel.selfStyle.width = DockablePanel.DockWidth
+								newPanel.selfStyle.height = math.min(newPanel.data.maxHeight, 700)
+								local x = 16
+								if p.floatingHalign == "right" then
+									x = math.max(0, targetDock.renderedWidth - DockablePanel.DockWidth - 16)
+								end
+								newPanel.x = x
+								newPanel.y = 40
+							end
 						end
 
 						DockablePanel.Serialize()
@@ -2376,14 +2732,19 @@ DockablePanel = {
 					--try to find the panel with this identifier and create it.
 					
 					for _,panelid in ipairs(panelInfo.tabs) do
-					
-						if existingInstances[panelid] ~= nil then
-							panelInstances[#panelInstances+1] = existingInstances[panelid]
-							existingInstances[panelid] = nil
-						else
-							for k,p in pairs(dockablePanels) do
-								if p.identifier == panelid then
-									panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+
+						--Skipping rather than dropping the entry: any live
+						--instance stays in existingInstances and is destroyed
+						--by the cleanup at the end of this function.
+						if PanelPermittedForUser(dockablePanels[panelid]) then
+							if existingInstances[panelid] ~= nil then
+								panelInstances[#panelInstances+1] = existingInstances[panelid]
+								existingInstances[panelid] = nil
+							else
+								for k,p in pairs(dockablePanels) do
+									if p.identifier == panelid then
+										panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+									end
 								end
 							end
 						end
@@ -2464,6 +2825,149 @@ DockablePanel = {
 		end
 	end,
 }
+
+--=============================================================================
+--Panel background processes.
+--
+--A dockable panel can register a "process": a coroutine that keeps running
+--after the panel itself is closed. The canonical example is the Monster AI --
+--pressing Start AI registers a process, and closing the Monster AI panel does
+--not stop the AI from taking turns. While any process for a panel is running,
+--the panel's icon-rail button shows a small spinning gear in its bottom-left
+--corner (see the iconRailProcessGear panel in DocumentSystem.lua), so the user
+--always knows background work is going on and where to go to stop it.
+--
+--Usage:
+--
+--    local process = DockablePanel.StartProcess{
+--        panel = "Monster AI",          --the DockablePanel.Register name
+--        id = "monster-ai",             --unique within the panel; restarting
+--                                       --an id replaces the old process
+--        coroutine = function(process)  --runs as a dmhub.Coroutine
+--            while true do
+--                coroutine.yield(0.1)
+--                if mod.unloaded or process.stopRequested then
+--                    return
+--                end
+--                --do work
+--            end
+--        end,
+--    }
+--
+--Stopping is COOPERATIVE: StopProcess / process:Stop() only set
+--process.stopRequested; the coroutine must poll it (and its own module's
+--mod.unloaded, since a Lua reload abandons this registry) and return. The
+--registry entry clears when the coroutine actually returns, so the rail gear
+--keeps spinning through a graceful wind-down ("Stopping...") and stops when
+--the work truly ends.
+--=============================================================================
+
+--lowercase panel name -> { [id] = process }
+local panelProcesses = {}
+
+local function ProcessPanelKey(name)
+	return string.lower(tostring(name or ""))
+end
+
+--- Start (or restart) a background process for a registered dockable panel.
+--- args: panel (string, the registered panel name), id (string, defaults to
+--- "main"), coroutine (function(process), run as a dmhub.Coroutine).
+--- Returns the process handle, which is also passed to the coroutine:
+--- { panel, id, stopRequested, finished, Stop() }.
+DockablePanel.StartProcess = function(args)
+	local panelName = args.panel
+	local id = args.id or "main"
+	local fn = args.coroutine
+	if panelName == nil or fn == nil then
+		printf("DockablePanel.StartProcess: 'panel' and 'coroutine' fields are required")
+		return nil
+	end
+
+	--restarting an id replaces the old process: ask it to stop first.
+	DockablePanel.StopProcess(panelName, id)
+
+	local process = {
+		panel = panelName,
+		id = id,
+		stopRequested = false,
+		finished = false,
+	}
+
+	function process:Stop()
+		self.stopRequested = true
+	end
+
+	local key = ProcessPanelKey(panelName)
+	local procs = panelProcesses[key]
+	if procs == nil then
+		procs = {}
+		panelProcesses[key] = procs
+	end
+	procs[id] = process
+
+	dmhub.Coroutine(function()
+		process.thread = coroutine.running()
+		local ok, err = pcall(fn, process)
+		process.finished = true
+		if procs[id] == process then
+			procs[id] = nil
+		end
+		if not ok then
+			printf("DockablePanel process '%s' for panel '%s' error: %s", id, panelName, tostring(err))
+		end
+	end)
+
+	return process
+end
+
+--- Request that a panel's background process stop. With an id, stops that
+--- process; with no id, stops every process the panel has. Cooperative -- the
+--- coroutine keeps running until it polls process.stopRequested and returns.
+DockablePanel.StopProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return
+	end
+	if id ~= nil then
+		local p = procs[id]
+		if p ~= nil then
+			p:Stop()
+		end
+	else
+		for _, p in pairs(procs) do
+			p:Stop()
+		end
+	end
+end
+
+--- The process handle for a panel's process (id defaults to "main"), or nil
+--- if it is not running.
+DockablePanel.GetProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return nil
+	end
+	return procs[id or "main"]
+end
+
+--- True while the panel has any background process whose coroutine has not
+--- finished. This is what the icon rail's spinning gear indicator reads.
+DockablePanel.HasActiveProcess = function(panelName)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return false
+	end
+	for _, p in pairs(procs) do
+		if not p.finished then
+			--belt-and-suspenders: if the thread died without the wrapper
+			--marking it finished, do not report (and spin the gear) forever.
+			if p.thread == nil or coroutine.status(p.thread) ~= "dead" then
+				return true
+			end
+		end
+	end
+	return false
+end
 
 --Apply the dockscale setting to the docks. Must run on docks that are attached
 --to the screen and laid out (not at construction), or the uiscale pivot races

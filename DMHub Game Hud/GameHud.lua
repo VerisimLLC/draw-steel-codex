@@ -6,6 +6,15 @@ function GameHud:Think()
 		table.remove(self.interactionQueue, 1)
 		f()
 	end
+
+	--Keep the world-space selection action buttons alive. They key off the token
+	--selection rather than off game state, so unlike the other world-space huds
+	--nothing else will create them; this is their heartbeat. Guarded because the
+	--ruleset is not present in every build.
+	local minions = rawget(_G, "DrawSteelMinion")
+	if minions ~= nil and minions.SelectionActionsHud ~= nil then
+		minions.SelectionActionsHud()
+	end
 end
 
 function GameHud:QueueInteraction(f)
@@ -33,6 +42,14 @@ end
 
 function GameHud.Refresh(self)
 	self.dialog.sheet:FireEventTree('refresh')
+
+	--panels popped out into native OS windows are unparented from the hud
+	--tree, so the broadcast above never reaches them; extend it to each
+	--popout window so selection-following panels (Character, Triggers)
+	--stay live there too.
+	if PanelDocument ~= nil and PanelDocument.FireEventTreeOnPopouts ~= nil then
+		PanelDocument.FireEventTreeOnPopouts('refresh')
+	end
 end
 
 --function which can be called by dmhub to present a tooltip on the map.
@@ -648,6 +665,22 @@ function GameHud:CreateToolbarPanel()
 
 	local buttons = {}
 
+	--Everything the toolbar can hold. Both registries: most of what used to
+	--be a launchable panel (Maps, the Compendium, the Measuring Tool, the
+	--dev tools) is an ordinary dockable panel now, and a toolbar the user
+	--had already configured must keep finding those by name.
+	local ToolbarCandidates = function()
+		local result = {}
+		for _,items in ipairs({LaunchablePanel.GetMenuItems(), DockablePanel.GetMenuItems()}) do
+			for _,item in ipairs(items) do
+				if item.name ~= nil then
+					result[#result+1] = item
+				end
+			end
+		end
+		return result
+	end
+
 	local CreateToolbarButton = function(item)
 		
 		local monitorEventGuid = nil
@@ -773,7 +806,7 @@ function GameHud:CreateToolbarPanel()
 
 	local DeserializeToolbar = function()
 		buttons = {}
-		local menuItems = LaunchablePanel.GetMenuItems()
+		local menuItems = ToolbarCandidates()
 		local doc = dmhub.GetSettingValue(settingName)
 		for _,itemName in ipairs(doc) do
 			for _,item in ipairs(menuItems) do
@@ -809,7 +842,7 @@ function GameHud:CreateToolbarPanel()
 					return
 				end
 
-				local menuItems = LaunchablePanel.GetMenuItems()
+				local menuItems = ToolbarCandidates()
 				local items = {}
 				for _,item in ipairs(menuItems) do
 					if item.icon then
@@ -1251,6 +1284,11 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
                         end
 					elseif LaunchablePanel.LaunchPanelByName(data.dialog.dialog, data.dialog.args) then
 						m_presentedDialog = gui.GetFocus()
+					else
+						--panels that used to be launchable are dockable now;
+						--a remote request to present one by name still has to
+						--find them.
+						DockablePanel.ShowPanelByName(data.dialog.dialog)
 					end
 				end
 
@@ -1364,8 +1402,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:RequireRollListenerPanel(),
 			FullscreenDisplay.Create{belowui = true},
 			--gamehud:CreateSidePanel(),
-			gamehud:CreateActionBar(dialog, tokenInfo),
-			gamehud:CreateReactionBar(dialog, tokenInfo),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
 			gamehud:CreateFrozenLabel(),
@@ -1384,6 +1420,31 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--while still leaving it below mainDialog / modal / popup / rollDialog,
 			--so modals and the dice dialog continue to win.
 			gamehud:CreateDocumentsPanel(),
+
+			--The action bar sits ABOVE the documents layer for the same reason.
+			--Everything the bar floats out of its strip -- the drawer menus, the
+			--cast controls (abilityController / Confirm), the Respite Activity
+			--drawer -- reaches up to ~900px into map space, so a window parked
+			--anywhere near the bottom centre swallowed the control AND its
+			--clicks. Reported three times over: UECH333Y (drawer cards),
+			--58DDT3EB (Confirm), TR4BXVG8 (Respite Activity).
+			--
+			--Promoting the whole bar rather than re-homing the individual popups
+			--is deliberate. The popups cannot leave the bar's subtree: drawer
+			--menus re-parent into their own drawer to position themselves and
+			--route events through FindParentWithClass("actionBar")
+			--(DrawSteelActionBar.lua, the ActionMenu "menu" handler), and the
+			--rest ride the bar's FireEventTree. renderOnTop is no help either --
+			--it draws on the top-most sorting canvas, which the raycaster does
+			--not reach, so the control would paint but stay unclickable.
+			--
+			--The price is that the bar's own strip (its gradient backdrop and the
+			--drawer buttons, ~58px tall and panelWidth wide, not full screen) now
+			--draws over the bottom of a window parked at bottom centre. That is
+			--much the smaller footprint of the two, and the bar hides itself
+			--entirely when no token is selected.
+			gamehud:CreateActionBar(dialog, tokenInfo),
+			gamehud:CreateReactionBar(dialog, tokenInfo),
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
 			mainDialogPanel,
@@ -1442,16 +1503,69 @@ function GameHud.RegisterPresentableDialog(args)
     g_presentableDialogs[args.id] = args
 end
 
+--Right margin for the right-side hosts (ability sidebar and standalone
+--roll host). With the legacy docks a fixed 364 column is reserved for
+--the right dock. In icon-rail mode the dock is gone, so the hosts sit
+--near the right edge -- clearing only the rail's button column -- and
+--slide left, as far as needed to fully clear floating panel windows
+--parked against the right edge (RailWindowsRightIntrusion), stopping
+--only when the host itself would run off the left of the screen.
+local RIGHT_HOST_LEGACY_MARGIN = 364
+--rail column: 12 edge margin + 40 button + a small gap.
+local RIGHT_HOST_RAIL_MARGIN = 60
+local function RightHostMargin(hostWidth)
+    if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
+        return RIGHT_HOST_LEGACY_MARGIN
+    end
+    local intrusion = 0
+    if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
+        --the reserve keeps the host on screen: its own width plus a
+        --left rail column's worth of clearance.
+        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN,
+            hostWidth + RIGHT_HOST_RAIL_MARGIN)
+    end
+    return math.max(RIGHT_HOST_RAIL_MARGIN, intrusion)
+end
+
+--Keep a right-side host's margin tracking RightHostMargin(). Polled:
+--the inputs (the iconrail setting, window drags/opens/closes) have no
+--single change event, and the check is a handful of table reads.
+local function TrackRightHostMargin(panel)
+    --both hosts declare fixed numeric widths; fall back to the wider of
+    --the two so a non-numeric width just means a slightly shorter slide.
+    local hostWidth = panel.selfStyle.width
+    if type(hostWidth) ~= "number" then
+        hostWidth = 540
+    end
+    local currentMargin = nil
+    panel.thinkTime = 0.25
+    --panels built with no event handlers have a nil events table; reading
+    --panel.events returns nil rather than creating one, so seed it first.
+    if panel.events == nil then
+        panel.events = {}
+    end
+    panel.events.think = function(element)
+        local m = RightHostMargin(hostWidth)
+        if m ~= currentMargin then
+            currentMargin = m
+            element.selfStyle.rmargin = m
+        end
+    end
+    panel:FireEvent("think")
+end
+
 function GameHud:CreateAbilityDisplayPanel()
     self.abilityDisplayPanel = gui.Panel{
         styles = ThemeEngine.GetStyles(),
         height = "100%",
         width = 360,
-        rmargin = 364,
+        rmargin = RIGHT_HOST_LEGACY_MARGIN,
         halign = "right",
         valign = "center",
         interactable = false,
     }
+
+    TrackRightHostMargin(self.abilityDisplayPanel)
 
     ThemeEngine.OnThemeChanged(mod, function()
         if self.abilityDisplayPanel ~= nil and self.abilityDisplayPanel.valid then
@@ -1477,12 +1591,14 @@ function GameHud:CreateStandaloneRollHost()
         styles = ThemeEngine.GetStyles(),
         width = 540,
         height = "auto",
-        rmargin = 364,
+        rmargin = RIGHT_HOST_LEGACY_MARGIN,
         halign = "right",
         valign = "center",
         flow = "vertical",
         interactable = true,
     }
+
+    TrackRightHostMargin(self.standaloneRollHostPanel)
 
     ThemeEngine.OnThemeChanged(mod, function()
         if self.standaloneRollHostPanel ~= nil and self.standaloneRollHostPanel.valid then
@@ -1744,9 +1860,9 @@ end
 function GameHud:CreateFrozenLabel()
 
 	local freezebind = dmhub.GetCommandBinding("togglefreeze")
-	local bindtext = "(Players cannot move.)"
+	local bindtext = "(Players cannot act.)"
 	if freezebind ~= nil and dmhub.isDM then
-		bindtext = string.format("(Players cannot move. %s to toggle.)", freezebind)
+		bindtext = string.format("(Players cannot act. %s to toggle.)", freezebind)
 	end
 
 
@@ -2332,6 +2448,11 @@ local g_tipBlockingClasses = {
 
 --Returns true if any tip-blocking dialog is currently in the panel tree.
 function GameHud:_TipIsBlockedByDialog()
+	--The character sheet is hosted by the engine in its own SheetPanel root
+	--(CharacterSheetHarness), not under the HUD's parentPanel, so the class
+	--walk below cannot see it. Ask the engine directly.
+	if dmhub.inCharacterSheet then return true end
+
 	local root = self:try_get("parentPanel")
 	if root == nil or not root.valid then return false end
 	for _, cls in ipairs(g_tipBlockingClasses) do

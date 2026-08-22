@@ -783,7 +783,7 @@ function GameHud.CreateRollDialog(self)
                                 creature:LookupSymbol {}, 0)
                             local available, resourceName
                             if costType == "cost" then
-                                available = tok.properties:GetHeroicOrMaliceResources()
+                                available = tok.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
                                 resourceName = tok.properties:GetHeroicResourceName()
                             elseif costType == "epic" then
                                 available = tok.properties:GetEpicResources()
@@ -1523,6 +1523,7 @@ function GameHud.CreateRollDialog(self)
     }
 
     alternateRollsBar = gui.Panel {
+        styles = Styles.AdvantageBar,
         classes = { "hideWhenMinimized", "advantage-bar" },
         prepare = function(element, options)
             if options.alternateOptions == nil or #options.alternateOptions <= 1 then

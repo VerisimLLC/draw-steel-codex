@@ -17,7 +17,7 @@ end
 --- Executes a GoblinScript "rule" as part of the ability's power table effect resolution.
 ActivatedAbilityDrawSteelCommandBehavior = RegisterGameType("ActivatedAbilityDrawSteelCommandBehavior", "ActivatedAbilityBehavior")
 
-ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Roll Effect'
+ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Table Effect'
 ActivatedAbilityDrawSteelCommandBehavior.rule = ''
 
 ActivatedAbility.RegisterType
@@ -53,13 +53,13 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
     --that actually perform/receive the caster-benefit effect: plain "caster"
     --resolves to the main attacker of each struck creature in a squad-
     --coordinated strike (NOT the squad instigator), and the companion/
-    --summoner/riders variants resolve to a different creature entirely. The
+    --summoner/riders/mentor variants resolve to a different creature entirely. The
     --command must execute with that resolved creature as its caster so
     --self-movement rules (shift/jump/teleport) move the right token --
     --mirroring the main-attacker substitution the tier-text path does in
     --MCDMAbilityRollBehavior. Rule interpolation below follows the actor for
     --plain "caster" (a squad minion's {Movement Speed} reads that minion), but
-    --for the companion/summoner/riders variants it stays bound to the
+    --for the companion/summoner/riders/mentor variants it stays bound to the
     --ability's caster: formulas like {Intuition} in a companion shift refer
     --to the hero, not the companion.
     local casterBenefitApplyTo = {
@@ -67,6 +67,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
         caster_companion = true,
         caster_summoner = true,
         caster_riders = true,
+        caster_mentor = true,
         caster_including_squad = true,
     }
     local commandActorIsTarget = casterBenefitApplyTo[self:try_get("applyto", "targets")] == true
@@ -131,7 +132,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                 end
                 local rule = StringInterpolateGoblinScript(self.rule, commandCaster.properties:LookupSymbol(ruleSymbols))
                 --print("INTERPOLATE::", self.rule, "->", rule)
-                --The companion/summoner/riders applyto variants also execute
+                --The companion/summoner/riders/mentor applyto variants also execute
                 --with the resolved target as the acting token (so self-movement
                 --rules move the companion, not the hero), but unlike plain
                 --"caster" their rule interpolation above stays bound to the
@@ -152,6 +153,16 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
                     --caster on non-squad casts.
                     if options.symbols ~= nil and options.symbols.cast ~= nil then
                         commandCasterToken = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, commandCasterToken)
+                        --"caster"-type retargets swap the source for this one
+                        --target: partner-burst abilities want enemies in the
+                        --partner-only shape taunted by / pushed away from the
+                        --partner caster. Applied last so it wins over the squad
+                        --main-attacker, matching the tier-text path in
+                        --MCDMAbilityRollBehavior. Deliberately AFTER the rule
+                        --interpolation above -- as with the companion/summoner
+                        --applyto variants, only the acting token swaps; formulas
+                        --stay bound to the ability's caster.
+                        commandCasterToken = options.symbols.cast:RemapCasterForTarget(target.token, commandCasterToken)
                     end
                 end
                 self:ExecuteCommand(ability, commandCasterToken, target.token, options, rule)
@@ -245,6 +256,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
     local isRolledDamage = damage == nil
+    local damageDice = GameSystem.GetDamageDiceInRoll(match.damage)
 
     --Patron damage handling (Acolyte class).
     --The literal token "patron" in tier/rule text is a placeholder for the
@@ -389,7 +401,7 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage, damagedice = damageDice, patrondamage = patrondamage, cannotBeReduced = ignoreImmunity})
                     options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage, patrondamage)
 
                     --Damage halved away by (half) power-roll modifiers counts as
@@ -705,7 +717,7 @@ local g_rulePatterns = {
         end,
     },
     {
-        pattern = "^prone( and)? can't stand \\((?<duration>eot|eoe|save ends)\\)",
+        pattern = "^prone( and)? cant stand \\((?<duration>eot|eoe|save ends)\\)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
 
@@ -810,6 +822,66 @@ local g_rulePatterns = {
                     end,
                 }
             end
+        end,
+    },
+    {
+        --"uses their move action": the creature has now spent their move action for
+        --the turn, so none of their movement is left. The Disengage move action uses
+        --this -- it only shifts a square or two, but it costs the whole move action
+        --(see the Disengage feature in the Move Actions global rule mod).
+        --
+        --Movement is modelled purely as distance-moved-this-turn; there is no
+        --separate "move action used" flag. So spending the move action means
+        --setting Moved This Turn to the creature's full movement speed. That also
+        --re-arms the existing "Moved This Turn > 0" suppression on Disengage, so it
+        --can't be taken twice in a turn.
+        pattern = {
+            "^(uses?|using) (their|your|its|his|her) move action",
+            "^(uses?|using) up (their|your|its|his|her) (entire |remaining )?(move action|movement)",
+            "^spends? (all )?((their|your|its|his|her) )?(remaining )?movement",
+        },
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            ability:CommitToPaying(casterToken, options)
+
+            if targetToken == nil or not targetToken.valid then
+                return
+            end
+
+            --An ability invoked by another ability is not the creature's own move
+            --action. Free/triggered Disengages (the Shadow's Dancer, the Null's
+            --Shared Momentum) and the "Use Move Action" main-action conversion all
+            --reach Disengage through InvokeAbility, and none of them spend the move
+            --action the creature would otherwise take on their turn.
+            if ability:try_get("invoker") ~= nil then
+                print("Rule:: use move action: invoked ability, movement not spent")
+                return
+            end
+
+            if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+                return
+            end
+
+            if not targetToken.properties:IsOurTurn() then
+                print("Rule:: use move action: not this creature's turn, movement not spent")
+                return
+            end
+
+            local speed = math.max(0, targetToken.properties:CurrentMovementSpeed())
+            local moved = targetToken.properties:DistanceMovedThisTurn()
+            if moved >= speed then
+                return
+            end
+
+            print("Rule:: use move action: spending remaining movement:", speed - moved)
+
+            targetToken:ModifyProperties{
+                description = "Use Move Action",
+                undoable = false,
+                execute = function()
+                    targetToken.properties.moveDistance = speed
+                    targetToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+                end,
+            }
         end,
     },
     {
@@ -1158,7 +1230,11 @@ local g_rulePatterns = {
 
                 -- Set up the free strike damage from the caster's free strike value
                 local freeStrikeDamage = tostring(casterToken.properties:OpportunityAttack())
-                abilityClone.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+                --No *Charges factor: free strike damage is a flat number and never
+                --scales with charges. Multiplying by it zeroed the roll when the
+                --parent ability was channeled -- its Charges defaults to 0 and is
+                --forwarded below in symbols. See MCDMMonster:FillFreeStrikes.
+                abilityClone.behaviors[1].roll = freeStrikeDamage
 
                 local symbols = {
                     invoker = GenerateSymbols(casterToken.properties),
@@ -3688,4 +3764,58 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     if pusherToken ~= nil and pusherToken.charid ~= casterToken.charid and (not pusherToken:IsFriend(casterToken)) then
         LiveEncounter.TrackHeroStats(pusherToken.charid, "forcedMovementDealt", spaces)
     end
+end
+
+--Forced-movement type conversion (ModifierForcedMovement, e.g. the Fury Reaver's
+--push -> slide): which "Forced Movement: X" standard ability gets invoked is decided
+--by the tier text ("push 2" -> the Push ability) BEFORE the player ever sees the
+--push/slide chips in the action bar -- those only set symbols.forcedmovement on the
+--invoked clone's cast symbols. That symbol redirects the DIRECTION filter
+--(ActivatedAbility:TargetLocPassesFilterPredicate reads it ahead of the ability's
+--own forcedMovement field), but the clone keeps the Push ability's behavior list: a
+--bare relocate. The multi-segment machinery -- remember the distance already moved,
+--then a "Continue sliding" self-invoke for the remainder, because a slide does not
+--have to be a straight line -- lives only in the SLIDE standard ability's behaviors.
+--So a converted slide moved in any direction but never offered "Continue sliding".
+--
+--Fix: at cast time (the first central point that sees the player's final chip
+--choice), when the chosen type differs from the clone's native type, swap in the
+--behavior list of the standard ability matching the chosen type, re-substituting
+--<<range>> with this clone's already-adjusted range (stability, Big Versus Little,
+--etc. are baked in by the tier executor above). The swap is gated on the shared
+--family guid of the "Forced Movement: X" standard abilities so ordinary content
+--abilities can never have their behaviors replaced. `self` here is always a
+--temporary DeepCopy clone (every invoke path copies before casting), so mutating
+--it is safe.
+local g_forcedMovementFamilyGuid = "6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68"
+local g_forcedMovementStandardAbilityNames = {
+    push = "Forced Movement: Push",
+    pull = "Forced Movement: Pull",
+    slide = "Forced Movement: Slide",
+}
+
+local g_baseActivatedAbilityCast = ActivatedAbility.Cast
+function ActivatedAbility:Cast(casterToken, targets, options)
+    local chosenType = options ~= nil and options.symbols ~= nil and options.symbols.forcedmovement or nil
+    if chosenType ~= nil and self:try_get("guid") == g_forcedMovementFamilyGuid then
+        --The slide standard ability deliberately never declares forcedMovement;
+        --"slide" is its implied native type (see ActivatedAbility:ForcedMovementType).
+        local nativeType = self:try_get("forcedMovement", "slide")
+        local templateName = g_forcedMovementStandardAbilityNames[chosenType]
+        if templateName ~= nil and chosenType ~= nativeType then
+            local template = MCDMUtils.GetStandardAbility(templateName)
+            local range = tonumber(self:try_get("range"))
+            if template ~= nil and range ~= nil then
+                local behaviors = DeepCopy(template.behaviors)
+                MCDMUtils.DeepReplace(behaviors, "<<range>>", string.format("%d", math.floor(range)))
+                self.behaviors = behaviors
+                self.forcedMovement = chosenType
+            else
+                print(string.format("ForcedMovement:: could not convert %s to %s (template=%s range=%s)",
+                    nativeType, chosenType, tostring(template ~= nil), tostring(self:try_get("range"))))
+            end
+        end
+    end
+
+    return g_baseActivatedAbilityCast(self, casterToken, targets, options)
 end

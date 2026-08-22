@@ -163,7 +163,7 @@ TriggeredAbility.TargetTypes = {
         id = "aura",
         text = "Creatures in Aura",
         condition = function(ability)
-            return ability.trigger == "casterendturnaura"
+            return ability.trigger == "casterendturnaura" or ability.trigger == "casterstartturnaura"
         end,
     },
     {
@@ -392,10 +392,17 @@ TriggeredAbility.triggers = {
             },
 		}
     },
-    {
-        id = "teleport",
-        text = "Teleports",
-    },
+	{
+		id = "teleport",
+		text = "Teleports",
+		symbols = {
+			path = {
+				name = "Path",
+				type = "path",
+				desc = "The path from the creature's origin to its teleport destination.",
+			},
+		},
+	},
 	{
 		id = "beginturn",
 		text = "Start of Turn",
@@ -1175,6 +1182,19 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			end
 		end
     elseif self.targetType == 'subject' and subjectToken ~= nil then
+        --The subject is predetermined, but the authored target filters
+        --(Target Filter / Ability Filters / Reasoned Filters) still gate
+        --the trigger: a subject failing them means it does not fire.
+        if not self:TargetPassesAuthoredFilters(casterToken, subjectToken, symbols) then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = "Subject fails target filter",
+                }
+            end
+            return
+        end
         targets = {
             {
                 loc = subjectToken.loc,
@@ -1231,6 +1251,48 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 targets[#targets] = nil
             end
         end
+
+    elseif self.targetType == 'abilitycaster' or self.targetType == 'abilitytarget' or self.targetType == 'triggerer' then
+        --Contextual creature installed on the firing modifier at roll time
+        --(modifier-fired custom triggers; see InstallSymbolsFromContext in
+        --DSRollDialog). Subject-hood stays with the owner -- this choice is
+        --purely who the effect lands on.
+        local contextTarget = symbols and symbols[self.targetType]
+        if type(contextTarget) == "function" then
+            contextTarget = contextTarget("self")
+        end
+        local contextToken = nil
+        if contextTarget ~= nil then
+            contextToken = dmhub.LookupToken(contextTarget)
+        end
+        if contextToken == nil then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = self.targetType .. " not available",
+                }
+            end
+            return
+        end
+
+        if not self:TargetPassesAuthoredFilters(casterToken, contextToken, symbols) then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = "Target fails target filter",
+                }
+            end
+            return
+        end
+
+        targets = {
+            {
+                loc = contextToken.loc,
+                token = contextToken,
+            }
+        }
 
 	elseif self.targetType == 'attacker' or self.targetType == 'target' then
 		if symbols[self.targetType] == nil then
@@ -1349,10 +1411,17 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             local casterSymbols = casterToken.properties:LookupSymbol{}
 
             local activateText = nil
+            local activateRules = nil
             local modes = nil
             if self.multipleModes then
                 local modeList = self:try_get("modeList", {})
-                activateText = modeList[1].text
+                --Mode 1 is carried separately from the modes list: it is the
+                --trigger's own card in the trigger panel, and the panel shows
+                --its name and rules there when other modes are present.
+                if modeList[1] ~= nil then
+                    activateText = modeList[1].text
+                    activateRules = StringInterpolateGoblinScript(modeList[1].rules or "", casterSymbols)
+                end
                 for i=2,#modeList do
                     local modeEntry = modeList[i]
                     local passes = true
@@ -1364,12 +1433,32 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                         end
                     end
 
-                    if passes then
-                        modes = modes or {}
-                        modes[#modes+1] = {
+                    --A failed condition hides the mode, as it always has, unless
+                    --the author gave it a Condition Reason: then it is offered
+                    --anyway, greyed out and annotated with that reason, and the
+                    --player may override it.
+                    local reason = trim(modeEntry.conditionReason or "")
+
+                    if passes or reason ~= "" then
+                        --modeIndex is what selects the behaviors to run.
+                        --Hidden modes leave holes in this list, so an option's
+                        --position in it is not its position in modeList -- the
+                        --index has to be carried rather than inferred, or every
+                        --mode after a hidden one runs the wrong modeList
+                        --entry's behaviors.
+                        local entry = {
                             text = modeEntry.text,
                             rules = StringInterpolateGoblinScript(modeEntry.rules, casterSymbols),
+                            modeIndex = i,
                         }
+
+                        if not passes then
+                            entry.unavailable = true
+                            entry.conditionReason = StringInterpolateGoblinScript(reason, casterSymbols)
+                        end
+
+                        modes = modes or {}
+                        modes[#modes+1] = entry
                     end
                 end
             end
@@ -1393,6 +1482,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			local trigger = ActiveTrigger.new{
 				id = guid,
                 activateText = activateText,
+                activateRules = activateRules,
 				text = text,
 				rules = StringInterpolateGoblinScript(self:try_get("triggerPrompt"), casterSymbols),
                 targets = targetids,
@@ -1546,7 +1636,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
 			--path (triggered, dismissed, sustain lost, caster invalid, transient
 			--nil read). The panel renders straight from availableTriggers, so if
-			--we exit without clearing, the entry lingers (until the 60s age-out)
+			--we exit without clearing, the entry lingers (until the 600s age-out)
 			--with no coroutine watching it -- clickable but unresponsive. Clear by
 			--guid rather than by the (possibly nil) trigger reference, since some
 			--exits leave trigger nil while the entry is still present.
@@ -1594,9 +1684,9 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     return
                 end
 
-                if accepted and type(trigger.triggered) == "number" then
+                if accepted then
                     --the first mode is just the 'activate' which will show up as true.
-                    symbols.mode = trigger.triggered + 1
+                    symbols.mode = trigger:ModeIndexForTriggered(trigger.triggered)
                 else
                     symbols.mode = 1
                 end
@@ -2005,12 +2095,8 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 			return
 		end
 
-		if type(record.triggered) == "number" then
-			--the first mode is just the 'activate' which shows up as true.
-			symbols.mode = record.triggered + 1
-		else
-			symbols.mode = 1
-		end
+		--the first mode is just the 'activate' which shows up as true.
+		symbols.mode = record:ModeIndexForTriggered(record.triggered)
 
 		--Mirror TriggeredAbilityRemoteExecution:Invoke: install per-modifier
 		--context symbols, then apply the creature's Modify Abilities pass.

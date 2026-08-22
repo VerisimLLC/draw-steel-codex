@@ -561,6 +561,7 @@ end
 
 local function CreateCampaignTrackerPanel()
     local listPanel
+    local editModeButton
 
     listPanel = gui.Panel {
         classes = { "noteList" },
@@ -634,6 +635,18 @@ local function CreateCampaignTrackerPanel()
             element.data.rows = newRows
             element.children = children
 
+            --the pen only has anything to act on when there are entries, so
+            --collapse it when the list is empty (and drop out of edit mode so
+            --it does not come back still toggled on).
+            if #children == 0 and element.data.editMode then
+                element.data.editMode = false
+            end
+
+            if editModeButton ~= nil and editModeButton.valid then
+                editModeButton:SetClass("collapsed", #children == 0)
+                editModeButton:SetClass("selected", element.data.editMode)
+            end
+
             --refresh each row individually (FireEvent, not tree, so rebuildRead
             --does not race with a tree traversal).
             for _, p in ipairs(children) do
@@ -676,8 +689,8 @@ local function CreateCampaignTrackerPanel()
 
     --pen toggle: flips edit mode on/off, which reveals the per-entry
     --edit/share/delete icons. The "selected" class marks the active state.
-    local editModeButton = gui.Button {
-        classes = { "editModeButton", "sizeS" },
+    editModeButton = gui.Button {
+        classes = { "editModeButton", "sizeS", "collapsed" },
         icon = EDIT_ICON,
         valign = "center",
         hmargin = 4,
@@ -694,6 +707,10 @@ local function CreateCampaignTrackerPanel()
             end
         end,
     }
+
+    --listPanel's create-time refreshNotes may have already run, before this
+    --local existed, so apply the initial collapsed state here as well.
+    editModeButton:SetClass("collapsed", next(listPanel.data.rows) == nil)
 
     local footer = gui.Panel {
         flow = "horizontal",

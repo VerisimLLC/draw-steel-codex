@@ -361,6 +361,7 @@ local function ImportPDFDialog(path)
                     end,
                     error = function(msg)
                         gui.ModalMessage {
+                            owner = element,
                             title = "Error importing PDF",
                             message = msg,
                         }
@@ -393,9 +394,10 @@ end
 --non-drag path for the shortcut feature). Returns a list to APPEND to
 --the document row's normal context menu -- never a menu of its own,
 --which would shadow the standard verbs (Share to Chat, Rename, ...).
---Empty when the rail trial mode is off (it is dev-gated).
+--Empty when the rail trial mode is off (opt-in per user from
+--Settings > General, "New Experimental UI").
 local function RailAvailable()
-    return dmhub.GetSettingValue("iconrail") and devmode()
+    return dmhub.GetSettingValue("iconrail") == true
 end
 
 local function RailAddMenuEntries(element, doc)
@@ -884,6 +886,7 @@ local function CreateFolderPanel(journalPanel, folderid)
                                 folder:Upload()
                             else
                                 gui.ModalMessage {
+                                    owner = element,
                                     title = "Folder Not Empty",
                                     message = "You cannot delete a folder that contains documents. Please move or delete the documents first.",
                                 }
@@ -1906,6 +1909,220 @@ CreateJournalPanel = function(options)
     end
 
     local journalPanel
+
+    --Journal search: typing in the search input above the tree swaps the
+    --folder tree for a flat list of matching documents. Every document type
+    --matches on its title; text documents also match on their body text via
+    --MatchesSearch (implemented by markdown documents only, so PDF, image
+    --and fragment contents are never searched). Visibility mirrors the
+    --journal viewer's search: only documents reachable from the roots this
+    --user can see, so players cannot surface DM-private documents.
+    local m_journalSearchText = ""
+
+    local function JournalSearchResults(searchText)
+        local results = {}
+        local roots = CustomDocument.GetAccessibleRoots()
+
+        local function AddIfMatch(key, doc, matchContents)
+            local title = string.lower(doc.description or "")
+            local match = string.find(title, searchText, 1, true) ~= nil
+            if (not match) and matchContents then
+                match = doc:MatchesSearch(searchText)
+            end
+            if match then
+                results[#results + 1] = { key = key, doc = doc, sortKey = title }
+            end
+        end
+
+        local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+        for k, doc in unhidden_pairs(customDocs) do
+            if (dmhub.isDM or not doc.hiddenFromPlayers) and CustomDocument.IsDocInAccessibleRoot(doc, roots) then
+                AddIfMatch(k, doc, true)
+            end
+        end
+
+        for k, doc in pairs(assets.pdfDocumentsTable or {}) do
+            if (not doc.hidden) and CustomDocument.IsDocInAccessibleRoot(doc, roots) then
+                AddIfMatch(k, doc, false)
+            end
+        end
+
+        for k, image in pairs(assets.imagesByTypeTable.Document or {}) do
+            if (not image.hidden) and CustomDocument.IsDocInAccessibleRoot(image, roots) then
+                AddIfMatch(k, image, false)
+            end
+        end
+
+        local fragments = dmhub.GetTable(PDFFragment.tableName) or {}
+        for k, fragment in unhidden_pairs(fragments) do
+            if CustomDocument.IsDocInAccessibleRoot(fragment, roots) then
+                AddIfMatch(k, fragment, false)
+            end
+        end
+
+        table.sort(results, function(a, b) return a.sortKey < b.sortKey end)
+        return results
+    end
+
+    --same glyph choices as the tree's document rows.
+    local function JournalSearchIcon(member)
+        if member.nodeType == "pdf" then
+            return "phosphor/file-pdf.png"
+        elseif member.nodeType == "custom" or member.nodeType == "negotiation" then
+            local typeIcon = nil
+            pcall(function() typeIcon = CustomDocument.DocTypeIcon(member) end)
+            return typeIcon or "phosphor/file-text.png"
+        elseif member.nodeType == "image" then
+            return "phosphor/image.png"
+        end
+        return "phosphor/bookmark-simple.png" --pdf fragment
+    end
+
+    local m_searchResultsPanel = gui.Panel {
+        classes = { "collapsed" },
+        vscroll = true,
+        flow = "vertical",
+        width = "100%",
+        height = "100% available",
+
+        styles = ThemeEngine.MergeTokens({
+            {
+                selectors = { "searchResultRow" },
+                width = "100%",
+                height = 20,
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+                flow = "horizontal",
+            },
+            {
+                selectors = { "searchResultRow", "hover" },
+                bgcolor = "@fgStrong",
+            },
+            {
+                selectors = { "icon" },
+                width = 16,
+                height = 16,
+                bgcolor = "@fg",
+                valign = "center",
+                halign = "left",
+                hmargin = 4,
+            },
+            {
+                selectors = { "icon", "parent:hover" },
+                bgcolor = "@bg",
+            },
+            {
+                selectors = { "label" },
+                color = "@fg",
+                fontSize = 14,
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                halign = "left",
+                lmargin = 4,
+                textWrap = false,
+                textOverflow = "ellipsis",
+            },
+            {
+                selectors = { "label", "parent:hover" },
+                color = "@bg",
+            },
+        }),
+
+        journalSearch = function(element, text)
+            m_journalSearchText = text
+            element:SetClass("collapsed", text == "")
+            if text ~= "" then
+                element:FireEvent("refreshSearch")
+            end
+        end,
+
+        --keep the results fresh if documents change while searching. A
+        --collapsed panel receives no monitor events, so this only fires
+        --while the results are actually showing.
+        monitorAssets = { "documents", "images", "objecttables" },
+        refreshAssets = function(element)
+            if m_journalSearchText ~= "" then
+                element:FireEvent("refreshSearch")
+            end
+        end,
+
+        refreshSearch = function(element)
+            local children = {}
+            for _, entry in ipairs(JournalSearchResults(m_journalSearchText)) do
+                local member = entry.doc
+                children[#children + 1] = gui.Panel {
+                    classes = { "searchResultRow" },
+
+                    --same pick behavior as the tree's document rows: an
+                    --embedding host navigates itself, the dock opens the
+                    --document in its own window.
+                    click = function(rowElement)
+                        local root = rowElement:FindParentWithClass("journalPanelRoot")
+                        local onPick = nil
+                        if root ~= nil and root.data ~= nil then
+                            onPick = root.data.onPick
+                        end
+                        if onPick ~= nil then
+                            onPick(member.id)
+                            return
+                        end
+                        CustomDocument.OpenContent(member)
+                    end,
+
+                    gui.Panel {
+                        classes = { "icon" },
+                        bgimage = JournalSearchIcon(member),
+                    },
+                    gui.Label {
+                        classes = { "label" },
+                        characterLimit = 64,
+                        text = member.description or "Untitled",
+                    },
+                }
+            end
+
+            if #children == 0 then
+                children[1] = gui.Label {
+                    classes = { "fgMuted" },
+                    fontSize = 14,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    tmargin = 12,
+                    text = "No matching documents",
+                }
+            end
+
+            element.children = children
+        end,
+    }
+
+    local m_searchInput = gui.SearchInput {
+        --SearchInput pads hpad=24 for its magnifier icon; without borderBox
+        --that padding lands on top of the percent width and the input hangs
+        --past the dock's edges.
+        borderBox = true,
+        width = "100%-16",
+        height = 24,
+        halign = "center",
+        tmargin = 4,
+        bmargin = 4,
+        fontSize = 13,
+        placeholderText = "Search journal...",
+        placeholderAlpha = 0.35,
+
+        --SearchInput lowercases and trims for us, and reports one-character
+        --terms as "" so we never search on a single keystroke's worth.
+        search = function(element, text)
+            text = text or ""
+            if text == m_journalSearchText then
+                return
+            end
+            journalPanel:FireEventTree("journalSearch", text)
+        end,
+    }
+
     journalPanel = gui.Panel {
         id = "journalPanel",
         --classed so descendants can find the root regardless of how deeply
@@ -1930,6 +2147,8 @@ CreateJournalPanel = function(options)
 
         --built above; nil (and so absent) when embedded.
         recentDocumentsPanel,
+
+        m_searchInput,
 
         gui.Panel {
             vscroll = true,
@@ -2153,6 +2372,17 @@ CreateJournalPanel = function(options)
             }),
 
 
+            --search mode swaps this tree for the flat results list. On the
+            --way back in, rebuild from scratch: monitorAssets does not fire
+            --on collapsed panels, so any changes made while searching were
+            --missed.
+            journalSearch = function(element, text)
+                element:SetClass("collapsed", text ~= "")
+                if text == "" then
+                    element:FireEvent("refreshAssets")
+                end
+            end,
+
             create = function(element)
                 element.children = {
                     CreateFolderContentsPanel(journalPanel, ""),
@@ -2257,6 +2487,8 @@ CreateJournalPanel = function(options)
             end,
         },
 
+        m_searchResultsPanel,
+
         gui.Panel {
             width = "auto",
             height = 32,
@@ -2302,18 +2534,34 @@ CreateJournalPanel = function(options)
 
                     local entries = {}
 
-                    for k, v in pairs(CustomDocument.documentTypes) do
+                    --Only plain markdown creation is offered here for now. The other
+                    --registered document types (montage, negotiation, heroic test, and
+                    --the rest of the docType palette) are deliberately not exposed yet;
+                    --they stay registered so existing documents of those types still
+                    --load and render, we just do not hand out a way to make new ones.
+                    local markdownType = CustomDocument.documentTypes["markdown"]
+                    if markdownType ~= nil then
                         entries[#entries + 1] = {
-                            text = v.text,
+                            text = "New Document",
                             click = function()
                                 element.popup = nil
-                                local doc = v.create()
+                                local doc = markdownType.create()
                                 doc.id = dmhub.GenerateGuid()
                                 if not dmhub.isDM then
                                     doc.ownerid = dmhub.loginUserid
                                 end
                                 doc.parentFolder = newDocumentParentFolder
-                                doc:ShowCreateDialog()
+                                --Straight to the new document, for EVERY type.
+                                --This used to call doc:ShowCreateDialog(), which
+                                --is only a direct create for the functional
+                                --subtypes (montage/negotiation/heroic test) --
+                                --MarkdownDocument overrides it with a template
+                                --picker, so the six plain types (Note, Narration,
+                                --Exploration, Combat, Location, NPC) detoured
+                                --through a second dialog. Same path the tab bar's
+                                --+ takes (DocumentSystem.lua, onNewDocument).
+                                doc:Upload()
+                                doc:ShowDocument{edit = true}
                             end,
                         }
                     end
@@ -2354,6 +2602,7 @@ CreateJournalPanel = function(options)
                                             end,
                                             error = function(msg)
                                                 gui.ModalMessage {
+                                                    owner = element,
                                                     title = "Error importing image",
                                                     message = msg,
                                                 }

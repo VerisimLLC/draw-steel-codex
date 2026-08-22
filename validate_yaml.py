@@ -101,6 +101,7 @@ VALID_TABLE_NAMES = {
     "characterTypes",
     "cultureAspects",
     "nameGenerators",
+    "environmentalKeywords",
 }
 
 VALID_TABLE_NAMES_LOWER = {n.lower(): n for n in VALID_TABLE_NAMES}

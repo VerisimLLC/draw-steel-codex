@@ -4,6 +4,15 @@ CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
 
+-- Optional coordination metadata for modifiers chosen after the dice land.
+-- An empty group preserves the ordinary independent-checkbox behavior. Mods
+-- that share a non-empty group behave as a single choice. consumeOncePerRoll
+-- prevents a modifier copied across several targets from billing once per
+-- target; it is deliberately opt-in so existing Draw Steel modifiers retain
+-- their current semantics.
+CharacterModifier.afterRollExclusiveGroup = ""
+CharacterModifier.consumeOncePerRoll = false
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -286,6 +295,9 @@ CharacterModifier.TypeInfo.power = {
                 if token == nil or not token.valid then
                     return
                 end
+                --The contextual target types (abilitycaster / abilitytarget /
+                --triggerer) resolve inside Trigger's targeting from the
+                --symbols appended here; no subject resolution is needed.
                 modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
             end)
 		end
@@ -297,11 +309,49 @@ CharacterModifier.TypeInfo.power = {
 		--can then read the flag the marker grants and deliver on this same
 		--strike. (The customTrigger above is deferred until after the cast, so
 		--it is too late to gate same-strike delivery.)
+		--
+		--armEffectApplyTo = "target" marks the ability's TARGET instead of the
+		--modifier's owner. Required whenever the creature a later trigger has to
+		--identify is not the owner -- e.g. Shadow Elf Knightfell's Trick of the
+		--Eye halves ONE ally's damage, so the marker has to name that ally.
+		--Marking the owner there yields a global on/off flag that every damaged
+		--ally in range matches, firing the redirect once per target instead of
+		--once for the protected one.
 		local armEffect = modifier:try_get("armEffect")
 		if armEffect ~= nil then
-			local armToken = dmhub.LookupToken(creature)
+			local armSubject = creature
+			if modifier:try_get("armEffectApplyTo", "self") == "target" then
+				--symbol contexts are installed as GenerateSymbols lookup
+				--functions (see CharacterModifier:InstallSymbolsFromContext);
+				--calling with "self" unwraps back to the creature. Same idiom
+				--as the "subject" applyto in ActivatedAbility:GetTargets.
+				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+				if type(abilityTarget) == "function" then
+					abilityTarget = abilityTarget("self")
+				end
+
+				if abilityTarget ~= nil then
+					armSubject = abilityTarget
+				end
+			end
+
+			local armToken = dmhub.LookupToken(armSubject)
 			if armToken ~= nil and armToken.valid then
-				armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				if armSubject == creature then
+					--the owner's properties are already inside the caller's
+					--ModifyProperties block (see ConsumeResource in DSRollDialog).
+					armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				else
+					--a different token: needs its own ModifyProperties or the
+					--mutation never uploads.
+					armToken:ModifyProperties{
+						description = "Arm Triggered Effect",
+						undoable = false,
+						execute = function()
+							armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+						end,
+					}
+				end
 			end
 		end
 
@@ -313,6 +363,11 @@ CharacterModifier.TypeInfo.power = {
 
     hintPowerRoll = function(self, creature, rollType, options)
         options = options or {}
+
+        --Imported/YAML-authored modifiers may lack activationCondition
+        --entirely (only the editor's init path sets it); treat missing
+        --as false, matching the init default.
+        local activationCondition = self:try_get("activationCondition", false)
 
         if type(self:try_get("activationAfterRoll", false)) == "string" then
             return {
@@ -329,7 +384,7 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
+        if (activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
             return {
                 result = false,
                 justification = {}
@@ -373,7 +428,7 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        if self.activationCondition == true then
+        if activationCondition == true then
             return {
                 result = true,
                 justification = {}
@@ -405,7 +460,7 @@ CharacterModifier.TypeInfo.power = {
         print("POWER ROLL:: OPTIONS:", options)
 
         return {
-            result = GoblinScriptTrue(ExecuteGoblinScript(self.activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
+            result = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
             justification = {},
         }
     end,
@@ -426,7 +481,9 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "test_power_roll" and options.skills ~= nil then
+        --The roll tells us which skill is being used, so just check against that.
+        --An opposed test is rolled with a skill exactly like an ordinary test is.
+        if #self:try_get("skills", {}) > 0 and (rollType == "test_power_roll" or rollType == "opposed_power_roll") and options.skills ~= nil then
             local hasSkill = false
             for _,skillid in ipairs(self.skills) do
                 for _,skillid2 in ipairs(options.skills) do
@@ -442,17 +499,18 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" then
+        --No skill came with the roll: this is a defender's modifier being offered
+        --against someone else's opposed ability, so read the skill off that
+        --ability's attack side instead.
+        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" and options.skills == nil then
             if options.ability and options.ability.behaviors then
                 local behaviors = options.ability.behaviors or {}
                 for _, behavior in ipairs(behaviors) do
                     if behavior.typeName == "ActivatedAbilityOpposedRollBehavior" then
                         local hasSkill = false
-                        local skillInfo
-                        for _,skillid in pairs(behavior.attackAttributes) do
+                        for _,attr in ipairs(behavior.attackAttributes) do
                             for _, modSkillId in pairs(self.skills) do
-                                if skillid == modSkillId then
-                                    skillInfo = skillid
+                                if type(attr) == "table" and attr.skill == modSkillId then
                                     hasSkill = true
                                     break
                                 end
@@ -1084,7 +1142,18 @@ CharacterModifier.TypeInfo.power = {
     modifyPowerRollCasting = function(self, creature, ability, options)
         if self:try_get("overrideCost", false) then
             local tempCopy = DeepCopy(ability)
-            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(options.symbols), 0, "Override Resource Cost")
+
+            --The cost formula must see the modifier's own context symbols
+            --(Stacks, OngoingEffect, Aura) on top of the cast symbols, the same
+            --way the cost shown in the roll dialog is calculated. Copy the cast
+            --symbols first so AppendSymbols does not write into the live table.
+            local costSymbols = {}
+            for k,v in pairs(options.symbols or {}) do
+                costSymbols[k] = v
+            end
+            self:AppendSymbols(costSymbols)
+
+            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(costSymbols), 0, "Override Resource Cost")
             local tok = dmhub.LookupToken(creature)
             local costInfo = tempCopy:GetCost(tok)
             
@@ -2702,8 +2771,10 @@ CharacterModifier.TypeInfo.power = {
                     change = function(element)
                         modifier.hasTriggerBefore = element.value
                         if element.value and modifier:has_key("triggerBefore") == false then
+                            --The event id is never consulted for a modifier-fired
+                            --trigger; "custom" just labels it honestly.
                             modifier.triggerBefore = TriggeredAbility.Create{
-                                trigger = "d20roll",
+                                trigger = "custom",
                             }
                         end
                         Refresh()
@@ -2721,10 +2792,12 @@ CharacterModifier.TypeInfo.power = {
                                 if modifier:has_key("triggerBefore") then
                                     element.root:AddChild(modifier.triggerBefore:ShowEditActivatedAbilityDialog{
                                         title = "Edit Trigger",
-                                        hide = {"appearance", "abilityInfo"},
+                                        customTriggerContext = {
+                                            note = "Fires when this trigger is activated, before the triggering ability resolves.",
+                                        },
                                         destroy = savefn,
                                     })
-                                end    
+                                end
                             end
             
                             element.root:FireEventTree("editCompendiumFeature", modifier, fn)
@@ -2776,8 +2849,14 @@ CharacterModifier.TypeInfo.power = {
 				change = function(element)
 					modifier.hasCustomTrigger = element.value
 					if element.value and modifier:has_key("customTrigger") == false then
+						--The event id is never consulted for a modifier-fired
+						--trigger; "custom" just labels it honestly.
+						--modifierCustomTrigger makes the Target dropdown offer
+						--the contextual creatures (Ability Caster/Target,
+						--Triggerer) the roll dialog installs at fire time.
 						modifier.customTrigger = TriggeredAbility.Create{
-							trigger = "d20roll",
+							trigger = "custom",
+							modifierCustomTrigger = true,
 						}
 					end
 					Refresh()
@@ -2795,10 +2874,38 @@ CharacterModifier.TypeInfo.power = {
                             if modifier:has_key("customTrigger") then
                                 element.root:AddChild(modifier.customTrigger:ShowEditActivatedAbilityDialog{
                                     title = "Edit Trigger",
-                                    hide = {"appearance", "abilityInfo"},
+                                    customTriggerContext = {
+                                        note = "Fires automatically after a roll this modifier applies to resolves.",
+                                        subjectOptions = true,
+                                        --Help entries for the symbols installed on the
+                                        --modifier at roll time (see the
+                                        --InstallSymbolsFromContext call in DSRollDialog).
+                                        symbols = {
+                                            abilitycaster = {
+                                                name = "Ability Caster",
+                                                type = "creature",
+                                                desc = "The creature that used the ability whose roll this modifier applied to.",
+                                            },
+                                            abilitytarget = {
+                                                name = "Ability Target",
+                                                type = "creature",
+                                                desc = "The creature targeted by the roll this modifier applied to.",
+                                            },
+                                            triggerer = {
+                                                name = "Triggerer",
+                                                type = "creature",
+                                                desc = "The creature whose modifier fired this trigger (usually the modifier's owner).",
+                                            },
+                                            tier = {
+                                                name = "Tier",
+                                                type = "number",
+                                                desc = "The tier result of the power roll this modifier applied to.",
+                                            },
+                                        },
+                                    },
                                     destroy = savefn,
                                 })
-                            end    
+                            end
                         end
         
                         element.root:FireEventTree("editCompendiumFeature", modifier, fn)

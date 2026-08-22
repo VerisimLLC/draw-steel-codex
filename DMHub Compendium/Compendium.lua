@@ -5372,6 +5372,22 @@ local CompendiumRegistry = {
 local g_pendingNavigation = nil
 local g_libraryNavigate = nil
 
+-- The compendium panel popped out into a native OS window (the companion-app
+-- mechanism the character sheet uses), or nil while it lives in-app. Cleared
+-- in the panel's destroy handler, which fires on every close path alike (the
+-- pop-in button, Escape, the OS window's close button, the unload sweep).
+local g_libraryPopout = nil
+
+-- A Lua reload rebuilds the hud but never reaches a panel living in a native
+-- OS window, so destroy it with the module; the engine then closes windows
+-- whose panel died (the same sweep DocumentSystem's popouts rely on).
+mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
+    if g_libraryPopout ~= nil and g_libraryPopout.valid then
+        g_libraryPopout:DestroySelf()
+    end
+    g_libraryPopout = nil
+end
+
 local function ConsumePendingCompendiumNavigation()
     if g_pendingNavigation == nil or g_libraryNavigate == nil then
         return
@@ -5562,6 +5578,12 @@ local LibraryPanel = function()
 		end
 
 		openCategoryFiltered(opt, nav.targetKey)
+
+		-- A popped-out compendium serves deep links too; bring its OS window
+		-- to the front so the navigation is actually seen.
+		if g_libraryPopout ~= nil and g_libraryPopout.valid then
+			pcall(function() g_libraryPopout:RaiseNativeWindow() end)
+		end
 	end
 
 	-- Render aggregated cross-category results into the content pane, grouped by
@@ -5963,7 +5985,7 @@ local LibraryPanel = function()
 	-- text, clears the filter on press.
 	local clearSearchButton = gui.Panel{
 		floating = true,
-		bgimage = "ui-icons/close.png",
+		bgimage = "phosphor/x-bold.png",
 		bgcolor = "@fgMuted",
 		width = 14,
 		height = 14,
@@ -6043,8 +6065,172 @@ local LibraryPanel = function()
 		end,
 	}
 
+	--"Pop out" corner button: parented into the launchable HOST (the framed
+	--panel that also owns the close X) once we land in the hierarchy, so the
+	--two buttons share a row -- the X sits at hmargin/tmargin 6, this one 6px
+	--to its left. It dies with the host on every path that destroys it,
+	--including the popout itself (the popped window's corner control is the
+	--pop-in button instead). borderWidth 0 matches the X's borderless glyph
+	--chrome.
+	local popoutButton = gui.Button{
+		classes = {"sizeXs"},
+		icon = "drawsteel/Icons_Nav_MaxWindow.png",
+		borderWidth = 0,
+		floating = true,
+		halign = "right",
+		valign = "top",
+		tmargin = 6,
+		hmargin = 28,
+		data = {},
+		linger = function(element)
+			gui.Tooltip("Pop out into its own window")(element)
+		end,
+		click = function(element)
+			local root = element.data.libraryRoot
+			if root ~= nil and root.valid then
+				root:FireEvent("popoutCompendium")
+			end
+		end,
+	}
+
 	resultPanel = gui.Panel{
 		classes = {'library-panel'},
+
+		data = {
+			poppedOut = false,
+		},
+
+		--Move the pop-out button into the launchable host's corner, beside
+		--its close X. At create time we are not yet parented (the host
+		--constructs content first), so retry briefly on a schedule -- the
+		--same dance Audio's RaiseHostCloseButton does.
+		attachPopoutButton = function(element)
+			if (not element.valid) or (not popoutButton.valid) or element.data.poppedOut then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host == nil or (not host.valid) then
+				element.data.popoutButtonAttempts = (element.data.popoutButtonAttempts or 0) + 1
+				if element.data.popoutButtonAttempts < 10 then
+					element:ScheduleEvent("attachPopoutButton", 0.05)
+				end
+				return
+			end
+			popoutButton.data.libraryRoot = element
+			host:AddChild(popoutButton)
+		end,
+
+		--Escape: in-app the launchable host's floating close button claims
+		--escape at this same priority and closes the whole dialog; this
+		--handler replicates that path, and is the ONLY escape claimant in
+		--the popped-out window's own chain (where that button no longer
+		--exists). Either way the compendium ends up destroyed.
+		captureEscape = true,
+		escapePriority = EscapePriority.DMHUB_EXIT_TOOL_DIALOG,
+		escape = function(element)
+			if element.data.poppedOut then
+				--destroying the popped panel closes the OS window (the
+				--engine sweeps native windows whose panel died).
+				element:DestroySelf()
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host ~= nil and host.valid then
+				host:FireEventTree("closePanel")
+				host:DestroySelf()
+			else
+				element:DestroySelf()
+			end
+		end,
+
+		--scheduled by the pop-out corner button: move the compendium into
+		--its own native OS window (the companion-app mechanism the
+		--character sheet uses), destroying the in-app launchable host it
+		--leaves behind.
+		popoutCompendium = function(element)
+			if element.data.poppedOut then
+				return
+			end
+			if GameHud.instance == nil or GameHud.instance.documentsPanel == nil or
+				(not GameHud.instance.documentsPanel.valid) then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+
+			element.data.poppedOut = true
+			--owner-routed modals fired from inside the compendium land in
+			--this window's own modal layer rather than the main window.
+			element.data.nativeWindowRoot = true
+			g_libraryPopout = element
+
+			--the launchable host's presence ("Browsing Compendium") dies
+			--with the host; carry our own while popped.
+			element.data.popoutPresence = dmhub.PushUserRichStatus("Browsing Compendium")
+
+			--become our own framed surface: the theme's framedPanel+toplevel
+			--rules paint the opaque themed background the host used to
+			--provide; the poppedOut rule pins opacity 1 / square corners.
+			element:SetClass("framedPanel", true)
+			element:SetClass("toplevel", true)
+			element:SetClass("poppedOut", true)
+			element.selfStyle.opacity = 1
+
+			--the two-step popout: park off-screen under documentsPanel for
+			--the layout passes between the reparent and MoveToNativeWindow
+			--(the move measures the panel's rect to size the OS window, so
+			--it must lay out in-hierarchy first, but must never be
+			--user-visible in the app).
+			element.x = -30000
+			element:Unparent()
+			GameHud.instance.documentsPanel:AddChild(element)
+
+			if host ~= nil and host.valid then
+				host:DestroySelf()
+			end
+
+			element:FireEventTree("popout")
+			element:ScheduleEvent("popoutToNativeWindow", 0.15)
+		end,
+
+		popoutToNativeWindow = function(element)
+			if mod.unloaded or (not element.valid) or (not element.data.poppedOut) then
+				return
+			end
+			element:MoveToNativeWindow{
+				scaling = 0.9,
+				resizeable = true,
+				title = "Compendium",
+			}
+		end,
+
+		--fired by the native-window canvas when the popped-out window is
+		--created and whenever the user resizes it (dims arrive in layout
+		--units). Adopt the window's client size; the compendium's layout is
+		--all percentages, so it reflows on its own.
+		resize = function(element, w, h)
+			if not element.data.poppedOut then
+				return
+			end
+			element.x = 0
+			element.selfStyle.width = w
+			element.selfStyle.height = h
+		end,
+
+		--scheduled from create when a popped-out compendium already exists:
+		--this freshly-launched in-app copy is stillborn -- dismiss it (and
+		--the launchable host that built it) after the raise.
+		dismissDuplicateLibrary = function(element)
+			if not element.valid then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host ~= nil and host.valid then
+				host:DestroySelf()
+			else
+				element:DestroySelf()
+			end
+		end,
+
 		-- Theme provides label/button/input/dropdown/multiselect-chip vocabulary.
 		-- Local extras here are surface-specific to the compendium library:
 		-- the panel sizing (library-panel / content-panel / list-panel), the
@@ -6052,7 +6238,17 @@ local LibraryPanel = function()
 		-- Pure theme overrides on {list-item} (fontSize 16, color white) and
 		-- the duplicate {searchableLabel} color='white' rules were dropped so
 		-- the library uses default theme styling.
-		styles = ThemeEngine.MergeStyles({
+		--
+		-- Styles.Default is carried on the panel itself (not just inherited
+		-- from the hud ancestors) because while POPPED OUT this panel is its
+		-- own style-cascade root: without it the engine's global rules --
+		-- notably 'collapsed-anim', which every expando collapse relies on --
+		-- are simply not in scope in the OS window. In-app it duplicates
+		-- rules already arriving from the hud root, which is harmless (the
+		-- same pattern the character-sheet harness uses).
+		styles = {
+		Styles.Default,
+		ThemeEngine.MergeStyles({
 			{
 				selectors = {'library-panel'},
 				pad = 16,
@@ -6061,6 +6257,17 @@ local LibraryPanel = function()
 				flow = 'horizontal',
 				halign = "center",
 				valign = "center",
+			},
+			{
+				-- Popped out into an OS window: the panel IS the window
+				-- surface (it also gains framedPanel+toplevel for the themed
+				-- background), so paint opaque -- there is no app surface
+				-- behind it to blur through -- and square, since rounded
+				-- corners would show the companion's black clear color.
+				selectors = {'library-panel', 'poppedOut'},
+				priority = 6,
+				opacity = 1,
+				cornerRadius = 0,
 			},
 			{
 				selectors = {'content-panel'},
@@ -6227,14 +6434,29 @@ local LibraryPanel = function()
 				tmargin = 40,
 			},
 		}),
+		},
 
         create = function(element)
+            -- A popped-out compendium already exists: raise its OS window
+            -- instead of opening a second copy in-app. This panel (and the
+            -- launchable host that just built it) is dismissed a tick later
+            -- (at create time we are not yet parented into the host). It
+            -- deliberately skips publishing the navigator / context provider
+            -- below, so the popout's registrations stay live.
+            if g_libraryPopout ~= nil and g_libraryPopout.valid and g_libraryPopout ~= element then
+                pcall(function() g_libraryPopout:RaiseNativeWindow() end)
+                element:ScheduleEvent("dismissDuplicateLibrary", 0.05)
+                return
+            end
+
             --force parent's opacity to 1 even if blurred.
             local parentPanel = element:FindParentWithClass("framedPanel")
             if parentPanel ~= nil then
                 parentPanel.selfStyle.opacity = 1
                 parentPanel.selfStyle.borderWidth = 2.3
             end
+
+            element:FireEvent("attachPopoutButton")
 
             -- Publish this live panel's deep-link navigator and consume any
             -- pending Compendium.Open request that opened us.
@@ -6315,6 +6537,24 @@ local LibraryPanel = function()
         end,
 
         destroy = function(element)
+            -- The pop-out button normally dies with the host it was parented
+            -- into; if it never got attached (e.g. the stillborn duplicate
+            -- path) it is an orphan and must be destroyed with us.
+            if popoutButton.valid and popoutButton.parent == nil then
+                popoutButton:DestroySelf()
+            end
+
+            -- Popout bookkeeping: this fires on every close path alike (the
+            -- pop-in button, Escape, the OS window's close button, the
+            -- module unload sweep).
+            if g_libraryPopout == element then
+                g_libraryPopout = nil
+            end
+            if element.data.popoutPresence ~= nil then
+                dmhub.PopUserRichStatus(element.data.popoutPresence)
+                element.data.popoutPresence = nil
+            end
+
             -- Withdraw the navigator AND the context provider together, but only
             -- if this is still the active panel: a reopened panel reassigns
             -- g_libraryNavigate and re-registers the provider in its create, so a
@@ -6360,6 +6600,53 @@ local LibraryPanel = function()
 		contentPanel,
 
 		uploadStatus,
+
+		--"Pop in": only visible while popped out (the pop-out button lives
+		--in the launchable HOST's corner instead -- see popoutButton below).
+		--Closes the OS window and reopens the compendium in-app,
+		--deep-linking back to the category that was open. The panel is
+		--destroyed and relaunched through the normal path, so the relaunch
+		--must wait a tick for the destroy to land.
+		gui.Button{
+			classes = {"sizeXs", "collapsed"},
+			icon = "drawsteel/Icons_Nav_MinWindow.png",
+			borderWidth = 0,
+			floating = true,
+			halign = "right",
+			valign = "top",
+			tmargin = 6,
+			hmargin = 6,
+			linger = function(element)
+				gui.Tooltip("Return to the app")(element)
+			end,
+			popout = function(element)
+				element:SetClass("collapsed", false)
+			end,
+			click = function(element)
+				local root = element:FindParentWithClass("library-panel")
+				if root == nil then
+					return
+				end
+				local nav = nil
+				if m_currentCategory ~= nil and m_currentCategory.contentType ~= nil then
+					nav = {contentType = m_currentCategory.contentType}
+					if m_searchText ~= "" then
+						nav.search = m_searchText
+					end
+				end
+				root:DestroySelf()
+				dmhub.Schedule(0.1, function()
+					if mod.unloaded then
+						return
+					end
+					if nav ~= nil then
+						Compendium.Open(nav)
+					else
+						LaunchablePanel.LaunchPanelByName("Compendium")
+					end
+				end)
+			end,
+		},
 
 	}
 

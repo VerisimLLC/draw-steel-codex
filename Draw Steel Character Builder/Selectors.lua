@@ -80,13 +80,11 @@ function CBSelectors._makeItemsPanel(config)
                 local hero = _getHero()
                 if hero then
                     local tokenSelected = config.getSelected(hero)
-                    -- The list stays visible once a choice is committed, so the
-                    -- player can still see what they picked and compare it against
-                    -- the alternatives. Previously this collapsed every button --
-                    -- including the selected one -- leaving the rail with no record
-                    -- of the choice and no way to view another option without first
-                    -- destroying the current one.
-                    element:SetClass("collapsed", false)
+                    -- Once a choice is committed the whole option list is hidden.
+                    -- The rail is for making the choice; after it is made the
+                    -- alternatives are just noise, and switching happens through
+                    -- the Change button on the detail panel.
+                    element:SetClass("collapsed", tokenSelected ~= nil)
                     element:FireEvent("setAvailable", not tokenSelected or tokenSelected == element.data.id)
                     if tokenSelected and tokenSelected == element.data.id and tokenSelected ~= state:Get(config.selectorName .. ".selectedId") then
                         element:FireEvent("press")
@@ -101,36 +99,6 @@ function CBSelectors._makeItemsPanel(config)
         end
 
         buttons[#buttons+1] = itemButton
-    end
-
-    -- Non-selected options stay on screen but are not interactable once a choice
-    -- is committed. Absence needs a reason, and so does a dead control: say why
-    -- they cannot be clicked rather than leaving the player to guess.
-    if config.changeHint ~= nil then
-        buttons[#buttons+1] = gui.Label{
-            classes = {"builder-base", "collapsed"},
-            width = CBStyles.SIZES.SELECTOR_BUTTON_WIDTH,
-            height = "auto",
-            valign = "top",
-            halign = "right",
-            tmargin = CBStyles.SIZES.BUTTON_SPACING,
-            hpad = 4,
-            vpad = 2,
-            borderBox = true,
-            fontSize = 12,
-            color = "@fgMuted",
-            text = config.changeHint,
-
-            create = function(element)
-                element:FireEvent("refreshBuilderState", _getState())
-            end,
-
-            refreshBuilderState = function(element)
-                local hero = _getHero()
-                local tokenSelected = hero and config.getSelected(hero)
-                element:SetClass("collapsed", tokenSelected == nil)
-            end,
-        }
     end
 
     selectorPanel = gui.Panel {
@@ -159,7 +127,6 @@ function CBSelectors._ancestryItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Race.tableName)), "name"),
         selectorName = SEL.ANCESTRY,
-        changeHint = "Use Change Ancestry to switch.",
         getSelected = function(hero)
             return hero:try_get("raceid")
         end,
@@ -174,7 +141,6 @@ function CBSelectors._careerItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Background.tableName)), "name"),
         selectorName = SEL.CAREER,
-        changeHint = "Use Change Career to switch.",
         getSelected = function(hero)
             return hero:try_get("backgroundid")
         end,
@@ -189,7 +155,6 @@ function CBSelectors._classItems()
     return CBSelectors._makeItemsPanel{
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Class.tableName)), "name"),
         selectorName = SEL.CLASS,
-        changeHint = "Use Change Class to switch.",
         getSelected = function(hero)
             local c = hero:GetClass()
             return c and c.id or nil

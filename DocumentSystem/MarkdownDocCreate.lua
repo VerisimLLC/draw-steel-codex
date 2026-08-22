@@ -135,7 +135,13 @@ function MarkdownDocument:ShowCreateDialog()
 
     local dialog
 
-    local dialogStyles = ThemeEngine.GetStyles()
+    --COPY the theme styles before appending: ThemeEngine.GetStyles() returns
+    --its shared cached table, and appending to it directly would inject these
+    --dialog-local rules into the global theme cascade (see DocumentSystem.lua).
+    local dialogStyles = {}
+    for _, rule in ipairs(ThemeEngine.GetStyles()) do
+        dialogStyles[#dialogStyles + 1] = rule
+    end
     dialogStyles[#dialogStyles + 1] = gui.Style {
         classes = { "framedPanel" },
         priority = 5,

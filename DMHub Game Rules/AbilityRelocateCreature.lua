@@ -140,6 +140,36 @@ ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
+ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
+
+--A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
+--when "Expend Full Movement" is set we bill the creature's entire remaining
+--movement for the turn no matter how far it actually travelled. Only meaningful
+--on the creature's own turn -- a creature shoved around on someone else's turn
+--has no movement pool to spend.
+function ActivatedAbilityRelocateCreatureBehavior:ExpendMovementIfNeeded(casterToken)
+    if not self.expendFullMovement then
+        return
+    end
+
+    if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+        return
+    end
+
+    if not casterToken.properties:IsOurTurn() then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Expend Movement",
+        undoable = false,
+        execute = function()
+            local speed = casterToken.properties:CurrentMovementSpeed()
+            casterToken.properties.moveDistance = math.max(casterToken.properties:DistanceMovedThisTurn(), speed)
+            casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+        end,
+    }
+end
 
 --Movement type used by targeting previews (ActivatedAbility:GetMovementType).
 --A shift the user has overridden to be a regular move reports "move".
@@ -486,7 +516,20 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 
 			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast })
+
+			--freeMovement mirrors the _tmp_freeMovement flag set at the top of Cast: an
+			--ability-granted shift/move is not the creature's move action, so the engine must
+			--not clamp it to the creature's remaining strict:movement budget. Without it, a
+			--caster that already used its movement this turn has a negative budget and the
+			--engine rejects the move outright (report 7BE97X9P).
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true })
+
+            --A nil path means the engine refused the move outright (no route, or a budget/legality
+            --clamp). There is nothing to fall back on here, but the cast used to continue in total
+            --silence and look like the relocate had happened, so make the failure traceable.
+            if path == nil then
+                print("Relocate:: MOVE REFUSED -- caster did not move. movementType =", movementType, "dest =", targets[#targets].loc.str, "ability =", ability.name)
+            end
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)
@@ -823,6 +866,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
         local opportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks - startingOpportunityAttacks
         options.symbols.cast.opportunityAttacksTriggered = options.symbols.cast.opportunityAttacksTriggered + opportunityAttacks
 
+        self:ExpendMovementIfNeeded(casterToken)
+
         ability:CommitToPaying(casterToken, options)
     end
 
@@ -855,6 +900,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 				self.movementType = element.idChosen
 			end,
 		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Expend Full Movement",
+		tooltip = "If set, the creature uses up all of its movement for the turn, no matter how many squares it actually moved.",
+		value = self.expendFullMovement,
+		change = function(element)
+			self.expendFullMovement = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{

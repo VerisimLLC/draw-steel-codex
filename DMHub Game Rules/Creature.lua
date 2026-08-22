@@ -4165,6 +4165,40 @@ Commands.RegisterMacro{
     end,
 }
 
+--Toggles the light-source loadout on a single token. Callers are responsible for
+--the game.Refresh -- the /light macro batches one refresh across the whole
+--selection, while single-token callers (the character panel's light button)
+--refresh just their own token.
+--
+--Shared rather than inlined in the macro because the macro reads the global
+--selection: UI that acts on a specific token must not go through it, or it
+--toggles whatever happens to be selected instead (or nothing at all, when a DM
+--with no primary token has nothing selected).
+function creature.ToggleLightSourceOnToken(tok)
+    if tok == nil or not tok.valid then
+        return
+    end
+
+    tok:ModifyProperties{
+        description = "Change Loadout to Light",
+        execute = function()
+            if tok.properties.selectedLoadout == 1 then
+                tok.properties.selectedLoadout = 0
+                audio.DispatchSoundEvent("Ability.Torch_Off")
+            else
+                if not tok.properties:try_get("initLight") then
+                    --set to our preferred light if we've never made a different explicit choice.
+                    local equipment = tok.properties:Equipment()
+                    equipment.mainhand1 = tok.properties:GetDefaultLightSource()
+                end
+
+                tok.properties.selectedLoadout = 1
+                audio.DispatchSoundEvent("Ability.Torch_On")
+            end
+        end,
+    }
+end
+
 Commands.RegisterMacro{
     name = "light",
     summary = "toggle light source",
@@ -4173,24 +4207,7 @@ Commands.RegisterMacro{
         local tokenids = {}
         for _,tok in ipairs(dmhub.selectedOrPrimaryTokens) do
             tokenids[#tokenids+1] = tok.charid
-            tok:ModifyProperties{
-                description = "Change Loadout to Light",
-                execute = function()
-                    if tok.properties.selectedLoadout == 1 then
-                        tok.properties.selectedLoadout = 0
-                        audio.DispatchSoundEvent("Ability.Torch_Off")
-                    else
-                        if not tok.properties:try_get("initLight") then
-                            --set to our preferred light if we've never made a different explicit choice.
-                            local equipment = tok.properties:Equipment()
-                            equipment.mainhand1 = tok.properties:GetDefaultLightSource()
-                        end
-
-                        tok.properties.selectedLoadout = 1
-                        audio.DispatchSoundEvent("Ability.Torch_On")
-                    end
-                end,
-            }
+            creature.ToggleLightSourceOnToken(tok)
         end
 
         --instantly refresh the token.
@@ -4798,6 +4815,11 @@ function creature:RefreshToken(token)
     end
 
     self._tmp_grabbedby = nil
+    --Rebuild prone from the current inflicted-condition state on every token refresh.
+    --The modifier cache can already be stamped for this game update before
+    --this base refresh runs, which skips Invalidate() above; without this
+    --explicit reset, removing Prone can leave _tmp_prone stuck true.
+    self._tmp_prone = nil
 
     --check if grabbed.
     local inflictedConditions = self:try_get("inflictedConditions")
@@ -5332,10 +5354,11 @@ function creature:FillBaseActiveModifiers(result)
 		end
 	end
 
-	--add features from templates.
+	--add features from templates. Pass ourselves so template features with
+	--prerequisites (e.g. a minimum level) we don't meet are not applied.
 	for i,feat in ipairs(self:GetActiveTemplates()) do
 		local features = {}
-		feat:FillClassFeatures(self:GetLevelChoices(), features)
+		feat:FillClassFeatures(self:GetLevelChoices(), features, self)
 		for i,feature in ipairs(features) do
             feature:FillModifiers(self, result)
 		end
@@ -6054,12 +6077,19 @@ function creature:IsDownCached()
     return self:try_get("_tmp_down", false)
 end
 
+--Not everyone dies at 0 Stamina: heroes and retainers die at minus their
+--BloodiedThreshold. Deal enough to reach this creature's own kill threshold,
+--or a healthy one ends up merely dying instead of dead.
 function creature:Destroy(note)
     if self.minion then
-	    self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
-    else
-	    self:TakeDamage(self:MaxHitpoints(), note, {doesNotTrigger = true})
+        --Minions die at 0, so one member's share of the pool is enough.
+        self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
+        return
     end
+
+    --math.max keeps this at least as lethal as the old max-Stamina version.
+    local needed = self:CurrentHitpoints() + self:TemporaryHitpoints() - self:KillThresholdStamina()
+    self:TakeDamage(math.max(needed, self:MaxHitpoints()), note, {doesNotTrigger = true})
 end
 
 function creature:ProficiencyBonus()
@@ -6167,11 +6197,25 @@ function creature:GetUnboundedResourceQuantity(resourceid)
 end
 
 --called by dmhub when a creature teleports.
-function creature:OnTeleport()
+function creature:OnTeleport(path)
 	if self:try_get("_tmp_suppressTeleportEvent") then
 		return
 	end
-	self:DispatchEvent("teleport")
+
+    local eventArgs = {}
+    if path ~= nil then
+        local ourToken = dmhub.LookupToken(self)
+        local tokenSize = 1
+        if ourToken ~= nil then
+            tokenSize = ourToken.tileSize
+        end
+        eventArgs.path = PathMoved.new{
+            path = path,
+            size = tokenSize,
+        }
+    end
+
+	self:DispatchEvent("teleport", eventArgs)
 end
 
 --Teleport opportunity-attack support. A teleport places the token directly at its
@@ -6269,6 +6313,15 @@ function creature:OnMove(path)
             size = ourToken.tileSize,
         }
     })
+
+    --Aura triggers marked "Forced Movement Only" ("force moved into or within the area").
+    --Hooked here rather than on the forced-movement ability path because this is the one
+    --place EVERY kind of movement arrives: a Director ALT-dragging a token is forced
+    --movement that casts no ability at all. path.forced is the engine's own verdict
+    --(an ALT-drag reports forced=true, movementType="pushed").
+    if path.forced then
+        Aura.FireForcedMovementTriggersForPath(self, ourToken, path)
+    end
 
     --floorAltitude
 
@@ -6371,6 +6424,14 @@ function creature:OnMove(path)
     
     local movedThroughTokens = rawget(self, "_tmp_movedThroughTokens")
 
+    -- Tracks whether we've fired "movethrough" yet during THIS move (this single
+    -- OnMove call), as opposed to movedThroughTokens above which dedupes per
+    -- creature across the whole round. Local to this call, never persisted, so
+    -- it resets on every new move -- lets a trigger's conditionFormula check
+    -- "First" to fire only for the first creature moved through per move,
+    -- without needing a turn-scoped usage charge that would block later moves.
+    local firedMoveThroughThisMove = false
+
     -- Reaping Scythe (Beastheart deinonychus L10): totally inert unless the mover carries the
     -- "Reaping Scythe Damage" custom attribute (> 0 only while rampaging under an L10 beastheart,
     -- set entirely in data via a filterCondition'd attribute modifier whose value is the mover's
@@ -6415,8 +6476,16 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties })
+                        ourToken.properties:DispatchEvent("movethrough", {
+                            path = PathMoved.new{
+                                path = path,
+                                size = ourTileSize,
+                            },
+                            target = otherToken.properties,
+                            first = not firedMoveThroughThisMove,
+                        })
                         movedThroughTokens[otherToken.charid] = true
+                        firedMoveThroughThisMove = true
                     end
                 end
 
@@ -7358,6 +7427,10 @@ function IsFriendForTargeting(casterToken, targetToken)
     return true
 end
 
+--Derived states like "winded" that aren't conditions, but which we still want to be
+--usable as criteria strings. Game systems fill this in via creature.RegisterMatchString.
+creature.matchStringPredicates = {}
+
 --- @param viewingToken nil|CharacterToken
 --- @param token nil|CharacterToken
 --- @param str string
@@ -7443,6 +7516,13 @@ function creature:MatchesString(viewingToken, token, str)
     local condition = CharacterCondition.conditionsByName[str]
     if condition ~= nil and self:HasCondition(condition.id) then
         return true
+    end
+
+    --Last resort: a derived state such as "winded", which isn't a condition and so
+    --has to be tested by asking the creature directly.
+    local predicate = creature.matchStringPredicates[string.gsub(str, "%s+", "")]
+    if predicate ~= nil then
+        return predicate(self) == true
     end
 
     return false
@@ -7764,22 +7844,22 @@ creature.helpSymbols = {
 	countnearbyenemies = {
 		name = "Count Nearby Enemies",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")", "OBJ.Count Nearby Enemies(1, \"Winded\")", "OBJ.Count Nearby Enemies(1, \"~Winded\")"},
 	},
 
 	countnearbyfriends = {
 		name = "Count Nearby Friends",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)"},
+		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)", "OBJ.Count Nearby Friends(5, \"Winded\")"},
 	},
 
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups and the names of features. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")"},
 	},
 
 	countriders = {
@@ -8573,7 +8653,7 @@ creature.lookupSymbols = {
 	conditions = function(c)
 
 		local result = {}
-		local conditions = {}
+		local ongoingEffectConditions = {}
 		local ongoingEffects = c:ActiveOngoingEffects()
 		if #ongoingEffects > 0 then
 			local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
@@ -8581,7 +8661,7 @@ creature.lookupSymbols = {
 				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
 				--if this ongoing effect has an underlying condition then record us having that condition since conditions can also have modifiers.
 				if ongoingEffectInfo.condition ~= 'none' then
-					conditions[ongoingEffectInfo.condition] = true
+					ongoingEffectConditions[ongoingEffectInfo.condition] = true
 				end
 			end
 		end
@@ -8610,18 +8690,35 @@ creature.lookupSymbols = {
         end
 
 		--we have a table of conditions based on ongoing effects, add any of their modifiers.
-		for k,_ in pairs(conditions) do
+		for k,_ in pairs(ongoingEffectConditions) do
 			local conditionInfo = conditionsTable[k]
-			result[#result+1] = conditionInfo.name
+			if conditionInfo ~= nil then
+				result[#result+1] = conditionInfo.name
+			end
 		end
 
 		local inflictedConditions = c:get_or_add("inflictedConditions", {})
 		for condid,_ in pairs(inflictedConditions) do
-			result[#result+1] = conditionsTable[condid].name
+			local conditionInfo = conditionsTable[condid]
+			if conditionInfo ~= nil then
+				result[#result+1] = conditionInfo.name
+			end
+		end
+
+		--the same condition can be reached by several of the paths above, so de-duplicate
+		--while preserving the order we first saw each name in.
+		local seen = {}
+		local uniqueResult = {}
+		for _,name in ipairs(result) do
+			local key = string.lower(name)
+			if seen[key] == nil then
+				seen[key] = true
+				uniqueResult[#uniqueResult+1] = name
+			end
 		end
 
 		return StringSet.new{
-			strings = result,
+			strings = uniqueResult,
 		}
 
 	end,
@@ -8925,6 +9022,16 @@ for _,movementType in ipairs(creature.movementTypeInfo) do
 	}
 end
 
+--mod tool for making a derived state usable as a criteria string in
+--Count Nearby Creatures / Count Nearby Enemies / Count Riders / the "is" operator.
+--Use the following fields:
+-- name: the criteria string, e.g. "winded"
+-- match: function(creature) that returns true if the creature is in that state
+function creature.RegisterMatchString(entry)
+	local key = string.lower(string.gsub(entry.name, "%s+", ""))
+	creature.matchStringPredicates[key] = entry.match
+end
+
 --mod tool for adding new Goblin Script symbols
 --Use the following fields:
 -- symbol: string symbol name
@@ -9052,10 +9159,15 @@ function creature:BeginTurn()
         end
 
         if token ~= nil then
-            local auras = self:GetAurasAffecting(token)
+            --includeAdjacentOnly: creatures merely adjacent to an extended aura
+            --(includeAdjacent) still start-of-turn trigger it, with a bane on
+            --the entry power roll. EnterAura is told which kind of contact this
+            --is; helper via the class table since it is defined further down
+            --the file.
+            local auras = self:GetAurasAffecting(token, {includeAdjacentOnly = true})
             if auras ~= nil then
                 for i,auraInfo in ipairs(auras) do
-                    self:EnterAura(auraInfo)
+                    self:EnterAura(auraInfo, creature.AuraTokenOnlyAdjacent(auraInfo, token), true)
                 end
             end
         end
@@ -9095,7 +9207,47 @@ function creature:BeginTurn()
 	end
 end
 
-function creature:GetAurasAffecting(token)
+--Re-entrancy guard for aura creature filters. A filter is GoblinScript, and it is
+--completely reasonable for one to ask about the auras on the creature it is testing --
+--e.g. 'not (Target.Auras Affecting has "Basic Halo")' to stop an aura stacking with
+--itself. Evaluating that symbol calls back into GetAurasAffecting, which evaluates the
+--filters again, with no base case. Worse, the recursion FANS OUT by the number of
+--filtered auras touching the creature, so four adjacent minions sharing one such aura is
+--4^depth work and the app locks up hard (bug report SJG43VRQ).
+--
+--So: while we are filtering a creature's auras, a nested query for that same creature
+--answers from the auras accepted so far instead of recursing. That makes the example
+--above resolve greedily -- the first halo passes, the rest see it and fail, exactly one
+--applies -- which is what such a filter is written to mean. g_aurasAffectingDepth is the
+--backstop for filters that reach a DIFFERENT creature (caster.Auras Affecting, Squad
+--Captain.Auras Affecting), where the per-creature key alone cannot see the cycle; past
+--the cap a nested query just gets the unfiltered touching list.
+local g_aurasAffectingInProgress = {}
+local g_aurasAffectingDepth = 0
+local g_maxAurasAffectingDepth = 4
+
+--Aura.TokenOnlyAdjacent is a newer engine method (includeAdjacent auras); on an
+--older engine build the member read raises. Probe once with the first real
+--query and fall back to "never adjacent-only", which is exactly the old
+--behavior since an old engine never builds adjacent extensions either.
+local g_hasTokenOnlyAdjacent = nil
+local function AuraTokenOnlyAdjacent(aura, token)
+	if g_hasTokenOnlyAdjacent == nil then
+		local ok, result = pcall(function() return aura:TokenOnlyAdjacent(token) end)
+		g_hasTokenOnlyAdjacent = ok
+		return ok and result == true
+	end
+
+	if g_hasTokenOnlyAdjacent then
+		return aura:TokenOnlyAdjacent(token) == true
+	end
+
+	return false
+end
+
+creature.AuraTokenOnlyAdjacent = AuraTokenOnlyAdjacent
+
+function creature:GetAurasAffecting(token, options)
     token = token or dmhub.LookupToken(self)
     if token == nil then
         return nil
@@ -9106,29 +9258,80 @@ function creature:GetAurasAffecting(token)
         return nil
     end
 
-    local numPass = nil
+    --An includeAdjacent aura also reports tokens standing next to it as
+    --touching. That adjacency exists only for enter/start-of-turn trigger
+    --contact (BeginTurn asks with includeAdjacentOnly); for every other
+    --caller -- modifier collection, panels, filters -- adjacent-only contact
+    --does not count as being in the aura.
+    if options == nil or not options.includeAdjacentOnly then
+        local anyAdjacentOnly = false
+        for i,aura in ipairs(auras) do
+            if AuraTokenOnlyAdjacent(aura, token) then
+                anyAdjacentOnly = true
+                break
+            end
+        end
 
+        if anyAdjacentOnly then
+            local kept = {}
+            for i,aura in ipairs(auras) do
+                if not AuraTokenOnlyAdjacent(aura, token) then
+                    kept[#kept+1] = aura
+                end
+            end
+            if #kept == 0 then
+                return nil
+            end
+            auras = kept
+        end
+    end
+
+    --Fast path: with no filters to run there is nothing to recurse through, so skip the
+    --bookkeeping entirely and hand back the engine's list. This is the common case.
+    local anyFilter = false
     for i,aura in ipairs(auras) do
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) == false then
-            numPass = i-1
+        if aura.auraInstance.aura:try_get("creatureFilter", "") ~= "" then
+            anyFilter = true
             break
         end
     end
 
-    if numPass == nil then
+    if not anyFilter then
+        return auras
+    end
+
+    --charid is always set on a real token, but a nil key would throw right here and take
+    --aura filtering down with it, so fall back to the creature table's identity.
+    local key = token.charid or self
+
+    local inProgress = g_aurasAffectingInProgress[key]
+    if inProgress ~= nil then
+        return inProgress
+    end
+
+    if g_aurasAffectingDepth >= g_maxAurasAffectingDepth then
         return auras
     end
 
     local result = {}
-    for i=1,numPass do
-        result[#result+1] = auras[i]
-    end
+    g_aurasAffectingInProgress[key] = result
+    g_aurasAffectingDepth = g_aurasAffectingDepth + 1
 
-    for i=numPass+2,#auras do
-        local aura = auras[i]
-        if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
-            result[#result+1] = aura
+    --pcall so a filter that throws cannot leave the guard latched on, which would
+    --silently disable aura filtering for the rest of the session.
+    local ok, err = pcall(function()
+        for i,aura in ipairs(auras) do
+            if aura.auraInstance.aura:CreaturePassesFilter(self, aura.auraInstance) then
+                result[#result+1] = aura
+            end
         end
+    end)
+
+    g_aurasAffectingDepth = g_aurasAffectingDepth - 1
+    g_aurasAffectingInProgress[key] = nil
+
+    if not ok then
+        error(err)
     end
 
     return result
@@ -9197,9 +9400,14 @@ local function PushAurasToCompanion(creatureObj, token, auras)
 end
 
 local g_baseGetAurasAffecting = creature.GetAurasAffecting
-function creature:GetAurasAffecting(token)
-    local result = g_baseGetAurasAffecting(self, token)
-    PushAurasToCompanion(self, token, result)
+function creature:GetAurasAffecting(token, options)
+    local result = g_baseGetAurasAffecting(self, token, options)
+    --Only the default (core-only) view feeds the Companion: pushing the
+    --includeAdjacentOnly variant would flap the dedupe signature between the
+    --two views of the same state.
+    if options == nil or not options.includeAdjacentOnly then
+        PushAurasToCompanion(self, token, result)
+    end
     return result
 end
 
@@ -9753,7 +9961,9 @@ end
 --- @field text string
 --- @field retargetid false|string
 --- @field rules string
---- @field modes {text: string, rules: string}[]
+--- @field activateText string The name of mode 1 of a multi-mode trigger.
+--- @field activateRules string The rules text of mode 1 of a multi-mode trigger.
+--- @field modes {text: string, rules: string, modeIndex: number|nil, unavailable: boolean|nil, conditionReason: string|nil}[] modeIndex is the entry's position in the ability's modeList (see ModeIndexForTriggered). unavailable/conditionReason mark a mode whose condition is not met but which is offered anyway, greyed out, with that reason shown.
 --- @field casterid false|string The id of the caster of the ability that caused the trigger.
 --- @field originalAbilityRange number the range of the original ability that caused the trigger.
 --- @field abilityGuid false|string The guid of the TriggeredAbility that created this prompt.
@@ -9784,7 +9994,11 @@ ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
 ActiveTrigger.retargetid = false
 ActiveTrigger.text = "Trigger"
+--A multi-mode trigger (a TriggeredAbility with multipleModes) keeps mode 1 out
+--of the modes list: activateText/activateRules are its name and rules, and
+--modes holds the remaining modes whose conditions passed. See UsesModeHeading.
 ActiveTrigger.activateText = "Activate"
+ActiveTrigger.activateRules = ""
 ActiveTrigger.rules = ""
 ActiveTrigger.modes = {}
 ActiveTrigger.casterid = false
@@ -9808,6 +10022,14 @@ ActiveTrigger.auraControllerId = false
 ActiveTrigger.execSymbols = false
 ActiveTrigger.execTargets = false
 
+--A prompt card that offers an ability invocation rather than a triggered
+--ability: a serialization-safe AbilityInvocation record (see
+--AbilityInvokeAbility.lua). These cards have no sustain coroutine at all;
+--acceptance is consumed by AbilityInvocation.ActivateInvocationPrompt via the
+--interaction hook in DispatchAvailableTrigger below, on the accepting client.
+--Dispatched by AbilityInvocation.PromptStandardAbility.
+ActiveTrigger.invocation = false
+
 --expiryTimestamp is the clock the age-out below runs on. It is separate from
 --timestamp (which orders the prompts in the trigger panel) because it gets
 --reset on every pending trigger whenever the user interacts with any one of
@@ -9815,8 +10037,14 @@ ActiveTrigger.execTargets = false
 --existed have 0 here and fall back to timestamp.
 ActiveTrigger.expiryTimestamp = 0
 
---How long a trigger prompt stays available before it ages out.
-local g_triggerExpirySeconds = 60
+--How long a trigger prompt stays available before it ages out. This is a
+--garbage-collection backstop, not a gameplay timer: in combat the sustain
+--coroutine in TriggeredAbility.lua ends a prompt ~6s after the owner's turn
+--refresh id changes, long before this fires. The cases that actually reach this
+--clock are orphaned entries whose watcher coroutine died (with a reload or a
+--previous session), invocation prompt cards (which have no coroutine at all),
+--and prompts raised out of combat where the turn id never advances.
+local g_triggerExpirySeconds = 600
 
 --Once a trigger has fewer than this many seconds left, the prompt shows a thin
 --bar across its top that drains away as the trigger dies.
@@ -9952,6 +10180,39 @@ function ActiveTrigger:GetRulesText()
 	end
 
 	return self.rules
+end
+
+--A multi-mode trigger prompt draws one card per mode: mode 1 is the trigger's
+--own card and the rest are the enhancement-option cards below it. When there
+--are additional modes the trigger's name and prompt go into heading boxes above
+--the whole group and every card carries its own mode's name and rules, so mode
+--1 is not anonymised by the trigger's name/prompt -- see DrawSteelTriggerPanel.
+--
+--This is only for mode-driven triggers. A powerRollModifier trigger's
+--"enhancement options" are extra resource spends rather than modes, so its
+--single card keeps the trigger's own name and rules.
+--The modeList index that a `triggered` value selects, which is what drives
+--symbols.mode and so which behaviors run. A mode whose condition fails and
+--carries no Condition Reason is never offered, leaving a hole in modes, so an
+--option's position here is not its position in modeList -- each entry records
+--the index it came from. Prompts serialized before modeIndex existed, and the
+--non-numeric `triggered == true` case (mode 1, the trigger's own card), fall
+--back to the positional reading.
+function ActiveTrigger:ModeIndexForTriggered(triggered)
+	if type(triggered) ~= "number" then
+		return 1
+	end
+
+	local entry = self.modes[triggered]
+	if entry ~= nil and entry.modeIndex ~= nil then
+		return entry.modeIndex
+	end
+
+	return triggered + 1
+end
+
+function ActiveTrigger:UsesModeHeading()
+	return (not self.powerRollModifier) and #self.modes > 0
 end
 
 function ActiveTrigger:IsFreeTriggeredAbility()
@@ -10114,11 +10375,19 @@ function creature:DispatchAvailableTrigger(triggerInfo)
             if token ~= nil then
                 local charid = token.charid
                 local triggerid = stored.id
+                --Invocation prompt cards (see ActiveTrigger.invocation above)
+                --never have a watcher coroutine: the acceptance is always
+                --consumed here, on the accepting client.
+                local isInvocation = stored.invocation ~= false
                 dmhub.Schedule(0.25, function()
                     if mod.unloaded then
                         return
                     end
-                    TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    if isInvocation then
+                        AbilityInvocation.ActivateInvocationPrompt(dmhub.GetCharacterById(charid), triggerid)
+                    else
+                        TriggeredAbility.ActivateOrphanedTrigger(dmhub.GetCharacterById(charid), triggerid)
+                    end
                 end)
             end
         end
@@ -10165,31 +10434,108 @@ function creature:GetTurnId()
 end
 
 --called by dmhub to see if entering this aura will halt movement.
-function creature:EnterAuraHaltsMovement(info)
+--level is the containment depth being entered: 2 = inside the aura, 1 = only
+--on the adjacent extension of an includeAdjacent aura. The per-turn
+--aurasEntered record stores the deepest level already triggered, so moving
+--from adjacent into the aura proper still triggers, while re-entering at the
+--same (or a shallower) depth in one turn does not. Records written before
+--levels existed hold true, which reads as level 2.
+function creature:EnterAuraHaltsMovement(info, level)
+	level = level or 2
 	local turnid = self:GetTurnId()
-	if turnid ~= nil and turnid == self:try_get("aurasEnteredTurnId") and self.aurasEntered[info.auraInstance.guid] then
-		return false
+	if turnid ~= nil and turnid == self:try_get("aurasEnteredTurnId") then
+		local entered = self.aurasEntered[info.auraInstance.guid]
+		if entered == true then
+			entered = 2
+		end
+		if entered ~= nil and entered >= level then
+			return false
+		end
 	end
-	
+
 	return true
 end
 
---called by dmhub when a creature enters an aura.
+--called by dmhub when a creature enters an aura (adjacentOnly = it is only on
+--the adjacent extension of an includeAdjacent aura, not inside it), and from
+--BeginTurn for every aura the creature starts its turn touching (fromBeginTurn).
+--enteredViaShift is true only when the engine reports that this entry happened
+--during a Shift.
+--Adjacent-only contact triggers only at the start of a turn -- moving past an
+--extended aura neither prompts nor halts -- and rolls the simple power roll
+--with a bane. Stored onenter triggers never fire for adjacent-only contact.
 --returns true if the aura triggered something, false otherwise.
-function creature:EnterAura(info)
+function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 
     if info.auraInstance.aura:CreaturePassesFilter(self, info.auraInstance) == false then
         return
     end
 
-	local result = false
-	if self:EnterAuraHaltsMovement(info) == false then
-		return result
+	local level = 2
+	if adjacentOnly then
+		level = 1
+		if not fromBeginTurn then
+			return false
+		end
 	end
 
-	local turnid = self:GetTurnId()
+	local result = false
+	if self:EnterAuraHaltsMovement(info, level) == false then
+		return result
+	end
+	local auraGuid = info.auraInstance.guid
+	local ignoredShiftEntry = enteredViaShift == true
+		and info.auraInstance.aura:try_get("powerRollEnabled", false) == true
+		and info.auraInstance.aura:try_get("powerRollShiftEntryMode", "normal") == "ignore"
 
-	if turnid ~= nil and info.token ~= nil and info.token.valid then
+	if not adjacentOnly then
+		for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
+			--"Forced Movement Only" triggers are NOT resolved here. This runs identically for a
+			--shove and a walk-in, it runs during path PLANNING rather than during the move, and
+			--it is gated to once per aura per turn -- all three are wrong for "force moved into
+			--the area". Aura.FireForcedMovementTriggersForPath owns them instead.
+			if triggerInfo.trigger == "onenter" and triggerInfo.movementFilter ~= "forced" then
+				local auraCasterToken = info.token
+				if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+					auraCasterToken = dmhub.LookupToken(self)
+				end
+				result = true
+				print("AURA:: FIRE")
+				info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
+				if triggerInfo.destroyaura then
+					print("AURA:: DESTROY", info)
+					info:Destroy()
+				end
+			end
+		end
+	end
+
+	--The simple power roll option (powerRollEnabled and friends on the Aura)
+	--synthesizes an onenter trigger rather than storing one in aura.triggers,
+	--so the roll always reflects the aura's current fields. Adjacent-only
+	--contact rolls with a bane.
+	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger{
+		adjacentOnly = adjacentOnly == true,
+		enteredViaShift = enteredViaShift == true,
+	}
+	if simplePowerRollTrigger ~= nil then
+		local auraCasterToken = info.token
+		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
+			auraCasterToken = dmhub.LookupToken(self)
+		end
+		result = true
+		info.auraInstance:FireTriggeredAbility(simplePowerRollTrigger.ability, self, auraCasterToken)
+	end
+
+	--A shifted entry whose simple roll mode is "ignore" must leave a later
+	--ordinary re-entry available when the aura has no stored onenter trigger. If
+	--a combined aura does have a stored onenter trigger, that trigger still fires
+	--and consumes the shared aura-level record; the record cannot independently
+	--track its stored trigger and synthesized roll. Preserve the old bookkeeping
+	--for every other kind of entry, including inert auras.
+	local turnid = self:GetTurnId()
+	local consumeEntry = result or not ignoredShiftEntry
+	if consumeEntry and turnid ~= nil and info.token ~= nil and info.token.valid then
 		info.token:ModifyProperties{
 			description = "Enter Aura",
 			execute = function()
@@ -10198,38 +10544,15 @@ function creature:EnterAura(info)
 					self.aurasEntered = {}
 				end
 
-				self.aurasEntered[info.auraInstance.guid] = true
+				local entered = self.aurasEntered[auraGuid]
+				if entered == true then
+					entered = 2
+				end
+				if entered == nil or entered < level then
+					self.aurasEntered[auraGuid] = level
+				end
 			end,
 		}
-	end
-
-	for i,triggerInfo in ipairs(info.auraInstance.aura.triggers) do
-		if triggerInfo.trigger == "onenter" then
-            local auraCasterToken = info.token
-            if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
-                auraCasterToken = dmhub.LookupToken(self)
-            end
-			result = true
-            print("AURA:: FIRE")
-			info.auraInstance:FireTriggeredAbility(triggerInfo.ability, self, auraCasterToken)
-            if triggerInfo.destroyaura then
-                print("AURA:: DESTROY", info)
-                info:Destroy()
-            end
-		end
-	end
-
-	--The simple power roll option (powerRollEnabled and friends on the Aura)
-	--synthesizes an onenter trigger rather than storing one in aura.triggers,
-	--so the roll always reflects the aura's current fields.
-	local simplePowerRollTrigger = info.auraInstance.aura:GetSimplePowerRollTrigger()
-	if simplePowerRollTrigger ~= nil then
-		local auraCasterToken = info.token
-		if auraCasterToken == nil or auraCasterToken.valid == false or (not auraCasterToken.uploadable) then
-			auraCasterToken = dmhub.LookupToken(self)
-		end
-		result = true
-		info.auraInstance:FireTriggeredAbility(simplePowerRollTrigger.ability, self, auraCasterToken)
 	end
 
 	return result
@@ -10251,7 +10574,11 @@ function creature:RemoveOngoingEffectsOnRest(restType)
 	end
 end
 
-function creature:Rest(restType)
+--Apply a rest to this creature. Pass keepOngoingEffects = true when the caller
+--already cleared "until rest" effects itself -- the respite game mode clears them
+--when the respite begins, so ending that respite must not clear them a second time
+--and wipe anything gained during it (e.g. a respite activity's bonus).
+function creature:Rest(restType, keepOngoingEffects)
 	local restid = dmhub.GenerateGuid()
 
 	if restType == 'long' then
@@ -10287,7 +10614,9 @@ function creature:Rest(restType)
 
 	self.shortRestId = restid
 
-	self:RemoveOngoingEffectsOnRest(restType)
+	if not keepOngoingEffects then
+		self:RemoveOngoingEffectsOnRest(restType)
+	end
 
 end
 
@@ -10805,6 +11134,163 @@ end
 
 function creature:SetInitiativeNotes(notes)
 	self.initiativeNotes = notes
+end
+
+----------------------------------------------
+-- Per-token dice preference.
+--
+-- A token can carry its own dice loadout rather than simply rolling with whatever
+-- the rolling player has equipped in their own inventory (the diceequipped /
+-- diceequipped2 / diceequippedd6 account settings). Edited from the character
+-- sheet's Appearance > Effects tab; consumed by the embedded roll dialog, which
+-- hands the resolved loadout to the engine via dice.SetRollLoadout.
+--
+-- Stored on the creature as 'diceLoadout'. The property is ABSENT for a token that
+-- has not been customized -- which is the default, and means "use the roller's own
+-- dice" -- so an uncustomized token costs nothing. When present it is a table with
+-- the same three-part shape as the account loadout, and the same rules for reading
+-- it (see GameConfig.ResolveDiceModelForDie engine-side):
+--   model    -- required. The token's dice: the first power d10, and every die
+--               another field does not override.
+--   model2   -- optional. A DIFFERENT second d10, so a Draw Steel 2d10 power roll
+--               shows a mixed pair. Absent = both power dice are 'model'.
+--   modelD6  -- optional. A different set for d3- and d6-shaped dice.
+--               Absent = they use 'model' too.
+--
+-- Entitlement: resolution happens on the ROLLING player's client, and a set that
+-- player does not own is dropped -- an unowned 'model' falls the whole token back
+-- to that player's own dice, an unowned model2/modelD6 falls that die back to
+-- 'model'. So a DM can never push dice onto a player who has not bought them.
+----------------------------------------------
+
+--The three slots of a dice loadout, in display order. Keys into a diceLoadout
+--table and, deliberately, the same names DiceMaterialInfo uses engine-side.
+--'model' is the primary; the other two are optional overrides of it.
+creature.diceLoadoutSlots = { "model", "model2", "modelD6" }
+
+--- The dice-set asset ids this client's account may roll with, as a set keyed by
+--- asset id. "Default" (the stock dice) is always available.
+--- dice.GetAvailableDice walks the account's shop inventory and is the same
+--- authority the diceequipped setting's dropdown uses, so this is exactly the
+--- ownership test the rest of the app applies.
+--- @return table<string, boolean>
+function creature.OwnedDiceSets()
+	local result = { Default = true }
+	--pcall: an engine build without the bridge just leaves everyone on Default.
+	local ok, list = pcall(function() return dice.GetAvailableDice() end)
+	if ok and type(list) == "table" then
+		for _,entry in ipairs(list) do
+			if entry ~= nil and entry.value ~= nil and entry.value ~= "" then
+				result[entry.value] = true
+			end
+		end
+	end
+	return result
+end
+
+--- This creature's dice loadout as a plain copy safe to read from UI (mutating it
+--- does not change the creature -- go through SetDiceLoadoutSlot inside a
+--- token:ModifyProperties block for that). An empty table means the token is not
+--- customized and rolls with the rolling player's own dice.
+--- @return table<string, string>
+function creature:GetDiceLoadout()
+	local result = {}
+	local loadout = self:try_get("diceLoadout")
+	if type(loadout) ~= "table" then
+		return result
+	end
+
+	for _,key in ipairs(creature.diceLoadoutSlots) do
+		local id = loadout[key]
+		if type(id) == "string" and id ~= "" then
+			result[key] = id
+		end
+	end
+
+	--model2/modelD6 only mean anything as overrides OF a primary set, so a table
+	--that somehow lost its primary is no customization at all.
+	if result.model == nil then
+		return {}
+	end
+
+	return result
+end
+
+--- True if this creature carries its own dice rather than using the roller's.
+--- @return boolean
+function creature:HasCustomDice()
+	return self:GetDiceLoadout().model ~= nil
+end
+
+--- Sets one slot of this creature's dice loadout. key is one of
+--- creature.diceLoadoutSlots; assetid is a cloud dice id, or nil/"" to clear that
+--- slot -- clearing "model" drops the whole loadout (the token goes back to using
+--- the roller's own dice), clearing "model2"/"modelD6" makes those dice use
+--- "model". Must be called inside a token:ModifyProperties block.
+--- @param key string
+--- @param assetid string|nil
+function creature:SetDiceLoadoutSlot(key, assetid)
+	if key == "model" and (assetid == nil or assetid == "") then
+		self:ClearDiceLoadout()
+		return
+	end
+
+	local loadout = self:GetDiceLoadout()
+
+	if assetid == nil or assetid == "" then
+		loadout[key] = nil
+	else
+		loadout[key] = assetid
+	end
+
+	if loadout.model == nil then
+		self:ClearDiceLoadout()
+	else
+		self.diceLoadout = loadout
+	end
+end
+
+--- Drops this creature's dice loadout, so its rolls use the rolling player's own
+--- equipped dice again. Must be called inside a token:ModifyProperties block.
+function creature:ClearDiceLoadout()
+	self.diceLoadout = nil
+end
+
+--- The loadout to actually roll for this creature, or nil when it carries no dice
+--- the local player may use and the roller's own equipped loadout should apply
+--- unchanged.
+---
+--- Ready to hand straight to dice.SetRollLoadout: model2/modelD6 come back as ""
+--- when this token does not override them, which the engine reads as "same as
+--- model" exactly as it does for the account loadout. Any slot naming a set the
+--- LOCAL player does not own is dropped as though it had never been set.
+--- @return {model: string, model2: string, modelD6: string}|nil
+function creature:ResolveDiceLoadout()
+	local loadout = self:GetDiceLoadout()
+	if loadout.model == nil then
+		return nil
+	end
+
+	--Entitlement: the player about to roll must own the set. An unowned primary
+	--means this token gives them nothing and they roll their own dice.
+	local owned = creature.OwnedDiceSets()
+	if not owned[loadout.model] then
+		return nil
+	end
+
+	local function Override(key)
+		local id = loadout[key]
+		if id == nil or not owned[id] then
+			return ""
+		end
+		return id
+	end
+
+	return {
+		model = loadout.model,
+		model2 = Override("model2"),
+		modelD6 = Override("modelD6"),
+	}
 end
 
 ----------------------------------------------

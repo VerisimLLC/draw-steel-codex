@@ -1,5 +1,45 @@
 local mod = dmhub.GetModLoading()
 
+-- Optional modules can contribute controls and attach data to the LiveEncounter
+-- without this module knowing which extensions are installed.
+DrawSteelCombatSetup = {}
+DrawSteelCombatSetup.extensions = {}
+
+function DrawSteelCombatSetup.RegisterExtension(extension)
+    if extension == nil or extension.id == nil then
+        return
+    end
+
+    DrawSteelCombatSetup.extensions[extension.id] = extension
+end
+
+local function CreateCombatSetupExtensionsPanel()
+    local children = {}
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.createPanel ~= nil then
+            local panel = extension.createPanel()
+            if panel ~= nil then
+                children[#children + 1] = panel
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        children = children,
+    }
+end
+
+local function ConfigureCombatSetupExtensions(liveEncounter)
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.configureLiveEncounter ~= nil then
+            extension.configureLiveEncounter(liveEncounter)
+        end
+    end
+end
+
 local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
@@ -235,13 +275,18 @@ local function createDrawSteelBanner(options)
                             live.onsetMonsterCount = onsetMonsters
                             info.initiativeQueue.liveEncounter = live
                         end
+                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
                         --Snapshot the heroes' Recoveries at the onset of combat so the
                         --victory screen can show how they changed over the fight.
                         info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
                         g_selectedEncounterOpenInitiative = nil
 
                         --Combat has started: the readied encounter is consumed.
+                        --Whatever route the monsters took onto the map, an armed
+                        --click-to-place is now stale -- it would drop a second
+                        --copy of the encounter into the fight -- so drop that too.
                         Encounter.ClearReadiedEncounter()
+                        Encounter.DisarmClickToPlace()
 
                         Commands.rollinitiative()
 
@@ -1374,10 +1419,14 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         tooltip = string.format("%s, %d %s", tooltip, numAllies, cond(numAllies == 1, "Ally", "Allies"))
                     end
 
-                    if strength.minLevel == strength.maxLevel then
-                        tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
-                    else
-                        tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                    --minLevel/maxLevel are nil when the pool is nothing but allied
+                    --monsters, which have no hero level to report.
+                    if strength.minLevel ~= nil then
+                        if strength.minLevel == strength.maxLevel then
+                            tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
+                        else
+                            tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                        end
                     end
 
                     tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, strength.base)
@@ -1385,6 +1434,9 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     tooltip = string.format("%s\nAverage Victories: %d", tooltip, strength.averageVictories)
                     tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, strength.victoryHeroes)
                     tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, strength.singleHero)
+                    if strength.numAllyMonsters > 0 then
+                        tooltip = string.format("%s\nEV of %d Allied %s: %d", tooltip, strength.numAllyMonsters, cond(strength.numAllyMonsters == 1, "Creature", "Creatures"), strength.allyEV)
+                    end
                     tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, strength.total)
 
                     element.data.tooltip = tooltip
@@ -2231,6 +2283,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         element.root:FireEventTree("refreshSurprise")
                     end,
                 },
+                CreateCombatSetupExtensionsPanel(),
             },
 
             gui.Panel{
@@ -2396,6 +2449,17 @@ Commands.RegisterMacro{
     name = "rollinitiative",
     summary = "start combat",
     doc = "Usage: /rollinitiative [x1 y1 x2 y2]\nStarts combat with selected tokens, or tokens in a rectangular area if coordinates are given.",
+
+    --Only the no-argument (use the current selection) form is surfaced; the
+    --rectangle form wants map coordinates, which the builder has no way to
+    --pick. dmonly matches the engine command registration above, which is
+    --already declared dmonly.
+    commandInfo = {
+        name = "Start Combat",
+        description = "Open combat setup for the tokens you have selected.",
+        dmonly = true,
+    },
+
     command = function(str)
     local args = string.split(str or "", " ")
 

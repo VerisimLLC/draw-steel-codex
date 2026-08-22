@@ -1160,9 +1160,12 @@ CreateEditor = function(panelArgs)
         searchRegexCheck,
     }
 
-	local searchInput = gui.Input{
+	--the canonical search field; look comes from DefaultStyles'
+	--searchInput rules.
+	local searchInput = gui.SearchInput{
 		placeholderText = "Search...",
 		text = "",
+		borderBox = true,
 		halign = "left",
 		valign = "top",
 		editlag = 0.25,

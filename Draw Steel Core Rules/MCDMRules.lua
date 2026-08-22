@@ -73,6 +73,31 @@ GameSystem.ApplyBoons = function(roll, boons)
     return dmhub.RollToString(rollInfo)
 end
 
+--- Returns a StringSet of the die sizes (e.g. "d3", "d6") actually rolled to
+--- produce a damage roll, so triggers can key off a specific die rather than
+--- just "any dice were rolled". rollStr should already be fully resolved (no
+--- outstanding GoblinScript symbols), matching the roll text handed to the
+--- roll dialog. Empty for flat/fixed damage.
+function GameSystem.GetDamageDiceInRoll(rollStr)
+    local result = StringSet.new{}
+    if rollStr == nil or rollStr == "" then
+        return result
+    end
+
+    local ok, rollInfo = pcall(dmhub.ParseRoll, rollStr)
+    if ok and rollInfo ~= nil and rollInfo.categories ~= nil then
+        for _,category in pairs(rollInfo.categories) do
+            for _,group in ipairs(category.groups or {}) do
+                if group.numFaces ~= nil then
+                    result:Add(string.format("d%d", group.numFaces))
+                end
+            end
+        end
+    end
+
+    return result
+end
+
 GameSystem.CalculateDeathSavingThrowRoll = function(creature)
     return "1d20"
 end
@@ -276,6 +301,34 @@ end
 GameSystem.RegisterApplyToTargets{
 	id = "all_creatures",
 	text = "All Creatures in Combat",
+}
+
+--apply the behavior to the caster's mentor (for retainer abilities).
+--Resolves to an empty target list if the caster has no mentor on the map.
+GameSystem.RegisterApplyToTargets{
+	id = "caster_mentor",
+	text = "Caster's Mentor",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+			return result
+		end
+
+		--GetMentor returns the mentor's creature properties. Guard with pcall
+		--since not every creature type is guaranteed to have the method.
+		local mentor = nil
+		pcall(function() mentor = casterToken.properties:GetMentor() end)
+		if mentor == nil then
+			return result
+		end
+
+		local mentorToken = dmhub.LookupToken(mentor)
+		if mentorToken ~= nil and mentorToken.valid then
+			result[#result+1] = { token = mentorToken }
+		end
+
+		return result
+	end,
 }
 
 --when casting a spell, this is our set of 'target lists' who have different outcomes to what has happened in the spell so far.
@@ -871,6 +924,24 @@ GameSystem.RegisterAbilityKeyword("Charge")
 GameSystem.RegisterAbilityKeyword("Telekinesis")
 GameSystem.RegisterAbilityKeyword("Chronopathy")
 
+--Feature tags; order here is display order. Hidden features are excluded
+--from sheet/panel feature lists unless the user filters to the Hidden tag.
+--Ability and Trigger are display-kind tags (not filter chips): they tell
+--consumers (sheet, panel, monster builder) how the feature renders --
+--no tag = trait, Ability = ability card, Trigger = triggered action,
+--Hidden = not shown. A feature with both renders as a Trigger. Core
+--Feature drives the pinned core-mechanic display and is filterable like
+--any other tag. The remaining tags are the game modes.
+GameSystem.RegisterFeatureTag{ name = "Hidden", defaultExcluded = true }
+GameSystem.RegisterFeatureTag{ name = "Ability", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Trigger", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Core Feature" }
+GameSystem.RegisterFeatureMode("Combat")
+GameSystem.RegisterFeatureMode("Exploration")
+GameSystem.RegisterFeatureMode("Montage")
+GameSystem.RegisterFeatureMode("Negotiation")
+GameSystem.RegisterFeatureMode("Respite")
+
 GameSystem.RegisterItemKeyword("Potion")
 GameSystem.RegisterItemKeyword("Neck")
 
@@ -1059,10 +1130,20 @@ TriggeredAbility.RegisterTrigger{
     id = "movethrough",
     text = "Move Through Creature",
     symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path taken by the creature during movement.",
+        },
         target = {
             name = "Target",
             type = "creature",
             desc = "The creature being moved through.",
+        },
+        first = {
+            name = "First",
+            type = "boolean",
+            desc = "True if this is the first creature moved through during this move action.",
         },
     }
 }
@@ -1070,7 +1151,13 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "teleport",
     text = "Teleport",
-    symbols = {}
+    symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path from the creature's origin to its teleport destination.",
+        },
+    }
 }
 
 TriggeredAbility.RegisterTrigger{
@@ -1466,12 +1553,21 @@ TriggeredAbility.RegisterTrigger{
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
         },
+        damagedice = {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
+        },
     },
 
     examples = {
         {
             script = "damage > 8 and (damage type is slashing or damage type is piercing)",
             text = "The triggered ability only activates if more than 8 damage was done and the damage was slashing or piercing damage."
+        },
+        {
+            script = 'Damage Dice has "d3" or Damage Dice has "d6"',
+            text = "The triggered ability only activates if the damage came from rolling a 1d3 or a 1d6."
         }
     },
 }
@@ -1541,6 +1637,11 @@ TriggeredAbility.RegisterTrigger{
             name = "hasrolleddamage",
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
+        {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
         },
         {
             name = "HasCast",

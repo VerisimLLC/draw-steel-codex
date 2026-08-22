@@ -316,7 +316,7 @@ function FSCIChoiceImporter:_processTableLookupChoice(tableName, choiceType, ite
         local shouldAdd = false
 
         -- Check 1: Is this item explicitly allowed via individualSkills?
-        local inIndividualList = individualSkills and self:_itemInFlagList(itemId, individualSkills)
+        local inIndividualList = individualSkills and next(individualSkills) ~= nil and self:_itemInFlagList(itemId, individualSkills)
         if inIndividualList then
             shouldAdd = true
             debugReason = "individual"

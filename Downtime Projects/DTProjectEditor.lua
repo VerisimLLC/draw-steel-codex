@@ -906,10 +906,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Title:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-160",
+                hmargin = 4,
                 data = {
                     ownerName = ownerName,
                     ownerColor = ownerColor,
@@ -941,18 +945,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Progress field
     local progressField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Progress:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -988,10 +996,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Project Source:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-60",
+                hmargin = 4,
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1016,18 +1028,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Characteristic field (read-only, displays comma-separated list)
     local characteristicField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Project Roll Characteristic:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1058,18 +1074,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Language field
     local languageField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Language Penalty:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1097,18 +1117,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Status field
     local statusField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Status:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1155,17 +1179,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 height = "auto",
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {titleField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {statusField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {progressField}
                     }
@@ -1177,17 +1201,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {sourceField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {languageField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {characteristicField}
                     }
@@ -1444,8 +1468,8 @@ function DTProjectEditor:_createRollButton(options)
                 return 0
             end,
             followerRolls = function(element)
-                local downtimeInfo = element.data.getDowntimeInfo(element)
-                if downtimeInfo then return downtimeInfo:AggregateFollowerRolls() end
+                local downtimeFollowers = element.data.getDowntimeFollowers(element)
+                if downtimeFollowers then return downtimeFollowers:AggregateAvailableRolls() end
                 return 0
             end,
         },
@@ -1551,10 +1575,13 @@ function DTProjectEditor:_createRollButton(options)
                 -- Check if any followers have rolls (keyed table, so use next())
                 local hasFollowersWithRolls = next(followersWithRolls) ~= nil
 
-                -- If no followers with rolls, go straight to roll dialog with character
+                -- If no followers with rolls, go straight to roll dialog with character.
+                -- Only when the hero actually has rolls -- otherwise this rolled for free.
                 if not hasFollowersWithRolls then
-                    local roller = DTRoller.CreateNew(token.properties)
-                    showRollDialog(roller)
+                    if element.data.characterRolls(element) > 0 then
+                        local roller = DTRoller.CreateNew(token.properties)
+                        showRollDialog(roller)
+                    end
                 else
                     -- Build context menu with character + followers
                     local menuItems = {}

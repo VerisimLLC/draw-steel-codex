@@ -58,6 +58,10 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 200,
 	folder = "Map Editing",
+	--a press anywhere on the panel -- background or title bar -- claims
+	--focus. dmhub.GetSelectedTerrain gates on this panel's content root
+	--holding it, so this is what arms terrain painting.
+	focusOnClick = true,
 	content = function()
 		track("panel_open", {
 			panel = "Terrain Editor",
@@ -99,6 +103,9 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 200,
 	folder = "Map Editing",
+	--as Terrain Editor: dmhub.GetSelectedFloor/GetSelectedWall gate on
+	--this panel's content root holding focus.
+	focusOnClick = true,
 	content = function()
 		track("panel_open", {
 			panel = "Building Editor",
@@ -108,9 +115,68 @@ DockablePanel.Register{
 	end,
 }
 
-local m_buildingHud = nil
-local m_terrainHud = nil
-local m_effectsHud = nil
+--Live editor hud instances, one list per editor. Panel content can be
+--built more than once and hosted in more than one place (the dock, the
+--icon-rail panel windows, the document system's PanelDocument bridge),
+--and instances get destroyed out from under us when their host closes or
+--rebuilds. A single "last created" pointer therefore goes stale -- it can
+--end up referencing a destroyed panel while a perfectly live instance is
+--on screen, which permanently disarms the editor's map mode. Instead we
+--track every instance and resolve the live one at call time.
+local m_buildingHuds = {}
+local m_terrainHuds = {}
+local m_effectsHuds = {}
+
+--Record a newly built hud instance, sweeping out dead entries.
+local function RegisterHud(list, hud)
+    for i = #list, 1, -1 do
+        local entry = list[i]
+        if entry == nil or not entry.valid then
+            table.remove(list, i)
+        end
+    end
+    list[#list+1] = hud
+end
+
+--Resolve which of an editor's hud instances is armed -- live, mounted,
+--and holding GUI focus. Destroyed instances are swept from the list as a
+--side effect, so a stale entry can never shadow a live one. The
+--"dockablePanel" ancestor, when there is one, only carries the legacy
+--highlight class; instances hosted outside a dock (icon-rail panel
+--windows, PanelDocument) arm just the same.
+local function ArmedHud(list)
+    local armed = nil
+    for i = #list, 1, -1 do
+        local hud = list[i]
+        if hud == nil or not hud.valid then
+            table.remove(list, i)
+        else
+            local focused = hud.parent ~= nil and gui.ChildHasFocus(hud)
+            local dockPanel = hud:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", focused)
+            end
+            if focused then
+                armed = hud
+            end
+        end
+    end
+    return armed
+end
+
+--The newest live instance, focused or not -- for calls that are not
+--focus-gated (programmatic selection, the solid-mode flag).
+local function LiveHud(list)
+    for i = #list, 1, -1 do
+        local hud = list[i]
+        if hud == nil or not hud.valid then
+            table.remove(list, i)
+        else
+            return hud
+        end
+    end
+    return nil
+end
 
 local CreateTilesheetContextMenuItems = function(element)
 
@@ -920,9 +986,9 @@ CreateTerrainEditor = function(options)
 
     dmhub.Debug("QQQ: LAYER: " .. options.layer)
     if options.layer == "terrain" then
-        m_terrainHud = contentPanel
+        RegisterHud(m_terrainHuds, contentPanel)
     elseif options.layer == "effects" then
-        m_effectsHud = contentPanel
+        RegisterHud(m_effectsHuds, contentPanel)
         dmhub.Debug("QQQ: SET EFFECTS HUD")
     end
 
@@ -1010,7 +1076,16 @@ CreateBuildingEditor = function()
         events = {
             monitor = function(element)
                 if floorsOn then
-                    if selectedFloorPanel ~= nil then
+                    --Re-press only while the building editor itself holds
+                    --focus. Setting monitors are POLLED, so this fires a
+                    --frame after ANY buildingtool write -- including the
+                    --Map Markup panel arming itself (it seeds buildingtool
+                    --for its thin-wall tools) -- and the press's
+                    --gui.SetFocus stole the mode from the panel the user
+                    --actually opened. Focused-only, the re-press keeps
+                    --doing its job: re-arming floor drawing when the user
+                    --switches the shape/brush tool inside this editor.
+                    if selectedFloorPanel ~= nil and gui.ChildHasFocus(contentPanel) then
                         selectedFloorPanel:FireEvent('press')
                     end
                 end
@@ -1229,7 +1304,10 @@ CreateBuildingEditor = function()
         events = {
             monitor = function(element)
                 if wallsOn and not floorsOn then
-                    if selectedWallPanel ~= nil then
+                    --focused-only, same as the floor palette's monitor:
+                    --a POLLED monitor re-press must never steal focus
+                    --from whichever panel the user actually armed.
+                    if selectedWallPanel ~= nil and gui.ChildHasFocus(contentPanel) then
                         selectedWallPanel:FireEvent('press')
                     end
                 end
@@ -1246,7 +1324,24 @@ CreateBuildingEditor = function()
                 local children = {}
                 local newWallItems = {}
                 local firstTimeItems = {} --items being added for the very first time.
+
+                --wall types the Map Markup panel created private to another
+                --map (WallAsset.markupMapId; engine-gated, hence the pcall)
+                --stay out of the palette; on their own map they show as
+                --normal. Mirrors the markup panel's own library picker.
+                local visibleWalls = {}
                 for key,wall in pairs(walls) do
+                    local scopedElsewhere = false
+                    pcall(function()
+                        local mapid = wall.markupMapId
+                        scopedElsewhere = type(mapid) == "string" and mapid ~= "" and mapid ~= game.currentMapId
+                    end)
+                    if not scopedElsewhere then
+                        visibleWalls[key] = wall
+                    end
+                end
+
+                for key,wall in pairs(visibleWalls) do
 
                     newWallItems[key] = wallItems[key] or gui.Panel{
                         bgimage = 'panels/square.png',
@@ -1790,77 +1885,65 @@ CreateBuildingEditor = function()
         },
     })
 
-    m_buildingHud = contentPanel
+    RegisterHud(m_buildingHuds, contentPanel)
     return contentPanel
 end
 
+--The engine polls these getters every frame to decide whether an editor's
+--map mode is armed. Each resolves the armed instance from its editor's
+--instance list (see ArmedHud near the top of the file); the Select*
+--setters and the solid flag are not focus-gated, so they fall back to the
+--newest live instance when none has focus.
+
 dmhub.GetSelectedTerrain = function()
-    if m_terrainHud == nil or m_terrainHud:FindParentWithClass("dockablePanel") == nil then
-        return
+    local hud = ArmedHud(m_terrainHuds)
+    if hud == nil then
+        return nil
     end
-    
-	if gui.ChildHasFocus(m_terrainHud) then
-        m_terrainHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_terrainHud.data.GetSelectedTerrain()
-	end
-
-    m_terrainHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+    return hud.data.GetSelectedTerrain()
 end
 
 dmhub.SelectTerrain = function(terrainid)
-    if m_terrainHud == nil then
+    local hud = ArmedHud(m_terrainHuds) or LiveHud(m_terrainHuds)
+    if hud == nil then
         return
     end
 
-    m_terrainHud.data.selectTerrain(terrainid)
+    hud.data.selectTerrain(terrainid)
 end
 
 dmhub.GetSelectedEffect = function()
-    if m_effectsHud == nil or m_effectsHud:FindParentWithClass("dockablePanel") == nil then
-        return
+    local hud = ArmedHud(m_effectsHuds)
+    if hud == nil then
+        return nil
     end
-
-	if gui.ChildHasFocus(m_effectsHud) then
-        m_effectsHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_effectsHud.data.GetSelectedTerrain()
-	end
-
-    m_effectsHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+    return hud.data.GetSelectedTerrain()
 end
 
 dmhub.SelectEffect = function(effectid)
-    if m_effectsHud == nil then
+    local hud = ArmedHud(m_effectsHuds) or LiveHud(m_effectsHuds)
+    if hud == nil then
         return
     end
 
-    m_effectsHud.data.selectTerrain(effectid)
+    hud.data.selectTerrain(effectid)
 end
 
 dmhub.GetSelectedFloor = function()
-    if m_buildingHud == nil or m_buildingHud:FindParentWithClass("dockablePanel") == nil then
-        return
+    local hud = ArmedHud(m_buildingHuds)
+    if hud == nil then
+        return nil
     end
-
-	if gui.ChildHasFocus(m_buildingHud) then
-        m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_buildingHud.data.GetSelectedFloor()
-	end
-
-    m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-
-	return nil
+    return hud.data.GetSelectedFloor()
 end
 
 dmhub.SelectFloor = function(floorid)
-    if m_buildingHud == nil then
+    local hud = ArmedHud(m_buildingHuds) or LiveHud(m_buildingHuds)
+    if hud == nil then
         return
     end
 
-    m_buildingHud.data.selectFloor(floorid)
+    hud.data.selectFloor(floorid)
 end
 
 dmhub.GetWallHeight = function()
@@ -1872,31 +1955,27 @@ dmhub.GetWallHeight = function()
 end
 
 dmhub.GetBuildingSolid = function()
-    if m_buildingHud == nil or m_buildingHud.data.GetBuildingSolid == nil then
+    local hud = ArmedHud(m_buildingHuds) or LiveHud(m_buildingHuds)
+    if hud == nil or hud.data == nil or hud.data.GetBuildingSolid == nil then
         return false
     end
 
-    return m_buildingHud.data.GetBuildingSolid()
+    return hud.data.GetBuildingSolid()
 end
 
 dmhub.GetSelectedWall = function()
-    if m_buildingHud == nil or m_buildingHud:FindParentWithClass("dockablePanel") == nil then
-        return
+    local hud = ArmedHud(m_buildingHuds)
+    if hud == nil then
+        return nil
     end
-
-	if gui.ChildHasFocus(m_buildingHud) then
-        m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return m_buildingHud.data.GetSelectedWall()
-	end
-
-    m_buildingHud:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-	return nil
+    return hud.data.GetSelectedWall()
 end
 
 dmhub.SelectWall = function(wallid)
-    if m_buildingHud == nil then
+    local hud = ArmedHud(m_buildingHuds) or LiveHud(m_buildingHuds)
+    if hud == nil then
         return
     end
 
-    m_buildingHud.data.selectWall(wallid)
+    hud.data.selectWall(wallid)
 end

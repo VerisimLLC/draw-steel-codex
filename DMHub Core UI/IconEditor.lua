@@ -617,6 +617,15 @@ function gui.IconEditor(args)
 				search = "",
 				library = "coverart",
 			},
+			--map-dressing art: zone appearance fill/edge textures and per-tile
+			--sprites (the Environmental Keyword Edit Appearance dialog uploads
+			--and browses here).
+			{
+				text = "Zone Art",
+				id = "zoneart",
+				search = "",
+				library = "zoneart",
+			},
 		}
 
 		options[#options+1] = {

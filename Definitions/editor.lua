@@ -19,13 +19,6 @@ function editor:ShowModSettingsDialog()
 end
 
 --- SetMapTool: Sets a custom map tool to be used temporarily. Returns an event source that fires a 'tool' event with the MapPath created by the tool, or nil if the HUD is unavailable.
---- Fields of toolInfo: tool (string: "rectangle", "shape", "free", ...), closed (boolean, default true),
---- expires (number of seconds, default 1 -- re-register from a think loop to keep the tool alive),
---- stabilization (integer, free draw only), wallSkeletons (boolean: keep the wall skeleton overlay and
---- invisible map tiles visible while the tool is active), snapToGrid (boolean: snap like the building
---- tools -- editor:snaptogrid + ctrl-to-invert -- instead of the object snap setting), editorCursor
---- (boolean: show the editor cursor dot at the snapped point where a stroke would start, like the
---- building tools do).
 --- @param toolInfo table Configuration table for the custom map tool.
 --- @return nil|EventSourceLua
 function editor:SetMapTool(toolInfo)

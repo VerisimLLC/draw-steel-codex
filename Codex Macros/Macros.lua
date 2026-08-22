@@ -129,6 +129,36 @@ end
 
 print("SPLIT::", Commands.SplitArgs("(numheroes + 4) * 3"))
 
+Commands.RegisterMacro{
+    name = "popoutgpu",
+    summary = "toggle GPU rendering for popout windows",
+    doc = "Usage: /popoutgpu [on|off]\nToggles GPU rendering for popout windows, or explicitly enables/disables it.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {
+            {text = "on", summary = "use DXGI shared textures"},
+            {text = "off", summary = "use CPU shared memory"},
+        }
+    end,
+    command = function(str)
+        local value = string.lower(trim(str or ""))
+        local enabled
+        if value == "" then
+            enabled = not dmhub.GetSettingValue("popoutgpu")
+        elseif value == "on" or value == "true" or value == "1" then
+            enabled = true
+        elseif value == "off" or value == "false" or value == "0" then
+            enabled = false
+        else
+            dmhub.Log("Usage: /popoutgpu [on|off]")
+            return
+        end
+
+        dmhub.SetSettingValue("popoutgpu", enabled)
+        dmhub.Log(string.format("Popout GPU rendering: %s", cond(enabled, "enabled", "disabled (CPU mode)")))
+    end,
+}
+
 local function ongoingEffectCompletions(args, argIndex)
     if argIndex ~= 1 then return {} end
     local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")
@@ -210,6 +240,23 @@ Commands.RegisterMacro{
     name = "dramaticbanner",
     summary = "show a dramatic banner",
     doc = "Usage: /dramaticbanner <title> [ | <subtitle>]\nShows a dramatic banner centred on the currently selected token. Put a vertical bar after the title to add an optional subtitle.",
+
+    --Two text params rather than one: the macro takes a single free-form
+    --line split on '|', and the Subtitle's joiner is what puts that bar back
+    --in when it is baked. A blank subtitle is dropped along with its bar, so
+    --the title-only form is byte-identical to typing it by hand.
+    --
+    --No broadcast option: DramaticBanner.Show writes a shared document, so
+    --the banner already plays on every client.
+    commandInfo = {
+        name = "Dramatic Banner",
+        description = "Sweep a title across every screen, centred on your selected token.",
+        params = {
+            {name = "Title", type = "text", required = true, placeholder = "The gate falls"},
+            {name = "Subtitle", type = "text", joiner = "|", placeholder = "optional"},
+        },
+    },
+
     command = function(str)
         local tokens = dmhub.selectedTokens
         if tokens == nil or #tokens == 0 then
@@ -832,6 +879,28 @@ Commands.RegisterMacro{
     name = "screenshake",
     summary = "shake the screen",
     doc = "Usage: /screenshake <duration> <strength> <vibrato> <randomness>\nShakes the screen locally. Use /broadcast to send to other players.",
+
+    --surface in the no-code command builder. Defaults mirror the engine's
+    --(dmhub.ScreenShake casts missing args to 0.3 / 0.5 / 10 / 90).
+    --
+    --broadcast "always": dmhub.ScreenShake is client-local, and a journal
+    --command button runs on the presser's machine alone -- an un-broadcast
+    --shake in a command would only ever be seen by one person, which is
+    --never what the button is for. Recorded steps are wrapped in /broadcast
+    --so the whole table feels it. Change this to "on" if a per-button opt-out
+    --is ever wanted.
+    commandInfo = {
+        name = "Screen Shake",
+        description = "Shake the screen for a dramatic moment.",
+        broadcast = "always",
+        params = {
+            {name = "Duration", min = 0.1, max = 3, default = 0.3, round = 0.05, labelFormat = "%.2f"},
+            {name = "Strength", min = 0.1, max = 3, default = 0.5, round = 0.05, labelFormat = "%.2f"},
+            {name = "Vibrato", min = 1, max = 30, default = 10, round = 1, labelFormat = "%.0f"},
+            {name = "Randomness", min = 0, max = 180, default = 90, round = 5, labelFormat = "%.0f"},
+        },
+    },
+
     command = function(str)
         local args = Commands.SplitArgs(str)
         dmhub.ScreenShake(tonumber(args[1]), tonumber(args[2]), tonumber(args[3]), tonumber(args[4]))
@@ -1111,7 +1180,10 @@ local function audioCompletions(args, argIndex)
     if argIndex ~= 1 then return {} end
     local result = {}
     for k, v in pairs(assets.audioTable) do
-        result[#result+1] = {text = k, summary = v.name or k}
+        --AudioAssetLua has `description`, not `name`; the old `v.name or k`
+        --always fell through to the guid, so the completion list showed
+        --nothing but guids.
+        result[#result+1] = {text = k, summary = v.description or k}
     end
     table.sort(result, function(a, b) return a.summary < b.summary end)
     return result
@@ -1436,6 +1508,25 @@ Commands.RegisterMacro{
     summary = "play audio",
     doc = "Usage: /audio <audio ID> <volume>\nPlays an audio asset at the given volume (default 50).",
     completions = audioCompletions,
+
+    --Sound uses the app's own audio picker (gui.AudioEditor) rather than a
+    --dropdown: it names the sound instead of showing its guid, previews it,
+    --and lets the user upload a new sound from the popup without leaving the
+    --builder. No broadcast option: PlaySoundEvent writes the sound event
+    --into gameDetails, so every client hears it already.
+    --
+    --Volume is a multiplier on the asset's own volume (AudioController
+    --UpdateSoundEvents: asset.volume * event.volume), so the meaningful
+    --range is 0..1 -- the typed command's legacy default of 50 is simply
+    --"clamped to full".
+    commandInfo = {
+        name = "Play Sound",
+        description = "Play an audio asset for the whole table.",
+        params = {
+            {name = "Sound", type = "audio", required = true},
+            {name = "Volume", min = 0, max = 1, default = 1, round = 0.05, labelFormat = "%.2f"},
+        },
+    },
     command = function(str)
         local args = Commands.SplitArgs(str)
         local audioID = args[1]
@@ -2949,25 +3040,43 @@ if devmode() then
 
     Commands.RegisterMacro{
         name = "localassets",
-        summary = "use a local directory for this game's assets",
-        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Dev only.",
+        summary = "use local directories for this game's assets",
+        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Multiple layered directories can be configured in Settings > Editing > Local Assets; this macro sets a single directory (replacing any configured list). Dev only.",
         command = function(str)
             str = str:match("^%s*(.-)%s*$")
             if str == "" then
                 local status = dmhub.LocalAssetsStatus()
-                local pref = dmhub.GetSettingValue("localassets:dir")
+                local pref = dmhub.GetSettingValue("localassets:dirs")
+                if pref == nil or pref == "" then
+                    pref = dmhub.GetSettingValue("localassets:dir")
+                end
                 if status.active then
-                    print(string.format("localassets: ACTIVE, using %s", status.directory))
+                    if status.directories ~= nil and #status.directories > 1 then
+                        print(string.format("localassets: ACTIVE, %d directories (top first):", #status.directories))
+                        for i,dir in ipairs(status.directories) do
+                            print(string.format("  %d. %s", i, dir))
+                        end
+                        if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+                            print(string.format("  %d item(s) present in multiple directories; the higher directory wins.", status.shadowedCount))
+                        end
+                    else
+                        print(string.format("localassets: ACTIVE, using %s", status.directory))
+                    end
+                    if status.reloadRequired then
+                        print("localassets: the configured directory list has changed; reload the game to apply.")
+                    end
                 elseif pref ~= nil and pref ~= "" then
-                    print(string.format("localassets: set to %s (takes effect on next game load)", pref))
+                    print(string.format("localassets: set to %s (takes effect on next game load)", (pref:gsub("\n", " ; "))))
                 else
                     print("localassets: not set for this game. Usage: /localassets <path> | off")
                 end
             elseif str == "off" then
+                dmhub.SetSettingValue("localassets:dirs", "")
                 dmhub.SetSettingValue("localassets:dir", "")
                 print("localassets: disabled. Reload the game to return to cloud assets.")
             else
-                dmhub.SetSettingValue("localassets:dir", str)
+                dmhub.SetSettingValue("localassets:dirs", str)
+                dmhub.SetSettingValue("localassets:dir", "")
                 print(string.format("localassets: set to %s. Reload the game to activate.", str))
             end
         end,

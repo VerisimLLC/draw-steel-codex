@@ -254,8 +254,16 @@ local function _panelStyles()
             borderColor = "@fgStrong",
         },
         {
+            -- Hover lifts the row to the elevated surface colour rather than
+            -- filling it with the near-white @accentHover. An expanded option's
+            -- body is a custom panel supplied by the game module (see
+            -- DSComplications), so its labels -- and the collapse arrow and the
+            -- "+" select icon -- keep the light @fgStrong colour and are
+            -- unreachable from here. A light fill made all of them vanish; a
+            -- dark fill keeps every child legible with no inverse-text rule.
             selectors = {"feature-choice", "hover"},
-            bgcolor = "@accentHover",
+            bgcolor = "@bgAlt",
+            borderColor = "@accentHover",
         },
         {
             selectors = {"feature-choice", "filtered"},
@@ -764,14 +772,11 @@ local function _labelStyles()
             bold = false,
             italics = true,
         },
-        -- {
-        --     selectors = {"feature-choice", "hover"},
-        --     color = "@bg",
-        -- },
-        {
-            selectors = {"feature-choice", "parent:hovering"},
-            color = "@bg",
-        },
+        -- No inverse-text rule on hover: the hovered row keeps a dark fill (see
+        -- {feature-choice, hover} in _panelStyles), so these labels stay light.
+        -- Inverting them here only ever reached the title and the built-in desc
+        -- label anyway -- the rest of an expanded option's content is a custom
+        -- panel from the game module and never carried the feature-choice class.
 
         -- Attribute editor
         {

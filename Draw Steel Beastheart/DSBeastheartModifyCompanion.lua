@@ -53,6 +53,11 @@ CharacterModifier.TypeInfo.modcompanion = {
 function CharacterModifier:FillCompanionModifiers(context, creature, companion, modifiers)
     local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     if typeInfo.modifyCompanion ~= nil then
+        --see FillSummonerModifiers: the beastheart's list can reach us
+        --pre-filter, so re-check our own filter before pushing downward.
+        if not self:PassesFilter(creature, context) then
+            return
+        end
         self:InstallSymbolsFromContext(context)
         typeInfo.modifyCompanion(self, creature, companion, modifiers)
     end
@@ -148,6 +153,12 @@ function CharacterModifier:FillSummonerModifiers(context, creature, summoner, mo
         if self:try_get("mode", "summoner") ~= "summoner" then
             return
         end
+        --creature:GetActiveModifiers' recursion guard can hand us the summon's
+        --PRE-FilterModifiers list, so re-check our own filter here or a gated
+        --push leaks its nested modifiers (which carry no filter) upward.
+        if not self:PassesFilter(creature, context) then
+            return
+        end
         self:InstallSymbolsFromContext(context)
         typeInfo.modifySummoner(self, creature, summoner, modifiers)
     end
@@ -165,6 +176,11 @@ function CharacterModifier:FillSummonsModifiers(context, summoner, summon, modif
     local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     if typeInfo.modifySummons ~= nil then
         if self:try_get("mode", "summoner") ~= "summons" then
+            return
+        end
+        --see FillSummonerModifiers: the summoner's list can reach us
+        --pre-filter, so re-check our own filter before pushing downward.
+        if not self:PassesFilter(summoner, context) then
             return
         end
         self:InstallSymbolsFromContext(context)

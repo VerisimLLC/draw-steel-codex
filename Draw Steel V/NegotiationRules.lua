@@ -1243,6 +1243,11 @@ function NegotiationDocument:EditPanel()
         text = SeedNoteText(),
     }
 
+    --Change handlers write into the document object and notify the hosting
+    --journal shell (CustomDocument.NotifyEdited), which owns the actual
+    --uploads: debounced autosave, write verification with retry, and the
+    --unsaved-changes guard on close (see CreateInterface in DocumentSystem).
+    --They used to call doc:Upload() directly, which bypassed all of that.
     local function textInput(field, placeholder, multiline)
         return gui.Input{
             classes = { "sizeM" },
@@ -1254,7 +1259,7 @@ function NegotiationDocument:EditPanel()
             text = doc:try_get(field, ""),
             change = function(element)
                 doc[field] = element.text
-                doc:Upload()
+                CustomDocument.NotifyEdited(element)
             end,
         }
     end
@@ -1280,7 +1285,7 @@ function NegotiationDocument:EditPanel()
                             placeholderText = "Name", text = trait.name,
                             change = function(element)
                                 trait.name = element.text
-                                doc:Upload()
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
                         gui.Input{
@@ -1290,13 +1295,13 @@ function NegotiationDocument:EditPanel()
                             text = trait.line,
                             change = function(element)
                                 trait.line = element.text
-                                doc:Upload()
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
                         gui.Button{
                             classes = { "sizeS" }, width = 70, height = 24, lmargin = 6,
                             text = "Remove",
-                            click = function()
+                            click = function(element)
                                 local list = doc.traits
                                 for i, x in ipairs(list) do
                                     if x.id == trait.id then
@@ -1304,7 +1309,10 @@ function NegotiationDocument:EditPanel()
                                         break
                                     end
                                 end
-                                doc:Upload()
+                                --notify BEFORE the rebuild: RebuildTraits
+                                --orphans this button, and NotifyEdited walks
+                                --up the tree from it.
+                                CustomDocument.NotifyEdited(element)
                                 RebuildTraits()
                             end,
                         },
@@ -1314,10 +1322,11 @@ function NegotiationDocument:EditPanel()
             children[#children + 1] = gui.Button{
                 classes = { "sizeS" }, width = 160, height = 24, halign = "left", vmargin = 3,
                 text = kind == "motivation" and "+ Add Motivation" or "+ Add Pitfall",
-                click = function()
+                click = function(element)
                     local list = doc:get_or_add("traits", {})
                     list[#list + 1] = { id = dmhub.GenerateGuid(), kind = kind, name = "", line = "" }
-                    doc:Upload()
+                    --notify BEFORE the rebuild (see the Remove button above).
+                    CustomDocument.NotifyEdited(element)
                     RebuildTraits()
                 end,
             }
@@ -1352,7 +1361,7 @@ function NegotiationDocument:EditPanel()
                         offers[idx] = offers[idx] or { terms = "" }
                     end
                     offers[NegotiationRules.OfferIndex(interest)] = { terms = element.text }
-                    doc:Upload()
+                    CustomDocument.NotifyEdited(element)
                 end,
             },
         }
@@ -1394,7 +1403,7 @@ function NegotiationDocument:EditPanel()
             value = not doc:try_get("hiddenFromPlayers", false),
             change = function(element)
                 doc.hiddenFromPlayers = not element.value
-                doc:Upload()
+                CustomDocument.NotifyEdited(element)
                 RefreshVisibilityWarning()
             end,
         },
@@ -1417,7 +1426,7 @@ function NegotiationDocument:EditPanel()
                 value = doc:try_get("portrait", ""),
                 change = function(element)
                     doc.portrait = element.value or ""
-                    doc:Upload()
+                    CustomDocument.NotifyEdited(element)
                 end,
             },
             gui.Panel{
@@ -1428,7 +1437,7 @@ function NegotiationDocument:EditPanel()
                     text = doc.description,
                     change = function(element)
                         doc.description = element.text
-                        doc:Upload()
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
                 textInput("npcName", "NPC name (as the players hear it)"),
@@ -1440,7 +1449,7 @@ function NegotiationDocument:EditPanel()
                     value = doc:try_get("hideName", false),
                     change = function(element)
                         doc.hideName = element.value
-                        doc:Upload()
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
             },
@@ -1459,7 +1468,7 @@ function NegotiationDocument:EditPanel()
             value = doc:try_get("sceneImage", ""),
             change = function(element)
                 doc.sceneImage = element.value or ""
-                doc:Upload()
+                CustomDocument.NotifyEdited(element)
             end,
         },
 
@@ -1483,7 +1492,9 @@ function NegotiationDocument:EditPanel()
                         click = function()
                             element.popup = nil
                             doc:SeedFromArchetype(negotiator)
-                            doc:Upload()
+                            --element is the seed button (a closure upvalue),
+                            --which survives RebuildTraits, so order is free.
+                            CustomDocument.NotifyEdited(element)
                             seedNote.text = SeedNoteText()
                             RebuildTraits()
                         end,
@@ -1501,7 +1512,7 @@ function NegotiationDocument:EditPanel()
             idChosen = doc:try_get("attitude", "suspicious"),
             change = function(element)
                 doc.attitude = element.idChosen
-                doc:Upload()
+                CustomDocument.NotifyEdited(element)
             end,
         },
 

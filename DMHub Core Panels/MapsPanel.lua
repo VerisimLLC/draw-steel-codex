@@ -7,15 +7,19 @@ local CreateMapDialog
 --"Player Viewable". For the DM this is unused (they see every map).
 local GetPlayerAccessibleMaps
 
-LaunchablePanel.Register{
+DockablePanel.Register{
 	name = "Maps",
     menu = "game",
-	icon = "panels/hud/56_map.png",
-	halign = "left",
-	valign = "top",
-	vmargin = 1,
-	hmargin = 4,
-	draggable = false,
+	icon = "phosphor/map-trifold.png",
+	--summoned from the Game menu it opens as a floating window over the
+	--map (like the launchable dialog it used to be), not docked. It can
+	--still be dragged into a dock.
+	preferFloating = true,
+	--the map list scrolls itself (it is a tree with its own scroll
+	--region), so no wrapper scroll here.
+	vscroll = false,
+	minHeight = 200,
+	maxHeight = 900,
 	filtered = function()
 		if dmhub.isDM then
 			return false
@@ -30,6 +34,21 @@ LaunchablePanel.Register{
 	end,
 	hasNewContent = function()
 		return module.HasNovelContent("map")
+	end,
+	newContentCount = function()
+		return gui.NovelContentCount("map")
+	end,
+	--having the panel open counts as seeing the new maps: the rail calls
+	--this while the panel is shown. The rows' markers are only built at
+	--construction (and torn down by travelling there), so they stay
+	--visible for this viewing and are gone the next time the panel opens.
+	markContentSeen = function()
+		gui.ClearNovelContent("map")
+	end,
+	--travelling to a map clears that one map (see CreateMapNode); this is
+	--the "I have seen them all" escape for the rest.
+	clearNewContent = function()
+		gui.ClearNovelContent("map")
 	end,
 }
 
@@ -103,12 +122,326 @@ local DragNode = function(element, target)
 	g_mapDialog:FireEventTree("refreshMaps")
 end
 
+--Per-map settings dialog, mirroring the Floors panel's per-floor settings
+--dialog: the row's gear (and the right-click menu) opens it. Holds the
+--rename field and the loading-screen cover art picker that used to live in
+--the row's click-to-focus edit strip.
+local function ShowMapSettings(map)
+	local dialogPanel = gui.Panel{
+		classes = {"framedPanel"},
+		width = 480,
+		height = "auto",
+		styles = ThemeEngine.GetStyles(),
+
+		gui.Panel{
+			width = "100%-48",
+			height = "auto",
+			halign = "center",
+			valign = "top",
+			flow = "vertical",
+			vmargin = 24,
+
+			gui.Label{
+				classes = {"modalTitle"},
+				text = "Map Settings",
+			},
+
+			gui.Panel{
+				classes = {"formStackedRow"},
+				vmargin = 8,
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Name:",
+				},
+				gui.Input{
+					classes = {"formStacked"},
+					text = map.description,
+					change = function(element)
+						if trim(element.text) == "" then
+							if map.valid then
+								element.text = map.description
+							end
+							return
+						end
+						if map.valid then
+							map:MarkUndo()
+							map.description = element.text
+							map:Upload("Renamed map")
+							if g_mapDialog ~= nil and g_mapDialog.valid then
+								g_mapDialog:FireEventTree("refreshMaps")
+							end
+						end
+					end,
+				},
+			},
+
+			gui.Panel{
+				classes = {"formStackedRow"},
+				vmargin = 8,
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Cover Art:",
+					linger = gui.Tooltip("Shown as the loading screen when entering this map."),
+				},
+				gui.IconEditor{
+					library = "coverart",
+					classes = {"image"},
+					width = "auto",
+					height = "auto",
+					hideIcon = true,
+					allowNone = true,
+					aspect = 1080/1920,
+					noneImage = game.coverart,
+					hideButton = true,
+					maxWidth = 128,
+					maxHeight = 128,
+					autosizeimage = true,
+					halign = "left",
+					value = map.loadingScreenImage,
+					change = function(element)
+						map:MarkUndo()
+						map.loadingScreenImage = element.value
+						map:Upload("Set map loading screen")
+					end,
+
+					gui.Panel{
+						classes = {"coverArtRibbon"},
+						interactable = false,
+						width = 128,
+						height = 20,
+						halign = "center",
+						valign = "center",
+						bgcolor = "black",
+						opacity = 0.8,
+						bgimage = "panels/square.png",
+						styles = {
+							{
+								selectors = {"coverArtRibbon"},
+								hidden = 1,
+							},
+							{
+								selectors = {"coverArtRibbon", "parent:hover"},
+								hidden = 0,
+							}
+						},
+
+						gui.Label{
+							interactable = false,
+							fontSize = 12,
+							width = "auto",
+							height = "auto",
+							color = "white",
+							bold = true,
+							halign = "center",
+							valign = "center",
+							text = "Choose Cover Art",
+						}
+					}
+				},
+			},
+
+			gui.Panel{
+				width = "100%",
+				height = 40,
+				valign = "bottom",
+				vmargin = 12,
+
+				gui.Button{
+					classes = {"sizeM"},
+					halign = "right",
+					text = "Close",
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+					click = function(element)
+						gui.CloseModal()
+					end,
+				},
+			},
+		},
+	}
+
+	gui.ShowModal(dialogPanel)
+end
+
+
+--Local rule set for the maps list's custom selectors, matching the Floors &
+--Layers row grammar: quiet transparent rows that surface on hover, an
+--accent-edged current row (never a fill louder than the identity it marks),
+--faint seam hairlines, and section-header folders. @tokens are resolved by
+--MergeStyles at call time; the dialogs reassign on OnThemeChanged so a
+--scheme switch recolors live.
+local function BuildMapListStyles()
+	return {
+		{
+			selectors = {"mapRow"},
+			flow = "horizontal",
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			width = "100%",
+			height = 34,
+			halign = "left",
+			valign = "top",
+			hpad = 12,
+			borderBox = true,
+		},
+		{
+			selectors = {"mapRow", "hover"},
+			bgcolor = "@bgAlt",
+			transitionTime = 0.1,
+		},
+		{
+			selectors = {"mapRow", "selected"},
+			bgcolor = "@bgAlt",
+			border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+			borderColor = "@accent",
+			priority = 5,
+		},
+		{
+			selectors = {"mapName"},
+			fontSize = 14,
+			color = "@fg",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+		},
+		{
+			selectors = {"mapName", "parent:selected"},
+			color = "@fgStrong",
+			bold = true,
+		},
+		{
+			selectors = {"mapName", "deleting"},
+			color = "@danger",
+		},
+		--Row separator, same recipe as the floors list: @border taken down
+		--to a hint of structure rather than a table grid line.
+		{
+			selectors = {"mapSeamLine"},
+			bgcolor = "@border",
+			opacity = 0.2,
+			width = "100%",
+			height = 1,
+		},
+		--Folder section headers: the GROUND LEVEL grammar. Small bold muted
+		--label after the caret, hairline underline, map count at the right.
+		{
+			selectors = {"mapFolderHeader"},
+			flow = "horizontal",
+			bgimage = "panels/square.png",
+			bgcolor = "clear",
+			width = "100%",
+			height = 30,
+			tmargin = 8,
+			hpad = 12,
+			borderBox = true,
+			halign = "left",
+			valign = "top",
+		},
+		{
+			selectors = {"mapFolderLabel"},
+			fontSize = 13,
+			bold = true,
+			color = "@fg",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+			valign = "center",
+			lmargin = 6,
+		},
+		{
+			selectors = {"mapFolderLabel", "parent:hover"},
+			color = "@fgStrong",
+			transitionTime = 0.1,
+		},
+		{
+			selectors = {"mapFolderCount"},
+			fontSize = 11,
+			color = "@fgMuted",
+			width = "auto",
+			height = "auto",
+			halign = "right",
+			valign = "center",
+		},
+		--The header's underline: brighter than row seams so groups read a
+		--step above the rows they contain.
+		{
+			selectors = {"mapFolderRule"},
+			bgcolor = "@border",
+			opacity = 0.35,
+			width = "100%",
+			height = 1,
+		},
+		{
+			selectors = {"mapTokenOverflow"},
+			fontSize = 11,
+			bold = true,
+			color = "@fgMuted",
+			width = "auto",
+			height = "auto",
+			valign = "center",
+			lmargin = 4,
+		},
+		--(The search field's local thin-frame/quiet-type variant was
+		--promoted to the app-wide canonical searchInput look in
+		--DefaultStyles -- Control Zoo decision 2026-08-20 -- so this
+		--surface no longer re-styles it.)
+		--The create-map button takes the Phosphor plus instead of the shared
+		--ui-icons/Plus.png, matching the caret/gear masks used in this panel
+		--(and the same swap the floors list makes). Scoped here so the
+		--app-wide addButton icon is untouched.
+		{
+			selectors = {"panel", "buttonIcon", "parent:addButton"},
+			bgimage = "phosphor/plus-bold.png",
+			priority = 10,
+		},
+		--A gear on every row at full strength reads as a button column;
+		--recede at rest, brighten when the pointer reaches the gear. The
+		--gear graphic is the button's buttonIcon child, so the rules target
+		--that; "parent:" matches only the direct parent, so scoping comes
+		--from these styles living on the Maps dialog root rather than from
+		--a mapRow selector. priority outranks the theme's generic
+		--buttonIcon color rules.
+		{
+			selectors = {"buttonIcon", "parent:settingsButton"},
+			bgcolor = "@fgMuted",
+			opacity = 0.5,
+			priority = 10,
+		},
+		{
+			selectors = {"buttonIcon", "parent:settingsButton", "parent:hover"},
+			bgcolor = "@fg",
+			opacity = 1,
+			priority = 15,
+			transitionTime = 0.1,
+		},
+	}
+end
+
+local CreateMapSeamLine = function()
+	return gui.Panel{
+		classes = {"mapSeamLine"},
+		interactable = false,
+		bgimage = "panels/square.png",
+		--While a search filter hides arbitrary rows, the seams between them
+		--would survive as stray hairlines; hide them all instead.
+		search = function(element, str)
+			element:SetClass("collapsed", str ~= "")
+		end,
+	}
+end
 
 --Builds the row of party-token portraits shown next to a map. Shared by the
---DM map node and the player map node. onClick fires when a portrait is
---clicked (the node passes a handler that activates the row).
+--DM map node and the player map node. Capped at a single quiet run -- up to
+--five 20px portraits plus a "+N" chip for the rest -- so a busy map never
+--grows its row (the old 32px wrapping cluster reached four rows deep).
+--onClick fires when a portrait is clicked (the node passes a handler that
+--activates the row).
+local g_maxMapPortraits = 5
+
 local CreateMapTokenContainer = function(map, onClick)
 	local tokenPanels = {}
+	local overflowLabel = nil
 
 	return gui.Panel{
 		idprefix = "map-token-container",
@@ -116,9 +449,9 @@ local CreateMapTokenContainer = function(map, onClick)
 		halign = "right",
 		valign = "center",
 		width = "auto",
-		maxWidth = 32*6,
 		height = "auto",
-		wrap = true,
+		--clear the row's floating settings gear.
+		rmargin = 26,
 		refreshMaps = function(element)
 			local newTokenPanels = {}
 			local children = {}
@@ -126,11 +459,15 @@ local CreateMapTokenContainer = function(map, onClick)
 			local tokens = g_mapDialog.data.tokensPerMap[map.id] or {}
 
 			for i,tok in ipairs(tokens) do
+				if i > g_maxMapPortraits then
+					break
+				end
+
 				local charid = tok.charid
 				local tokenPanel = tokenPanels[charid] or gui.CreateTokenImage(tok,{
 					idprefix = "map-token-image",
-					width = 32,
-					height = 32,
+					width = 20,
+					height = 20,
 					halign = "left",
 					interactable = true,
 					click = function(element)
@@ -152,8 +489,8 @@ local CreateMapTokenContainer = function(map, onClick)
 					gui.Panel{
 						idprefix = "map-token-player",
 						classes = {cond(not tok.playerControlledAndPrimary, "hidden")},
-						width = 12,
-						height = 12,
+						width = 9,
+						height = 9,
 						halign = "right",
 						valign = "bottom",
 						floating = true,
@@ -164,6 +501,16 @@ local CreateMapTokenContainer = function(map, onClick)
 
 				newTokenPanels[charid] = tokenPanel
 				children[#children+1] = tokenPanel
+			end
+
+			if #tokens > g_maxMapPortraits then
+				overflowLabel = overflowLabel or gui.Label{
+					idprefix = "map-token-overflow",
+					classes = {"mapTokenOverflow"},
+					hover = gui.Tooltip("Click the map to see everyone on it."),
+				}
+				overflowLabel.text = string.format("+%d", #tokens - g_maxMapPortraits)
+				children[#children+1] = overflowLabel
 			end
 
 			tokenPanels = newTokenPanels
@@ -186,21 +533,13 @@ local CreateMapNode = function(map)
 
 	local nameLabel = gui.Label{
 		idprefix = "map-label",
-		classes = {"map"},
+		classes = {"mapName"},
 		text = map.description,
 		characterLimit = 32,
-        minWidth = 240,
 
-		styles = ThemeEngine.MergeTokens({
-			{ selectors = {"deleting"}, color = "@danger" },
-			-- The selected/current-map row draws the parchment @bgInverse
-			-- background, but the default label color is @fg (also parchment) --
-			-- same value, so the name becomes unreadable. Pair the selected
-			-- state with @fgInverse (the dark ink meant for inverse fills).
-			{ selectors = {"selected"}, color = "@fgInverse" },
-		}),
-
-		editable = false,
+		--Rename in place with a double-click, like the floor rows. The
+		--settings dialog's Name field is the discoverable path.
+		editableOnDoubleClick = true,
 		change = function(element)
 			if element.text == "" then
 				if map.valid then
@@ -218,7 +557,6 @@ local CreateMapNode = function(map)
 		refreshMaps = function(element)
 			if map.valid then
 				element.text = map.description
-				element:SetClass("selected", map.id == game.currentMapId)
 			end
 		end,
 
@@ -229,105 +567,15 @@ local CreateMapNode = function(map)
 		resultPanel:FireEvent("click")
 	end)
 
-	local editArea = gui.Panel{
-		classes = {"collapsed-anim"},
-		flow = "horizontal",
-		width = "100%",
-		height = "auto",
-		vmargin = 4,
-
-		gui.IconEditor{
-			library = "coverart",
-			classes = {"image"},
-			width = "auto",
-			height = "auto",
-			hideIcon = true,
-			allowNone = true,
-			aspect = 1080/1920,
-			noneImage = game.coverart,
-			hideButton = true,
-			maxWidth = 128,
-			maxHeight = 128,
-			autosizeimage = true,
-			halign = "left",
-			value = map.loadingScreenImage,
-			change = function(element)
-				map:MarkUndo()
-				map.loadingScreenImage = element.value
-				map:Upload("Set map loading screen")
-			end,
-
-            gui.Panel{
-                classes = {"coverArtRibbon"},
-                interactable = false,
-                width = 128,
-                height = 20,
-                halign = "center",
-                valign = "center",
-                bgcolor = "black",
-                opacity = 0.8,
-                bgimage = "panels/square.png",
-                styles = {
-                    {
-                        selectors = {"coverArtRibbon"},
-                        hidden = 1,
-                    },
-                    {
-                        selectors = {"coverArtRibbon", "parent:hover"},
-                        hidden = 0,
-                    }
-                },
-
-                gui.Label{
-                    interactable = false,
-                    fontSize = 12,
-                    width = "auto",
-                    height = "auto",
-                    color = "white",
-                    bold = true,
-                    halign = "center",
-                    valign = "center",
-                    text = "Choose Cover Art",
-                }
-            }
-		},
-
-		gui.Button{
-			width = 100,
-			height = 36,
-			text = "Enter Map",
-			fontSize = 16,
-			halign = "right",
-			click = function(element)
-				if newMapMarker ~= nil then
-					newMapMarker:DestroySelf()
-					module.RemoveNovelContent("map", map.id)
-				end
-
-				map:Travel()
-			end,
-		},
-
-
-	}
-
 	resultPanel = gui.Panel{
 		idprefix = "map-panel",
-		classes = {"row", "map", "hoverable"},
-		flow = "vertical",
+		classes = {"mapRow"},
 		draggable = true,
-        vmargin = 0,
-        tmargin = 0,
-        bmargin = 0,
 
 		refreshMaps = function(element)
 			element:SetClass("selected", map.valid and map.id == game.currentMapId)
 		end,
 
-		setZebra = function(element, even)
-			element:SetClass("evenRow", even)
-			element:SetClass("oddRow", not even)
-		end,
 		canDragOnto = function(element, target)
             return target ~= nil and target:HasClass("mapDragTarget")
 		end,
@@ -349,6 +597,13 @@ local CreateMapNode = function(map)
 		rightClick = function(element)
 			local entries = {}
 
+			entries[#entries+1] = {
+				text = "Map Settings...",
+				click = function()
+					element.popup = nil
+					ShowMapSettings(map)
+				end,
+			}
 
             if module.IsMapAvailableInModule(map.id) then
                 entries[#entries+1] = {
@@ -369,6 +624,7 @@ local CreateMapNode = function(map)
 
 						if map.id ~= game.currentMapId then
 							gui.ModalMessage{
+								owner = element,
 								title = "Enter Map",
 								message = "You must enter the map before duplicating it.",
 							}
@@ -396,6 +652,7 @@ local CreateMapNode = function(map)
 
 					if map.id == game.currentMapId then
 						gui.ModalMessage{
+							owner = element,
 							title = "Cannot Delete Current Map",
 							message = "You cannot delete the map you are currently in. Switch to a different map first.",
 						}
@@ -413,50 +670,50 @@ local CreateMapNode = function(map)
 			}
 		end,
 
+		--Click = enter the map, matching the floor rows' one-click grammar.
+		--The old click-to-focus edit strip is gone; its rename and cover
+		--art live in the settings dialog (gear or right-click).
 		click = function(element)
 			if element.popup ~= nil then
 				element.popup = nil
 				return
 			end
 
-			if g_mapDialog.data.focusMap ~= resultPanel then
-				if g_mapDialog.data.focusMap ~= nil then
-					g_mapDialog.data.focusMap:FireEvent("defocusMap")
-				end
-
-				element:FireEvent("focusMap")
-				g_mapDialog.data.focusMap = resultPanel
+			if (not map.valid) or map.id == game.currentMapId then
+				return
 			end
-		end,
 
-		focusMap = function(element)
-			nameLabel.editable = true
-			editArea:SetClass("collapsed-anim", false)
-		end,
+			if newMapMarker ~= nil then
+				newMapMarker:DestroySelf()
+				newMapMarker = nil
+				module.RemoveNovelContent("map", map.id)
+			end
 
-		defocusMap = function(element)
-			nameLabel.editable = false
-			editArea:SetClass("collapsed-anim", true)
+			map:Travel()
 		end,
-
 
 		data = {
 			data = map
 		},
 
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
+		nameLabel,
+
+		tokenContainer,
+
+		--Settings floats at the row's right edge, out of the reading path:
+		--the same corner-gear pattern as the floor rows.
+		gui.Button{
+			classes = {"settingsButton"},
+			floating = true,
+			halign = "right",
 			valign = "center",
-
-			nameLabel,
-
-			tokenContainer,
-
+			width = 16,
+			height = 16,
+			hmargin = 6,
+			click = function(element)
+				ShowMapSettings(map)
+			end,
 		},
-
-		editArea,
 	}
 
 	return resultPanel
@@ -549,8 +806,20 @@ CreateFolderChildPanel = function(folder)
 			local childrenWithDrag = {
 			}
 
+			--Interleave drag targets, plus a faint seam hairline between
+			--adjacent map rows (not around folder headers -- those carry
+			--their own underline).
+			local prevWasMap = false
 			for i,child in ipairs(children) do
-				child:FireEvent("setZebra", i % 2 == 1)
+				local isFolder = child.data.isfolder == true
+				if prevWasMap and not isFolder then
+					local seamKey = string.format("seam-%d", i)
+					local seam = childNodes[seamKey] or CreateMapSeamLine()
+					newChildNodes[seamKey] = seam
+					childrenWithDrag[#childrenWithDrag+1] = seam
+				end
+				prevWasMap = not isFolder
+
 				local key = string.format("drag-%d", i)
 				local dragPanel = childNodes[key] or CreateDragTargetPanel(folder)
 				dragPanel.data.data = child.data.data
@@ -586,8 +855,12 @@ CreateFolderPanel = function(folder)
 	end
 
 
+	--A Phosphor mask rather than the default panels/triangle.png, for the
+	--same reason as the floors list: the 64x64 bitmap reads fuzzy when
+	--downscaled to header size.
 	local triangle = gui.ExpandoArrow{
 		idprefix = "map-triangle",
+		bgimage = "phosphor/caret-down-fill.png",
 		classes = cond(folderClosed, nil, {"expanded"}),
 
 		click = function(element)
@@ -604,12 +877,7 @@ CreateFolderPanel = function(folder)
 
 	local headerPanel = gui.Panel{
 		idprefix = "map-header",
-		classes = {"row", "mapDragTarget"},
-		flow = "horizontal",
-		width = "100%",
-		height = 24,
-		halign = "left",
-		valign = "top",
+		classes = {"mapFolderHeader", "mapDragTarget"},
 		dragTarget = true,
 
 		data = {
@@ -624,9 +892,9 @@ CreateFolderPanel = function(folder)
 		triangle,
 		gui.Label{
 			idprefix = "folder-label",
+			classes = {"mapFolderLabel"},
 			text = cond(trim(folder.description) == "", "(Unnamed)", folder.description),
 			characterLimit = 32,
-            minWidth = 240,
 
 			editable = true,
 
@@ -675,6 +943,31 @@ CreateFolderPanel = function(folder)
 				end
 			end,
 		},
+
+		--Glanceable size of the group: how many maps sit directly inside.
+		gui.Label{
+			idprefix = "folder-count",
+			classes = {"mapFolderCount"},
+			text = tostring(#folder.childMaps),
+			refreshMaps = function(element)
+				if folder.valid then
+					element.text = tostring(#folder.childMaps)
+				end
+			end,
+		},
+	}
+
+	--The header's underline, running the full row width. A separate in-flow
+	--hairline rather than a rule inside the header: the label is
+	--variable-width and this layout has no fill-remaining primitive.
+	local headerRule = gui.Panel{
+		idprefix = "map-header-rule",
+		classes = {"mapFolderRule"},
+		interactable = false,
+		bgimage = "panels/square.png",
+		search = function(element, str)
+			element:SetClass("collapsed", str ~= "")
+		end,
 	}
 
 	return gui.Panel{
@@ -688,16 +981,12 @@ CreateFolderPanel = function(folder)
 		end,
 		drag = DragNode,
 
-		setZebra = function(element, even)
-			headerPanel:SetClass("evenRow", even)
-			headerPanel:SetClass("oddRow", not even)
-		end,
-
 		data = {
 			data = folder,
 			isfolder = true,
 		},
 		headerPanel,
+		headerRule,
 		gui.Panel{
 			idprefix = "map-folder-body-main",
 			width = "100%-16",
@@ -739,20 +1028,13 @@ local CreatePlayerMapNode = function(map)
 
 	local nameLabel = gui.Label{
 		idprefix = "player-map-label",
-		classes = {"map"},
+		classes = {"mapName"},
 		text = map.description,
 		characterLimit = 32,
-		minWidth = 240,
 		editable = false,
-		-- Selected row uses the parchment @bgInverse fill; pair the text with
-		-- @fgInverse so the current map's name stays readable (see CreateMapNode).
-		styles = ThemeEngine.MergeTokens({
-			{ selectors = {"selected"}, color = "@fgInverse" },
-		}),
 		refreshMaps = function(element)
 			if map.valid then
 				element.text = map.description
-				element:SetClass("selected", map.id == game.currentMapId)
 			end
 		end,
 	}
@@ -763,16 +1045,10 @@ local CreatePlayerMapNode = function(map)
 
 	resultPanel = gui.Panel{
 		idprefix = "player-map-panel",
-		classes = {"row", "map", "hoverable"},
-		flow = "vertical",
+		classes = {"mapRow"},
 
 		refreshMaps = function(element)
 			element:SetClass("selected", map.valid and map.id == game.currentMapId)
-		end,
-
-		setZebra = function(element, even)
-			element:SetClass("evenRow", even)
-			element:SetClass("oddRow", not even)
 		end,
 
 		search = function(element, text)
@@ -791,15 +1067,8 @@ local CreatePlayerMapNode = function(map)
 			data = map,
 		},
 
-		gui.Panel{
-			flow = "horizontal",
-			width = "100%",
-			height = "auto",
-			valign = "center",
-
-			nameLabel,
-			tokenContainer,
-		},
+		nameLabel,
+		tokenContainer,
 	}
 
 	return resultPanel
@@ -812,7 +1081,8 @@ local CreatePlayerMapDialog = function()
 
 	local listPanel = gui.Panel{
 		idprefix = "player-map-list",
-		width = "96%",
+		--rows run flush to the panel edges (they carry their own 12px inset).
+		width = "100%",
 		halign = "center",
 		valign = "top",
 		height = "auto",
@@ -840,7 +1110,12 @@ local CreatePlayerMapDialog = function()
 			for i,m in ipairs(maps) do
 				local node = mapNodes[m.id] or CreatePlayerMapNode(m)
 				newNodes[m.id] = node
-				node:FireEvent("setZebra", i % 2 == 1)
+				if i > 1 then
+					local seamKey = string.format("seam-%d", i)
+					local seam = mapNodes[seamKey] or CreateMapSeamLine()
+					newNodes[seamKey] = seam
+					children[#children+1] = seam
+				end
 				children[#children+1] = node
 			end
 
@@ -858,8 +1133,10 @@ local CreatePlayerMapDialog = function()
 
 	local treeScrollPanel = gui.Panel{
 		idprefix = "player-map-scroll-panel",
-		width = "96%",
-		height = "85%",
+		width = "100%",
+		--fill whatever height the host gives us, minus the search input row
+		--(24 tall + 8/8 vmargins).
+		height = "100%-48",
 		halign = "center",
 		valign = "top",
 		vscroll = true,
@@ -867,9 +1144,14 @@ local CreatePlayerMapDialog = function()
 	}
 
 	local filterInput = gui.SearchInput{
-		width = "80%",
+		width = "100%-24",
 		height = 24,
-		halign = "left",
+		--gui.SearchInput ships hpad = 24 (room for the magnifier) without
+		--borderBox, so the padding ADDS to the declared width and the field
+		--overflows the panel's right edge by that much. borderBox keeps the
+		--declared width inclusive of it.
+		borderBox = true,
+		halign = "center",
 		valign = "top",
 		vmargin = 8,
 		placeholderText = "Search Maps...",
@@ -878,14 +1160,17 @@ local CreatePlayerMapDialog = function()
 		end,
 	}
 
-	return gui.Panel{
+	local resultPanel
+	resultPanel = gui.Panel{
 		id = "map-dialog",
 
 		halign = "left",
 		valign = "top",
-		width = 400,
-		height = 700,
-		hpad = 12,
+		--fill the hosting window/dock slot so the panel stays inside it and
+		--stretches when the window is resized. No horizontal inset: rows own
+		--their edge-to-edge fills, like the floors list.
+		width = "100%",
+		height = "100%",
 		vpad = 12,
 		borderBox = true,
 		flow = "vertical",
@@ -903,12 +1188,6 @@ local CreatePlayerMapDialog = function()
 			if g_mapDialog == element then
 				g_mapDialog = nil
 			end
-		end,
-
-		draggable = true,
-		drag = function(element)
-			element.x = element.xdrag
-			element.y = element.ydrag
 		end,
 
 		monitorGame = {"/mapManifests", "/characters"},
@@ -930,11 +1209,19 @@ local CreatePlayerMapDialog = function()
 			end
 		end,
 
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(BuildMapListStyles()),
 
 		filterInput,
 		treeScrollPanel,
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeStyles(BuildMapListStyles())
+		end
+	end)
+
+	return resultPanel
 end
 
 CreateMapDialog = function()
@@ -944,7 +1231,8 @@ CreateMapDialog = function()
 
 	local treeInnerPanel = gui.Panel{
 		idprefix = "map-tree-inner-panel",
-		width = "96%",
+		--rows run flush to the panel edges (they carry their own 12px inset).
+		width = "100%",
 		height = "auto",
 		halign = "left",
 		valign = "top",
@@ -956,8 +1244,11 @@ CreateMapDialog = function()
 	local treeScrollPanel
 	treeScrollPanel = gui.Panel{
 		idprefix = "map-tree-scroll-panel",
-		width = "96%",
-		height = "85%",
+		width = "100%",
+		--fill the host height minus the search input row (24 + 8/8 vmargins)
+		--and the floating create-folder/create-map buttons at the bottom
+		--(36 + margins).
+		height = "100%-88",
 		halign = "center",
 		valign = "top",
 		vscroll = true,
@@ -965,9 +1256,14 @@ CreateMapDialog = function()
 	}
 
 	local filterInput = gui.SearchInput{
-		width = "80%",
+		width = "100%-24",
 		height = 24,
-		halign = "left",
+		--gui.SearchInput ships hpad = 24 (room for the magnifier) without
+		--borderBox, so the padding ADDS to the declared width and the field
+		--overflows the panel's right edge by that much. borderBox keeps the
+		--declared width inclusive of it.
+		borderBox = true,
+		halign = "center",
 		valign = "top",
 		vmargin = 8,
 		placeholderText = "Search Maps...",
@@ -979,21 +1275,23 @@ CreateMapDialog = function()
 
 
 
-	return gui.Panel{
+	local resultPanel
+	resultPanel = gui.Panel{
 		id = "map-dialog",
 
 		halign = "left",
 		valign = "top",
-		width = 400,
-		height = 700,
-		hpad = 12,
+		--fill the hosting window/dock slot so the panel stays inside it and
+		--stretches when the window is resized. No horizontal inset: rows own
+		--their edge-to-edge fills, like the floors list.
+		width = "100%",
+		height = "100%",
 		vpad = 12,
 		borderBox = true,
 		flow = "vertical",
-		
+
 		data = {
 			tokensPerMap = {},
-			focusMap = nil,
 		},
 
 		create = function(element)
@@ -1005,12 +1303,6 @@ CreateMapDialog = function()
 			if g_mapDialog == element then
 				g_mapDialog = nil
 			end
-		end,
-
-		draggable = true,
-		drag = function(element)
-			element.x = element.xdrag
-			element.y = element.ydrag
 		end,
 
 		monitorGame = {"/mapManifests", "/mapFolders"},
@@ -1038,7 +1330,7 @@ CreateMapDialog = function()
 			
 		end,
 
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(BuildMapListStyles()),
 
 		filterInput,
 		treeScrollPanel,
@@ -1054,11 +1346,11 @@ CreateMapDialog = function()
 			height = "auto",
 			gui.Button{
 				id = "map-dialog-button-open-folder",
-				width = 36,
-				height = 36,
+				width = 26,
+				height = 26,
 				valign = "center",
 				hmargin = 4,
-				icon = "game-icons/open-folder.png",
+				icon = "phosphor/folder-plus-duotone.png",
 				click = function(element)
 					game.CreateMapFolder()
 				end,
@@ -1066,11 +1358,11 @@ CreateMapDialog = function()
 			},
 			gui.Button{
 				id = "map-dialog-button-create-map",
-				width = 36,
-				height = 36,
+				classes = {"addButton"},
+				width = 26,
+				height = 26,
 				valign = "center",
 				hmargin = 2,
-				icon = "game-icons/treasure-map.png",
 				click = function(element)
 					mod.shared.CompleteTutorial("Create a Map")
                     mod.shared.ShowCreateMapDialog()
@@ -1080,4 +1372,12 @@ CreateMapDialog = function()
 			},
 		},
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeStyles(BuildMapListStyles())
+		end
+	end)
+
+	return resultPanel
 end

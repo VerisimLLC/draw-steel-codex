@@ -90,6 +90,81 @@ function gui.ChildHasFocus(panel)
 	return panel ~= nil and panel.valid and panel.enabled and m_focus ~= nil and m_focus.valid and m_focus:IsDescendantOf(panel)
 end
 
+--- If this panel, or anything below it, currently owns an open popup.
+---
+--- Popups are not children - they live in the overlay layer and are reachable
+--- only through their owner's .popup - so this walks the subtree looking for
+--- owners rather than looking at the popup layer.
+--- @param panel nil|Panel
+--- @return boolean
+function gui.SubtreeHasPopup(panel)
+	if panel == nil or panel.valid == false then
+		return false
+	end
+
+	if panel.popup ~= nil then
+		return true
+	end
+
+	for _,child in ipairs(panel.children) do
+		if gui.SubtreeHasPopup(child) then
+			return true
+		end
+	end
+
+	return false
+end
+
+--- Run rebuild(panel) now, unless a popup is open somewhere beneath panel - in
+--- which case park the rebuild and replay it once the popup closes.
+---
+--- Lists that rebuild their children wholesale from a monitor have a hazard:
+--- destroying a panel destroys any popup it owns, and a monitor fires on the
+--- round trip of OUR OWN write as readily as on another client's edit. So a
+--- refresh can land while the user has a context menu or popout open and yank
+--- it out from under the cursor - the popup appears to open and immediately
+--- close again. Guarding the rebuild with this leaves the list momentarily
+--- stale, but stale-and-matching-the-popup beats correct-and-gone.
+---
+--- The parked rebuild re-reads state when it finally runs, so a second park
+--- simply replaces the first: several coalesced updates cost one rebuild.
+---
+--- Panels using this must declare a `data` table and route their 'think' event
+--- to gui.ThinkDeferredRebuild. thinkTime is armed only while a rebuild is
+--- parked, so a panel with nothing parked costs nothing.
+--- @param panel Panel
+--- @param rebuild fun(panel:Panel):nil
+function gui.RebuildDeferringPopups(panel, rebuild)
+	if gui.SubtreeHasPopup(panel) then
+		panel.data.deferredRebuild = rebuild
+		panel.thinkTime = 0.25
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
+--- The 'think' half of gui.RebuildDeferringPopups: replays the parked rebuild
+--- as soon as the popup that blocked it is gone, and disarms the poll.
+--- @param panel Panel
+function gui.ThinkDeferredRebuild(panel)
+	local rebuild = panel.data.deferredRebuild
+	if rebuild == nil then
+		panel.thinkTime = nil
+		return
+	end
+
+	if gui.SubtreeHasPopup(panel) then
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
 --- Get the main dialog panel which dialogs can be parented to.
 --- @return Panel
 function gui.DialogPanel()
@@ -137,22 +212,43 @@ function gui.ShowDialogOverMap(mod, dialog)
 end
 
 
---- Show a modal dialog.
+--- Show a modal dialog. options.owner routes the modal: when the owner
+--- element lives in a native popout window, the modal appears inside THAT
+--- OS window (in the window's own modal layer) instead of the main app
+--- window. Returns the modal layer used -- a dialog that closes itself
+--- should capture it and close via gui.CloseModalInLayer, which stays
+--- correct even if the owner element is destroyed while the dialog is up
+--- (gui.CloseModal(owner) re-resolves through the owner and falls back to
+--- the global layer once the owner is gone).
 --- @param panel Panel
---- @options {nofade: nil|boolean}
+--- @options {nofade: nil|boolean, owner: nil|Panel}
+--- @return Panel
 function gui.ShowModal(panel, options)
-	gamehud:ShowModal(panel, options)
+	return gamehud:ShowModal(panel, options)
 end
 
---- Close the modal dialog that is currently displayed.
-function gui.CloseModal()
-	gamehud:CloseModal()
+--- Close the topmost modal in the given modal layer (as returned by
+--- gui.ShowModal). The layer-addressed twin of gui.CloseModal.
+--- @param layer nil|Panel
+function gui.CloseModalInLayer(layer)
+	gamehud:CloseModalInLayer(layer)
 end
 
---- Get the currently displayed modal dialog.
+--- Close the modal dialog that is currently displayed. owner (optional)
+--- routes the close the same way gui.ShowModal routes the open: pass the
+--- owner the modal was shown with to close a popout-window modal.
+--- @param owner nil|Panel
+function gui.CloseModal(owner)
+	gamehud:CloseModal(owner)
+end
+
+--- Get the currently displayed modal dialog. owner (optional) asks about
+--- the modal layer of the window that owner lives in; nil asks about the
+--- main window's global layer.
+--- @param owner nil|Panel
 --- @return nil|Panel
-function gui.GetModal()
-	return gamehud:GetModal()
+function gui.GetModal(owner)
+	return gamehud:GetModal(owner)
 end
 
 --- Display a modal message dialog.
@@ -618,7 +714,7 @@ end
 function gui.SimpleIconButton(options)
 	local args = {
 		classes = {'close-button', "closeButton", "iconButton"},
-		bgimage = 'ui-icons/close.png',
+		bgimage = 'phosphor/x-bold.png',
 	}
 
 	if options.classes ~= nil then
@@ -654,7 +750,10 @@ function gui.CloseButton(options)
 
 	local args = {
 		classes = {'close-button', "closeButton"},
-		bgimage = 'ui-icons/close.png',
+		--phosphor X, matching the themed closeButton kind rule in
+		--DefaultStyles -- legacy call sites keep visual parity with
+		--the canonical close while they await migration.
+		bgimage = 'phosphor/x-bold.png',
 		escapeActivates = true,
 		escapePriority = EscapePriority.EXIT_DIALOG,
 	}
@@ -2915,7 +3014,9 @@ function gui.ContextMenuItem(args, params)
 		checkPanel = gui.Panel{
 			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
-			bgimage = "icons/icon_common/icon_common_29.png",
+			--phosphor's geometric check rather than the hand-drawn
+			--icon_common_29 tick, matching the icon set used elsewhere.
+			bgimage = "phosphor/check-bold.png",
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -3077,9 +3178,13 @@ function gui.ContextMenu(args)
 				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
+			--invisible when unchecked, NOT faintly visible: a ghost check on
+			--every row reads as noise in long menus (e.g. Panels). The panel
+			--keeps its 16px slot so labels stay aligned, and the parent:hover
+			--rule below still previews the check on the hovered row.
 			{
 				selectors = {'contextMenuCheck'},
-				opacity = 0.1,
+				opacity = 0,
 			},
 			{
 				selectors = {'contextMenuCheck', 'checked'},
@@ -3312,9 +3417,16 @@ function gui.AudioEditor(args)
 	args.autoplay = nil
 
 	local autoplayVolume = args.autoplayvolume
+	args.autoplayvolume = nil
 	if autoplayVolume == nil then
 		autoplayVolume = 1
 	end
+
+	--Optional mix group the autoplay preview is routed through (e.g. "anthem"), so the
+	--preview obeys the same personal fader / DM broadcast level / ducking as the real
+	--playback of that sound rather than sounding at raw master volume.
+	local autoplayMixGroup = args.autoplaymixgroup
+	args.autoplaymixgroup = nil
 
 	local StopAutoplay = function()
 		if autoplayInstance ~= nil then
@@ -3342,6 +3454,9 @@ function gui.AudioEditor(args)
 				autoplayInstance = asset:Play()
 				autoplayInstance.volume = autoplayVolume
                 autoplayInstance.solo = true
+				if autoplayMixGroup ~= nil then
+					autoplayInstance.mixGroupId = autoplayMixGroup
+				end
 				spectrumPanel:FireEvent("play")
 				resultPanel:SetClassTree("playing", true)
 			end
@@ -4358,6 +4473,12 @@ function gui.SearchInput(options)
 	local args = {
 		classes = {"searchInput"},
 		placeholderText = "Search...",
+		--room for the magnifier: hpad, not lpad/rpad -- inputs only
+		--honor the symmetric form (harness-verified 2026-08-20: lpad
+		--left the placeholder under the icon). The LOOK (frame, type,
+		--radius) lives in DefaultStyles' searchInput rules -- the one
+		--canonical search-field appearance; surfaces must not re-style
+		--it locally (Control Zoo decision 2026-08-20).
 		hpad = 24,
 		editlag = 0.25,
 
@@ -4368,19 +4489,86 @@ function gui.SearchInput(options)
 			element:FireEvent("search", ParseString(element.text))
 		end,
 
+		--the magnifier, inside the field's left edge. floating and the
+		--offset are structural, so they stay inline (the engine does not
+		--honor floating through the cascade); the tint comes from the
+		--searchInputIcon rule. Floating children anchor to the CONTENT
+		--box (inside the style's hpad 24), so the negative x walks the
+		--icon back into the padding: 24 - 18 = 6px from the field edge,
+		--ending at 21px, just clear of the text at 24
+		--(harness-verified 2026-08-20).
 		gui.Panel{
 			classes = {"searchInputIcon"},
-			bgimage = "icons/icon_tool/icon_tool_42.png",
+			bgimage = "phosphor/magnifying-glass-bold.png",
 			floating = true,
-            width = 16,
-            height = 16,
-            valign = "center",
-			x = -20,
+			halign = "left",
+			valign = "center",
+			x = -18,
+			width = 15,
+			height = 15,
+		},
+
+		--the clear x, inside the field's right edge: the mirror of the
+		--magnifier (x = +18 walks it into the right hpad, 6px from the
+		--field edge). Hidden while the field is empty; the edit/change
+		--wrappers below keep it in sync however the text changes. The
+		--tint comes from the searchInputClear rules.
+		gui.Panel{
+			classes = {"searchInputClear", "hidden"},
+			bgimage = "phosphor/x-bold.png",
+			floating = true,
+			halign = "right",
+			valign = "center",
+			x = 18,
+			width = 13,
+			height = 13,
+			create = function(element)
+				element:FireEvent("refreshSearchClear")
+			end,
+			refreshSearchClear = function(element)
+				element:SetClass("hidden", (element.parent.text or "") == "")
+			end,
+			press = function(element)
+				local input = element.parent
+				input.text = ""
+				input.hasFocus = true
+				--fire both text events: call sites listen to either (or
+				--both -- their handlers are idempotent searches, so a
+				--double run is harmless), and the wrappers below then
+				--re-hide this x.
+				input:FireEvent("edit")
+				input:FireEvent("change")
+			end,
 		},
 	}
 
 	for k,v in pairs(options) do
 		args[k] = v
+	end
+
+	--keep the clear x in sync with the text without requiring call
+	--sites to cooperate: wrap whichever edit/change handlers ended up
+	--in effect (the defaults above or the caller's overrides).
+	local function withClearRefresh(handler)
+		return function(element, ...)
+			if handler ~= nil then
+				handler(element, ...)
+			end
+			element:FireEventTree("refreshSearchClear")
+		end
+	end
+	args.edit = withClearRefresh(args.edit)
+	args.change = withClearRefresh(args.change)
+	--some call sites pass handlers via the legacy events = {} table
+	--instead; wrap those in place so precedence between the two forms
+	--stays whatever the engine already does.
+	if type(args.events) == "table" then
+		if args.events.edit ~= nil then
+			args.events.edit = withClearRefresh(args.events.edit)
+		end
+		if args.events.change ~= nil then
+			args.events.change = withClearRefresh(args.events.change)
+		end
 	end
 
 	return gui.Input(args)
@@ -4451,10 +4639,10 @@ end
 
 gui.ImplementationStatusValues = {
 	[0] = "Narrative",
-	[1] = "Unimplemented",
-	[2] = "Bronze",
-	[3] = "Silver",
-	[4] = "Gold",
+	[1] = "Not Automated",
+	[2] = "Partly Automated",
+	[3] = "Mostly Automated",
+	[4] = "Fully Automated",
 }
 
 gui.ImplementationStatus = {
@@ -5052,6 +5240,11 @@ function gui.DockablePanelMaximizeButton()
 end
 
 --- A panel for alerting to new content.
+--- args.count: with a count of 2 or more the marker shows the number
+--- inside it (capped at a single digit -- 9); nil, 0, or 1 shows the
+--- plain marker. The marker is the same size either way.
+--- args.size: diameter of the circle (default 10); the digit scales
+--- with it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.NewContentAlert(args)
@@ -5059,18 +5252,45 @@ function gui.NewContentAlert(args)
 	local info = args.info
 	args.info = nil
 
+	local count = args.count
+	args.count = nil
+
+	local size = args.size or 10
+	args.size = nil
+
 	local params = {
 		halign = "right",
 		valign = "center",
 		floating = true,
-		width = 6,
-		height = 6,
+		width = size,
+		height = size,
 		bgimage = "panels/square.png",
-		bgcolor = Styles.textColor,
-		cornerRadius = 3,
+		--solid red, undoctored by brightness, so the alert reads at a
+		--glance against both the dark rail and light panel surfaces.
+		bgcolor = "#ee4444",
+		cornerRadius = size/2,
 		x = 14,
-		brightness = 1.5,
+		flow = "none",
 	}
+
+	if type(count) == "number" and count > 1 then
+		if count > 9 then
+			count = 9
+		end
+		params[1] = gui.Label{
+			text = tostring(count),
+			fontSize = math.floor(size * 0.9 + 0.5),
+			fontWeight = "black",
+			color = "white",
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			halign = "center",
+			valign = "center",
+			interactable = false,
+			textWrap = false,
+		}
+	end
 
 	for k,v in pairs(args) do
 		params[k] = v
@@ -5078,6 +5298,43 @@ function gui.NewContentAlert(args)
 
 
 	return gui.Panel(params)
+end
+
+--- Counts the entries recorded as novel content for the given content type.
+--- @param contentType string
+--- @return number
+function gui.NovelContentCount(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local count = 0
+	for _ in pairs(t) do
+		count = count + 1
+	end
+	return count
+end
+
+--- Clears every entry recorded as novel content for the given content type,
+--- retiring the alerts driven by it in one act. Returns the number cleared.
+--- The keys are gathered up front rather than removed during the traversal:
+--- RemoveNovelContent mutates the table it hands back, and drops the content
+--- type entirely once it empties.
+--- @param contentType string
+--- @return number
+function gui.ClearNovelContent(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local keys = {}
+	for k, _ in pairs(t) do
+		keys[#keys+1] = k
+	end
+	for _, k in ipairs(keys) do
+		module.RemoveNovelContent(contentType, k)
+	end
+	return #keys
 end
 
 --- Will create a new content alert if the key within the given kind of content has new content. Otherwise returns nil.

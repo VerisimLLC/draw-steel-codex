@@ -340,15 +340,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
+                        element:AddChild(element.data.panelFn())
+                    end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
                     local item = element.parent
                     local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },
@@ -491,8 +509,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         vmargin = 20,
                         text = tip,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = CBStyles.COLORS.GOLD,
                     }(element)
                 elseif element.data.panelFn then
                     -- element.tooltip = gui.TooltipFrame(element.data.panelFn(), {
@@ -658,7 +674,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 markdown = true,
                 interactable = false,
                 updateDesc = function(element, text)
-                    print("TEXT:: UPDATE", text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
                 end,
@@ -679,15 +694,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
+                        element:AddChild(element.data.panelFn())
+                    end
                 end,
                 setExpanded = function(element, expanded)
                     local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
                     local item = element.parent
                     local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },

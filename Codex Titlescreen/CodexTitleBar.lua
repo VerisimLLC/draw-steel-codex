@@ -92,6 +92,14 @@ local function TicketBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Closing/reopening a ticket from the client arrived after the ticket dialog
+--itself, so it gets its own probe: on an older engine the button is simply
+--absent rather than erroring on click.
+local function TicketStatusBridgeAvailable()
+    local ok, fn = pcall(function() return dmhub.SetTicketStatus end)
+    return ok and fn ~= nil
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -164,6 +172,35 @@ end
 dmhub.RegisterEventHandler("ticketAlert", function()
     FetchTickets()
 end)
+
+--The title bar's Codex / Game / Tools menus list "windows": panels the
+--user summons by name rather than docks alongside other panels. BOTH
+--registries feed them now that panels like Maps, the Measuring Tool and
+--the Compendium are ordinary dockable panels.
+--
+--A dockable panel opts in by declaring `menu` in its registration
+--("codex", "game" or "tools"), which is also what sorts it into the right
+--one -- without that it belongs to the Panels menu only, which is what
+--the ~40 regular dock panels want. The launchable panels that remain (the
+--transient dialogs) keep their original contract, where no `menu` at all
+--meant the Codex menu.
+local function WindowMenuItems(menuName)
+    local result = {}
+
+    for _,item in ipairs(DockablePanel.GetMenuItems()) do
+        if item.menu == menuName then
+            result[#result+1] = item
+        end
+    end
+
+    for _,item in ipairs(LaunchablePanel.GetMenuItems()) do
+        if (item.menu or "codex") == menuName and item.text ~= "Development Tools" then
+            result[#result+1] = item
+        end
+    end
+
+    return result
+end
 
 local function CreateCodexMenuItem(args)
     local iconPanel
@@ -381,13 +418,1271 @@ local g_showStatusBarSetting = setting{
     section = "General",
 }
 
+----------------------------------------------------------------------
+-- Connectivity status panel
+-- Replaces the old "Synced seq:N" label and its "DO Message History"
+-- modal (retired 2026-08-08): a wifi glyph shows OUR connection to the
+-- game server, then one portrait per player shows THEIR connectivity.
+-- Clicking the panel opens the Heroes panel -- which is deliberately
+-- hidden from the Panels/rail menus now; this is the way in. Player
+-- portraits click to ping instead.
+----------------------------------------------------------------------
+
+local STATUS_COLOR_ONLINE = "#58b060"
+local STATUS_COLOR_LAGGING = "#d8b23a"
+local STATUS_COLOR_OFFLINE = "#7a7a7a"
+
+--the syncing animation, in display order.
+local g_syncFrames = {
+    "phosphor/wifi-none.png",
+    "phosphor/wifi-low.png",
+    "phosphor/wifi-medium.png",
+    "phosphor/wifi-high.png",
+}
+
+--Session-info classification, matching the Heroes panel's thresholds:
+--pings write ~12s apart, so >60s since last contact means several
+--misses (connection trouble), >=140s or loggedOut means gone.
+local function ClassifyUserStatus(info)
+    if info == nil or info.loggedOut or info.timeSinceLastContact >= 140 then
+        return "offline"
+    end
+    if info.timeSinceLastContact > 60 then
+        return "lagging"
+    end
+    return "online"
+end
+
+--All the character ids this player controls directly (ownerId ==
+--userid). Party-shared tokens (ownerId == 'PARTY') are deliberately
+--not counted as anyone's.
+local function CharacterIdsOwnedBy(userid)
+    local result = {}
+    local partyType = rawget(_G, "Party")
+    if partyType == nil then
+        return result
+    end
+    local parties = dmhub.GetTable(partyType.tableName) or {}
+    for partyid, _ in unhidden_pairs(parties) do
+        for _, charid in ipairs(dmhub.GetCharacterIdsInParty(partyid) or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            if tok ~= nil and tok.ownerId == userid then
+                result[#result + 1] = charid
+            end
+        end
+    end
+    return result
+end
+
+--One player's entry: their main character's portrait (grouping card
+--behind it when they control more than one), a connectivity dot in the
+--corner, a status tooltip, click to ping.
+local function CreatePlayerStatusIcon(userid, charid, extraCount)
+    local token = nil
+    if charid ~= nil then
+        token = dmhub.GetCharacterById(charid)
+    end
+
+    local children = {}
+
+    --multiple characters: a card behind the portrait reads as a stack.
+    if extraCount > 0 then
+        children[#children + 1] = gui.Panel{
+            floating = true,
+            halign = "center",
+            valign = "center",
+            x = 4,
+            y = -4,
+            width = 22,
+            height = 22,
+            bgimage = "panels/square.png",
+            bgcolor = "#3a3a3a",
+            borderWidth = 1,
+            borderColor = "#9a9a9a",
+            cornerRadius = 3,
+        }
+    end
+
+    if token ~= nil then
+        children[#children + 1] = gui.CreateTokenImage(token, {
+            width = 26,
+            height = 26,
+            halign = "center",
+            valign = "center",
+            --portrait greys out when the player is gone, the same cue
+            --the Heroes panel uses.
+            updateStatus = function(element, info)
+                element.selfStyle.saturation = cond(ClassifyUserStatus(info) == "offline", 0, 1)
+            end,
+        })
+    else
+        --a player with no character yet still shows, as a plain user
+        --glyph, so their connectivity is visible.
+        children[#children + 1] = gui.Panel{
+            width = 20,
+            height = 20,
+            halign = "center",
+            valign = "center",
+            bgimage = "phosphor/user-fill.png",
+            bgcolor = "#c0c0c0",
+            updateStatus = function(element, info)
+                element.selfStyle.saturation = cond(ClassifyUserStatus(info) == "offline", 0, 1)
+            end,
+        }
+    end
+
+    --connectivity dot: a dark backing circle so the color reads on any
+    --portrait, then the status color.
+    children[#children + 1] = gui.Panel{
+        floating = true,
+        width = 11,
+        height = 11,
+        halign = "right",
+        valign = "bottom",
+        x = 2,
+        y = 0,
+        bgimage = "game-icons/plain-circle.png",
+        bgcolor = "#202020",
+        gui.Panel{
+            width = 8,
+            height = 8,
+            halign = "center",
+            valign = "center",
+            bgimage = "game-icons/plain-circle.png",
+            bgcolor = STATUS_COLOR_OFFLINE,
+            updateStatus = function(element, info)
+                local status = ClassifyUserStatus(info)
+                local color = STATUS_COLOR_OFFLINE
+                if status == "online" then
+                    color = STATUS_COLOR_ONLINE
+                elseif status == "lagging" then
+                    color = STATUS_COLOR_LAGGING
+                end
+                element.selfStyle.bgcolor = color
+            end,
+        },
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        width = 30,
+        height = 30,
+        halign = "left",
+        valign = "center",
+        rmargin = 2,
+        bgimage = true,
+        bgcolor = "clear",
+        data = { userid = userid, info = nil, pingTime = nil },
+
+        updateStatus = function(element, info)
+            element.data.info = info
+        end,
+
+        linger = function(element)
+            local info = element.data.info or dmhub.GetSessionInfo(userid)
+            local lines = {}
+            lines[#lines + 1] = (info ~= nil and info.displayName) or "Player"
+            if token ~= nil then
+                if extraCount > 0 then
+                    lines[#lines + 1] = string.format("Playing %s (+%d more)", token.name or "a character", extraCount)
+                else
+                    lines[#lines + 1] = string.format("Playing %s", token.name or "a character")
+                end
+            end
+            local status = ClassifyUserStatus(info)
+            if status == "offline" then
+                lines[#lines + 1] = "Offline"
+            elseif status == "lagging" then
+                lines[#lines + 1] = string.format("Connection trouble -- last seen %d seconds ago", math.floor(info.timeSinceLastContact))
+            elseif info ~= nil and info.ping ~= nil then
+                lines[#lines + 1] = string.format("Online -- ping %dms", math.floor(info.ping * 1000))
+            else
+                lines[#lines + 1] = "Online"
+            end
+            --no ping invitation for someone who is not there.
+            if status ~= "offline" then
+                lines[#lines + 1] = "Click to ping"
+            end
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+
+        click = function(element)
+            --pinging an offline player would just time out; do nothing.
+            local info = element.data.info or dmhub.GetSessionInfo(userid)
+            if ClassifyUserStatus(info) == "offline" then
+                return
+            end
+            local t = dmhub.Time()
+            if element.data.pingTime ~= nil and (t - element.data.pingTime) < 10 then
+                return
+            end
+            element.data.pingTime = t
+            gui.Tooltip("Pinging...")(element)
+            dmhub.PingUser(userid, function()
+                if not element.valid then
+                    return
+                end
+                local started = element.data.pingTime
+                if started == nil then
+                    return
+                end
+                element.data.pingTime = nil
+                local info = element.data.info
+                local name = (info ~= nil and info.displayName) or "Player"
+                gui.Tooltip(string.format("%s responded in %dms", name, math.floor((dmhub.Time() - started) * 1000)))(element)
+            end)
+        end,
+
+        children = children,
+    }
+    return resultPanel
+end
+
+local function CreateConnectivityPanel()
+    local m_wifiIcon
+
+    m_wifiIcon = gui.Panel{
+        width = 22,
+        height = 22,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        bgimage = "phosphor/wifi-high-fill.png",
+        bgcolor = "#c8c8c8",
+        data = { frame = 0 },
+        linger = function(element)
+            local lines = {}
+            if dmhub.gameServerConnected == false then
+                lines[#lines + 1] = "Disconnected from the game server -- reconnecting..."
+            elseif dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0 then
+                lines[#lines + 1] = string.format("Syncing (%d writes pending)", dmhub.pendingWriteCount)
+            else
+                lines[#lines + 1] = "Synced with the game server"
+            end
+            local seq = dmhub.durableObjectSeq
+            if seq ~= nil and seq > 0 then
+                lines[#lines + 1] = string.format("Server message seq: %d", seq)
+            end
+            lines[#lines + 1] = "Click to open the Heroes panel"
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+    }
+
+    local playersRow = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        data = { cache = {} },
+
+        monitorGame = "/usersToSessions",
+
+        --the session doc only changes while users are alive and pinging;
+        --a user going SILENT changes nothing, so poll too or the dot
+        --stays green forever after a drop.
+        thinkTime = 5,
+        think = function(element)
+            element:FireEvent("refreshGame")
+        end,
+        create = function(element)
+            element:FireEvent("refreshGame")
+        end,
+
+        refreshGame = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                return
+            end
+            local newCache = {}
+            local children = {}
+            for _, userid in ipairs(dmhub.users or {}) do
+                local info = dmhub.GetSessionInfo(userid)
+                if info ~= nil and not info.dm then
+                    local owned = CharacterIdsOwnedBy(userid)
+                    local mainid = info.primaryCharacter or owned[1]
+                    local extraCount = 0
+                    for _, cid in ipairs(owned) do
+                        if cid ~= mainid then
+                            extraCount = extraCount + 1
+                        end
+                    end
+                    --icons are cached per (user, main character, count):
+                    --any of those changing rebuilds that one icon.
+                    local key = string.format("%s|%s|%d", userid, tostring(mainid), extraCount)
+                    local icon = element.data.cache[key]
+                    if icon == nil or not icon.valid then
+                        icon = CreatePlayerStatusIcon(userid, mainid, extraCount)
+                    end
+                    newCache[key] = icon
+                    children[#children + 1] = icon
+                    icon:FireEventTree("updateStatus", info)
+                end
+            end
+            element.data.cache = newCache
+            element.children = children
+        end,
+    }
+
+    --The COLLAPSING wrapper is separate from the thinking root, and the
+    --root must never collapse itself: a collapsed panel's think does not
+    --run, so the first collapse would be permanent -- nothing would be
+    --left alive to un-collapse it. (Hit live 2026-08-08: the panel
+    --collapsed during a reload window where inGame read false and never
+    --came back. Same trap the icon rail documents; same fix.)
+    local contentPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        m_wifiIcon,
+        playersRow,
+    }
+
+    local resultPanel
+    resultPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        halign = "left",
+        valign = "center",
+        rmargin = 12,
+        bgimage = true,
+        bgcolor = "clear",
+
+        --the panel is the door to the Heroes panel, which is not a
+        --dockable panel any more: it lives in a temporary popout hung
+        --beneath this panel, dismissed like any popup (click away).
+        --Player icons eat their own clicks to ping. Same popup rig as
+        --the audio indicator's popover.
+        click = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
+            local factory = rawget(_G, "CreateHeroesPanelPopoutContent")
+            if factory == nil then
+                return
+            end
+            element.popupsInheritStyles = true
+            element.popup = gui.Panel{
+                --heroesPopout: content inside reaches this wrapper by
+                --class to dismiss the popout (the local-game promote
+                --flow closes it before showing its modal).
+                classes = {"bordered", "bg", "heroesPopout"},
+                width = 440,
+                height = 480,
+                pad = 8,
+                borderBox = true,
+                halign = "left",
+                valign = "bottom",
+                closePopout = function()
+                    if element ~= nil and element.valid then
+                        element.popup = nil
+                    end
+                end,
+                factory(),
+            }
+        end,
+
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+        thinkTime = 0.5,
+        think = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                contentPanel:SetClass("collapsed", true)
+                return
+            end
+            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
+
+            --nil = engine build without the bridge; treat as connected.
+            local connected = dmhub.gameServerConnected ~= false
+            local syncing = dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0
+
+            if not connected then
+                m_wifiIcon.data.frame = 0
+                m_wifiIcon.bgimage = "phosphor/wifi-x-duotone.png"
+                m_wifiIcon.selfStyle.bgcolor = "#e04545"
+                element.thinkTime = 0.5
+            elseif syncing then
+                --quick alternation through the bar heights while writes
+                --are in flight.
+                local frame = (m_wifiIcon.data.frame % #g_syncFrames) + 1
+                m_wifiIcon.data.frame = frame
+                m_wifiIcon.bgimage = g_syncFrames[frame]
+                m_wifiIcon.selfStyle.bgcolor = "#c8c8c8"
+                element.thinkTime = 0.12
+            else
+                m_wifiIcon.data.frame = 0
+                m_wifiIcon.bgimage = "phosphor/wifi-high-fill.png"
+                m_wifiIcon.selfStyle.bgcolor = "#c8c8c8"
+                element.thinkTime = 0.5
+            end
+        end,
+
+        contentPanel,
+    }
+    return resultPanel
+end
+
+----------------------------------------------------------------------
+-- Initiative / game-mode status ("Exploration", "Round 3", ...).
+--
+-- The panel itself is built by the initiative bar (MCDMInitiativeBar) --
+-- its click menu and the combat-settings gear beside it need that file's
+-- helpers -- but it is DISPLAYED here, in the status bar left of the map
+-- name, instead of floating over the top of the map. The title bar is
+-- created once at Lua load and outlives any single GameHud, so each new
+-- hud re-mounts a fresh panel through MountInitiativeStatusPanel().
+----------------------------------------------------------------------
+
+local g_initiativeStatusContainer = nil
+
+--rawget: reading a never-assigned global raises in this runtime, so the usual
+--`X = X or {}` idiom cannot be used here.
+if rawget(_G, "CodexTitleBar") == nil then
+    CodexTitleBar = {}
+end
+
+local function CreateInitiativeStatusHost()
+    g_initiativeStatusContainer = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        rmargin = 16,
+        multimonitor = {"showstatusbar"},
+        create = function(element)
+            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+        monitor = function(element)
+            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
+        end,
+    }
+    return g_initiativeStatusContainer
+end
+
+--Called by GameHud.CreateInitiativeBar. Pass nil to clear.
+function CodexTitleBar.MountInitiativeStatusPanel(panel)
+    if g_initiativeStatusContainer == nil or (not g_initiativeStatusContainer.valid) then
+        return
+    end
+
+    if panel == nil then
+        g_initiativeStatusContainer.children = {}
+    else
+        g_initiativeStatusContainer.children = {panel}
+    end
+end
+
+----------------------------------------------------------------------
+-- Hovered-tile terrain indicator.
+--
+-- A small square chip in the status bar, just left of the map name,
+-- styled like the Map Markup panel's zone swatches: solid fill for
+-- plain ground / open air, diagonal stripes for special terrain (the
+-- same stripe treatment the map overlay itself uses for zones). One
+-- characteristic is shown at a time -- the most important one covering
+-- the tile under the mouse. Everything lives on one table to keep the
+-- file's local count down.
+----------------------------------------------------------------------
+
+local g_tileIndicator = {
+    gradients = {},
+
+    --The priority ladder: lower tier = more important. Physical hazards
+    --(no floor at all, then damage) outrank movement modifiers (water,
+    --difficult), which outrank vision zones (darkness, sunlight,
+    --concealing), which outrank informational surfaces. "zone" is any
+    --other environmental-keyword zone, striped in the keyword's own
+    --color; "ground" is the no-features fallback.
+    kinds = {
+        void       = { tier = 1,  name = "Open Air (no floor)", color = "#000000", stripes = false },
+        damaging   = { tier = 2,  name = "Damaging Terrain",    color = "#cc3333", stripes = true },
+        water      = { tier = 3,  name = "Water",               color = "#3373d9", stripes = true },
+        difficult  = { tier = 4,  name = "Difficult Terrain",   color = "#8c5926", stripes = true },
+        darkness   = { tier = 5,  name = "Darkness",            color = "#4b2a6b", stripes = true },
+        sunlight   = { tier = 6,  name = "Sunlight",            color = "#e2c433", stripes = true },
+        concealing = { tier = 7,  name = "Concealing",          color = "#4d594d", stripes = true },
+        climbable  = { tier = 8,  name = "Climbable",           color = "#2e8b8b", stripes = true },
+        stairs     = { tier = 9,  name = "Stairs",              color = "#8a8a8a", stripes = true },
+        zone       = { tier = 10, name = "Zone",                color = "#888888", stripes = true },
+        ground     = { tier = 11, name = "Ground",              color = "#3a8f3a", stripes = false },
+    },
+}
+
+--The same diagonal-stripe recipe as the Map Markup zone swatches
+--(m_zoneStripes.Gradient): a linear gradient one stripe period long
+--along a diagonal vector, hard flip between the color and its
+--transparent twin, repeating. The gradient MULTIPLIES the panel's own
+--color, so striped chips set bgcolor white. color must be "#rrggbb".
+--angle defaults to 45 degrees; the overlay menu passes each zone type's
+--own map angle so its swatch stripes the way the map does.
+function g_tileIndicator.StripeGradient(color, angle)
+    angle = angle or (math.pi * 0.25)
+    local key = color .. "/" .. tostring(angle)
+    local cached = g_tileIndicator.gradients[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local period = 0.28
+    local result = gui.Gradient{
+        type = "linear",
+        point_a = {x = 0.5, y = 0.5},
+        point_b = {
+            x = 0.5 + math.cos(angle) * period,
+            y = 0.5 + math.sin(angle) * period,
+        },
+        ["repeat"] = true,
+        stops = {
+            {position = 0.00, color = color .. "ff"},
+            {position = 0.48, color = color .. "ff"},
+            {position = 0.52, color = color .. "00"},
+            {position = 1.00, color = color .. "00"},
+        },
+    }
+    g_tileIndicator.gradients[key] = result
+    return result
+end
+
+--Vertical band test mirroring EnvironmentalKeyword.lua's per-square Loc
+--symbols: nil height = unlimited; otherwise a creature standing at
+--refAltitude must fall inside [altitude, altitude + height].
+function g_tileIndicator.BandCovers(instance, refAltitude)
+    local height = instance:GetHeight()
+    if height == nil then
+        return true
+    end
+    local base = instance:GetAltitude() or 0
+    return refAltitude >= base and refAltitude <= base + height
+end
+
+--An environmental keyword's display color, normalized to "#rrggbb" or
+--nil. display.bgcolor may be a Color USERDATA (the compendium color
+--picker's storage idiom) whose .tostring property is the real hex
+--string; white means "unset". Same normalization as the Map Markup
+--panel's KeywordColor.
+function g_tileIndicator.KeywordColor(kw)
+    local color = nil
+    pcall(function()
+        local display = kw:try_get("display")
+        if display ~= nil then
+            color = display.bgcolor
+        end
+    end)
+
+    if type(color) == "userdata" then
+        local ok, str = pcall(function() return color.tostring end)
+        if ok and type(str) == "string" then
+            color = str
+        else
+            color = nil
+        end
+    end
+    if type(color) == "string" and string.len(color) == 9 then
+        color = string.sub(color, 1, 7)
+    end
+    if type(color) ~= "string" or string.len(color) ~= 7
+        or string.sub(color, 1, 1) ~= "#" or string.lower(color) == "#ffffff" then
+        return nil
+    end
+    return color
+end
+
+--Classifies the tile under the mouse. Returns a .kinds entry plus
+--optional color/name overrides (used by the generic "zone" kind, which
+--stripes in the covering keyword's own color and names itself after it).
+--The hovered loc is derived the same way the engine's dmhub.status
+--string derives it: mouse world point snapped to the tile grid, on the
+--currently selected floor; rules == nil is exactly the status string's
+--"(void)" -- no terrain here, a creature would fall to the floor below.
+function g_tileIndicator.Classify()
+    local kinds = g_tileIndicator.kinds
+
+    local pt = dmhub.GetMouseWorldPoint()
+    if pt == nil then
+        return kinds.void, nil, nil
+    end
+
+    local loc = core.Loc{
+        x = math.floor(pt.x + 0.5),
+        y = math.floor(pt.y + 0.5),
+        floorIndex = game.currentFloorIndex,
+    }
+
+    --Non-DM viewers only get information about tiles currently inside their
+    --vision; an unseen tile reads as void (solid black) - no information.
+    --IsLocInVision returns true outright for DM vision, and on engine builds
+    --without the bridge the pcall leaves visible true (no filtering).
+    local visible = true
+    pcall(function()
+        visible = dmhub.IsLocInVision(loc)
+    end)
+    if visible == false then
+        return kinds.void, nil, "Not visible"
+    end
+
+    local rules = dmhub.GetTileRulesAtLoc(loc)
+    if rules == nil or rules.hole then
+        return kinds.void, nil, nil
+    end
+
+    local best = nil
+    local bestColor = nil
+    local bestName = nil
+    local function Consider(kind, colorOverride, nameOverride)
+        if kind ~= nil and (best == nil or kind.tier < best.tier) then
+            best = kind
+            bestColor = colorOverride
+            bestName = nameOverride
+        end
+    end
+
+    --Merged tile rules cover both tile art flags and apply-to-all auras
+    --(markup zones), so water/difficult/concealing zones land here too.
+    if rules.water then
+        Consider(kinds.water)
+    end
+    if rules.difficultTerrain then
+        Consider(kinds.difficult)
+    end
+    if rules.concealment then
+        Consider(kinds.concealing)
+    end
+    if rules.stairs then
+        Consider(kinds.stairs)
+    end
+    if rules.climbHeight > 0 then
+        Consider(kinds.climbable)
+    end
+
+    --Auras covering the square: damage-on-move / hazard-roll auras, the
+    --named light-level keywords, climbable zones, and any other
+    --environmental-keyword zone. Same footprint + ground-altitude band
+    --test as EnvironmentalKeyword.lua's per-square symbols.
+    local auras = game.GetAurasAtLoc(loc.xyfloorOnly)
+    if auras ~= nil then
+        local refAltitude = loc.withGroundAltitude.altitude
+        local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+        for _,aura in ipairs(auras) do
+            local instance = aura.auraInstance
+            --squares on an aura's adjacent extension (includeAdjacent) are
+            --next to the area, not in it: no chip for them.
+            if instance ~= nil and not EnvironmentalKeyword.AuraLocOnlyAdjacent(aura, loc.xyfloorOnly) then
+                --tolerate aura instances that do not implement the full
+                --AuraInstance interface: skip them, not error the tick.
+                pcall(function()
+                    if not g_tileIndicator.BandCovers(instance, refAltitude) then
+                        return
+                    end
+
+                    local auraDef = instance:try_get("aura")
+                    if auraDef == nil then
+                        return
+                    end
+
+                    --"does damage in some way": per-tile movement damage
+                    --or an on-enter hazard power roll.
+                    if instance:GetDamageInfo() ~= nil
+                        or auraDef:try_get("powerRollEnabled", false) then
+                        Consider(kinds.damaging)
+                    end
+
+                    if instance:GetClimbable() ~= nil then
+                        Consider(kinds.climbable)
+                    end
+
+                    local keywordid = auraDef:try_get("environmentalKeywordId")
+                    if keywordid ~= nil then
+                        local kw = keywordsTable[keywordid]
+                        if kw ~= nil then
+                            local name = string.lower(kw.name or "")
+                            if name == "darkness" or name == "dark" then
+                                Consider(kinds.darkness)
+                            elseif name == "sunlight" or name == "daylight" then
+                                Consider(kinds.sunlight)
+                            else
+                                Consider(kinds.zone,
+                                    g_tileIndicator.KeywordColor(kw),
+                                    kw.name)
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    if best == nil then
+        best = kinds.ground
+    end
+    return best, bestColor, bestName
+end
+
+--------------------------------------------------------------------
+-- The map overlay menu, opened by clicking the chip. One checkbox
+-- per overlay layer (walls / elevation / terrain features) plus one
+-- per zone type present on the map, with Show All / Hide All. All
+-- state lives in per-user settings, so it works for players and
+-- directors alike; players are only offered player-visible zone
+-- types (MapMarkup.GetZoneTypesOnMap filters for them).
+--------------------------------------------------------------------
+
+--The hidden-zone-types preference (';'-joined keyword ids) as a set.
+function g_tileIndicator.HiddenZoneSet()
+    local result = {}
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+    for id in string.gmatch(str, "[^;]+") do
+        result[id] = true
+    end
+    return result
+end
+
+function g_tileIndicator.WriteHiddenZoneSet(set)
+    local ids = {}
+    for id,_ in pairs(set) do
+        ids[#ids+1] = id
+    end
+    table.sort(ids)
+    dmhub.SetSettingValue("mapoverlay:hiddenzones", table.concat(ids, ";"))
+end
+
+--The four built-in terrain rule types, styled to match the engine's
+--overlay stripes exactly (TileHeightOverlay ZoneWater/Difficult/
+--Concealment/Climbable colors and alternating angles).
+g_tileIndicator.BUILTINS = {
+    { id = "water",       name = "Water",       color = "#3373d9", angle = math.pi * 0.25 },
+    { id = "difficult",   name = "Difficult",   color = "#8c5926", angle = math.pi * 0.75 },
+    { id = "concealment", name = "Concealment", color = "#333333", angle = math.pi * 0.25 },
+    { id = "climbable",   name = "Climbable",   color = "#66cc66", angle = math.pi * 0.75 },
+}
+
+--The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
+--Built-ins default hidden, so this records opt-INs (the mirror image of
+--HiddenZoneSet).
+function g_tileIndicator.ShownBuiltinSet()
+    local result = {}
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
+    for id in string.gmatch(str, "[^;]+") do
+        result[id] = true
+    end
+    return result
+end
+
+function g_tileIndicator.WriteShownBuiltinSet(set)
+    local ids = {}
+    for id,_ in pairs(set) do
+        ids[#ids+1] = id
+    end
+    table.sort(ids)
+    dmhub.SetSettingValue("mapoverlay:shownbuiltins", table.concat(ids, ";"))
+end
+
+--Built-in terrain rule types present on the map's TERRAIN TILES themselves.
+--The bridge excludes every aura contribution, so a rule that only exists
+--because a defined zone grants it does not produce an entry - the zone
+--type's own row is its control. {} on engine builds without the bridge.
+function g_tileIndicator.BuiltinTypesOnMap()
+    local flags = nil
+    pcall(function()
+        flags = dmhub.GetBuiltinTerrainTypesOnMap()
+    end)
+    if flags == nil then
+        return {}
+    end
+
+    local result = {}
+    for _,entry in ipairs(g_tileIndicator.BUILTINS) do
+        local present = false
+        if entry.id == "water" then
+            present = flags.water
+        elseif entry.id == "difficult" then
+            present = flags.difficultTerrain
+        elseif entry.id == "concealment" then
+            present = flags.concealment
+        else
+            present = flags.climbable
+        end
+        if present then
+            result[#result+1] = entry
+        end
+    end
+    return result
+end
+
+--Zone types present on the current map, or {} when the Map Markup
+--module is absent (lobby) or predates the API.
+function g_tileIndicator.ZoneTypesOnMap()
+    local markup = rawget(_G, "MapMarkup")
+    if markup == nil or markup.GetZoneTypesOnMap == nil then
+        return {}
+    end
+    local ok, types = pcall(markup.GetZoneTypesOnMap)
+    if ok and type(types) == "table" then
+        return types
+    end
+    return {}
+end
+
+--Markup holes present on the current map ({color, angleRadians}), or nil.
+--Holes get an opt-IN row like the built-ins (reserved id "hole" in
+--mapoverlay:shownbuiltins, which the engine ignores): the actual cut in the
+--map always shows, the stripes are an inspection aid that defaults off
+--outside the Map Markup panel. DM-only by construction (the markup side
+--returns nil for players).
+function g_tileIndicator.HoleTypeOnMap()
+    local markup = rawget(_G, "MapMarkup")
+    if markup == nil or markup.GetHoleTypeOnMap == nil then
+        return nil
+    end
+    local ok, info = pcall(markup.GetHoleTypeOnMap)
+    if ok and type(info) == "table" then
+        return info
+    end
+    return nil
+end
+
+function g_tileIndicator.CreateOverlayMenu()
+    local checkStyle = {
+        width = "100%",
+        height = 24,
+        fontSize = 14,
+        hpad = 0,
+    }
+
+    --a checkbox bound to a boolean mapoverlay:* setting; monitor keeps
+    --it in sync with the Settings screen and the Show/Hide All buttons.
+    local function SettingCheck(settingid, text, tooltip)
+        return gui.Check{
+            value = dmhub.GetSettingValue(settingid) and true or false,
+            text = text,
+            halign = "left",
+            hover = gui.Tooltip(tooltip),
+            style = checkStyle,
+            monitor = settingid,
+            events = {
+                monitor = function(element)
+                    element.value = dmhub.GetSettingValue(settingid) and true or false
+                end,
+                change = function(element)
+                    dmhub.SetSettingValue(settingid, element.value)
+                end,
+            },
+        }
+    end
+
+    --one row per zone type: a stripe swatch in the type's map color and
+    --angle, and a checkbox driving its entry in mapoverlay:hiddenzones.
+    local function ZoneRow(zoneType)
+        local gradient = nil
+        local bg = zoneType.color or "#888888"
+        if type(zoneType.color) == "string" and string.len(zoneType.color) == 7 then
+            gradient = g_tileIndicator.StripeGradient(zoneType.color, zoneType.angleRadians)
+            bg = "white"
+        end
+
+        return gui.Panel{
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+
+            gui.Panel{
+                width = 14,
+                height = 14,
+                valign = "center",
+                bgimage = true,
+                bgcolor = bg,
+                gradient = gradient,
+                borderWidth = 1,
+                borderColor = "@border",
+            },
+
+            gui.Check{
+                value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil,
+                text = zoneType.name,
+                halign = "left",
+                lmargin = 6,
+                style = checkStyle,
+                monitor = "mapoverlay:hiddenzones",
+                events = {
+                    monitor = function(element)
+                        element.value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil
+                    end,
+                    change = function(element)
+                        local set = g_tileIndicator.HiddenZoneSet()
+                        if element.value then
+                            set[zoneType.keywordid] = nil
+                        else
+                            set[zoneType.keywordid] = true
+                        end
+                        g_tileIndicator.WriteHiddenZoneSet(set)
+                    end,
+                },
+            },
+        }
+    end
+
+    --one row per built-in terrain rule type present on the map's terrain
+    --tiles: same swatch+check shape as a zone row, driving the type's entry
+    --in mapoverlay:shownbuiltins (built-ins default hidden).
+    local function BuiltinRow(builtin)
+        return gui.Panel{
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+
+            gui.Panel{
+                width = 14,
+                height = 14,
+                valign = "center",
+                bgimage = true,
+                bgcolor = "white",
+                gradient = g_tileIndicator.StripeGradient(builtin.color, builtin.angle),
+                borderWidth = 1,
+                borderColor = "@border",
+            },
+
+            gui.Check{
+                value = g_tileIndicator.ShownBuiltinSet()[builtin.id] ~= nil,
+                text = builtin.name,
+                halign = "left",
+                lmargin = 6,
+                style = checkStyle,
+                monitor = "mapoverlay:shownbuiltins",
+                events = {
+                    monitor = function(element)
+                        element.value = g_tileIndicator.ShownBuiltinSet()[builtin.id] ~= nil
+                    end,
+                    change = function(element)
+                        local set = g_tileIndicator.ShownBuiltinSet()
+                        if element.value then
+                            set[builtin.id] = true
+                        else
+                            set[builtin.id] = nil
+                        end
+                        g_tileIndicator.WriteShownBuiltinSet(set)
+                    end,
+                },
+            },
+        }
+    end
+
+    local zoneTypes = g_tileIndicator.ZoneTypesOnMap()
+    local builtinTypes = g_tileIndicator.BuiltinTypesOnMap()
+    local holeType = g_tileIndicator.HoleTypeOnMap()
+
+    local children = {}
+
+    children[#children+1] = gui.Label{
+        classes = {"bold"},
+        text = "Map Overlay",
+        width = "100%",
+        height = "auto",
+        bmargin = 4,
+    }
+
+    --Show All / Hide All: every layer plus every listed zone type at once.
+    children[#children+1] = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bmargin = 4,
+
+        gui.Button{
+            text = "Show All",
+            width = "48%",
+            height = 22,
+            fontSize = 13,
+            halign = "left",
+            click = function(element)
+                dmhub.SetSettingValue("mapoverlay:walls", true)
+                dmhub.SetSettingValue("mapoverlay:elevation", true)
+                dmhub.SetSettingValue("mapoverlay:hiddenzones", "")
+                local set = g_tileIndicator.ShownBuiltinSet()
+                for _,builtin in ipairs(g_tileIndicator.BuiltinTypesOnMap()) do
+                    set[builtin.id] = true
+                end
+                if g_tileIndicator.HoleTypeOnMap() ~= nil then
+                    set["hole"] = true
+                end
+                g_tileIndicator.WriteShownBuiltinSet(set)
+            end,
+        },
+
+        gui.Button{
+            text = "Hide All",
+            width = "48%",
+            height = 22,
+            fontSize = 13,
+            halign = "right",
+            click = function(element)
+                dmhub.SetSettingValue("mapoverlay:walls", false)
+                dmhub.SetSettingValue("mapoverlay:elevation", false)
+                dmhub.SetSettingValue("mapoverlay:shownbuiltins", "")
+                local set = g_tileIndicator.HiddenZoneSet()
+                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
+                    set[zoneType.keywordid] = true
+                end
+                g_tileIndicator.WriteHiddenZoneSet(set)
+            end,
+        },
+    }
+
+    children[#children+1] = SettingCheck("mapoverlay:walls", "Walls",
+        "Wall lines colored by the cover they grant: black for full cover, greys for partial.")
+    children[#children+1] = SettingCheck("mapoverlay:elevation", "Elevation",
+        "Contour lines where tile elevation changes, with a height number in each region.")
+
+    --The terrain list: the defined zone types on the map, then the built-in
+    --terrain rule types the map's TILES carry on their own (a rule only
+    --derived from a defined zone gets no row - the zone's row is its
+    --control).
+    if #zoneTypes > 0 or #builtinTypes > 0 or holeType ~= nil then
+        children[#children+1] = gui.Label{
+            classes = {"fgMuted", "sizeXs"},
+            text = "Terrain on This Map",
+            width = "100%",
+            height = "auto",
+            vmargin = 4,
+        }
+        for _,zoneType in ipairs(zoneTypes) do
+            children[#children+1] = ZoneRow(zoneType)
+        end
+        for _,builtin in ipairs(builtinTypes) do
+            children[#children+1] = BuiltinRow(builtin)
+        end
+        --markup holes: same opt-in storage as the built-ins. The row only
+        --toggles the STRIPES over the holes; the actual cut always shows.
+        if holeType ~= nil then
+            children[#children+1] = BuiltinRow({
+                id = "hole",
+                name = "Hole",
+                color = holeType.color,
+                angle = holeType.angleRadians,
+            })
+        end
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }
+end
+
+--Opens (or dismisses) the map overlay menu beneath `element` -- the status
+--cluster plate the chip and the map name share. Same popup rig as the
+--player-status cluster's Heroes popout: click toggles, click-away dismisses.
+--Does nothing outside a real game, which is also when the plate stops
+--advertising itself as clickable.
+function g_tileIndicator.ShowOverlayMenu(element)
+    if element.popup ~= nil then
+        element.popup = nil
+        return
+    end
+    if (not dmhub.inGame) or dmhub.isLobbyGame then
+        return
+    end
+    element.popupsInheritStyles = true
+    element.popup = gui.Panel{
+        classes = {"bordered", "bg"},
+        width = 280,
+        height = "auto",
+        pad = 12,
+        borderBox = true,
+        halign = "left",
+        valign = "bottom",
+        flow = "vertical",
+        g_tileIndicator.CreateOverlayMenu(),
+    }
+end
+
+--The chip itself. Paints fully clear (no fill, no border) outside a
+--game rather than collapsing: a collapsed panel's think does not run,
+--so a self-collapse would be permanent (same trap the player-status
+--cluster documents above). It is interactable = false: the click that
+--opens the map overlay menu, and the tooltip, both live on the status
+--cluster plate it shares with the map name label (see CreateStatusBar),
+--so hovering either half lights the whole plate.
+function g_tileIndicator.CreatePanel()
+    local function Clear(element)
+        element.data.key = nil
+        element.data.name = nil
+        element.selfStyle.gradient = nil
+        element.selfStyle.bgcolor = "clear"
+        element.selfStyle.borderWidth = 0
+    end
+
+    return gui.Panel{
+        width = 18,
+        height = 18,
+        valign = "center",
+        rmargin = 8,
+        bgimage = true,
+        bgcolor = "clear",
+        borderWidth = 0,
+        borderColor = "@border",
+        interactable = false,
+
+        data = { key = nil, name = nil },
+
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+            Clear(element)
+        end,
+        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        think = function(element)
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                if element.data.key ~= nil then
+                    Clear(element)
+                end
+                return
+            end
+
+            local kind, colorOverride, nameOverride = g_tileIndicator.Classify()
+            local color = colorOverride or kind.color
+            local key = (nameOverride or kind.name) .. "|" .. color
+            if key == element.data.key then
+                return
+            end
+
+            element.data.key = key
+            element.data.name = nameOverride or kind.name
+            element.selfStyle.borderWidth = 1
+            if kind.stripes then
+                element.selfStyle.bgcolor = "white"
+                element.selfStyle.gradient = g_tileIndicator.StripeGradient(color)
+            else
+                element.selfStyle.gradient = nil
+                element.selfStyle.bgcolor = color
+            end
+        end,
+    }
+end
+
 local function CreateStatusBar()
     local resultPanel
+
+    --The hovered-tile chip and the map-name label are two halves of one
+    --control: both describe the current map, and clicking either opens the
+    --map overlay menu. They share a "menuItem" plate (see m_mapCluster
+    --below), which only advertises itself while that menu can actually open.
+    local m_tileChip
+    local m_mapNameLabel
+    local m_mapCluster
+
+    local function MapClusterAvailable()
+        return g_showStatusBarSetting:Get() and dmhub.inGame and (not dmhub.isLobbyGame)
+    end
+
+    local function RefreshMapClusterAffordance()
+        if m_mapCluster ~= nil and m_mapCluster.valid then
+            m_mapCluster:SetClass("menuItem", MapClusterAvailable())
+        end
+    end
+
+    -- Hovered-tile terrain chip: a zone-swatch-style square
+    -- characterizing the tile under the mouse (see g_tileIndicator).
+    m_tileChip = g_tileIndicator.CreatePanel()
+
+    -- Map name + engine status. Long map descriptions used to eat the bar,
+    -- so the box is capped (narrower than the old 420) and the text
+    -- ellipsizes rather than wrapping or shrinking away to nothing;
+    -- hovering shows the untruncated string (on the cluster's tooltip).
+    m_mapNameLabel = gui.Label{
+        --menuLabel is what flips the text to @bg when the plate fills on
+        --hover. It carries a 16px font for the main menu strip; this cluster
+        --runs at the default 14, so match the neighbours explicitly.
+        classes = {"menuLabel"},
+        fontSize = 14,
+        minFontSize = 10,
+        width = 380,
+        height = "100%",
+        hmargin = 0,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        interactable = false,
+        text = "",
+        data = { fullText = "" },
+        multimonitor = {"showstatusbar"},
+        monitor = function(element)
+            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+            element.data.fullText = ""
+            element.text = ""
+            RefreshMapClusterAffordance()
+        end,
+        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        think = function(element)
+            RefreshMapClusterAffordance()
+            if (not dmhub.inGame) or dmhub.isLobbyGame then
+                element.data.fullText = ""
+                element.text = ""
+                return
+            end
+            local text = string.format("%s %s", game.currentMap.description, dmhub.status)
+            element.data.fullText = text
+            element.text = text
+        end,
+    }
+
+    --The shared plate. Structure follows the title bar's other menu items
+    --(and the initiative readout): the fill and the click live on the
+    --wrapper, both children are interactable = false so the hover lands
+    --here rather than on a half. hpad is inline rather than left to the
+    --menuItem style so the cluster does not shift sideways on the frames
+    --where the class is dropped.
+    m_mapCluster = gui.Panel{
+        classes = {cond(MapClusterAvailable(), "menuItem")},
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        valign = "center",
+        hpad = 8,
+
+        linger = function(element)
+            local lines = {}
+            local mapText = m_mapNameLabel.data.fullText
+            if mapText ~= nil and mapText ~= "" then
+                lines[#lines+1] = mapText
+            end
+            local tileName = m_tileChip.data.name
+            if tileName ~= nil then
+                lines[#lines+1] = string.format("Tile under cursor: %s", tileName)
+            end
+            if #lines == 0 then
+                return
+            end
+            lines[#lines+1] = "Click to choose which map overlays are shown."
+            gui.Tooltip(table.concat(lines, "\n"))(element)
+        end,
+
+        click = function(element)
+            g_tileIndicator.ShowOverlayMenu(element)
+        end,
+
+        m_tileChip,
+        m_mapNameLabel,
+    }
+
+    local m_initiativeHost = CreateInitiativeStatusHost()
+
+    -- While a CommandBuilder session is active, a floating recorder dialog
+    -- shows the steps; this zero-size host is just its mount point.
+    local m_commandBuilderHost = CommandBuilder.CreateDialogHost()
 
     resultPanel = gui.Panel{
         flow = "horizontal",
         height = "100%",
-        width = 600,
+        -- Was a fixed 600. The initiative/game-mode readout now shares this
+        -- cluster, so the bar sizes to whatever its labels actually need
+        -- instead of overrunning a hardcoded budget.
+        width = "auto",
         halign = "right",
 
         rightClick = function(element)
@@ -411,10 +1706,11 @@ local function CreateStatusBar()
         -- directory (the "local assets" developer feature -- a custom data
         -- directory that replaces the game's cloud assets), flag it here so it
         -- is obvious at a glance that this is a dev game. Hovering shows the
-        -- source directory; clicking reveals it in the OS file browser. Empty
-        -- (zero-width) for every normal game. LocalAssetsStatus /
-        -- RevealInFileBrowser are read-and-compared-to-nil so an older engine
-        -- build (before the bridge exists) simply shows nothing.
+        -- source directory; clicking opens Settings -> Editing, where the
+        -- "Local Assets (Developer)" section configures the directories (and
+        -- can reveal them in the OS file browser). Empty (zero-width) for every
+        -- normal game. LocalAssetsStatus is read-and-compared-to-nil so an
+        -- older engine build (before the bridge exists) simply shows nothing.
         gui.Label{
             minFontSize = 10,
             bold = true,
@@ -430,12 +1726,12 @@ local function CreateStatusBar()
                 if dir == nil or dir == "" then
                     return
                 end
-                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open it in your file browser.", dir))(element)
+                gui.Tooltip(string.format("Dev game: assets are loading from a local directory --\n%s\n\nClick to open the Local Assets settings.", dir))(element)
             end,
             click = function(element)
                 local dir = element.data.dir
-                if dir ~= nil and dir ~= "" and dmhub.RevealInFileBrowser ~= nil then
-                    dmhub.RevealInFileBrowser(dir)
+                if dir ~= nil and dir ~= "" then
+                    dmhub.ShowPlayerSettings{tab = "Editing"}
                 end
             end,
             multimonitor = {"showstatusbar"},
@@ -462,121 +1758,22 @@ local function CreateStatusBar()
             end,
         },
 
-        gui.Label{
-            minFontSize = 10,
-            width = 160,
-            height = "100%",
-            text = "Ready",
-            multimonitor = {"showstatusbar"},
-            monitor = function(element)
-                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil)
-                element.text = ""
-            end,
-            thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil),
-            think = function(element)
-                if (not dmhub.inGame) or dmhub.isLobbyGame then
-                    element.text = ""
-                    return
-                end
-                local writeCount = dmhub.pendingWriteCount
-                local undoState = dmhub.undoState
-                local text
-                if undoState.undoPending then
-                    text = "Syncing..."
-                else
-                    text = "Synced"
-                end
+        CreateConnectivityPanel(),
 
-                if writeCount > 0 then
-                    text = string.format("%s (%d)", text, writeCount)
-                end
+        -- Host for the initiative/game-mode panel; empty (and therefore
+        -- zero-width) until a game hud mounts one. Collapsing on the
+        -- showstatusbar preference is done here rather than in the mounted
+        -- panel so the initiative bar does not have to know about this
+        -- setting.
+        m_initiativeHost,
 
-                local seq = dmhub.durableObjectSeq
-                if seq and seq > 0 then
-                    element.text = string.format("%s  seq:%d", text, seq)
-                else
-                    element.text = text
-                end
-            end,
-            click = function(element)
-                local history = dmhub:GetDurableObjectSeqHistory() or {}
-                local lines = {}
-                if #history == 0 then
-                    lines[1] = "(no seq-tagged messages received yet)"
-                else
-                    for i = #history, 1, -1 do
-                        lines[#lines+1] = history[i]
-                    end
-                end
+        -- Hovered-tile terrain chip + map name/engine status, sharing one
+        -- clickable plate that opens the map overlay menu.
+        m_mapCluster,
 
-                gamehud:ModalDialog{
-                    title = string.format("DO Message History (latest seq: %d)", dmhub.durableObjectSeq or 0),
-                    width = 600,
-                    height = 500,
-                    flow = "vertical",
-                    halign = "center",
-                    valign = "top",
-                    gui.Label{
-                        width = "95%",
-                        height = "auto",
-                        halign = "center",
-                        valign = "top",
-                        fontSize = 14,
-                        color = "white",
-                        text = "Most recent at top. Inbound lines start with a seq number;\noutbound lines to the game store start with '>>'. Acks include\nthe round-trip time in milliseconds.",
-                        vmargin = 4,
-                    },
-                    gui.Panel{
-                        width = "95%",
-                        height = "100%-80",
-                        halign = "center",
-                        flow = "vertical",
-                        vscroll = true,
-                        styles = {
-                            {
-                                selectors = {"label"},
-                                width = "100%",
-                                height = "auto",
-                                fontSize = 14,
-                                color = "#dddddd",
-                                halign = "left",
-                                vmargin = 1,
-                            },
-                        },
-                        children = (function()
-                            local result = {}
-                            for _, line in ipairs(lines) do
-                                result[#result+1] = gui.Label{ text = line }
-                            end
-                            return result
-                        end)(),
-                    },
-                    buttons = {
-                        { text = "Close", escapeActivates = true },
-                    },
-                }
-            end,
-        },
-
-        gui.Label{
-            minFontSize = 10,
-            width = 420,
-            height = "100%",
-            text = "",
-            multimonitor = {"showstatusbar"},
-            monitor = function(element)
-                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
-                element.text = ""
-            end,
-            thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
-            think = function(element)
-                if (not dmhub.inGame) or dmhub.isLobbyGame then
-                    element.text = ""
-                    return
-                end
-                element.text = string.format("%s %s", game.currentMap.description, dmhub.status)
-            end,
-        }
+        -- Zero-size mount point that opens the command-builder recorder
+        -- dialog when a session begins.
+        m_commandBuilderHost,
     }
 
     return resultPanel
@@ -646,8 +1843,49 @@ Search.RegisterProvider{
     end,
 }
 
+-- The search box used to be exactly as wide as the right dock below it
+-- (364 * dockscale). It is now deliberately narrower by this fraction so the
+-- status labels sharing the bar (map name, initiative mode) get the space back;
+-- the box still tracks the dock scale, it just sits inset from the dock edge.
+local g_searchWidthFraction = 0.9
+
+local function SearchBoxWidth()
+    return math.floor(364 * g_searchWidthFraction * DockablePanel.EffectiveDockScale())
+end
+
 local function CreateSearchBar()
     local resultPanel
+
+    --the seamless-popup dressing (the connector strip below the bar and
+    --the bar's squared-off bottom corners) must track whether a POPUP is
+    --actually up, not focus -- a focused empty bar with no recents has
+    --no popup and must stay a plain closed pill (Venla 2026-08-21).
+    --Called from the paths that assign/clear the popup, from the popups'
+    --own destroy (so an engine outside-click dismissal retracts the
+    --dressing IMMEDIATELY -- the think tick alone left it flickering for
+    --up to 0.2s), plus the think tick as a catch-all.
+    local function SyncPopupOpenState()
+        if resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        local hasPopup = resultPanel.popup ~= nil
+        if hasPopup ~= resultPanel.data.hadPopup then
+            resultPanel.data.hadPopup = hasPopup
+            resultPanel:SetClass("searchPopupOpen", hasPopup)
+            resultPanel:FireEventTree("searchPopupChanged", hasPopup)
+        end
+    end
+
+    --destroy handler shared by the popups: when a popup is torn down and
+    --nothing replaced it, retract the dressing right away. The
+    --popup-still-set guard keeps per-keystroke popup REPLACEMENT from
+    --blinking the connector (the old popup's destroy can fire after the
+    --new one is already assigned).
+    local function OnSearchPopupDestroyed()
+        if resultPanel ~= nil and resultPanel.valid and resultPanel.popup == nil then
+            SyncPopupOpenState()
+        end
+    end
 
     -- Per-doc heading search lives in JournalPDFViewer.lua (SearchPDFHeadings,
     -- shared with the "In this document" context provider). This wrapper maps
@@ -1088,18 +2326,14 @@ local function CreateSearchBar()
             end
         end
 
+        --the filled, scrolling body. Its searchResultsPanel fill/corners
+        --live HERE, not on the popup root: the root's first 4px are a
+        --transparent notch (see below).
         popupPanel = gui.Panel{
-            classes = {"bordered", "bg", "searchResultsPanel"},
+            classes = {"searchResultsPanel"},
             flow = "vertical",
-            -- Mirrors the search box's dockscale-tracking width (HB1), but
-            -- never shrinks below the old fixed 368 -- cards in this popup
-            -- must never wrap at small dock scales. At scale > 1 the popup
-            -- grows to match the (now wider) box above it. Rebuilt fresh per
-            -- search, so a value computed at construction stays current.
-            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
+            width = "100%",
             height = "auto",
-            halign = "center",
-            valign = "bottom",
             vscroll = true,
             children = children,
 
@@ -1116,7 +2350,39 @@ local function CreateSearchBar()
                 end
             end,
         }
-        return popupPanel
+
+        return gui.Panel{
+            destroy = OnSearchPopupDestroyed,
+            --top-center pivot: the engine places a popup ONCE, against
+            --its rect at placement time, and an auto-height popup that
+            --finishes layout afterwards grows around its pivot -- with
+            --the default center pivot a SHORT popup's top edge crept up
+            --over the search bar and clipped its text (Venla
+            --2026-08-21). Anchored at the top, growth extends downward
+            --only, so the placed top edge (flush under the bar) holds
+            --for every result count.
+            pivot = {x = 0.5, y = 1},
+            flow = "vertical",
+            -- Exactly the search box's width -- the popup must never be
+            -- wider or narrower than the box above it (Venla 2026-08-21;
+            -- this replaces the old max(368, dock width) rule, trading the
+            -- no-wrap floor for alignment). Rebuilt fresh per search, so a
+            -- value computed at construction stays current.
+            width = SearchBoxWidth(),
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            --transparent notch: the engine PLACES the popup's top edge
+            --~6px INSIDE the bar (measured 2026-08-21; the shared fill
+            --hid the overlap, but the opaque fill painted over glyph
+            --descenders -- g, y, p -- which reach the bar's last rows).
+            --10px of transparency puts the fill's top just below the
+            --bar's box; the bar itself and its connector strip show
+            --through with the same fill, so the join still reads
+            --seamless.
+            gui.Panel{ width = 1, height = 10 },
+            popupPanel,
+        }
     end
 
     -- Empty-state: focusing the search box with no query shows the recently
@@ -1318,17 +2584,39 @@ local function CreateSearchBar()
             resultPanel.data.searchStatus = nil
             if resultPanel.popup == nil or not resultPanel.data.isNoResultsPopup then
                 resultPanel.data.isNoResultsPopup = true
-                resultPanel.popup = gui.Label{
-                    width = "auto",
+                --same chrome and width as the grouped results popup, so the
+                --empty state reads as the same surface and sits below the
+                --box like the results do (the old bare black label sat on
+                --top of the input itself). popupsInheritStyles is what
+                --delivers the searchResultsPanel/searchEmptyState rules to
+                --the re-rooted popup -- without it the label renders with
+                --default label styling, huge and unframed.
+                resultPanel.popupsInheritStyles = true
+                resultPanel.popup = gui.Panel{
+                    destroy = OnSearchPopupDestroyed,
+                    --top-center pivot + 10px descender notch, same
+                    --structure as the grouped popup (see
+                    --CreateGroupedPopup for the full rationale).
+                    pivot = {x = 0.5, y = 1},
+                    flow = "vertical",
+                    width = SearchBoxWidth(),
                     height = "auto",
                     halign = "center",
                     valign = "bottom",
-                    fontSize = 18,
-                    bgimage = true,
-                    bgcolor = "black",
-                    settext = function(element, newtext)
-                        element.text = newtext
-                    end,
+                    gui.Panel{ width = 1, height = 10 },
+                    gui.Panel{
+                        classes = {"searchResultsPanel"},
+                        flow = "vertical",
+                        width = "100%",
+                        height = "auto",
+                        gui.Label{
+                            classes = {"searchEmptyState"},
+                            text = "",
+                            settext = function(element, newtext)
+                                element.text = newtext
+                            end,
+                        },
+                    },
                 }
             end
 
@@ -1396,17 +2684,24 @@ local function CreateSearchBar()
     resultPanel = gui.SearchInput{
         bgimage = true,
         -- Tracks the right dock's rendered width (364 * dockscale, default 1.0)
-        -- so the box lines up with the dock below it at any scale (HB1). Kept
-        -- live by the think handler below. borderBox is load-bearing:
-        -- gui.SearchInput ships hpad=24 WITHOUT borderBox, so the rendered box
-        -- would otherwise be 48px wider than the declared width and overhang
-        -- the dock (James field report, 2026-07-03).
+        -- so the box lines up with the dock below it at any scale (HB1), less
+        -- the 10% narrowing (g_searchWidthFraction) that buys back bar space for
+        -- the status labels to its left. Kept live by the think handler below.
+        -- borderBox is load-bearing: gui.SearchInput ships hpad=24 WITHOUT
+        -- borderBox, so the rendered box would otherwise be 48px wider than the
+        -- declared width and overhang the dock (James field report, 2026-07-03).
         borderBox = true,
-        width = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1)),
+        width = SearchBoxWidth(),
         height = 20,
         halign = "right",
+        --breathing room against the window edge: without it the pill's
+        --border (and the popup centered under it) sat on the last pixel
+        --of the screen (Venla 2026-08-21).
+        rmargin = 8,
         valign = "center",
-        pad = 2,
+        --no pad override: the canonical searchInput padding (room for
+        --the magnifier) comes from the component/style (Control Zoo
+        --pass 2026-08-20; the old pad=2 left the text under the icon).
         popupPositioning = "panel",
         placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
         inputEvents = { "find" },
@@ -1420,6 +2715,7 @@ local function CreateSearchBar()
             if not status then
                 element:FireEvent("repeatSearch")
             end
+            SyncPopupOpenState()
         end,
         change = function(element)
             --element:FireEvent("edit")
@@ -1429,6 +2725,7 @@ local function CreateSearchBar()
             if string.trim(element.text or "") == "" then
                 ShowRecentResults()
             end
+            SyncPopupOpenState()
         end,
         -- Click-to-focus on the empty box shows the recents. The engine has
         -- no input-gained-focus event (deselect has no symmetric select), so
@@ -1439,7 +2736,7 @@ local function CreateSearchBar()
             -- change to the slider is reflected without a reload. Cheap
             -- setting read on a 0.2s tick; only touches .width when it
             -- actually changed.
-            local w = math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))
+            local w = SearchBoxWidth()
             if element.data.appliedSearchWidth ~= w then
                 element.data.appliedSearchWidth = w
                 element.selfStyle.width = w
@@ -1452,6 +2749,7 @@ local function CreateSearchBar()
                 ShowRecentResults()
             end
             element.data.hadInputFocus = focused
+            SyncPopupOpenState()
         end,
         -- Keyboard navigation of the results popup: arrows move the selection,
         -- Enter activates it (or the first result when nothing is selected).
@@ -1502,6 +2800,36 @@ local function CreateSearchBar()
             element:FireEvent("edit")
         end,
     }
+
+    --seamless popup connector (Venla 2026-08-21): while a results popup
+    --is up (searchPopupChanged, from SyncPopupOpenState), this strip
+    --extends the field's fill down over the gap the engine leaves above
+    --the popup (popup roots ignore y offsets, so the FIELD carries the
+    --bridge). Same fill as field and popup, so the three read as one
+    --stretched shape. AddChild, NOT a positional child in the
+    --constructor -- a positional option would overwrite
+    --gui.SearchInput's own magnifier child. Floating children anchor to
+    --the CONTENT box (inside hpad 24), hence the +48 to reach the full
+    --pill width.
+    resultPanel:AddChild(gui.Panel{
+        classes = {"searchPopupBridge", "hidden"},
+        floating = true,
+        interactable = false,
+        halign = "center",
+        valign = "bottom",
+        width = "100%+48",
+        height = 14,
+        --17, not 14: panel children render ABOVE the input's own text,
+        --and at 14 the strip's top row overlapped the glyph descender
+        --zone and clipped g/y/p tails (live-debugged 2026-08-21 -- the
+        --popup fill was innocent). 3px lower clears the text; the
+        --strip still overlaps the popup fill below, so the join stays
+        --seamless.
+        y = 17,
+        searchPopupChanged = function(element, hasPopup)
+            element:SetClass("hidden", not hasPopup)
+        end,
+    })
 
     return resultPanel
 end
@@ -2010,7 +3338,7 @@ local function CreateTopBar()
                 thanks = "Your bug report has been submitted. Thank you!",
                 --shown alongside thanks when the ticket bridge exists: a bug
                 --report also opens a ticket the user can follow up on.
-                ticketInfo = "A ticket has been opened for your report. You can find it under Report Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
+                ticketInfo = "A ticket has been opened for your report. You can find it under Feedback > Your Tickets, where you can add details at any time. When a developer responds, a marker will appear on that menu.",
             },
             feature = {
                 title = "Request a Feature",
@@ -2734,7 +4062,7 @@ local function CreateTopBar()
 
         local function BuildListPage()
             if #m_tickets == 0 then
-                return BuildMessagePage("You have not filed any bug reports yet.\n\nWhen you report a bug from the Report Feedback menu, a ticket is opened here where the developers can follow up with you.")
+                return BuildMessagePage("You have not filed any bug reports yet.\n\nWhen you report a bug from the Feedback menu, a ticket is opened here where the developers can follow up with you.")
             end
 
             local rows = {}
@@ -2978,8 +4306,14 @@ local function CreateTopBar()
                 end,
             }
 
+            local closed = (ticket.status == "closed")
+
             local closedNotice = nil
-            if ticket.status == "closed" then
+            if closed then
+                local noticeText = "This ticket has been closed by the developers. You can still add a message if you have more information."
+                if ticket.closedBy == "user" then
+                    noticeText = "You closed this ticket. You can reopen it if the problem comes back, or add a message with more information."
+                end
                 closedNotice = gui.Label{
                     fontSize = 14,
                     color = "#999999",
@@ -2988,9 +4322,76 @@ local function CreateTopBar()
                     halign = "left",
                     tmargin = 6,
                     textWrap = true,
-                    text = "This ticket has been closed by the developers. You can still add a message if you have more information.",
+                    text = noticeText,
                 }
             end
+
+            --The reporter can resolve their own ticket -- they worked it out,
+            --it was their own setup, it stopped happening -- and reopen it if
+            --the problem comes back. Both directions go through the same
+            --bridge call, which stamps closedBy so the team dashboard can tell
+            --a reporter-resolved ticket from a developer-resolved one.
+            local statusButton = nil
+            if TicketStatusBridgeAvailable() then
+                statusButton = gui.Button{
+                    classes = {"sizeM"},
+                    text = cond(closed, "Reopen Ticket", "Close Ticket"),
+                    width = 160,
+                    halign = "right",
+                    valign = "center",
+                    rmargin = 8,
+                    hover = gui.Tooltip(cond(closed,
+                        "Reopen this ticket if the problem is still happening.",
+                        "Close this ticket if you no longer need help with it. You can reopen it later.")),
+                    click = function(element)
+                        if m_sending then
+                            return
+                        end
+
+                        local newStatus = cond(closed, "open", "closed")
+
+                        m_sending = true
+                        sendStatus.text = cond(closed, "Reopening...", "Closing...")
+
+                        local ok = pcall(function()
+                            dmhub.SetTicketStatus{
+                                reportId = ticket.reportId,
+                                status = newStatus,
+                                complete = function()
+                                    m_sending = false
+                                    --mirror the server write locally: these
+                                    --records are the same tables the list page
+                                    --and the alert state read, so the chip and
+                                    --notice update without a refetch.
+                                    ticket.status = newStatus
+                                    ticket.closedBy = cond(newStatus == "closed", "user", nil)
+                                    ticket.updatedAt = os.time() * 1000
+                                    RefreshPage()
+                                end,
+                                error = function(message)
+                                    m_sending = false
+                                    if sendStatus.valid then
+                                        sendStatus.text = "Could not update the ticket: " .. message
+                                    end
+                                end,
+                            }
+                        end)
+
+                        if not ok then
+                            m_sending = false
+                            sendStatus.text = "Could not update the ticket."
+                        end
+                    end,
+                }
+            end
+
+            --explicit list: statusButton is nil on older engines, and a nil
+            --positional child would swallow the Send button after it.
+            local buttons = {}
+            if statusButton ~= nil then
+                buttons[#buttons+1] = statusButton
+            end
+            buttons[#buttons+1] = sendButton
 
             return gui.Panel{
                 width = "100%",
@@ -3069,7 +4470,15 @@ local function CreateTopBar()
                     tmargin = 6,
 
                     sendStatus,
-                    sendButton,
+
+                    gui.Panel{
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "right",
+                        valign = "center",
+                        children = buttons,
+                    },
                 },
             }
         end
@@ -4264,7 +5673,7 @@ local function CreateTopBar()
             name = "Codex",
             icon = "ui-icons/codex-logo.png",
             menuItems = function()
-			    local items = table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == nil and item.text ~= "Development Tools" end)
+			    local items = WindowMenuItems("codex")
                 local storeItems = GetStoreMenuItems()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
@@ -4276,14 +5685,14 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Game",
             menuItems = function()
-			    return table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == "game" end)
+			    return WindowMenuItems("game")
             end,
         },
 
         CreateCodexMenuItem{
             name = "Tools",
             menuItems = function()
-			    return table.filter(LaunchablePanel.GetMenuItems(), function(item) return item.menu == "tools" end)
+			    return WindowMenuItems("tools")
             end,
         },
 
@@ -4291,86 +5700,114 @@ local function CreateTopBar()
             name = "Panels",
             menuItems = function()
                 local dockablePanels = DockablePanel.GetMenuItems()
-                dockablePanels = table.filter(dockablePanels, function(item) return item.text ~= "Development Tools" end)
+                --a dockable panel that declared `menu` is listed in that
+                --title-bar menu (Codex/Game/Tools) instead of here --
+                --listing it in both would just be clutter.
+                dockablePanels = table.filter(dockablePanels, function(item) return item.text ~= "Development Tools" and item.menu == nil end)
+
+                --folder submenus (Map Editing) are a different kind of row
+                --than the panel toggles; giving them their own group makes
+                --the context menu insert a divider before them.
+                for _,p in ipairs(dockablePanels) do
+                    if p.submenu ~= nil then
+                        p.group = "folder"
+                    end
+                end
 
                 local locked = dmhub.GetSettingValue("uilocked")
+                local railMode = rawget(_G, "RailModeActive") ~= nil and RailModeActive()
 
-                if locked then
+                --rail mode has no Lock Panels row (see below), so it must not
+                --honour the lock either -- a user who locked in dock mode and
+                --then switched would find every row disabled with nothing left
+                --to unlock it. Locking is a dock concept; the rail ignores it.
+                if locked and not railMode then
                     for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
                         p.disabled = true
                     end
                 end
 
-                --In rail mode this menu manages rail SHORTCUTS: picking a
-                --panel adds or removes its rail button instead of opening
-                --the panel (Lisa, 2026-07-20). The check mark tracks rail
-                --membership, and the togglepanel keybinding is dropped from
-                --the row because it still opens the panel -- a different
-                --action from the one the row now performs.
-                if rawget(_G, "RailModeActive") ~= nil and RailModeActive() then
+                --In rail mode the rows keep their DEFAULT click: it routes
+                --through the rail's open handler, which toggles the panel's
+                --rail window and adds a rail shortcut on first open. A
+                --shortcut already on the rail is never removed from here
+                --(David, 2026-08-08) -- removal lives on the rail's own
+                --context menu and rearrange trash. Only the check needs
+                --overriding: the default tracks the DOCK instance, which is
+                --slid away in rail mode, so light the row while the panel
+                --is shown anywhere on the rail surface instead.
+                if railMode then
                     for _,p in ipairs(gui.FlattenContextMenuItems(dockablePanels)) do
                         local panelName = p.text
                         if panelName ~= nil and p.submenu == nil then
-                            p.bind = nil
-                            p.check = RailHasPanel(panelName)
-                            p.click = function()
-                                RailTogglePanel(panelName)
-                            end
+                            p.check = PanelDocument.IsPanelShown(string.lower(panelName))
                         end
                     end
                 end
 
-                table.insert(dockablePanels, 1, {
-                    text = "Left Dock",
-                    check = not dmhub.GetSettingValue("leftdockoffscreen"),
-                    group = "panel",
+                --Dock/lock rows are dock-mode only: in rail mode the docks are
+                --slid off screen and the rail owns placement, so toggling a
+                --dock or resetting the dock layout does nothing visible, and
+                --the lock has no meaning (David, 2026-08-08).
+                if not railMode then
+                    --icons so the dock rows align with the panel rows below,
+                    --which all carry check gutter + icon + text.
+                    table.insert(dockablePanels, 1, {
+                        text = "Left Dock",
+                        icon = "phosphor/sidebar-simple.png",
+                        check = not dmhub.GetSettingValue("leftdockoffscreen"),
+                        group = "panel",
 
-                    click = function()
-                        dmhub.SetSettingValue("leftdockoffscreen", not dmhub.GetSettingValue("leftdockoffscreen"))
-                    end,
-                })
+                        click = function()
+                            dmhub.SetSettingValue("leftdockoffscreen", not dmhub.GetSettingValue("leftdockoffscreen"))
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = "Right Dock",
-                    check = not dmhub.GetSettingValue("rightdockoffscreen"),
-                    group = "panel",
+                    table.insert(dockablePanels, 1, {
+                        text = "Right Dock",
+                        icon = "phosphor/sidebar-simple.png",
+                        check = not dmhub.GetSettingValue("rightdockoffscreen"),
+                        group = "panel",
 
-                    click = function()
-                        dmhub.SetSettingValue("rightdockoffscreen", not dmhub.GetSettingValue("rightdockoffscreen"))
-                    end,
-                })
+                        click = function()
+                            dmhub.SetSettingValue("rightdockoffscreen", not dmhub.GetSettingValue("rightdockoffscreen"))
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = "Reset Panels",
-                    icon = "icons/icon_tool/icon_power.png",
-                    group = "panel",
+                    table.insert(dockablePanels, 1, {
+                        text = "Reset Panels",
+                        icon = "icons/icon_tool/icon_power.png",
+                        group = "panel",
 
-                    click = function()
-                        dmhub.ResetSetting(GetDockablePanelsSetting())
-                        InitDockablePanels()
-                    end,
-                })
+                        click = function()
+                            dmhub.ResetSetting(GetDockablePanelsSetting())
+                            InitDockablePanels()
+                        end,
+                    })
 
-                table.insert(dockablePanels, 1, {
-                    text = cond(locked, "Unlock Panels", "Lock Panels"),
-                    icon = cond(locked, "icons/icon_tool/icon_tool_30.png", "icons/icon_tool/icon_tool_30_unlocked.png"),
-                    check = locked,
-                    group = "panel",
-                    click = function()
-                        dmhub.SetSettingValue("uilocked", not locked)
-                    end,
-                })
+                    table.insert(dockablePanels, 1, {
+                        text = cond(locked, "Unlock Panels", "Lock Panels"),
+                        icon = cond(locked, "icons/icon_tool/icon_tool_30.png", "icons/icon_tool/icon_tool_30_unlocked.png"),
+                        check = locked,
+                        group = "panel",
+                        click = function()
+                            dmhub.SetSettingValue("uilocked", not locked)
+                        end,
+                    })
+                end
 
                 --Workspace Views: the Panels menu is the ONLY switcher
                 --UI (Lisa+David review 2026-07-19 removed the rail chip),
                 --so it carries the full verb set: switch, save, save-as,
                 --reset, manage. Only in rail mode (A6).
-                if rawget(_G, "ViewsListForUser") ~= nil and dmhub.GetSettingValue("iconrail") == true and devmode() then
+                if rawget(_G, "ViewsListForUser") ~= nil and railMode then
                     local active = ViewsActiveId()
                     local drift = ViewsIsDrifted()
                     local viewItems = {}
+                    --no "View: " prefix on the rows now that the submenu row
+                    --above them already says Views.
                     viewItems[#viewItems + 1] = {
-                        text = "View: Custom",
+                        text = "Custom",
                         check = active == nil,
                         group = "views",
                         click = function()
@@ -4379,9 +5816,15 @@ local function CreateTopBar()
                     }
                     for _, v in ipairs(ViewsListForUser()) do
                         local vid = v.id
-                        local text = "View: " .. v.name
+                        local text = v.name
                         if vid == active and drift then
                             text = text .. "  (unsaved changes)"
+                        end
+                        --a newer stock layout has shipped than the one
+                        --this user's copy was built from; switching to
+                        --it raises the take-it/keep-mine prompt.
+                        if v.updated then
+                            text = text .. "  (updated)"
                         end
                         viewItems[#viewItems + 1] = {
                             text = text,
@@ -4435,9 +5878,15 @@ local function CreateTopBar()
                             end
                         end,
                     }
-                    for i = #viewItems, 1, -1 do
-                        table.insert(dockablePanels, 1, viewItems[i])
-                    end
+                    --one "Views" folder row rather than five-plus rows inline:
+                    --the switcher is the least-used half of this menu and was
+                    --pushing the panel toggles off the top.
+                    table.insert(dockablePanels, 1, {
+                        id = "FolderViews",
+                        text = "Views",
+                        group = "views",
+                        submenu = viewItems,
+                    })
                 end
 
                 return dockablePanels
@@ -4471,7 +5920,7 @@ local function CreateTopBar()
         },
 
         CreateCodexMenuItem{
-            name = "Report Feedback",
+            name = "Feedback",
             mainmenu = "always",
             --marker dot beside the menu name when a developer has responded
             --to one of the user's tickets and they have not viewed it yet.
@@ -4556,18 +6005,10 @@ local function CreateTopBar()
             gradient = "@barTrack",
         },
 
-        -- Title-bar search field: bordered variant + behavior visibility.
-        -- DefaultStyles' searchInput rule ships borderWidth=0; the title
-        -- bar wants a thin frame so we add it here at the surface.
-        {
-            selectors = {"searchInput"},
-            borderWidth = 1,
-            borderColor = "@border",
-        },
-        {
-            selectors = {"searchInput", "focus"},
-            borderColor = "@fgStrong",
-        },
+        -- Title-bar search field visibility. (Its LOOK is the canonical
+        -- searchInput rule in DefaultStyles now -- this surface's old
+        -- thin-frame variant was promoted to the app-wide default,
+        -- Control Zoo decision 2026-08-20.)
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
             hidden = 1,
@@ -4582,48 +6023,100 @@ local function CreateTopBar()
             hidden = 1,
         },
 
-        -- Grouped global-search results popup.
+        -- Grouped global-search results popup: the search bar's own
+        -- focused fill, stretched downward (Venla 2026-08-21) -- no
+        -- frame, no separate panel color, square top corners so it
+        -- continues the bar's silhouette; only the bottom keeps the
+        -- pill rounding. x1=TL, y1=TR, x2=BR, y2=BL.
         {
             selectors = {"searchResultsPanel"},
-            pad = 6,
+            --vpad only, NO horizontal padding: row highlights span the
+            --popup's full width (Venla 2026-08-21), so rows reach the
+            --edges and carry their text inset as their own lpad/rpad.
+            vpad = 6,
             maxHeight = 600,
             borderBox = true,
+            bgimage = true,
+            bgcolor = "#2E2E33",
+            cornerRadius = {x1 = 0, y1 = 0, x2 = 7, y2 = 7},
+        },
+        {
+            -- While the search's results popup is actually up (class
+            -- toggled by SyncPopupOpenState), the field's bottom
+            -- corners square off so the popup below continues the
+            -- shape without corner notches. Keyed to the popup, NOT
+            -- focus: a focused empty bar has no popup and must stay a
+            -- plain closed pill.
+            selectors = {"searchInput", "searchPopupOpen"},
+            cornerRadius = {x1 = 7, y1 = 7, x2 = 0, y2 = 0},
+        },
+        {
+            -- The connector strip a focused search bar drops below
+            -- itself to meet the popup (the engine positions popup
+            -- roots a few px lower and ignores y offsets on them, so
+            -- the FIELD bridges the gap). Same fill as bar + popup, so
+            -- the overlap is invisible and the three read as one shape.
+            selectors = {"searchPopupBridge"},
+            bgimage = true,
+            bgcolor = "#2E2E33",
         },
         {
             selectors = {"searchGroupHeading"},
-            width = "100%-12",
+            --hmargin 12, matching the old 6 popup pad + 6 margin now
+            --that the popup itself has no horizontal padding.
+            width = "100%-24",
             height = "auto",
             halign = "left",
             color = "@accent",
             fontSize = 13,
             tmargin = 6,
             bmargin = 2,
-            hmargin = 6,
+            hmargin = 12,
         },
         {
             selectors = {"searchResultRow"},
-            width = "100%-12",
+            --full width so the hover/keyboard highlight runs edge to
+            --edge of the popup; the text inset lives in the row's OWN
+            --padding instead of margins. rpad 28, not symmetric: the
+            --engine scrollbar overlays the popup's right edge, and the
+            --right-aligned type labels must stay clear of it (Venla
+            --2026-08-21).
+            width = "100%",
             height = "auto",
             halign = "left",
             valign = "center",
             bgimage = true,
             bgcolor = "clear",
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
+        --row highlights lift ABOVE the popup's #2E2E33 ground (@bgAlt
+        --is darker than it now and read as dark stripes).
         {
             selectors = {"searchResultRow", "hover"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchResultRow", "searchfocus"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchSeeAll", "searchfocus"},
             bgimage = true,
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
+        },
+        {
+            -- Empty-state line ("No Search Results" / "Searching...")
+            -- shown alone inside the searchResultsPanel frame.
+            selectors = {"searchEmptyState"},
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            color = "@fgMuted",
+            fontSize = 13,
+            vmargin = 6,
         },
         {
             -- 20px to line up with the placed-token portraits (CreateTokenImage
@@ -4658,6 +6151,17 @@ local function CreateTopBar()
         {
             selectors = {"searchResultName"},
             width = "auto",
+            --hard cap, not "available": rows flow horizontally with an
+            --auto-width name block, so an uncapped long name pushes the
+            --right-hand type/chips column past the row edge and it
+            --clips mid-word (Venla 2026-08-21). Fixed cap, not an
+            --available-based width -- see the Control Zoo mock's note
+            --on the hover-restyle flicker loop. BOTH columns are
+            --capped (the right one overflowed too on long monster
+            --names as type labels); capped labels wrap instead of
+            --clipping. 150 + the right column's 95 + icon and margins
+            --fills the current popup width.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             valign = "center",
@@ -4667,6 +6171,10 @@ local function CreateTopBar()
         {
             selectors = {"searchResultType"},
             width = "auto",
+            --the right column's cap (see searchResultName): long type
+            --labels -- e.g. a monster name on an ability row -- wrap
+            --within it instead of running off the row edge.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -4677,6 +6185,9 @@ local function CreateTopBar()
         {
             selectors = {"searchResultSub"},
             width = "auto",
+            --same cap rationale as searchResultName: the sub line also
+            --widens the name block and pushes the right column out.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             color = "@fgMuted",
@@ -4709,6 +6220,9 @@ local function CreateTopBar()
         {
             selectors = {"searchHintText"},
             width = "auto",
+            --cap like searchResultName (minus the lead-in arrow), so a
+            --long action hint cannot widen the name block either.
+            maxWidth = 134,
             height = "auto",
             valign = "center",
             color = "@fgMuted",
@@ -4720,6 +6234,8 @@ local function CreateTopBar()
             -- chip above (and from sibling buttons when there is more than one).
             selectors = {"searchResultChip"},
             width = "auto",
+            --same right-column cap as searchResultType.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -4743,16 +6259,31 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchSeeAll"},
-            width = "100%-12",
+            --full width with row-matching pads, so its searchfocus
+            --highlight also runs edge to edge (see searchResultRow).
+            width = "100%",
             height = "auto",
             halign = "left",
             color = "@accentHover",
             fontSize = 13,
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
     }
+
+    -- Expose the REAL global-search bar to dev surfaces (the Control
+    -- Zoo hosts it for styling work on the results popup). The popup
+    -- inherits its searchResult* rules from the HOST's cascade
+    -- (popupsInheritStyles), so a foreign host must merge
+    -- TopBar.SearchBarStyles() into its own sheet -- and must
+    -- SetClassTree("ingame", true) on its wrapper, or the sheet's
+    -- {searchInput, ~ingame} rule hides the bar.
+    TopBar.CreateSearchBar = CreateSearchBar
+    TopBar.SearchBarStyles = function()
+        return titleBarStyleExtras
+    end
 
     -- Tree-wide invalidation pulse for theme repaints. Reassigning .styles
     -- updates the rule array but doesn't mark descendants dirty, so without

@@ -1493,6 +1493,51 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     return result
 end
 
+--- Evaluates only the authored filter formulas -- customTargetFilters
+--- (Ability Filters), the Target Filter formula, and Reasoned Filters --
+--- against a prospective target. None of TargetPassesFilter's structural
+--- gates (allegiance, untargetable, line of sight) run here. Use where the
+--- target is predetermined (e.g. a triggered ability targeting its subject)
+--- and only the author's filters should gate it.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean, nil|string
+function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+	local reasonedFilters = self:try_get("reasonedFilters", {})
+	local customFilters = self:try_get("customTargetFilters", {})
+	local filter = self.targetFilter
+	if filter == "" and #reasonedFilters == 0 and #customFilters == 0 then
+		return true
+	end
+
+	--Same symbol environment TargetPassesFilter builds for its formulas.
+	local caster = GenerateSymbols(casterToken.properties)
+	symbols = table.shallow_copy(symbols or {})
+	symbols.invoker = symbols.invoker or caster
+	symbols.caster = caster
+	symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+	symbols.target = GenerateSymbols(targetToken.properties)
+
+	for _,customFilter in ipairs(customFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(customFilter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+			return false
+		end
+	end
+
+	if filter ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+		return false
+	end
+
+	for _,reasonedFilter in ipairs(reasonedFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name))) then
+			return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+		end
+	end
+
+	return true
+end
+
 --- @return boolean
 function ActivatedAbility:CanDuplicateTargets()
 	return self.repeatTargets
@@ -1946,7 +1991,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 		if resourceInfo ~= nil then
 			local max = resourcesAvailable[self.channeledResource] or 0
 			local usage = creature:GetResourceUsage(self.channeledResource, resourceInfo.usageLimit)
-			local available = max - usage
+			local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
             if self.resourceCost == self.channeledResource then
 				local mode = options.mode or 1
                 local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
@@ -2328,6 +2373,11 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         params.director = true
     end
 
+    --Whether this user has the "New Experimental UI" (icon rails) turned on.
+    --Recorded on every event, including false, so an absent field means an
+    --older client rather than a user who has the setting off.
+    params.newUI = dmhub.GetSettingValue("iconrail") == true
+
     if casterToken.properties:IsHero() then
         local classInfo = casterToken.properties:GetClass()
         if classInfo ~= nil then
@@ -2649,6 +2699,14 @@ end
 --- @param targets { loc = Loc, token = CharacterToken }[]
 --- @param options table
 function ActivatedAbility:Cast(casterToken, targets, options)
+	--While the Director has the game frozen, players cannot act. Refuse here,
+	--before the chat message and before any resources are spent -- this is the
+	--central funnel every ability activation path goes through.
+	if dmhub.frozen and not dmhub.isDM then
+		print("Cast:: refused; the game is frozen")
+		return
+	end
+
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
@@ -2862,9 +2920,10 @@ end
 --teleport) so the remote player is not prompted to move a token that the
 --in-progress cast is still resolving a forced move against: riders resolve
 --"after the triggering effect resolves".
---Each entry: { casts = {co -> true}, fn = function }.
+--Each entry: { casts = {co -> true}, fn = function, time = enqueue time }.
 local g_deferredCastCompleteActions = {}
 local g_deferredCastSweepScheduled = false
+local g_lastDeferredStallLog = 0
 
 local function ScheduleDeferredCastSweep()
     --backstop in case a cast coroutine dies without its atexit running.
@@ -2903,6 +2962,7 @@ function ActivatedAbility.RunWhenCastsComplete(fn)
     g_deferredCastCompleteActions[#g_deferredCastCompleteActions+1] = {
         casts = casts,
         fn = fn,
+        time = dmhub.Time(),
     }
 
     ScheduleDeferredCastSweep()
@@ -2928,6 +2988,47 @@ function ActivatedAbility.FlushCastCompleteActions()
             end
         else
             i = i + 1
+        end
+    end
+
+    --Log-only staleness telemetry: when deferred actions have been blocked for
+    --a long time, name the live casts blocking them so a "triggered abilities
+    --stopped working" session shows its culprit in the bug-report log instead
+    --of failing silently (a stranded invoke here starves EVERY deferred
+    --trigger on the client for the rest of the session). No behavior change:
+    --the queue still waits indefinitely. Throttled to one line per minute.
+    if #g_deferredCastCompleteActions > 0 then
+        local now = dmhub.Time()
+        local oldest = nil
+        for _,entry in ipairs(g_deferredCastCompleteActions) do
+            if entry.time ~= nil and (oldest == nil or entry.time < oldest) then
+                oldest = entry.time
+            end
+        end
+        if oldest ~= nil and now - oldest > 60 and now - g_lastDeferredStallLog > 60 then
+            g_lastDeferredStallLog = now
+            local blockers = {}
+            local list = {}
+            for _,entry in ipairs(g_deferredCastCompleteActions) do
+                for co,_ in pairs(entry.casts) do
+                    local info = ActivatedAbility.coroutineStorage[co]
+                    if info ~= nil and coroutine.status(co) ~= "dead" and blockers[co] == nil then
+                        local age = "?"
+                        if info.startTime ~= nil then
+                            age = string.format("%d", math.floor(now - info.startTime))
+                        end
+                        local casterName = "?"
+                        if info.casterToken ~= nil and info.casterToken.valid then
+                            casterName = tostring(info.casterToken.name)
+                        end
+                        blockers[co] = true
+                        list[#list+1] = string.format("%s (caster=%s age=%ss)",
+                            tostring(info.ability ~= nil and info.ability.name or "?"), casterName, age)
+                    end
+                end
+            end
+            printf("CASTSTALL:: %d deferred action(s) blocked for %ds by %d live cast(s): %s",
+                #g_deferredCastCompleteActions, math.floor(now - oldest), #list, table.concat(list, "; "))
         end
     end
 end
@@ -3049,6 +3150,8 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
             casterToken = casterToken,
             targets = targets,
             options = options,
+            --for the CASTSTALL staleness log in FlushCastCompleteActions.
+            startTime = dmhub.Time(),
         }
     end
 
@@ -3772,6 +3875,12 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 				end
 			end
 		end
+	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil and GameSystem.ApplyToTargetsByID[self.applyto].resolve ~= nil then
+
+		--registered applyto options may supply their own resolve function which
+		--computes the target list directly (e.g. Draw Steel's caster_mentor).
+		result = GameSystem.ApplyToTargetsByID[self.applyto].resolve(ability, casterToken, targets, options) or {}
+
 	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil then
 
 		--these are custom roll groups. When calling RegisterRollType in the GameSystem we define applyto in the outcomes
@@ -5539,6 +5648,200 @@ function ActivatedAbility:GetDamageTypesSet()
 	}
 end
 
+--- Shows a modal list of abilities and returns the one the user chose, or nil if they
+--- canceled (or if there was nothing to choose from). Must be called from inside a
+--- coroutine -- it yields until the dialog is dismissed.
+---
+--- Shared by ActivatedAbilityStealAbilityBehavior (steal an ability off a target) and
+--- ActivatedAbilityInvokeAbilityBehavior's "chooseClassAbility" mode (borrow an ability
+--- off your own class/subclass level lists).
+---
+--- Sizing note: GameHud:ModalDialog consumes options.width/options.height for the dialog
+--- FRAME and builds our content panel with no size of its own, so it auto-sizes to its
+--- content. Percentage widths inside it therefore collapse -- the rows and the scroll
+--- region use concrete widths, matching the pattern in AbilitySummon's squad dialog.
+---
+--- @param choices ActivatedAbility[] The abilities to offer.
+--- @param dialogOptions nil|{title: nil|string, buttonText: nil|string, emptyText: nil|string, detailText: nil|fun(ability: ActivatedAbility):nil|string}
+--- @param casterToken nil|CharacterToken Whose perspective ability tooltips render from.
+--- @return nil|ActivatedAbility
+function ActivatedAbility.ShowAbilityChoiceDialog(choices, dialogOptions, casterToken)
+	dialogOptions = dialogOptions or {}
+
+	local chosenOption = nil
+	local canceled = false
+	local finished = false
+
+	--Nothing to choose from: say why rather than showing an empty box.
+	if #choices == 0 then
+		gamehud:ModalDialog{
+			title = dialogOptions.title or "Choose an Ability",
+			buttons = {
+				{
+					text = "Close",
+					escapeActivates = true,
+					click = function()
+						finished = true
+					end,
+				},
+			},
+			width = 560,
+			height = 280,
+			flow = "vertical",
+			children = {
+				gui.Label{
+					classes = {"modalMessage"},
+					text = dialogOptions.emptyText or "There are no abilities available to choose from.",
+					width = 480,
+					height = "auto",
+					halign = "center",
+					valign = "center",
+				},
+			},
+		}
+
+		while not finished do
+			coroutine.yield(0.1)
+		end
+
+		return nil
+	end
+
+	local optionPanels = {}
+
+	for i,option in ipairs(choices) do
+		local detail = nil
+		if dialogOptions.detailText ~= nil then
+			detail = dialogOptions.detailText(option)
+		end
+
+		local panel = gui.Panel{
+			classes = {"abilityOption"},
+			data = {
+				ability = option,
+			},
+			gui.Label{
+				classes = {"abilityOptionName"},
+				text = option.name,
+			},
+			gui.Label{
+				classes = {"abilityOptionDetail", cond(detail == nil or detail == "", "collapsed")},
+				text = detail or "",
+			},
+			press = function(element)
+				for _,p in ipairs(optionPanels) do
+					p:SetClass("selected", p == element)
+				end
+
+				chosenOption = choices[i]
+			end,
+			hover = function(element)
+				element.tooltip = CreateAbilityTooltip(option, {
+					token = casterToken,
+					halign = "right",
+					width = 500,
+					pad = 8,
+				})
+			end,
+		}
+
+		if chosenOption == nil then
+			panel:SetClass("selected", true)
+			chosenOption = option
+		end
+
+		optionPanels[#optionPanels+1] = panel
+	end
+
+	gamehud:ModalDialog{
+		title = dialogOptions.title or "Choose an Ability",
+		buttons = {
+			{
+				text = dialogOptions.buttonText or "Choose",
+				click = function()
+					finished = true
+				end,
+			},
+			{
+				text = "Cancel",
+				escapeActivates = true,
+				click = function()
+					finished = true
+					canceled = true
+				end,
+			},
+		},
+
+		styles = ThemeEngine.MergeTokens{
+			{
+				selectors = {"abilityOption"},
+				width = 496,
+				height = 34,
+				flow = "horizontal",
+				halign = "center",
+				valign = "top",
+				vmargin = 2,
+				hpad = 12,
+				borderBox = true,
+				bgimage = true,
+				bgcolor = "clear",
+			},
+			{ selectors = {"abilityOption","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"abilityOption","selected"}, bgcolor = "@bgInverse" },
+
+			{
+				selectors = {"abilityOptionName"},
+				width = "60%",
+				height = "auto",
+				valign = "center",
+				halign = "left",
+				textAlignment = "left",
+				fontSize = 18,
+				color = "@fg",
+			},
+			{ selectors = {"abilityOptionName","parent:selected"}, color = "@fgInverse" },
+
+			{
+				selectors = {"abilityOptionDetail"},
+				width = "40%",
+				height = "auto",
+				valign = "center",
+				halign = "right",
+				textAlignment = "right",
+				fontSize = 14,
+				color = "@fgMuted",
+			},
+			{ selectors = {"abilityOptionDetail","parent:selected"}, color = "@fgInverse" },
+		},
+
+		width = 560,
+		height = 560,
+		flow = "vertical",
+
+		children = {
+			gui.Panel{
+				flow = "vertical",
+				vscroll = true,
+				width = 520,
+				height = 400,
+				halign = "center",
+				valign = "top",
+				children = optionPanels,
+			},
+		}
+	}
+
+	while not finished do
+		coroutine.yield(0.1)
+	end
+
+	if canceled then
+		return nil
+	end
+
+	return chosenOption
+end
+
 local g_lookupSymbols = {
 	datatype = function(c)
 		return "ability"
@@ -5712,6 +6015,29 @@ local g_lookupSymbols = {
             end
         end
     end,
+
+    --The following symbols are only populated on candidate abilities harvested from a
+    --class/subclass level list (see AbilityInvokeAbility's "chooseClassAbility" mode).
+    --On any other ability they read as their neutral defaults.
+    classlevel = function(c)
+        return c:try_get("_tmp_classLevel", 0)
+    end,
+
+    levelsabove = function(c)
+        return c:try_get("_tmp_levelsAbove", 0)
+    end,
+
+    class = function(c)
+        return c:try_get("_tmp_className", "")
+    end,
+
+    known = function(c)
+        return c:try_get("_tmp_abilityKnown", false)
+    end,
+
+    prerequisitesmet = function(c)
+        return c:try_get("_tmp_prerequisitesMet", true)
+    end,
 }
 
 local g_helpCasting = {
@@ -5861,6 +6187,40 @@ local g_helpSymbols = {
         name = "Power Roll Uses Agility",
         type = "boolean",
         desc = "Whether the power roll for this ability uses agility. Only valid for abilities with a power roll behavior.",
+    },
+
+    classlevel = {
+        name = "Class Level",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, the level that offers it. Zero for any other ability.",
+        examples = {"Class Level = 5"},
+    },
+
+    levelsabove = {
+        name = "Levels Above",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, how far above the character's level in that class it is offered. 1 means it could be learned one level from now, 0 or less means it is already available.",
+        examples = {"Levels Above = 1", "Levels Above <= 0"},
+    },
+
+    class = {
+        name = "Class",
+        type = "text",
+        desc = "For an ability offered by a class or subclass level list, the name of the class or subclass offering it. Empty for any other ability.",
+        examples = {'Class is "Tactician"'},
+    },
+
+    known = {
+        name = "Known",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character already has this ability.",
+        examples = {"not Known"},
+    },
+
+    prerequisitesmet = {
+        name = "Prerequisites Met",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character meets the prerequisites of the feature that grants it. True for any other ability.",
     },
 }
 

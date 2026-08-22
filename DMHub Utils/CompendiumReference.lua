@@ -12,6 +12,7 @@ local knownTables = {
     "races",
     "subraces",
     "subclasses",
+    "creatureTemplates",
 }
 
 local function SearchObject(obj, feature, path)

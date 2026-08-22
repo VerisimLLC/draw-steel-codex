@@ -117,3 +117,12 @@ end
 function dice.SetRollSlotDice(assetid)
 	-- dummy implementation for documentation purposes only
 end
+
+--- SetRollLoadout: Makes subsequent rolls use the given dice LOADOUT instead of the player's equipped one -- the same three-part shape as the equipped loadout, so a roll can mix sets. Used by the roll dialog when the token being rolled for has customized dice of its own (see the creature 'diceLoadout' property). The loadout must be fully resolved before it is passed: an empty model2/modelD6 means 'use model for those dice' (exactly as with the equipped loadout), NOT 'inherit the account setting', and the CALLER must have already dropped any set the rolling player does not own -- this is not a way to roll dice you have not bought. Like SetRollSlotDice (which is just this with only a primary set) it is a real networked roll: each die records the set it was skinned with, so all clients replay the same look. A shop try-dice override or an active Dice Studio set takes precedence while it is up. Pass nil or an empty model to clear.
+--- @param model string|nil  The cloud dice id (guid) for the first power d10 and every die another field does not override, or nil/'' to clear the whole override.
+--- @param model2 string|nil  The cloud dice id for the second d10 -- any roll with multiple d10s alternates between model and model2. nil/'' = use model.
+--- @param modelD6 string|nil  The cloud dice id for d6- and d3-shaped dice. nil/'' = use model.
+--- @return nil
+function dice.SetRollLoadout(model, model2, modelD6)
+	-- dummy implementation for documentation purposes only
+end

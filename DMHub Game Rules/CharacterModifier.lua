@@ -3296,7 +3296,10 @@ function CharacterModifier:Modify(modContext, creature, attribute, currentValue)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior]
 	if typeInfo == nil then
 		print("No modify function for behavior: " .. self.behavior .. " in behavior " .. json(self))
-            return
+		--an unregistered behavior must leave the value alone. Returning nil here poisons
+		--the whole attribute calculation: creature:CalculateAttribute latches the nil, so
+		--e.g. MaxHitpoints() returns nil and every arithmetic/comparison on it errors.
+		return currentValue
 	end
 	local modify = typeInfo.modify
 	if modify then

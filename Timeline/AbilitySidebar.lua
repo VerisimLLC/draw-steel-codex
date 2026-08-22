@@ -2,6 +2,12 @@ local mod = dmhub.GetModLoading()
 
 local g_displayedAbility = nil
 
+-- A card that was built invisible because it exists only to host a roll dialog that
+-- may never appear (see AcquireAbilityRollDialog / RevealAbilityCard below). Holds the
+-- card's wrapper panel until the dialog un-hides, at which point it is faded in and
+-- this is cleared. nil whenever no card is waiting on a roll.
+local g_deferredCard = nil
+
 -- Abilities that were routed INTO the currently displayed card instead of getting a
 -- card of their own -- i.e. Hidden sub-abilities that DisplayAbility deliberately
 -- swallowed (see DisplayAbility below). Teardown calls HideAbility with whatever the
@@ -102,9 +108,28 @@ local function WriteAbilityShare()
         doc.data[k] = nil
     end
 
-    -- Write current sharing data.
+    -- Write current sharing data. The ability is written as a COPY with
+    -- function-valued fields stripped -- never the live ability object.
+    -- Serializing a function-valued field emits "Unknown type deep copied:
+    -- Function" and stores null, and the server's echo patch then deletes
+    -- those fields from the document. When the document held the LIVE
+    -- ability, that echo landed mid-cast and destroyed the ability's
+    -- OnBeginCast/OnFinishCast wrappers -- the invoke cast-finished signal --
+    -- stranding the invoke on casting=true forever and killing every
+    -- subsequent triggered ability on the client (they queue behind the
+    -- stranded cast in ActivatedAbility.RunWhenCastsComplete).
     for k, v in pairs(g_sharingData) do
-        doc.data[k] = v
+        if k == "ability" and v ~= nil then
+            local copy = DeepCopy(v)
+            for field, value in pairs(copy) do
+                if type(value) == "function" then
+                    copy[field] = nil
+                end
+            end
+            doc.data[k] = copy
+        else
+            doc.data[k] = v
+        end
     end
 
     doc.data.heartbeat = ServerTimestamp()
@@ -171,6 +196,30 @@ local function BeginAbilitySharing(token, ability)
 
     -- Start heartbeat loop.
     dmhub.Schedule(3, HeartbeatAbilityShare)
+end
+
+--True when the local player's rolls (and therefore the ability card they are
+--casting from) are shared with the whole table. Anything else -- "dm" or
+--"dicetower" -- means some part of what is happening is private, which is what
+--the roll-visibility banner on the ability card announces.
+local function RollsVisibleToEveryone()
+    return dmhub.GetSettingValue("privaterolls") == "visible"
+end
+
+--Apply a roll-visibility change made from the ability card itself (the director's
+--eyelid, or the banner below). Writes the preference and starts/stops sharing so
+--the change takes effect on the card that is already on screen.
+local function SetAbilityRollVisibility(value, token)
+    dmhub.SetSettingValue("privaterolls", value)
+    dmhub.SetSettingValue("privaterolls:save", true)
+
+    if value == "visible" then
+        if g_displayedAbility ~= nil and token ~= nil and token.valid then
+            BeginAbilitySharing(token, g_displayedAbility)
+        end
+    else
+        ClearAbilityShare()
+    end
 end
 
 -- Boon/bane label strings matching the interactive dialog.
@@ -1145,6 +1194,103 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
     g_remoteAbilityPanel = abilityPanel
 end
 
+--The grey banner pinned to the top of the ability card whenever the local
+--player's rolls are NOT visible to everyone.
+--
+--Both the director and players get it. The director can hide rolls deliberately
+--with the eyelid on the card, but a PLAYER has no eyelid at all and can end up
+--stuck on "Visible to you and Director" forever just by leaving "save roll
+--visibility preferences" ticked once in a roll dialog -- DSRollDialog writes the
+--dropdown choice straight back into the `privaterolls` preference. ShouldShareAbility
+--then refuses to broadcast anything they cast, so their ability cards silently stop
+--appearing for the whole table with nothing on screen explaining why (report
+--EHW82XXT: "I cannot see my player's ability cards while they are making rolls, I am
+--the director"). The banner makes that state visible to whoever caused it, and is
+--itself the one-click way out.
+local function CreateRollVisibilityBanner(token, cardWidth)
+    local function BannerText()
+        if dmhub.GetSettingValue("privaterolls") == "dicetower" then
+            return "Dice Tower Roll"
+        end
+        if dmhub.isDM then
+            return "Hidden from Players"
+        end
+        return "Hidden from Other Players"
+    end
+
+    local function BannerTooltip()
+        if dmhub.GetSettingValue("privaterolls") == "dicetower" then
+            return "This roll goes to the dice tower -- only the Director sees the result.\n\nClick to make your rolls visible to everyone."
+        end
+        if dmhub.isDM then
+            return "This ability is not being shared with your players.\n\nClick to make it visible to everyone."
+        end
+        return "This ability is only being shared with the Director -- the other players cannot see it.\n\nClick to make it visible to everyone."
+    end
+
+    local label
+
+    local function Refresh(element)
+        local hidden = not RollsVisibleToEveryone()
+        element:SetClass("collapsed", not hidden)
+        if hidden and label ~= nil and label.valid then
+            label.text = string.format("<b>%s</b>", BannerText())
+        end
+    end
+
+    label = gui.Label{
+        classes = {"fgMuted", "sizeS"},
+        text = string.format("<b>%s</b>", BannerText()),
+        markdown = true,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        lmargin = 6,
+    }
+
+    return gui.Panel{
+        classes = {"bgAlt", cond(RollsVisibleToEveryone(), "collapsed")},
+        bgimage = "panels/square.png",
+        width = cardWidth,
+        height = 22,
+        halign = "left",
+        valign = "top",
+        flow = "horizontal",
+        cornerRadius = 4,
+        bmargin = 2,
+        interactable = true,
+
+        --Settings are polled, so this fires a frame after the eyelid (or the dice
+        --panel, or the settings dialog) changes the preference.
+        multimonitor = {"privaterolls"},
+        monitor = function(element)
+            Refresh(element)
+        end,
+
+        press = function(element)
+            SetAbilityRollVisibility("visible", token)
+            Refresh(element)
+        end,
+
+        hover = function(element)
+            gui.Tooltip(BannerTooltip())(element)
+        end,
+
+        --The same eyelid that appears on the ability name, repeated here so the
+        --banner reads as the state of that control.
+        gui.Panel{
+            classes = {"bgFgMuted"},
+            bgimage = "ui-icons/eye-closed.png",
+            width = 16,
+            height = 16,
+            valign = "center",
+            lmargin = 8,
+        },
+
+        label,
+    }
+end
+
 -- Declared as a valid default so reading GameHud.instance.abilityDisplay returns
 -- false (rather than throwing "unknown field in type Hud") before
 -- InitAbilityDisplayPanel has run / on clients where the panel never gets set up.
@@ -1273,7 +1419,11 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                     classes = {"bgAlt"},
                     width = "auto",
                     height = "auto",
-                    valign = "center",
+                    --Top, not center: the card is no longer the direct child of the
+                    --sidebar, it shares a vertical wrapper with the visibility banner
+                    --and that wrapper does the centering. Two siblings with different
+                    --valigns in one vertical flow stack from opposite ends and overlap.
+                    valign = "top",
                     blurBackground = true,
                     panel,
                 }
@@ -1297,16 +1447,17 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                         press = function(el)
                             local isVisible = el:HasClass("visible")
                             el:FireEventTree("visible", not isVisible)
-                            dmhub.SetSettingValue("privaterolls", cond(isVisible, "dm", "visible"))
-                            dmhub.SetSettingValue("privaterolls:save", true)
-                            if isVisible then
-                                -- Toggled to hidden: clear any active share.
-                                ClearAbilityShare()
-                            else
-                                -- Toggled to visible: begin sharing if mid-ability.
-                                if g_displayedAbility ~= nil and token ~= nil and token.valid then
-                                    BeginAbilitySharing(token, g_displayedAbility)
-                                end
+                            SetAbilityRollVisibility(cond(isVisible, "dm", "visible"), token)
+                        end,
+
+                        --Keep the eyelid in step with the banner below it (and with
+                        --any other surface that writes the preference, e.g. the dice
+                        --panel's context menu or the settings dialog).
+                        multimonitor = {"privaterolls"},
+                        monitor = function(el)
+                            local shouldBeVisible = dmhub.GetSettingValue("privaterolls") ~= "dm"
+                            if el:HasClass("visible") ~= shouldBeVisible then
+                                el:FireEventTree("visible", shouldBeVisible)
                             end
                         end,
 
@@ -1325,7 +1476,64 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                 end
             end
 
-            element.children = {panel}
+            --Wrap the card so the roll-visibility banner can sit above it. The card
+            --width is fixed by the branch that built it (346 for the ability tooltip,
+            --340 for the trigger renderers), so the banner is given the same width
+            --rather than a "100%" that would have to resolve against an auto parent.
+            local cardWidth = cond(needParent, 340, 346)
+
+            --See the valign note above: the banner and the card must agree, and the
+            --wrapper carries the centering the card used to do itself.
+            panel.selfStyle.valign = "top"
+
+            local wrapperArgs = {
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                flow = "vertical",
+
+                CreateRollVisibilityBanner(token, cardWidth),
+                panel,
+            }
+
+            --A card raised purely to host a roll dialog is built invisible and only
+            --revealed once that dialog actually un-hides (RevealAbilityCard). Rolls
+            --that resolve without ever showing UI -- deterministic damage taking the
+            --skipDeterministic fast path, a ShowDialog that bails -- therefore never
+            --flash an empty card on screen for a few frames.
+            --
+            --`hidden`, NOT `opacity`: opacity is applied per widget to its own
+            --bgimage/border/label colour (SheetPanel.RefreshStyle, SheetLabel) and is
+            --never inherited, so opacity=0 on this bgimage-less wrapper hid nothing
+            --at all. `hidden` hides the whole subtree and makes it non-interactive
+            --while still taking up space in the flow, so the roll dialog mounted
+            --inside still lays out and initializes during the wait -- the same state
+            --the dialog itself lives in before its own ShowDialog.
+            if displayOptions.deferReveal then
+                wrapperArgs.hidden = 1
+            end
+
+            local cardWrapper = gui.Panel(wrapperArgs)
+            if displayOptions.deferReveal then
+                g_deferredCard = cardWrapper
+            else
+                g_deferredCard = nil
+            end
+            --The trigger panel routes ActiveTrigger records through showAbility
+            --(hover preview); ActiveTrigger has no `name` field and game-typed
+            --reads of unknown fields raise, which aborted this handler between
+            --building the card and attaching it. Read defensively.
+            local diagName = nil
+            if ability ~= nil then
+                pcall(function() diagName = ability.name end)
+                if diagName == nil then
+                    pcall(function() diagName = ability.abilityName end)
+                end
+            end
+            print(string.format("AbilityCard:: BUILD ability=%s deferred=%s",
+                tostring(diagName), tostring(displayOptions.deferReveal == true)))
+
+            element.children = { cardWrapper }
 
         end,
 
@@ -1334,6 +1542,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             -- The local ability was hidden; re-evaluate whether a remote
             -- display should appear.
+            g_deferredCard = nil
             g_displayedAbility = nil
             ClearDisplayedAbilityAliases()
             local doc = mod:GetDocumentSnapshot(g_abilityShareDocId)
@@ -1357,16 +1566,61 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
     abilityDisplayPanel.children = {resultPanel, remoteDisplayPanel}
 end
 
-if GameHud.instance and rawget(GameHud.instance, "abilityDisplayPanel") ~= nil then
-    GameHud.instance:InitAbilityDisplayPanel(GameHud.instance.abilityDisplayPanel)
+--Hot-reload re-init. The `.valid` term is load-bearing, not defensive noise: the
+--hud subtree can be gone while GameHud.instance (and its cached panel handles)
+--live on, and a destroyed panel is still a truthy userdata. Re-initializing
+--against a dead abilityDisplayPanel builds resultPanel/remoteDisplayPanel, then
+--drops them -- `children =` is dead-panel guarded on the C# side and silently
+--no-ops -- so the pair is left unparented for SheetManager's leak sweep to
+--destroy, while `self.abilityDisplay = resultPanel` installs a permanently
+--DESTROYED handle. Every later FindEmbeddedRollDialog / DisplayAbility then
+--dereferences a null SheetPanel (NullReferenceException out of
+--LuaSheetPanel.FindChildRecursive), and every EmbedDialogInAbility builds a roll
+--dialog that nothing can mount. Skipping the re-init leaves the previous handle
+--in place; the next CreateAbilityDisplayPanel (hud rebuild) sets up a live one.
+local abilityDisplayPanelForReload = GameHud.instance and rawget(GameHud.instance, "abilityDisplayPanel")
+if abilityDisplayPanelForReload and abilityDisplayPanelForReload.valid then
+    GameHud.instance:InitAbilityDisplayPanel(abilityDisplayPanelForReload)
 end
 
-function CharacterPanel.FindEmbeddedRollDialog()
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+--The ability display / standalone roll hosts are cached panel references on the
+--GameHud instance (see InitAbilityDisplayPanel / InitStandaloneRollHost). Nothing
+--clears them when the panel behind them is destroyed -- the hud subtree can be torn
+--down while GameHud.instance lives on -- and a destroyed panel handle is still a
+--userdata, so it is TRUTHY in Lua. A plain `if not GameHud.instance.abilityDisplay`
+--check therefore passes for a dead panel, and the code proceeds to use it. That is
+--not harmless: the C# LuaSheetPanel accessors dereference a null SheetPanel, so
+--FindChildRecursive / SetClassTree / canFocus throw NullReferenceException out
+--through the Lua VM, while the handful of accessors that ARE dead-panel guarded
+--(FireEvent, FireEventTree, `children =`) silently no-op -- which is how a freshly
+--built roll dialog ends up parented to nothing and gets destroyed by SheetManager's
+--end-of-frame leak sweep ("was created but not attached to a parent").
+--
+--`.valid` is the only reliable liveness test. Note the `not panel` term must come
+--first: GameHud.abilityDisplay defaults to `false`, and indexing a boolean errors.
+local function LiveHostPanel(name)
+    local hud = rawget(GameHud, "instance")
+    if not hud then
         return nil
     end
 
-    local panel = GameHud.instance.abilityDisplay
+    --rawget: standaloneRollHost has no declared default, and reading an
+    --undeclared field off a game-typed instance raises. Matches the existing
+    --rawget guards in HideAbility / StandaloneRollShown.
+    local panel = rawget(hud, name)
+    if (not panel) or (not panel.valid) then
+        return nil
+    end
+
+    return panel
+end
+
+function CharacterPanel.FindEmbeddedRollDialog()
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
+        return nil
+    end
+
     local embedded = panel:FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
     end)
@@ -1420,6 +1674,14 @@ function CharacterPanel.EmbeddedRollInFlight()
         return true
     end
 
+    --An action-request prompt that has not finished yet. It has no cast to own
+    --it, and it is hidden both before it appears and while its dice are in the
+    --air, so without this flag those stretches read as "free" and a second
+    --prompt lands on top of it. Cleared when the roll resolves.
+    if embedded.data.promptPending then
+        return true
+    end
+
     --Not yet shown: occupied only while a live cast still owns an unfinished
     --roll. A relinquished roll, a dead owner, or an untracked lingering panel
     --is not in flight and must not block (avoids deadlock on leftovers).
@@ -1461,28 +1723,255 @@ function CharacterPanel.AnyRollDialogShown()
     return CharacterPanel.StandaloneRollShown()
 end
 
-function CharacterPanel.EmbedDialogInAbility()
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+--Both embed entry points hand the freshly built dialog to a fire-and-forget
+--event and trust that something in the tree mounted it. Nothing verifies that,
+--and an unmounted panel is not merely useless -- SheetManager's end-of-frame
+--leak sweep destroys any panel still sitting on its birth root, logging
+--"Panel ... was created but not attached to a parent". Returning that doomed
+--handle is what strands the callers: ShowDialog silently bails on the now
+--invalid panel (roll never happens), or -- when ShowDialog runs synchronously
+--in the same frame, as the table-roll path does -- the roll starts and then its
+--complete callback fires against destroyed widgets (SetClassTree / gui.SetFocus
+---> NullReferenceException out of LuaSheetPanel).
+--
+--So: assert the handoff. If nothing took ownership, tear the orphan down here
+--and report failure, which every caller already handles by falling back to the
+--legacy roll dialog. A mounted dialog always has a parent by the time the
+--synchronous FireEventTree returns -- every embedRollDialog handler mounts via
+--`element.children = { dialog }`, which reparents immediately.
+local function ClaimEmbeddedDialog(dialog, where)
+    if dialog == nil then
+        return nil
+    end
+
+    if dialog.valid and dialog.parent ~= nil then
+        return dialog
+    end
+
+    print(string.format("RollDialog:: EMBED FAILED (%s) -- nothing mounted the dialog; destroying orphan", where))
+    dialog:DestroySelf()
+    return nil
+end
+
+--aiDriven: true when the roller is under Monster AI control. The AI drives and
+--completes its own rolls, so the card must not offer a cancel affordance for
+--one (the close X). Fired as a second event AFTER embedRollDialog, which is
+--what reveals the button -- order matters. ESC still cancels.
+function CharacterPanel.EmbedDialogInAbility(aiDriven)
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
         return nil
     end
 
     local dialog = GameHud.CreateEmbeddedRollDialog()
 
-    local panel = GameHud.instance.abilityDisplay
     panel:FireEventTree("embedRollDialog", dialog)
-    return dialog
+    panel:FireEventTree("rollDialogAIDriven", aiDriven or false)
+    return ClaimEmbeddedDialog(dialog, "ability")
 end
 
 --Mount the embedded roll dialog in the standalone host (for roll-table and
 --other non-ability rolls). Returns the dialog so the caller can ShowDialog.
 function CharacterPanel.EmbedDialogStandalone()
-    if (not GameHud.instance) or (not GameHud.instance.standaloneRollHost) then
+    local host = LiveHostPanel("standaloneRollHost")
+    if host == nil then
         return nil
     end
 
     local dialog = GameHud.CreateEmbeddedRollDialog()
-    GameHud.instance.standaloneRollHost:FireEvent("embedRollDialog", dialog)
-    return dialog
+    host:FireEvent("embedRollDialog", dialog)
+    return ClaimEmbeddedDialog(dialog, "standalone")
+end
+
+--The ability whose card is on screen right now, or nil. Returns the object
+--rather than a bool so callers can tell WHICH ability it is.
+function CharacterPanel.DisplayedAbility()
+    return g_displayedAbility
+end
+
+--Two abilities that mean "the same ability" for card purposes. A card can be
+--showing the live object while a roll prompt arrives carrying a copy that came
+--over the network, so plain == is not enough.
+local function SameAbilityForCard(a, b)
+    if a == nil or b == nil then
+        return false
+    end
+    if a == b then
+        return true
+    end
+
+    --pcall: the displayed "ability" can be a trigger or, in odd cases, a plain
+    --table with no try_get at all.
+    local function field(obj, key)
+        local value = nil
+        pcall(function() value = obj:try_get(key) end)
+        return value
+    end
+
+    local guidA, guidB = field(a, "guid"), field(b, "guid")
+    if guidA ~= nil and guidB ~= nil then
+        return guidA == guidB
+    end
+
+    local nameA = field(a, "name")
+    return nameA ~= nil and nameA == field(b, "name")
+end
+
+--typeName is a type-level property, so try_get does not see it and a plain
+--table has none at all. pcall keeps both cases from raising.
+local function TypeNameOf(obj)
+    if obj == nil then
+        return nil
+    end
+    local name = nil
+    pcall(function() name = obj.typeName end)
+    return name
+end
+
+--A leftover roll dialog we are allowed to throw away: it is not on screen, and
+--no live ability cast still owns it. Mirrors the classification in
+--AcquireAbilityRollDialog.
+local function EmbeddedDialogIsDiscardable(dialog)
+    if dialog == nil or not dialog.valid then
+        return true
+    end
+
+    if dialog.data ~= nil and dialog.data.IsShown ~= nil and dialog.data.IsShown() then
+        return false
+    end
+
+    --An action-request prompt that has not finished yet. It looks exactly like a
+    --leftover once its dice are thrown -- hidden, and owned by no cast -- so
+    --without this it would be destroyed out from under the roll in progress.
+    if dialog.data ~= nil and dialog.data.promptPending then
+        return false
+    end
+
+    local ownerco = dialog.data ~= nil and dialog.data.castCoroutine or nil
+    if ownerco == nil then
+        return true
+    end
+    if dialog.data.rollRelinquished then
+        return true
+    end
+    return not coroutine.IsCoroutineWithIdStillRunning(ownerco)
+end
+
+--Mount a roll dialog for a roll PROMPT -- a roll pushed at us by an action
+--request rather than by our own ability cast. Unlike AcquireAbilityRollDialog
+--this never yields, so it is safe to call from a panel event handler.
+--
+--args.ability / args.token: the ability that caused the prompt and the token
+--casting it. When nothing else is on the sidebar we put that ability's card up
+--so the player can see what they are rolling against.
+--
+--The roll always goes under the ability card. If it cannot -- no sidebar, or
+--someone else's card is up -- this returns nil and the caller should fall back
+--to the legacy roll dialog. It deliberately does NOT use the standalone roll
+--host: that host destroys its dialog as soon as it hides, and a roll dialog
+--hides while its dice are still in the air, so the roll would be torn down
+--mid-flight. Only table rolls, which stay up until they are done, are safe there.
+--
+--Returns { dialog, ownedAbility, locked, showDelay }. ownedAbility is set only
+--when WE put the card up, and is what the caller must pass to HideAbility when
+--the roll finishes. Nothing else cleans it up.
+function CharacterPanel.EmbedPromptRollDialog(args)
+    args = args or {}
+
+    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+        return nil
+    end
+
+    --Something is mid-roll on the sidebar; don't stomp it.
+    if CharacterPanel.EmbeddedRollInFlight() then
+        return nil
+    end
+
+    --Destroy a finished-but-still-mounted dialog before we mount ours. The
+    --ability card's slot just overwrites its child without destroying it, and a
+    --dialog that is never destroyed keeps its dice cage registered, which leaves
+    --the rolled 3D dice on screen.
+    local stale = CharacterPanel.FindEmbeddedRollDialog()
+    if stale ~= nil then
+        if not EmbeddedDialogIsDiscardable(stale) then
+            return nil
+        end
+        if stale.valid then
+            stale:DestroySelf()
+        end
+    end
+
+    local ability = args.ability
+    local token = args.token
+    local displayed = CharacterPanel.DisplayedAbility()
+
+    local ownedAbility = nil
+    local locked = false
+
+    if displayed == nil then
+        --Nothing on the sidebar: put the ability card up ourselves, and lock it
+        --so a stray hover cannot yank it out from under the roll.
+        if ability == nil or TypeNameOf(ability) ~= "ActivatedAbility" or token == nil or not token.valid then
+            return nil
+        end
+
+        CharacterPanel.UnlockDisplayAbility()
+        if not CharacterPanel.DisplayAbility(token, ability, nil, {lock = true}) then
+            CharacterPanel.UnlockDisplayAbility()
+            return nil
+        end
+        ownedAbility = ability
+        locked = true
+    elseif not SameAbilityForCard(displayed, ability) then
+        --Someone else's card is up (a hovered ability, another cast). Leave it
+        --alone; the caller falls back to the legacy dialog.
+        return nil
+    end
+    --else: the card already shows this ability -- ride along, own nothing.
+
+    local dialog = CharacterPanel.EmbedDialogInAbility()
+    --EmbedDialogInAbility hands the dialog to the card via an event and returns
+    --it whether or not anything took it, so check it really landed.
+    if dialog ~= nil and CharacterPanel.FindEmbeddedRollDialog() ~= dialog then
+        if dialog.valid then
+            dialog:DestroySelf()
+        end
+        dialog = nil
+    end
+
+    if dialog == nil then
+        if ownedAbility ~= nil then
+            CharacterPanel.HideAbility(ownedAbility)
+        end
+        if locked then
+            CharacterPanel.UnlockDisplayAbility()
+        end
+        return nil
+    end
+
+    if dialog.data ~= nil then
+        --No ability cast owns this dialog; leave castCoroutine nil so the
+        --ownership checks elsewhere read it as untracked rather than as a dead
+        --cast. promptPending stands in for that ownership, and stays set until
+        --the roll resolves -- the caller clears it.
+        dialog.data.rollRelinquished = false
+        dialog.data.promptPending = true
+    end
+
+    return {
+        dialog = dialog,
+        ownedAbility = ownedAbility,
+        locked = locked,
+        --The dialog is only a specification until the UI builds it a frame or
+        --two later. Its dice cage registers itself as the panel the 3D dice live
+        --in from its own create handler, so showing the roll in this same frame
+        --gets you a dialog with no dice in it and a Roll button that does
+        --nothing. Callers must wait this long before showing the roll.
+        --AcquireAbilityRollDialog does the same thing by yielding 4 cycles; we
+        --cannot yield here, so we hand the delay to ShowDialog instead. Kept
+        --generous so it still covers several frames on a slow machine.
+        showDelay = 0.2,
+    }
 end
 
 --Built as an inner panel because gui.Panel only registers event handlers
@@ -1538,8 +2027,12 @@ function GameHud:InitStandaloneRollHost(hostPanel)
     self.standaloneRollHost = innerPanel
 end
 
-if GameHud.instance and rawget(GameHud.instance, "standaloneRollHostPanel") ~= nil then
-    GameHud.instance:InitStandaloneRollHost(GameHud.instance.standaloneRollHostPanel)
+--See the abilityDisplayPanel re-init above: re-initializing against a destroyed
+--host panel silently orphans innerPanel and installs a dead standaloneRollHost,
+--after which every EmbedDialogStandalone leaks an unmountable roll dialog.
+local standaloneRollHostPanelForReload = GameHud.instance and rawget(GameHud.instance, "standaloneRollHostPanel")
+if standaloneRollHostPanelForReload and standaloneRollHostPanelForReload.valid then
+    GameHud.instance:InitStandaloneRollHost(standaloneRollHostPanelForReload)
 end
 
 local g_abilityLocked = false
@@ -1549,7 +2042,8 @@ function CharacterPanel.UnlockDisplayAbility()
 end
 
 function CharacterPanel.DisplayAbility(token, ability, symbols, options)
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
         return false
     end
 
@@ -1569,8 +2063,6 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         end
         return true
     end
-
-    local panel = GameHud.instance.abilityDisplay
 
     local embeddedRoll = panel:FindChildRecursive(function(p)
         return p:HasClass("embeddedRollDialog")
@@ -1593,6 +2085,9 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     local displayOptions = {}
     if options.renderAsAbility then
         displayOptions.renderAsAbility = true
+    end
+    if options.deferReveal then
+        displayOptions.deferReveal = true
     end
     panel:FireEventTree("showAbility", token, ability, symbols, displayOptions)
 
@@ -1717,9 +2212,36 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     --Clear any stale lock so DisplayAbility's displace guard does not refuse us.
     CharacterPanel.UnlockDisplayAbility()
 
-    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, displayOptions)
+    --Do not raise a *visible* card for a roll that may never show one: build it
+    --invisible and let the dialog reveal it when it un-hides (RevealAbilityCard).
+    --Rolls that resolve silently -- deterministic damage taking ShowDialog's
+    --skipDeterministic fast path, or a ShowDialog that bails -- then tear their
+    --card down again without it ever having been seen, instead of flashing an
+    --empty card for a few frames (the "Collision" flash on wall collisions).
+    --
+    --Skipped when this ability's card is ALREADY on screen -- targeting raised it
+    --and DisplayAbility rebuilds it unconditionally, so deferring there would blink
+    --a card the player is already looking at out of existence.
+    local hostPanel = LiveHostPanel("abilityDisplay")
+    local cardAlreadyUp = hostPanel ~= nil and #hostPanel.children > 0
+        and AbilityOwnsDisplayedCard(ability)
 
-    local dialog = CharacterPanel.EmbedDialogInAbility()
+    local acquireDisplayOptions = {}
+    for k, v in pairs(displayOptions or {}) do
+        acquireDisplayOptions[k] = v
+    end
+    acquireDisplayOptions.deferReveal = not cardAlreadyUp
+
+    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
+
+    --_tmp_aicontrol is a counter, raised while the Monster AI holds the token
+    --(MonsterAI:BeginTokenControl). The dialog itself reads the same flag off
+    --options.creature to hide its own buttons; the card's close X is outside the
+    --dialog's subtree, so it has to be told.
+    local aiDriven = token ~= nil and token.valid and token.properties ~= nil
+        and token.properties._tmp_aicontrol > 0
+
+    local dialog = CharacterPanel.EmbedDialogInAbility(aiDriven)
     if dialog ~= nil then
         if dialog.data ~= nil then
             dialog.data.castCoroutine = coid
@@ -1731,7 +2253,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             coroutine.yield(0.01)
         end
     elseif GameHud.instance then
-        dialog = GameHud.instance.rollDialog
+        --rawget: the lobby hud (CreateLobbyHud) never sets rollDialog, and a plain
+        --index of an unset field on a game-typed instance raises. Matches the
+        --rawget guard in AnyRollDialogShown above. nil falls through to the
+        --caller's own nil/valid check.
+        dialog = rawget(GameHud.instance, "rollDialog")
     else
         --No live HUD (e.g. a cast driven headlessly / off a real turn). Fall back
         --to the global hud's roll dialog so the roll can still resolve instead of
@@ -1761,12 +2287,47 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
     return dialog, displayed
 end
 
-function CharacterPanel.HighlightAbilitySection(options)
-    if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+--Fade in a card that AcquireAbilityRollDialog built invisible. Called by the
+--embedded roll dialog at the moment it stops being hidden -- the first point at
+--which we know the player is definitely going to see a roll. A no-op when no
+--card is waiting, so it is safe to call on every ShowDialog.
+--
+--dialogPanel: the dialog that is becoming visible. The card is only revealed when
+--that dialog is the one mounted in the ability card, so a table roll in the
+--standalone host cannot pull up somebody else's pending card.
+function CharacterPanel.RevealAbilityCard(dialogPanel)
+    if g_deferredCard == nil then
         return
     end
 
-    local panel = GameHud.instance.abilityDisplay
+    if not g_deferredCard.valid then
+        g_deferredCard = nil
+        return
+    end
+
+    if dialogPanel ~= nil and CharacterPanel.FindEmbeddedRollDialog() ~= dialogPanel then
+        print("AbilityCard:: REVEAL skipped -- dialog is not the one in the ability card")
+        return
+    end
+
+    print("AbilityCard:: REVEAL")
+    g_deferredCard.selfStyle.hidden = 0
+    --The engine's selfStyle.hidden setter historically did not mark the panel
+    --style-dirty (unlike collapsed and the other properties), so this write
+    --only took effect when something else happened to restyle the hierarchy --
+    --the card stayed invisible until e.g. a hover anywhere. UpdateStyle forces
+    --the restyle pass. Kept even after the engine setter fix: harmless, and it
+    --makes the reveal independent of the running build.
+    g_deferredCard:UpdateStyle()
+    g_deferredCard = nil
+end
+
+function CharacterPanel.HighlightAbilitySection(options)
+    local panel = LiveHostPanel("abilityDisplay")
+    if panel == nil then
+        return
+    end
+
     panel:FireEventTree("showAbilitySection", options)
 
     -- Begin sharing if we haven't already. HighlightAbilitySection is

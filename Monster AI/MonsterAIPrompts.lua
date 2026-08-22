@@ -27,12 +27,171 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
+local verticalForcedMovementTypes = {
+    vertical_push = true,
+    vertical_pull = true,
+    vertical_slide = true,
+}
+
+local function CopyForcedMovementSymbols(symbols, invokerToken, range)
+    local result = {}
+    for key,value in pairs(symbols or {}) do
+        result[key] = value
+    end
+    result.range = result.range or range
+    if result.invoker == nil and invokerToken ~= nil then
+        result.invoker = invokerToken.properties
+    end
+    return result
+end
+
+local function ForcedMovementArrowOptions(forcedMovement, range)
+    return {
+        straightline = true,
+        ignorecreatures = false,
+        forcedMovementDistance = range,
+        slide = forcedMovement == "vertical_slide",
+    }
+end
+
+local function PreferForcedMovementCandidate(candidateAltitude, candidateScore, bestAltitude, bestScore, higherScoreIsBetter)
+    if candidateAltitude ~= nil then
+        if bestAltitude == nil or candidateAltitude > bestAltitude then
+            return true
+        elseif candidateAltitude < bestAltitude then
+            return false
+        end
+    end
+
+    if bestScore == nil then
+        return true
+    end
+    if higherScoreIsBetter then
+        return candidateScore > bestScore
+    end
+    return candidateScore < bestScore
+end
+
+local function FindBestPullLocation(invokerToken, casterToken, abilityClone, symbols, range, forcedMovement, preferAltitude)
+    local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols)
+        or function() return true end
+    local shape = dmhub.CalculateShape{
+        shape = "RadiusFromCreature",
+        token = casterToken,
+        radius = range,
+        checklos = false,
+    }
+    local bestLoc = nil
+    local bestScore = nil
+    local bestAltitude = nil
+
+    for _,testLoc in ipairs(shape.locations) do
+        if filterTargetPredicate(testLoc) then
+            testLoc = preferAltitude(testLoc)
+            local movementInfo = casterToken:MarkMovementArrow(testLoc,
+                ForcedMovementArrowOptions(forcedMovement, range))
+            if movementInfo ~= nil then
+                local path = movementInfo.path
+                local dist = path.destination:DistanceInTiles(path.origin)
+                if dist > 0 then
+                    local collideWithAllies = 0
+                    local collideWithEnemies = 0
+                    local collideWithObject = false
+                    for _,collideToken in ipairs(movementInfo.collideWith or {}) do
+                        if collideToken.isObject then
+                            collideWithObject = true
+                        elseif collideToken:IsFriend(invokerToken) then
+                            collideWithAllies = collideWithAllies + 1
+                        else
+                            collideWithEnemies = collideWithEnemies + 1
+                        end
+                    end
+
+                    local adjacentAllies = 0
+                    for _,other in ipairs(dmhub.allTokens) do
+                        if other.valid and other.properties ~= nil
+                            and other.charid ~= casterToken.charid
+                            and not other.properties:IsDead()
+                            and other:IsFriend(invokerToken)
+                            and other:Distance(path.destination) <= 1 then
+                            adjacentAllies = adjacentAllies + 1
+                        end
+                    end
+
+                    local fallDistance = path.destination.altitude
+                        - game.currentFloor:GetAltitudeAtLoc(path.destination)
+                    if fallDistance <= 1 then
+                        fallDistance = 0
+                    end
+
+                    -- Prefer using as much of the available pull as the board
+                    -- permits. Then value hazardous collisions/falls and an end
+                    -- position threatened by the puller's allies. Avoid colliding
+                    -- with those allies.
+                    local score = dist*10
+                        + collideWithEnemies*3
+                        + cond(collideWithObject, 4, 0)
+                        + fallDistance*2
+                        + adjacentAllies
+                        - collideWithAllies*4
+                        - invokerToken:Distance(path.destination)*0.01
+                    local altitude = cond(verticalForcedMovementTypes[forcedMovement], testLoc.altitude, nil)
+                    if PreferForcedMovementCandidate(altitude, score, bestAltitude, bestScore, true) then
+                        bestScore = score
+                        bestAltitude = altitude
+                        bestLoc = testLoc
+                    end
+                end
+            end
+        end
+    end
+
+    casterToken:ClearMovementArrow()
+    if type(shape.Destroy) == "function" then
+        shape:Destroy()
+    end
+    return bestLoc
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
         local range = abilityClone:GetRange(casterToken.properties)
-        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, symbols) or function(loc) return true end
+        local movementSymbols = CopyForcedMovementSymbols(symbols, invokerToken, range)
+        local forcedMovement = movementSymbols.forcedmovement or abilityClone:try_get("forcedMovement", "slide")
+        local isVertical = verticalForcedMovementTypes[forcedMovement] == true
+        local altitudeCalculator = nil
+        if isVertical then
+            altitudeCalculator = abilityClone:TargetLocMaxElevationChangeFunction(casterToken, movementSymbols)
+        end
+        local preferAltitude = function(loc)
+            if altitudeCalculator == nil then
+                return loc
+            end
+            local _,maxAltitude = altitudeCalculator(loc)
+            if maxAltitude == nil then
+                return loc
+            end
+            return loc:WithAltitude(maxAltitude)
+        end
+
+        if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
+            local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
+                movementSymbols, range, forcedMovement, preferAltitude)
+            print("AI:: best pull loc =", bestLoc)
+            if bestLoc ~= nil then
+                casterToken:MarkMovementArrow(bestLoc, ForcedMovementArrowOptions(forcedMovement, range))
+                MonsterAI.Sleep(1)
+                casterToken:ClearMovementArrow()
+                return {
+                    targets = {{loc = bestLoc}},
+                }
+            end
+            return nil
+        end
+
+        local filterTargetPredicate = abilityClone:TargetLocPassesFilterPredicate(casterToken, movementSymbols) or function(loc) return true end
 
 
         --TODO: implement custom target shape for ai
@@ -45,6 +204,9 @@ MonsterAI:RegisterPrompt{
         end
 
         local possibleLocs = {}
+        if isVertical and filterTargetPredicate(casterToken.loc) then
+            possibleLocs[#possibleLocs+1] = casterToken.loc
+        end
         for i=1,range*2 do
             if filterTargetPredicate(loc) then
                 possibleLocs[#possibleLocs+1] = loc
@@ -75,8 +237,11 @@ MonsterAI:RegisterPrompt{
 
         local bestLoc = nil
         local bestScore = nil
+        local bestAltitude = nil
         for _,testLoc in ipairs(possibleLocs) do
-            local movementInfo = casterToken:MarkMovementArrow(testLoc, {straightline = true, ignorecreatures = false, })
+            testLoc = preferAltitude(testLoc)
+            local movementInfo = casterToken:MarkMovementArrow(testLoc,
+                ForcedMovementArrowOptions(forcedMovement, range))
             if movementInfo ~= nil then
                 local path = movementInfo.path
                 local dist = path.destination:DistanceInTiles(path.origin)
@@ -108,8 +273,10 @@ MonsterAI:RegisterPrompt{
                     score = score - 4
                 end
 
-                if bestScore == nil or score < bestScore then
+                local altitude = cond(isVertical, testLoc.altitude, nil)
+                if PreferForcedMovementCandidate(altitude, score, bestAltitude, bestScore, false) then
                     bestScore = score
+                    bestAltitude = altitude
                     bestLoc = testLoc
                 end
             end
@@ -118,7 +285,7 @@ MonsterAI:RegisterPrompt{
         print("AI:: bestLoc =", bestLoc)
         if bestLoc ~= nil then
         print("AI:: Mark arrow to", bestLoc.x, bestLoc.y)
-            casterToken:MarkMovementArrow(bestLoc, {straightline = true, ignorecreatures = false})
+            casterToken:MarkMovementArrow(bestLoc, ForcedMovementArrowOptions(forcedMovement, range))
             MonsterAI.Sleep(1)
             casterToken:ClearMovementArrow()
 

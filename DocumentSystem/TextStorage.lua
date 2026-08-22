@@ -72,53 +72,86 @@ end
 ---@class TextStorage
 TextStorage = RegisterGameType("TextStorage")
 
-local function string_tween(a, b, r)
-    r = r or 0.5
-    local alist = {}
-    local blist = {}
-    for i=1,#a do
-        alist[i] = g_charToNum[a:sub(i,i)]
+--The digit value of the i'th char of a key, or nil past the end of the key.
+local function key_digit(s, i)
+    if s == nil or i > #s then
+        return nil
     end
-    for i=1,#b do
-        blist[i] = g_charToNum[b:sub(i,i)]
-    end
-
-    local result = {}
-
-    local diffs = 0
-    for i=1,math.max(#alist, #blist) do
-        local anum = alist[i] or 0
-        local bnum = blist[i] or #g_keyChars + 1
-
-        local cnum = math.floor(math.min(#g_keyChars, math.max(1, anum*(1-r) + bnum*r)))
-
-        --make sure we always move toward the target if possible, regardless of the r.
-        if cnum == anum and bnum > anum+1 then
-            cnum = cnum + 1
-        end
-        if cnum == bnum and anum < bnum-1 then
-            cnum = cnum - 1
-        end
-        if cnum ~= anum and cnum ~= bnum then
-            diffs = diffs + 1
-        end
-
-        result[i] = g_numToKeyChar[cnum]
-    end
-
-    if diffs == 0 then
-        result[#result+1] = g_numToKeyChar[math.min(#g_keyChars, math.max(1, math.floor(#g_keyChars*r)))]
-    end
-
-    local resultStr = ""
-    for i=1,#result do
-        resultStr = resultStr .. result[i]
-    end
-
-    --print("CONTENT:: TWEEN", a, b, r, " --> ", resultStr)
-    return resultStr
+    return g_charToNum[s:sub(i,i)]
 end
 
+--Generates a key that sorts strictly between a and b.
+--
+--b == nil means "no upper bound". r in (0,1) biases the result toward a or b,
+--but only shifts it within the room available -- it can never push the key onto
+--or past either bound.
+--
+--Returns nil when no key can exist between a and b. That is only possible when
+--b is a followed by minimum chars: nothing sorts between "M" and "MA". Keys
+--this function returns never end in the minimum char, so any two of them always
+--have room for another key between them; nil is therefore only reachable from
+--keys written by the earlier generator, which did not guarantee that.
+local function string_tween(a, b, r)
+    r = r or 0.5
+
+    if b ~= nil and a >= b then
+        return nil
+    end
+
+    local prefix = ""
+
+    --Strip the shared prefix, counting positions past the end of `a` as the
+    --minimum digit. That padding is what collapses "M" and "MA" into a fully
+    --shared prefix, correctly leaving no room between them.
+    if b ~= nil then
+        local n = 0
+        while true do
+            local bnum = key_digit(b, n+1)
+            if bnum == nil or (key_digit(a, n+1) or 1) ~= bnum then
+                break
+            end
+            n = n + 1
+        end
+
+        if n > 0 then
+            prefix = b:sub(1, n)
+            a = a:sub(n+1)
+            b = b:sub(n+1)
+            if a >= b then
+                return nil
+            end
+        end
+    end
+
+    while true do
+        local anum = key_digit(a, 1) or 1
+        local bnum = (b ~= nil and key_digit(b, 1)) or (#g_keyChars + 1)
+
+        if bnum - anum > 1 then
+            --There is room at this position: land between the two digits.
+            local cnum = math.floor(anum + (bnum - anum)*r + 0.5)
+            cnum = math.max(anum + 1, math.min(bnum - 1, cnum))
+            return prefix .. g_numToKeyChar[cnum]
+        end
+
+        if b ~= nil and #b > 1 then
+            --The digits are adjacent, but b continues past this one, so b's
+            --first digit on its own sorts between a and b.
+            return prefix .. b:sub(1,1)
+        end
+
+        --b is unbounded, or a lone digit adjacent to a's: keep a's digit and
+        --look for room further to the right.
+        prefix = prefix .. g_numToKeyChar[anum]
+        a = a:sub(2)
+        b = nil
+    end
+end
+
+--Splits str into sections keyed strictly between beginKey and endKey.
+--
+--Returns nil when the key space between those two bounds cannot hold the
+--sections; the caller heals that by re-keying the whole document.
 local function CreateSections(str, beginKey, endKey)
     beginKey = beginKey or "A"
     endKey = endKey or "z"
@@ -141,23 +174,18 @@ local function CreateSections(str, beginKey, endKey)
     for i=1,#sections do
         local remaining = (#sections - i)
         local r = 1/(remaining+2)
-        key = string_tween(key, endKey, r)
+        local nextKey = string_tween(key, endKey, r)
 
-        --string_tween's heuristic rounding can occasionally land on a key we
-        --already placed in this result set. Overwriting it would silently drop
-        --a whole section of the document (data loss on save). Instead, nudge the
-        --key further toward endKey until it is unique. string_tween grows the
-        --key length when it cannot advance within the current length, so it
-        --always makes forward progress and keeps keys strictly ordered between
-        --beginKey and endKey. The guard is a belt-and-suspenders bound against a
-        --pathological non-terminating case; in practice a unique key is found in
-        --one or two iterations.
-        local guard = 0
-        while result[key] ~= nil and guard < 64 do
-            key = string_tween(key, endKey, 0.5)
-            guard = guard + 1
+        --Check the ordering invariant rather than trusting it. A key that is not
+        --strictly between its predecessor and endKey sorts into the wrong place,
+        --which silently scrambles the document on save and leaves it corrupt at
+        --rest. Bail out instead and let the caller re-key the document.
+        if nextKey == nil or nextKey <= key or nextKey >= endKey then
+            return nil
         end
 
+        --Keys increase strictly, so this can never overwrite an earlier section.
+        key = nextKey
         result[key] = sections[i]
     end
 
@@ -188,6 +216,10 @@ function TextStorage:GetContent()
 end
 
 function TextStorage:SetContent(str)
+    --The full text as requested, kept aside because str is trimmed down to just
+    --the changed span below. The re-key path needs the whole document.
+    local fullStr = str
+
     local keys = table.keys(self.sections)
     table.sort(keys)
 
@@ -235,6 +267,22 @@ function TextStorage:SetContent(str)
     end
 
     local newSections = CreateSections(str, beginKey, endKey)
+
+    if newSections == nil then
+        --Documents written before the key generator guaranteed strict ordering
+        --can hold neighbouring keys with no room between them (e.g. "M" and
+        --"MA"). Re-key the whole document from its full text: the content is
+        --unchanged, but the keys come back strictly ordered, so this and every
+        --later edit has somewhere to go. Every key changes, so this uploads the
+        --whole document -- it happens once, to heal a document, and never for
+        --one written by the current generator.
+        --
+        --Rebuilding against the default bounds cannot fail, but never leave the
+        --document empty if it somehow did: one section holding the whole text is
+        --always valid, just unsharded.
+        self.sections = CreateSections(fullStr) or { B = fullStr }
+        return
+    end
 
     --print("MERGE:: startSections =", json(startSections), "endSections =", json(endSections))
 

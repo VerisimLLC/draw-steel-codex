@@ -5469,6 +5469,59 @@ function MarkdownDocument.DisplayPanel(self, args)
     return resultPanel
 end
 
+-- Descriptions and metadata for rich tags, shared by the autocomplete popup and
+-- the toolbar's Insert Media / Insert Widget menus (both have to know which tags
+-- are pattern-based), so this lives at file scope rather than inside either.
+-- patternExample: if set, the tag is matched on the SHAPE of its content, and
+--   this is a working example of that shape. The tag NAME is never valid
+--   document text for these -- [[macro]] and [[bar]] match no pattern, resolve
+--   to an annotation that does not exist, and render as nothing at all. Build
+--   the insertion with RichTagExampleText, never by wrapping this by hand.
+-- insertBare: the example is the whole insertion, NOT wrapped in [[ ]] (the
+--   checkbox, which the tokenizer matches bare).
+-- takesName: if true, the tag uses [[tagname]] or [[tagname:suffix]] syntax and
+--   a unique name is auto-generated on insert.
+-- Treat as read-only: it is shared by every editor surface.
+local g_richTagDescriptions = {
+    dice = {desc = "Embeddable dice roll", takesName = true},
+    counter = {desc = "Editable numeric counter", patternExample = "0"},
+    checkbox = {desc = "Toggleable checkbox", patternExample = "[ ] Task", insertBare = true},
+    timer = {desc = "Countdown timer", takesName = true},
+    image = {desc = "Embedded image", takesName = true},
+    sound = {desc = "Audio player", takesName = true},
+    bar = {desc = "Progress or health bar", patternExample = "###--"},
+    macro = {desc = "Clickable command button", patternExample = "/roll 1d20|Roll"},
+    encounter = {desc = "Embedded encounter", takesName = true},
+    scene = {desc = "Scene reference", takesName = true},
+    party = {desc = "Party display", takesName = true},
+    reminder = {desc = "Reminder notification", takesName = true},
+    follower = {desc = "Companion or follower", takesName = true},
+    setting = {desc = "Game setting toggle", patternExample = "setting:settingid"},
+    fishing = {desc = "Fishing activity", takesName = true},
+}
+
+-- The document text that inserts (or previews) a pattern-based rich tag, plus
+-- the caret offset within it. Returns nil for name-based tags -- callers own
+-- the unique-name logic for those. Every caller goes through this so the
+-- wrapping rule lives in exactly one place: most pattern tags are the example
+-- wrapped in [[ ]], but a checkbox is matched BARE by the tokenizer ([ ] or
+-- [x], optionally followed by a label). Wrapping that one yields [[[ ]]], which
+-- tokenizes as the tag "[ " plus a stray "]" and renders as nothing at all.
+-- Caret: just inside the closing ]] for wrapped tags (the example stays whole
+-- and typing edits its content), at the end for bare ones (typing extends the
+-- checkbox label).
+local function RichTagExampleText(tagName)
+    local meta = g_richTagDescriptions[tagName]
+    if meta == nil or meta.patternExample == nil then
+        return nil
+    end
+    if meta.insertBare then
+        return meta.patternExample, #meta.patternExample
+    end
+    local text = string.format("[[%s]]", meta.patternExample)
+    return text, #text - 2
+end
+
 --Creates the link/rich-tag autocomplete + link-info service used by the
 --journal editors. One instance per editor surface (it keeps popup and
 --suppression state); entry points are input-agnostic and take the input
@@ -5769,28 +5822,7 @@ local function CreateMarkdownAutocomplete(opts)
         ["Command"]      = "implStatus1",
     }
 
-    -- Descriptions and metadata for rich tags used by autocomplete.
-    -- patternExample: if set, the tag is pattern-based and this is inserted as the
-    --   content between [[ and ]] (e.g. [[5]] for counter). The tag name is NOT used.
-    -- takesName: if true, the tag uses [[tagname]] or [[tagname:suffix]] syntax and
-    --   a unique name is auto-generated on insert.
-    local richTagDescriptions = {
-        dice = {desc = "Embeddable dice roll", takesName = true},
-        counter = {desc = "Editable numeric counter", patternExample = "0"},
-        checkbox = {desc = "Toggleable checkbox", patternExample = "[ ]"},
-        timer = {desc = "Countdown timer", takesName = true},
-        image = {desc = "Embedded image", takesName = true},
-        sound = {desc = "Audio player", takesName = true},
-        bar = {desc = "Progress or health bar", patternExample = "###--"},
-        macro = {desc = "Clickable command button", patternExample = "/roll 1d20|Roll"},
-        encounter = {desc = "Embedded encounter", takesName = true},
-        scene = {desc = "Scene reference", takesName = true},
-        party = {desc = "Party display", takesName = true},
-        reminder = {desc = "Reminder notification", takesName = true},
-        follower = {desc = "Companion or follower", takesName = true},
-        setting = {desc = "Game setting toggle", patternExample = "setting:settingid"},
-        fishing = {desc = "Fishing activity", takesName = true},
-    }
+    local richTagDescriptions = g_richTagDescriptions
 
     local linkInfoState = {
         currentLink = nil,
@@ -6004,6 +6036,63 @@ local function CreateMarkdownAutocomplete(opts)
         inputElement.popup = popup
     end
 
+    --Start a CommandBuilder recording session for the [[/command|label]]
+    --macro tag under the caret. The button's existing command seeds the step
+    --list; on Done the recorded command pipe is written back into the tag.
+    --If the editor is gone (or the tag was edited away) by then, the command
+    --is copied to the clipboard instead so the work is not lost.
+    local function StartCommandCreation(inputElement, tagText)
+        --tagText is "/[strike]command|label" where strike is an optional
+        --'/' (deleted) or '~' (struck) marker -- see RichMacro.pattern.
+        local rest = string.sub(tagText, 2)
+        local strike = ""
+        local first = string.sub(rest, 1, 1)
+        if first == "/" or first == "~" then
+            strike = first
+            rest = string.sub(rest, 2)
+        end
+
+        local pipePos = string.find(rest, "|", 1, true)
+        local cmdPart = rest
+        local labelPart = ""
+        if pipePos ~= nil then
+            cmdPart = string.sub(rest, 1, pipePos - 1)
+            labelPart = string.sub(rest, pipePos + 1)
+        end
+        if labelPart == "" then
+            labelPart = "Button"
+        end
+
+        local oldTag = string.format("[[%s]]", tagText)
+
+        CommandBuilder.Begin{
+            seedCommand = RichMacro.Unescape(cmdPart),
+            complete = function(commandString)
+                local newTag = string.format("[[/%s%s|%s]]", strike, RichMacro.Escape(commandString), labelPart)
+                if inputElement ~= nil and inputElement.valid then
+                    local text = inputElement.text or ""
+                    local startPos = string.find(text, oldTag, 1, true)
+                    if startPos ~= nil then
+                        local newText = string.sub(text, 1, startPos - 1) .. newTag .. string.sub(text, startPos + #oldTag)
+                        NotifyTextChanged(newText)
+                        inputElement:SetTextAndCaret(startPos - 1 + #newTag, newText)
+                        return
+                    end
+                end
+                dmhub.CopyToClipboard("/" .. commandString)
+                gui.ModalMessage{
+                    title = "Command Created",
+                    message = "The journal button this command was built for is no longer available. The command has been copied to the clipboard instead.",
+                }
+            end,
+        }
+
+        --suppress rather than dismiss: the caret is still on the tag, and a
+        --plain dismiss would let the next think re-open this popup on top of
+        --the recording workflow.
+        SuppressLinkInfo(inputElement)
+    end
+
     local function ShowRichTagInfo(inputElement, tagText, bracketPos)
         -- Avoid re-showing the same tag
         if tagText == linkInfoState.currentLink then
@@ -6026,7 +6115,9 @@ local function CreateMarkdownAutocomplete(opts)
             -- Extract command and display text from macro pattern /command|text
             local pipePos = string.find(tagText, "|", 1, true)
             local macroCmd = pipePos and string.sub(tagText, 2, pipePos - 1) or string.sub(tagText, 2)
-            meta = {desc = string.format("Command button: /%s", macroCmd)}
+            --hide the command builder's "{Name}" step annotations from the
+            --description; they are metadata, not part of what will execute.
+            meta = {desc = string.format("Command button: /%s", CommandBuilder.StripAnnotations(macroCmd))}
         else
             meta = richTagDescriptions[tagName] or {}
         end
@@ -6067,6 +6158,25 @@ local function CreateMarkdownAutocomplete(opts)
             height = "auto",
             vscroll = false,
         }
+
+        --Command buttons get a "no code" macro builder: pressing this enters
+        --command creation mode (see CommandBuilder.lua) and, on Done, the
+        --recorded command replaces this tag's command.
+        if isMacro then
+            children[#children + 1] = gui.Button{
+                text = "Create Command",
+                fontSize = 13,
+                width = "auto",
+                height = 26,
+                hpad = 12,
+                borderBox = true,
+                halign = "center",
+                vmargin = 4,
+                click = function(element)
+                    StartCommandCreation(inputElement, tagText)
+                end,
+            }
+        end
 
         local popup = gui.Panel{
             width = "auto",
@@ -6188,11 +6298,14 @@ local function CreateMarkdownAutocomplete(opts)
             DismissAutocomplete(inputElement)
             local tagName = result.link
             local insertion
+            --caret offset within `insertion`; nil means the shared
+            --"just inside the closing ]]" rule below.
+            local insertionCaret = nil
 
             if result.patternExample then
                 -- Pattern-based tag: insert the example content directly.
-                -- e.g. counter -> [[0]], bar -> [[###--]]
-                insertion = string.format("[[%s]]", result.patternExample)
+                -- e.g. counter -> [[0]], bar -> [[###--]], checkbox -> [ ] Task
+                insertion, insertionCaret = RichTagExampleText(tagName)
             elseif result.takesName then
                 -- Name-based tag: generate a unique name suffix.
                 -- Scan the rest of the document for existing tags to avoid dupes.
@@ -6212,7 +6325,7 @@ local function CreateMarkdownAutocomplete(opts)
 
             local newText = before .. insertion .. after
             -- Place caret before ]] so the user can add or edit content
-            local targetCaretPos = #before + #insertion - 2
+            local targetCaretPos = #before + (insertionCaret or (#insertion - 2))
             NotifyTextChanged(newText)
             inputElement:SetTextAndCaret(targetCaretPos, newText)
             return
@@ -6309,7 +6422,7 @@ local function CreateMarkdownAutocomplete(opts)
                         -- Render a mini document showing what the rich tag looks like.
                         local tagContent
                         if result.patternExample then
-                            tagContent = string.format("[[%s]]", result.patternExample)
+                            tagContent = RichTagExampleText(result.link)
                         elseif result.isRichTag then
                             tagContent = string.format("[[%s]]", result.link)
                         end
@@ -6439,7 +6552,7 @@ local function CreateMarkdownAutocomplete(opts)
                         local meta = richTagDescriptions[name] or {}
                         local displayName = name
                         if meta.patternExample then
-                            displayName = string.format("%s  e.g. [[%s]]", name, meta.patternExample)
+                            displayName = string.format("%s  e.g. %s", name, (RichTagExampleText(name)))
                         end
                         results[#results + 1] = {
                             name = displayName,
@@ -6819,7 +6932,24 @@ local function CreateMarkdownToolbar(opts)
         } end
     end
 
+    --Insert a rich tag from the Insert Media / Insert Widget menus.
+    --Named tags ([[dice]], [[image]], ...) are inserted by name and get their
+    --own line. Pattern tags (macro/bar/counter/checkbox/setting) are matched on
+    --the SHAPE of their content, never by name -- [[macro]] matches no pattern,
+    --resolves to an annotation that does not exist, and renders as nothing at
+    --all -- so those insert a working example from g_richTagDescriptions
+    --instead, the same text the [[ autocomplete inserts for them. The caret
+    --lands just inside the closing ]] so the example stays whole and typing
+    --extends the part worth editing (a macro's label, a bar's fill).
     local function RichTagHandler(tagName)
+        local example, exampleCaret = RichTagExampleText(tagName)
+        if example ~= nil then
+            return function() ApplyAction{
+                mode = "insert",
+                text = example,
+                caretOffset = exampleCaret,
+            } end
+        end
         return function() ApplyAction{
             mode = "insert",
             text = string.format("[[%s]]\n", tagName),
@@ -6850,10 +6980,9 @@ local function CreateMarkdownToolbar(opts)
     --These are hardcoded Codex Design System values rather than theme tokens
     --by explicit decision: the design language is being trialed on this one
     --surface before deciding whether to author it as a real theme.
-    --NOTE: no cornerRadius in these rules, deliberately. The user's theme
-    --choice (default vs default-rounded) owns corner radii; our design
-    --treatment only overrides color and border weight, so squared/rounded
-    --preference is honored throughout the toolbar.
+    --NOTE: no cornerRadius in these rules, deliberately. The theme owns
+    --corner radii; our design treatment only overrides color and border
+    --weight, so the rounded corners carry through the whole toolbar.
     --selector arity matters: the theme styles text buttons via
     --{label, button}, so these rules must carry both selectors (plus
     --states) to outrank the theme's whiteish border and fill.
@@ -10137,6 +10266,10 @@ function MarkdownDocument:SeamlessEditPanel(args)
         end,
 
         needsave = function(element, result)
+            --responded tells checkUnsavedChanges an editor answered, so it
+            --must not fall back to its DeepEqual baseline comparison (this
+            --editor buffers text in the control, which that check cannot see).
+            result.responded = true
             if m_doc:GetTextContent() ~= element.text or m_doc:try_get("_tmp_styleDirty") == true then
                 result.save = true
             end

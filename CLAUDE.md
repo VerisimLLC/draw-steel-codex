@@ -16,7 +16,7 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
-**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+**IMPORTANT: New top-level Lua files must be registered through the DMHub MCP CodeMod workflow.** A file placed on disk is not part of its CodeMod, and manually adding a `require` to `main.lua` is not a substitute for registration. While DMHub is running, call `mcp__dmhub__register_lua_file` with a path of the form `<mod directory>/<file>.lua` (and optional `before` or `after` ordering), then confirm that Firebase persistence succeeded. Prefer registering the safe baseline before substantive edits; the tool preserves an existing local file if work has already begun. Do not hand-edit `main.lua` to register a new file. If the MCP bridge is unavailable, stop and ask the user rather than falling back to a manual `require`.
 
 ## Repository Structure
 
@@ -140,7 +140,7 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 
 **Important:** When using padding (`hpad`, `vpad`, `pad`), always set `borderBox = true` so that padding is included in the declared width/height rather than added on top. This prevents overflow and matches CSS border-box behavior. See the Spacing section in UI_BEST_PRACTICES.md for details.
 
-See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**.
+See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**. For the panel-level design language — row grammar, section headers, separators, hover/selected states, iconography, and the checklist for bringing an old panel onto it — see **[STYLE_GUIDE.md](STYLE_GUIDE.md)**.
 
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.
@@ -165,6 +165,27 @@ local mySetting = setting{
     onchange = function() ... end,
 }
 ```
+
+### Panel Background Processes
+A dockable panel can keep work running after the panel itself is closed by registering a **background process** -- a coroutine tracked by the panel framework. While any process for a panel is running, the panel's icon-rail button shows a small spinning gear (accent-colored) in its bottom-left corner, whether the panel is open or not. The first client is the Monster AI: Start AI registers a process, and closing the panel does not stop the AI.
+
+```lua
+local process = DockablePanel.StartProcess{
+    panel = "Monster AI",          -- the DockablePanel.Register name
+    id = "monster-ai",             -- unique per panel; restarting an id replaces it
+    coroutine = function(process)  -- runs as a dmhub.Coroutine
+        while true do
+            coroutine.yield(0.1)
+            if mod.unloaded or process.stopRequested then
+                return
+            end
+            -- do work
+        end
+    end,
+}
+```
+
+Stopping is **cooperative**: `DockablePanel.StopProcess(panelName, id)` (or `process:Stop()`) only sets `process.stopRequested`; the coroutine must poll it -- and its own `mod.unloaded` -- and return. `DockablePanel.HasActiveProcess(panelName)` reports liveness (it is what the rail gear reads), and `DockablePanel.GetProcess(panelName, id)` returns the handle. Full details in the "Panel background processes" section of `DMHub Core UI/DockablePanel.lua`.
 
 ## Lua File Constraints
 
@@ -211,6 +232,10 @@ local s = cond(token.canLocalPlayerSeeName, "The " .. token.name, "This creature
 local s = "This creature"
 if token.canLocalPlayerSeeName and token.name ~= nil then s = "The " .. token.name end
 ```
+
+## Comment Style
+
+Write comments (and notes on multiline changes) for a junior dev unfamiliar with this system: concise, plain language, 1-3 lines max. Never simply restate what the code does -- explain what is happening, how to use it, or why it exists. A comment documenting a new function and its variables may run longer than 3 lines.
 
 ## Monster Reference Documentation
 

@@ -4,6 +4,12 @@ RegisterGameType("CommandDocument", "CustomDocument")
 CommandDocument.command = ""
 
 function CommandDocument:ShowDocument()
+	--panels the journal can link to live in either registry: most are now
+	--ordinary dockable panels (Maps, the Compendium, the Measuring Tool),
+	--the rest are still launchable dialogs.
+	if DockablePanel.ShowPanelByName(self.command) then
+		return
+	end
 	LaunchablePanel.GetOrLaunchPanel(self.command)
 end
 
@@ -657,12 +663,15 @@ function CustomDocument.ResolveLink(link)
         return nil
     end
 
-    local launchableWindows = LaunchablePanel.GetMenuItems()
-    for _,item in ipairs(launchableWindows) do
-        if item.name ~= nil and link == string.lower(item.name) then
-            return CommandDocument.new{
-                command = item.name,
-            }
+    --"windows" a link can name: dockable panels first (most of them live
+    --there now), then the launchable dialogs that remain.
+    for _,items in ipairs({DockablePanel.GetMenuItems(true, true), LaunchablePanel.GetMenuItems()}) do
+        for _,item in ipairs(items) do
+            if item.name ~= nil and link == string.lower(item.name) then
+                return CommandDocument.new{
+                    command = item.name,
+                }
+            end
         end
     end
 

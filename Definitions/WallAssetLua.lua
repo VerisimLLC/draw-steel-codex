@@ -12,6 +12,8 @@
 --- @field openable any Openable walls (doors): when true, every wall operation drawn with this type gets a floating open/close icon, and opening it disables the drawn segment's blocking entirely until closed. Probe inside pcall to detect engine builds without door support.
 --- @field openSound any Audio asset id played (networked, all clients) when a door of this wall type is opened.
 --- @field closeSound any Audio asset id played (networked, all clients) when a door of this wall type is closed.
+--- @field markupColor any Markup wall display color as an html color string like '#ff0000': the DM's wall skeleton overlay and solid-block striping draw every wall of this type in this color. Reads as an empty string (never nil) when unset so pcall probes can detect engine support; set to '' or nil to restore the stock overlay styling.
+--- @field markupMapId any Map id this markup wall type is private to: stamped by the Map Markup panel on wall types it creates, hiding them from other maps' pickers until promoted with 'Make Available to All Maps'. Reads as an empty string (never nil) when unset so pcall probes can detect engine support; set to '' or nil to make the wall available game-wide.
 --- @field visionOneWay any 
 --- @field visionWidth any 
 --- @field movementOneWay any 

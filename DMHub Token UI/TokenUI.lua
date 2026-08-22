@@ -2364,6 +2364,11 @@ function CreateTokenHud(token)
                 if element.data.targetReason ~= nil then
                     gui.Tooltip(element.data.targetReason)(element)
                 end
+                --tokenHover/tokenDehover only fire on the sheet root; rebroadcast
+                --into the tree so registered hud panels can react to hover. The
+                --flag tells listeners the token is currently a targeting candidate,
+                --so hover chrome that would steal clicks can stay hidden.
+                element:FireEventTree("tokenHoverTree", targetEffect ~= nil)
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
                     audio.FireSoundEvent("Mouse.Hover")
 					for i,effect in ipairs(targetEffect) do
@@ -2378,6 +2383,7 @@ function CreateTokenHud(token)
 
 			tokenDehover = function(element)
                 element.tooltip = nil
+                element:FireEventTree("tokenDehoverTree")
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
 					for i,effect in ipairs(targetEffect) do
 						effect:SetClass('target-active', false)

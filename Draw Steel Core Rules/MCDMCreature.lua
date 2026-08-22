@@ -1463,6 +1463,15 @@ creature.RegisterSymbol {
     },
 }
 
+--Winded isn't a condition, so register it separately to make "Winded" usable as a
+--criteria string in Count Nearby Creatures and friends.
+creature.RegisterMatchString{
+    name = "winded",
+    match = function(c)
+        return c:IsWinded()
+    end,
+}
+
 creature.RegisterSymbol{
     symbol = "herotokens",
     lookup = function(c)
@@ -2266,12 +2275,31 @@ function creature:GetFlankingTokens(tokensOverride)
         end
     end
 
+    local granterIds = {}
+    local numGranters = 0
+    for _, enemy in ipairs(adjacentEnemies) do
+        if enemy.properties:GrantFlankingToAllies() then
+            granterIds[enemy.charid] = true
+            numGranters = numGranters + 1
+        end
+    end
+
+    --a creature that grants flanking to its allies can't grant it to itself, so it is marked
+    --as a grantor (and then excluded by FlankedBy) only when it is the *only* grantor here.
+    --If a second creature also grants flanking then that creature is an ally granting flanking
+    --to this one, so neither of them is marked and both count as flankers.
+    --NOTE: this deliberately writes to the live creature properties. FlankedBy and the token
+    --hud read _tmp_grantsFlanking back off tokens they look up separately, so the write must
+    --not be made against a copy.
     local grantedFlanking = {}
-    for i, enemy in ipairs(adjacentEnemies) do
-        local grantFlanking = enemy.properties:GrantFlankingToAllies()
-        if grantFlanking then
-            grantedFlanking = DeepCopy(adjacentEnemies)
-            grantedFlanking[i].properties._tmp_grantsFlanking = token.charid
+    if numGranters > 0 then
+        grantedFlanking = adjacentEnemies
+        for _, enemy in ipairs(adjacentEnemies) do
+            if numGranters == 1 and granterIds[enemy.charid] then
+                enemy.properties._tmp_grantsFlanking = token.charid
+            else
+                enemy.properties._tmp_grantsFlanking = nil
+            end
         end
     end
 
@@ -3085,12 +3113,18 @@ function creature:GetActivatedAbilities(options)
         end
     end
 
+    --Retainers can't use abilities or effects that require Malice, so their
+    --malice-cost innate abilities are suppressed here rather than deleted
+    --from the creature (converting back restores them).
+    local suppressMalice = self:IsRetainer()
     for i, a in ipairs(self.innateActivatedAbilities) do
-        local ability = a:MakeTemporaryClone()
-        if options.bindCaster and (not options.characterSheet) then
-            ability._tmp_boundCaster = self
+        if not (suppressMalice and a.resourceCost == CharacterResource.maliceResourceId) then
+            local ability = a:MakeTemporaryClone()
+            if options.bindCaster and (not options.characterSheet) then
+                ability._tmp_boundCaster = self
+            end
+            result[#result + 1] = ability
         end
-        result[#result + 1] = ability
     end
 
     local modifiers = self:GetActiveModifiers()
@@ -5688,6 +5722,7 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.rawdamage = info.rawdamage
         eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
         eventArg.damagetype = eventArg.damagetype or "none"
+        eventArg.damagedice = eventArg.damagedice or StringSet.new{}
         eventArg.hasattacker = eventArg.attacker ~= nil
         eventArg.surges = info.surges or 0
         eventArg.edges = 0
@@ -5729,6 +5764,7 @@ function creature.TakeDamage(self, amount, note, info)
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
                 hasrolleddamage = eventArg.hasrolleddamage,
+                damagedice = eventArg.damagedice,
                 --The ActivatedAbilityCast associated with this damage, if any.
                 --hascast lets trigger formulas guard before reading Cast.Tier etc.
                 cast = eventArg.cast,
@@ -5849,6 +5885,7 @@ function creature.TakeDamage(self, amount, note, info)
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
     eventArg.damagetype = eventArg.damagetype or "untyped"
+    eventArg.damagedice = eventArg.damagedice or StringSet.new{}
     eventArg.hasattacker = eventArg.attacker ~= nil
     eventArg.surges = info.surges or 0
     eventArg.edges = 0
@@ -6002,6 +6039,7 @@ function creature.TakeDamage(self, amount, note, info)
             ability = eventArg.ability,
             usedability = eventArg.ability,
             hasrolleddamage = eventArg.hasrolleddamage,
+            damagedice = eventArg.damagedice,
             --The ActivatedAbilityCast associated with this damage, if any.
             --hascast lets trigger formulas guard before reading Cast.Tier etc.
             cast = eventArg.cast,
@@ -7019,6 +7057,15 @@ function creature:EndCombat()
             description = "Remove Temporary Hit Points",
             execute = function()
                 self.temporary_hitpoints = nil
+            end,
+        }
+    end
+
+    if self:try_get("routinesSelected") ~= nil then
+        token:ModifyProperties {
+            description = "End Routines",
+            execute = function()
+                self.routinesSelected = nil
             end,
         }
     end

@@ -15,6 +15,8 @@ local g_settingTargetObjects = setting {
 -- which iterates each rule with pairs() to resolve @tokens. All colors use
 -- scheme @tokens so the panel tracks the active color scheme.
 SpellRenderStyles = {
+    -- The ability card itself: simple rounded card, matching the monster
+    -- sheet's ms-card grammar.
     {
         selectors = "#spellInfo",
         width = "100%",
@@ -22,6 +24,11 @@ SpellRenderStyles = {
         flow = 'vertical',
         halign = 'left',
         valign = 'center',
+        bgcolor = "@bgAlt",
+        border = 1,
+        borderColor = "@border",
+        cornerRadius = 6,
+        vmargin = 4,
     },
     {
         selectors = { "hoverable", "#spellInfo" },
@@ -113,11 +120,6 @@ SpellRenderStyles = {
         color = "@fgInverse",
     },
 
-    -- Decorative accent line: border tint with an alpha falloff gradient.
-    {
-        selectors = { "fadeLine" },
-        bgcolor = "@border",
-    },
 
     -- MCDM tab graphics: tab background tinted to the scheme accent. NOTE the
     -- tab art (TabBGImage) is a gold-baked PNG, so the accent tint multiplies
@@ -185,6 +187,99 @@ SpellRenderStyles = {
         bgcolor = "@implStatus4",
     },
 
+}
+
+-- The action color key used to color-code ability title bands across the app
+-- (the monster sheet cards and the ability card header). Deliberately
+-- scheme-independent literals rather than theme tokens: the key is a fixed
+-- semantic code (Main Action = red, Maneuver = blue, Triggered = green,
+-- Move = orange, No Action = black, Traits/Other = purple) and must not
+-- drift when a theme remaps its status colors.
+ActivatedAbility.actionColorKey = {
+    ["ms-action-main"] = "#8E2B2B",
+    ["ms-action-maneuver"] = "#2C5F8A",
+    ["ms-action-triggered"] = "#2E7048",
+    ["ms-action-move"] = "#B97A24",
+    ["ms-action-none"] = "#1C1C1C",
+    ["ms-action-other"] = "#5E3A78",
+    --The malice cost diamond's inner-diamond red (see RichResource.lua /
+    --the action bar costDiamond), so malice features match the icon.
+    ["ms-action-malice"] = "#DE1E47",
+}
+
+--- Which color-key class this ability's title band gets, from its action
+--- economy. Villain actions count as main actions; malice features get the
+--- malice icon's red regardless of their action economy.
+--- @return string
+function ActivatedAbility:ActionColorKeyClass()
+    if self.categorization == "Malice" then
+        return "ms-action-malice"
+    end
+
+    if self:has_key("villainAction") or self.categorization == "Villain Action" then
+        return "ms-action-main"
+    end
+
+    local rid = self:ActionResource()
+    if rid == CharacterResource.actionResourceId then
+        return "ms-action-main"
+    elseif rid == CharacterResource.maneuverResourceId then
+        return "ms-action-maneuver"
+    elseif rid == CharacterResource.triggerResourceId then
+        return "ms-action-triggered"
+    end
+
+    if self.categorization == "Move" then
+        return "ms-action-move"
+    end
+
+    --Free actions: no action resource at all, or the free-maneuver pseudo
+    --resource.
+    if rid == nil or rid == CharacterResource.freeManeuverResourceId then
+        return "ms-action-none"
+    end
+
+    return "ms-action-other"
+end
+
+--- One bgcolor rule per color-key class, for panels carrying the given band
+--- class. Append to a style list routed through ThemeEngine.
+--- @param bandClass string
+--- @return table[]
+function ActivatedAbility.ActionColorKeyStyles(bandClass)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = {"panel", bandClass, class},
+            bgcolor = color,
+        }
+    end
+    return result
+end
+
+-- Color-keyed title band on the ability card. The band colors are fixed dark
+-- literals, so the name on it is fixed light rather than a theme token.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand"},
+    width = "100%",
+    height = "auto",
+    flow = "horizontal",
+    halign = "left",
+    valign = "top",
+    bgimage = "panels/square.png",
+    bgcolor = "clear",
+    hpad = 14,
+    vpad = 8,
+    --Top corners only, tucked just inside the card's radius-6 border.
+    cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+    borderBox = true,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyStyles("abilityHeadBand")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"label", "abilityName", "parent:abilityHeadBand"},
+    color = "#FFFFFF",
 }
 
 -- Themed style rules for the ability-improvement pills (routed through
@@ -1415,6 +1510,12 @@ function ActivatedAbility:Render(options, params)
         actionText = resourceInfo.name
     end
 
+    --Malice abilities collapse the action label and the target/range section:
+    --they are effects bought with malice, so "Free" and the default targeting
+    --info carry no information. The keyword row survives only if the ability
+    --actually has keywords.
+    local isMaliceAbility = self.categorization == "Malice"
+
     local preDescription = self:try_get("preDescription", "")
     local description = self.description
 
@@ -1601,6 +1702,9 @@ function ActivatedAbility:Render(options, params)
     local descriptionString
     if description == "" then
         descriptionString = ""
+    elseif isMaliceAbility then
+        --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description
     end
@@ -1695,9 +1799,32 @@ function ActivatedAbility:Render(options, params)
     local args = {
         id = 'spellInfo',
         styles = ThemeEngine.MergeStyles(SpellRenderStyles),
+        bgimage = "panels/square.png",
         hpad = 0,
         vpad = 0,
 
+        --Color-keyed title band, full bleed across the top of the card. Sits
+        --outside the padded body (and outside the scroll frame, so a
+        --scrolling card keeps its title visible).
+        gui.Panel {
+            classes = {"abilityHeadBand", self:ActionColorKeyClass()},
+
+            --name of the ability
+            gui.Label {
+
+                width = "auto",
+                id = "spellName",
+                classes = {"abilityName"},
+                fontSize = 24,
+                fontFace = "Newzald",
+                minFontSize = 14,
+                fontWeight = "Light",
+                maxWidth = "100%",
+                text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
+                height = "auto",
+                markdown = true,
+            },
+        },
 
         --King panel for inside info.
         --A caller that knows how much room the card actually has (the ability
@@ -1715,21 +1842,21 @@ function ActivatedAbility:Render(options, params)
             --In scroll mode this body sits inside that wider frame and must
             --occupy exactly the card's own bounds: full card width (which is
             --also what stops the fixed-340-wide embedded roll dialog from being
-            --cropped -- the old 90% was narrower than the dialog), right-aligned
-            --so every bit of the frame's extra width bleeds off to the LEFT
-            --where the tabs live. The 20px lmargin becomes hpad, which keeps the
-            --text where it was and also insets it clear of the scrollbar drawn
-            --at the frame's right edge. borderBox because this framework has no
-            --per-side padding and bare hpad is additive to the width.
-            width = cond(paramMaxHeight ~= nil, string.format("100%%-%d", g_abilityScrollBleedLeft), "90%"),
+            --cropped), right-aligned so every bit of the frame's extra width
+            --bleeds off to the LEFT where the tabs live. The scroll-mode hpad
+            --is bigger to inset the text clear of the scrollbar drawn at the
+            --frame's right edge; non-scroll gets a symmetric card inset.
+            --borderBox because this framework has no per-side padding and
+            --bare hpad is additive to the width.
+            width = cond(paramMaxHeight ~= nil, string.format("100%%-%d", g_abilityScrollBleedLeft), "100%"),
             halign = cond(paramMaxHeight ~= nil, "right", nil),
             height = "auto",
             bgimage = true,
             bgcolor = "clear",
-            tmargin = 15,
-            lmargin = cond(paramMaxHeight ~= nil, 0, 20),
-            hpad = cond(paramMaxHeight ~= nil, 20, 0),
-            borderBox = cond(paramMaxHeight ~= nil, true, false),
+            tmargin = 8,
+            bmargin = 8,
+            hpad = cond(paramMaxHeight ~= nil, 20, 14),
+            borderBox = true,
 
             --titel and ability and icon type king panel
             gui.Panel {
@@ -1759,7 +1886,7 @@ function ActivatedAbility:Render(options, params)
                     --name and type
                     gui.Panel {
 
-                        width = "auto",
+                        width = "100%",
                         height = "auto",
                         valign = "top",
                         bgcolor = "clear",
@@ -1767,28 +1894,14 @@ function ActivatedAbility:Render(options, params)
 
                         flow = "vertical",
 
-                        --name of the ability
-                        gui.Label {
-
-                            width = "auto",
-                            id = "spellName",
-                            classes = {"abilityName"},
-                            fontSize = 24,
-                            fontFace = "Newzald",
-                            minFontSize = 14,
-                            fontWeight = "Light",
-                            maxWidth = "100%",
-                            text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
-                            height = "auto",
-                            markdown = true,
-                        },
-
                         --Type of ability
                         gui.Panel {
 
                             flow = "horizontal",
                             width = "auto",
                             height = "auto",
+                            halign = "left",
+                            tmargin = 4,
 
                             gui.Label {
 
@@ -1819,13 +1932,13 @@ function ActivatedAbility:Render(options, params)
                                 end,
 
                                 hover = function(element)
-                                    local text = [[<b>Gold:</b> Fully automated.
+                                    local text = [[<b>Fully Automated:</b> Everything is handled by the app.
 
-<b>Silver:</b> Automated with some table adjudication necessary.
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
 
-<b>Bronze:</b> Partially automated.
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
 
-<b>Unimplemented:</b> Requires manual adjudication.
+<b>Not Automated:</b> Requires manual adjudication.
 
 <b>Narrative:</b> Role play only, no automation.
 ]]
@@ -1874,7 +1987,7 @@ function ActivatedAbility:Render(options, params)
 
                                 gui.Label {
                                     classes = { "implementationChip" },
-                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Not Automated",
                                     create = function(element)
                                         print("venla:", mod.images.diamond)
                                         local impl = self:try_get("implementation", 1)
@@ -1941,6 +2054,7 @@ function ActivatedAbility:Render(options, params)
                 height = 25,
                 tmargin = 6,
                 flow = "horizontal",
+                collapsed = cond(isMaliceAbility and #keywords == 0, 1, 0),
 
                 --keywords
                 gui.Label {
@@ -1970,6 +2084,7 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     halign = "right",
                     markdown = true,
+                    collapsed = cond(isMaliceAbility, 1, 0),
 
 
                 },
@@ -1986,6 +2101,7 @@ function ActivatedAbility:Render(options, params)
                 height = "auto",
                 tmargin = 2,
                 flow = "vertical",
+                collapsed = cond(isMaliceAbility, 1, 0),
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
@@ -2449,62 +2565,6 @@ function ActivatedAbility:Render(options, params)
             text = actionText,
         },]]
 
-        --border line right panel
-        gui.Panel {
-
-            classes = { "fadeLine" },
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 1.2,
-            width = 500,
-            bgimage = true,
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 0 },
-                point_b = { x = 1, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
-        --border line down panel
-        gui.Panel {
-
-            classes = { "fadeLine" },
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 200,
-            width = 1.2,
-            bgimage = true,
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 1 },
-                point_b = { x = 0, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
         --tab panel
         gui.Panel {
 
@@ -2555,6 +2615,15 @@ function ActivatedAbility:Render(options, params)
                     element.interactable = true
                 else
                     element.data.rollDialog = nil
+                    element:SetClass("collapsed", true)
+                end
+            end,
+            --The Monster AI drives its own roll and completes it, so the card
+            --offers no cancel affordance while it does. Fired by
+            --CharacterPanel.EmbedDialogInAbility straight after embedRollDialog
+            --above, so this re-collapse lands on the freshly revealed button.
+            rollDialogAIDriven = function(element, aiDriven)
+                if aiDriven then
                     element:SetClass("collapsed", true)
                 end
             end,

@@ -295,6 +295,9 @@ CharacterModifier.TypeInfo.power = {
                 if token == nil or not token.valid then
                     return
                 end
+                --The contextual target types (abilitycaster / abilitytarget /
+                --triggerer) resolve inside Trigger's targeting from the
+                --symbols appended here; no subject resolution is needed.
                 modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
             end)
 		end
@@ -2768,8 +2771,10 @@ CharacterModifier.TypeInfo.power = {
                     change = function(element)
                         modifier.hasTriggerBefore = element.value
                         if element.value and modifier:has_key("triggerBefore") == false then
+                            --The event id is never consulted for a modifier-fired
+                            --trigger; "custom" just labels it honestly.
                             modifier.triggerBefore = TriggeredAbility.Create{
-                                trigger = "d20roll",
+                                trigger = "custom",
                             }
                         end
                         Refresh()
@@ -2787,10 +2792,12 @@ CharacterModifier.TypeInfo.power = {
                                 if modifier:has_key("triggerBefore") then
                                     element.root:AddChild(modifier.triggerBefore:ShowEditActivatedAbilityDialog{
                                         title = "Edit Trigger",
-                                        hide = {"appearance", "abilityInfo"},
+                                        customTriggerContext = {
+                                            note = "Fires when this trigger is activated, before the triggering ability resolves.",
+                                        },
                                         destroy = savefn,
                                     })
-                                end    
+                                end
                             end
             
                             element.root:FireEventTree("editCompendiumFeature", modifier, fn)
@@ -2842,8 +2849,14 @@ CharacterModifier.TypeInfo.power = {
 				change = function(element)
 					modifier.hasCustomTrigger = element.value
 					if element.value and modifier:has_key("customTrigger") == false then
+						--The event id is never consulted for a modifier-fired
+						--trigger; "custom" just labels it honestly.
+						--modifierCustomTrigger makes the Target dropdown offer
+						--the contextual creatures (Ability Caster/Target,
+						--Triggerer) the roll dialog installs at fire time.
 						modifier.customTrigger = TriggeredAbility.Create{
-							trigger = "d20roll",
+							trigger = "custom",
+							modifierCustomTrigger = true,
 						}
 					end
 					Refresh()
@@ -2861,10 +2874,38 @@ CharacterModifier.TypeInfo.power = {
                             if modifier:has_key("customTrigger") then
                                 element.root:AddChild(modifier.customTrigger:ShowEditActivatedAbilityDialog{
                                     title = "Edit Trigger",
-                                    hide = {"appearance", "abilityInfo"},
+                                    customTriggerContext = {
+                                        note = "Fires automatically after a roll this modifier applies to resolves.",
+                                        subjectOptions = true,
+                                        --Help entries for the symbols installed on the
+                                        --modifier at roll time (see the
+                                        --InstallSymbolsFromContext call in DSRollDialog).
+                                        symbols = {
+                                            abilitycaster = {
+                                                name = "Ability Caster",
+                                                type = "creature",
+                                                desc = "The creature that used the ability whose roll this modifier applied to.",
+                                            },
+                                            abilitytarget = {
+                                                name = "Ability Target",
+                                                type = "creature",
+                                                desc = "The creature targeted by the roll this modifier applied to.",
+                                            },
+                                            triggerer = {
+                                                name = "Triggerer",
+                                                type = "creature",
+                                                desc = "The creature whose modifier fired this trigger (usually the modifier's owner).",
+                                            },
+                                            tier = {
+                                                name = "Tier",
+                                                type = "number",
+                                                desc = "The tier result of the power roll this modifier applied to.",
+                                            },
+                                        },
+                                    },
                                     destroy = savefn,
                                 })
-                            end    
+                            end
                         end
         
                         element.root:FireEventTree("editCompendiumFeature", modifier, fn)

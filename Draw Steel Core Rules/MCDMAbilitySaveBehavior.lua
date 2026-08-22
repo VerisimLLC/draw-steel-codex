@@ -324,6 +324,19 @@ function ActivatedAbilitySaveBehavior:RollSaveInTimeline(ability, casterToken, t
         if rollCanceled then
             return false
         end
+        --Backstop: the embedded roll dialog can be destroyed out from under an
+        --active save when a sibling end-of-turn trigger cast finishes and tears
+        --down the ability sidebar (log signature: "RollDialog:: DESTROY
+        --castCoroutine=<n> wasShown=true" with no matching RICH:: Pop). Neither
+        --cancelRoll nor completeRoll fires on that path, so without this check
+        --the cast coroutine yields forever, stays "suspended" in
+        --ActivatedAbility.coroutineStorage, and permanently blocks
+        --ActivatedAbility.RunWhenCastsComplete -- silently killing every later
+        --deferred triggered-ability cast on this client (report NQMSECG3:
+        --Troubadour "Start of Turn Drama" never fired again all session).
+        if dialog == nil or (not dialog.valid) or dialog.data == nil then
+            return false
+        end
         coroutine.yield(0.1)
     end
 

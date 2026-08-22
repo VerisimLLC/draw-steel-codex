@@ -295,33 +295,10 @@ CharacterModifier.TypeInfo.power = {
                 if token == nil or not token.valid then
                     return
                 end
-
-                --The trigger's Subject choice picks one of the contextual
-                --creatures installed on the modifier at roll time. Resolve
-                --it into symbols.subject so Requires Condition, target type
-                --"subject", and the Subject formula symbol all use it. The
-                --editor keeps the trigger's subject field at "any" for these
-                --choices so the subject gates in TriggeredAbility:Trigger
-                --pass.
-                local symbols = modifier:AppendSymbols{}
-                local subjectChoice = modifier.customTrigger:try_get("customTriggerSubject", "self")
-                if subjectChoice ~= "self" then
-                    local sym = symbols[subjectChoice]
-                    if type(sym) == "function" then
-                        --symbol contexts are GenerateSymbols lookup functions;
-                        --calling with "self" unwraps back to the creature.
-                        sym = sym("self")
-                    end
-                    if sym == nil then
-                        --chosen subject absent in this context (e.g. an
-                        --untargeted ability with Subject = Ability Target):
-                        --do not fire.
-                        return
-                    end
-                    symbols.subject = sym
-                end
-
-                modifier.customTrigger:Trigger(modifier, creature, symbols, nil, modContext)
+                --The contextual target types (abilitycaster / abilitytarget /
+                --triggerer) resolve inside Trigger's targeting from the
+                --symbols appended here; no subject resolution is needed.
+                modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
             end)
 		end
 

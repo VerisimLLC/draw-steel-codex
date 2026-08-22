@@ -447,19 +447,14 @@ ActivatedAbility.ForcedMovementTypes = {
 
 --This gets a full list of options to display in the dropdown
 --Contextual target choices for a modifier-fired custom trigger (an ability
---with modifierCustomTrigger set). Synthetic dropdown ids following the
---target_ally pattern below: choosing one stores targetType = "subject" plus
---the customTriggerSubject the fire site resolves into symbols.subject.
+--with modifierCustomTrigger set). Real target types: TriggeredAbility's
+--targeting resolves each id from the symbols the modifier installs at fire
+--time. Subject-hood stays with the owner; these only pick who the effect
+--lands on.
 local g_customTriggerTargetOptions = {
-    {id = "subject_abilitycaster", text = "Ability Caster"},
-    {id = "subject_abilitytarget", text = "Ability Target"},
-    {id = "subject_triggerer",     text = "Triggerer"},
-}
-
-local g_customTriggerSubjectsById = {
-    subject_abilitycaster = "abilitycaster",
-    subject_abilitytarget = "abilitytarget",
-    subject_triggerer = "triggerer",
+    {id = "abilitycaster", text = "Ability Caster"},
+    {id = "abilitytarget", text = "Ability Target"},
+    {id = "triggerer",     text = "Triggerer"},
 }
 
 function ActivatedAbility:GetDisplayedTargetTypeOptions()
@@ -534,15 +529,6 @@ function ActivatedAbility:GetChosenTargetTypeInDropdown()
         end
     end
 
-    --Modifier-fired custom trigger: "subject" targeting is presented as the
-    --contextual creature the customTriggerSubject choice resolves to.
-    if self.targetType == "subject" and self:try_get("modifierCustomTrigger", false) then
-        local choice = self:try_get("customTriggerSubject", "self")
-        if g_customTriggerSubjectsById["subject_" .. choice] ~= nil then
-            return "subject_" .. choice
-        end
-    end
-
     return self.targetType
 end
 
@@ -571,23 +557,9 @@ function ActivatedAbility:SetChosenTargetTypeFromDropdown(idChosen)
         self.targetType = "target"
         self.targetAllegiance = "dead"
         self.objectTarget = false
-    elseif g_customTriggerSubjectsById[idChosen] ~= nil then
-        --Contextual target on a modifier-fired custom trigger. Stored as
-        --"subject" targeting plus the customTriggerSubject the fire site
-        --resolves; subject = "any" keeps the runtime subject gates passing.
-        self.targetType = "subject"
-        self.targetAllegiance = nil
-        self.customTriggerSubject = g_customTriggerSubjectsById[idChosen]
-        self.subject = "any"
     else
         self.targetType = idChosen
         self.targetAllegiance = nil
-        --Leaving a contextual target choice reverts the trigger's subject
-        --to plain self so Requires Condition and formulas read the owner.
-        if self:try_get("modifierCustomTrigger", false) then
-            self.customTriggerSubject = nil
-            self.subject = "self"
-        end
     end
 end
 

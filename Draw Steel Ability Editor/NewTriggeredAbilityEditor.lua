@@ -156,19 +156,6 @@ local WHEN_ACTIVE_OPTIONS = {
     {id = "combat", text = "Only During Combat"},
 }
 
--- Display labels for a modifier-fired custom trigger's contextual subject
--- (used by the mechanical view). The choice itself is made through the
--- Setup section's Target dropdown, which stores customTriggerSubject and
--- keeps the standard subject field in sync ("self" or "any") so the subject
--- gates in TriggeredAbility:Trigger pass -- see
--- SetChosenTargetTypeFromDropdown in ActivatedAbilityEditor.lua.
-local CUSTOM_TRIGGER_SUBJECT_OPTIONS = {
-    {id = "self",          text = "Self (Owner of this Modifier)"},
-    {id = "abilitycaster", text = "Ability Caster"},
-    {id = "abilitytarget", text = "Ability Target"},
-    {id = "triggerer",     text = "Triggerer"},
-}
-
 -- Corrected display labels per the design doc. The underlying ids ("remove"
 -- and "corpse") match TriggeredAbility.DespawnBehaviors; we only override the
 -- display text so the classic editor keeps its original labels unaffected.
@@ -882,17 +869,24 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
             -- contextual creatures (see GetDisplayedTargetTypeOptions).
             ability.modifierCustomTrigger = true
         end
-        if ctx.subjectOptions and ability:try_get("customTriggerSubject", "self") ~= "self" then
-            ability.subject = "any"
-        else
-            if ability:try_get("subject", "self") ~= "self" then
-                ability.subject = "self"
-            end
-            -- Leftover "subject" targeting with no contextual choice would
-            -- just target the owner; store that honestly as self targeting.
-            if ability.targetType == "subject" then
+        -- Subject-hood always belongs to the owner for a custom trigger:
+        -- Requires Condition checks the owner and Subject in formulas is the
+        -- owner. The contextual creatures are plain target types instead.
+        if ability:try_get("subject", "self") ~= "self" then
+            ability.subject = "self"
+        end
+        -- Migrate the short-lived subject-based scheme: a contextual choice
+        -- stored as "subject" targeting becomes the equivalent target type.
+        if ability.targetType == "subject" then
+            local choice = ability:try_get("customTriggerSubject", "self")
+            if ctx.subjectOptions and choice ~= "self" then
+                ability.targetType = choice
+            else
                 ability.targetType = "self"
             end
+        end
+        if ability:has_key("customTriggerSubject") then
+            ability.customTriggerSubject = nil
         end
     end
 
@@ -1000,12 +994,11 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
         }
     end
 
-    -- Trigger Range (GoblinScript) -- hidden when Subject is Self. For a
-    -- custom trigger it is live only while a contextual Target (Ability
-    -- Caster / Ability Target / Triggerer) is chosen in the Setup section:
-    -- the trigger only fires if that creature is within range of the owner.
-    local function makeTriggerRangeRow()
-        return fieldRow("Trigger Range",
+    -- Trigger Range (GoblinScript) -- hidden when Subject is Self, and for
+    -- custom triggers entirely (their subject is always the owner; gate on
+    -- another creature's distance via Target Filter or Triggers Only When).
+    if ctx == nil and ability:try_get("subject", "self") ~= "self" then
+        children[#children + 1] = fieldRow("Trigger Range",
             gui.GoblinScriptInput{
                 value = ability:try_get("subjectRange", ""),
                 change = function(element)
@@ -1025,26 +1018,6 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
                     },
                 },
             })
-    end
-
-    if ctx ~= nil then
-        if ctx.subjectOptions then
-            -- The choice lives in the Setup section's Target dropdown, whose
-            -- change handler fires refreshAbility tree-wide; track it there
-            -- rather than rebuilding this section.
-            local function rangeHidden()
-                return ability:try_get("customTriggerSubject", "self") == "self"
-            end
-            children[#children + 1] = gui.Panel{
-                classes = {"nae-field-row", cond(rangeHidden(), "collapsed-anim", nil)},
-                refreshAbility = function(element)
-                    element:SetClass("collapsed-anim", rangeHidden())
-                end,
-                makeTriggerRangeRow(),
-            }
-        end
-    elseif ability:try_get("subject", "self") ~= "self" then
-        children[#children + 1] = makeTriggerRangeRow()
     end
 
     -- Triggers Only When (GoblinScript condition formula)
@@ -2589,19 +2562,7 @@ local function buildMechanicalView(ability, ctx)
     --     this silently never fires -- the resolver at
     --     TriggeredAbility.lua:746 rejects. Warn at author time.
     if ctx ~= nil then
-        if ctx.subjectOptions then
-            local choice = ability:try_get("customTriggerSubject", "self")
-            local choiceLabel
-            for _, opt in ipairs(CUSTOM_TRIGGER_SUBJECT_OPTIONS) do
-                if opt.id == choice then
-                    choiceLabel = opt.text
-                    break
-                end
-            end
-            addRow("Subject", choiceLabel or choice, choiceLabel == nil and "Unknown" or nil)
-        else
-            addRow("Subject", "Self (Owner of this Modifier)", nil)
-        end
+        addRow("Subject", "Self (Owner of this Modifier)", nil)
     else
     local subjectId = ability:try_get("subject") or "self"
     local subjectChip

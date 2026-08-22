@@ -126,6 +126,22 @@ CreateWhiteboardPanel = function()
 
     dmhub.GetActiveWhiteboardTool = GetActiveWhiteboardTool
 
+    --Players lose the whiteboard when the DM turns "whiteboardplayeraccess"
+    --off: the panel greys out and must not keep GUI focus, or it would go on
+    --swallowing map clicks. That is the ONLY thing the settings monitor needs
+    --to re-evaluate, so it lives apart from showpanel's arming. Returns true
+    --if the panel is forbidden to this user.
+    local RefreshWhiteboardAccess = function(element)
+        local forbidden = dmhub.isDM == false and not dmhub.GetSettingValue("whiteboardplayeraccess")
+
+        if forbidden and gui.ChildHasFocus(element) then
+            gui.SetFocus(nil)
+        end
+
+        element:SetClassTree("forbidden", forbidden)
+        return forbidden
+    end
+
     resultPanel = gui.Panel{
 
         flow = "vertical",
@@ -185,9 +201,29 @@ CreateWhiteboardPanel = function()
         end,
 
         multimonitor = {"whiteboardtool", "whiteboardplayeraccess"},
+
+        --This used to fire "showpanel", which force-GRABS GUI focus. That made
+        --the whiteboard a focus thief for the whole app, and it fired far more
+        --often than its own two settings changed: showpanel's `pressfirst`
+        --writes whiteboardtool from INSIDE the monitor dispatch loop, and
+        --SheetManager cleared `potentialMonitorUpdates` after that loop, so the
+        --bump was swallowed and this panel's `_multimonitorUpdate` was left
+        --permanently one behind -- meaning it re-fired on the next settings
+        --write ANYWHERE in the app, forever. (The engine half of that is fixed
+        --in SheetManager.cs; this half stands on its own.)
+        --
+        --The victim was the Elevation Editor, whose tool and topographic
+        --overlay were gated purely on focus: every press on one of its controls
+        --wrote a setting, which fired this monitor, which took the focus back
+        --and killed the overlay a frame later. Report W9BJHDAQ -- 138 firings,
+        --zero height edits, every map click falling through to marquee select.
+        --
+        --A settings change is not a user asking for the whiteboard, so it no
+        --longer arms; it only re-checks player access. Opening the panel,
+        --switching to its tab and clicking it still arm, as before.
         monitor = function(element)
             printf("MONITOR:: PANEL %s %s", json(dmhub.isDM), json(dmhub.GetSettingValue("whiteboardplayeraccess")))
-            element:FireEvent("showpanel")
+            RefreshWhiteboardAccess(element)
         end,
 
         clickpanel = function(element)
@@ -203,16 +239,9 @@ CreateWhiteboardPanel = function()
         end,
 
         showpanel = function(element)
-            if dmhub.isDM == false and not dmhub.GetSettingValue("whiteboardplayeraccess") then
-                if gui.ChildHasFocus(element) then
-                    gui.SetFocus(nil)
-                end
-
-                element:SetClassTree("forbidden", true)
+            if RefreshWhiteboardAccess(element) then
                 return
             end
-
-            element:SetClassTree("forbidden", false)
 
             if not gui.ChildHasFocus(element) then
                 --press the first (only) tool button rather than just focusing the

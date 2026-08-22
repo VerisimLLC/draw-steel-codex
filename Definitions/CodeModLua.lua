@@ -1,5 +1,6 @@
 --- @class CodeModLua 
 --- @field isUsingGit boolean 
+--- @field gitFolderPath nil|string The absolute path of this mod's folder in the git working copy, or nil if the mod is not git-mapped.
 --- @field unmanagedGitFiles any 
 --- @field filesMissingFromGit any 
 --- @field dependencies any 

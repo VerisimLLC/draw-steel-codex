@@ -714,7 +714,7 @@ end
 function gui.SimpleIconButton(options)
 	local args = {
 		classes = {'close-button', "closeButton", "iconButton"},
-		bgimage = 'ui-icons/close.png',
+		bgimage = 'phosphor/x-bold.png',
 	}
 
 	if options.classes ~= nil then
@@ -750,7 +750,10 @@ function gui.CloseButton(options)
 
 	local args = {
 		classes = {'close-button', "closeButton"},
-		bgimage = 'ui-icons/close.png',
+		--phosphor X, matching the themed closeButton kind rule in
+		--DefaultStyles -- legacy call sites keep visual parity with
+		--the canonical close while they await migration.
+		bgimage = 'phosphor/x-bold.png',
 		escapeActivates = true,
 		escapePriority = EscapePriority.EXIT_DIALOG,
 	}

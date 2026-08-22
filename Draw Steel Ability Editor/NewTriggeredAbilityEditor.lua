@@ -3202,7 +3202,6 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
             },
             gui.Button{
                 classes = {"closeButton", "sizeM"},
-                icon = "ui-icons/close.png",
                 halign = "right",
                 valign = "top",
                 floating = true,

@@ -9018,7 +9018,7 @@ function TacPanel.Features()
     --gui.Input -- the input needs a children container at build time).
     clearButton = gui.Panel{
         floating = true,
-        bgimage = "ui-icons/close.png",
+        bgimage = "phosphor/x-bold.png",
         --An inline bgcolor of "@fgMuted" is NOT resolved by the theme engine
         --(only style-rule values are), so the white icon would paint untinted
         --and read as invisible. Resolve the token to a concrete colour here.

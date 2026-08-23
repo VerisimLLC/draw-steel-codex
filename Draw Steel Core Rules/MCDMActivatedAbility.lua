@@ -208,14 +208,12 @@ ActivatedAbility.actionColorKey = {
 }
 
 --- Which color-key class this ability's title band gets, from its action
---- economy. Villain actions count as main actions; malice features get the
---- malice icon's red regardless of their action economy.
+--- economy. Villain actions count as main actions. A real action economy
+--- (main/maneuver/triggered) wins over a malice cost -- a malice-costing
+--- maneuver is still a maneuver -- so malice red is reserved for malice
+--- features with no action of their own.
 --- @return string
 function ActivatedAbility:ActionColorKeyClass()
-    if self.categorization == "Malice" then
-        return "ms-action-malice"
-    end
-
     if self:has_key("villainAction") or self.categorization == "Villain Action" then
         return "ms-action-main"
     end
@@ -227,6 +225,10 @@ function ActivatedAbility:ActionColorKeyClass()
         return "ms-action-maneuver"
     elseif rid == CharacterResource.triggerResourceId then
         return "ms-action-triggered"
+    end
+
+    if self.categorization == "Malice" then
+        return "ms-action-malice"
     end
 
     if self.categorization == "Move" then

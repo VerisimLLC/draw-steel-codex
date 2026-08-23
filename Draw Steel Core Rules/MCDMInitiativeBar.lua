@@ -1198,9 +1198,25 @@ end
 -- =====================================================================
 
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local g_reportedVillainActionScanError = false
 local function GetVillainActionAbilities(token)
     if token == nil or token.properties == nil then return nil end
-    local abilities = token.properties:GetActivatedAbilities()
+    --Containment: GetActivatedAbilities runs a huge pass over authored data
+    --(modifiers, items, triggers, module content). A throw here used to
+    --propagate out of the refreshGame dispatch and abort the refresh of every
+    --remaining HUD panel, including the action bar. Drop just this token from
+    --the villain-action scan instead (mirrors DrawSteelActionBar.lua's
+    --containment for report Q3Y6HTZ4).
+    local ok, abilities = pcall(function()
+        return token.properties:GetActivatedAbilities()
+    end)
+    if not ok then
+        if not g_reportedVillainActionScanError then
+            g_reportedVillainActionScanError = true
+            dmhub.CloudError(string.format("Villain action scan failed for token; skipping it: %s", tostring(abilities)))
+        end
+        return nil
+    end
     if abilities == nil then return nil end
     local result
     for _, ab in ipairs(abilities) do
@@ -4029,28 +4045,16 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				styles = {
 					{
 						selectors = {"initiativeWranglerButton"},
-						bgcolor = "#000000cc",
-						borderWidth = 1,
-						borderColor = "#ffffff55",
+						bgcolor = "#ffffffcc",
 					},
 					{
 						selectors = {"initiativeWranglerButton", "hover"},
-						bgcolor = "#333333ff",
-						borderColor = "white",
+						bgcolor = "white",
 						transitionTime = 0.1,
 					},
 					{
 						selectors = {"initiativeWranglerButton", "press"},
-						bgcolor = "#000000ff",
-					},
-					{
-						selectors = {"initiativeWranglerIcon"},
-						bgcolor = "#ffffffcc",
-					},
-					{
-						selectors = {"initiativeWranglerIcon", "parent:hover"},
-						bgcolor = "white",
-						transitionTime = 0.1,
+						bgcolor = "#ffffff88",
 					},
 				},
 				floating = true,
@@ -4061,10 +4065,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				--card art (floating children are not clipped by the parent).
 				x = -28,
 				y = 4,
-				width = 22,
-				height = 22,
-				cornerRadius = 11,
-				bgimage = "panels/square.png",
+				width = 24,
+				height = 24,
+				bgimage = "phosphor/notebook.png",
 				hoverCursor = "pressbutton",
 				swallowPress = true,
 				linger = function(element)
@@ -4076,15 +4079,6 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 						wrangler.Open()
 					end
 				end,
-				gui.Panel{
-					classes = {"initiativeWranglerIcon"},
-					width = 14,
-					height = 14,
-					halign = "center",
-					valign = "center",
-					bgimage = "phosphor/notebook.png",
-					interactable = false,
-				},
 			}
 		end
 

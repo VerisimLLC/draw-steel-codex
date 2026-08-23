@@ -994,9 +994,11 @@ end
 --bar's own invoke flow (targeting UI and all), cast by the current-turn
 --monster. Visual feedback goes through the ability's color-keyed title
 --band (the abilityHeadBand holding nameLabel, the 'spellName' label
---inside the render): while the ability is affordable the band's colored
---background pulses gently to invite the click -- the name itself holds
---solid white -- and hovering steadies the band fully bright.
+--inside the render): while the ability is usable the band swells bright
+--with a pulsing white border, and any ability the current-turn monster
+--can NOT use dims and desaturates (the action bar's unaffordable
+--treatment) so the ready ones pop by contrast. Hovering steadies the
+--band fully bright; the name itself holds solid white throughout.
 --State arrives via updateAbilityUsable from the card's refresh handler.
 --includeGlobal is passed through to the by-name ability lookup on press:
 --the Malice card's overlays need it because malice features are
@@ -1012,9 +1014,23 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
         m_headBand = nameLabel.parent
     end
 
-    local function SetBandBrightness(b)
-        if m_headBand ~= nil and m_headBand.valid then
-            m_headBand.selfStyle.brightness = b
+    --One writer for every band state, inline on the band's selfStyle (the
+    --statblock carries its own style root, so cascaded wrangler rules
+    --cannot reach it). borderColor == nil clears the border entirely.
+    --brightness/saturation reach the band's children too; the name label
+    --is pure white, so >= 1 brightness leaves it solid white while the
+    --dimmed (< 1) state deliberately grays name and band together.
+    local function SetBandVisual(brightness, saturation, borderColor)
+        if m_headBand == nil or not m_headBand.valid then
+            return
+        end
+        m_headBand.selfStyle.brightness = brightness
+        m_headBand.selfStyle.saturation = saturation
+        if borderColor ~= nil then
+            m_headBand.selfStyle.border = 2
+            m_headBand.selfStyle.borderColor = borderColor
+        else
+            m_headBand.selfStyle.border = 0
         end
     end
 
@@ -1050,7 +1066,7 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
 
             if nameLabel ~= nil and nameLabel.valid then
                 nameLabel.selfStyle.underline = m_active
-                --the name holds solid white; the band carries the pulse.
+                --the name holds solid white; the band carries the highlight.
                 nameLabel.selfStyle.brightness = 1
             end
 
@@ -1058,37 +1074,54 @@ local function CreateAbilityOverlay(abilityName, nameLabel, includeGlobal)
                 element.thinkTime = 0.05
             else
                 element.thinkTime = nil
-                local brightness = 1
                 if m_active then
-                    brightness = 1.3
+                    SetBandVisual(1.3, 1, "#FFFFFF")
                 elseif element.interactable and element:HasClass("hover") then
-                    brightness = 1.4
+                    SetBandVisual(1.4, 1, nil)
+                elseif casterid ~= nil then
+                    --this type has the turn but this ability is not
+                    --currently usable: dim and desaturate (the action
+                    --bar's unaffordable treatment) so ready ones pop.
+                    SetBandVisual(0.6, 0.5, nil)
+                else
+                    SetBandVisual(1, 1, nil)
                 end
-                SetBandBrightness(brightness)
             end
         end,
 
-        --a slow sine pulse on the band's background while the ability is
-        --usable. Only ever brightens (>= 1), so the white name stays
+        --while usable, a bright swell plus a pulsing white border on the
+        --band. Brightness only ever goes >= 1, so the white name stays
         --solid white even though brightness reaches the band's children.
         think = function(element)
             if element:HasClass("hover") then
-                SetBandBrightness(1.4)
+                SetBandVisual(1.5, 1, "#FFFFFF")
                 return
             end
-            local r = math.sin(dmhub.Time() * 2 * math.pi / 1.8)
-            SetBandBrightness(1.15 + r * 0.15)
+            --0..1 sine ramp shared by the brightness swell and the
+            --border's alpha so the whole treatment breathes together.
+            local t = (math.sin(dmhub.Time() * 2 * math.pi / 1.8) + 1) / 2
+            local alpha = 0x55 + math.floor(t * (0xFF - 0x55))
+            SetBandVisual(1.1 + t * 0.4, 1, string.format("#FFFFFF%02X", alpha))
         end,
 
         hover = function(element)
-            SetBandBrightness(1.4)
+            if m_usable then
+                SetBandVisual(1.5, 1, "#FFFFFF")
+            else
+                SetBandVisual(1.4, 1, nil)
+            end
         end,
 
         dehover = function(element)
             if m_active then
-                SetBandBrightness(1.3)
+                SetBandVisual(1.3, 1, "#FFFFFF")
+            elseif m_usable then
+                --the think pulse takes back over on its next tick.
+                SetBandVisual(1.15, 1, "#FFFFFFAA")
+            elseif m_casterid ~= nil then
+                SetBandVisual(0.6, 0.5, nil)
             else
-                SetBandBrightness(cond(m_usable, 1.15, 1))
+                SetBandVisual(1, 1, nil)
             end
         end,
 
@@ -1123,6 +1156,11 @@ local function CompactAbilityHeadBand(rendered)
             return p:HasClass("abilityHeadBand")
         end)
         if band ~= nil then
+            --Repeat the percentage width in this inline style alongside the
+            --smaller padding. borderBox resolves width against the padding in
+            --the same style layer; changing only hpad leaves the band's outer
+            --width 12px short (the difference from the render's 14px padding).
+            band.selfStyle.width = "100%"
             band.selfStyle.hpad = 8
             band.selfStyle.vpad = 4
         end

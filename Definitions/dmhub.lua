@@ -1977,6 +1977,64 @@ function dmhub.QuitApplication()
 	-- dummy implementation for documentation purposes only
 end
 
+--- True when this platform supports merging the native title bar into the
+--- app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
+--- @type boolean
+dmhub.mergedTitleBarAvailable = false
+
+--- True while the application window is maximized. Use to choose between the
+--- maximize and restore glyphs.
+--- @type boolean
+dmhub.windowMaximized = false
+
+--- SetMergedTitleBar: Strip (true) or restore (false) the native Windows
+--- caption bar, merging the app's title bar with the window chrome. The app
+--- bar must supply drag and window buttons while merged. No-op where
+--- unsupported.
+--- @param merged boolean
+--- @return nil
+function dmhub.SetMergedTitleBar(merged)
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginWindowDrag: Begin a native window drag, as if the user grabbed the
+--- title bar. Call from a press event on the app title bar's empty surface;
+--- native snap-to-edge works during the drag.
+--- @return nil
+function dmhub.BeginWindowDrag()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MinimizeWindow: Minimize the application window.
+--- @return nil
+function dmhub.MinimizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleMaximizeWindow: Toggle the application window between maximized and
+--- restored.
+--- @return nil
+function dmhub.ToggleMaximizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseWindow: Close the application window through the normal window-close
+--- path (same as Alt+F4), running the app's usual shutdown.
+--- @return nil
+function dmhub.CloseWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- WindowChromeHeartbeat: Dead-man heartbeat for the merged title bar: the
+--- title bar's think calls this every few hundred ms while merged. If
+--- heartbeats stop for ~10s of running frames (a broken/unloaded title bar),
+--- the engine restores the native caption so the window is never left
+--- without drag or close controls.
+--- @return nil
+function dmhub.WindowChromeHeartbeat()
+	-- dummy implementation for documentation purposes only
+end
+
 --- SendRecoverPasswordEmail: Try to recover the user's password to the supplied email address.
 --- @param email string
 --- @return nil

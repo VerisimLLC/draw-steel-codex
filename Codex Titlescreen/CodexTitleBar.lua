@@ -100,6 +100,75 @@ local function TicketStatusBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Merged title bar: the engine strips the native Windows caption so this bar
+--sits flush with the top of the window, and the bar supplies dragging plus
+--the minimize / maximize / close buttons (LuaInterfaceWindowChrome.cs). On
+--engines without the bridge, or non-Windows platforms, the feature is
+--simply absent.
+local g_windowChromeAvailable = nil
+local function WindowChromeBridgeAvailable()
+    if g_windowChromeAvailable == nil then
+        local ok, avail = pcall(function() return dmhub.mergedTitleBarAvailable end)
+        g_windowChromeAvailable = (ok and avail == true)
+    end
+    return g_windowChromeAvailable
+end
+
+local function MergedTitleBarActive()
+    return WindowChromeBridgeAvailable() and dmhub.GetSettingValue("mergedtitlebar") == true
+end
+
+local function ApplyMergedTitleBar()
+    if WindowChromeBridgeAvailable() then
+        dmhub.SetMergedTitleBar(dmhub.GetSettingValue("mergedtitlebar") == true)
+    end
+end
+
+setting{
+    id = "mergedtitlebar",
+    description = "Merge window title bar",
+    storage = "preference",
+    editor = "check",
+    default = true,
+    onchange = function()
+        ApplyMergedTitleBar()
+    end,
+}
+
+--apply the stored preference at module load (and re-apply on reloads --
+--SetMergedTitleBar is idempotent).
+ApplyMergedTitleBar()
+
+--A native-style caption control: a full-bar-height hover ZONE with a
+--centered glyph. The zone -- not the glyph -- takes the hover fill and
+--the click, matching how the real Windows caption buttons behave (zone
+--styles: titleBarStyleExtras in CreateTopBar).
+local function CreateWindowControl(args)
+    return gui.Panel{
+        classes = {"windowControl", cond(args.danger, "windowControlDanger")},
+        bgimage = true,
+        width = 42,
+        height = "100%",
+        valign = "center",
+        data = { maximized = nil },
+        calculateVisibility = args.calculateVisibility,
+        click = args.click,
+
+        gui.Panel{
+            classes = {"windowControlIcon", cond(args.danger, "windowControlIconDanger")},
+            bgimage = args.icon,
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            setIcon = function(element, icon)
+                element.bgimage = icon
+            end,
+        },
+    }
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -5640,7 +5709,60 @@ local function CreateTopBar()
                 element:SetClassTree("ingame", m_inGame)
             end
             element:FireEventTree("calculateVisibility")
+
+            --dead-man heartbeat: while merged, the engine's watchdog restores
+            --the native caption if this bar stops running (a Lua error would
+            --otherwise leave the window with no drag surface and no close
+            --button). pcall: an engine with the chrome bridge but not the
+            --watchdog yet must not error the bar's think.
+            if MergedTitleBarActive() then
+                pcall(function() dmhub.WindowChromeHeartbeat() end)
+            end
         end,
+
+        --Merged title bar: empty bar surface acts as the native caption.
+        --This drag surface sits BEHIND every other child (first child =
+        --bottom of the draw order), NOT as a press handler on the bar root:
+        --press events bubble to ANCESTORS only, so a press on a click-only
+        --child (the window buttons, the map cluster, ...) used to find the
+        --root's press handler, start the native modal window-drag loop, and
+        --have the mouse release swallowed by it -- the child's click never
+        --fired. As a sibling underneath, the surface only receives presses
+        --that land on genuinely empty bar space.
+        --
+        --Press starts a native window drag (snap-to-edge included); a second
+        --press within the double-click window toggles maximize instead (the
+        --engine has no doubleClick event, so it is hand-rolled).
+        gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "clear",
+            data = { lastBarPress = nil },
+            press = function(element)
+                if not MergedTitleBarActive() then
+                    return
+                end
+                local now = dmhub.Time()
+                if element.data.lastBarPress ~= nil and now - element.data.lastBarPress < 0.4 then
+                    element.data.lastBarPress = nil
+                    dmhub.ToggleMaximizeWindow()
+                else
+                    element.data.lastBarPress = now
+                    --no native drag while maximized: dragging a maximized
+                    --window makes Windows drag-restore it mid-loop, which
+                    --Unity fights -- the window ends up unzoomed at a
+                    --corrupt oversized rect (reproduced 2026-08-23:
+                    --1936x1119 hanging off every screen edge). While
+                    --maximized the bar restores via double-press or the
+                    --restore button only.
+                    if not dmhub.windowMaximized then
+                        dmhub.BeginWindowDrag()
+                    end
+                end
+            end,
+        },
 
         CreateCodexMenuItem{
             name = "Codex",
@@ -5994,19 +6116,115 @@ local function CreateTopBar()
             halign = "right",
             m_audioIndicator,
             m_searchBar,
+
+            -- Window controls for the merged title bar: minimize /
+            -- maximize-restore / close, drawn by us but driving the native
+            -- window (the classic three cannot be kept system-drawn once
+            -- the caption is stripped). Collapsed whenever the merged bar
+            -- is off or unsupported; visibility rides the menuBar think's
+            -- calculateVisibility broadcast.
+            gui.Panel{
+                classes = {"windowButtons", "collapsed"},
+                flow = "horizontal",
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                lmargin = 8,
+                calculateVisibility = function(element)
+                    element:SetClass("collapsed", not MergedTitleBarActive())
+                end,
+
+                --window-chrome/*: the Windows caption glyph shapes (codicon
+                --geometry), served from StreamingAssets by the engine's
+                --GetWindowChromeIcon. Each control is a full-bar-height
+                --hover ZONE like the native caption buttons -- adjacent
+                --42px strips whose whole surface fills on hover (faint
+                --light for minimize/maximize, the Windows red for close;
+                --styles live in titleBarStyleExtras below). Presses find no
+                --handler here and no ancestor has one, so the drag surface
+                --(a sibling underneath) never steals the click.
+                CreateWindowControl{
+                    icon = "window-chrome/chrome-minimize.png",
+                    click = function()
+                        dmhub.MinimizeWindow()
+                    end,
+                },
+                CreateWindowControl{
+                    icon = "window-chrome/chrome-maximize.png",
+                    --swap square (maximize) and overlapping-squares
+                    --(restore) as the window state changes, polled on the
+                    --same broadcast that drives the cluster's visibility.
+                    --Reading the property on a pre-bridge engine would
+                    --raise, so gate first.
+                    calculateVisibility = function(element)
+                        if not WindowChromeBridgeAvailable() then
+                            return
+                        end
+                        local maximized = dmhub.windowMaximized
+                        if maximized ~= element.data.maximized then
+                            element.data.maximized = maximized
+                            element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                        end
+                    end,
+                    click = function()
+                        dmhub.ToggleMaximizeWindow()
+                    end,
+                },
+                CreateWindowControl{
+                    danger = true,
+                    icon = "window-chrome/chrome-close.png",
+                    click = function()
+                        dmhub.CloseWindow()
+                    end,
+                },
+            },
         },
     }
 
     local titleBarStyleExtras = {
-        -- Title-bar bar surface paints with the scheme's barTrack
-        -- gradient. bgcolor = "white" is the image-tint multiplier:
-        -- without it the cascade's @bg tints the gradient down to
-        -- near-black on dark schemes.
+        -- Title-bar bar surface paints flat @bg -- the same color the DWM
+        -- caption used before the merged title bar replaced it
+        -- (WindowTitleBarTheme.cs hardcodes that caption to the default
+        -- scheme's bg #0A0A0B). Was the @barTrack gradient; flattened by
+        -- request 2026-08-23 so the merged bar reads as window chrome.
         {
             selectors = {"titleBarSurface"},
             bgimage = true,
-            bgcolor = "white",
-            gradient = "@barTrack",
+            bgcolor = "@bg",
+        },
+
+        -- Window controls (CreateWindowControl): full-height caption-button
+        -- hover zones. Faint light fill for minimize/maximize, the Windows
+        -- red for close; the close glyph flips to pure white over the red
+        -- (@fg parchment would look dirty there). Danger rules come after
+        -- the generic ones so they win the cascade.
+        {
+            selectors = {"windowControl"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"windowControl", "hover"},
+            bgcolor = "#ffffff1f",
+        },
+        {
+            selectors = {"windowControl", "press"},
+            bgcolor = "#ffffff33",
+        },
+        {
+            selectors = {"windowControlDanger", "hover"},
+            bgcolor = "#c42b1c",
+        },
+        {
+            selectors = {"windowControlDanger", "press"},
+            bgcolor = "#b3271a",
+        },
+        {
+            selectors = {"windowControlIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"windowControlIconDanger", "parent:hover"},
+            bgcolor = "#ffffff",
         },
 
         -- Title-bar search field visibility. (Its LOOK is the canonical

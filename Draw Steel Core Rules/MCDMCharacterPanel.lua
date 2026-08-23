@@ -681,6 +681,22 @@ TacPanelStyles.TokenBox = ThemeEngine.MergeTokens{
     },
 }
 TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
+    {   -- Classic only: the row of DMG / STAMINA / HEAL / RECOVERIES / TEMP
+        -- boxes above the bar. The rework folded those into the bar's hover
+        -- controls and this rule went with them, which left the restored row
+        -- with no width, flow or wrap at all.
+        selectors = {"panel", "stamina-controls"},
+        height = "auto",
+        --Sits in the column beside the portrait rather than across the whole
+        --panel, so it wraps: monsters fit on one line, heroes push the
+        --recoveries box onto a second.
+        width = "100%",
+        wrap = true,
+        valign = "top",
+        halign = "left",
+        flow = "horizontal",
+        vpad = 6,
+    },
     {
         selectors = {"panel", "stamina-box"},
         height = TacPanelSizes.Panels.stamBoxHeight,

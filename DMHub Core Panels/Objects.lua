@@ -982,12 +982,15 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 			height = 24,
 
 			editlag = 0.25,
-			events = {
-				change = updateSearch,
-				edit = function(element)
-					updateSearch(element)
-				end,
-			}
+			--top-level handlers, NOT events = {}: SearchInput installs its
+			--own top-level edit/change defaults (they fire a "search" event
+			--this panel doesn't listen to), and the engine merges an events
+			--table into the same key space in arbitrary order -- so via
+			--events{} the default was winning for edit, killing
+			--search-as-you-type. Top-level keys replace the defaults
+			--outright in SearchInput's args loop.
+			change = updateSearch,
+			edit = updateSearch,
 		}
 
 		rootPanel =

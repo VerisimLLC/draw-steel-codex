@@ -3446,8 +3446,10 @@ end
 --via m_zoneCache.
 --
 --State lives in one table rather than two locals: this chunk is close to Lua's
---200-locals-per-function cap.
-local m_keywordAuraOverlay = { zones = {}, signature = false }
+--200-locals-per-function cap. `instances` holds the rules-only AuraInstance
+--clones registered with the engine for keyword auras that have no other
+--registration path (see CollectKeywordAuraZones below).
+local m_keywordAuraOverlay = { zones = {}, signature = false, instances = nil }
 
 --Appends one overlay entry per (aura, keyword) pair, and accumulates into
 --`signature` everything the resulting overlay mesh depends on. Also appends
@@ -3455,7 +3457,19 @@ local m_keywordAuraOverlay = { zones = {}, signature = false }
 --(the tiles where that keyword's dispelled zones are suppressed; see
 --m_dispelState) and accumulates everything the suppression depends on into
 --`dispelSignature`.
-local function CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature)
+--
+--`ruleSources` collects the aura instances that need ENGINE RULES
+--registration through the dmhub.GetMapAuras feed: a placed (not
+--token-attached) aura's tile rules normally reach the engine through its
+--spawned map object, and a token-attached aura's through
+--CharacterToken.CalculateAuras -- but a placed aura with NO object (the
+--zone-styled ability auras, e.g. Shadow Drag's difficult terrain trail) has
+--neither vehicle, so its difficult_terrain/water/move-damage rules would
+--silently not exist. Those instances are cloned rules-only (modifiers
+--stripped -- the token-aura walk already applies modifiers Lua-side, so
+--carrying them here would double-apply) and returned from the GetMapAuras
+--hook alongside the zone auras.
+local function CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
     local auraDef = auraInstance:try_get("aura")
     if auraDef == nil then
         return
@@ -3510,6 +3524,13 @@ local function CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signa
 
     if #locs == 0 or floorIndex == nil or floorIndex < 0 then
         return
+    end
+
+    --Needs engine-rules registration via GetMapAuras: placed (not
+    --token-attached, so CharacterToken doesn't register it) and objectless
+    --(so no spawned object registers it either).
+    if not auraInstance:try_get("tokenAttached", false) and auraInstance:try_get("object") == nil then
+        ruleSources[#ruleSources+1] = auraInstance
     end
 
     for _,keywordid in ipairs(keywordIds) do
@@ -3578,6 +3599,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
     local signature = {}
     local footprints = {}
     local dispelSignature = {}
+    local ruleSources = {}
 
     pcall(function()
         local keywordsTable = dmhub.GetTable(ENVIRONMENTAL_KEYWORDS_TABLE) or {}
@@ -3598,7 +3620,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
                 for _,auraInstance in ipairs(auras) do
                     pcall(function()
                         if not auraInstance:try_get("isChildAura", false) then
-                            CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature)
+                            CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signature, footprints, dispelSignature, ruleSources)
                         end
                     end)
                 end
@@ -3612,6 +3634,50 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
         m_keywordAuraOverlay.signature = newSignature
         m_keywordAuraOverlay.zones = zones
         m_zoneRevision = m_zoneRevision + 1
+
+        --Rebuild the rules-only clones the GetMapAuras hook hands the engine
+        --(see the ruleSources note on CollectKeywordAuraZones). Rebuilt only on
+        --signature change: this walk runs on the every-frame overlay feed, and
+        --per-frame DeepCopies would be pure garbage churn. The clone shares the
+        --source instance's guid (so entered-tracking keys the same) and its
+        --area userdata, and carries casterid/casterPartyId so the engine's
+        --ApplyTo allegiance gating of the tile rules keeps working.
+        local instances = {}
+        pcall(function()
+            local auraInstanceType = rawget(_G, "AuraInstance")
+            if auraInstanceType ~= nil then
+                for _,src in ipairs(ruleSources) do
+                    pcall(function()
+                        local def = dmhub.DeepCopy(src:try_get("aura"))
+                        def.modifiers = {}
+                        for _,child in ipairs(def:try_get("subauras", {})) do
+                            child.modifiers = {}
+                        end
+                        instances[#instances+1] = auraInstanceType.new{
+                            aura = def,
+                            guid = src:try_get("guid"),
+                            name = src:try_get("name"),
+                            iconid = src:try_get("iconid", "ui-icons/skills/1.png"),
+                            display = src:try_get("display"),
+                            casterid = src:try_get("casterid"),
+                            casterPartyId = src:try_get("casterPartyId"),
+                            area = src:GetArea(),
+                        }
+                    end)
+                end
+            end
+        end)
+        m_keywordAuraOverlay.instances = instances
+
+        --The engine only learns about these rules by re-polling the map-aura
+        --feed; most changes (a cast, an expiry) already trigger an aura
+        --rebuild, but ask for one explicitly so the rules can never lag the
+        --stripes. Suppressed while the engine is polling us right now.
+        if not suppressAuraRefresh then
+            pcall(function()
+                dmhub.RefreshMapAuras()
+            end)
+        end
     end
 
     --Dispel suppression rides the same walk. When the footprints change
@@ -3655,10 +3721,27 @@ pcall(function()
     dmhub.GetMapAuras = function()
         EnsureZoneCache()
         EnsureKeywordAuraZones(true)
+        local base = m_zoneAuraInstances
         if m_dispelState.auraInstances ~= nil then
-            return m_dispelState.auraInstances
+            base = m_dispelState.auraInstances
         end
-        return m_zoneAuraInstances
+
+        --Objectless keyword ability auras ride along as rules-only clones
+        --(see EnsureKeywordAuraZones). Appended into a fresh list: the base
+        --lists must not be mutated -- m_dispelState keeps index-aligned
+        --source tables for both of them.
+        local extra = m_keywordAuraOverlay.instances
+        if extra == nil or #extra == 0 then
+            return base
+        end
+        local combined = {}
+        for _,inst in ipairs(base) do
+            combined[#combined+1] = inst
+        end
+        for _,inst in ipairs(extra) do
+            combined[#combined+1] = inst
+        end
+        return combined
     end
 end)
 

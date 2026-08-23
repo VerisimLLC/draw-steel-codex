@@ -645,6 +645,25 @@ NodeSubtreeMatchesSearch = function(node, text)
     return false
 end
 
+--Display name for a bestiary entry: the monster type, never the token
+--blueprint's per-token name override (monster.info.name). Entries can
+--carry such an override -- some deliberate (an illusion listed under the
+--name its token should show), some stale left-overs from renames -- and
+--either way the bestiary should list the entry by what it IS. Tokens
+--created from the entry still get the override as their name. Guarded
+--with pcall: properties may be follower- or plain creature-typed, and
+--game-type objects raise on missing methods.
+local function BestiaryEntryName(monster)
+    local monsterType = nil
+    if monster ~= nil and monster.properties ~= nil then
+        pcall(function() monsterType = monster.properties:GetMonsterType() end)
+    end
+    if monsterType ~= nil and monsterType ~= "" then
+        return monsterType
+    end
+    return creature.GetTokenDescription(monster)
+end
+
 --Sort key for a bestiary node, matching data.ord() on the corresponding
 --panels: folders sort above monster entries, alphabetically within each
 --group. Used to walk child nodes in display order during a search so
@@ -654,7 +673,7 @@ local BestiaryNodeOrd = function(node)
         return "a" .. node.description
     end
 
-    return "b" .. creature.GetTokenDescription(node.monster.info)
+    return "b" .. BestiaryEntryName(node.monster.info)
 end
 
 local IsMonsterNodeSelfOrChildOf
@@ -1002,7 +1021,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
     nameLabel = gui.Label({
         classes = { "charName" },
-        text = creature.GetTokenDescription(monster),
+        text = BestiaryEntryName(monster),
         novelContentAlert,
         refreshAssets = function(element)
             --a module install updates assets and fires this, so
@@ -1022,7 +1041,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                 end
                 novelContentAlert = nil
             end
-            local desc = creature.GetTokenDescription(monster)
+            local desc = BestiaryEntryName(monster)
             local showImportStatus = false --disabled for now.
             if showImportStatus and devmode() then
                 if monster.properties:has_key("import") then
@@ -1269,7 +1288,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
         data = {
             ord = function()
-                return "b" .. creature.GetTokenDescription(monster)
+                return "b" .. BestiaryEntryName(monster)
             end,
 
             nodeid = nodeid, --storing the nodeid with the panel for drag and drop.

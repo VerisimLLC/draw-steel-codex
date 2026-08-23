@@ -5981,27 +5981,6 @@ local LibraryPanel = function()
 		end,
 	}
 
-	-- Inline clear (X) button for the filter input: shows only when there is
-	-- text, clears the filter on press.
-	local clearSearchButton = gui.Panel{
-		floating = true,
-		bgimage = "ui-icons/close.png",
-		bgcolor = "@fgMuted",
-		width = 14,
-		height = 14,
-		halign = "right",
-		valign = "center",
-		x = -4,
-		classes = {"compendiumClearSearch", "collapsed"},
-		press = function()
-			if compendiumSearchInput == nil then
-				return
-			end
-			compendiumSearchInput.text = ""
-			compendiumSearchInput:FireEvent("edit")
-		end,
-	}
-
 	compendiumSearchInput = gui.SearchInput{
 		width = 240,
 		height = 20,
@@ -6013,7 +5992,6 @@ local LibraryPanel = function()
 		editlag = 0.4,
 		edit = function(element)
 			m_searchText = Search.Normalize(element.text)
-			clearSearchButton:SetClass("collapsed", element.text == nil or element.text == "")
 			-- Fire the NORMALISED needle (lowercased + trimmed), not the raw text.
 			-- List items re-normalise internally, but legacy MatchesSearchRecursive
 			-- consumers (e.g. the class editor) match the needle verbatim against a
@@ -6027,7 +6005,6 @@ local LibraryPanel = function()
 			end
 		end,
 	}
-	compendiumSearchInput:AddChild(clearSearchButton)
 
 	-- "Showing X of Y" / "No matches" feedback for the open category's list.
 	-- Driven by the current category + active filter; hidden when not filtering

@@ -139,6 +139,36 @@ setting{
 --SetMergedTitleBar is idempotent).
 ApplyMergedTitleBar()
 
+--A native-style caption control: a full-bar-height hover ZONE with a
+--centered glyph. The zone -- not the glyph -- takes the hover fill and
+--the click, matching how the real Windows caption buttons behave (zone
+--styles: titleBarStyleExtras in CreateTopBar).
+local function CreateWindowControl(args)
+    return gui.Panel{
+        classes = {"windowControl", cond(args.danger, "windowControlDanger")},
+        bgimage = true,
+        width = 42,
+        height = "100%",
+        valign = "center",
+        data = { maximized = nil },
+        calculateVisibility = args.calculateVisibility,
+        click = args.click,
+
+        gui.Panel{
+            classes = {"windowControlIcon", cond(args.danger, "windowControlIconDanger")},
+            bgimage = args.icon,
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            setIcon = function(element, icon)
+                element.bgimage = icon
+            end,
+        },
+    }
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -6104,27 +6134,28 @@ local function CreateTopBar()
                     element:SetClass("collapsed", not MergedTitleBarActive())
                 end,
 
-                gui.Button{
-                    icon = "phosphor/minus-bold.png",
-                    classes = {"sizeXs"},
-                    valign = "center",
-                    hmargin = 4,
-                    escapeActivates = false,
+                --window-chrome/*: the Windows caption glyph shapes (codicon
+                --geometry), served from StreamingAssets by the engine's
+                --GetWindowChromeIcon. Each control is a full-bar-height
+                --hover ZONE like the native caption buttons -- adjacent
+                --42px strips whose whole surface fills on hover (faint
+                --light for minimize/maximize, the Windows red for close;
+                --styles live in titleBarStyleExtras below). Presses find no
+                --handler here and no ancestor has one, so the drag surface
+                --(a sibling underneath) never steals the click.
+                CreateWindowControl{
+                    icon = "window-chrome/chrome-minimize.png",
                     click = function()
                         dmhub.MinimizeWindow()
                     end,
                 },
-                gui.Button{
-                    icon = "phosphor/square-bold.png",
-                    classes = {"sizeXs"},
-                    valign = "center",
-                    hmargin = 4,
-                    escapeActivates = false,
-                    data = { maximized = nil },
-                    --swap square (maximize) and corners-in (restore) as the
-                    --window state changes, polled on the same broadcast that
-                    --drives the cluster's visibility. Reading the property on
-                    --a pre-bridge engine would raise, so gate first.
+                CreateWindowControl{
+                    icon = "window-chrome/chrome-maximize.png",
+                    --swap square (maximize) and overlapping-squares
+                    --(restore) as the window state changes, polled on the
+                    --same broadcast that drives the cluster's visibility.
+                    --Reading the property on a pre-bridge engine would
+                    --raise, so gate first.
                     calculateVisibility = function(element)
                         if not WindowChromeBridgeAvailable() then
                             return
@@ -6132,19 +6163,16 @@ local function CreateTopBar()
                         local maximized = dmhub.windowMaximized
                         if maximized ~= element.data.maximized then
                             element.data.maximized = maximized
-                            element:FireEvent("setIcon", cond(maximized, "phosphor/browsers-bold.png", "phosphor/square-bold.png"))
+                            element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
                         end
                     end,
                     click = function()
                         dmhub.ToggleMaximizeWindow()
                     end,
                 },
-                gui.Button{
-                    icon = "phosphor/x-bold.png",
-                    classes = {"sizeXs", "withDanger"},
-                    valign = "center",
-                    hmargin = 4,
-                    escapeActivates = false,
+                CreateWindowControl{
+                    danger = true,
+                    icon = "window-chrome/chrome-close.png",
                     click = function()
                         dmhub.CloseWindow()
                     end,
@@ -6163,6 +6191,40 @@ local function CreateTopBar()
             selectors = {"titleBarSurface"},
             bgimage = true,
             bgcolor = "@bg",
+        },
+
+        -- Window controls (CreateWindowControl): full-height caption-button
+        -- hover zones. Faint light fill for minimize/maximize, the Windows
+        -- red for close; the close glyph flips to pure white over the red
+        -- (@fg parchment would look dirty there). Danger rules come after
+        -- the generic ones so they win the cascade.
+        {
+            selectors = {"windowControl"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"windowControl", "hover"},
+            bgcolor = "#ffffff1f",
+        },
+        {
+            selectors = {"windowControl", "press"},
+            bgcolor = "#ffffff33",
+        },
+        {
+            selectors = {"windowControlDanger", "hover"},
+            bgcolor = "#c42b1c",
+        },
+        {
+            selectors = {"windowControlDanger", "press"},
+            bgcolor = "#b3271a",
+        },
+        {
+            selectors = {"windowControlIcon"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"windowControlIconDanger", "parent:hover"},
+            bgcolor = "#ffffff",
         },
 
         -- Title-bar search field visibility. (Its LOOK is the canonical

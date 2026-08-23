@@ -2043,12 +2043,13 @@ function dmhub.ClearSelectedObjects()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls.
+--- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls, and favorTarget to bias the calculation in the target's favor (for hiding checks): the target counts as having cover if ANY sampled sightline from the attacker is obstructed, instead of the attacker getting the best ray.
 --- @param attacker CharacterToken
 --- @param target CharacterToken
 --- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
+--- @param favorTarget boolean? Optional; invert the cover bias in the target's favor (hiding checks).
 --- @return {cover: number, coverModifier: number, description: string}
-function dmhub.GetCoverInfo(attacker, target, pierceSurfacesArg)
+function dmhub.GetCoverInfo(attacker, target, pierceSurfacesArg, favorTargetArg)
 	-- dummy implementation for documentation purposes only
 end
 

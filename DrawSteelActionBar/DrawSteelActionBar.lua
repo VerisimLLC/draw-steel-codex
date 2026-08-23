@@ -738,13 +738,6 @@ local function NovelContentMarker(extraClass)
         floating = true,
         interactable = false,
         bgimage = "panels/square.png",
-        rotate = 45,
-
-        gui.Panel {
-            classes = { "novelMarkerInner" },
-            bgimage = "panels/square.png",
-            interactable = false,
-        },
 
         --Slow breathe so it reads as "look here" without strobing. Only ticks
         --while the marker is actually up.
@@ -774,12 +767,13 @@ end
 
 local NOVEL_MARKER_RULES = {
     {
+        --Matches the standard new-content badge (gui.NewContentAlert): a
+        --solid red circle so alerts read the same everywhere.
         selectors = { "novelMarker" },
         width = 14,
         height = 14,
-        bgcolor = "@accent",
-        borderWidth = 1,
-        borderColor = "@fgStrong",
+        bgcolor = "#ee4444",
+        cornerRadius = 7,
         halign = "right",
         valign = "top",
         margin = -4,
@@ -790,6 +784,7 @@ local NOVEL_MARKER_RULES = {
         selectors = { "novelMarker", "onAbility" },
         width = 12,
         height = 12,
+        cornerRadius = 6,
         halign = "left",
         valign = "top",
         margin = 3,
@@ -799,14 +794,6 @@ local NOVEL_MARKER_RULES = {
         brightness = 2,
         transitionTime = 0.8,
         easing = "easeInOutSine",
-    },
-    {
-        selectors = { "novelMarkerInner" },
-        width = "45%",
-        height = "45%",
-        halign = "center",
-        valign = "center",
-        bgcolor = "@fgStrong",
     },
 }
 
@@ -1804,8 +1791,30 @@ local function CreateActionBar()
                 element:FireEventTree("closemenu")
             end
 
-            g_resources = g_token.properties:GetResources()
-            g_abilities = g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+            --Containment: GetResources/GetActivatedAbilities run a huge pass
+            --over authored data (modifiers, items, triggers, module content).
+            --A throw in there used to abort this refresh right after the bar
+            --was unhidden above, leaving a visible but dead action bar -- and
+            --left g_abilities holding the PREVIOUS token's list. Fall back to
+            --empty lists so the bar always renders (movement and free-action
+            --drawers stay usable) and never shows another creature's abilities.
+            local okResources, resources = pcall(function()
+                return g_token.properties:GetResources()
+            end)
+            g_resources = (okResources and resources) or {}
+
+            local okAbilities, abilitiesOrErr = pcall(function()
+                return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+            end)
+            g_abilities = (okAbilities and abilitiesOrErr) or {}
+
+            if (not okResources) or (not okAbilities) then
+                if not element.data.reportedRefreshError then
+                    element.data.reportedRefreshError = true
+                    dmhub.CloudError(string.format("Action bar refresh failed; showing empty ability list: %s",
+                        tostring((not okResources) and resources or abilitiesOrErr)))
+                end
+            end
 
             --break out melee and ranged.
             local abilities = {}
@@ -1889,6 +1898,61 @@ end
 --- @type {mod: table, checked: boolean}[]
 local m_activeImprovements = {}
 
+--Sight-line arrows for blocked abilities: when an ability is suppressed by an
+--abilityFilters entry carrying sightlines = true, hovering its heading draws a
+--red line-of-sight arrow from each relevant enemy that has a clear view (no
+--cover) of the caster, so the player can see exactly who is blocking them
+--(e.g. the Hide maneuver's concealment-or-cover requirement). Arrows are
+--freed on dehover and on heading destroy; ownership tracking makes sure a
+--newly hovered heading's arrows are not clobbered by the previous heading's
+--dehover.
+local g_filterSightlineRays = {}
+local g_filterSightlineOwner = nil
+local MAX_FILTER_SIGHTLINE_RAYS = 12
+
+local function ClearFilterSightlineRays()
+    for _,ray in ipairs(g_filterSightlineRays) do
+        ray:DestroyLineOfSight()
+    end
+    g_filterSightlineRays = {}
+    g_filterSightlineOwner = nil
+end
+
+local function ShowFilterSightlineRays(ownerElement)
+    ClearFilterSightlineRays()
+
+    local token = g_token
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
+
+    --A concealed creature cannot be seen; nothing to draw.
+    if token.properties:IsConcealed() then
+        return
+    end
+
+    for _,enemyTok in ipairs(token.properties:GetRelevantEnemyTokens()) do
+        if #g_filterSightlineRays >= MAX_FILTER_SIGHTLINE_RAYS then
+            break
+        end
+
+        local pierce = 0
+        if enemyTok.properties ~= nil then
+            pierce = enemyTok.properties:GetPierceWalls()
+        end
+
+        --nil cover info means the enemy has a clear view of the caster. favorTarget = true
+        --matches the hider-favoring bias used by the Hide gate's cover symbols, so the
+        --arrows always agree with the gate's verdict.
+        local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
+        if coverInfo == nil then
+            g_filterSightlineRays[#g_filterSightlineRays+1] = dmhub.MarkLineOfSight(enemyTok, token, pierce, "red")
+        end
+    end
+
+    g_filterSightlineOwner = ownerElement
+end
+
 local function AbilityHeading(args)
     local args = args or {}
 
@@ -1896,6 +1960,10 @@ local function AbilityHeading(args)
     local m_cannotAfford = false
     local m_expended = false
     local m_suppressed = false
+
+    --True when the filter suppressing this ability asks for enemy sight-line
+    --arrows on hover (sightlines = true on the abilityFilters entry).
+    local m_sightlineFilter = false
 
     local resultPanel
 
@@ -1922,9 +1990,13 @@ local function AbilityHeading(args)
         classes = { "abilityHeading" },
 
         ability = function(element, ability)
-            local suppressMessage = ability:try_get("suppressExplanation") or
-                ability:AbilityFilterFailureMessage(g_token.properties)
+            local suppressMessage = ability:try_get("suppressExplanation")
+            local suppressFilter = nil
+            if suppressMessage == nil then
+                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(g_token.properties)
+            end
             m_suppressed = suppressMessage ~= nil
+            m_sightlineFilter = m_suppressed and suppressFilter ~= nil and suppressFilter.sightlines == true
             element:SetClassTree("suppressed", m_suppressed)
 
             m_novelMarker:FireEvent("setNovel", AbilityIsNovel(ability))
@@ -2043,12 +2115,26 @@ local function AbilityHeading(args)
                 print("MENU:: DIRECT ABILITY")
                 m_showingAbility = CharacterPanel.DisplayAbility(g_token, m_ability)
             end
+
+            if m_sightlineFilter then
+                ShowFilterSightlineRays(element)
+            end
         end,
 
         dehover = function(element)
             if m_showingAbility then
                 print("MENU:: DEHOVER")
                 CharacterPanel.HideAbility(m_ability)
+            end
+
+            if g_filterSightlineOwner == element then
+                ClearFilterSightlineRays()
+            end
+        end,
+
+        destroy = function(element)
+            if g_filterSightlineOwner == element then
+                ClearFilterSightlineRays()
             end
         end,
 
@@ -7515,6 +7601,11 @@ local function CalculateSpellTargetFocusing(symbols)
 
                 if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
                     failReason = "Target is untargetable"
+                end
+
+                --enforced by GameSystem.AllowTargeting; this just surfaces the reason.
+                if g_currentAbility:HasKeyword("Strike") and targetToken.properties:CalculateNamedCustomAttribute("Untargetable By Strikes") > 0 then
+                    failReason = "This creature can't be targeted by strikes"
                 end
 
                 local casterLocOverride = g_currentAbility:try_get("casterLocOverride")

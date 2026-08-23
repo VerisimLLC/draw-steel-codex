@@ -3084,6 +3084,10 @@ function creature:PostProcessInvokedAbility(ability)
     return ability
 end
 
+--Once-per-session flag so a persistent bad trigger doesn't flood the cloud
+--error log: the action bar re-runs GetActivatedAbilities on every refresh.
+local g_reportedManualTriggerError = false
+
 function creature:GetActivatedAbilities(options)
     options = options or {}
 
@@ -3152,14 +3156,25 @@ function creature:GetActivatedAbilities(options)
     if options.manualTriggers then
         local triggeredAbilities = self:GetTriggeredAbilities()
         for i, trigger in ipairs(triggeredAbilities) do
-            local ability
-            if trigger.ability.typeName == "ActivatedAbility" then
-                ability = DeepCopy(trigger.ability)
-                ability._tmp_temporaryClone = true
-            elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
-                ability = trigger.ability:GenerateManualVersion()
+            --Per-entry isolation: GenerateManualVersion executes authored
+            --trigger data, so one malformed trigger must drop only itself,
+            --not abort the whole ability list (which kills the action bar).
+            local ok, ability = pcall(function()
+                if trigger.ability.typeName == "ActivatedAbility" then
+                    local a = DeepCopy(trigger.ability)
+                    a._tmp_temporaryClone = true
+                    return a
+                elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
+                    return trigger.ability:GenerateManualVersion()
+                end
+                return nil
+            end)
+            if ok then
+                result[#result + 1] = ability
+            elseif not g_reportedManualTriggerError then
+                g_reportedManualTriggerError = true
+                dmhub.CloudError(string.format("GetActivatedAbilities: dropping manual trigger that failed to generate: %s", tostring(ability)))
             end
-            result[#result + 1] = ability
         end
     end
 
@@ -3528,6 +3543,134 @@ creature.RegisterSymbol {
         name = "Concealed",
         type = "boolean",
         desc = "True if the creature is in an area that is concealed.",
+    }
+}
+
+--The living enemy tokens relevant to this creature: every token on the map
+--that is not friendly to this creature's token and is not dead. When an
+--initiative encounter is active (an unhidden initiative queue exists), only
+--enemies participating in the initiative queue count; out of combat, all
+--enemy tokens on the current map count. Neutral (non-friendly) tokens count
+--as enemies, matching the Monster AI's combatant enumeration.
+function creature:GetRelevantEnemyTokens()
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        return {}
+    end
+
+    local q = dmhub.initiativeQueue
+    local combatActive = q ~= nil and (not q.hidden)
+
+    local result = {}
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid
+                and (not tok.properties:IsDead())
+                and (not dmhub.TokensAreFriendly(token, tok)) then
+            local include = true
+            if combatActive then
+                local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+                include = initiativeid ~= nil and q.entries[initiativeid] ~= nil
+            end
+            if include then
+                result[#result+1] = tok
+            end
+        end
+    end
+
+    return result
+end
+
+--How long (seconds) a computed cover-from-enemies result stays fresh. These
+--symbols are evaluated by action-bar and tooltip refreshes, so the O(enemies)
+--cover raycasts are cached per-creature in a transient _tmp_ field rather
+--than recomputed every UI frame.
+local g_coverFromEnemiesCacheSeconds = 0.5
+
+--Computes whether this creature has cover from all/any relevant enemies.
+--Returns a table {all = boolean, any = boolean}. "all" is vacuously true and
+--"any" false when there are no relevant enemies. An enemy grants cover when
+--dmhub.GetCoverInfo(enemyToken, selfToken, pierce) is non-nil (nil means no
+--cover); the observing enemy is the attacker, and pierce follows the
+--RuleUtils.HasLineOfEffect idiom of using the attacker's PierceWalls.
+function creature:CalculateCoverFromEnemies()
+    local now = dmhub.Time()
+    local cached = self:try_get("_tmp_coverFromEnemies")
+    if cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
+        return cached
+    end
+
+    local result = { time = now, all = true, any = false }
+
+    --The "Has Cover" custom attribute (granted by traits like Iron Barricade)
+    --means the creature counts as having cover from everyone. It is folded in
+    --here rather than referenced in formulas because "has" is a reserved
+    --GoblinScript operator, making the attribute's name unparseable in a
+    --formula with its natural spacing.
+    if (self:CalculateNamedCustomAttribute("Has Cover") or 0) > 0 then
+        print("HideGate:: cover check: creature has the Has Cover attribute; counts as cover from all")
+        result.any = true
+        self._tmp_coverFromEnemies = result
+        return result
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        print("HideGate:: cover check: creature has no valid token; vacuous result (all=true)")
+    else
+        local enemies = self:GetRelevantEnemyTokens()
+        local q = dmhub.initiativeQueue
+        print(string.format("HideGate:: cover check: %d relevant enemies (combat=%s)",
+            #enemies, tostring(q ~= nil and (not q.hidden))))
+        for _,enemyTok in ipairs(enemies) do
+            local pierce = 0
+            if enemyTok.properties ~= nil then
+                pierce = enemyTok.properties:GetPierceWalls()
+            end
+            --favorTarget = true: hider-favoring bias -- any sampled sightline the enemy
+            --has that clips an obstruction counts as the hider being behind cover.
+            local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
+            print(string.format("HideGate::   enemy %s -> %s",
+                tostring(enemyTok.name), coverInfo ~= nil and ("cover: " .. tostring(coverInfo.description)) or "NO COVER"))
+            if coverInfo ~= nil then
+                result.any = true
+            else
+                result.all = false
+            end
+        end
+    end
+
+    self._tmp_coverFromEnemies = result
+    return result
+end
+
+--NOTE: these symbol names deliberately avoid the word "has" -- "has" is a
+--reserved (case-insensitive) GoblinScript operator, so a symbol name starting
+--with it can never be referenced with natural spacing in a formula.
+creature.RegisterSymbol {
+    symbol = "coverfromallenemies",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().all
+    end,
+    help = {
+        name = "Cover From All Enemies",
+        type = "boolean",
+        desc = "True if every living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. Vacuously true when there are no relevant enemies.",
+        seealso = {"Cover From Any Enemy", "Concealed"},
+        examples = {"Concealed or Cover From All Enemies"},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "coverfromanyenemy",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().any
+    end,
+    help = {
+        name = "Cover From Any Enemy",
+        type = "boolean",
+        desc = "True if at least one living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. False when there are no relevant enemies and the attribute is absent.",
+        seealso = {"Cover From All Enemies", "Concealed"},
+        examples = {"Concealed or Cover From Any Enemy"},
     }
 }
 

@@ -1322,6 +1322,16 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 		return false
 	end
 
+	-- Untargetable By Strikes (Shadow Veil and similar): a creature with a non-zero
+	-- "Untargetable By Strikes" custom attribute can't be targeted by abilities that
+	-- have the Strike keyword. This gate runs for every prospective target, so area
+	-- strikes are blocked for the flagged creature too, not just direct targeting.
+	-- Non-Strike abilities are unaffected.
+	if ability:HasKeyword("Strike")
+		and targetToken.properties:CalculateNamedCustomAttribute("Untargetable By Strikes") > 0 then
+		return false
+	end
+
 	-- Targeting Group (general isolation primitive): any creature with a non-zero
 	-- "Targeting Group" custom attribute may only target / be targeted by creatures
 	-- that share the SAME group value. Unflagged creatures (group 0) are unaffected,

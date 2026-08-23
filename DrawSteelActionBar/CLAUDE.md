@@ -27,7 +27,7 @@ The core action bar implementation. Registered at the bottom of the file via `Re
 | `TriggerPreviewPanel()` | Preview of a triggered ability before activation. |
 | `CreateTriggerReactionPanel()` | Progress/reaction panel at bottom-center of the screen. |
 | `UpdateNovelAbilities(charid, abilities)` | Diffs each freshly generated `g_abilities` list against the last snapshot for that creature. See "Novel abilities" below. |
-| `NovelContentMarker(extraClass)` | The accent-coloured diamond pip, driven by a `setNovel` event. Used on drawer corners and on ability rows. |
+| `NovelContentMarker(extraClass)` | The red circular alert pip (styled like `gui.NewContentAlert`), driven by a `setNovel` event. Used on drawer corners and on ability rows. |
 
 **Key global state:**
 

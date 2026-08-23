@@ -8518,6 +8518,14 @@ local function OpenIconRailWindow(panelName, placement)
         popout = function()
             local d = doc:try_get("_tmp_dialog")
             local geometry = nil
+            --pop out the tab the window is actually SHOWING, not the
+            --folder's owner: `key` is the owner (the first tab), so a
+            --two-tab window sitting on its second tab used to pop out
+            --the first one's contents. The active tab is published on
+            --the dialog by SwitchTab; guarded through WindowOwner the
+            --same way the restore path guards a remembered tab, so a
+            --stale key never pops out some other folder's panel.
+            local popKey = key
             if d ~= nil and d.valid then
                 --renderedWidth/Height are PRE-uiscale panel units, so the
                 --window's own scale rides along: the popout is born with
@@ -8525,9 +8533,14 @@ local function OpenIconRailWindow(panelName, placement)
                 --different zoom (see OpenPanelPopout).
                 geometry = { width = d.renderedWidth, height = d.renderedHeight,
                     scale = d.data.windowScale }
+                local active = nil
+                pcall(function() active = d.data.activePanelTab end)
+                if active ~= nil and PanelDocument.WindowOwner(active) == key then
+                    popKey = active
+                end
             end
             doc:ClosePanel()
-            OpenPanelPopout(key, geometry)
+            OpenPanelPopout(popKey, geometry)
             RefreshRails()
         end,
     }

@@ -6517,7 +6517,7 @@ end
 -- rail button's context menu): a pinned window is locked in place -- no
 -- close, no drag, no resize -- and always comes back with the rails.
 --
--- Off by default; opted into per-user from Settings > General ("New
+-- ON by default; toggled per-user from Settings > General ("New
 -- Experimental UI"), or via /toggle iconrail. The dock system is
 -- untouched while the rail is off; while it is on, each side's dock is
 -- slid away and its handle tab hidden, so the rails are the way panels
@@ -7848,6 +7848,20 @@ local function MaybeMinimizeCharacterWindow(key, dialog)
     RailForgetWindow(key)
     local doc = RailPanelDocument(key)
     if doc ~= nil then
+        --the drag's release point is in the rail band -- usually partly
+        --out of screen bounds -- and the drag handler just recorded it
+        --into _tmp_location with moved = true. That point is where the
+        --DOCK gesture ended, not a place the user chose for the window,
+        --so an anchored reopen from the new rail card must not yield to
+        --it: drop the remembered position (the remembered SIZE is still
+        --the user's and stays) so the card's button opens the window
+        --beside itself, clamped on screen.
+        local loc = doc:try_get("_tmp_location")
+        if loc ~= nil then
+            loc.x = nil
+            loc.y = nil
+            loc.moved = nil
+        end
         doc:ClosePanel()
     end
     RefreshRails()
@@ -8789,6 +8803,24 @@ OpenPanelPopout = function(panelName, geometry)
     local height = PanelDocument.ClampHeight(panelName,
         ((geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight) *
             sourceScale / scale)
+
+    --a registration can declare its popout window's own default height
+    --(popoutHeight, content px like minHeight/maxHeight): a panel whose
+    --in-app footprint suits the dock but not a floating OS window opens
+    --its popout at the declared height instead of carrying the in-app
+    --window's across. Fresh pop-outs only -- a persistence restore
+    --(recognizable by the remembered screen position it carries) keeps
+    --whatever size the user left the window at. pcall'd read: character
+    --panels answer through a synthetic game-typed registration, where an
+    --undeclared field raises rather than reading nil.
+    if geometry == nil or geometry.x == nil then
+        local popoutHeight = nil
+        pcall(function() popoutHeight = reg.popoutHeight end)
+        if type(popoutHeight) == "number" then
+            height = PanelDocument.ClampHeight(panelName,
+                popoutHeight + g_panelDocumentHeaderHeight)
+        end
+    end
 
     local host
 
@@ -10372,9 +10404,9 @@ end
 
 --Rail mode gate, exported so other surfaces (the Panels menu, the
 --journal) can ask without repeating the setting lookup. The mode is
---opt-in per user from Settings > General ("New Experimental UI"); it
---used to additionally require devmode() while the rail was a dev-only
---trial.
+--a per-user setting in Settings > General ("New Experimental UI"),
+--on by default; it used to be opt-in, and to additionally require
+--devmode() while the rail was a dev-only trial.
 function RailModeActive()
     return dmhub.GetSettingValue("iconrail") == true
 end
@@ -13846,6 +13878,27 @@ local function PanelLibraryStyles()
             selectors = {"label", "libShareButtonLabel", "parent:hover"},
             color = "@fgStrong",
         },
+        --the Shared status chip is a quiet control: invisible at rest,
+        --it reveals a hit target on hover (it opens the Stop Sharing
+        --menu).
+        {
+            selectors = {"libSharedMark"},
+            bgcolor = "clear",
+            cornerRadius = 6,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"libSharedMark", "hover"},
+            bgcolor = "#ffffff0d",
+        },
+        {
+            selectors = {"libCardStatIcon", "parent:libSharedMark", "parent:hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"label", "libCardMeta", "parent:libSharedMark", "parent:hover"},
+            color = "@fgStrong",
+        },
     })
 end
 
@@ -14159,6 +14212,14 @@ local function CommunityButtonCard(pack, button, packStats, opts)
     --form. The heart is still its own click target; the ADDED overlay
     --and click gate work exactly as on the full card.
     if opts.compact then
+        --the tile has no room for the description or author, so they
+        --live in a hover tooltip -- the full name too, since the tile
+        --clips long ones.
+        local tooltip = nil
+        if description ~= "" then
+            tooltip = gui.Tooltip(string.format("<b>%s</b>\n%s\n<i>by %s</i>",
+                button.name or "Button", description, author))
+        end
         return gui.Panel{
             classes = {"libPackCard", cond(isAdded, "added")},
             width = 96,
@@ -14168,6 +14229,7 @@ local function CommunityButtonCard(pack, button, packStats, opts)
             flow = "vertical",
             margin = 4,
             click = AddClick,
+            hover = tooltip,
 
             ScriptButtonFacePanel(button, { halign = "center", tmargin = 10 }),
 
@@ -14897,6 +14959,53 @@ local function RailShareButtonsDialog(opts)
         }
     end
 
+    --withdraw a shared button from the community: delete its pack and
+    --forget the packid, so the button reads as never-shared and a later
+    --Share mints a fresh pack. Re-reads the LIVE definition at click
+    --time, like ShareEntry -- the dialog's snapshot may be stale.
+    --Buttons other players already added keep working; their scripts
+    --were copied when they added them.
+    local function StopSharing(entry)
+        local item = nil
+        if entry.kind == "standalone" then
+            item = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[entry.id]
+        else
+            local rec = RailToolkits()[entry.toolkitid]
+            if type(rec) == "table" then
+                item = (rec.items or {})[entry.idx]
+            end
+        end
+        if type(item) ~= "table" or item.packid == nil then
+            --the button vanished or is no longer shared; re-render to
+            --match reality.
+            RenderRows()
+            return
+        end
+        local buttonName = item.name or "Button"
+        buttonpack.Unpublish{
+            packid = item.packid,
+            success = function()
+                if mod.unloaded then
+                    return
+                end
+                RememberPackid(entry, nil)
+                if statusLabel ~= nil and statusLabel.valid then
+                    statusLabel.text = string.format("%s is no longer shared with the community.", buttonName)
+                end
+                RenderRows()
+            end,
+            failure = function(err)
+                if mod.unloaded then
+                    return
+                end
+                gui.ModalMessage{
+                    title = "Could not stop sharing",
+                    message = tostring(err),
+                }
+            end,
+        }
+    end
+
     --one shareable button as a card row: replica face, name,
     --description, where it lives, and the Share / Update control.
     local function ShareRow(entry)
@@ -14906,35 +15015,57 @@ local function RailShareButtonsDialog(opts)
         if description == nil or description == "" then
             description = "No description -- edit the button to add one."
         end
-        local sharedMark = nil
-        if shared then
-            sharedMark = gui.Panel{
-                flow = "horizontal",
+        --clickable: opens a small menu with Stop Sharing, the undo
+        --for the Share button next to it. Always constructed: unshared
+        --rows keep it hidden (hidden = 1 still takes up space in the
+        --flow, unlike collapsed) so the Share button column lines up
+        --with shared rows.
+        local sharedMark = gui.Panel{
+            classes = {"libSharedMark", cond(shared, nil, "unshared")},
+            styles = {
+                { selectors = {"unshared"}, hidden = 1 },
+            },
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "center",
+            rmargin = 10,
+            hpad = 6,
+            vpad = 4,
+            borderBox = true,
+            bgimage = true,
+            click = function(element)
+                element.popup = gui.ContextMenu{
+                    entries = {
+                        {
+                            text = "Stop Sharing",
+                            click = function()
+                                element.popup = nil
+                                StopSharing(entry)
+                            end,
+                        },
+                    },
+                }
+            end,
+            gui.Panel{
+                classes = {"libCardStatIcon"},
+                bgimage = "phosphor/check-circle-fill.png",
+                width = 14,
+                height = 14,
+                valign = "center",
+                rmargin = 4,
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"libCardMeta"},
+                text = "Shared",
                 width = "auto",
                 height = "auto",
-                halign = "right",
                 valign = "center",
-                rmargin = 10,
                 interactable = false,
-                gui.Panel{
-                    classes = {"libCardStatIcon"},
-                    bgimage = "phosphor/check-circle-fill.png",
-                    width = 14,
-                    height = 14,
-                    valign = "center",
-                    rmargin = 4,
-                    interactable = false,
-                },
-                gui.Label{
-                    classes = {"libCardMeta"},
-                    text = "Shared",
-                    width = "auto",
-                    height = "auto",
-                    valign = "center",
-                    interactable = false,
-                },
-            }
-        end
+            },
+        }
         return gui.Panel{
             classes = {"libShareRow"},
             width = "100%",
@@ -18879,10 +19010,10 @@ end)
 --Create or destroy the rails to match the setting; restore pinned windows
 --when they come up. Safe to call any time.
 function EnsureIconRail()
-    --OPT-IN trial: the rail (and everything riding it -- Views, doc
-    --shortcuts, dock handoff) activates only for users who tick "New
-    --Experimental UI" in Settings > General. (It was additionally
-    --devmode-gated while the rail was a dev-only trial.)
+    --The rail (and everything riding it -- Views, doc shortcuts, dock
+    --handoff) follows the "New Experimental UI" setting in Settings >
+    --General, which now defaults ON. (It was an opt-in trial before
+    --that, and devmode-gated before that.)
     local enabled = RailModeActive()
 
     if not enabled then

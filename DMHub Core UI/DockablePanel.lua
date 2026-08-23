@@ -19,13 +19,23 @@ setting{
 --IconRailSettingChanged global it defines. rawget because the global is
 --nil until DocumentSystem loads -- harmless, since the setting can only
 --change from UI that exists well after load.
+--
+--Defaults ON: the rail is now the intended UI, and resetCount forces it
+--back to the default ONCE for everyone -- users who had opted out (or
+--never opted in, back when the default was false) are switched on at the
+--first launch after this ships. The engine implements it in
+--CoreAssets/Lua/settings.txt: it keeps a companion "iconrail_resets"
+--preference and only resets while that counter is below resetCount, so a
+--user who turns the rail off AFTER the migration keeps it off. Bump
+--resetCount only to deliberately force everyone back to the default again.
 setting{
     id = "iconrail",
     description = "New Experimental UI",
     help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
     storage = "preference",
     editor = "check",
-    default = false,
+    default = true,
+    resetCount = 1,
     onchange = function()
         local fn = rawget(_G, "IconRailSettingChanged")
         if fn ~= nil then
@@ -2258,6 +2268,9 @@ DockablePanel = {
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
 	--minWidth/maxWidth bound the window's width.
+	--popoutHeight (content px) gives the panel's native OS popout window
+	--its own default height, instead of inheriting the in-app window's
+	--footprint when popping out.
 	--preferFloating = true opens the panel on the floating (center) dock
 	--as a window over the map instead of claiming a side dock;
 	--floatingHalign = "right" places that window on the right.

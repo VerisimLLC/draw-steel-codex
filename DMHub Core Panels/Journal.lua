@@ -394,8 +394,8 @@ end
 --non-drag path for the shortcut feature). Returns a list to APPEND to
 --the document row's normal context menu -- never a menu of its own,
 --which would shadow the standard verbs (Share to Chat, Rename, ...).
---Empty when the rail trial mode is off (opt-in per user from
---Settings > General, "New Experimental UI").
+--Empty when rail mode is off (per-user setting in Settings > General,
+--"New Experimental UI", on by default).
 local function RailAvailable()
     return dmhub.GetSettingValue("iconrail") == true
 end
@@ -929,13 +929,16 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
     end
 
     contentPanel = gui.Panel {
-        --explicit halign: a flow child with no alignment centers itself
-        --in the icon-rail window host (the dock resolves it left). With
-        --the old width overhang ("100%+12") centering both cancelled the
-        --lmargin indent and shifted each level LEFT, collapsing the
-        --ladder so nested rows drew left of root headers. Left-aligned
-        --with a contained width, both hosts lay out identically.
+        --explicit halign AND valign: a flow child with no alignment
+        --centers itself in the icon-rail window host (the dock resolves
+        --it left/top). With the old width overhang ("100%+12") centering
+        --both cancelled the lmargin indent and shifted each level LEFT,
+        --collapsing the ladder so nested rows drew left of root headers.
+        --Vertically the same default floated the tree to the middle of
+        --the scroll viewport when shorter than it. Anchored left/top,
+        --both hosts lay out identically.
         halign = "left",
+        valign = "top",
         width = "100%-" .. indent,
         height = "auto",
         flow = "vertical",

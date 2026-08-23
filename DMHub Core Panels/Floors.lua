@@ -93,6 +93,9 @@ DockablePanel.Register{
 	name = "Floors & Layers",
 	icon = "icons/standard/Icon_App_FloorsLayers.png",
 	minHeight = 100,
+	--the floor list is short; a popped-out OS window at the generic
+	--520px default is mostly empty space, so open it around half that.
+	popoutHeight = 230,
 	vscroll = false,
 	dmonly = true,
 	content = function()

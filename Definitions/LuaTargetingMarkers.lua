@@ -32,6 +32,13 @@ function LuaTargetingMarkers:FlashLabels()
 	-- dummy implementation for documentation purposes only
 end
 
+--- Retarget: Animate the targeting arrow away from its current target and onto newTarget, bending as it sweeps. The retarget is networked: all connected clients see the same animation. duration is the sweep time in seconds (default 0.5).
+--- @param newTarget CharacterToken
+--- @param duration? number
+function LuaTargetingMarkers:Retarget(newTarget, duration)
+	-- dummy implementation for documentation purposes only
+end
+
 --- Destroy
 --- @return nil
 function LuaTargetingMarkers:Destroy()

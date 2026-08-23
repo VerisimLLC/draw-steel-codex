@@ -957,8 +957,10 @@ end
 --    height = 2,                     -- affects up to this many tiles above
 --                                    -- altitude; ABSENT = unlimited height
 --    playerVisible = true,           -- players see the overlay stripes
---                                    -- (new zones default to true; the Edit
---                                    -- Zone dialog turns it off per zone)
+--                                    -- (stamped from the keyword's
+--                                    -- defaultPlayerVisible, which is true
+--                                    -- unless set; the Edit Zone dialog turns
+--                                    -- it off per zone)
 --    pattern = { color = "#rrggbb", angle = <radians> },
 --    ord = 1,                        -- creation order (stable list sorting)
 --  }
@@ -985,9 +987,11 @@ end
 --
 --Rendering: dmhub.GetMarkupZones feeds the tile height overlay, which draws
 --each zone as diagonal stripes + a name label. DM-only unless the zone is
---marked playerVisible - which new zones are, so a painted hazard reads to the
---table without the DM remembering to publish each one. A zone the DM wants
---kept secret is turned off individually in the Edit Zone dialog.
+--marked playerVisible - which new zones are by default, so a painted hazard
+--reads to the table without the DM remembering to publish each one. A zone the
+--DM wants kept secret is turned off individually in the Edit Zone dialog; a
+--whole type that is nearly always secret is turned off once on the keyword
+--("New Zones Visible to Players"), which CreateZone stamps onto each new zone.
 --
 --This file loads before EnvironmentalKeyword.lua (main.lua order), so every
 --reference to the EnvironmentalKeyword global is runtime + rawget-guarded.
@@ -4411,7 +4415,9 @@ local function CreateZone(keywordid, locs, fallbackInfo)
         altitude = 0,
         --new zones are player-visible: a painted zone is nearly always terrain
         --the table is meant to see (and players still have to turn the tile
-        --overlay on). Secret zones are turned off in the Edit Zone dialog.
+        --overlay on). Secret zones are turned off in the Edit Zone dialog, and
+        --a whole type that is nearly always secret is turned off once on the
+        --keyword - stamped on below, beside the height and visuals defaults.
         playerVisible = true,
         pattern = {
             color = color,
@@ -4433,6 +4439,17 @@ local function CreateZone(keywordid, locs, fallbackInfo)
     pcall(function()
         if kw ~= nil and kw:try_get("appearanceDefaultOff", false) == true then
             record.hideAppearance = true
+        end
+    end)
+
+    --Same deal for the type's player-visibility default ("New Zones Visible to
+    --Players" in the keyword editor): a type whose zones are scenery stays
+    --visible, a type that is a secret hazard starts hidden. The zone owns the
+    --flag from here on (Edit Zone dialog), so flipping the type default later
+    --leaves painted zones alone. Visible is the default and needs no write.
+    pcall(function()
+        if kw ~= nil and kw:try_get("defaultPlayerVisible", true) ~= true then
+            record.playerVisible = false
         end
     end)
 
@@ -9621,7 +9638,7 @@ CreateMarkupEditor = function()
             gui.Check{
                 classes = {"formCheck"},
                 text = "Visible to players",
-                tooltip = "Players see this zone's stripes and name on their map when they turn on the tile overlay. On by default; turn it off for a zone the players are not meant to know about.",
+                tooltip = "Players see this zone's stripes and name on their map when they turn on the tile overlay. Starts from the zone type's own default; turn it off for a zone the players are not meant to know about.",
                 value = playerVisible,
                 change = function(element)
                     playerVisible = element.value

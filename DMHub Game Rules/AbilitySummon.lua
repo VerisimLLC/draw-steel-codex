@@ -278,6 +278,40 @@ function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
     end
 end
 
+--- Deletes all summoned minion characters (live or despawned) and their
+--- corpse objects on the current map. Called when combat ends.
+function ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+    local minionCharids = {}
+    for charid,tok in pairs(dmhub.GetAllCharacters()) do
+        local summonerid = tok.summonerid
+        if summonerid ~= nil and summonerid ~= "" and tok.properties ~= nil and tok.properties.minion then
+            minionCharids[charid] = true
+        end
+    end
+
+    if next(minionCharids) == nil then
+        return
+    end
+
+    local map = game.currentMap
+    if map ~= nil then
+        for _,floor in ipairs(map.floors or {}) do
+            for _,obj in pairs(floor.objects or {}) do
+                local corpse = obj:GetComponent("Corpse")
+                if corpse ~= nil and corpse.properties ~= nil and minionCharids[corpse.properties.charid] then
+                    obj:Destroy()
+                end
+            end
+        end
+    end
+
+    local charids = {}
+    for charid,_ in pairs(minionCharids) do
+        charids[#charids+1] = charid
+    end
+    game.DeleteCharacters(charids)
+end
+
 
 setting{
 	id = "summoncrcheck",

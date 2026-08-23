@@ -64,6 +64,9 @@ local function PerformEndCombat()
 
 	CharacterResource.SetMalice(0, "End of Combat")
 
+	--summons don't outlive the encounter.
+	ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+
 	for initiativeid,_ in pairs(q.entries) do
 		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
 		for _,tok in ipairs(tokens) do

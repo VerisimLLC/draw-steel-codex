@@ -1676,6 +1676,10 @@ local showShareModuleDialog = function(options)
 	local moduleIdsAvailable = {}
 	local moduleIdsUnavailable = {}
 
+	--Ids that are taken by a module of ours that has been deleted. Publishing
+	--over one of these restores it rather than colliding with it.
+	local moduleIdsDeleted = {}
+
 	local contentPanel
 	local publishingPanel
 
@@ -2413,9 +2417,28 @@ local showShareModuleDialog = function(options)
 							if id ~= nil then
 								moduleIdsUnavailable[id] = true
 								dialogPanel:FireEventTree("refreshModule")
+
+								--A module we deleted keeps its id but is stripped
+								--from every list the picker offers, so "select it
+								--to update it" sends the user somewhere it cannot
+								--appear. Find out which case this is.
+								module.DownloadModuleInfo{
+									moduleid = id,
+									success = function(info)
+										local deleted = false
+										pcall(function() deleted = info.deleted == true end)
+										if deleted then
+											moduleIdsDeleted[id] = true
+											dialogPanel:FireEventTree("refreshModule")
+										end
+									end,
+									failure = function() end,
+								}
 							end
 						end,
 					}
+				elseif moduleInstance.idvalid and moduleIdsDeleted[moduleInstance.fullid] then
+					element.text = "You deleted a module with this name. Publishing will restore it and replace it with this version."
 				elseif moduleInstance.idvalid and moduleIdsUnavailable[moduleInstance.fullid] then
 					element.text = "You already published a module with this name. Select it to update it with a new version."
 				else
@@ -3125,6 +3148,13 @@ mod.shared.ShowShareDialog = function()
 		modulesIncluded[key] = true
 	end
 
+	--The two sources above are concatenated in whatever order they arrive,
+	--which reads as random once you have more than a couple of modules. Sort
+	--before appending "Create a New Module" so that entry stays at the bottom.
+	table.sort(moduleOptions, function(a,b)
+		return string.lower(a.text) < string.lower(b.text)
+	end)
+
 	moduleOptions[#moduleOptions+1] = {
 		id = "new",
 		text = "Create a New Module",
@@ -3186,6 +3216,7 @@ mod.shared.ShowShareDialog = function()
 
 	moduleSelectionDropdown = gui.Dropdown{
 		classes = {"form"},
+		width = 400,
 		options = moduleOptions,
 		idChosen = defaultModuleSelected,
 		create = function(element)
@@ -3226,6 +3257,13 @@ mod.shared.ShowShareDialog = function()
 							end
 						end
 
+						--Sorted the same way the initial build is: this rebuild
+						--replaces the whole options list, so leaving it out
+						--undoes that sort a moment after the dropdown appears.
+						table.sort(opts, function(a,b)
+							return string.lower(a.text) < string.lower(b.text)
+						end)
+
 						opts[#opts+1] = {
 							id = "new",
 							text = "Create a New Module",
@@ -3239,7 +3277,6 @@ mod.shared.ShowShareDialog = function()
 			end
 		end,
 		change = GetModuleInfo,
-		width = 200,
 	}
 
 	local moduleSelection = gui.Panel{

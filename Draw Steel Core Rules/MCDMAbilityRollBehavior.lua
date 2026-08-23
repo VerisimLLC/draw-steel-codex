@@ -990,20 +990,13 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnCaster = self:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, self, "ability_power_roll", {
                 ability = ability,
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: caster modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: caster modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -1012,10 +1005,6 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnTarget = targetCreature:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnTarget) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for enemy_ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
@@ -1023,10 +1012,7 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: target modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: target modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -1917,7 +1903,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
+                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)

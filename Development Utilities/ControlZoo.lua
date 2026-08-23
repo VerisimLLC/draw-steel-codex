@@ -708,6 +708,28 @@ LaunchablePanel.Register {
                 },
 
                 ControlEntry {
+                    name = "Close Button",
+                    snippet = [[gui.Button{
+    -- the canonical close X (phosphor glyph). Escape activation
+    -- and the close sound come from the closeButton kind config.
+    -- Typically pinned: halign = "right", valign = "top", floating = true
+    classes = {"closeButton"},
+    click = function(element)
+        -- close the dialog
+    end,
+}]],
+                    control = gui.Button {
+                        classes = {"closeButton"},
+                        halign = "center",
+                        valign = "center",
+                        escapeActivates = false,
+                        click = function()
+                            outputLabel.text = "CLOSE clicked!"
+                        end,
+                    },
+                },
+
+                ControlEntry {
                     name = "Dropdown",
                     snippet = [[gui.Dropdown{
     options = {
@@ -841,6 +863,37 @@ LaunchablePanel.Register {
                             outputLabel.text = "Text input submitted: " .. element.text
                         end,
 
+                    },
+                },
+
+                ControlEntry {
+                    name = "Text Input (framed)",
+                    snippet = [[gui.Input{
+    -- opt-in resting frame for inputs sitting on surfaces at or
+    -- below @bg, where the default frameless well would vanish
+    classes = {"bordered"},
+    width = 180,
+    height = 20,
+    fontSize = 16,
+    placeholderText = "Enter text...",
+}]],
+                    control = gui.Input {
+                        classes = {"bordered"},
+                        halign = "center",
+                        valign = "center",
+
+                        width = 180,
+                        height = 20,
+                        fontSize = 16,
+
+                        placeholderText = "For dark surfaces...",
+                        edit = function(element)
+                            outputLabel.text = "Framed input changed to " .. element.text
+                        end,
+
+                        change = function(element)
+                            outputLabel.text = "Framed input submitted: " .. element.text
+                        end,
                     },
                 },
 

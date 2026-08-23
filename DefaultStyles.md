@@ -12,6 +12,7 @@ Tokens are referenced as `"@tokenName"` in style rules and resolved by the activ
 
 - **`bg`** — the primary canvas. Default `bgcolor` for panels, inputs, dropdowns, button rests, dock frame fills. Use this for the "back wall" of any region.
 - **`bgAlt`** — the secondary surface used to set a region apart from its parent without using a border. Reach for it on: card bodies inside a panel, odd-row striping in tables, the selected dock tab container, the closed dropdown control. Rule of thumb: if you want the eye to read "this is nested," `bgAlt` is the right answer.
+- **`bgRaised`** — the hover/focus "lift" fill for interactive text fields (search bar, text inputs): the control's fill raises to this on hover and holds it while focused. Reach for it when authoring a hover/focus fill for a field-like control; buttons and options hover via `bgInverse` instead.
 - **`bgInverse`** — the inverted surface. Used as the hover/selected fill on text buttons, dropdown options, and modal dialogs. Pair with `fgInverse` for text on top.
 
 ### Foreground / text
@@ -24,7 +25,8 @@ Tokens are referenced as `"@tokenName"` in style rules and resolved by the activ
 
 ### Borders
 
-- **`border`** — default frame. Use on input borders, button borders at rest, card frames, dialog frames, table separators.
+- **`border`** — default frame. Use on button borders at rest, card frames, dialog frames, table separators. **Not for rounded `border` shader frames** — in the default scheme this token is white at 0.16 alpha, and the rounded-frame shader ignores alpha, rendering it as a full-contrast bright line. Use `borderSolid` there.
+- **`borderSolid`** — `border` pre-composited over `bg` at full alpha. The quiet resting frame for anything drawn with the rounded `border` shader property (text inputs). Visually equivalent to `border` everywhere alpha compositing works; identical by definition in schemes whose `border` is already opaque.
 - **`borderInverse`** — frame for inverse-state surfaces (button hover frame, faded inputs). Pair with `bgInverse`.
 
 ### Accent + interactive
@@ -115,7 +117,7 @@ Compose three classes on three nested panels:
 
 #### Input / SearchInput / ColorPicker
 
-- `{input}` — default text input. 14pt, `@bg` fill, `@border` frame; `focus` swaps to `@fg` border.
+- `{input}` — default text input. 14pt regular, `@bg` fill, frameless at rest (the 1px border geometry is painted fill-color so states recolor without shifting); `hover` lifts the fill to `@bgRaised` with an `@fgMuted` frame; `focus` holds the lifted fill and paints the frame `@fgStrong`. Shares the search bar's fill-lift language, plus a strong focus frame (keyboard focus location in forms). **On surfaces at or below `@bg`**, where the frameless well has nothing to contrast against, compose `{"bordered"}` — on inputs it draws the quiet `@borderSolid` resting frame instead of the generic `@border`.
 - `{inputFaded}` — alternate input style with a faded `@borderInverse` frame. Reach for it when you want an input to read as secondary or quiet.
 - `{searchInput}` — borderless 16pt bold search field. Surfaces that want a bordered search input add the border via their own `MergeStyles` extras, not here.
 - `{searchInputIcon}` — auto-emitted magnifying-glass child of `gui.SearchInput`. Tinted to `@fg`. **The `floating = true` and `x = -20` positioning stay inline at the call site** — `floating` is structural, the cascade ignores it.

@@ -100,6 +100,45 @@ local function TicketStatusBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Merged title bar: the engine strips the native Windows caption so this bar
+--sits flush with the top of the window, and the bar supplies dragging plus
+--the minimize / maximize / close buttons (LuaInterfaceWindowChrome.cs). On
+--engines without the bridge, or non-Windows platforms, the feature is
+--simply absent.
+local g_windowChromeAvailable = nil
+local function WindowChromeBridgeAvailable()
+    if g_windowChromeAvailable == nil then
+        local ok, avail = pcall(function() return dmhub.mergedTitleBarAvailable end)
+        g_windowChromeAvailable = (ok and avail == true)
+    end
+    return g_windowChromeAvailable
+end
+
+local function MergedTitleBarActive()
+    return WindowChromeBridgeAvailable() and dmhub.GetSettingValue("mergedtitlebar") == true
+end
+
+local function ApplyMergedTitleBar()
+    if WindowChromeBridgeAvailable() then
+        dmhub.SetMergedTitleBar(dmhub.GetSettingValue("mergedtitlebar") == true)
+    end
+end
+
+setting{
+    id = "mergedtitlebar",
+    description = "Merge window title bar",
+    storage = "preference",
+    editor = "check",
+    default = true,
+    onchange = function()
+        ApplyMergedTitleBar()
+    end,
+}
+
+--apply the stored preference at module load (and re-apply on reloads --
+--SetMergedTitleBar is idempotent).
+ApplyMergedTitleBar()
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -3293,9 +3332,13 @@ local function CreateTopBar()
 
 
     local m_documents
+    --Generic until the tracked documents say which adventure this is; GameHud's
+    --adventure-documents manager fires "setname"/"seticon" with the real
+    --identity. An icon must be set here for CreateCodexMenuItem to build the
+    --icon panel at all -- that panel owns the "seticon" handler.
     local m_adventureDocumentsBar = CreateCodexMenuItem{
-        icon = "panels/drawsteel/delian-tomb.png",
-        name = "Delian Tomb",
+        icon = "phosphor/book-open.png",
+        name = "Adventure Documents",
         create = function(element)
             element.selfStyle.collapsed = 1
         end,
@@ -5636,7 +5679,60 @@ local function CreateTopBar()
                 element:SetClassTree("ingame", m_inGame)
             end
             element:FireEventTree("calculateVisibility")
+
+            --dead-man heartbeat: while merged, the engine's watchdog restores
+            --the native caption if this bar stops running (a Lua error would
+            --otherwise leave the window with no drag surface and no close
+            --button). pcall: an engine with the chrome bridge but not the
+            --watchdog yet must not error the bar's think.
+            if MergedTitleBarActive() then
+                pcall(function() dmhub.WindowChromeHeartbeat() end)
+            end
         end,
+
+        --Merged title bar: empty bar surface acts as the native caption.
+        --This drag surface sits BEHIND every other child (first child =
+        --bottom of the draw order), NOT as a press handler on the bar root:
+        --press events bubble to ANCESTORS only, so a press on a click-only
+        --child (the window buttons, the map cluster, ...) used to find the
+        --root's press handler, start the native modal window-drag loop, and
+        --have the mouse release swallowed by it -- the child's click never
+        --fired. As a sibling underneath, the surface only receives presses
+        --that land on genuinely empty bar space.
+        --
+        --Press starts a native window drag (snap-to-edge included); a second
+        --press within the double-click window toggles maximize instead (the
+        --engine has no doubleClick event, so it is hand-rolled).
+        gui.Panel{
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "clear",
+            data = { lastBarPress = nil },
+            press = function(element)
+                if not MergedTitleBarActive() then
+                    return
+                end
+                local now = dmhub.Time()
+                if element.data.lastBarPress ~= nil and now - element.data.lastBarPress < 0.4 then
+                    element.data.lastBarPress = nil
+                    dmhub.ToggleMaximizeWindow()
+                else
+                    element.data.lastBarPress = now
+                    --no native drag while maximized: dragging a maximized
+                    --window makes Windows drag-restore it mid-loop, which
+                    --Unity fights -- the window ends up unzoomed at a
+                    --corrupt oversized rect (reproduced 2026-08-23:
+                    --1936x1119 hanging off every screen edge). While
+                    --maximized the bar restores via double-press or the
+                    --restore button only.
+                    if not dmhub.windowMaximized then
+                        dmhub.BeginWindowDrag()
+                    end
+                end
+            end,
+        },
 
         CreateCodexMenuItem{
             name = "Codex",
@@ -5990,19 +6086,83 @@ local function CreateTopBar()
             halign = "right",
             m_audioIndicator,
             m_searchBar,
+
+            -- Window controls for the merged title bar: minimize /
+            -- maximize-restore / close, drawn by us but driving the native
+            -- window (the classic three cannot be kept system-drawn once
+            -- the caption is stripped). Collapsed whenever the merged bar
+            -- is off or unsupported; visibility rides the menuBar think's
+            -- calculateVisibility broadcast.
+            gui.Panel{
+                classes = {"windowButtons", "collapsed"},
+                flow = "horizontal",
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                lmargin = 8,
+                calculateVisibility = function(element)
+                    element:SetClass("collapsed", not MergedTitleBarActive())
+                end,
+
+                gui.Button{
+                    icon = "phosphor/minus-bold.png",
+                    classes = {"sizeXs"},
+                    valign = "center",
+                    hmargin = 4,
+                    escapeActivates = false,
+                    click = function()
+                        dmhub.MinimizeWindow()
+                    end,
+                },
+                gui.Button{
+                    icon = "phosphor/square-bold.png",
+                    classes = {"sizeXs"},
+                    valign = "center",
+                    hmargin = 4,
+                    escapeActivates = false,
+                    data = { maximized = nil },
+                    --swap square (maximize) and corners-in (restore) as the
+                    --window state changes, polled on the same broadcast that
+                    --drives the cluster's visibility. Reading the property on
+                    --a pre-bridge engine would raise, so gate first.
+                    calculateVisibility = function(element)
+                        if not WindowChromeBridgeAvailable() then
+                            return
+                        end
+                        local maximized = dmhub.windowMaximized
+                        if maximized ~= element.data.maximized then
+                            element.data.maximized = maximized
+                            element:FireEvent("setIcon", cond(maximized, "phosphor/browsers-bold.png", "phosphor/square-bold.png"))
+                        end
+                    end,
+                    click = function()
+                        dmhub.ToggleMaximizeWindow()
+                    end,
+                },
+                gui.Button{
+                    icon = "phosphor/x-bold.png",
+                    classes = {"sizeXs", "withDanger"},
+                    valign = "center",
+                    hmargin = 4,
+                    escapeActivates = false,
+                    click = function()
+                        dmhub.CloseWindow()
+                    end,
+                },
+            },
         },
     }
 
     local titleBarStyleExtras = {
-        -- Title-bar bar surface paints with the scheme's barTrack
-        -- gradient. bgcolor = "white" is the image-tint multiplier:
-        -- without it the cascade's @bg tints the gradient down to
-        -- near-black on dark schemes.
+        -- Title-bar bar surface paints flat @bg -- the same color the DWM
+        -- caption used before the merged title bar replaced it
+        -- (WindowTitleBarTheme.cs hardcodes that caption to the default
+        -- scheme's bg #0A0A0B). Was the @barTrack gradient; flattened by
+        -- request 2026-08-23 so the merged bar reads as window chrome.
         {
             selectors = {"titleBarSurface"},
             bgimage = true,
-            bgcolor = "white",
-            gradient = "@barTrack",
+            bgcolor = "@bg",
         },
 
         -- Title-bar search field visibility. (Its LOOK is the canonical

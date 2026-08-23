@@ -5621,6 +5621,7 @@ function CreateSettingsScreen(dialog, args)
 						--Setting('perf:hideftextures'),
 						Setting('perf:castshadows'),
                         Setting("graphics:uiblur"),
+                        Setting("mergedtitlebar"),
 
 						SettingsSection("Graphics"),
 

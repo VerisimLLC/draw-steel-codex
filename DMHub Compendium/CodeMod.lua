@@ -295,6 +295,110 @@ CreateEditor = function(panelArgs)
 							mod:Upload()
 						end,
 
+						rightClick = function(element)
+							if not mod.canedit then
+								return
+							end
+
+							--the enclosing filerow panel; captured now so the delete
+							--handler can clear expandedPanel if this row was expanded.
+							local rowPanel = element.parent
+
+							element.popup = gui.ContextMenu{
+								width = 300,
+								entries = {
+									{
+										text = "Delete from Module...",
+										click = function()
+											local numRevisions = f.numRevisions
+											local message
+											if numRevisions > 1 then
+												local firstDate = dmhub.FormatTimestamp(f.revisions[1].timestamp, "yyyy-MM-dd")
+												message = string.format("You are about to permanently delete <b>%s.lua</b> from this module, destroying its entire revision history: <b>%d revisions</b> dating back to %s. None of those revisions will be recoverable. Any local or git working copy of the file will also be deleted from disk.", f.name, numRevisions, firstDate)
+											else
+												message = string.format("You are about to permanently delete <b>%s.lua</b> from this module. Any local or git working copy of the file will also be deleted from disk. This cannot be undone.", f.name)
+											end
+
+											--files with a long history get an extra gate:
+											--the name must be typed back to confirm.
+											local confirmInput = nil
+											local messagePanel = nil
+											if numRevisions >= 5 then
+												message = message .. string.format("\n\nThis file has a long history. If you are absolutely sure, type its name (%s) below to confirm.", f.name)
+												confirmInput = gui.Input{
+													width = 300,
+													height = 24,
+													halign = "center",
+													vmargin = 8,
+													placeholderText = "Type the file name to confirm",
+												}
+												messagePanel = gui.Panel{
+													width = "90%",
+													height = "auto",
+													halign = "center",
+													flow = "vertical",
+													gui.Label{
+														classes = {"modalMessage"},
+														text = message,
+													},
+													confirmInput,
+												}
+											end
+
+											local modalArgs = {
+												title = string.format("Delete %s.lua?", f.name),
+												panel = messagePanel,
+												options = {
+													{
+														text = "Cancel",
+														execute = function() end,
+													},
+													{
+														text = "Delete Forever",
+														execute = function()
+															if confirmInput ~= nil then
+																local typed = string.gsub(confirmInput.text or "", "^%s*(.-)%s*$", "%1")
+																if string.lower(typed) ~= string.lower(f.name) then
+																	gui.ModalMessage{
+																		title = "Nothing Deleted",
+																		message = "The name you typed did not match, so the file was not deleted.",
+																	}
+																	return
+																end
+															end
+
+															if mod:DeleteFile(f) then
+																if expandedPanel == rowPanel then
+																	expandedPanel = nil
+																end
+
+																--destroy the row now so refreshMod never fires on
+																--panels whose handlers read the deleted (invalid) file.
+																if rowPanel ~= nil and rowPanel.valid then
+																	rowPanel:DestroySelf()
+																end
+																resultPanel:FireEventTree("refreshMod")
+															end
+														end,
+													},
+												},
+											}
+
+											if messagePanel == nil then
+												modalArgs.message = message
+											end
+
+											gui.ModalMessage(modalArgs)
+										end,
+									},
+								},
+
+								click = function()
+									element.popup = nil
+								end,
+							}
+						end,
+
 						gui.Label{
 							classes = {"fileName"},
 							characterLimit = 32,

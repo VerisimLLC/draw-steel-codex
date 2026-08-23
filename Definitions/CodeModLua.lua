@@ -56,6 +56,13 @@ function CodeModLua:AddFile(fname)
 	-- dummy implementation for documentation purposes only
 end
 
+--- DeleteFile: Permanently removes a file and its entire revision history from the mod, deletes its local/git working copy from disk if present, records a changelist entry, and uploads the change. Returns true if the file was deleted.
+--- @param file any
+--- @return boolean
+function CodeModLua:DeleteFile(file)
+	-- dummy implementation for documentation purposes only
+end
+
 --- Upload
 --- @return nil
 function CodeModLua:Upload()

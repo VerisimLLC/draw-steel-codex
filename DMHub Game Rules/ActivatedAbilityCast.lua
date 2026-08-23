@@ -202,6 +202,12 @@ ActivatedAbilityCast.helpSymbols = {
 		type = "number",
 		desc = "The number of spaces moved while using this ability.",
 	},
+	spacesmovedthisinvocation = {
+		name = "SpacesMovedThisInvocation",
+		type = "number",
+		desc = "The number of spaces moved during the current per-target invocation pass of an Invoke Ability behavior using Choose Invocation Order. Unlike Spaces Moved, this resets each time the invoke moves on to its next chosen target, and it does not count distance covered by teleports, relocates or swaps. Outside a Choose Invocation Order loop it counts all non-teleport movement of the cast.",
+		examples = {"Max(0, Movement Speed - Cast.SpacesMovedThisInvocation)"},
+	},
     hasprimarytarget = {
         name = "Has Primary Target",
         type = "creature",
@@ -581,6 +587,17 @@ ActivatedAbilityCast.lookupSymbols = {
 		return c.spacesMoved
 	end,
 
+	--Movement accumulated since the most recent BeginInvocationMovementScope
+	--call (one pass of an invoke behavior's Choose Invocation Order loop),
+	--excluding teleport-style distance (see CountTeleportDistance). If no scope
+	--was ever begun the bases are 0, so this degrades to "all non-teleport
+	--movement of the cast".
+	spacesmovedthisinvocation = function(c)
+		local moved = c.spacesMoved - c:try_get("_tmp_spacesMovedInvocationBase", 0)
+		local teleported = c:try_get("_tmp_teleportSpacesMoved", 0) - c:try_get("_tmp_teleportSpacesMovedInvocationBase", 0)
+		return math.max(0, moved - teleported)
+	end,
+
 	tier = function(c)
 		return c.tier
 	end,
@@ -814,6 +831,29 @@ function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, i
 	self.damageTable[targetToken.charid] = self.damageTable[targetToken.charid] or { dealt = 0, raw = 0 }
 	self.damageTable[targetToken.charid].dealt = self.damageTable[targetToken.charid].dealt + damageDealt
 	self.damageTable[targetToken.charid].raw = self.damageTable[targetToken.charid].raw + damageRaw
+end
+
+--Marks the start of a new per-target invocation scope. Called by
+--ActivatedAbilityInvokeAbilityBehavior at the top of each pass of its
+--Choose Invocation Order (promptWhenResolving) loop, so the
+--SpacesMovedThisInvocation GoblinScript symbol reports only the movement
+--that happened while resolving the CURRENT chosen target. Deliberately NOT
+--called by every invoke behavior: nested invokes (e.g. a shift invoked as
+--one leg of a multi-behavior chain) would otherwise reset the scope right
+--before their own parameter formulas are evaluated, zeroing the symbol.
+--The bases are _tmp_ (transient) fields: they are per-client scratch state
+--and must not be serialized with the cast.
+function ActivatedAbilityCast:BeginInvocationMovementScope()
+    self._tmp_spacesMovedInvocationBase = self.spacesMoved
+    self._tmp_teleportSpacesMovedInvocationBase = self:try_get("_tmp_teleportSpacesMoved", 0)
+end
+
+--Records distance covered by teleport-style repositioning (teleport, relocate,
+--creature swap). These DO count toward spacesMoved (existing content depends on
+--that), but SpacesMovedThisInvocation subtracts them so a teleport does not
+--consume a "remainder of your speed" budget computed from it.
+function ActivatedAbilityCast:CountTeleportDistance(distance)
+    self._tmp_teleportSpacesMoved = self:try_get("_tmp_teleportSpacesMoved", 0) + distance
 end
 
 function ActivatedAbilityCast:CountForcedMovementDamage(damageDealt, creature)

@@ -2806,3 +2806,127 @@ GameSystem.RegisterGoblinScriptField{
 		return false
 	end,
 }
+
+--------------------------------------------------------------------------------
+-- AdjacentToWater: Water Weird support.
+--
+-- A location is "adjacent to water" when the square itself or any square
+-- within 1 of it is a body of water (tile rules flagged as water; the engine
+-- merges apply-to-all water markup zones into those rules), OR when a creature
+-- that counts as a water elemental occupies the square or an adjacent square.
+--
+-- "Water elemental" rule as implemented: the creature's keywords include
+-- "Elemental" AND the creature has a swim speed. This deliberately covers the
+-- Water Wolves (keywords Water Wolf + Elemental, swim 6/8) while excluding
+-- elementals with no affinity for water (a fire elemental has no swim speed).
+-- Dead or dying creatures do not count as bodies of water.
+--
+-- The casting creature itself never counts as the qualifying elemental: the
+-- Water Weird rule says "any OTHER water elemental", and while a teleport
+-- filtered on this symbol is being targeted the caster's own token is still
+-- standing on the map, so without an exclusion every square within 2 of the
+-- caster would qualify. ActivatedAbility:TargetLocPassesFilterPredicate stamps
+-- the caster's token id onto the symbolized Loc as _tmp_casterid; the Loc
+-- field honors that here. The creature-side field excludes its own token.
+--------------------------------------------------------------------------------
+
+local function IsWaterElementalToken(tok, excludeCharid)
+	if tok == nil or not tok.valid then
+		return false
+	end
+	if excludeCharid ~= nil and tok.charid == excludeCharid then
+		return false
+	end
+
+	local props = tok.properties
+	if props == nil then
+		return false
+	end
+
+	--a dead or dying elemental is not a body of water. pcall guards: token
+	--properties are not guaranteed to bind as a full creature type, and
+	--reading a missing method on a game-typed instance raises.
+	local dead = false
+	pcall(function() dead = props:IsDeadOrDying() end)
+	if dead then
+		return false
+	end
+
+	local isElemental = false
+	pcall(function()
+		for keyword,_ in pairs(props:Keywords() or {}) do
+			if string.lower(keyword) == "elemental" then
+				isElemental = true
+				break
+			end
+		end
+	end)
+	if not isElemental then
+		return false
+	end
+
+	local canSwim = false
+	pcall(function() canSwim = props:CanSwim() end)
+	return canSwim
+end
+
+--True if engineLoc itself, or any square within radius 1 of it, is water
+--terrain or holds a water elemental (other than excludeCharid's token).
+local function LocTouchesWater(engineLoc, excludeCharid)
+	local locs = { engineLoc }
+	for _,adj in ipairs(engineLoc:LocsInRadius(1) or {}) do
+		locs[#locs+1] = adj
+	end
+
+	for _,loc in ipairs(locs) do
+		--GetTileRulesAtLoc returns nil off-map / where there is no terrain.
+		local rules = dmhub.GetTileRulesAtLoc(loc)
+		if rules ~= nil and rules.water then
+			return true
+		end
+
+		for _,tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+			if IsWaterElementalToken(tok, excludeCharid) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+GameSystem.RegisterGoblinScriptField{
+	target = Loc,
+	name = "AdjacentToWater",
+	type = "boolean",
+	desc = "True if this location is, or is within 1 square of, a body of water (water terrain or a water markup zone), or is within 1 square of a water elemental creature. A creature casting an ability filtered on this never counts itself as the water elemental.",
+	seealso = {"Environment", "Concealment"},
+	examples = {"target.AdjacentToWater"},
+	calculate = function(c)
+		local engineLoc = rawget(c, "_tmp_loc")
+		if engineLoc == nil then
+			return false
+		end
+
+		return LocTouchesWater(engineLoc, rawget(c, "_tmp_casterid"))
+	end,
+}
+
+--Creature-side twin used for the caster gate ("the wolf can enter an ADJACENT
+--body of water"): true when the creature's own square touches water by the
+--same rule, never counting the creature's own token as the water elemental.
+GameSystem.RegisterGoblinScriptField{
+	name = "AdjacentToWater",
+	type = "boolean",
+	desc = "True if this creature is in or adjacent to a body of water (water terrain or a water markup zone), or adjacent to another water elemental creature. The creature's own token never counts as the water elemental.",
+	seealso = {"Keywords"},
+	examples = {"self.AdjacentToWater"},
+	calculate = function(c)
+		local token = dmhub.LookupToken(c)
+		if token == nil or token.loc == nil then
+			return false
+		end
+
+		return LocTouchesWater(token.loc, token.charid)
+	end,
+}

@@ -1300,6 +1300,10 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
     print("MARKER:: GENERAL", self.targetType, "X (", self.targetFilter, ")")
 	return function(loc)
 		local symbolizedLoc = Loc.Create(loc)
+		--make the casting token available to Loc GoblinScript fields that must
+		--exclude it (e.g. AdjacentToWater treats other water elementals as
+		--bodies of water, but never the caster itself). _tmp_ = transient.
+		symbolizedLoc._tmp_casterid = casterToken.charid
 		symbolsCopy.target = symbolizedLoc
 
 		local result = GoblinScriptTrue(ExecuteGoblinScript(self.targetFilter, casterToken.properties:LookupSymbol(symbolsCopy), 0, string.format("Target location filter for %s", self.name)))
@@ -1308,13 +1312,31 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 end
 
 
+--Returns the failure message for the first abilityFilters entry whose formula
+--evaluates false, or nil if all pass. The failing filter table itself is
+--returned as a second value so callers can inspect extra fields on the entry
+--(e.g. sightlines = true asks the action bar to draw line-of-sight arrows from
+--enemies that can see the caster while the blocked ability is hovered).
+--Callers that use this in an `or` expression naturally truncate to just the
+--message.
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local filters = self:try_get("abilityFilters", {})
 
+    --HideGate diagnostics: the Hide maneuver's cover/concealment gate is easy to
+    --break silently (a GoblinScript error in a filter formula evaluates to the
+    --default of 1 = pass), so trace its evaluation to the console.
+    local diag = self.name == "Hide"
+    if diag then
+        print(string.format("HideGate:: evaluating %d filter(s) on %s", #filters, self.name))
+    end
+
     for _,filter in ipairs(filters) do
         local result = ExecuteGoblinScript(filter.formula, casterCreature:LookupSymbol{}, 1, "Test ability filter")
+        if diag then
+            print("HideGate:: formula [", filter.formula, "] ->", result, "pass =", GoblinScriptTrue(result))
+        end
         if not GoblinScriptTrue(result) then
-            return StringInterpolateGoblinScript(filter.reason, casterCreature)
+            return StringInterpolateGoblinScript(filter.reason, casterCreature), filter
         end
     end
 

@@ -248,6 +248,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			local swapDistance = casterToken:Distance(targets[1].loc)
 			if swapDistance > 0 then
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + swapDistance
+				--teleport-style distance: counted in spacesMoved (above) but excluded
+				--from Cast.SpacesMovedThisInvocation.
+				options.symbols.cast:CountTeleportDistance(swapDistance)
 			end
 			casterToken:SwapPositions(swapTokens[1])
 		elseif movementType == "teleport" or movementType == "relocate" then
@@ -266,6 +269,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             local distance = casterToken:Distance(destLoc)
             if distance > 0 then
 			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
+                --teleport-style distance: counted in spacesMoved (above) but excluded
+                --from Cast.SpacesMovedThisInvocation.
+                options.symbols.cast:CountTeleportDistance(distance)
             end
 
             if movementType == "relocate" then

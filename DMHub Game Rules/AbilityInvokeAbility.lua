@@ -374,6 +374,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
     repeat
 
+        --Each pass of this loop resolves the invoke for ONE chosen target when
+        --Choose Invocation Order is on. Mark the start of a fresh movement
+        --scope on the shared cast so Cast.SpacesMovedThisInvocation reports
+        --only this target's movement (e.g. Pack Formation: each wolf's second
+        --shift is limited to the remainder of THAT wolf's speed, not starved
+        --by the wolves that moved before it). Gated on promptWhenResolving:
+        --nested invoke behaviors (the legs of a multi-behavior chain) run this
+        --same Cast function and must NOT reset the scope, or a later leg's
+        --parameter formulas would always see 0.
+        if promptWhenResolving and options.symbols ~= nil and options.symbols.cast ~= nil then
+            options.symbols.cast:BeginInvocationMovementScope()
+        end
+
         if promptWhenResolving and #targetChoices > 0 then
 
             print("INVOKE:: ChooseTarget:: prompting...")

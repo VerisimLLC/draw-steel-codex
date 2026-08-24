@@ -6449,26 +6449,41 @@ function creature:PersistentAbilities()
 
             local targets = nil
 
+            --Set when a recast_target persistence has nobody left to recast on
+            --(every original target is dead, removed from the map, or -- with the
+            --"Target Must Be In Range" option -- out of range). The trigger is
+            --not offered at all in that case: previously it still prompted and
+            --opened a targeting flow whose filter matched no token, leaving the
+            --player with nothing to do but Skip.
+            local noValidTargets = false
+
             local filterstr = ""
             if persistenceMode == "recast_target" then
                 targeting = "inherit"
                 targets = {}
-                for i, targetid in ipairs(a.targets or {}) do
-                    if i == #a.targets then
-                        filterstr = string.format("%s %s", filterstr,
-                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                    else
-                        filterstr = string.format("%s or %s", filterstr,
-                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                    end
-                end
+                local selfToken = dmhub.LookupToken(self)
+                local filterParts = {}
                 for _, targetid in ipairs(a.targets or {}) do
                     local targetToken = dmhub.GetTokenById(targetid)
-                    if targetToken ~= nil then
+                    local usable = targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
+                        and (not targetToken.properties:IsDead())
+                    if usable and persistence.inrange == true and selfToken ~= nil then
+                        local range = ability:GetRange(self)
+                        if type(range) == "number" and selfToken:Distance(targetToken) > range then
+                            usable = false
+                        end
+                    end
+                    if usable then
                         targets[#targets + 1] = {
                             token = targetToken,
                         }
+                        filterParts[#filterParts + 1] = string.format("self.id = %s", Utils.HashGuidToNumber(targetid))
                     end
+                end
+                if #filterParts == 0 then
+                    noValidTargets = true
+                else
+                    filterstr = table.concat(filterParts, " or ")
                 end
                 ability.targetFilter = filterstr
             elseif persistenceMode == "recast_with_one_target" then
@@ -6496,9 +6511,24 @@ function creature:PersistentAbilities()
                 end
             end
 
+            --Prompt shown at the bottom of the screen while the recast is being
+            --targeted. An ability can supply its own wording through
+            --persistence.promptText (authored in the ability data); it is
+            --appended after the ability name so the player sees what the recast
+            --lets them do. Conditions the engine has already checked before
+            --offering the trigger (start of turn, target alive) should not be
+            --restated there.
+            local promptText
+            local customPrompt = persistence.promptText
+            if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
+                promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
+            else
+                promptText = string.format(tr("Persistence: Recast %s"), ability.name)
+            end
+
             local invoke = ActivatedAbilityInvokeAbilityBehavior.new {
                 customAbility = ability,
-                promptText = string.format(tr("Persistence: Recast %s"), ability.name),
+                promptText = promptText,
                 targeting = "prompt",
                 --targetingFormula = filterstr,
                 --targets = targets,
@@ -6523,7 +6553,9 @@ function creature:PersistentAbilities()
                 domains = {},
             }
 
-            result[#result + 1] = mod
+            if not noValidTargets then
+                result[#result + 1] = mod
+            end
         end
     end
 
@@ -6621,6 +6653,100 @@ function creature:EndPersistentAbilityById(guid)
     }
 
     return false
+end
+
+--- True when this persistent entry exists only to recast on specific targets
+--- (mode recast_target) and EVERY one of those targets is dead or gone from
+--- the map, so there is nothing left to maintain it for. Conservative on
+--- purpose:
+---  * one surviving target out of several keeps the entry alive;
+---  * an out-of-range target is not "gone" (it can come back into range);
+---  * an entry that is also keeping something else alive -- a linked aura or
+---    object, or a behavior with a "persistence" duration (e.g. the area of
+---    Web of All That's Come Before) -- is never reported, since ending it
+---    would drop that effect too;
+---  * an entry with no recorded targets is never reported.
+--- @param entry Persistence
+--- @return boolean
+function creature:PersistentAbilityTargetsAllDead(entry)
+    if type(entry) ~= "table" then
+        return false
+    end
+
+    --Entries are normally Persistence instances, but tolerate a plain table
+    --(older/partial data) rather than raising on a missing field.
+    local function field(key)
+        if entry.try_get ~= nil then
+            return entry:try_get(key)
+        end
+        return rawget(entry, key)
+    end
+
+    local ability = field("ability")
+    if ability == nil or type(ability) ~= "table" or getmetatable(ability) == nil then
+        return false
+    end
+
+    local persistence = ability:Persistence()
+    if persistence == nil or persistence.mode ~= "recast_target" then
+        return false
+    end
+
+    local targets = field("targets") or {}
+    if #targets == 0 then
+        return false
+    end
+
+    if #(field("objects") or {}) > 0 then
+        return false
+    end
+
+    for _, aura in ipairs(self:try_get("auras", {})) do
+        if aura:try_get("persistenceId") == entry.guid then
+            return false
+        end
+    end
+
+    for _, behavior in ipairs(ability:try_get("behaviors") or {}) do
+        if type(behavior) == "table" and behavior:try_get("duration") == "persistence" then
+            return false
+        end
+    end
+
+    for _, targetid in ipairs(targets) do
+        local targetToken = dmhub.GetTokenById(targetid)
+        if targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
+            and (not targetToken.properties:IsDead()) then
+            return false
+        end
+    end
+
+    return true
+end
+
+--- Ends every persistent ability whose recast targets are all dead or gone
+--- (see PersistentAbilityTargetsAllDead), so the caster is no longer charged
+--- for maintaining it. Returns the names of the abilities that were ended.
+--- Intended to run at the start of the caster's turn, before the persistence
+--- cost is settled.
+--- @return string[]
+function creature:AutoEndPersistentAbilitiesWithDeadTargets()
+    local ended = {}
+    local persistentAbilities = self:try_get("persistentAbilities", {})
+    for i = #persistentAbilities, 1, -1 do
+        local entry = persistentAbilities[i]
+        if self:PersistentAbilityTargetsAllDead(entry) then
+            local name = nil
+            if entry.try_get ~= nil then
+                name = entry:try_get("abilityName")
+            else
+                name = rawget(entry, "abilityName")
+            end
+            ended[#ended + 1] = name or "Persistent Ability"
+            self:EndPersistentAbilityById(entry.guid)
+        end
+    end
+    return ended
 end
 
 creature.RegisterSymbol {

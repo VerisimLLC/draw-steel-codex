@@ -847,7 +847,11 @@ local g_movementDiagramShown = false
 ---        numbers (already computed from the game rules); forwarded through the
 ---        tiletooltip event as movingPathDamages so the movement diagram draws
 ---        the same red "-N" annotations the map targeting labels show.
-local function ShowMovementDiagram(token, path, label, alternates, damages)
+--- @param textOverride nil|string replaces the whole "<label>: <n> squares"
+---        first line, for previews that are not a movement at all (a summon
+---        placement reads "Goblin Runner appears here"). The elevation suffix is
+---        still appended.
+local function ShowMovementDiagram(token, path, label, alternates, damages, textOverride)
     if token == nil or path == nil or GameHud.instance == nil then
         return
     end
@@ -861,10 +865,13 @@ local function ShowMovementDiagram(token, path, label, alternates, damages)
 
     --Minimal, preview-path-safe movement text (numSteps / origin / destination
     --are populated on a move preview path; the fields TokenMoving reads are not).
-    local text = label
-    if path.numSteps ~= nil then
-        local distance = path.numSteps * dmhub.FeetPerTile
-        text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+    local text = textOverride
+    if text == nil then
+        text = label
+        if path.numSteps ~= nil then
+            local distance = path.numSteps * dmhub.FeetPerTile
+            text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+        end
     end
 
     if path.origin ~= nil and path.destination ~= nil then
@@ -9476,6 +9483,27 @@ CreateAbilityController = function()
             local cancel = options.cancel or function() end
 
             gui.SetFocus(nil)
+
+            --The chooser lives inside the action bar, and "refresh" hides the
+            --whole bar when there is no token to show. An off-turn cast fired
+            --from the initiative bar (villain actions) with nothing selected
+            --pops its caster the moment the cast begins, so a behavior that
+            --then prompts for a target (Prompt When Resolving) would build its
+            --prompt inside a hidden bar: the cast silently waits on a choice
+            --nobody can see. Push the prompt's source token as the caster for
+            --the life of the chooser so the bar shows it; popped in destroy.
+            local pushedSourceToken = false
+            if options.sourceToken ~= nil and options.sourceToken.valid then
+                local shownToken = g_token
+                if #g_casterTokenStack == 0 then
+                    shownToken = dmhub.selectedOrPrimaryTokens[1]
+                end
+                if shownToken == nil or not shownToken.valid then
+                    PushCasterToken(options.sourceToken)
+                    pushedSourceToken = true
+                end
+            end
+
             g_actionBar:FireEvent("refresh")
 
             g_actionBar:SetClassTree("choosingTarget", true)
@@ -9519,6 +9547,13 @@ CreateAbilityController = function()
                     end
                     gui.SetFocus(nil)
                     g_actionBar:SetClassTree("choosingTarget", false)
+                    if pushedSourceToken then
+                        pushedSourceToken = false
+                        TryPopCasterToken()
+                        if g_actionBar ~= nil and g_actionBar.valid then
+                            g_actionBar:FireEvent("refresh")
+                        end
+                    end
                 end,
             }
 
@@ -9955,6 +9990,7 @@ CreateAbilityController = function()
                             --always shows it for jumps (vertically interesting by definition) and gates
                             --teleports on interest; the label reflects the movement type.
                             local diagramLabel = tr("Movement")
+                            local diagramTextOverride = nil
                             if movementType == "jump" then
                                 diagramLabel = tr("Jump")
                                 if g_jumpHoverUnreachable then
@@ -9974,8 +10010,23 @@ CreateAbilityController = function()
                                 --a teleport so the diagram keeps the dialed landing altitude and
                                 --synthesizes the arrival fall for a non-flyer.
                                 movementInfo.path.teleport = true
+                            elseif movementType == nil then
+                                --The ability moves nobody -- it PLACES something in the hovered
+                                --square (a summon). The default "Movement: 3 squares" reads as the
+                                --caster walking there and quotes a movement cost that is never
+                                --spent, so name what actually arrives. GetPlacementName is nil for
+                                --any other nil-movement ability, which keeps the old wording.
+                                local placementName = g_currentAbility:GetPlacementName(g_token, g_currentSymbols)
+                                if placementName ~= nil then
+                                    diagramLabel = placementName
+                                    diagramTextOverride = string.format(tr("%s appears here"), placementName)
+                                    if movementInfo.path.numSteps ~= nil then
+                                        local placementDist = movementInfo.path.numSteps * dmhub.FeetPerTile
+                                        diagramTextOverride = string.format(tr("%s appears here (%s %s away)"), placementName, MeasurementSystem.NativeToDisplayString(placementDist), string.lower(MeasurementSystem.UnitName()))
+                                    end
+                                end
                             end
-                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates)
+                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates, nil, diagramTextOverride)
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then

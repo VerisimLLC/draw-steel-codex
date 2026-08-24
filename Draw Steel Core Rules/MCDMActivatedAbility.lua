@@ -3576,6 +3576,27 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
         return ""
     end
 
+    --Square-targeted abilities that PLACE something (a summon) rather than move
+    --a creature: "Choose Target 1/2" says nothing about what is being placed, so
+    --name it -- "Choose where Goblin Runner 2 appears". GetPlacementName is nil
+    --for every other ability, and for a summon whose creature the caster has yet
+    --to pick, so the generic wording below still covers those.
+    if self.targetType == "emptyspace" or self.targetType == "anyspace" then
+        local placementName = self:GetPlacementName(casterToken, symbols)
+        if placementName ~= nil then
+            local index = #targets + 1
+            if self.sequentialTargeting and symbols ~= nil and symbols.targetnumber ~= nil then
+                index = symbols.targetnumber
+            end
+
+            if numTargets == 1 then
+                return string.format("Choose where %s appears", placementName)
+            end
+
+            return string.format("Choose where %s %d appears", placementName, index)
+        end
+    end
+
     if numTargets == 1 and #targets == 0 then
         return nil
     end

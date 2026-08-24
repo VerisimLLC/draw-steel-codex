@@ -653,6 +653,9 @@ local function OverviewAbilityFacets(ability)
     end
     pcall(function()
         facets.multiTarget = (tonumber(ability.numTargets) or 1) > 1 or ability.targetType == "all"
+        if ability:HasKeyword("Area") == true then
+            facets.multiTarget = false
+        end
     end)
     pcall(function()
         facets.area = ability:HasKeyword("Area") == true
@@ -2039,6 +2042,7 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewTakeTurn" },
         width = "100%",
         height = 26,
+        halign = "center",
         tmargin = 6,
         bgimage = true,
         bgcolor = "#2A2A2A",
@@ -4994,13 +4998,12 @@ local function OverviewPluralPossessive(name)
     return name .. "s'"
 end
 
---"Take <Name>'s turn" (single actor) / "Take a <Name>'s turn" (several
---members with their OWN initiative entries - the press then asks which) /
---"Take the <Names>' turn" (F2-3: several members sharing ONE entry via
---initiativeGrouping, e.g. Sneaky + Dizzy Assassin - they act as a unit, so
---say so instead of surprising the Director). Falls back to "Take turn" when
---the name would not fit the 205px footer; the full text always goes in the
---tooltip.
+--Field test 25: the button is ALWAYS the generic "Take turn" - long monster
+--names (War Dog Subcommander) overflowed the 205px footer, and the column
+--already names the creature. The specific phrasing - "Take <Name>'s turn" /
+--"Take a <Name>'s turn" (several members with their own entries; the press
+--then asks which) / "Take the <Names>' turn" (F2-3: members sharing ONE
+--entry via initiativeGrouping act as a unit) - lives in the tooltip.
 local function OverviewTakeTurnText(column, memberCount, sharedEntry)
     local name = column.name or "Creature"
     local full
@@ -5011,11 +5014,7 @@ local function OverviewTakeTurnText(column, memberCount, sharedEntry)
     else
         full = string.format("Take %s's turn", name)
     end
-    local short = full
-    if #full > 32 then
-        short = "Take turn"
-    end
-    return short, full
+    return "Take turn", full
 end
 
 --One pooled footer bar. Populate/refresh via FireEvent("overviewColumn",

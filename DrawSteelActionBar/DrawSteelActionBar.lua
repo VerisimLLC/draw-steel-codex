@@ -1646,6 +1646,17 @@ local OVERVIEW_FOOTER_RULES = {
         halign = "left",
         valign = "center",
     },
+    --Field test 18: the green relatively-safe line (exception only).
+    {
+        selectors = { "overviewFooterSafe" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = "#7AC77A",
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    },
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
     {
         selectors = { "overviewFooterRisk" },
@@ -3200,7 +3211,10 @@ local function AbilityHeading(args)
     local m_dmgBadge = gui.Panel {
         classes = { "overviewDmgBadge", "collapsed" },
         bgimage = "panels/square.png",
-        hover = gui.Tooltip{ text = "This ability does high damage", valign = "top" },
+        data = { tooltip = "This ability does high damage" },
+        hover = function(element)
+            gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+        end,
         gui.Panel {
             classes = { "overviewDmgIcon" },
             bgimage = "game-icons/surge.png",
@@ -3277,8 +3291,9 @@ local function AbilityHeading(args)
             args.overviewPress = overviewPress
         end,
 
-        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon)
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip)
             m_dmgBadge:SetClass("collapsed", dmg ~= true)
+            m_dmgBadge.data.tooltip = dmgTooltip or "This ability does high damage"
             m_multiBadge:SetClass("collapsed", multi ~= true)
             local tint = multiDamaging and "#E06464" or "#EDEDED"
             m_multiIcon1.selfStyle.bgcolor = tint
@@ -4275,7 +4290,7 @@ local function OverviewHeroProfiles()
     end
     local list = {}
     for _, hero in ipairs(OverviewHeroTokens()) do
-        local profile = { token = hero, speed = 0, range = 1, burst = 0, spent = false }
+        local profile = { token = hero, speed = 0, range = 1, burst = 0, sigBurst = 0, sigForced = 0, spent = false }
         pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
         pcall(function()
             local abilities = hero.properties:GetActivatedAbilities { bindCaster = true } or {}
@@ -4289,6 +4304,15 @@ local function OverviewHeroProfiles()
                     if facets.damageValue > profile.burst then
                         profile.burst = facets.damageValue
                     end
+                    --Field test 18: Near Death is judged by SIGNATURE
+                    --abilities only - the hit the hero always has, no
+                    --resource guessing (Ricky: simple, legible rule).
+                    if variation.categorization == "Signature Ability" then
+                        if facets.damageValue > profile.sigBurst then
+                            profile.sigBurst = facets.damageValue
+                            profile.sigForced = facets.forcedDistance or 0
+                        end
+                    end
                     if facets.damage then
                         local tt = variation.targetType
                         if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
@@ -4300,6 +4324,11 @@ local function OverviewHeroProfiles()
                     end
                 end
             end
+            --A hero with no parseable signature still threatens: fall back
+            --to their best hit so they are never counted as harmless.
+            if profile.sigBurst == 0 then
+                profile.sigBurst = profile.burst
+            end
         end)
         if q ~= nil then
             pcall(function() profile.spent = q:HasHadTurn(InitiativeQueue.GetInitiativeId(hero)) == true end)
@@ -4310,43 +4339,28 @@ local function OverviewHeroProfiles()
     return list
 end
 
---Field test 6 (reverses F2-5b raw-numbers-only): LOW STAMINA = a typical
---(tier-2) hit from the hardest-hitting hero on the map would drop it -
---roughly "2 rolls in 3 kill it", close to Ricky's 65% intuition but tied to
---the tier system instead of a probability model. Hypothetical ANY hero, not
---just those in reach ("if a hero were to target them"). The raw number
---stays in parentheses.
-local function OverviewLowStamina(tok, inCombat)
+--Field test 18 (Ricky's redesign after D3 playtest): ONE state only.
+--"NEAR DEATH" (red) = an UNSPENT hero within striking range would drop the
+--monster with a tier-2 hit of a SIGNATURE ability. Spent heroes do not
+--count at all - they cannot act before the Director's next turn. No amber
+--tier, no allowances, no guidance lines: a simple, legible rule (accepted
+--trade-off, recorded: combos/crits/heroics can still kill "safe" monsters).
+--Cheap forced-movement flag (no wall physics): if the signature alone
+--misses the kill but signature + its push distance would reach it, the
+--monster still reads Near Death with a "push could finish it" bullet.
+--
+--Returns risk (nil, or {level="red", text, tooltip}), safeOutside (true
+--when NO unspent hero has the monster within striking range - the green
+--"Outside reach of heroes" line; recorded exception for later: on the
+--Director's last turn of the round, next round's refreshed heroes matter).
+local function OverviewThreatEstimate(tok, threats, inCombat)
     if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
-        return false
+        return nil, false
     end
     local cur = nil
     pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
     if cur == nil or cur <= 0 then
-        return false
-    end
-    local best = 0
-    for _, profile in ipairs(OverviewHeroProfiles()) do
-        if profile.burst > best then
-            best = profile.burst
-        end
-    end
-    return best > 0 and cur <= best
-end
-
---nil when safe (or no queue/stamina data), else {level, text, tooltip}.
---marked = the member carries a hero-applied threat flag (P2-a statuses).
---lowStamina feeds a bullet (computed by the caller so the label and the
---risk box agree).
-local function OverviewThreatEstimate(tok, threats, inCombat, lowStamina, turnSpent)
-    local marked = threats ~= nil and #threats > 0
-    if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
-        return nil
-    end
-    local cur = nil
-    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
-    if cur == nil or cur <= 0 then
-        return nil
+        return nil, false
     end
 
     local locs = nil
@@ -4357,131 +4371,100 @@ local function OverviewThreatEstimate(tok, threats, inCombat, lowStamina, turnSp
         end
     end)
     if locs == nil then
-        return nil
+        return nil, false
     end
 
-    local inReach = {}
-    local spentCount = 0
+    local killer = nil
+    local pushKiller = nil
+    local anyUnspentInReach = false
     for _, profile in ipairs(OverviewHeroProfiles()) do
-        local hloc = nil
-        pcall(function() hloc = profile.token.loc end)
-        if hloc ~= nil then
-            local nearest = nil
-            for _, loc in ipairs(locs) do
-                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
-                if nearest == nil or d < nearest then
-                    nearest = d
+        if not profile.spent then
+            local hloc = nil
+            pcall(function() hloc = profile.token.loc end)
+            if hloc ~= nil then
+                local nearest = nil
+                for _, loc in ipairs(locs) do
+                    local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                    if nearest == nil or d < nearest then
+                        nearest = d
+                    end
+                end
+                if nearest ~= nil and nearest <= profile.speed + profile.range then
+                    anyUnspentInReach = true
+                    if profile.sigBurst > 0 and cur <= profile.sigBurst then
+                        if killer == nil then
+                            killer = profile
+                        end
+                    elseif profile.sigBurst > 0 and profile.sigForced > 0
+                        and cur <= profile.sigBurst + profile.sigForced then
+                        if pushKiller == nil then
+                            pushKiller = profile
+                        end
+                    end
                 end
             end
-            if nearest ~= nil and nearest <= profile.speed + profile.range then
-                local adjusted = profile.burst
-                if profile.spent then
-                    adjusted = adjusted * 0.5
-                    spentCount = spentCount + 1
-                end
-                inReach[#inReach + 1] = { profile = profile, adjusted = adjusted }
+        end
+    end
+
+    local safeOutside = not anyUnspentInReach
+    if killer == nil and pushKiller == nil then
+        return nil, safeOutside
+    end
+
+    --Headline + WHY-bullets only (Ricky: no killer names on the chip; the
+    --arithmetic and the hero's name live in the tooltip).
+    local bullets = { "Low Stamina" }
+    local seen = {}
+    local shown = 0
+    for _, entry in ipairs(threats or {}) do
+        local text = entry.name or "Marked"
+        if entry.casterName ~= nil then
+            text = string.format("%s by %s", text, entry.casterName)
+        else
+            text = text .. " by a hero"
+        end
+        if not seen[text] then
+            seen[text] = true
+            if shown < 2 then
+                bullets[#bullets + 1] = text
             end
+            shown = shown + 1
         end
     end
-    table.sort(inReach, function(a, b) return a.adjusted > b.adjusted end)
-
-    local best1 = inReach[1] ~= nil and inReach[1].adjusted or 0
-    local best2 = inReach[2] ~= nil and inReach[2].adjusted or 0
-
-    --Field test 7: RED is a stamina-vs-damage VERDICT, never granted by a
-    --mark alone - a marked 80-stamina Monarch is urgent, not dying. A mark
-    --raises the damage allowance instead (mark benefits are extra damage)
-    --and guarantees at least amber while anyone can reach the monster.
-    --Low stamina alone guarantees at least amber, so the fact never
-    --disappears when nobody is currently in reach.
-    local allowance = g_overviewRisk.allowance
-    if marked then
-        allowance = allowance * 2
+    if shown > 2 then
+        bullets[#bullets] = string.format("%s +%d more", bullets[#bullets], shown - 2)
     end
-    local level = nil
-    if best1 > 0 and cur <= best1 + allowance then
-        level = "red"
-    elseif (best2 > 0 and cur <= best1 + best2 + allowance)
-        or (marked and #inReach > 0)
-        or lowStamina then
-        level = "amber"
-    end
-    if level == nil then
-        return nil
+    if killer == nil and pushKiller ~= nil then
+        bullets[#bullets + 1] = "A push could finish it"
     end
 
-    --Field test 6 layout: headline tag, then WHY as bullets, then a green
-    --guidance line (red only - amber is advisory, not a call to action).
-    local bullets = {}
-    --Field test 9: name the ACTUAL effects ("Dazed by Human Censor"), never
-    --the generic "Marked by heroes" - Marked is a specific mechanic and the
-    --Monarch was Dazed, not Marked.
-    if marked then
-        local seen = {}
-        local shown = 0
-        for _, entry in ipairs(threats) do
-            local text = entry.name or "Marked"
-            if entry.casterName ~= nil then
-                text = string.format("%s by %s", text, entry.casterName)
-            else
-                text = text .. " by a hero"
-            end
-            if not seen[text] then
-                seen[text] = true
-                if shown < 2 then
-                    bullets[#bullets + 1] = text
-                end
-                shown = shown + 1
-            end
-        end
-        if shown > 2 then
-            bullets[#bullets] = string.format("%s +%d more", bullets[#bullets], shown - 2)
-        end
-    end
-    if lowStamina then
-        bullets[#bullets + 1] = "Low Stamina"
-    end
-    if #inReach > 0 then
-        local striking = string.format("%d hero%s within striking range", #inReach, #inReach == 1 and "" or "es")
-        if spentCount == #inReach and spentCount > 0 then
-            striking = striking .. " (all spent)"
-        end
-        bullets[#bullets + 1] = striking
-    end
-
-    local color = level == "red" and g_overviewRisk.red or g_overviewRisk.amber
-    local headline = level == "red" and "High Death Risk" or "At Risk"
-    local lines = { string.format("<color=%s><b>%s</b></color>", color, headline) }
+    local lines = { string.format("<color=%s><b>Near Death</b></color>", g_overviewRisk.red) }
     for _, bullet in ipairs(bullets) do
         lines[#lines + 1] = "- " .. bullet
     end
-    --Guidance is a call to action; once the turn is spent there is nothing
-    --to spend, so the tag+bullets stand alone (still useful: it will likely
-    --die, plan around it).
-    if level == "red" and not turnSpent then
-        --Field test 12: squads spend the squad, not "a turn".
-        local isMinion = false
-        pcall(function() isMinion = tok.properties.minion == true end)
-        lines[#lines + 1] = string.format("<color=%s>%s</color>", OVERVIEW.GUIDE_COLOR,
-            isMinion and "Use squad before they die" or "Use turn before they die")
-    elseif level == "amber" and not turnSpent then
-        --Field test 9 ("what should the user DO with At Risk?"): say it.
-        lines[#lines + 1] = string.format("<color=%s>Consider using turn soon</color>", OVERVIEW.GUIDE_COLOR)
-    end
 
+    local threat = killer or pushKiller
+    local heroName = "a hero"
+    pcall(function()
+        if threat.token.canLocalPlayerSeeName then
+            heroName = threat.token.name
+        end
+    end)
     local tooltipParts = {}
-    tooltipParts[#tooltipParts + 1] = string.format("%s: %s.", headline, table.concat(bullets, "; "))
-    if best1 > 0 then
+    if killer ~= nil then
         tooltipParts[#tooltipParts + 1] = string.format(
-            "Hardest reachable hit ~%d damage (+%d for a triggered action%s) vs %d Stamina. Spent heroes count at half weight.",
-            math.floor(best1), allowance, marked and " and the mark benefit" or "", math.floor(cur))
+            "%s's signature hits ~%d vs %d Stamina.", heroName, math.floor(killer.sigBurst), math.floor(cur))
+    else
+        tooltipParts[#tooltipParts + 1] = string.format(
+            "%s's signature hits ~%d and pushes %d - a collision could cover the %d Stamina.",
+            heroName, math.floor(pushKiller.sigBurst), math.floor(pushKiller.sigForced), math.floor(cur))
     end
-    tooltipParts[#tooltipParts + 1] = "Straight-line estimate; crits and choices can beat it either way."
+    tooltipParts[#tooltipParts + 1] = "Counts only heroes who have not acted, within striking range. Tier-2 signature estimate; crits and other abilities can beat it either way."
     return {
-        level = level,
+        level = "red",
         text = table.concat(lines, "\n"),
         tooltip = table.concat(tooltipParts, "\n"),
-    }
+    }, safeOutside
 end
 
 --Acted-this-round from the live initiative queue: true / false, or nil when
@@ -4634,12 +4617,7 @@ local function OverviewColumnSignals(column)
                         threats[#threats + 1] = entry
                     end
                 end
-                local lowStamina = OverviewLowStamina(tok, q ~= nil)
-                --Field test 7: Low Stamina appears exactly ONCE - as a risk
-                --bullet, never doubled on the stamina readout (the raw
-                --number stays plain).
-                member.risk = OverviewThreatEstimate(tok, threats, q ~= nil, lowStamina,
-                    member.acted == true or member.acting == true)
+                member.risk, member.safe = OverviewThreatEstimate(tok, threats, q ~= nil)
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -4979,9 +4957,16 @@ local function OverviewColumnFooter()
             end
         end,
     }
-    --P2-e: the threat-estimate line ("High target risk - marked by heroes,
-    --3 heroes in striking range"); collapsed when safe. Hover = the
-    --arithmetic + the hint.
+    --Field test 18: green "Outside reach of heroes" - shown only when NO
+    --unspent hero has this monster within striking range (the parked
+    --artillery signal). Hover: relatively safe.
+    local safeLabel = gui.Label {
+        classes = { "overviewFooterSafe", "collapsed" },
+        text = "Outside reach of heroes",
+        hover = gui.Tooltip{ text = "Relatively safe - no ready hero can strike it before your next turn", valign = "top" },
+    }
+
+    --The Near Death box; collapsed when safe. Hover = the arithmetic.
     local m_riskTooltip = nil
     local riskLabel = gui.Label {
         classes = { "overviewFooterRisk", "collapsed" },
@@ -5077,6 +5062,7 @@ local function OverviewColumnFooter()
             roleLabel,
             signalLabel,
             reachLabel,
+            safeLabel,
             riskLabel,
         },
     }
@@ -5197,10 +5183,9 @@ local function OverviewColumnFooter()
                         signal = signal .. " - " .. reach
                     end
                 end
-                --P2-e short tag on the member row.
+                --Field test 18: rows tag only the exception.
                 if member.risk ~= nil then
-                    local color = member.risk.level == "red" and g_overviewRisk.red or g_overviewRisk.amber
-                    local tag = string.format("<color=%s><b>%s</b></color>", color, member.risk.level == "red" and "high risk" or "at risk")
+                    local tag = string.format("<color=%s><b>near death</b></color>", g_overviewRisk.red)
                     if signal == "" then
                         signal = tag
                     else
@@ -5599,29 +5584,27 @@ local function OverviewColumnFooter()
             --P2-e: risk line for a single actor; a multi-member column
             --shows the WORST member's line (its rows carry short tags).
             local risk = nil
+            local allSafe = #members > 0
             for _, member in ipairs(members) do
-                if member.risk ~= nil and (risk == nil or (member.risk.level == "red" and risk.level ~= "red")) then
+                if member.risk ~= nil and risk == nil then
                     risk = member.risk
                 end
+                if member.safe ~= true then
+                    allSafe = false
+                end
             end
+            safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
             m_riskTooltip = risk and risk.tooltip or nil
             local riskText = risk and risk.text or nil
-            --Field test 9: "High damage dealer" rides as a bullet under the
-            --risk tag (before the green guidance), or stands alone in gold
-            --when the creature is otherwise safe.
+            --"High damage dealer" rides as a bullet under Near Death, or
+            --stands alone in gold when the creature is otherwise safe.
             if column.highDamage then
                 if riskText == nil then
                     riskText = "<color=#C9A86A><b>High damage dealer</b></color>"
                     m_riskTooltip = "This creature's kit has the best typical (tier-2) damage in the selection."
                 else
-                    local bullet = "- High damage dealer"
-                    local guideAt = string.find(riskText, "<color=" .. OVERVIEW.GUIDE_COLOR, 1, true)
-                    if guideAt ~= nil then
-                        riskText = string.sub(riskText, 1, guideAt - 1) .. bullet .. "\n" .. string.sub(riskText, guideAt)
-                    else
-                        riskText = riskText .. "\n" .. bullet
-                    end
-                    m_riskTooltip = (m_riskTooltip or "") .. "\nBest typical (tier-2) damage among the dying - if several are about to die, burn this one for damage first."
+                    riskText = riskText .. "\n- High damage dealer"
+                    m_riskTooltip = (m_riskTooltip or "") .. "\nBest typical (tier-2) damage among the dying - burn this one for damage first."
                 end
             end
             riskLabel.text = riskText or ""
@@ -5885,14 +5868,18 @@ local function ActionSubMenu(args)
                 --death risk (ties share it). Overview monsters only, and only
                 --under the All / Damage lenses.
                 local dmgBadge = false
+                local dmgTooltip = nil
                 local multiBadge, multiDamaging, summonBadge = false, false, false
                 if overview then
                     local facets = facetsByAbility[abilities[i]]
                     if facets ~= nil then
                         if (lens == "all" or lens == "damage") and m_column ~= nil and facets.damageValue > 0 then
-                            if (m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax)
-                                or (m_column.anyRed and m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax) then
+                            if m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax then
                                 dmgBadge = true
+                                dmgTooltip = "Highest damage amongst selected monsters"
+                            elseif m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax then
+                                dmgBadge = true
+                                dmgTooltip = "Highest damage amongst near-death monsters - use it before it's lost"
                             end
                         end
                         --Field test 13: multi-target and summon markers ride
@@ -5906,7 +5893,7 @@ local function ActionSubMenu(args)
                         end
                     end
                 end
-                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge)
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip)
             end
 
             for i = #abilities + 1, #m_chips do
@@ -6431,13 +6418,22 @@ ActionMenu = function()
                 redMaxDamage = best
             end
         end
+        local redColumns = 0
+        for _, column in ipairs(columns) do
+            if column.anyRed then
+                redColumns = redColumns + 1
+            end
+        end
+        --Field test 18: the among-the-dying rule (badge AND footer bullet)
+        --only speaks when it DISAGREES with the overall-best rule and there
+        --is a real choice - two or more creatures near death. Otherwise the
+        --lone dying creature's own Near Death box already says everything.
+        local rule2Active = redColumns >= 2 and redMaxDamage > 0 and redMaxDamage < maxDamage
         for _, column in ipairs(columns) do
             column.highDamage = column.bestDamage > 0
-                and (column.bestDamage == maxDamage or (column.anyRed and column.bestDamage == redMaxDamage))
-            --Field test 10: chip-level DMG badge thresholds (same numbers,
-            --checked per ability in the column populate).
+                and (column.bestDamage == maxDamage or (rule2Active and column.anyRed and column.bestDamage == redMaxDamage))
             column.dmgMax = maxDamage > 0 and maxDamage or nil
-            column.dmgRedMax = redMaxDamage > 0 and redMaxDamage or nil
+            column.dmgRedMax = (rule2Active and column.anyRed) and redMaxDamage or nil
         end
 
         local populated = 0

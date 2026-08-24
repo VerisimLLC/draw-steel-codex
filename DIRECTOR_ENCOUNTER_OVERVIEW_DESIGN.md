@@ -1056,6 +1056,58 @@ shows Mark + Winded glyphs, Conduit Weakened + Bleeding, no error. Note for
 anyone reading TokenUI.CalculateStatusIcons output: hoverText is string OR
 function.
 
+**2026-08-19, eighteenth field test (Ricky, D3 Delian Tomb playtest) - THE
+RISK MODEL SIMPLIFIED TO ONE STATE. Live-verified both ways.**
+Playtest verdict on the two-tier model: "At Risk / Consider using turn soon"
+on every creature was NON-INFORMATIVE (a monster in combat is always at
+risk), and the Skeleton-red vs Zombie-amber split was invisible arithmetic
+(10 vs 20 stamina against burst+4). Redesign, per Ricky:
+- **ONE state: "Near Death" (red)** - replaces both "High Death Risk" and
+  the green guidance lines ("Use turn/squad before they die" and "Consider
+  using turn soon" are GONE; amber tier deleted everywhere incl. row tags).
+- **Criteria (simple, legible - accepted trade-off recorded: combos/crits/
+  heroics can beat it)**: an UNSPENT hero within striking range whose
+  SIGNATURE ability tier-2 damage >= current stamina. Spent heroes excluded
+  entirely (they cannot act before the Director's next turn; the x0.5
+  Strike-Now weighting is gone). Hero profiles gained sigBurst/sigForced
+  (fallback to best-any when no signature parses).
+- **Cheap forced-movement flag (no wall physics)**: signature misses but
+  signature + its push distance covers the stamina -> still Near Death with
+  bullet "A push could finish it". Full collision geometry deliberately NOT
+  built (hero picks push direction after moving; map raycasts per pair too
+  heavy) - revisit only if playtests demand.
+- **Bullets = plain reasons** ("Low Stamina", "Mark by High Elf Tactician");
+  killer names + arithmetic live in the TOOLTIP only ("Tactician's
+  signature hits ~8 vs 7 Stamina...").
+- **"N heroes within striking range" bullet DELETED; inverted to a green
+  exception line** "Outside reach of heroes" (hover "Relatively safe...")
+  shown only when NO UNSPENT hero has the monster in striking range -
+  Ricky overruled counting all heroes: the line informs THIS turn.
+  RECORDED EXCEPTION for later: on the Director's last turn of a round,
+  next round's refreshed heroes are the real threat set.
+- **DMG badge rules 1+2 refined**: rule 1 tooltip "Highest damage amongst
+  selected monsters"; rule 2 tooltip "Highest damage amongst near-death
+  monsters - use it before it's lost", and rule 2 (badge AND footer bullet)
+  fires ONLY when >= 2 creatures are Near Death AND the among-the-dying best
+  differs from the overall best (rule2Active in PopulateUniqueColumns).
+- Live D3 verification: full-health round-1 board shows NO risk boxes (party
+  best signature tier-2 = 8 vs 10+ stamina - the old model called Skeletons
+  red here); damaging a Skeleton to 7 flipped its column to "Near Death -
+  Low Stamina, Mark by High Elf Tactician, High damage dealer" and reverted
+  cleanly.
+
+**RECORDED IDEA (Ricky, not for now): skull-scale risk indicator** - replace
+the bullet case with "Death Risk" + 1 yellow / 2 amber / 3 red skulls, WHY in
+the hover only. Hodent-lens assessment (given in chat): skull COUNT is a
+good encoding (1-3 subitizes at a glance; count+colour double-coding is
+colour-blind-safe, matching the community-colour concern), but a 3-tier
+scale RESURRECTS the just-deleted uninformative middle tier, and moving the
+WHY into hover raises interaction cost for the core decision loop (the
+current design's bullets answer "why" ambiently). If ever revisited: two
+states max (present/absent), or skulls encoding something crisper than
+graded risk.
+
+
 
 
 

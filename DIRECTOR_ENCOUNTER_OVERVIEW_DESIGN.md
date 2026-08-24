@@ -1153,6 +1153,283 @@ tooltips aligned to the same two strings (their old copy had the same
 dash+imperative pattern). These principles extend the conclusion-not-
 homework rule and govern the P2-f copy pass.
 
+**2026-08-24, twenty-second report (Ricky, D3 live) - skulls, maneuver
+alignment, nested-rule conditions, Select All double-click (commit
+0090fef8). All five items live-verified.**
+- **Headline skull**: the villain-action skull from the "Provided By MCDM"
+  library (asset e31d918b-16a8-45bb-8c03-be039e0d5236, tinted #E06464,
+  16px) sits left of the "Near Death" headline via a new riskRow
+  (riskLabel width "100%-19"). NOTE for the next session: e31d918b is the
+  skull-with-"!" variant; the plain skull-crossbones is ebc8b529 - swap is
+  a one-line change if Ricky prefers it after seeing it live.
+- **Row skulls replace row text**: near-death member rows carry a small
+  13px floating-right skull on the SAME LINE as the name; the per-row
+  "near death" text tag is gone (chip shrink was the goal). Verified: all
+  three full-health Skeletons wear it (correct - Shadow's 13 covers their
+  10), Zombies/Ghouls clean.
+- **Maneuver chips align on the vertical axis across columns** (Ricky:
+  max one maneuver per monster, alignment aids comparison). Mechanism:
+  columns are bottom-anchored, so equal footer heights align everything
+  above - PopulateUniqueColumns resets each overviewFooter minHeight to 0,
+  then a TWO-PASS deferred measure (dmhub.Schedule 0.15s AND 0.5s, shared
+  EqualizeFooters closure) applies the max renderedHeight to all visible
+  footers. Two passes because a single early pass caught the footers
+  MID-LAYOUT: one frame after populate all three measured ~100px, the max
+  (100) was applied, and the footers then grew naturally past it -
+  minHeight must be re-measured after layout settles. Verified live:
+  288/191/230 -> all 304; Bone Spur / Zombie Dust / Leap on one band.
+- **Conditions hiding in nested rules found**: Ghoul Leap showed no prone
+  glyph because its "1 damage; prone" lives in a
+  DrawSteelCommandBehavior.rule INSIDE an InvokeAbilityBehavior
+  customAbility. OverviewAbilityFacets now scans behaviors recursively
+  (scanBehaviors, depth < 3): reads each DrawSteelCommandBehavior's rule
+  text and descends into InvokeAbilityBehavior:try_get("customAbility").
+  Verified: Leap = Prone, Razor Claws = Bleeding.
+- **Select All double-click opens the overview** (Ricky: "clicking it
+  again will then open the unique abilities action bar menu"). New export
+  DrawSteelActionBar.OpenUniqueMenu() presses the unique drawer when it is
+  visible and inactive; MCDMInitiativeBar's Select All press snapshots the
+  selection set, calls SelectReadyMonsters(), and when the set comes back
+  unchanged and non-empty opens the menu. First click still only selects.
+- Regression check rerun: single-monster selection keeps the classic strip
+  (unique drawer collapsed - Decision 43 gate is #selected >= 2 in
+  InOverviewMode, untouched by this slice).
+- Harness notes: GameHud.instance has no SelectToken and map has no
+  SelectTokens - `dmhub.selectedTokens = {tok}` remains the only scripted
+  selection route. mcp screenshot_panel takes panel_name and cannot find
+  "actionMenu"; use full screenshot + PIL crop.
+
+**2026-08-24, twenty-third report (Ricky) - skull refinements + Zombie Dust
+self-prone bug (commit ea58afb5). Live-verified.**
+- **Plain crossbones**: skull asset swapped to ebc8b529-f450-4bee-9466-
+  86374c26dc13 (Ricky did not want the "!" variant) on headline AND rows.
+- **Row skull inline, not floating right**: it now sits BEFORE the member
+  name (mirrors the headline's skull-then-text format), valign center on
+  the name line (Ricky: the floating one rode slightly high), and hovering
+  it shows "Near Death" (gui.Tooltip). Layout: rowNameLine horizontal
+  wrapper {rowSkull, rowLabel}; the name label narrows to "100%-16" via a
+  withSkull class so skull + ellipsized name never collide. The headline
+  skull also answers hover with the risk tooltip now.
+- **BUG from the recursive scanner (Ricky spotted a mystery third glyph +
+  "+1" on Zombie Dust)**: the top-level DrawSteelCommandBehavior rule
+  "prone" on Zombie Dust is a SELF-effect ("The zombie falls prone...")
+  with applyto="caster". RULE for the facet scanner: skip any
+  DrawSteelCommandBehavior whose applyto is "caster" - its rule text
+  describes the caster, not the targets. (Ghoul Leap still works: there
+  the INVOKE has applyto="caster" but the nested command behavior's
+  applyto is nil = the nested ability's own targets.) Verified: Zombie
+  Dust = Weakened, Dazed only.
+- **Bone Spur chip taller than Zombie Dust/Leap** (Ricky asked if anything
+  can be done): it is content-driven - Bone Spur carries a keyword line
+  ("Area, Weapon") the others lack. Could be equalized with the same
+  minHeight trick as the footers, at the cost of blank space inside the
+  shorter chips; Ricky ruled "padding with blank space is not a winning
+  move" - LEAVE AS IS.
+
+**2026-08-24, twenty-fourth report (Ricky: skulls approved, "I want to ship
+it") - headline alignment + rebuild guard (commit d89e05b7).**
+- Headline skull was valign top/tmargin 1 and the text read as riding
+  high; now valign center like the row skulls. (Committed while Ricky was
+  at the campaign screen - eyeball on next game entry.)
+- OpenUniqueMenu raised "unknown field actionBarPanel in type Hud" when
+  called mid-rebuild (Hud instance exists, field unassigned; unset-field
+  reads on game-typed instances RAISE). Now GameHud.instance:try_get
+  ("actionBarPanel") + .valid check. try_get IS available on the Hud type
+  (verified live).
+- Next validation step chosen by Ricky: simulate the Fall of Blackbottom
+  "To the Skies" encounter (6 unique statblocks) on the Delian Tomb map as
+  the pre-ship stress test. All six exist in data/monsters (demon-muceron,
+  demon-pitling, war-dog-neuronite, war-dog-subcommander, war-dog-
+  tetherite, demon-chorogaunt); "lesser chorogaunt" is an
+  adventure-specific variant not in data/ - the Book Two Chorogaunt
+  stands in. Bonus: the subcommander carries "The Iron Saint Does Not
+  Recognize Retreat", the longest ability name in the bestiary (the chip
+  layout's stress-test case) - it will appear organically.
+
+**2026-08-24, twenty-fifth field test (Ricky, FoBB "To the Skies" roster on
+the Delian Tomb map) - the stress test paid for itself (commit a7110f03).**
+- **Take-turn button is ALWAYS "Take turn"** (Ricky's call after "Take War
+  Dog Subcommander's turn" broke the footer border). Root cause: the
+  32-char fallback threshold kept 32-char strings that render ~224px in
+  the 189px box (that name is exactly 32). The "Take <Name>'s turn"
+  phrasing lives in the hover tooltip, which was already always set.
+- **Button centered**: overviewTakeTurn had no halign, engine default is
+  LEFT, and its "100%" width resolves to 189px inside the 205px padded
+  footer - all 16px of slack sat on the right ("slightly to the left of
+  centre" on every column). halign = center. LESSON for the footer: any
+  child narrower than the content area needs an explicit halign.
+- **Multi-target twins OFF Area abilities** (Ricky: area implies several
+  targets; the green grid icon already says area; the twins are for
+  STRIKES that hit more than one creature, e.g. Tongue Pull). Facet gate:
+  HasKeyword("Area") clears multiTarget. Live: of the whole FoBB roster
+  only Tongue Pull keeps the twins. PROBE TRAP recorded: checking
+  badge:HasClass("collapsed") alone gave false positives - the badge ROW
+  ancestor can be the collapsed one; walk ancestors to the chip.
+- **Neuronite has THREE maneuvers** - contradicts the one-maneuver
+  assumption behind the alignment discussion (recorded, no change: the
+  bottom-anchored equal-footer mechanism aligns the maneuver BAND, extra
+  maneuvers stack upward).
+- **Pitlings not Near Death - answered, working as locked**: a minion
+  squad is measured by its SHARED POOL (8 pitlings selected = two squads
+  of 4, pool 12/12 each; single-minion stamina would flag every squad
+  always - the uninformative default). And the only hero who could reach
+  12+ (Shadow, 9 + 4 surge) had ALREADY ACTED (hasHadTurn true), and
+  spent heroes are excluded by Ricky's own field-test-18 rule; the two
+  unspent heroes (Tactician, Talent) held 0 surges and top out below 12.
+- **Two "highest damage" badges - answered, working as designed**: the
+  comparison stat is TIER-2 damage; Barbed Tongues (5/7/8) and Agonizing
+  Harmony (4/7/10) tie at 7, and ties share the badge (field test 10
+  decision). Tier-3 upside is an accepted gap (recorded field test 19).
+
+**2026-08-24, twenty-sixth report (Ricky) - PDF role colours + positional
+area twins (commit 0aab0573). Live-verified on the FoBB roster.**
+- **Role line takes the PDF's visual language** (Ricky: each role has a
+  unique colour in the stat block; matching it helps users correlate).
+  The colour in the book is the stat block HEADER BANNER, sampled
+  directly from Draw_Steel_Monsters_v1.01 with pdftotext -bbox +
+  pdftoppm pixel sampling (the montage: scratchpad role-colors.png that
+  session): Ambusher #FBE48C yellow, Artillery #D8D4E5 lavender, Brute
+  #B3C9E6 blue, Controller #F8ADA9 salmon, Defender #D6D2B9 khaki,
+  Harrier #EED0D2 rose, Hexer #E2E9D3 pale green, Mount #CEE6EF sky,
+  Support #F7E2D1 peach. Role-less headers (Ajax "Level 11 Solo",
+  Daybringer "Level 1 Leader") are NEUTRAL GREY in the book - #D7D9DA is
+  the fallback. The whole "Minion Artillery" line wears the colour, role
+  word stays bold. Palette on OVERVIEW.ROLE_COLORS (200-locals ceiling).
+  SAMPLING TRAPS recorded: the subtitle TEXT in the PDF is black (the
+  colour is the banner); two-column pages need the NEAREST "Level" word
+  as anchor and a stop-at-white-gutter walk or the sampler reads the
+  neighbouring stat block.
+- **Area chips earn the twins positionally** (Ricky: a Neuronite can move
+  into range and catch several heroes with The Voice - Taunt; wanted a
+  symbol for "effectively usable against a group"). Rule:
+  OverviewAreaCatch - envelope = speed + cast range + area size, a hero
+  PAIR must fit the area diameter (2x size); Chebyshev, no walls/LoS
+  (same approximation as the reach line, deliberately necessary-not-
+  sufficient); burst-style abilities store size in range with no radius.
+  Recomputed each populate so it follows token movement. ICON CHOICE:
+  reused the twin silhouettes so the language stays "this will hit more
+  than one hero" - static for strikes (Tongue Pull), positional for
+  areas; distinct tooltips ("Targets more than one creature" / "Can
+  catch more than one hero this turn"). Ricky's two candidate-symbol
+  element grabs both came through as an unrelated "Talent" label, so the
+  twins were my call - flagged for his sign-off, swap is one bgimage.
+
+**2026-08-24, twenty-seventh field test (Ricky, mid-battle on the FoBB
+roster) - THE MINION MODEL + guidance philosophy (commit 3635f142). All
+live-verified in one frame (footer-zoom5).**
+Ricky's design intent, recorded: an unprepared Director facing 6 statblock
+choices needs NUDGES for turn one - (1) minions fall fast, spend them
+early; (2) who hits hardest; (3) which area ability has a window right
+now. He always runs minions first himself. Live proof mid-session: his
+Tactician's Two Shot killed 3 of 4 Tetherites in one action.
+- **"Squishy" (red + skull) on minion columns, ALWAYS** - unless the
+  stronger signal (Near Death = a full pool wipe is available) applies;
+  Near Death outranks Squishy in the aggregation. One label per COLUMN
+  headline; squad mini-rows do NOT repeat it (skulls there = real
+  near-death of that squad only). Squishy does not count as "dying" for
+  DMG badge rule 2. Tooltip: "Even small hits kill minions and cut the
+  squad's damage output."
+- **Squad-pool threat math (the Two Shot correction)**: my pitling answer
+  had ruled the Tactician out on damage - WRONG, because a multi-target
+  strike hits the shared pool once per target. Hero profiles now carry
+  bestSquad = max(tier-2 x numTargets) over target-type strikes, used in
+  place of bestBurst when the monster is a minion. Verified: with it, the
+  12-pool squads read Near Death exactly when a Two Shot-class hit
+  covers the pool.
+- **Captain + own squad = overview** (was: classic strip). The same-squad
+  exception now requires EVERY token to be a minion of one squad; the
+  Subcommander/Muceron reported the squad id and killed the overview.
+- **High damage dealer standalone line: RED** (#E06464 via
+  g_overviewRisk.red; gold "did not stand out").
+- **Lens bar relocated to the BOTTOM of the menu** (menu children order:
+  container then lens bar; menu is bottom-anchored so the bar now sits at
+  a FIXED position directly above the action bar, beneath chips/footers -
+  Ricky: the top placement moved with column height and "got lost").
+- **Area alert = the MCDM trigger "!" tile** (asset
+  e7d55d80-630d-432d-8d3d-33051478bcd9, gold #E9B86F - opportunity
+  channel, deliberately NOT the red damage/death channel), replacing the
+  twins on area chips. Tooltip = Ricky's exact wording with the exposed
+  heroes NAMED: "Human Talent and Polder Elementalist are positioned
+  vulnerably to this ability" (OverviewAreaCatch returns every hero in a
+  catchable pair). Twins stay on multi-target STRIKES only.
+- **Twins colour question answered**: red twins = the ability deals
+  damage, off-white = it does not (field test 13 rule). Tongue Pull is
+  WHITE correctly - it is "pull 5" with no damage; Synlirii Grafts /
+  Agonizing Harmony were red because they damage. (Moot for areas now -
+  they wear the gold "!" instead.)
+- Asset note: the two plain "trigger" images in Provided By MCDM are
+  6ee6ea36 (dark tile) and e7d55d80 (light tile, knocks out cleanly when
+  tinted - the one used). Library keyword map lives in
+  data/images/<id>.yaml keywords, not the library copies.
+
+**2026-08-24, twenty-eighth report (Ricky: "the badge changes are looking
+really good") - minions NEVER read Near Death + the area-window column
+line (commit 3f1b6a1d). Live-verified: Tetherite + Pitling columns read
+Squishy (the battered Tetherite squad no longer flips to Near Death); the
+Chorogaunt column shows BOTH red lines; the Neuronite column shows the
+area line alone.**
+- **Minion columns ALWAYS read "Squishy", never "Near Death"** - Ricky's
+  call, recorded as revisitable in his own words ("possible this is a bad
+  call on my part and I'll revert it in the future"): a squishy monster
+  is almost always near death anyway (exception he named: a
+  much-higher-level minion, e.g. a troll minion vs level-1 heroes), so
+  one word carries the signal. Implementation: OverviewThreatEstimate
+  short-circuits to the Squishy risk for any minion regardless of the
+  pool-wipe computation; the Near-Death-outranks-Squishy aggregation
+  preference from the 27th test is now inert but left in place for the
+  possible revert. bestSquad (Two Shot pool math) also stays - it only
+  fed minion Near Death, so it is currently dormant for display but
+  correct if reverted.
+- **Red column line "Heroes vulnerable to area abilities"** beneath the
+  name whenever ANY of the kit's area abilities currently has the gold
+  "!" window (column.areaWindow, computed per populate). Pairs with
+  "High damage dealer" as the twin turn-one cue - Ricky's scenario: the
+  Chorogaunt showing BOTH tells the Director to use it right now.
+  Standalone red bold when the column is otherwise quiet; appended as
+  its own red line under an existing risk box; tooltip line "An area
+  ability in this kit could catch several heroes right now".
+
+**2026-08-24, captain+squad fix click-verified (resumed session, no code
+change).** Selected War Dog Subcommander 1 + the surviving Tetherite (the
+exact pair that used to kill the overview via the shared squad id): unique
+drawer up, action/maneuver/move collapsed, menu shows both columns -
+Subcommander (crown, Horde Support role line, red High damage dealer,
+green Outside reach) and Tetherite (Minion Brute, red skull Squishy).
+Standing regression check rerun after the menu close: single Neuronite ->
+classic strip, Main Action menu shows Signature Abilities (Synlirii
+Grafts) + Common Abilities columns. Zero Lua console errors. Remaining
+sign-off is Ricky's own eyeball; SHIP (fork push + PR) is his call.
+
+**2026-08-24, twenty-ninth report (Ricky) - icon bullets on the cue lines +
+skull/text alignment (commit 68d5ba23). Live-verified on Subcommander +
+Tetherite + Chorogaunt.**
+- **The two column cue lines wear the SAME glyph as the chip badge that
+  earned them, as an icon bullet**: surge (game-icons/surge.png, #E06464,
+  16px) before "High damage dealer"; the gold trigger "!" tile (e7d55d80,
+  #E9B86F, 15px) before "Heroes vulnerable to area abilities". Ricky's
+  intent: "it's trying to marry up the creature to the relevant abilities
+  so the user understands why this is showing." Implementation: the two
+  lines are no longer text appended into riskLabel - each is its own
+  pooled row (dmgRow/areaRow, overviewRiskRow + overviewRiskIcon classes)
+  after riskRow in the footer text column, toggled by column.highDamage /
+  column.areaWindow, with its own hover tooltip (same strings as before;
+  the dmg tooltip still picks all-selected vs near-death by risk
+  presence). riskRow itself now collapses when there is no risk text.
+- **Risk text seated 1px lower** (tmargin 1 on overviewFooterRisk):
+  Ricky's eyeball was right - "Squishy" sat a hair high against the
+  skull; the nudge levels the text with all three 16px icon bullets.
+- **Debuff bullets on safe creatures - answered, no code change (yet)**:
+  Ricky asked why the Subcommander's mark/edge and the Chorogaunt's
+  "judged" no longer print as bullets. His own earlier calls removed the
+  text channels: field test 10 took threat/stamina text off the signal
+  lines (acted state only) and field test 18's one-state redesign deleted
+  the amber tier - named-debuff bullets now render ONLY inside a red risk
+  box (Near Death / Squishy). Hero-applied statuses still show as
+  red-ringed glyphs in the status strip under the portrait (field test
+  11's channel), with the caster named on hover. Options offered if he
+  wants the text back: an icon-bulleted debuff line in the new style, or
+  leave the glyph strip as the only channel.
+
 
 
 

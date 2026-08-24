@@ -1430,6 +1430,39 @@ Tetherite + Chorogaunt.**
   wants the text back: an icon-bulleted debuff line in the new style, or
   leave the glyph strip as the only channel.
 
+**2026-08-24, thirtieth field test (Ricky) - Synlirii Grafts false "!"
+window: area-catch movement leg now uses REAL pathfinding (commit
+1ffbc350). Live-verified: Synlirii Grafts chips lose the "!", both The
+Voice chips keep it (correctly), zero errors.**
+- **Ricky's report was exactly right**: Synlirii Grafts (1 burst) wore the
+  gold "!" naming Polder Elementalist + Polder Shadow, but no Neuronite
+  could legally reach a square adjacent to both. Evidence: the only
+  covering square for that pair is (0,-5) - a straight-line 5 away, so the
+  old envelope test passed - and tok:CalculatePathfindingArea(50) showed
+  it is NOT legally reachable for any of the three (walls/occupancy);
+  zero reachable squares cover 2+ heroes in a 1 burst.
+- **Fix**: OverviewAreaCatch's MOVEMENT leg = the engine's real
+  pathfinding, tok:CalculatePathfindingArea(speed x 10 decis) + the
+  current squares, cached per frame per token on g_overviewRisk.pathCache
+  (badge pass + column pass both ask per area ability). A pair now counts
+  only when ONE legal end square has both heroes within cast range + area
+  size. The cast/area legs stay Chebyshev, no walls/LoS - a per-axis
+  interval argument makes the pair test EXACT in open field, so the
+  remaining optimism is only cast-leg walls/LoS. Straight-line envelope
+  kept as fallback when pathfinding errors.
+- **The Voice (5 burst) keeps its "!" legitimately**: pathfinding found 38
+  legal Neuronite 3 squares covering 2+ heroes (e.g. (4,-3), 2 squares of
+  movement, covers Shadow+Elementalist+Talent).
+- **TRAP recorded**: g_overviewRisk was declared BELOW OverviewAreaCatch;
+  the new reference resolved to an uninitialized GLOBAL and raised on
+  first menu open (engine raises on uninitialized global reads). The
+  declaration moved above its first reader. luac -p cannot catch this -
+  it is a runtime scoping fact, not a syntax error.
+- **Ricky's decision recorded**: NO debuff bullets on safe creatures for
+  now ("There's a lot built in and I may change decision on this at a
+  later date") - the red-ringed status glyphs remain the only channel.
+  Revisitable.
+
 
 
 

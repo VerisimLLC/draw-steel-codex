@@ -714,7 +714,12 @@ local function OverviewAbilityFacets(ability)
                 or string.find(tn, "ApplyCondition", 1, true) ~= nil then
                 facets.control = true
             elseif tn == "ActivatedAbilityDrawSteelCommandBehavior" then
+                --applyto == "caster" is a self-effect (Zombie Dust: "The
+                --zombie falls prone") - not something inflicted on targets.
                 local rule = behavior:try_get("rule")
+                if behavior:try_get("applyto") == "caster" then
+                    rule = nil
+                end
                 if type(rule) == "string" and rule ~= "" then
                     local f = OverviewTierFacets(rule)
                     if f.damage ~= nil then
@@ -1738,6 +1743,14 @@ local OVERVIEW_FOOTER_RULES = {
         selectors = { "overviewRiskSkull", "small" },
         width = 13,
         height = 13,
+        valign = "center",
+        tmargin = 0,
+    },
+    --Field test 22: a member row's name yields the skull's width so the
+    --inline skull + ellipsized name never overflow the row.
+    {
+        selectors = { "overviewFooterRowLabel", "withSkull" },
+        width = "100%-16",
     },
     --Field test 18: the green relatively-safe line (exception only).
     {
@@ -5087,13 +5100,17 @@ local function OverviewColumnFooter()
     }
 
     --The Near Death box; collapsed when safe. Hover = one plain sentence.
-    --Field test 21: a red skull (the PDF's villain-action glyph, from the
-    --Provided By MCDM library) sits beside the headline.
+    --Field test 21/22: a red skull-and-crossbones (Provided By MCDM library)
+    --sits beside the headline.
     local m_riskTooltip = nil
     local riskSkull = gui.Panel {
         classes = { "overviewRiskSkull", "collapsed" },
-        bgimage = "e31d918b-16a8-45bb-8c03-be039e0d5236",
-        interactable = false,
+        bgimage = "ebc8b529-f450-4bee-9466-86374c26dc13",
+        hover = function(element)
+            if m_riskTooltip ~= nil then
+                gui.Tooltip(m_riskTooltip)(element)
+            end
+        end,
     }
     local riskLabel = gui.Label {
         classes = { "overviewFooterRisk", "collapsed" },
@@ -5227,20 +5244,24 @@ local function OverviewColumnFooter()
             classes = { "overviewFooterRowSignal" },
             text = "",
         }
-        local rowText = gui.Panel {
-            classes = { "overviewFooterRowText" },
-            rowLabel,
-            rowSignal,
-        }
+        local rowText
         local rowSkull = gui.Panel {
             classes = { "overviewRiskSkull", "small", "collapsed" },
-            bgimage = "e31d918b-16a8-45bb-8c03-be039e0d5236",
-            floating = true,
-            halign = "right",
-            valign = "top",
-            rmargin = 2,
-            tmargin = 2,
-            interactable = false,
+            bgimage = "ebc8b529-f450-4bee-9466-86374c26dc13",
+            hover = gui.Tooltip{ text = "Near Death", valign = "top" },
+        }
+        local rowNameLine = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            rowSkull,
+            rowLabel,
+        }
+        rowText = gui.Panel {
+            classes = { "overviewFooterRowText" },
+            rowNameLine,
+            rowSignal,
         }
         local row
         row = gui.Panel {
@@ -5251,7 +5272,6 @@ local function OverviewColumnFooter()
             data = { member = nil },
             rowPortrait,
             rowText,
-            rowSkull,
 
             press = function(element)
                 local member = element.data.member
@@ -5290,6 +5310,7 @@ local function OverviewColumnFooter()
                     element:SetClass("collapsed", true)
                     element:SetClass("promptOption", false)
                     rowSkull:SetClass("collapsed", true)
+                    rowLabel:SetClass("withSkull", false)
                     return
                 end
                 --The member list is snapshotted into m_signals when the column
@@ -5327,9 +5348,10 @@ local function OverviewColumnFooter()
                         signal = signal .. " - " .. reach
                     end
                 end
-                --Field test 21: the row wears the skull on the NAME line
-                --instead of a text tag (space; the box above explains).
+                --Field test 21/22: the row wears the skull inline before the
+                --name (mirrors the headline) instead of a text tag.
                 rowSkull:SetClass("collapsed", member.risk == nil)
+                rowLabel:SetClass("withSkull", member.risk ~= nil)
                 rowSignal.text = signal
                 rowSignal:SetClass("collapsed", signal == "")
             end,

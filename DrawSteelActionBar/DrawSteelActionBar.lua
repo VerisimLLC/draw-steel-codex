@@ -4417,13 +4417,33 @@ local function OverviewReach(tok, abilities, heroes)
     return { count = count, reach = reach, speed = speed, range = range }
 end
 
+--One local for the whole P2-e feature (the file is near Lua's 200
+--top-level-locals limit): constants + the hero-profile cache + the
+--pathfinding cache. Declared HERE, above OverviewAreaCatch, its first
+--reader - a later local declaration would leave that reference resolving
+--to an uninitialized (raising) global.
+local g_overviewRisk = {
+    allowance = 4,
+    red = "#E06464",
+    amber = "#E0A050",
+    cache = { time = -1, list = {} },
+}
+
 --Field test 26: an Area chip earns the twin-person badge POSITIONALLY -
 --only when the area could catch two or more heroes somewhere the monster
---can reach this turn. Envelope = speed + cast range + area size; two
---heroes are catchable together when their mutual distance fits the area's
---diameter. Chebyshev squares, no walls or line of sight - the same
---approximation as the reach line. A burst-style ability stores its size
---in range with no radius, so radius falls back to range with 0 cast range.
+--can reach this turn. Field test 30 (Ricky: Synlirii Grafts' 1 burst
+--flagged a pair no neuronite could legally reach): the MOVEMENT leg now
+--uses the engine's real pathfinding (walls + occupied squares) via
+--tok:CalculatePathfindingArea(speed x 10 decis), cached per frame per
+--token on g_overviewRisk.pathCache - the badge pass and the column pass
+--both ask, for every area ability. The cast + area legs stay Chebyshev
+--with no walls or line of sight: two heroes are catchable together when
+--their mutual distance fits the area's diameter AND some single legal end
+--square has BOTH within cast range + area size (a per-axis interval
+--argument makes that pair test exact in open field). A burst-style
+--ability stores its size in range with no radius, so radius falls back to
+--range with 0 cast range. If pathfinding is unavailable the old
+--straight-line envelope from the current squares stands in.
 local function OverviewAreaCatch(tok, ability)
     if tok == nil or not tok.valid or tok.properties == nil then
         return nil
@@ -4443,24 +4463,68 @@ local function OverviewAreaCatch(tok, ability)
     end
     local speed = 0
     pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
-    local envelope = speed + castRange + radius
-    local reachable = {}
-    local ok = pcall(function()
-        local locs = tok.locsOccupying
-        if locs == nil or #locs == 0 then
-            locs = { tok.loc }
-        end
-        for _, hero in ipairs(OverviewHeroTokens()) do
-            local hloc = hero.loc
-            local nearest = nil
+
+    local currentSquares = function()
+        local result = {}
+        pcall(function()
+            local locs = tok.locsOccupying
+            if locs == nil or #locs == 0 then
+                locs = { tok.loc }
+            end
             for _, loc in ipairs(locs) do
-                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
-                if nearest == nil or d < nearest then
-                    nearest = d
+                result[#result + 1] = loc
+            end
+        end)
+        return result
+    end
+
+    --Legal end squares for this token's move this turn (plus its current
+    --squares - staying put is always legal), cached per frame per token.
+    local now = dmhub.Time()
+    if g_overviewRisk.pathCache == nil or g_overviewRisk.pathCache.time ~= now then
+        g_overviewRisk.pathCache = { time = now }
+    end
+    local squares = nil
+    local cached = g_overviewRisk.pathCache[tok.id]
+    if cached ~= nil then
+        squares = cached.squares
+    else
+        pcall(function()
+            local area = tok:CalculatePathfindingArea(speed * 10)
+            if area ~= nil then
+                squares = {}
+                for _, info in pairs(area) do
+                    squares[#squares + 1] = info.loc
                 end
             end
-            if nearest ~= nil and nearest <= envelope then
-                reachable[#reachable + 1] = { loc = hloc, name = hero.name }
+        end)
+        if squares ~= nil then
+            for _, loc in ipairs(currentSquares()) do
+                squares[#squares + 1] = loc
+            end
+        end
+        g_overviewRisk.pathCache[tok.id] = { squares = squares }
+    end
+
+    local reach = castRange + radius
+    if squares == nil or #squares == 0 then
+        squares = currentSquares()
+        reach = speed + castRange + radius
+    end
+    if #squares == 0 then
+        return nil
+    end
+
+    local reachable = {}
+    local ok = pcall(function()
+        for _, hero in ipairs(OverviewHeroTokens()) do
+            local hloc = hero.loc
+            for _, loc in ipairs(squares) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if d <= reach then
+                    reachable[#reachable + 1] = { loc = hloc, name = hero.name }
+                    break
+                end
             end
         end
     end)
@@ -4469,13 +4533,21 @@ local function OverviewAreaCatch(tok, ability)
     end
     --Every hero who appears in at least one catchable pair is "positioned
     --vulnerably"; the tooltip names them (Ricky's wording, field test 27).
+    --A pair only counts when ONE legal end square covers both heroes.
     local caught = {}
     for i = 1, #reachable do
         for j = i + 1, #reachable do
             local d = math.max(math.abs(reachable[i].loc.x - reachable[j].loc.x), math.abs(reachable[i].loc.y - reachable[j].loc.y))
             if d <= radius * 2 then
-                caught[i] = true
-                caught[j] = true
+                for _, loc in ipairs(squares) do
+                    local di = math.max(math.abs(loc.x - reachable[i].loc.x), math.abs(loc.y - reachable[i].loc.y))
+                    local dj = math.max(math.abs(loc.x - reachable[j].loc.x), math.abs(loc.y - reachable[j].loc.y))
+                    if di <= reach and dj <= reach then
+                        caught[i] = true
+                        caught[j] = true
+                        break
+                    end
+                end
             end
         end
     end
@@ -4536,15 +4608,6 @@ end
 --Bands: RED "High target risk" = marked with a hero in reach, or stamina <=
 --best single adjusted burst + rider; AMBER "At risk" = stamina <= the two
 --best adjusted bursts + rider, or marked with nobody in reach.
---One local for the whole P2-e feature (the file is near Lua's 200
---top-level-locals limit): constants + the hero-profile cache.
-local g_overviewRisk = {
-    allowance = 4,
-    red = "#E06464",
-    amber = "#E0A050",
-    cache = { time = -1, list = {} },
-}
-
 --Hero combat profiles (speed, longest damaging range, best tier-2 burst,
 --acted), cached briefly: several columns x members all ask within one
 --populate pass, and hero kits do not change mid-frame.

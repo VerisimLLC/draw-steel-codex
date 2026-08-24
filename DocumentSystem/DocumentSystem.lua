@@ -7337,13 +7337,52 @@ local function ScriptButtonStyle(def)
     return style
 end
 
+--Whether a directive value (@tooltip, @label, @disabled) is a real
+--formula that reads character state, as opposed to plain prose: the
+--text is compiled (cached -- the engine compile is not free and this
+--runs on hover/refresh cadences) and the symbols the compiled code
+--looks up are checked against the creature symbol table. Prose like
+--"Use recovery" merges into one unknown identifier ("userecovery")
+--that matches no creature symbol, so it counts as prose; unparseable
+--text ("Flip a coin!") is prose too. Drives both the no-character
+--hover text and the no-character disable in ScriptButtonDisabled.
+--Rides ToolkitCluster because the main chunk sits at Lua's 200-local
+--cap -- same reason the cluster helpers do.
+ToolkitCluster.formulaReadsCharacterCache = {}
+ToolkitCluster.FormulaReadsCharacter = function(formula)
+    if formula == nil then
+        return false
+    end
+    local cached = ToolkitCluster.formulaReadsCharacterCache[formula]
+    if cached ~= nil then
+        return cached
+    end
+    local result = false
+    pcall(function()
+        local out = {}
+        local fn = dmhub.CompileGoblinScriptDeterministic(formula, out)
+        if fn ~= nil and out.lua ~= nil then
+            for name in string.gmatch(out.lua, [[symbols%("([%w_]+)"%)]]) do
+                if creature.lookupSymbols[name] ~= nil then
+                    result = true
+                    break
+                end
+            end
+        end
+    end)
+    ToolkitCluster.formulaReadsCharacterCache[formula] = result
+    return result
+end
+
 --The hover text a script button shows instead of its name: the @tooltip
 --directive, tried as GoblinScript first (evaluated on the player's
 --current character, so conditional state text updates live), falling
 --back to the raw directive text when the formula errors or returns
 --nothing -- which is exactly what makes plain-prose tooltips work with
---no syntax at all. Always uppercased into the rail labels' voice.
---Callers re-run this on their refresh cadence for the live half.
+--no syntax at all. With NO character selected, a tip that actually
+--reads character state says so instead of leaking its formula source.
+--Always uppercased into the rail labels' voice. Callers re-run this on
+--their refresh cadence for the live half.
 local function ScriptButtonHoverText(def, fallbackName)
     local tip = ScriptButtonStyle(def).tooltip
     if tip == nil then
@@ -7353,7 +7392,11 @@ local function ScriptButtonHoverText(def, fallbackName)
     local token = dmhub.currentToken
     if token ~= nil and token.properties ~= nil then
         pcall(function()
-            local value = ExecuteGoblinScript(tip, token.properties:LookupSymbol{}, 0, "script button tooltip")
+            --defaultValue must be nil, not 0: prose that still parses
+            --(one unknown symbol) evaluates to nil, and that nil is what
+            --routes it to the raw-text fallback below. A 0 default made
+            --every prose tooltip render as "0".
+            local value = ExecuteGoblinScript(tip, token.properties:LookupSymbol{}, nil, "script button tooltip")
             if value ~= nil then
                 local n = tonumber(value)
                 if n ~= nil and n == math.floor(n) then
@@ -7363,6 +7406,8 @@ local function ScriptButtonHoverText(def, fallbackName)
                 end
             end
         end)
+    elseif ToolkitCluster.FormulaReadsCharacter(tip) then
+        text = "No character selected"
     end
     if text == nil or text == "" then
         text = tip
@@ -7370,20 +7415,32 @@ local function ScriptButtonHoverText(def, fallbackName)
     return string.upper(text)
 end
 
---Whether a script button's @disabled condition currently holds: a
---GoblinScript formula (same trust rule as @label/@tooltip) evaluated
---on the player's current character. Unevaluable -- no character, bad
---formula, non-truthy result -- means ENABLED: a button must never be
---locked out by an error. The hover LABEL stays live on a disabled
---button on purpose: paired with @tooltip it says WHY ("AT FULL
---STAMINA"), which beats an unexplained grey lump.
+--Whether a script button is currently disabled (greyed, hover-inert,
+--and refusing to run from any path). Two ways in:
+--  1. Its @disabled condition holds: a GoblinScript formula (same
+--     trust rule as @label/@tooltip) evaluated on the player's current
+--     character.
+--  2. NO character is selected and any of its directives (@label,
+--     @tooltip, @disabled) is a formula that reads character state --
+--     such a button cannot mean anything without a character, so it
+--     reads as inert instead of half-working (owner request
+--     2026-08-24). Buttons with no character-reading directives (a
+--     coin flip, a chat post) stay live with no character.
+--A bad formula WITH a character selected still means ENABLED: an
+--authoring error must never lock a button out. The hover LABEL stays
+--live on a disabled button on purpose: it says WHY ("AT FULL
+--STAMINA", "NO CHARACTER SELECTED"), which beats an unexplained grey
+--lump.
 local function ScriptButtonDisabled(def)
-    local formula = ScriptButtonStyle(def).disabled
-    if formula == nil then
-        return false
-    end
+    local style = ScriptButtonStyle(def)
     local token = dmhub.currentToken
     if token == nil or token.properties == nil then
+        return ToolkitCluster.FormulaReadsCharacter(style.label)
+            or ToolkitCluster.FormulaReadsCharacter(style.tooltip)
+            or ToolkitCluster.FormulaReadsCharacter(style.disabled)
+    end
+    local formula = style.disabled
+    if formula == nil then
         return false
     end
     local disabled = false
@@ -12134,12 +12191,18 @@ local function RunToolkitScriptButton(item, element)
     --recorded command pipe instead of a Lua script. The {name} step
     --annotations are metadata and are stripped before execution. The pack
     --kill switch above applies to these too.
+    --An EMPTY command falls through to the script instead of returning:
+    --mode = "command" with nothing recorded is a real state (Record
+    --Command saves the button before the recording exists, and a save
+    --can land mid-authoring), and a button with working code must not
+    --die silently over a mode flag -- "a broken button must never fail
+    --silently" applies to this gate too.
     if (item.mode or "script") == "command" then
         local command = item.command or ""
         if command ~= "" then
             dmhub.Execute(CommandBuilder.StripAnnotations(command))
+            return
         end
-        return
     end
 
     local chunk, loadErr = load(ScriptButtonCode(item.script or ""), "script-button:" .. (item.name or "button"))
@@ -17103,19 +17166,25 @@ local function CreateIconRail(side, entries)
             --@label: a live value instead of the icon. The directive is a
             --GoblinScript formula (data, never Lua code) evaluated against
             --the player's current character, re-checked on the rail's
-            --refreshRail cadence like the character card's numbers.
+            --refreshRail cadence like the character card's numbers. When
+            --it cannot evaluate (no character selected, broken formula),
+            --the face falls back to the button's ICON -- the dash it used
+            --to show read as a broken tile (same call the library's
+            --replica faces already made). Both faces are built and the
+            --refresh cadence swaps them, since the selected character can
+            --change without a rail rebuild.
             local labelFormula = sbuttonStyle.label
             local function LabelText()
                 local token = dmhub.currentToken
                 if token == nil or token.properties == nil then
-                    return "-"
+                    return nil
                 end
                 local value = nil
                 pcall(function()
-                    value = ExecuteGoblinScript(labelFormula, token.properties:LookupSymbol{}, 0, "rail button label")
+                    value = ExecuteGoblinScript(labelFormula, token.properties:LookupSymbol{}, nil, "rail button label")
                 end)
                 if value == nil then
-                    return "-"
+                    return nil
                 end
                 local n = tonumber(value)
                 if n ~= nil then
@@ -17124,21 +17193,47 @@ local function CreateIconRail(side, entries)
                     end
                     return string.format("%.1f", n)
                 end
-                return tostring(value)
+                local s = tostring(value)
+                if s == "" then
+                    return nil
+                end
+                return s
             end
-            buttonContent = gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                fontSize = 18,
-                bold = true,
-                color = "#ffffffee",
+            local initialText = LabelText()
+            buttonContent = gui.Panel{
+                width = "100%",
+                height = "100%",
+                flow = "none",
                 interactable = false,
-                text = LabelText(),
-                refreshRail = function(element)
-                    element.text = LabelText()
-                end,
+                gui.Panel{
+                    classes = {"iconRailIcon", cond(initialText ~= nil, "hidden")},
+                    bgimage = buttonIcon,
+                    width = 20,
+                    height = 20,
+                    halign = "center",
+                    valign = "center",
+                    interactable = false,
+                    refreshRail = function(element)
+                        element:SetClass("hidden", LabelText() ~= nil)
+                    end,
+                },
+                gui.Label{
+                    classes = {cond(initialText == nil, "hidden")},
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    fontSize = 18,
+                    bold = true,
+                    color = "#ffffffee",
+                    interactable = false,
+                    text = initialText or "",
+                    refreshRail = function(element)
+                        local text = LabelText()
+                        element.text = text or ""
+                        element:SetClass("hidden", text == nil)
+                    end,
+                },
             }
         else
             buttonContent = gui.Panel{
@@ -17405,23 +17500,53 @@ local function CreateIconRail(side, entries)
             dragTarget = true,
             data = { slot = index, key = key, baseMargin = buttonMargin },
 
-            --A token can be deleted while its shortcut's button is on
-            --screen, and the rail gets no event for that -- so a character
-            --button checks on the refresh cadence and rebuilds the rails
-            --the one time the answer changes (`missing` is baked in at
-            --build time, so the rebuilt button no longer disagrees and the
-            --check goes quiet). DEFERRED: this runs inside the rail root's
-            --FireEventTree, and rebuilding destroys the very panels that
-            --sweep is walking.
+            --The button's ONE refreshRail handler. A second `refreshRail =`
+            --key later in this same constructor table silently overrides
+            --this one (the last duplicate key wins in a Lua table
+            --constructor) -- that exact trap kept this handler dead until
+            --2026-08-24, so everything on the refresh cadence now lives
+            --here together: the disabled sync, the lit state, and the
+            --deleted-character rebuild check.
             refreshRail = function(element)
-                --@disabled tracks live game state; keep the class in
-                --step on the rail's refresh cadence.
+                --@disabled (and the no-character disable) tracks live
+                --game state; keep the class in step on the rail's
+                --refresh cadence.
                 if sbuttonid ~= nil then
                     local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[sbuttonid]
                     if type(def) == "table" and def.type ~= "panel" then
                         element:SetClass("scriptDisabled", ScriptButtonDisabled(def))
                     end
                 end
+
+                --the lit state: a document shortcut is lit while its doc
+                --is open as a tab in the journal viewer; a toolkit button
+                --while its strip is up; anything else while its panel's
+                --window is open.
+                if docid ~= nil then
+                    local lit = false
+                    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
+                        for _, tab in ipairs(g_tabbedViewer.data.tabs or {}) do
+                            if tab.docId == docid then
+                                lit = true
+                            end
+                        end
+                    end
+                    element:SetClass("active", lit)
+                elseif toolkitid ~= nil then
+                    element:SetClass("active", RailToolkitStripOpen(toolkitid))
+                else
+                    element:SetClass("active", PanelDocument.IsPanelShown(key))
+                end
+
+                --A token can be deleted while its shortcut's button is on
+                --screen, and the rail gets no event for that -- so a
+                --character button checks on the refresh cadence and
+                --rebuilds the rails the one time the answer changes
+                --(`missing` is baked in at build time, so the rebuilt
+                --button no longer disagrees and the check goes quiet).
+                --DEFERRED: this runs inside the rail root's
+                --FireEventTree, and rebuilding destroys the very panels
+                --that sweep is walking.
                 if charid == nil or g_railRebuildPending then
                     return
                 end
@@ -18424,29 +18549,11 @@ local function CreateIconRail(side, entries)
                 }
             end,
 
-            refreshRail = function(element)
-                if docid ~= nil then
-                    --a document shortcut is lit while its doc is open as
-                    --a tab in the journal viewer.
-                    local lit = false
-                    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
-                        for _, tab in ipairs(g_tabbedViewer.data.tabs or {}) do
-                            if tab.docId == docid then
-                                lit = true
-                            end
-                        end
-                    end
-                    element:SetClass("active", lit)
-                    return
-                end
-                --a toolkit button is lit while its strip is up.
-                if toolkitid ~= nil then
-                    element:SetClass("active", RailToolkitStripOpen(toolkitid))
-                    return
-                end
-                --lit while the panel's window is open.
-                element:SetClass("active", PanelDocument.IsPanelShown(key))
-            end,
+            --NO refreshRail here: the button's single refreshRail handler
+            --(disabled sync + lit state + deleted-character check) is
+            --defined near the top of this constructor. A second key here
+            --would silently override it -- the duplicate-key trap that
+            --once kept the disabled sync dead.
         }
 
         --the member strip rides BESIDE the button as a later sibling

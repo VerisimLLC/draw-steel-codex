@@ -4708,14 +4708,14 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
     end
 
     local safeOutside = not anyUnspentInReach
-    if killer == nil and pushKiller == nil then
+    if isMinion or (killer == nil and pushKiller == nil) then
         if isMinion then
-            --Field test 27 (Ricky): minions are ALWAYS fragile - even
-            --small damage kills members and cuts the squad's output - so
-            --a minion column reads "Squishy" whenever the stronger signal
-            --(a full pool wipe = Near Death) does not apply. squishy does
-            --NOT count as dying for DMG badge rule 2 and does NOT put
-            --skulls on the squad mini-rows (the headline says it once).
+            --Field test 28 (Ricky): a minion column ALWAYS reads
+            --"Squishy", never "Near Death" - a squishy monster is almost
+            --always near death anyway, so one word carries it (his call,
+            --recorded as revisitable). squishy does NOT count as dying
+            --for DMG badge rule 2 and does NOT put skulls on the squad
+            --mini-rows (the headline says it once).
             local lines = { string.format("<color=%s><b>Squishy</b></color>", g_overviewRisk.red) }
             local seenTag = {}
             local shownTags = 0
@@ -5982,6 +5982,20 @@ local function OverviewColumnFooter()
                     m_riskTooltip = (m_riskTooltip or "") .. "\nHighest damage of selected monsters near death"
                 end
             end
+            --Field test 28: when any of this kit's area abilities has a
+            --live window (the gold "!" on the chip), the column says so
+            --beneath the name - the pairing with High damage dealer is
+            --the "use this monster now" cue Ricky described.
+            if column.areaWindow then
+                local windowLine = string.format("<color=%s><b>Heroes vulnerable to area abilities</b></color>", g_overviewRisk.red)
+                if riskText == nil then
+                    riskText = windowLine
+                    m_riskTooltip = "An area ability in this kit could catch several heroes right now"
+                else
+                    riskText = riskText .. "\n" .. windowLine
+                    m_riskTooltip = (m_riskTooltip or "") .. "\nAn area ability in this kit could catch several heroes right now"
+                end
+            end
             riskLabel.text = riskText or ""
             riskLabel:SetClass("collapsed", riskText == nil)
             riskSkull:SetClass("collapsed", risk == nil or risk.level ~= "red")
@@ -6798,6 +6812,17 @@ ActionMenu = function()
                 end
             end
             column.bestDamage = best
+            --Field test 28: does ANY area ability in this kit have a live
+            --window (could catch several heroes right now)? Feeds the red
+            --"Heroes vulnerable to area abilities" footer line.
+            column.areaWindow = false
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                if facets.area == true and OverviewAreaCatch(column.token, ability) ~= nil then
+                    column.areaWindow = true
+                    break
+                end
+            end
             column.anyRed = false
             local signals = OverviewColumnSignals(column)
             for _, member in ipairs(signals.members) do

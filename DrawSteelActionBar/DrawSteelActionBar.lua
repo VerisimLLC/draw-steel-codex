@@ -154,18 +154,34 @@ local function InOverviewMode()
             return false
         end
     end
-    local squad = g_selectedTokens[1].properties:MinionSquad()
-    if squad ~= nil then
-        local sameSquad = true
-        for i = 2, #g_selectedTokens do
-            if g_selectedTokens[i].properties:MinionSquad() ~= squad then
-                sameSquad = false
-                break
-            end
+    --The squad exception applies only when EVERY selected token is a
+    --minion of one squad (that selection is a single acting unit). A
+    --captain plus their own squad is two statblocks - field test 27:
+    --Subcommander + Tetherites showed the classic strip instead of the
+    --overview because the captain reported the squad id too.
+    local squad = nil
+    local sameSquad = true
+    for _, tok in ipairs(g_selectedTokens) do
+        local isMinion = false
+        pcall(function() isMinion = tok.properties.minion == true end)
+        if not isMinion then
+            sameSquad = false
+            break
         end
-        if sameSquad then
-            return false
+        local memberSquad = tok.properties:MinionSquad()
+        if memberSquad == nil then
+            sameSquad = false
+            break
         end
+        if squad == nil then
+            squad = memberSquad
+        elseif memberSquad ~= squad then
+            sameSquad = false
+            break
+        end
+    end
+    if squad ~= nil and sameSquad then
+        return false
     end
     return true
 end
@@ -1499,7 +1515,8 @@ local OVERVIEW_FOOTER_RULES = {
         flow = "vertical",
         halign = "center",
         valign = "bottom",
-        bmargin = 6,
+        tmargin = 6,
+        bmargin = 0,
     },
     {
         selectors = { "overviewLensRow" },
@@ -1684,6 +1701,21 @@ local OVERVIEW_FOOTER_RULES = {
         halign = "center",
         valign = "center",
         bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewAreaBadge" },
+        width = 18,
+        height = 18,
+        valign = "center",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewAreaIcon" },
+        width = 15,
+        height = 15,
+        halign = "center",
+        valign = "center",
+        bgcolor = "#E9B86F",
     },
     {
         selectors = { "overviewMultiBadge" },
@@ -3352,12 +3384,28 @@ local function AbilityHeading(args)
     local m_multiBadge = gui.Panel {
         classes = { "overviewMultiBadge", "collapsed" },
         bgimage = "panels/square.png",
-        data = { tooltip = "Targets more than one creature" },
-        hover = function(element)
-            gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
-        end,
+        hover = gui.Tooltip{ text = "Targets more than one creature", valign = "top" },
         m_multiIcon1,
         m_multiIcon2,
+    }
+    --Field test 27: the area-window alert is the MCDM trigger "!" tile
+    --(gold - an opportunity cue, not the red damage/death channel), shown
+    --only while the area could actually catch several heroes; the tooltip
+    --names them.
+    local m_areaBadge = gui.Panel {
+        classes = { "overviewAreaBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        data = { tooltip = nil },
+        hover = function(element)
+            if element.data.tooltip ~= nil then
+                gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+            end
+        end,
+        gui.Panel {
+            classes = { "overviewAreaIcon" },
+            bgimage = "e7d55d80-630d-432d-8d3d-33051478bcd9",
+            interactable = false,
+        },
     }
     local m_summonBadge = gui.Panel {
         classes = { "overviewSummonBadge", "collapsed" },
@@ -3392,6 +3440,7 @@ local function AbilityHeading(args)
         flow = "horizontal",
         m_summonBadge,
         m_multiBadge,
+        m_areaBadge,
         m_dmgBadge,
     }
 
@@ -3409,16 +3458,18 @@ local function AbilityHeading(args)
             args.overviewPress = overviewPress
         end,
 
-        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, multiTooltip)
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, areaTooltip)
             m_dmgBadge:SetClass("collapsed", dmg ~= true)
             m_dmgBadge.data.tooltip = dmgTooltip or "This ability does high damage"
             m_multiBadge:SetClass("collapsed", multi ~= true)
-            m_multiBadge.data.tooltip = multiTooltip or "Targets more than one creature"
             local tint = multiDamaging and "#E06464" or "#EDEDED"
             m_multiIcon1.selfStyle.bgcolor = tint
             m_multiIcon2.selfStyle.bgcolor = tint
             m_summonBadge:SetClass("collapsed", summon ~= true)
-            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0)
+            local area = areaTooltip ~= nil
+            m_areaBadge:SetClass("collapsed", not area)
+            m_areaBadge.data.tooltip = areaTooltip
+            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0) + (area and 1 or 0)
             m_badgeRow:SetClass("collapsed", count == 0)
             --Long titles (Rival Tactician's "Dual Targeting Shot") reach the
             --top-right corner, so floating alone cannot guarantee no
@@ -4350,7 +4401,7 @@ end
 --in range with no radius, so radius falls back to range with 0 cast range.
 local function OverviewAreaCatch(tok, ability)
     if tok == nil or not tok.valid or tok.properties == nil then
-        return false
+        return nil
     end
     local radius = nil
     local castRange = 0
@@ -4363,7 +4414,7 @@ local function OverviewAreaCatch(tok, ability)
         castRange = 0
     end
     if radius == nil or radius <= 0 then
-        return false
+        return nil
     end
     local speed = 0
     pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
@@ -4384,22 +4435,35 @@ local function OverviewAreaCatch(tok, ability)
                 end
             end
             if nearest ~= nil and nearest <= envelope then
-                reachable[#reachable + 1] = hloc
+                reachable[#reachable + 1] = { loc = hloc, name = hero.name }
             end
         end
     end)
     if not ok or #reachable < 2 then
-        return false
+        return nil
     end
+    --Every hero who appears in at least one catchable pair is "positioned
+    --vulnerably"; the tooltip names them (Ricky's wording, field test 27).
+    local caught = {}
     for i = 1, #reachable do
         for j = i + 1, #reachable do
-            local d = math.max(math.abs(reachable[i].x - reachable[j].x), math.abs(reachable[i].y - reachable[j].y))
+            local d = math.max(math.abs(reachable[i].loc.x - reachable[j].loc.x), math.abs(reachable[i].loc.y - reachable[j].loc.y))
             if d <= radius * 2 then
-                return true
+                caught[i] = true
+                caught[j] = true
             end
         end
     end
-    return false
+    local names = {}
+    for i = 1, #reachable do
+        if caught[i] then
+            names[#names + 1] = reachable[i].name or "A hero"
+        end
+    end
+    if #names < 2 then
+        return nil
+    end
+    return names
 end
 
 --"3 heroes in reach" / "1 hero in reach" / "No hero in reach"; short = "3 in
@@ -4479,7 +4543,8 @@ local function OverviewHeroProfiles()
         --+ SURGE/turn-gain assumptions below). Known accepted gaps:
         --roll-time modifiers (fire specialization) and trait immunities.
         local profile = { token = hero, speed = 0, range = 1,
-            bestBurst = 0, bestPush = 0, bestName = nil, pushName = nil,
+            bestBurst = 0, bestPush = 0, bestSquad = 0,
+            bestName = nil, pushName = nil,
             surgeDamage = 0, spent = false }
         pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
         pcall(function()
@@ -4532,6 +4597,18 @@ local function OverviewHeroProfiles()
                                 profile.bestPush = push
                                 profile.pushName = variation.name
                             end
+                            --Field test 27 (Ricky's Two Shot correction):
+                            --against a minion squad every target of a
+                            --multi-target strike hits the SAME pool, so
+                            --the hero's squad threat is dmg x targets.
+                            local squadHit = dmg
+                            local numTargets = tonumber(variation.numTargets) or 1
+                            if variation.targetType == "target" and numTargets > 1 then
+                                squadHit = dmg * numTargets
+                            end
+                            if squadHit > profile.bestSquad then
+                                profile.bestSquad = squadHit
+                            end
                         end
                         local tt = variation.targetType
                         if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
@@ -4576,6 +4653,8 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
     if cur == nil or cur <= 0 then
         return nil, false
     end
+    local isMinion = false
+    pcall(function() isMinion = tok.properties.minion == true end)
 
     local locs = nil
     pcall(function()
@@ -4605,9 +4684,16 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
                 end
                 if nearest ~= nil and nearest <= profile.speed + profile.range then
                     anyUnspentInReach = true
-                    local potential = profile.bestBurst + profile.surgeDamage
+                    --A minion squad's stamina is the shared pool, and a
+                    --multi-target strike hits it once per target (Two
+                    --Shot vs pitlings), so squads face bestSquad.
+                    local burst = profile.bestBurst
+                    if isMinion and profile.bestSquad > burst then
+                        burst = profile.bestSquad
+                    end
+                    local potential = burst + profile.surgeDamage
                     local pushPotential = profile.bestPush + profile.surgeDamage
-                    if profile.bestBurst > 0 and cur <= potential then
+                    if burst > 0 and cur <= potential then
                         if killer == nil then
                             killer = profile
                         end
@@ -4623,6 +4709,41 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
 
     local safeOutside = not anyUnspentInReach
     if killer == nil and pushKiller == nil then
+        if isMinion then
+            --Field test 27 (Ricky): minions are ALWAYS fragile - even
+            --small damage kills members and cuts the squad's output - so
+            --a minion column reads "Squishy" whenever the stronger signal
+            --(a full pool wipe = Near Death) does not apply. squishy does
+            --NOT count as dying for DMG badge rule 2 and does NOT put
+            --skulls on the squad mini-rows (the headline says it once).
+            local lines = { string.format("<color=%s><b>Squishy</b></color>", g_overviewRisk.red) }
+            local seenTag = {}
+            local shownTags = 0
+            for _, entry in ipairs(threats or {}) do
+                local text = entry.name or "Marked"
+                if entry.casterName ~= nil then
+                    text = string.format("%s by %s", text, entry.casterName)
+                else
+                    text = text .. " by a hero"
+                end
+                if not seenTag[text] then
+                    seenTag[text] = true
+                    if shownTags < 2 then
+                        lines[#lines + 1] = "- " .. text
+                    end
+                    shownTags = shownTags + 1
+                end
+            end
+            if shownTags > 2 then
+                lines[#lines] = string.format("%s +%d more", lines[#lines], shownTags - 2)
+            end
+            return {
+                level = "red",
+                squishy = true,
+                text = table.concat(lines, "\n"),
+                tooltip = "Even small hits kill minions and cut the squad's damage output.",
+            }, safeOutside
+        end
         return nil, safeOutside
     end
 
@@ -5438,8 +5559,9 @@ local function OverviewColumnFooter()
                 end
                 --Field test 21/22: the row wears the skull inline before the
                 --name (mirrors the headline) instead of a text tag.
-                rowSkull:SetClass("collapsed", member.risk == nil)
-                rowLabel:SetClass("withSkull", member.risk ~= nil)
+                local rowRed = member.risk ~= nil and member.risk.squishy ~= true
+                rowSkull:SetClass("collapsed", not rowRed)
+                rowLabel:SetClass("withSkull", rowRed)
                 rowSignal.text = signal
                 rowSignal:SetClass("collapsed", signal == "")
             end,
@@ -5834,8 +5956,12 @@ local function OverviewColumnFooter()
             local risk = nil
             local allSafe = #members > 0
             for _, member in ipairs(members) do
-                if member.risk ~= nil and risk == nil then
-                    risk = member.risk
+                --A real Near Death outranks the standing minion Squishy
+                --(a two-squad column shows the worst member's line).
+                if member.risk ~= nil then
+                    if risk == nil or (risk.squishy == true and member.risk.squishy ~= true) then
+                        risk = member.risk
+                    end
                 end
                 if member.safe ~= true then
                     allSafe = false
@@ -5845,10 +5971,11 @@ local function OverviewColumnFooter()
             m_riskTooltip = risk and risk.tooltip or nil
             local riskText = risk and risk.text or nil
             --"High damage dealer" rides as a bullet under Near Death, or
-            --stands alone in gold when the creature is otherwise safe.
+            --stands alone in RED when the creature is otherwise safe
+            --(field test 27: gold did not stand out enough).
             if column.highDamage then
                 if riskText == nil then
-                    riskText = "<color=#C9A86A><b>High damage dealer</b></color>"
+                    riskText = string.format("<color=%s><b>High damage dealer</b></color>", g_overviewRisk.red)
                     m_riskTooltip = "Highest damage of all selected monsters"
                 else
                     riskText = riskText .. "\n- High damage dealer"
@@ -6118,7 +6245,7 @@ local function ActionSubMenu(args)
                 --under the All / Damage lenses.
                 local dmgBadge = false
                 local dmgTooltip = nil
-                local multiTooltip = nil
+                local areaTooltip = nil
                 local multiBadge, multiDamaging, summonBadge = false, false, false
                 if overview then
                     local facets = facetsByAbility[abilities[i]]
@@ -6140,19 +6267,27 @@ local function ActionSubMenu(args)
                             summonBadge = facets.summon == true
                             multiBadge = (not summonBadge) and facets.multiTarget == true
                             multiDamaging = facets.damage == true
-                            --Field test 26: an area ability wears the twins
-                            --only when it can actually catch several heroes
-                            --from here (positional; recomputed every
-                            --populate, so it follows the tokens).
-                            if (not summonBadge) and (not multiBadge) and facets.area == true
-                                and OverviewAreaCatch(m_casterToken, abilities[i]) then
-                                multiBadge = true
-                                multiTooltip = "Can catch more than one hero this turn"
+                            --Field test 27: an area ability wears the gold
+                            --"!" window alert only while it could actually
+                            --catch several heroes (positional; recomputed
+                            --every populate so it follows the tokens); the
+                            --tooltip names who is exposed.
+                            if (not summonBadge) and facets.area == true then
+                                local names = OverviewAreaCatch(m_casterToken, abilities[i])
+                                if names ~= nil then
+                                    local list = names[1]
+                                    if #names == 2 then
+                                        list = names[1] .. " and " .. names[2]
+                                    elseif #names > 2 then
+                                        list = table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+                                    end
+                                    areaTooltip = string.format("%s are positioned vulnerably to this ability", list)
+                                end
                             end
                         end
                     end
                 end
-                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, multiTooltip)
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, areaTooltip)
             end
 
             for i = #abilities + 1, #m_chips do
@@ -6666,7 +6801,7 @@ ActionMenu = function()
             column.anyRed = false
             local signals = OverviewColumnSignals(column)
             for _, member in ipairs(signals.members) do
-                if member.risk ~= nil and member.risk.level == "red" then
+                if member.risk ~= nil and member.risk.level == "red" and member.risk.squishy ~= true then
                     column.anyRed = true
                 end
             end
@@ -7158,8 +7293,8 @@ ActionMenu = function()
             end
         end,
 
-        m_lensBar,
         m_containerPanel,
+        m_lensBar,
         g_manualSetResourcePanel,
     }
 

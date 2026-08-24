@@ -10589,10 +10589,17 @@ function creature:Rest(restType, keepOngoingEffects)
 		local victories = self:try_get("victories", 0)
 		if victories > 0 then
 			local curXp = self:try_get("xp", 0)
-			local newXp = curXp + victories
 			local level = self:CharacterLevel()
 			local xpPerLevel = toint(dmhub.GetSettingValue("xpperlevel") or 16)
 			if xpPerLevel == 0 then xpPerLevel = 16 end
+
+			--A directly-set level can leave xp below what that level implies.
+			local xpFloorForLevel = (level - 1) * xpPerLevel
+			if curXp < xpFloorForLevel then
+				curXp = xpFloorForLevel
+			end
+
+			local newXp = curXp + victories
 			local xpNextLevel = level * xpPerLevel
 			local newLevel = level
 			local levelingUp = newXp >= xpNextLevel

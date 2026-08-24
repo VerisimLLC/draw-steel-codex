@@ -35,6 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
 --- @field appearance table|nil Optional visual representation drawn on the map for zones of this keyword (beyond the overlay stripes), edited in the Edit Appearance dialog. mode = "floor": {mode, tileid = tilesheet asset id filling the tiles, edgeWallId = wall asset id drawn as a decorative ring around the boundary (nil = none), alpha = fill opacity, fractalEdge = deterministic organic-boundary strength from 0 to 1 (nil = 0), edgeFade = inward fill fade in tiles from 0 to 0.35 (nil = 0), tileImageId/edgeImageId = source image asset ids shown in the dialog's IconEditors (nil when the asset was copied from an existing tilesheet/wall), tileOwned/edgeOwned = true when the asset was created/forked for this keyword (replaced assets are Delete()d)}. Floor fills force the private tilesheet asset to oneLargeTile so the whole image is the repeating unit. mode = "sprites": {mode, sprites = image asset ids, spriteScale = quad size within the tile, spriteAlpha}. Texture scale/hue/saturation/brightness live on the referenced ASSETS, exactly like real floors and walls. MapMarkupPanel stamps this onto zone aura instances (AuraInstance:GetAppearance); the engine's MarkupZoneVisuals renders it resting on the ground, terrain-conformed and parallax-correct. No class default: absent = no visual.
 --- @field appearanceDefaultOff boolean|nil When true, new zones painted with this keyword from the Map Markup panel start with their visual representation hidden (record field hideAppearance; stripes only). Toggled by the "Visuals" pill on the zone palette chip. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Visuals badge on its zone-list row), so flipping this never disturbs existing zones. Only meaningful when appearance is set. No class default: absent = visuals shown.
+--- @field defaultPlayerVisible boolean|nil When false, new zones painted with this keyword from the Map Markup panel start hidden from players (record field playerVisible). Set by the "New Zones Visible to Players" check in the keyword editor. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Edit Zone dialog), so flipping this never disturbs existing zones. No class default: absent = visible.
 --- @field script string|nil Optional Lua zone-script source, edited in the Edit Script dialog. When set, one instance of the script runs on EVERY client for each zone of this keyword on the current map (Entire Map blankets included). The source must RETURN a table of handlers, all optional: create(zone), destroy(zone), locsChanged(zone), think(zone), and thinkInterval (seconds between think calls, default 1). destroy is guaranteed to run when the zone is de-instantiated: erased or deleted, its keyword deleted, the map changed, the script edited, or mods reloaded. If locsChanged is absent the script is restarted (destroy then create) whenever the zone's tiles change. The zone object passed to handlers carries zoneid/floorid/floorIndex/mapid, name, keyword (type name), keywordid, color, altitude, height (nil = unlimited), entireMap, locs (list of Loc userdata, ready for e.g. dmhub.CreateWorldDistortion), locsAndAdjacent (locs plus every tile 8-way adjacent to the zone; computed lazily on first read and refreshed when the zone's tiles change) and data (an empty scratch table for script state). No class default: absent = no script.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
@@ -2090,6 +2091,36 @@ local SetData = function(tableName, keywordPanel, keyid)
 		},
 		defaultHeightAmount,
 		defaultHeightUnits,
+	}
+
+	--Whether zones painted with this keyword start visible to players. Scenery
+	--the table can see anyway (water, difficult ground) stays checked; a type
+	--that is a secret hazard is unchecked once here instead of per zone. Only a
+	--DEFAULT stamped at paint time (MapMarkupPanel CreateZone) -- each zone owns
+	--its flag afterward, in the Edit Zone dialog -- so changing it here never
+	--touches zones already on a map. Visible is the default and stays off the
+	--record, so keywords serialized before this field keep behaving as they did.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("defaultPlayerVisible", true),
+			text = "New Zones Visible to Players",
+			change = function(element)
+				if element.value then
+					keyword.defaultPlayerVisible = nil
+				else
+					keyword.defaultPlayerVisible = false
+				end
+				UploadKeyword()
+			end,
+		},
+	}
+
+	children[#children+1] = gui.Label{
+		classes = {"formStacked", "fgMuted"},
+		width = "94%",
+		height = "auto",
+		text = "Unchecked, zones you paint with this type start hidden from players. Each zone keeps its own setting afterward, in the Edit Zone dialog.",
 	}
 
 	--optional visual representation drawn on the map for zones of this type:

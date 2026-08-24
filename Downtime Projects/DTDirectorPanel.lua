@@ -421,6 +421,7 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
         width = "98%",
         height = 24,
         tmargin = 6,
+        valign = "top",
         flow = "horizontal",
         children = {
             triangle,
@@ -449,34 +450,25 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
                 classes = {"sizeS", "bold"},
                 text = characterName .. playerDisplay,
                 width = "70%",
-                height = "100%",
+                height = "auto",
                 valign = "center",
                 hmargin = 4,
             },
             -- Settings button (right-aligned)
-            gui.Panel{
-                width = "30",
-                height = "100%",
-                flow = "horizontal",
+            gui.Button {
+                classes = {"settingsButton", "sizeS"},
                 halign = "right",
                 valign = "center",
-                children = {
-                    gui.Button {
-                        classes = {"settingsButton", "sizeS"},
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        linger = function(element)
-                            gui.Tooltip("Open character sheet")(element)
-                        end,
-                        press = function()
-                            local character = dmhub.GetCharacterById(characterId)
-                            if character then
-                                character:ShowSheet("Downtime")
-                            end
-                        end
-                    }
-                }
+                hmargin = 5,
+                linger = function(element)
+                    gui.Tooltip("Open character sheet")(element)
+                end,
+                press = function()
+                    local character = dmhub.GetCharacterById(characterId)
+                    if character then
+                        character:ShowSheet("Downtime")
+                    end
+                end
             }
         }
     }
@@ -568,6 +560,7 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
         width = "100%",
         height = "auto",
         flow = "vertical",
+        valign = "top",
         children = {
             headerPanel,
             contentPanel,
@@ -629,6 +622,7 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
         width = "100%",
         height = "auto",
         flow = "vertical",
+        valign = "top",
         children = tabChildren,
     }
 end

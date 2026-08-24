@@ -2476,25 +2476,55 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
             tabbedViewer:FireEvent("toggleShade")
         end,
         rightClick = function(element)
+            if not dmhub.isDM then
+                return
+            end
+
+            local entries = {}
+
             --Director-side: add the tab's document to the Run panel. rawget
             --because the RunAgenda hook lives in CampaignTrackerPanel.
-            if not dmhub.isDM or rawget(_G, "RunAgenda") == nil then
-                return
-            end
-            local tabDoc = (dmhub.GetTable(CustomDocument.tableName) or {})[element.data.docId]
-            if tabDoc == nil then
-                return
-            end
-            element.popup = gui.ContextMenu {
-                entries = {
-                    {
+            if rawget(_G, "RunAgenda") ~= nil then
+                local tabDoc = (dmhub.GetTable(CustomDocument.tableName) or {})[element.data.docId]
+                if tabDoc ~= nil then
+                    entries[#entries + 1] = {
                         text = "Add to Run",
                         click = function()
                             element.popup = nil
                             RunAgenda.AddDocument(tabDoc)
                         end,
-                    },
-                },
+                    }
+                end
+            end
+
+            if #tabbedViewer.data.tabs > 1 then
+                entries[#entries + 1] = {
+                    text = "Close all other tabs",
+                    click = function()
+                        element.popup = nil
+                        local keepId = element.data.tabId
+                        --switch first: closing the active tab makes the close path
+                        --realize a survivor we are about to destroy.
+                        tabbedViewer:FireEvent("switchToTab", keepId)
+                        local doomed = {}
+                        for _, tab in ipairs(tabbedViewer.data.tabs) do
+                            if tab.tabId ~= keepId then
+                                doomed[#doomed + 1] = tab.tabId
+                            end
+                        end
+                        for _, tabId in ipairs(doomed) do
+                            tabbedViewer:FireEvent("closeTab", tabId)
+                        end
+                    end,
+                }
+            end
+
+            if #entries == 0 then
+                return
+            end
+
+            element.popup = gui.ContextMenu {
+                entries = entries,
             }
         end,
         children = children,

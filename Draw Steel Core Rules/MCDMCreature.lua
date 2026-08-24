@@ -876,7 +876,12 @@ function creature:RefreshInitiativeInfo(token)
         if initiativeEntry ~= nil and initiativeEntry.initiativeid == initiativeid then
             self._tmp_initiativeStatus = "OurTurn"
         elseif not q:HasInitiative(initiativeid) then
-            self._tmp_initiativeStatus = "NonCombatant"
+            if self:try_get("treatAsObject", false) then
+                --Object-tagged creatures are scenery, not skipped combatants; don't grey them out.
+                self._tmp_initiativeStatus = nil
+            else
+                self._tmp_initiativeStatus = "NonCombatant"
+            end
         elseif q:HasHadTurn(initiativeid) then
             self._tmp_initiativeStatus = "Done"
         elseif q:ChoosingTurn() and q:IsPlayersTurn() == q:IsEntryPlayer(initiativeid) and (q:has_key("priorityids") == false or q:EntriesUnmoved()[initiativeid]) then

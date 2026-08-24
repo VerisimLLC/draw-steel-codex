@@ -5451,7 +5451,11 @@ local function OverviewColumnFooter()
         gui.Label {
             classes = { "overviewFooterRisk" },
             text = string.format("<color=%s><b>High damage dealer</b></color>", g_overviewRisk.red),
-            interactable = false,
+            hover = function(element)
+                if m_dmgLineTooltip ~= nil then
+                    gui.Tooltip(m_dmgLineTooltip)(element)
+                end
+            end,
         },
     }
     local areaRow = gui.Panel {
@@ -5465,7 +5469,7 @@ local function OverviewColumnFooter()
         gui.Label {
             classes = { "overviewFooterRisk" },
             text = string.format("<color=%s><b>Heroes vulnerable to area abilities</b></color>", g_overviewRisk.red),
-            interactable = false,
+            hover = gui.Tooltip{ text = "An area ability in this kit could catch several heroes right now", valign = "top" },
         },
     }
     --Field test 31 (Ricky, reversing his field-test-29 hold): amber
@@ -5476,10 +5480,19 @@ local function OverviewColumnFooter()
     local m_likelyTooltip = nil
     local likelyIcons = {}
     for i = 1, 3 do
+        --Each glyph answers hover with ITS debuff's own text, exactly like
+        --the strip icons did (field test 32); the label and the row's bare
+        --ground answer with the explainer.
         likelyIcons[i] = gui.Panel {
             classes = { "overviewRiskIcon", "collapsed" },
             bgimage = "panels/square.png",
-            interactable = false,
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
         }
     end
     local likelyRow = gui.Panel {
@@ -5495,7 +5508,11 @@ local function OverviewColumnFooter()
         gui.Label {
             classes = { "overviewFooterRisk", "likely" },
             text = string.format("<color=%s><b>Likely Target</b></color>", g_overviewRisk.amber),
-            interactable = false,
+            hover = function(element)
+                if m_likelyTooltip ~= nil then
+                    gui.Tooltip(m_likelyTooltip)(element)
+                end
+            end,
         },
     }
 
@@ -6105,15 +6122,14 @@ local function OverviewColumnFooter()
             signalLabel:SetClass("collapsed", text == "")
 
             --P2-a: status strip for a single actor; mini-rows carry the
-            --names when there are several. Field test 4: a hero-applied
-            --threat already prints as red TEXT on the signal line, so the
-            --strip shows only the OTHER statuses - never both channels for
-            --the same fact.
-            --Field test 11: ALL statuses (threats red-ringed) - the visual
-            --twin of the risk bullets, under the portrait.
-            if #members == 1 then
-                statusStrip:FireEvent("setStatuses", members[1].statuses)
-            else
+            --names when there are several. Field test 32 (Ricky): when the
+            --Likely Target row shows the threat glyphs, the strip drops
+            --them (they sat side by side, duplicated) and keeps only the
+            --other statuses; with a red risk box instead (no Likely row)
+            --the strip still shows every status, threats red-ringed
+            --(field test 11's twin-channel pairing with the bullets).
+            --Contents set below, after the risk/likely computation.
+            if #members ~= 1 then
                 statusStrip:FireEvent("setStatuses", nil)
             end
 
@@ -6174,6 +6190,7 @@ local function OverviewColumnFooter()
             m_likelyTooltip = nil
             for i, icon in ipairs(likelyIcons) do
                 local entry = likely ~= nil and likely[i] or nil
+                icon.data.entry = entry
                 if entry ~= nil then
                     icon.bgimage = entry.icon
                     local bgcolor = "white"
@@ -6204,6 +6221,22 @@ local function OverviewColumnFooter()
                 m_likelyTooltip = string.format("%s %s this creature a likely target", joined, verb)
             end
             likelyRow:SetClass("collapsed", likely == nil)
+
+            --Field test 32: the strip's contents, now that we know whether
+            --the Likely Target row is carrying the threat glyphs.
+            if #members == 1 then
+                local entries = members[1].statuses
+                if likely ~= nil then
+                    local filtered = {}
+                    for _, entry in ipairs(entries or {}) do
+                        if not entry.threat then
+                            filtered[#filtered + 1] = entry
+                        end
+                    end
+                    entries = filtered
+                end
+                statusStrip:FireEvent("setStatuses", entries)
+            end
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil

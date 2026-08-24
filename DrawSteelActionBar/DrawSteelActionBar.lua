@@ -5639,7 +5639,14 @@ CreateAbilityController = function()
         end,
 
         chooseTarget = function(element, options)
-            if g_actionBar == nil then return end
+            if g_actionBar == nil then
+                --No action bar means nobody will ever answer this prompt.
+                --Cancel it so the ability doesn't hang waiting.
+                if options ~= nil and options.cancel ~= nil then
+                    options.cancel()
+                end
+                return
+            end
             ClearRadiusMarkers()
 
             --reasons[charid] = reason string for targets that pass the

@@ -5635,10 +5635,10 @@ local function OverviewColumnFooter()
             if column.highDamage then
                 if riskText == nil then
                     riskText = "<color=#C9A86A><b>High damage dealer</b></color>"
-                    m_riskTooltip = "Hits hardest of everyone selected."
+                    m_riskTooltip = "Highest damage of all selected monsters"
                 else
                     riskText = riskText .. "\n- High damage dealer"
-                    m_riskTooltip = (m_riskTooltip or "") .. "\nHits hardest of the dying - use it before it is lost."
+                    m_riskTooltip = (m_riskTooltip or "") .. "\nHighest damage of selected monsters near death"
                 end
             end
             riskLabel.text = riskText or ""
@@ -5910,10 +5910,10 @@ local function ActionSubMenu(args)
                         if (lens == "all" or lens == "damage") and m_column ~= nil and facets.damageValue > 0 then
                             if m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax then
                                 dmgBadge = true
-                                dmgTooltip = "Highest damage amongst selected monsters"
+                                dmgTooltip = "Highest damage of all selected monsters"
                             elseif m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax then
                                 dmgBadge = true
-                                dmgTooltip = "Highest damage amongst near-death monsters - use it before it's lost"
+                                dmgTooltip = "Highest damage of selected monsters near death"
                             end
                         end
                         --Field test 13: multi-target and summon markers ride

@@ -1144,6 +1144,16 @@ something." (ability names, arithmetic and methodology all removed); the
 damage-dealer tooltips likewise de-jargoned ("Hits hardest of everyone
 selected." / "Hits hardest of the dying - use it before it is lost.").
 
+**2026-08-24, twenty-first report (Ricky) - tooltip copy principles locked:**
+minimalist information only, NO imperatives (the Director decides, the UI
+never instructs) and no dash-joined explainer clauses. Applied: footer
+damage tooltips are now "Highest damage of all selected monsters" /
+"Highest damage of selected monsters near death"; the chip DMG badge
+tooltips aligned to the same two strings (their old copy had the same
+dash+imperative pattern). These principles extend the conclusion-not-
+homework rule and govern the P2-f copy pass.
+
+
 
 
 

@@ -6728,14 +6728,7 @@ Compendium = {
 			height = 940,
 			pad = 8,
 			flow = "vertical",
-			styles = {
-				Styles.Default,
-				Styles.Panel,
-				{
-					classes = {"formPanel"},
-					valign = "top",
-				}
-			},
+			styles = ThemeEngine.GetStyles(),
 
 			gui.Label{
 				classes = {"dialogTitle"},

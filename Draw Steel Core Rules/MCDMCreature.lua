@@ -230,9 +230,11 @@ end
 
 function creature:CalculateNamedCustomAttribute(id)
     local cacheKey = id
+    --keyed to tablesUpdateId so values derived from compendium tables/assets are
+    --recalculated after a reload rather than memoized for the whole session.
     local cache = self:try_get("_tmp_calculatedAttributes")
-    if cache == nil then
-        cache = {}
+    if cache == nil or cache.__tablesUpdateId ~= dmhub.tablesUpdateId then
+        cache = { __tablesUpdateId = dmhub.tablesUpdateId }
         self._tmp_calculatedAttributes = cache
     end
 
@@ -7457,9 +7459,9 @@ local function GroupingHud(groupid)
             end,
         }
 
-        m_sheet:FireEvent("think")
-
         sheetParent.sheet = m_sheet
+
+        m_sheet:FireEvent("think")
     end
 end
 

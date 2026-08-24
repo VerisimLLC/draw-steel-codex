@@ -3315,6 +3315,15 @@ local function CreateCategoryDropdown(asset, opts)
 	return dropdown
 end
 
+--Press click for this file's hand-rolled glyph controls (transport, cue, play,
+--pin, ...). Text buttons get their click from the {label, button, press} rule in
+--DefaultStyles; these are raw gui.Panels matching no button selector, so they were
+--silent. Splice it into a control's own styles list to opt it in. A style rule and
+--not an audio.FireSoundEvent in the press handler on purpose: the engine mutes
+--style sounds while the app is unfocused, and these should behave like every other
+--button rather than clicking in the background.
+local GLYPH_PRESS_SOUND = { selectors = {"press"}, soundEvent = "Mouse.Click" }
+
 --Unified soundboard button style rules (chunk F1a/F1d). Shared verbatim by BOTH
 --surfaces: the dock attaches these via ThemeEngine.MergeTokens on soundboardBody
 --(chunk F, P1 -- NOT the dock content root, to avoid duplicating the full base
@@ -3658,6 +3667,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			},
 		}
 		muteButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioSbMute", "hoverable"},
 			bgimage = "ui-icons/ph-speaker-high-fill.png",
 			width = 12,
@@ -4066,6 +4076,7 @@ local function CreatePlayerSoundPanel()
 			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
 			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
+			GLYPH_PRESS_SOUND,
 		},
 	}
 
@@ -4452,6 +4463,7 @@ local function BuildSoundPanelContent()
 			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
 			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
+			GLYPH_PRESS_SOUND,
 		},
 	}
 
@@ -4460,6 +4472,7 @@ local function BuildSoundPanelContent()
 	--glyph). Hidden entirely when nothing is playing so the status row does not
 	--show a dead control at rest.
 	local stopAllButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "panels/square.png",
 		bgcolor = "white",
@@ -4606,6 +4619,7 @@ local function BuildSoundPanelContent()
 	--which one shows.
 	local pauseButton
 	pauseButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "ui-icons/ph-play-pause-fill.png",
 		width = 18,
@@ -4621,6 +4635,7 @@ local function BuildSoundPanelContent()
 		end,
 	}
 	local stopButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "ui-icons/ph-stop-fill.png",
 		bgcolor = "white",
@@ -4728,6 +4743,7 @@ local function BuildSoundPanelContent()
 	--valign=center inside the 18-tall transportRow so they sit flush with the
 	--other transport controls.
 	local shuffleChip = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"collapsed"},
 		bgimage = "ui-icons/ph-shuffle-fill.png",
 		--Default white; UpdateNowPlaying tints it to the theme accent while shuffle
@@ -4754,6 +4770,7 @@ local function BuildSoundPanelContent()
 		end,
 	}
 	local nextChip = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"collapsed"},
 		bgimage = "ui-icons/ph-skip-forward-fill.png",
 		bgcolor = "white",
@@ -4813,6 +4830,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
@@ -4868,6 +4886,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
@@ -5563,6 +5582,7 @@ local function BuildSoundPanelContent()
 			end
 
 			previewButton = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
@@ -6324,6 +6344,7 @@ local function BuildSoundPanelContent()
 			end
 
 			previewButton = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
@@ -6359,6 +6380,7 @@ local function BuildSoundPanelContent()
 
 			local onOffButton
 			onOffButton = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-speaker-slash-fill.png",
 				bgcolor = "white",
 				width = 16,
@@ -7384,6 +7406,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local playButton
 	if not slim then
 		playButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioBroadcastButton"},
 			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
@@ -7413,6 +7436,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--so it clears when the clip ends or another row takes over.
 	local cueButton
 	cueButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"audioCueButton"},
 		bgimage = "ui-icons/ph-headphones-fill.png",
 		width = 18,
@@ -7465,6 +7489,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local loopButton
 	if not slim then
 		loopButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
 			bgimage = "game-icons/infinity.png",
 			width = 16,
@@ -7494,6 +7519,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local muteButton
 	if not slim then
 		muteButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"hoverable", "audioRowMuteButton"},
 			bgimage = "ui-icons/ph-speaker-high-fill.png",
 			bgcolor = "white",
@@ -7650,6 +7676,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end
 		plusButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioAddTrackButton"},
 			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
@@ -7725,6 +7752,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end
 		plusButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioAddTrackButton"},
 			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
@@ -10117,6 +10145,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 		local pin
 		pin = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioPlPin", cond(pl.pinned, "pinned", nil)},
 			bgimage = "ui-icons/ph-push-pin-fill.png",
 			width = 16,
@@ -10215,6 +10244,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 		local playButton
 		playButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioBroadcastButton"},
 			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
@@ -10344,6 +10374,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			--already honors it); false = the playlist stops after its last track.
 			local loopToggle
 			loopToggle = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				classes = {"audioRowLoopButton", cond(pl.loop ~= false, nil, "disabled")},
 				bgimage = "game-icons/infinity.png",
 				width = 16,
@@ -10902,6 +10933,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		local lastFiredAssetId = nil
 		local cueButton
 		cueButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioCueButton"},
 			bgimage = "ui-icons/ph-headphones-fill.png",
 			width = 18,
@@ -11750,6 +11782,7 @@ local function CreateStudioNowPlayingStrip()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "panels/square.png",
 				bgcolor = "white",
 				width = 11,
@@ -11804,6 +11837,7 @@ local function CreateStudioNowPlayingStrip()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "panels/square.png",
 				bgcolor = "white",
 				width = 11,

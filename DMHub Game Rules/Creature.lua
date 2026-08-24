@@ -10593,9 +10593,7 @@ function creature:Rest(restType, keepOngoingEffects)
 			local xpPerLevel = toint(dmhub.GetSettingValue("xpperlevel") or 16)
 			if xpPerLevel == 0 then xpPerLevel = 16 end
 
-			--A level set directly (builder, import, DM edit) can leave xp below what
-			--that level implies. Pull xp up to the bottom of the current level's band
-			--first, so victories are awarded from the correct baseline.
+			--A directly-set level can leave xp below what that level implies.
 			local xpFloorForLevel = (level - 1) * xpPerLevel
 			if curXp < xpFloorForLevel then
 				curXp = xpFloorForLevel

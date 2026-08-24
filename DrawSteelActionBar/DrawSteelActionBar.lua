@@ -4485,32 +4485,19 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
         lines[#lines + 1] = "- " .. bullet
     end
 
-    local threat = killer or pushKiller
-    local heroName = "a hero"
-    pcall(function()
-        if threat.token.canLocalPlayerSeeName then
-            heroName = threat.token.name
-        end
-    end)
-    local surgeText = ""
-    if threat.surgeDamage > 0 then
-        surgeText = string.format(" +%d from surges", math.floor(threat.surgeDamage))
-    end
-    local tooltipParts = {}
+    --Field test 20: the tooltip says the CONCLUSION, not the homework
+    --(the earlier version listed the ability, the arithmetic and the
+    --methodology - "far too technical" at the table).
+    local tooltip
     if killer ~= nil then
-        tooltipParts[#tooltipParts + 1] = string.format(
-            "%s's %s hits ~%d%s vs %d Stamina.",
-            heroName, killer.bestName or "best hit", math.floor(killer.bestBurst), surgeText, math.floor(cur))
+        tooltip = "A ready hero nearby could kill this with a single ability."
     else
-        tooltipParts[#tooltipParts + 1] = string.format(
-            "%s's %s hits ~%d%s and pushes - a collision could cover the %d Stamina.",
-            heroName, pushKiller.pushName or "best hit", math.floor(pushKiller.bestPush), surgeText, math.floor(cur))
+        tooltip = "A ready hero nearby could kill this by pushing it into something."
     end
-    tooltipParts[#tooltipParts + 1] = "Counts only heroes who have not acted, within striking range: best affordable ability at tier 2 (engine-resolved) plus held surges. Crits and stacked bonuses can beat it either way."
     return {
         level = "red",
         text = table.concat(lines, "\n"),
-        tooltip = table.concat(tooltipParts, "\n"),
+        tooltip = tooltip,
     }, safeOutside
 end
 
@@ -5648,10 +5635,10 @@ local function OverviewColumnFooter()
             if column.highDamage then
                 if riskText == nil then
                     riskText = "<color=#C9A86A><b>High damage dealer</b></color>"
-                    m_riskTooltip = "This creature's kit has the best typical (tier-2) damage in the selection."
+                    m_riskTooltip = "Hits hardest of everyone selected."
                 else
                     riskText = riskText .. "\n- High damage dealer"
-                    m_riskTooltip = (m_riskTooltip or "") .. "\nBest typical (tier-2) damage among the dying - burn this one for damage first."
+                    m_riskTooltip = (m_riskTooltip or "") .. "\nHits hardest of the dying - use it before it is lost."
                 end
             end
             riskLabel.text = riskText or ""

@@ -1136,6 +1136,15 @@ Crucible 10 (3 essence held), Censor Arrest 11 -> Skeletons (10) NEAR DEATH,
 Zombies (20) quiet, Ghouls (15) quiet. Matches the table reality that
 motivated the change.
 
+**2026-08-24, twentieth report (Ricky): the Near Death tooltip was "far too
+technical".** COPY RULE recorded for every overview tooltip: say the
+CONCLUSION, never the homework. The tooltip is now one sentence - "A ready
+hero nearby could kill this with a single ability." / "...by pushing it into
+something." (ability names, arithmetic and methodology all removed); the
+damage-dealer tooltips likewise de-jargoned ("Hits hardest of everyone
+selected." / "Hits hardest of the dying - use it before it is lost.").
+
+
 
 
 

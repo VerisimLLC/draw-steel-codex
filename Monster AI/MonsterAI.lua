@@ -381,6 +381,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                 end
 
                 self.abilities = token.properties:GetActivatedAbilities()
+                self._tmp_synthesizedAbilitiesUsed = {}
 
                 for i=1,6 do
                     self.paths = token:CalculatePathfindingArea((token.properties:CurrentMovementSpeed() - token.properties:DistanceMovedThisTurn())*10, {})
@@ -1384,6 +1385,620 @@ function MonsterAI:FindBestLinePlan(token, ability, options)
     return best
 end
 
+-- Synthesized moves are intentionally conservative. They are only considered
+-- for fully automated offensive abilities whose targeting can be planned by
+-- the generic AI without asking a player to make a semantic choice.
+local g_synthesizedAbilityMinimumConfidence = 0.90
+local g_synthesizedAbilitySupportedTargets = {
+    target = true,
+    all = true,
+    cube = true,
+    line = true,
+}
+local g_synthesizedAbilityExcludedCategories = {
+    Malice = true,
+    ["Malice Ability"] = true,
+    Trigger = true,
+    ["Triggered Ability"] = true,
+    ["Villain Action"] = true,
+}
+
+local function SynthesizedAbilityKey(ability)
+    return ability:GetID() or ability.name
+end
+
+local function SynthesizedMoveId(ability)
+    return string.format("Synthesized: %s", ability.name)
+end
+
+local function TextDescribesDamage(text)
+    if type(text) ~= "string" then
+        return false
+    end
+    return string.find(string.lower(text), "%f[%a]damage%f[%A]") ~= nil
+end
+
+local function ResolveInvokedAbility(behavior)
+    local abilityType = behavior:try_get("abilityType", "custom")
+    if abilityType == "custom" then
+        return behavior:try_get("customAbility")
+    elseif abilityType == "standard" then
+        local abilities = dmhub.GetTable("standardAbilities") or {}
+        return abilities[behavior:try_get("standardAbility", "")]
+    end
+    return nil
+end
+
+local function BehaviorAppliesHarmToTargets(behavior)
+    local applyto = behavior:try_get("applyto", "targets")
+    return applyto == "targets"
+        or applyto == "enemies"
+        or applyto == "original_targets"
+        or applyto == "hit_targets"
+        or applyto == "failed_save_targets"
+        or applyto == "passed_save_targets"
+end
+
+local function SynthesizedHarmConfidence(ability, visited)
+    visited = visited or {}
+    if visited[ability] then
+        return nil
+    end
+    visited[ability] = true
+
+    if ability:HasKeyword("Strike") then
+        return 0.99, "Strike keyword"
+    end
+
+    local bestConfidence = nil
+    local bestReason = nil
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        local typeName = behavior.typeName
+        local confidence = nil
+        local reason = nil
+        if typeName == "ActivatedAbilityDamageBehavior"
+            and BehaviorAppliesHarmToTargets(behavior) then
+            confidence = 0.97
+            reason = "damage behavior"
+        elseif typeName == "ActivatedAbilityPowerRollBehavior"
+            and BehaviorAppliesHarmToTargets(behavior) then
+            for _,tier in ipairs(behavior:try_get("tiers", {})) do
+                if TextDescribesDamage(tier) then
+                    confidence = 0.95
+                    reason = "damaging power roll"
+                    break
+                end
+            end
+        elseif typeName == "ActivatedAbilityDrawSteelCommandBehavior"
+            and BehaviorAppliesHarmToTargets(behavior)
+            and TextDescribesDamage(behavior:try_get("rule", "")) then
+            confidence = 0.93
+            reason = "damage command"
+        elseif typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            local invokedAbility = ResolveInvokedAbility(behavior)
+            local targeting = behavior:try_get("targeting", "prompt")
+            if invokedAbility ~= nil and targeting ~= "self" then
+                local invokedConfidence = SynthesizedHarmConfidence(invokedAbility, visited)
+                if invokedConfidence ~= nil then
+                    confidence = invokedConfidence - 0.03
+                    reason = "damaging invoked ability"
+                end
+            end
+        end
+
+        if confidence ~= nil and (bestConfidence == nil or confidence > bestConfidence) then
+            bestConfidence = confidence
+            bestReason = reason
+        end
+    end
+
+    return bestConfidence, bestReason
+end
+
+function MonsterAI:SynthesizedAbilityPromptsAreHandled(ability, visited)
+    visited = visited or {}
+    if visited[ability] then
+        return true
+    end
+    visited[ability] = true
+
+    if ability:RequiresPromptWhenCast() then
+        return false, "requires a cast-time choice"
+    end
+
+    for _,behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" then
+            if behavior:try_get("promptWhenResolving", false) then
+                return false, "requires choosing invocation order"
+            end
+            if behavior:try_get("runOnController", false) then
+                return false, "delegates an invoked ability to another controller"
+            end
+
+            local abilityType = behavior:try_get("abilityType", "custom")
+            if abilityType == "named" or abilityType == "chooseClassAbility" then
+                return false, "selects an invoked ability dynamically"
+            end
+
+            local invokedAbility = ResolveInvokedAbility(behavior)
+            if invokedAbility == nil then
+                return false, "has an unresolved invoked ability"
+            end
+
+            local targeting = behavior:try_get("targeting", "prompt")
+            if targeting == "prompt" or targeting == "prompt_inherit" then
+                local prompt = self.prompts[invokedAbility.name]
+                if prompt == nil then
+                    return false, string.format("has no AI prompt handler for %s", invokedAbility.name)
+                end
+            end
+
+            local handled, reason = self:SynthesizedAbilityPromptsAreHandled(invokedAbility, visited)
+            if not handled then
+                return false, reason
+            end
+        end
+    end
+
+    return true
+end
+
+
+function MonsterAI:GetSynthesizedAbilityProfile(token, ability)
+    if ability:try_get("implementation", gui.ImplementationStatus.Unimplemented) < gui.ImplementationStatus.Gold then
+        return nil, "is not fully automated"
+    end
+    if #ability:try_get("behaviors", {}) == 0 then
+        return nil, "has no automated behaviors"
+    end
+    if not ability:IsDirectlyCastable() then
+        return nil, "must synthesize its own sub-abilities"
+    end
+    if not g_synthesizedAbilitySupportedTargets[ability.targetType] then
+        return nil, string.format("uses unsupported target type %s", tostring(ability.targetType))
+    end
+    if g_synthesizedAbilityExcludedCategories[ability.categorization] then
+        return nil, string.format("is a %s", ability.categorization)
+    end
+    if ability:try_get("villainAction") ~= nil then
+        return nil, "is a villain action"
+    end
+
+    local actionResource = ability:ActionResource()
+    if actionResource == CharacterResource.triggerResourceId then
+        return nil, "uses the triggered-action resource"
+    elseif actionResource == CharacterResource.villainActionId then
+        return nil, "uses the villain-action resource"
+    end
+
+    local promptsHandled, promptReason = self:SynthesizedAbilityPromptsAreHandled(ability)
+    if not promptsHandled then
+        return nil, promptReason
+    end
+
+    local confidence, reason = SynthesizedHarmConfidence(ability)
+    if confidence == nil then
+        return nil, "has no confidently harmful effect"
+    end
+    if ability.targetType ~= "target" then
+        confidence = confidence - 0.02
+    end
+    if confidence < g_synthesizedAbilityMinimumConfidence then
+        return nil, string.format("effect confidence %.2f is below threshold", confidence)
+    end
+
+    return {
+        actionResource = actionResource,
+        confidence = confidence,
+        reason = reason,
+        targetType = ability.targetType,
+    }
+end
+
+
+function MonsterAI:GetClaimedAbilityNames(token)
+    local result = {}
+    for _,move in pairs(self.moves) do
+        -- Disabled custom moves still claim their abilities. Otherwise disabling
+        -- a handcrafted behavior would unexpectedly turn the ability back on
+        -- through the fallback.
+        if self.MoveMatchesMonster(token, move, true) then
+            for _,abilityName in ipairs(move.abilities or {}) do
+                result[abilityName] = true
+            end
+        end
+    end
+    return result
+end
+
+
+local function SynthesizedDefaultTargetScore(targetInfo)
+    local target = targetInfo.token
+    if target.isObject or target.properties == nil then
+        return 0.1
+    end
+    local stamina = target.properties:CurrentHitpoints()
+        / math.max(1, target.properties.max_hitpoints)
+    return 1 + (targetInfo.edges or 0)*0.1 + (1 - stamina)*0.08
+end
+
+function MonsterAI:FindSynthesizedTargetPlan(token, ability)
+    local range = ability:GetRange(token.properties)
+    local numTargets = ability:GetNumTargets(token)
+    local best = nil
+
+    for _,pathInfo in pairs(self.paths or {}) do
+        local candidates = {}
+        for _,targetInfo in ipairs(self:FindValidTargetsOfStrike(token, ability, pathInfo.loc, range)) do
+            candidates[#candidates+1] = {
+                info = targetInfo,
+                score = SynthesizedDefaultTargetScore(targetInfo),
+            }
+        end
+        table.sort(candidates, function(a, b)
+            return a.score > b.score
+        end)
+
+        local targets = {}
+        local utility = 0
+        for i=1,math.min(numTargets, #candidates) do
+            targets[#targets+1] = candidates[i].info
+            utility = utility + candidates[i].score
+        end
+        if #targets > 0 then
+            utility = utility - (pathInfo.cost or 0)*0.001
+            if best == nil or utility > best.utility then
+                best = {
+                    loc = pathInfo.loc,
+                    targets = targets,
+                    enemies = #targets,
+                    utility = utility,
+                }
+            end
+        end
+    end
+
+    return best
+end
+
+
+local function IsLiveSynthesizedTarget(target)
+    return target ~= nil and target.valid and target.properties ~= nil
+        and (target.isObject or not target.properties:IsDead())
+end
+
+local function CountSynthesizedTargets(token, targets)
+    local enemies = 0
+    local allies = 0
+    for _,targetInfo in ipairs(targets or {}) do
+        local target = targetInfo.token
+        if IsLiveSynthesizedTarget(target) and not target.isObject then
+            if target:IsFriend(token) then
+                allies = allies + 1
+            else
+                enemies = enemies + 1
+            end
+        end
+    end
+    return enemies, allies
+end
+
+function MonsterAI:FindSynthesizedBurstPlan(token, ability)
+    local range = ability:GetRange(token.properties)
+    local symbols = {mode = 1}
+    local best = nil
+
+    for _,pathInfo in pairs(self.paths or {}) do
+        local targets = {}
+        token:ExecuteWithTheoreticalLoc(pathInfo.loc, function()
+            for _,target in ipairs(dmhub.allTokens) do
+                if IsLiveSynthesizedTarget(target)
+                    and target:Distance(token) <= range
+                    and ability:TargetPassesFilter(token, target, symbols) then
+                    targets[#targets+1] = {token = target}
+                end
+            end
+        end)
+
+        local enemies, allies = CountSynthesizedTargets(token, targets)
+        local utility = enemies - allies*3 - (pathInfo.cost or 0)*0.001
+        if enemies > 0 and allies == 0
+            and (best == nil or utility > best.utility) then
+            best = {
+                loc = pathInfo.loc,
+                targets = targets,
+                enemies = enemies,
+                allies = allies,
+                utility = utility,
+            }
+        end
+    end
+
+    return best
+end
+
+function MonsterAI:SynthesizedBurstTargetsAtCurrentLoc(token, ability)
+    local range = ability:GetRange(token.properties)
+    local symbols = {mode = 1}
+    local targets = {}
+    for _,target in ipairs(dmhub.allTokens) do
+        if IsLiveSynthesizedTarget(target)
+            and target:Distance(token) <= range
+            and ability:TargetPassesFilter(token, target, symbols) then
+            targets[#targets+1] = {token = target}
+        end
+    end
+    local enemies, allies = CountSynthesizedTargets(token, targets)
+    return targets, enemies, allies
+end
+
+
+local function BuildSynthesizedArea(token, ability, shape, targetLoc, locOverride)
+    local originLoc = locOverride or token.loc
+    return dmhub.CalculateShape{
+        shape = shape,
+        targetPoint = token:PosAtLoc(targetLoc),
+        token = token,
+        range = ability:GetRange(token.properties),
+        radius = ability:GetRadius(token.properties),
+        locOverride = locOverride,
+        checklos = shape == "line",
+        altitude = cond(shape == "cube", targetLoc.altitude, originLoc.altitude) * dmhub.unitsPerSquare,
+    }
+end
+
+function MonsterAI:SynthesizedTargetsInArea(token, ability, area)
+    local targets = {}
+    local symbols = {mode = 1, targetArea = area}
+    for _,target in pairs(dmhub.tokenInfo.TokensInShape(area)) do
+        if IsLiveSynthesizedTarget(target)
+            and ability:TargetPassesFilter(token, target, symbols) then
+            targets[#targets+1] = {token = target}
+        end
+    end
+    local enemies, allies = CountSynthesizedTargets(token, targets)
+    return targets, enemies, allies
+end
+
+function MonsterAI:FindSynthesizedCubePlan(token, ability)
+    local best = nil
+    local range = ability:GetRange(token.properties)
+
+    for _,pathInfo in pairs(self.paths or {}) do
+        local checked = {}
+        token:ExecuteWithTheoreticalLoc(pathInfo.loc, function()
+            for _,enemy in ipairs(self.enemyTokens or {}) do
+                if IsLiveSynthesizedTarget(enemy)
+                    and token:Distance(enemy) <= range
+                    and not checked[enemy.loc.str] then
+                    checked[enemy.loc.str] = true
+                    local area = BuildSynthesizedArea(token, ability, "cube", enemy.loc, pathInfo.loc)
+                    local targets, enemies, allies = self:SynthesizedTargetsInArea(token, ability, area)
+                    local utility = enemies - allies*3 - (pathInfo.cost or 0)*0.001
+                    if enemies > 0 and allies == 0
+                        and (best == nil or utility > best.utility) then
+                        best = {
+                            loc = pathInfo.loc,
+                            center = enemy.loc,
+                            targets = targets,
+                            enemies = enemies,
+                            allies = allies,
+                            utility = utility,
+                        }
+                    end
+                    if type(area.Destroy) == "function" then
+                        area:Destroy()
+                    end
+                end
+            end
+        end)
+    end
+
+    return best
+end
+
+
+function MonsterAI:FindSynthesizedLinePlan(token, ability)
+    local best = nil
+    for _,pathInfo in pairs(self.paths or {}) do
+        local candidates = {}
+        for _,enemy in ipairs(self.enemyTokens or {}) do
+            if IsLiveSynthesizedTarget(enemy) then
+                candidates[#candidates+1] = {
+                    targetLoc = enemy.loc,
+                    locOverride = pathInfo.loc,
+                }
+            end
+        end
+
+        local plan = self:FindBestLinePlan(token, ability, {
+            candidates = candidates,
+            scorefn = function(target)
+                if target.isObject then
+                    return 0
+                end
+                return cond(target:IsFriend(token), -3, 1)
+            end,
+        })
+        if plan ~= nil then
+            local enemies, allies = CountSynthesizedTargets(token, plan.targets)
+            local utility = enemies - allies*3 - (pathInfo.cost or 0)*0.001
+            if enemies > 0 and allies == 0
+                and (best == nil or utility > best.utility) then
+                best = {
+                    loc = pathInfo.loc,
+                    targetLoc = plan.targetLoc,
+                    targets = plan.targets,
+                    enemies = enemies,
+                    allies = allies,
+                    utility = utility,
+                }
+            end
+        end
+    end
+    return best
+end
+
+
+function MonsterAI:FindSynthesizedAbilityPlan(token, ability, profile)
+    if profile.targetType == "target" then
+        return self:FindSynthesizedTargetPlan(token, ability)
+    elseif profile.targetType == "all" then
+        return self:FindSynthesizedBurstPlan(token, ability)
+    elseif profile.targetType == "cube" then
+        return self:FindSynthesizedCubePlan(token, ability)
+    elseif profile.targetType == "line" then
+        return self:FindSynthesizedLinePlan(token, ability)
+    end
+end
+
+
+local function SynthesizedMaliceCost(token, ability)
+    local result = 0
+    local cost = ability:GetCost(token)
+    for _,detail in ipairs(cost.details or {}) do
+        if detail.cost == CharacterResource.maliceResourceId then
+            result = result + (tonumber(detail.quantity) or 0)
+        else
+            for _,payment in ipairs(detail.paymentOptions or {}) do
+                if payment.resourceid == CharacterResource.maliceResourceId then
+                    result = result + (tonumber(payment.quantity) or 0)
+                    break
+                end
+            end
+        end
+    end
+    return result
+end
+
+local function ScoreSynthesizedAbilityPlan(token, ability, profile, plan)
+    local score = 0.72
+    if profile.actionResource == CharacterResource.actionResourceId then
+        score = 0.80
+    elseif profile.actionResource == CharacterResource.maneuverResourceId
+        or profile.actionResource == CharacterResource.freeManeuverResourceId then
+        score = 0.48
+    elseif profile.actionResource == nil or profile.actionResource == "none" then
+        score = 0.38
+    end
+
+    if ability.categorization == "Signature Ability" then
+        score = math.max(score, 0.84)
+    elseif ability.categorization == "Heroic Ability" then
+        score = math.max(score, 0.81)
+    end
+
+    score = score + math.min(0.12, math.max(0, (plan.enemies or 1) - 1)*0.05)
+    score = score + math.max(0, profile.confidence - g_synthesizedAbilityMinimumConfidence)*0.1
+    score = score - math.min(0.18, SynthesizedMaliceCost(token, ability)*0.015)
+    -- Handcrafted signature moves conventionally score 1.0. Keep fallback
+    -- plans below that while still ranking them above generic free strikes.
+    return math.min(0.94, score)
+end
+
+function MonsterAI:FindBestSynthesizedAbilityMove(token, abilities, claimedAbilities)
+    local best = nil
+    local used = self:try_get("_tmp_synthesizedAbilitiesUsed", {})
+
+    for _,ability in ipairs(abilities) do
+        local key = SynthesizedAbilityKey(ability)
+        if not claimedAbilities[ability.name] and not used[key] then
+            local profile = self:GetSynthesizedAbilityProfile(token, ability)
+            if profile ~= nil then
+                local moveid = SynthesizedMoveId(ability)
+                if not ability:CanAfford(token) then
+                    self:LogMove(token.properties.monster_type, moveid, "Could not afford", {onlyIfEmpty = true})
+                else
+                    local plan = self:FindSynthesizedAbilityPlan(token, ability, profile)
+                    local maliceCost = SynthesizedMaliceCost(token, ability)
+                    -- Without effect-specific knowledge, do not spend shared
+                    -- Malice on an area ability that only reaches one enemy.
+                    if plan ~= nil and not (profile.targetType ~= "target"
+                        and maliceCost > 0 and (plan.enemies or 0) < 2) then
+                        plan.score = ScoreSynthesizedAbilityPlan(token, ability, profile, plan)
+                        plan.ability = ability
+                        plan.profile = profile
+                        self:LogMove(token.properties.monster_type, moveid, string.format(
+                            "Score: %.2f (confidence %.2f; %s)",
+                            plan.score, profile.confidence, profile.reason))
+                        if best == nil or plan.score > best.score then
+                            best = plan
+                        end
+                    else
+                        self:LogMove(token.properties.monster_type, moveid,
+                            "Could not find a safe, worthwhile target plan", {onlyIfEmpty = true})
+                    end
+                end
+            end
+        end
+    end
+
+    return best
+end
+
+
+local function MoveForSynthesizedPlan(ai, token, loc)
+    if loc == nil or loc.str == token.loc.str then
+        ai.Sleep(0.2)
+        return false
+    end
+    token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+    ai.Sleep(0.6)
+    return true
+end
+
+function MonsterAI:ExecuteSynthesizedAbilityPlan(token, plan)
+    local ability = plan.ability
+    self._tmp_synthesizedAbilitiesUsed = self:try_get("_tmp_synthesizedAbilitiesUsed", {})
+    self._tmp_synthesizedAbilitiesUsed[SynthesizedAbilityKey(ability)] = true
+
+    local moved = MoveForSynthesizedPlan(self, token, plan.loc)
+    if plan.profile.targetType == "target" then
+        local candidates = self:FindValidTargetsOfStrike(token, ability, token.loc)
+        table.sort(candidates, function(a, b)
+            return SynthesizedDefaultTargetScore(a) > SynthesizedDefaultTargetScore(b)
+        end)
+        local targets = {}
+        for i=1,math.min(ability:GetNumTargets(token), #candidates) do
+            targets[#targets+1] = candidates[i]
+        end
+        if #targets == 0 then
+            return moved
+        end
+        self:ExecuteAbility(token, ability, targets)
+        return true
+    elseif plan.profile.targetType == "all" then
+        local _, enemies, allies = self:SynthesizedBurstTargetsAtCurrentLoc(token, ability)
+        if enemies == 0 or allies > 0 then
+            return moved
+        end
+        self:ExecuteAbility(token, ability)
+        return true
+    end
+
+    local targetLoc = cond(plan.profile.targetType == "cube", plan.center, plan.targetLoc)
+    local area = BuildSynthesizedArea(token, ability, plan.profile.targetType, targetLoc)
+    local targets, enemies, allies = self:SynthesizedTargetsInArea(token, ability, area)
+    if enemies == 0 or allies > 0 then
+        if type(area.Destroy) == "function" then
+            area:Destroy()
+        end
+        return moved
+    end
+
+    local abilityClone = DeepCopy(ability)
+    abilityClone.targetType = "target"
+    abilityClone.numTargets = math.max(1, #targets)
+    self:ExecuteAbility(token, abilityClone, targets, {
+        symbols = {targetArea = area},
+        targetArea = area,
+    })
+    if type(area.Destroy) == "function" then
+        area:Destroy()
+    end
+    return true
+end
+
 function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
     if move.id == "Minion Signature Ability" then
         --minion signatures cannot be disabled.
@@ -1476,6 +2091,18 @@ function MonsterAI:FindAndExecuteMove()
                 bestScore = score
                 bestMove = move
             end
+        end
+    end
+
+    local synthesizedMove = self:FindBestSynthesizedAbilityMove(
+        token, abilities, self:GetClaimedAbilityNames(token))
+    if synthesizedMove ~= nil and synthesizedMove.score > bestScore.score then
+        local executed = self:ExecuteSynthesizedAbilityPlan(token, synthesizedMove)
+        local moveid = SynthesizedMoveId(synthesizedMove.ability)
+        self:LogMove(self.token.properties.monster_type, moveid,
+            cond(executed, "Executed synthesized move", "Synthesized move could not complete"))
+        if executed then
+            return true
         end
     end
 
@@ -1728,6 +2355,30 @@ function MonsterAI:Analysis()
                             abilities = move.abilities,
                             enabled = move.enabled ~= false,
                         }
+                    end
+                end
+
+                if not tok.properties.minion then
+                    local claimedAbilities = self:GetClaimedAbilityNames(tok)
+                    for _,ability in ipairs(tok.properties:GetActivatedAbilities()) do
+                        if not claimedAbilities[ability.name] then
+                            local profile = self:GetSynthesizedAbilityProfile(tok, ability)
+                            if profile ~= nil then
+                                resultEntry.moves[#resultEntry.moves+1] = {
+                                    monsterType = monsterType,
+                                    id = SynthesizedMoveId(ability),
+                                    description = string.format(
+                                        "Fallback AI generated at %.2f confidence from the ability's %s and targeting metadata.",
+                                        profile.confidence, profile.reason),
+                                    category = cond(profile.actionResource == CharacterResource.maneuverResourceId
+                                        or profile.actionResource == CharacterResource.freeManeuverResourceId,
+                                        "Maneuvers", "Main Actions"),
+                                    abilities = {ability.name},
+                                    enabled = true,
+                                    synthesized = true,
+                                }
+                            end
+                        end
                     end
                 end
 

@@ -334,7 +334,7 @@ function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- Teleport: Teleport the token to the target location.
+--- Teleport: Teleport the token to the target location. A token riding in a saddle dismounts as part of the teleport (unless teleportMount is true, which brings the mount along instead).
 --- @param loc Loc
 --- @param teleportMount boolean Teleport the mount also if this creature is mounted.
 function CharacterToken:Teleport(loc, teleportMount)

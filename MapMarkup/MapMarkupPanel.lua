@@ -984,10 +984,13 @@ end
 --and ignores a flyer at altitude 3).
 --
 --Rendering: dmhub.GetMarkupZones feeds the tile height overlay, which draws
---each zone as diagonal stripes + a name label. DM-only unless the zone is
---marked playerVisible - which new zones are, so a painted hazard reads to the
---table without the DM remembering to publish each one. A zone the DM wants
---kept secret is turned off individually in the Edit Zone dialog.
+--each zone as diagonal stripes + a name label. Two gates stack: playerVisible
+--(per zone, on by default; the Edit Zone dialog turns it off for a zone the
+--DM wants kept secret) says whether players are ALLOWED to see it, and the
+--per-client mapoverlay:shownzones opt-in says whether this client currently
+--DRAWS the type - zone types default hidden for everyone, DM included, and
+--are switched on per type in the title bar's map overlay menu. The Zones tab
+--of this panel bypasses the opt-in while it is open, so painting is WYSIWYG.
 --
 --This file loads before EnvironmentalKeyword.lua (main.lua order), so every
 --reference to the EnvironmentalKeyword global is runtime + rawget-guarded.
@@ -2389,6 +2392,11 @@ local m_holes = {
     cache = {},          --resolved hole entries, all floors; rebuilt with the zone cache
     overlayZones = {},   --stripe overlay entries, fed only while the panel is open
     engineSupport = nil,
+    --opacity-slider group key for the Holes group in the zone list. Holes
+    --have no keywordid, so they need a reserved key that no real keyword can
+    --collide with (m_zoneStripes.GroupKey's name: fallback would collide
+    --with a keyword literally named "Hole").
+    groupKey = "hole:builtin",
 }
 
 --Engine capability probe. On a stale engine the hole aura registers as a
@@ -2982,6 +2990,14 @@ local function RebuildZoneCache()
                         floorIndex = floorIndex,
                         locs = locs,
                         polygons = polygons,
+                        --display fields so the "Zones on This Floor" list can
+                        --render holes with the same row builder as zones. The
+                        --hole flag is what the row branches on.
+                        hole = true,
+                        name = "Hole",
+                        keywordName = "Hole",
+                        patternColor = m_holes.color,
+                        patternAngle = ZONE_ANGLE_A,
                     }
                 elseif type(record) == "table" and record.category == nil then
                     --resolve the keyword by id, healing dead ids by stored
@@ -3807,29 +3823,34 @@ pcall(function()
             end
         end
 
-        --Per-zone-type visibility: the map overlay menu (title bar terrain
-        --chip) hides zone types via the mapoverlay:hiddenzones preference
-        --(';'-joined keyword ids). The ZONES tab overrides the filter - you
-        --are editing the zones, so you see all of them. A filter change is
+        --Per-zone-type visibility: painted zone types default HIDDEN; the map
+        --overlay menu (title bar terrain chip) opts types IN via the
+        --mapoverlay:shownzones preference (';'-joined keyword ids), same shape
+        --as the built-in terrain stripes. The ZONES tab overrides the filter -
+        --you are editing the zones, so you see all of them - and so does the
+        --Footsteps tab, whose water-zone readout must not depend on a display
+        --preference. Only painted zones (zonegroup set) are subject to the
+        --opt-in: keyword-aura zones (a monster's Darkness) are not map markup
+        --and the aura is on screen for everyone already. A filter change is
         --invisible to the engine's other cache signals, so bump the revision
-        --when the effective filter flips (including the zones-tab override
-        --kicking in and out).
-        local hiddenStr = ""
-        if not (panelOpen and mode == "zones") then
-            hiddenStr = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+        --when the effective filter flips (including the tab overrides kicking
+        --in and out). "*" = show everything.
+        local shownStr = "*"
+        if not (panelOpen and (mode == "zones" or mode == "surfaces")) then
+            shownStr = tostring(dmhub.GetSettingValue("mapoverlay:shownzones") or "")
         end
-        if hiddenStr ~= m_dispelState.feedZoneFilter then
-            m_dispelState.feedZoneFilter = hiddenStr
+        if shownStr ~= m_dispelState.feedZoneFilter then
+            m_dispelState.feedZoneFilter = shownStr
             m_zoneRevision = m_zoneRevision + 1
         end
-        if hiddenStr ~= "" then
-            local hidden = {}
-            for id in string.gmatch(hiddenStr, "[^;]+") do
-                hidden[id] = true
+        if shownStr ~= "*" then
+            local shown = {}
+            for id in string.gmatch(shownStr, "[^;]+") do
+                shown[id] = true
             end
             local filtered = {}
             for _,zone in ipairs(zones) do
-                if zone.keywordid == nil or hidden[zone.keywordid] == nil then
+                if zone.zonegroup == nil or shown[zone.keywordid] ~= nil then
                     filtered[#filtered+1] = zone
                 end
             end
@@ -3883,9 +3904,10 @@ pcall(function()
         --mapoverlay:shownbuiltins (opt-IN like the built-ins: the default
         --with the panel closed stays "the map just has a hole in it"). The
         --engine ignores unknown ids in that setting. Holes carry no
-        --keywordid/zonegroup, so the hidden-zones filter and the fade pass
-        --above both leave them alone -- right, they are not zone types;
-        --appended after both passes.
+        --keywordid/zonegroup, so the shown-zones filter and the fade pass
+        --above both leave them alone; appended after both passes, with their
+        --own fade applied here under the reserved m_holes.groupKey (the
+        --Holes group's slider in the zone list).
         local holesShown = panelOpen
         if not holesShown and #m_holes.overlayZones > 0 then
             local shownStr = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
@@ -3904,12 +3926,27 @@ pcall(function()
             m_zoneRevision = m_zoneRevision + 1
         end
         if holesShown and #m_holes.overlayZones > 0 then
+            local holeOpacity = 1
+            if fadeSeq ~= 0 then
+                holeOpacity = m_zoneStripes.Opacity(m_holes.groupKey)
+            end
             local combined = {}
             for _,zone in ipairs(zones) do
                 combined[#combined+1] = zone
             end
             for _,zone in ipairs(m_holes.overlayZones) do
-                combined[#combined+1] = zone
+                if holeOpacity >= 1 then
+                    combined[#combined+1] = zone
+                else
+                    --shallow copy, same rule as the zone fade above: the
+                    --cached entry must not be recoloured in place.
+                    local copy = {}
+                    for k,v in pairs(zone) do
+                        copy[k] = v
+                    end
+                    copy.color = m_zoneStripes.FadeColor(zone.color, holeOpacity)
+                    combined[#combined+1] = copy
+                end
             end
             zones = combined
         end
@@ -4492,9 +4529,11 @@ local function CreateZone(keywordid, locs, fallbackInfo)
         keywordName = kwName,
         locs = locs or {},
         altitude = 0,
-        --new zones are player-visible: a painted zone is nearly always terrain
-        --the table is meant to see (and players still have to turn the tile
-        --overlay on). Secret zones are turned off in the Edit Zone dialog.
+        --new zones are player-visible, meaning players MAY see them: display
+        --is opt-in per client (mapoverlay:shownzones, default off), so nothing
+        --shows until someone turns the type on in the map overlay menu. This
+        --flag only gates whether players are offered it at all; zones players
+        --must never see are turned off in the Edit Zone dialog.
         playerVisible = true,
         pattern = {
             color = color,
@@ -9704,7 +9743,7 @@ CreateMarkupEditor = function()
             gui.Check{
                 classes = {"formCheck"},
                 text = "Visible to players",
-                tooltip = "Players see this zone's stripes and name on their map when they turn on the tile overlay. On by default; turn it off for a zone the players are not meant to know about.",
+                tooltip = "Players can see this zone's stripes and name on their map when they turn its type on in the map overlay menu. On by default; turn it off for a zone the players are not meant to know about.",
                 value = playerVisible,
                 change = function(element)
                     playerVisible = element.value
@@ -9777,16 +9816,21 @@ CreateMarkupEditor = function()
     local CreateZoneRow = function(entry)
         local meta = {}
         meta[#meta+1] = string.format("%d tiles", #entry.locs)
-        --"height 0" would read as "no height"; describe the modes by name.
-        --Unlimited is spelled out here rather than left blank (Describe returns
-        --nil for it, which is right for chips and menus): on a row that already
-        --reads "N tiles", a silent height is indistinguishable from a zone whose
-        --height nobody has looked at.
-        meta[#meta+1] = string.lower(m_zoneHeight.Describe(entry.height) or "Unlimited height")
-        --player-visible is the default now, so the row calls out the exception:
-        --a zone the DM has deliberately kept to themselves.
-        if not entry.playerVisible then
-            meta[#meta+1] = "hidden from players"
+        --holes have no height or player-visibility settings (the cut itself
+        --is visible to everyone once the panel closes), so the tile count is
+        --their whole story.
+        if entry.hole ~= true then
+            --"height 0" would read as "no height"; describe the modes by name.
+            --Unlimited is spelled out here rather than left blank (Describe returns
+            --nil for it, which is right for chips and menus): on a row that already
+            --reads "N tiles", a silent height is indistinguishable from a zone whose
+            --height nobody has looked at.
+            meta[#meta+1] = string.lower(m_zoneHeight.Describe(entry.height) or "Unlimited height")
+            --player-visible is the default now, so the row calls out the exception:
+            --a zone the DM has deliberately kept to themselves.
+            if not entry.playerVisible then
+                meta[#meta+1] = "hidden from players"
+            end
         end
 
         --Rows read as "<type> -- <where>": the collapsed type/custom name
@@ -9882,9 +9926,16 @@ CreateMarkupEditor = function()
             press = function(element)
                 m_zoneTargetId = entry.zoneid
                 --also select the matching type chip so continued painting
-                --extends this zone rather than switching types.
+                --extends this zone rather than switching types. (A hole
+                --target id is inert at paint time -- painting always cuts a
+                --new hole -- but the chip selection keeps the tool on holes.)
                 for i,paletteEntry in ipairs(m_zonePaletteEntries) do
-                    if paletteEntry.keywordid ~= nil and paletteEntry.keywordid == entry.keywordid then
+                    if entry.hole == true then
+                        if paletteEntry.kind == "hole" then
+                            m_zoneSelectedType = i
+                            break
+                        end
+                    elseif paletteEntry.keywordid ~= nil and paletteEntry.keywordid == entry.keywordid then
                         m_zoneSelectedType = i
                         break
                     end
@@ -9898,30 +9949,34 @@ CreateMarkupEditor = function()
             end,
 
             rightClick = function(element)
+                --holes have nothing to edit (no name/height/visibility), so
+                --their menu is delete-only.
+                local menuEntries = {}
+                if entry.hole ~= true then
+                    menuEntries[#menuEntries+1] = {
+                        text = "Edit Zone...",
+                        click = function()
+                            element.popup = nil
+                            ShowZoneDialog(entry, element)
+                        end,
+                    }
+                end
+                menuEntries[#menuEntries+1] = {
+                    text = cond(entry.hole == true, "Delete Hole", "Delete Zone"),
+                    click = function()
+                        element.popup = nil
+                        local floor = game.currentFloor
+                        if floor ~= nil then
+                            floor:RemoveMarkupZone(entry.zoneid)
+                            if m_zoneTargetId == entry.zoneid then
+                                m_zoneTargetId = nil
+                            end
+                            RefreshZoneUI()
+                        end
+                    end,
+                }
                 element.popup = gui.ContextMenu{
-                    entries = {
-                        {
-                            text = "Edit Zone...",
-                            click = function()
-                                element.popup = nil
-                                ShowZoneDialog(entry, element)
-                            end,
-                        },
-                        {
-                            text = "Delete Zone",
-                            click = function()
-                                element.popup = nil
-                                local floor = game.currentFloor
-                                if floor ~= nil then
-                                    floor:RemoveMarkupZone(entry.zoneid)
-                                    if m_zoneTargetId == entry.zoneid then
-                                        m_zoneTargetId = nil
-                                    end
-                                    RefreshZoneUI()
-                                end
-                            end,
-                        },
-                    },
+                    entries = menuEntries,
                 }
             end,
 
@@ -9994,6 +10049,29 @@ CreateMarkupEditor = function()
                 order[#order+1] = group
             end
             group.entries[#group.entries+1] = entry
+        end
+
+        --Holes group last: they live in their own cache (ZonesOnFloor must
+        --stay keyword-only -- the paint/erase machinery iterates it), which
+        --the ZonesOnFloor call above just refreshed. Sorted by id so the
+        --list order is stable across rebuilds (hole records carry no ord).
+        local holeEntries = {}
+        for _,entry in ipairs(m_holes.cache) do
+            if entry.floorid == floorid then
+                holeEntries[#holeEntries+1] = entry
+            end
+        end
+        if #holeEntries > 0 then
+            table.sort(holeEntries, function(a, b)
+                return a.zoneid < b.zoneid
+            end)
+            order[#order+1] = {
+                key = m_holes.groupKey,
+                name = "Hole",
+                patternColor = m_holes.color,
+                patternAngle = ZONE_ANGLE_A,
+                entries = holeEntries,
+            }
         end
 
         return order

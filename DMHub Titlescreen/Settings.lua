@@ -128,12 +128,25 @@ setting{
     default = false,
 }
 
---';'-joined environmental keyword ids whose zones are hidden from the map
---overlay for this user. Zone types default to VISIBLE; this records opt-outs.
---No editor: managed from the title bar's map overlay menu.
+--The old opt-OUT zone-type preference from when zone types defaulted to
+--visible, superseded by mapoverlay:shownzones below when they flipped to
+--hidden-by-default. Kept registered (no editor, nothing reads it) so stored
+--values stay harmless; safe to remove once the flip has been out a while.
 setting{
     id = "mapoverlay:hiddenzones",
-    description = "Hidden Map Overlay Zone Types",
+    description = "Hidden Map Overlay Zone Types (legacy)",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined environmental keyword ids whose painted zones are shown on the
+--map overlay for this user. Zone types default to HIDDEN - like the built-in
+--terrain stripes, this records opt-INs. No editor: managed from the title
+--bar's map overlay menu. (The Map Markup panel's Zones tab shows every zone
+--regardless, so painting is unaffected.)
+setting{
+    id = "mapoverlay:shownzones",
+    description = "Shown Map Overlay Zone Types",
     storage = "preference",
     default = "",
 }

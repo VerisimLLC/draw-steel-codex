@@ -323,7 +323,7 @@ MonsterAIPanel = function()
                                                 valign = "center",
                                                 value = true,
                                                 setmove = function(element, moveEntry)
-                                                    element:SetClass("hidden", moveEntry.id == "Minion Signature Ability")
+                                                    element:SetClass("hidden", moveEntry.id == "Minion Signature Ability" or moveEntry.synthesized)
                                                     element.value = MonsterAI:IsMoveEnabledForMonster(moveEntry.monsterType, moveEntry.id)
                                                     element.data.moveEntry = moveEntry
                                                 end,

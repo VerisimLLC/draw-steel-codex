@@ -1987,6 +1987,14 @@ dmhub.mergedTitleBarAvailable = false
 --- @type boolean
 dmhub.windowMaximized = false
 
+--- Interaction state of the native maximize-button zone registered via
+--- SetTitleBarHitRegions: "none", "hover" or "pressed". The engine fires the
+--- "windowMaxButtonState" global event when this changes; read it there to
+--- drive the control's hover/press visuals, since the app's gui never
+--- receives mouse events over a native zone.
+--- @type string
+dmhub.windowMaxButtonState = "none"
+
 --- SetMergedTitleBar: Strip (true) or restore (false) the native Windows
 --- caption bar, merging the app's title bar with the window chrome. The app
 --- bar must supply drag and window buttons while merged. No-op where
@@ -2032,6 +2040,61 @@ end
 --- without drag or close controls.
 --- @return nil
 function dmhub.WindowChromeHeartbeat()
+	-- dummy implementation for documentation purposes only
+end
+
+--- Which merged-title-bar implementation is active: "nccalcsize" (keep the
+--- captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE --
+--- the default) or "strip" (legacy WS_CAPTION removal). "unsupported" where
+--- merging is unavailable.
+--- @type string
+dmhub.titleBarChromeMode = "unsupported"
+
+--- SetTitleBarChromeMode: PROTOTYPE A/B switch between the merged-title-bar
+--- implementations: "nccalcsize" (default) or "strip" (legacy). Tears the
+--- chrome down to native under the old mode and re-applies under the new one
+--- if the merge is active. No-op when unchanged or unsupported.
+--- @param mode string
+--- @return nil
+function dmhub.SetTitleBarChromeMode(mode)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetWindowMetrics: Diagnostic snapshot of the main window: outer rect,
+--- client rect, zoomed/captioned/subclassed flags, Unity's Screen size and
+--- fullscreen state, and the active chrome mode. Human-readable, for
+--- merged-title-bar testing; the format may change.
+--- @return string
+function dmhub.GetWindowMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetWindowChromeLogging: Enable or disable verbose window-chrome geometry
+--- logging (clamp / align / re-assert-cancel lines in the log). Off by
+--- default; turn on when diagnosing window sizing or title-bar behavior,
+--- alongside the tools/pollwin.ps1 external poller. No-op where unsupported.
+--- @param verbose boolean
+--- @return nil
+function dmhub.SetWindowChromeLogging(verbose)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTitleBarHitRegions: Register the merged title bar's exact hit regions
+--- from the bar's real layout. args.bar: the bar panel -- its on-screen rect
+--- defines the native caption band. args.exclusions: panels that must stay
+--- clickable by the app (menu clusters, search, window buttons, ...);
+--- everything else in the band becomes native caption (drag / snap /
+--- double-click). args.maximizeButton: the maximize control's panel -- it
+--- becomes the native HTMAXBUTTON zone, enabling the Windows 11 Snap Layouts
+--- hover flyout; its hover/press state and clicks are then relayed back
+--- through the "windowMaxButtonState" / "windowMaxButtonClick" global events
+--- and the windowMaxButtonState property. Rects are snapshotted at call
+--- time: re-send after layout changes (calling from the bar's think is the
+--- intended pattern). Pass nil to clear back to the built-in approximate
+--- regions. No-op where unsupported.
+--- @param args nil|{bar: Panel, exclusions: Panel[], maximizeButton: nil|Panel}
+--- @return nil
+function dmhub.SetTitleBarHitRegions(args)
 	-- dummy implementation for documentation purposes only
 end
 

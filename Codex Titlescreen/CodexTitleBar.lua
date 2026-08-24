@@ -139,6 +139,528 @@ setting{
 --SetMergedTitleBar is idempotent).
 ApplyMergedTitleBar()
 
+--Window-transition guard: window geometry changes (maximize / restore, and
+--the boot-time merge convergence) take the engine a few frames to re-layout,
+--and the DWM transition animation happily showcases the bar mid-layout. While
+--the guard is active the bar's CONTENTS are hidden (the flat surface strip
+--stays, so the bar reads as an empty native caption) and are revealed only
+--once the screen resolution has held still for a run of samples.
+local g_menuBarPanel = nil
+local g_transitionToken = 0
+local g_transitionActive = false
+
+--Keeps the bar inside its own width; defined further down, but the transition
+--guard below runs it while the bar is hidden so a resize is already absorbed
+--by the time the bar is revealed.
+local BarFitApply
+
+--The maximize/restore window control. Held separately from the bar tree
+--because the stage-2 hit regions report it to the engine as the native
+--HTMAXBUTTON zone (Windows 11 Snap Layouts flyout), after which its mouse
+--interaction is relayed back through the windowMaxButtonState /
+--windowMaxButtonClick global events rather than normal gui events.
+local m_maximizeControl = nil
+
+--Full-window flat overlay for user-initiated maximize/restore: the DWM
+--transition animation composites the window's LIVE framebuffer, and the
+--engine's rendering lags a window resize by a frame or two -- so the
+--animation showcases mis-laid-out content ("the bar snaps down into the
+--window"). A uniform fill has no visible position, so covering the window
+--with one during the transition makes the animation scale a clean dark
+--pane instead. Deliberately enormous: it covers the window no matter how
+--the layout lags the resize.
+local g_transitionOverlay = nil
+local function ShowTransitionOverlay(show)
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid then
+        return
+    end
+    if show then
+        if g_transitionOverlay == nil or not g_transitionOverlay.valid then
+            g_transitionOverlay = gui.Panel{
+                --the id is load-bearing: the overlay lives as a CHILD of the
+                --bar, and UpdateTitleBarHitRegions must skip it by id when
+                --walking the bar's children -- a 20000px "exclusion" would
+                --swallow the entire native caption band.
+                id = "titleBarTransitionOverlay",
+                floating = true,
+                x = 0,
+                y = 0,
+                width = 20000,
+                height = 20000,
+                bgimage = true,
+                bgcolor = "#0A0A0B",
+            }
+            bar:AddChild(g_transitionOverlay)
+        end
+        g_transitionOverlay:SetClass("hidden", false)
+    elseif g_transitionOverlay ~= nil and g_transitionOverlay.valid then
+        g_transitionOverlay:SetClass("hidden", true)
+    end
+end
+
+local function StartWindowTransitionGuard(stableSamples, timeout, reason, fullOverlay)
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid or not MergedTitleBarActive() then
+        return
+    end
+
+    stableSamples = stableSamples or 6
+    timeout = timeout or 2.5
+
+    g_transitionToken = g_transitionToken + 1
+    local token = g_transitionToken
+
+    if not g_transitionActive then
+        g_transitionActive = true
+        bar:SetClassTree("windowTransition", true)
+    end
+    if fullOverlay then
+        ShowTransitionOverlay(true)
+    end
+
+    local dims = dmhub.screenDimensions
+    local lastW, lastH = dims.x, dims.y
+    local stable = 0
+    local started = dmhub.Time()
+
+    local function poll()
+        if mod.unloaded or token ~= g_transitionToken then
+            return
+        end
+        if not bar.valid then
+            g_transitionActive = false
+            return
+        end
+
+        local d = dmhub.screenDimensions
+        if d.x == lastW and d.y == lastH then
+            stable = stable + 1
+        else
+            stable = 0
+            lastW = d.x
+            lastH = d.y
+        end
+
+        --Re-fit while still hidden. The collapse ladder moves one step per
+        --pass, so running it on the poll cadence lets a big resize settle
+        --into its final layout before the bar comes back into view.
+        BarFitApply()
+
+        --reveal once the resolution has held still, or on a hard timeout so
+        --the bar can never be lost to a stuck transition. The dead-man
+        --heartbeat is unaffected: hiding is opacity only, thinks keep running.
+        if stable >= stableSamples or dmhub.Time() - started > timeout then
+            g_transitionActive = false
+            ShowTransitionOverlay(false)
+            bar:SetClassTree("windowTransition", false)
+            return
+        end
+
+        dmhub.Schedule(0.05, poll)
+    end
+
+    dmhub.Schedule(0.05, poll)
+end
+
+----------------------------------------------------------------------
+-- Narrow-bar fit.
+--
+-- The whole title bar is ONE horizontal flow, and the engine abandons
+-- alignment the moment a horizontal flow overfills: SheetPanel's
+-- LayoutChildrenInternal packs EVERY child from the left once nothing is
+-- left over (`if(available <= 0f) numLeft = childPanels.Count`). So an
+-- overfull bar walks its right-hand cluster -- the minimize / maximize /
+-- close buttons -- straight off the right edge of the screen. Nothing
+-- ellipsizes or clips on its own to stop that.
+--
+-- So the bar keeps itself inside its own width. Space is handed back in a
+-- fixed order, least-missed first: the search box narrows, then the map
+-- name, then the menu strip's padding. If shrinking is not enough the
+-- collapse ladder below takes whole elements away in the same spirit.
+-- The window buttons are never in either list.
+----------------------------------------------------------------------
+
+--Bar units held back from the budget. The engine's flow also charges each
+--child's horizontal MARGINS, which are not part of any panel's
+--renderedWidth, so a plain width sum reads UNDER the true demand -- the
+--hidden presentation bar alone carries a 32-unit rmargin. Measured at 32
+--on an in-game bar; 44 leaves a little slack.
+local BAR_FIT_RESERVE = 44
+
+--Coming back out of a shrink needs more room than staying in it, or a bar
+--sitting exactly on a boundary flips between two layouts every tick.
+local BAR_FIT_HYSTERESIS = 24
+
+--Floors for the elements that shrink rather than vanish. The search floor
+--still shows a few characters of a query; the map-name floor still shows
+--enough of a map's name to recognise it (both ellipsize past that).
+local BAR_FIT_SEARCH_MIN = 132
+local BAR_FIT_MAPNAME_MIN = 84
+local BAR_FIT_MAPNAME_FULL = 380
+
+--Menu strip: {menuItem} ships hpad 8 and {menuLabel} hmargin 4, so each
+--item can give back 2*(8-2) of padding and each label 2*(4-1) of margin
+--without touching the type size.
+local BAR_FIT_MENU_HPAD, BAR_FIT_MENU_HPAD_MIN = 8, 2
+local BAR_FIT_MENU_MARGIN, BAR_FIT_MENU_MARGIN_MIN = 4, 1
+
+--Defined with the search bar further down; the fit pass needs the box's
+--natural width, which tracks the dock-scale setting.
+local SearchBoxWidth
+
+--Panels the fit pass drives, registered by the factories that build them.
+--Every entry is optional -- the title-screen bar builds a different subset
+--than an in-game one -- and each is re-validated before use.
+local g_barFit = {
+    panels = {},        --name -> Panel; the shrink stages and the ladder both
+                        --look their subjects up here
+    naturals = {},      --key -> last width seen while visible
+    depth = 0,          --how many collapse-ladder steps are applied
+    withheld = 0,       --bar units the previous pass was saving
+    menusDropped = {},  --panel id -> true for menu items the ladder dropped
+
+    --Last values pushed out, so a pass only writes when something actually
+    --changed. These are memos rather than reads of selfStyle because reading
+    --a style property that was never explicitly set raises ("Error indexing
+    --userdata") -- menu-item hpad and label hmargin both come from class
+    --styles, so neither can be read back.
+    appliedMapName = nil,
+    appliedMenuHpad = nil,
+    appliedMenuMargin = nil,
+}
+
+--The collapse ladder, most expendable first: the map info, then the search
+--box, then the status readouts, and only then the menu strip. "menus" is the
+--last resort and expands into one step per menu item, dropped from the RIGHT
+--of the strip so the Codex menu -- and with it Settings and Quit -- is the
+--final survivor.
+--
+--The search box still SHRINKS first (stage 1 of the fit pass), but the whole
+--map cluster is taken away before the box itself is: the search gets used
+--constantly, while the map name survives on the cluster's tooltip and the
+--full Maps panel.
+--
+--No step may be an ANCESTOR of another: both would be credited with the same
+--pixels when the pass reconstructs the bar's natural demand. That is why the
+--map cluster is represented by its two children (the name and the terrain
+--chip) rather than by the cluster itself.
+local BAR_FIT_LADDER = {
+    "mapName", "mapChip", "search",
+    "initiative", "devGame", "connectivity", "audio",
+    "menus",
+}
+
+--Returns the panel, so an element declared inline in a child list can be
+--registered without being pulled out into a local first.
+local function BarFitRegister(name, panel)
+    g_barFit.panels[name] = panel
+    return panel
+end
+
+--The menu strip, in left-to-right order. Read off the bar rather than
+--registered by the factories, because the factories do not run in bar order
+--(Adventure Documents is built well before the Codex/Game/Tools items it sits
+--after). Direct children only: the map cluster also wears "menuItem", but it
+--lives inside the status bar, not on the bar itself.
+local function BarFitMenuItems(bar)
+    local items = {}
+    for _,child in ipairs(bar.children) do
+        if child.valid and child:HasClass("menuItem") then
+            items[#items+1] = child
+        end
+    end
+    return items
+end
+
+--The ladder flattened into concrete steps, so applying it and costing a
+--restore both index the same list. Keys are stable per element (panel ids)
+--because the remembered natural widths are looked up by key.
+local function BarFitSteps(menuItems)
+    local steps = {}
+    for _,name in ipairs(BAR_FIT_LADDER) do
+        if name ~= "menus" then
+            steps[#steps+1] = {key = name, panel = g_barFit.panels[name]}
+        else
+            --Only menu items that are actually on screen have anything to
+            --give, so items the bar has hidden for its own reasons (the
+            --main-menu-only Codex entry while in game, Developer outside dev
+            --mode) are skipped rather than burning a ladder step on a
+            --zero-width panel. Items THIS pass hid still count, or the step
+            --list would shuffle underneath the depth counter.
+            local live = {}
+            for _,item in ipairs(menuItems) do
+                if item.valid and (item.enabled or item:HasClass("barFitHidden")) then
+                    live[#live+1] = item
+                end
+            end
+            --live[1] is never dropped: it keeps the Codex menu, and with it
+            --Settings and Quit to Desktop, reachable at any window width.
+            for i = #live, 2, -1 do
+                steps[#steps+1] = {key = "menu:" .. tostring(live[i].id), panel = live[i], isMenu = true}
+            end
+        end
+    end
+    return steps
+end
+
+--True once the fit pass has dropped this menu item. The two menu items that
+--own their own selfStyle.collapsed (Developer, keyed to dev mode, and
+--Adventure Documents, keyed to the tracked document list) consult this from
+--their own visibility code -- a selfStyle write beats any class rule, so the
+--ladder cannot collapse them from the outside.
+local function BarFitMenuDropped(element)
+    if element == nil or not element.valid then
+        return false
+    end
+    return g_barFit.menusDropped[element.id] == true
+end
+
+--Total width the bar's flow is currently asking for. Floating children (the
+--drag surface, the transition overlay) sit outside the flow, and a panel the
+--engine has taken out of layout reports enabled == false.
+local function BarFitMeasure(bar)
+    local total = 0
+    for _,child in ipairs(bar.children) do
+        if child.valid and child.enabled
+                and child.id ~= "titleBarDragSurface"
+                and child.id ~= "titleBarTransitionOverlay" then
+            total = total + child.renderedWidth
+        end
+    end
+    return total
+end
+
+--Remember how wide each ladder step is while it is still visible, so the pass
+--knows what putting it back would cost.
+local function BarFitLatchNaturals(steps)
+    for _,step in ipairs(steps) do
+        local panel = step.panel
+        if panel ~= nil and panel.valid and panel.enabled and panel.renderedWidth > 0 then
+            g_barFit.naturals[step.key] = panel.renderedWidth
+        end
+    end
+end
+
+--What a ladder step costs to put back, at NATURAL size.
+local function BarFitStepNatural(step)
+    --No latched width means the bar has never had this element on screen for
+    --reasons of its own -- the search box on the title screen, the status
+    --readouts with Show Status Bar off. Releasing the ladder would not bring
+    --it back, so it must not be credited with space it never occupied.
+    if g_barFit.naturals[step.key] == nil then
+        return 0
+    end
+    --The two elements the shrink stages also drive get authoritative naturals:
+    --their latched width is whatever they had been squeezed down to just
+    --before being collapsed, which would under-report the cost of a restore
+    --and make the ladder bounce back out too eagerly.
+    if step.key == "search" then
+        return SearchBoxWidth()
+    elseif step.key == "mapName" then
+        return BAR_FIT_MAPNAME_FULL
+    end
+    return g_barFit.naturals[step.key]
+end
+
+local function BarFitApplyLadder(steps, depth)
+    local dropped = {}
+    for i,step in ipairs(steps) do
+        local on = (i <= depth)
+        if step.panel ~= nil and step.panel.valid then
+            step.panel:SetClass("barFitHidden", on)
+            if on and step.isMenu then
+                dropped[step.panel.id] = true
+            end
+        end
+    end
+    --read by the menu items that own their own selfStyle.collapsed
+    g_barFit.menusDropped = dropped
+end
+
+--The fit pass. Called from the bar's think and from the window-transition
+--guard, so a bar that was hidden through a resize is already correct when it
+--is revealed. (Assigns the forward declaration up beside g_menuBarPanel.)
+function BarFitApply()
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid then
+        return
+    end
+
+    local barWidth = bar.renderedWidth
+    if barWidth == nil or barWidth <= 0 then
+        return
+    end
+
+    local items = BarFitMenuItems(bar)
+    local steps = BarFitSteps(items)
+    BarFitLatchNaturals(steps)
+
+    --clamped because the step list is rebuilt each pass and can get shorter
+    --(a menu item the bar hid for its own reasons drops out of it)
+    local depth = math.min(g_barFit.depth, #steps)
+
+    --What the flow WOULD ask for with nothing shrunk and nothing collapsed.
+    --The measurement already has the previous pass's savings applied, so both
+    --kinds of saving are added back: that makes the budget an absolute figure
+    --instead of a delta on itself, which is what lets the pass re-expand
+    --rather than chase its own tail.
+    local ladderSaved = 0
+    for i = 1, depth do
+        ladderSaved = ladderSaved + BarFitStepNatural(steps[i])
+    end
+
+    local demand = BarFitMeasure(bar) + g_barFit.withheld + ladderSaved
+
+    --Total units that have to be given back, then what is still owed once the
+    --collapse ladder's existing steps are credited.
+    local owed = demand + BAR_FIT_RESERVE - barWidth
+    local remaining = owed - ladderSaved
+
+    --Each shrink stage below is gated on the element actually being laid out
+    --(`enabled`), which rules out two different double-counts: an element the
+    --LADDER collapsed is already credited in full by ladderSaved, and an
+    --element the bar hides for its own reasons -- the search box on the title
+    --screen, the whole status bar with Show Status Bar off -- occupies no
+    --space to give back in the first place.
+    local withheld = 0
+
+    --Stage 1: the search box narrows first. It is the widest thing on the bar
+    --that nobody is reading while they resize a window.
+    local searchBar = g_barFit.panels.search
+    if searchBar ~= nil and searchBar.valid and searchBar.enabled then
+        local full = SearchBoxWidth()
+        local target = full
+        if remaining > 0 then
+            target = math.max(BAR_FIT_SEARCH_MIN, full - remaining)
+        end
+        --this pass is the ONLY writer of the box's width (its own think used
+        --to set it from SearchBoxWidth and would fight the squeeze)
+        if searchBar.data.appliedSearchWidth ~= target then
+            searchBar.data.appliedSearchWidth = target
+            searchBar.selfStyle.width = target
+        end
+        withheld = withheld + (full - target)
+        remaining = remaining - (full - target)
+    end
+
+    --Stage 2: then the map name, which ellipsizes as it narrows (the full
+    --string stays available on the cluster's tooltip).
+    local mapNameLabel = g_barFit.panels.mapName
+    if mapNameLabel ~= nil and mapNameLabel.valid and mapNameLabel.enabled then
+        local target = BAR_FIT_MAPNAME_FULL
+        if remaining > 0 then
+            target = math.max(BAR_FIT_MAPNAME_MIN, BAR_FIT_MAPNAME_FULL - remaining)
+        end
+        if g_barFit.appliedMapName ~= target then
+            g_barFit.appliedMapName = target
+            mapNameLabel.selfStyle.width = target
+        end
+        withheld = withheld + (BAR_FIT_MAPNAME_FULL - target)
+        remaining = remaining - (BAR_FIT_MAPNAME_FULL - target)
+    end
+
+    --Stage 3: then the menu strip tightens. Padding and label margins only --
+    --the type size is left alone, and the squeeze is spread evenly across the
+    --items rather than flattening the leftmost ones first, so the strip stays
+    --evenly spaced. Only items actually on screen can give anything back.
+    local live = 0
+    for _,item in ipairs(items) do
+        if item.valid and item.enabled then
+            live = live + 1
+        end
+    end
+    local perItem = 2*(BAR_FIT_MENU_HPAD - BAR_FIT_MENU_HPAD_MIN)
+        + 2*(BAR_FIT_MENU_MARGIN - BAR_FIT_MENU_MARGIN_MIN)
+    if live > 0 then
+        local share = 0
+        if remaining > 0 then
+            share = math.min(1, remaining / (live * perItem))
+        end
+        local hpad = math.floor(BAR_FIT_MENU_HPAD - share*(BAR_FIT_MENU_HPAD - BAR_FIT_MENU_HPAD_MIN) + 0.5)
+        local margin = math.floor(BAR_FIT_MENU_MARGIN - share*(BAR_FIT_MENU_MARGIN - BAR_FIT_MENU_MARGIN_MIN) + 0.5)
+        if hpad ~= g_barFit.appliedMenuHpad or margin ~= g_barFit.appliedMenuMargin then
+            g_barFit.appliedMenuHpad = hpad
+            g_barFit.appliedMenuMargin = margin
+            for _,item in ipairs(items) do
+                if item.valid then
+                    item.selfStyle.hpad = hpad
+                    item:FireEventTree("barFitMenuMargin", margin)
+                end
+            end
+        end
+        local given = live * (2*(BAR_FIT_MENU_HPAD - hpad) + 2*(BAR_FIT_MENU_MARGIN - margin))
+        withheld = withheld + given
+        remaining = remaining - given
+    end
+
+    g_barFit.withheld = withheld
+
+    --Stage 4: still over budget with everything shrunk, so start taking whole
+    --elements away, one step per pass -- that converges in a few ticks and
+    --keeps the movement legible. Coming back out has to pay the step's own
+    --width plus the hysteresis margin, so a bar sitting on a step boundary
+    --does not flap between two layouts.
+    if remaining > 0 then
+        depth = math.min(depth + 1, #steps)
+    elseif depth > 0 then
+        local cost = BarFitStepNatural(steps[depth])
+        if remaining + cost + BAR_FIT_HYSTERESIS <= 0 then
+            depth = depth - 1
+        end
+    end
+
+    if depth ~= g_barFit.depth then
+        g_barFit.depth = depth
+        BarFitApplyLadder(steps, depth)
+    end
+end
+
+--Stage-2 hit regions: report the bar's REAL layout to the engine so the
+--native caption hit-test uses exact rects instead of the engine's crude
+--built-in constants. Exclusions are the bar's direct children (menu
+--clusters, presentation/status bars, the right-side search + window-button
+--cluster); the gaps between them become native caption -- drag, Aero snap
+--and double-click-to-maximize all handled by Windows. The maximize control
+--is reported separately so the engine can map it to HTMAXBUTTON, which is
+--what makes the Snap Layouts flyout appear on hover. The engine snapshots
+--the rects at call time, so this re-sends on the bar's think cadence to
+--track layout changes; pcall-gated so an engine without the bridge (or
+--running the legacy strip mode, where the engine ignores regions anyway)
+--stays safe.
+local function UpdateTitleBarHitRegions()
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid or not MergedTitleBarActive() then
+        return
+    end
+    pcall(function()
+        if dmhub.titleBarChromeMode ~= "nccalcsize" then
+            return
+        end
+        local exclusions = {}
+        for _,child in ipairs(bar.children) do
+            --skip the drag surface (it IS the draggable emptiness) and the
+            --transition overlay (a 20000px flat pane parked as a hidden
+            --child between transitions); hidden/collapsed children are not
+            --interactive so they must not eat caption either.
+            if child.valid and child.id ~= "titleBarDragSurface"
+                    and child.id ~= "titleBarTransitionOverlay"
+                    and not child:HasClass("collapsed") and not child:HasClass("hidden") then
+                exclusions[#exclusions+1] = child
+            end
+        end
+        local maxControl = nil
+        if m_maximizeControl ~= nil and m_maximizeControl.valid then
+            maxControl = m_maximizeControl
+        end
+        dmhub.SetTitleBarHitRegions{
+            bar = bar,
+            exclusions = exclusions,
+            maximizeButton = maxControl,
+        }
+    end)
+end
+
 --A native-style caption control: a full-bar-height hover ZONE with a
 --centered glyph. The zone -- not the glyph -- takes the hover fill and
 --the click, matching how the real Windows caption buttons behave (zone
@@ -150,6 +672,9 @@ local function CreateWindowControl(args)
         width = 42,
         height = "100%",
         valign = "center",
+        --the fullscreen control uses this to stand a little apart from the
+        --native minimize/maximize/close trio
+        rmargin = args.rmargin,
         data = { maximized = nil },
         calculateVisibility = args.calculateVisibility,
         click = args.click,
@@ -363,6 +888,15 @@ local function CreateCodexMenuItem(args)
                 element.text = newname
             end,
             interactable = false,
+
+            --the narrow-bar fit pass tightens the strip by trimming each
+            --label's side margins (see BarFitApply stage 3). Written
+            --unconditionally: the pass only fires this when the value
+            --changed, and hmargin comes from {menuLabel} so it cannot be
+            --read back to compare against.
+            barFitMenuMargin = function(element, margin)
+                element.selfStyle.hmargin = margin
+            end,
 
             --floating marker dot pinned to the label's top-right corner.
             alertPanel,
@@ -1200,23 +1734,24 @@ end
 -- types (MapMarkup.GetZoneTypesOnMap filters for them).
 --------------------------------------------------------------------
 
---The hidden-zone-types preference (';'-joined keyword ids) as a set.
-function g_tileIndicator.HiddenZoneSet()
+--The shown-zone-types preference (';'-joined keyword ids) as a set. Zone
+--types default hidden, so this records opt-INs, same as the built-ins below.
+function g_tileIndicator.ShownZoneSet()
     local result = {}
-    local str = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:shownzones") or "")
     for id in string.gmatch(str, "[^;]+") do
         result[id] = true
     end
     return result
 end
 
-function g_tileIndicator.WriteHiddenZoneSet(set)
+function g_tileIndicator.WriteShownZoneSet(set)
     local ids = {}
     for id,_ in pairs(set) do
         ids[#ids+1] = id
     end
     table.sort(ids)
-    dmhub.SetSettingValue("mapoverlay:hiddenzones", table.concat(ids, ";"))
+    dmhub.SetSettingValue("mapoverlay:shownzones", table.concat(ids, ";"))
 end
 
 --The four built-in terrain rule types, styled to match the engine's
@@ -1230,8 +1765,8 @@ g_tileIndicator.BUILTINS = {
 }
 
 --The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
---Built-ins default hidden, so this records opt-INs (the mirror image of
---HiddenZoneSet).
+--Built-ins default hidden, so this records opt-INs (same shape as
+--ShownZoneSet; separate settings because the id spaces differ).
 function g_tileIndicator.ShownBuiltinSet()
     local result = {}
     local str = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
@@ -1344,7 +1879,8 @@ function g_tileIndicator.CreateOverlayMenu()
     end
 
     --one row per zone type: a stripe swatch in the type's map color and
-    --angle, and a checkbox driving its entry in mapoverlay:hiddenzones.
+    --angle, and a checkbox driving its entry in mapoverlay:shownzones
+    --(zone types default hidden; checked = opted in).
     local function ZoneRow(zoneType)
         local gradient = nil
         local bg = zoneType.color or "#888888"
@@ -1370,24 +1906,24 @@ function g_tileIndicator.CreateOverlayMenu()
             },
 
             gui.Check{
-                value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil,
+                value = g_tileIndicator.ShownZoneSet()[zoneType.keywordid] ~= nil,
                 text = zoneType.name,
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
-                monitor = "mapoverlay:hiddenzones",
+                monitor = "mapoverlay:shownzones",
                 events = {
                     monitor = function(element)
-                        element.value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil
+                        element.value = g_tileIndicator.ShownZoneSet()[zoneType.keywordid] ~= nil
                     end,
                     change = function(element)
-                        local set = g_tileIndicator.HiddenZoneSet()
+                        local set = g_tileIndicator.ShownZoneSet()
                         if element.value then
-                            set[zoneType.keywordid] = nil
-                        else
                             set[zoneType.keywordid] = true
+                        else
+                            set[zoneType.keywordid] = nil
                         end
-                        g_tileIndicator.WriteHiddenZoneSet(set)
+                        g_tileIndicator.WriteShownZoneSet(set)
                     end,
                 },
             },
@@ -1469,7 +2005,11 @@ function g_tileIndicator.CreateOverlayMenu()
             click = function(element)
                 dmhub.SetSettingValue("mapoverlay:walls", true)
                 dmhub.SetSettingValue("mapoverlay:elevation", true)
-                dmhub.SetSettingValue("mapoverlay:hiddenzones", "")
+                local zset = g_tileIndicator.ShownZoneSet()
+                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
+                    zset[zoneType.keywordid] = true
+                end
+                g_tileIndicator.WriteShownZoneSet(zset)
                 local set = g_tileIndicator.ShownBuiltinSet()
                 for _,builtin in ipairs(g_tileIndicator.BuiltinTypesOnMap()) do
                     set[builtin.id] = true
@@ -1491,11 +2031,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 dmhub.SetSettingValue("mapoverlay:walls", false)
                 dmhub.SetSettingValue("mapoverlay:elevation", false)
                 dmhub.SetSettingValue("mapoverlay:shownbuiltins", "")
-                local set = g_tileIndicator.HiddenZoneSet()
-                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
-                    set[zoneType.keywordid] = true
-                end
-                g_tileIndicator.WriteHiddenZoneSet(set)
+                dmhub.SetSettingValue("mapoverlay:shownzones", "")
             end,
         },
     }
@@ -1663,6 +2199,8 @@ local function CreateStatusBar()
     -- so the box is capped (narrower than the old 420) and the text
     -- ellipsizes rather than wrapping or shrinking away to nothing;
     -- hovering shows the untruncated string (on the cluster's tooltip).
+    -- On a narrow bar the fit pass (BarFitApply) narrows this width further,
+    -- so BAR_FIT_MAPNAME_FULL must stay in step with the width below.
     m_mapNameLabel = gui.Label{
         --menuLabel is what flips the text to @bg when the plate fills on
         --hover. It carries a 16px font for the main menu strip; this cluster
@@ -1739,7 +2277,15 @@ local function CreateStatusBar()
         m_mapNameLabel,
     }
 
+    --First to go on a narrow bar: the label narrows (stage 2 of the fit
+    --pass) and then the whole cluster collapses -- name first, terrain chip
+    --after -- before anything else is dropped, so the search box outlives
+    --the map info entirely.
+    BarFitRegister("mapName", m_mapNameLabel)
+    BarFitRegister("mapChip", m_tileChip)
+
     local m_initiativeHost = CreateInitiativeStatusHost()
+    BarFitRegister("initiative", m_initiativeHost)
 
     -- While a CommandBuilder session is active, a floating recorder dialog
     -- shows the steps; this zero-size host is just its mount point.
@@ -1780,7 +2326,7 @@ local function CreateStatusBar()
         -- can reveal them in the OS file browser). Empty (zero-width) for every
         -- normal game. LocalAssetsStatus is read-and-compared-to-nil so an
         -- older engine build (before the bridge exists) simply shows nothing.
-        gui.Label{
+        BarFitRegister("devGame", gui.Label{
             minFontSize = 10,
             bold = true,
             color = "#f0a030",
@@ -1825,9 +2371,9 @@ local function CreateStatusBar()
                     element.text = ""
                 end
             end,
-        },
+        }),
 
-        CreateConnectivityPanel(),
+        BarFitRegister("connectivity", CreateConnectivityPanel()),
 
         -- Host for the initiative/game-mode panel; empty (and therefore
         -- zero-width) until a game hud mounts one. Collapsing on the
@@ -1918,7 +2464,9 @@ Search.RegisterProvider{
 -- the box still tracks the dock scale, it just sits inset from the dock edge.
 local g_searchWidthFraction = 0.9
 
-local function SearchBoxWidth()
+--assigns the forward declaration up by the fit controller, which needs the
+--box's natural width to know how much narrowing it has left to give
+function SearchBoxWidth()
     return math.floor(364 * g_searchWidthFraction * DockablePanel.EffectiveDockScale())
 end
 
@@ -2801,16 +3349,11 @@ local function CreateSearchBar()
         -- watch for the rising edge of hasInputFocus on a light think.
         thinkTime = 0.2,
         think = function(element)
-            -- Live-follow the dock scale setting (HB1) so a mid-session
-            -- change to the slider is reflected without a reload. Cheap
-            -- setting read on a 0.2s tick; only touches .width when it
-            -- actually changed.
-            local w = SearchBoxWidth()
-            if element.data.appliedSearchWidth ~= w then
-                element.data.appliedSearchWidth = w
-                element.selfStyle.width = w
-            end
-
+            -- The box's WIDTH is not set here: the bar's fit pass owns it
+            -- (BarFitApply), because on a narrow window the box is the first
+            -- thing asked to give space back. The fit pass re-reads
+            -- SearchBoxWidth() every tick, so a mid-session change to the
+            -- dock-scale slider (HB1) is still followed without a reload.
             local focused = element.hasInputFocus
             if focused and (not element.data.hadInputFocus)
                 and element.popup == nil
@@ -2899,6 +3442,9 @@ local function CreateSearchBar()
             element:SetClass("hidden", not hasPopup)
         end,
     })
+
+    --first in line to give space back on a narrow bar
+    BarFitRegister("search", resultPanel)
 
     return resultPanel
 end
@@ -3357,6 +3903,9 @@ local function CreateTopBar()
     local m_audioIndicator = CreateAudioIndicator()
     local m_presentationBar = CreatePresentationBar()
 
+    --last of the non-menu elements the narrow-bar ladder gives up
+    BarFitRegister("audio", m_audioIndicator)
+
     g_searchBar = m_searchBar
     g_presentationBar = m_presentationBar
 
@@ -3371,6 +3920,16 @@ local function CreateTopBar()
         name = "Adventure Documents",
         create = function(element)
             element.selfStyle.collapsed = 1
+        end,
+        --Re-asserted on the bar's think (calculateVisibility is broadcast from
+        --there) rather than only when the document list changes: this item
+        --owns its selfStyle.collapsed, and a selfStyle write beats the fit
+        --ladder's class rule, so a narrow bar could not collapse it from the
+        --outside. Without the re-assert the ladder would skip straight past
+        --this item and drop the menus to its left instead.
+        calculateVisibility = function(element)
+            element.selfStyle.collapsed = (m_documents == nil) or (#m_documents == 0)
+                or (not dmhub.isDM) or BarFitMenuDropped(element)
         end,
         menuItems = function()
             local result = {}
@@ -3390,7 +3949,9 @@ local function CreateTopBar()
         end,
         documents = function(element, documentids)
             m_documents = documentids
-            element.selfStyle.collapsed = (#m_documents == 0) or (not dmhub.isDM)
+            --applied straight away so the item appears without waiting for a
+            --think tick; calculateVisibility above keeps it right after that
+            element:FireEvent("calculateVisibility")
         end,
     }
 
@@ -5696,10 +6257,30 @@ local function CreateTopBar()
                 selectors = {"ingameOnly", "~ingame"},
                 collapsed = 1,
             },
+            --window-transition guard: hide the bar's contents but not the
+            --bar surface itself (the root keeps titleBarSurface, so it is
+            --excluded and the flat strip stays painted).
+            {
+                selectors = {"windowTransition", "~titleBarSurface"},
+                opacity = 0,
+            },
         },
+
+        data = { lastScreenDims = nil },
+
+        create = function(element)
+            g_menuBarPanel = element
+            --boot: the merge convergence resizes the client several times in
+            --the first moments; hold the bar contents hidden until settled.
+            StartWindowTransitionGuard(12, 6, "boot")
+        end,
 
         destroy = function(element)
             g_adventureDocumentsBar = nil
+            --a dead bar must not leave stale hit regions behind: without the
+            --clear, drags and clicks would keep hitting rects for a layout
+            --that no longer exists until the bar is rebuilt.
+            pcall(function() dmhub.SetTitleBarHitRegions(nil) end)
         end,
 
         thinkTime = 0.2,
@@ -5717,7 +6298,26 @@ local function CreateTopBar()
             --watchdog yet must not error the bar's think.
             if MergedTitleBarActive() then
                 pcall(function() dmhub.WindowChromeHeartbeat() end)
+
+                --reactive guard: geometry changes we did not initiate (edge
+                --snap, Win+arrow, external restores) also settle over several
+                --frames; catch them on the think cadence and hide until stable.
+                local d = dmhub.screenDimensions
+                local prev = element.data.lastScreenDims
+                if prev ~= nil and (d.x ~= prev.x or d.y ~= prev.y) and not g_transitionActive then
+                    StartWindowTransitionGuard(nil, nil, "external resize")
+                end
+                element.data.lastScreenDims = {x = d.x, y = d.y}
+
+                --keep the engine's native hit-test in sync with the bar's
+                --real layout (rects are snapshotted engine-side at call time).
+                UpdateTitleBarHitRegions()
             end
+
+            --keep the bar inside its width, whatever the window is doing.
+            --Runs in every mode, not just merged: an overfull flow loses its
+            --right-hand cluster off the screen edge either way.
+            BarFitApply()
         end,
 
         --Merged title bar: empty bar surface acts as the native caption.
@@ -5734,6 +6334,10 @@ local function CreateTopBar()
         --press within the double-click window toggles maximize instead (the
         --engine has no doubleClick event, so it is hand-rolled).
         gui.Panel{
+            --the id is load-bearing: UpdateTitleBarHitRegions skips this
+            --child by id when reporting the bar's interactive exclusions
+            --(the drag surface IS the draggable emptiness, not an exclusion).
+            id = "titleBarDragSurface",
             floating = true,
             width = "100%",
             height = "100%",
@@ -5747,7 +6351,15 @@ local function CreateTopBar()
                 local now = dmhub.Time()
                 if element.data.lastBarPress ~= nil and now - element.data.lastBarPress < 0.4 then
                     element.data.lastBarPress = nil
-                    dmhub.ToggleMaximizeWindow()
+                    --hide the bar contents FIRST and resize a beat later, so
+                    --the hide is on screen before the resize's mis-laid-out
+                    --settle frames are.
+                    StartWindowTransitionGuard(nil, nil, "double-press toggle", true)
+                    dmhub.Schedule(0.05, function()
+                        if not mod.unloaded then
+                            dmhub.ToggleMaximizeWindow()
+                        end
+                    end)
                 else
                     element.data.lastBarPress = now
                     --no native drag while maximized: dragging a maximized
@@ -5758,7 +6370,22 @@ local function CreateTopBar()
                     --maximized the bar restores via double-press or the
                     --restore button only.
                     if not dmhub.windowMaximized then
+                        local before = dmhub.screenDimensions
                         dmhub.BeginWindowDrag()
+                        --BeginWindowDrag blocks through the whole native drag.
+                        --If it ended in an edge-snap the window was resized
+                        --while the engine was frozen; guard the settle frames.
+                        --The size check is deferred a beat because the engine
+                        --only reports the new dimensions on the next frame.
+                        dmhub.Schedule(0.1, function()
+                            if mod.unloaded then
+                                return
+                            end
+                            local after = dmhub.screenDimensions
+                            if after.x ~= before.x or after.y ~= before.y then
+                                StartWindowTransitionGuard(nil, nil, "drag snap resize")
+                            end
+                        end)
                     end
                 end
             end,
@@ -6024,7 +6651,10 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Developer",
             calculateVisibility = function(element)
-                element.selfStyle.collapsed = cond(devmode(), 0, 1)
+                --BarFitMenuDropped: same reason as Adventure Documents above
+                --- this item owns its selfStyle.collapsed, so the narrow-bar
+                --ladder cannot collapse it with a class and is honoured here.
+                element.selfStyle.collapsed = cond(devmode() and not BarFitMenuDropped(element), 0, 1)
             end,
             menuItems = function()
                 if not devmode() then
@@ -6143,33 +6773,82 @@ local function CreateTopBar()
                 --styles live in titleBarStyleExtras below). Presses find no
                 --handler here and no ancestor has one, so the drag surface
                 --(a sibling underneath) never steals the click.
+                --Fullscreen toggle: ours rather than one of the native
+                --caption controls, so it sits a little apart from the trio
+                --(rmargin) and uses phosphor glyphs instead of the caption
+                --geometry. Clicking flips the "fullscreen" user setting;
+                --the engine's per-frame enforcer (GameHarness) applies it,
+                --exactly like Alt+Enter. The glyph swaps expand/contract on
+                --the same broadcast that swaps maximize/restore.
+                CreateWindowControl{
+                    icon = "phosphor/arrows-out-simple-fill.png",
+                    rmargin = 8,
+                    calculateVisibility = function(element)
+                        local fullscreen = dmhub.GetSettingValue("fullscreen") == true
+                        if fullscreen ~= element.data.fullscreen then
+                            element.data.fullscreen = fullscreen
+                            element:FireEventTree("setIcon", cond(fullscreen,
+                                "phosphor/arrows-in-simple-fill.png",
+                                "phosphor/arrows-out-simple-fill.png"))
+                        end
+                    end,
+                    click = function()
+                        --same choreography as the maximize button: hide the
+                        --bar contents first, resize a beat later, so the
+                        --hide is on screen before the mode change's
+                        --mis-laid-out settle frames are.
+                        StartWindowTransitionGuard(nil, nil, "fullscreen button", true)
+                        dmhub.Schedule(0.05, function()
+                            if not mod.unloaded then
+                                dmhub.SetSettingValue("fullscreen",
+                                    not (dmhub.GetSettingValue("fullscreen") == true))
+                            end
+                        end)
+                    end,
+                },
                 CreateWindowControl{
                     icon = "window-chrome/chrome-minimize.png",
                     click = function()
                         dmhub.MinimizeWindow()
                     end,
                 },
-                CreateWindowControl{
-                    icon = "window-chrome/chrome-maximize.png",
-                    --swap square (maximize) and overlapping-squares
-                    --(restore) as the window state changes, polled on the
-                    --same broadcast that drives the cluster's visibility.
-                    --Reading the property on a pre-bridge engine would
-                    --raise, so gate first.
-                    calculateVisibility = function(element)
-                        if not WindowChromeBridgeAvailable() then
-                            return
-                        end
-                        local maximized = dmhub.windowMaximized
-                        if maximized ~= element.data.maximized then
-                            element.data.maximized = maximized
-                            element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
-                        end
-                    end,
-                    click = function()
-                        dmhub.ToggleMaximizeWindow()
-                    end,
-                },
+                --assigned to the file-local so UpdateTitleBarHitRegions can
+                --report it as the engine's HTMAXBUTTON zone; the click below
+                --still fires on engines/modes without the stage-2 regions
+                --(there the control is ordinary gui), while under the regions
+                --the engine relays clicks via windowMaxButtonClick instead.
+                (function()
+                    m_maximizeControl = CreateWindowControl{
+                        icon = "window-chrome/chrome-maximize.png",
+                        --swap square (maximize) and overlapping-squares
+                        --(restore) as the window state changes, polled on the
+                        --same broadcast that drives the cluster's visibility.
+                        --Reading the property on a pre-bridge engine would
+                        --raise, so gate first.
+                        calculateVisibility = function(element)
+                            if not WindowChromeBridgeAvailable() then
+                                return
+                            end
+                            local maximized = dmhub.windowMaximized
+                            if maximized ~= element.data.maximized then
+                                element.data.maximized = maximized
+                                element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                            end
+                        end,
+                        click = function()
+                            --hide the bar contents FIRST and resize a beat later,
+                            --so the hide is on screen before the resize's
+                            --mis-laid-out settle frames are.
+                            StartWindowTransitionGuard(nil, nil, "maximize button", true)
+                            dmhub.Schedule(0.05, function()
+                                if not mod.unloaded then
+                                    dmhub.ToggleMaximizeWindow()
+                                end
+                            end)
+                        end,
+                    }
+                    return m_maximizeControl
+                end)(),
                 CreateWindowControl{
                     danger = true,
                     icon = "window-chrome/chrome-close.png",
@@ -6182,6 +6861,18 @@ local function CreateTopBar()
     }
 
     local titleBarStyleExtras = {
+        -- Narrow-bar fit: the collapse ladder's own way of taking an element
+        -- out of the flow. Deliberately NOT the "collapsed" class -- several
+        -- of these elements drive that themselves (the initiative host tracks
+        -- the Show Status Bar setting, the menu items track dev mode and
+        -- in-game state), and two writers on one class fight. A separate
+        -- class means the ladder and the element's own visibility rules
+        -- simply both get a veto.
+        {
+            selectors = {"barFitHidden"},
+            collapsed = 1,
+        },
+
         -- Title-bar bar surface paints flat @bg -- the same color the DWM
         -- caption used before the merged title bar replaced it
         -- (WindowTitleBarTheme.cs hardcodes that caption to the default
@@ -6571,3 +7262,50 @@ local function CreateTopBar()
 end
 
 dmhub.titleBarContainer.sheet = CreateTopBar()
+
+--HTMAXBUTTON relay: while the stage-2 hit regions are registered, the
+--maximize control is a native non-client zone -- the gui never receives
+--mouse events over it -- so the engine relays its interaction here. The
+--events are argless; state is read from dmhub.windowMaxButtonState. Both
+--handlers survive bar rebuilds (they resolve m_maximizeControl at fire
+--time) and go quiet after a mod reload via the mod.unloaded guard.
+dmhub.RegisterEventHandler("windowMaxButtonState", function()
+    if mod.unloaded then
+        return
+    end
+    local control = m_maximizeControl
+    if control == nil or not control.valid then
+        return
+    end
+    local state = "none"
+    pcall(function() state = dmhub.windowMaxButtonState end)
+    control:SetClass("hover", state == "hover" or state == "pressed")
+    control:SetClass("press", state == "pressed")
+end)
+
+dmhub.RegisterEventHandler("windowMaxButtonClick", function()
+    if mod.unloaded then
+        return
+    end
+    --same flow as the control's gui click handler: hide the bar contents
+    --FIRST and resize a beat later, so the hide is on screen before the
+    --resize's mis-laid-out settle frames are.
+    StartWindowTransitionGuard(nil, nil, "maximize button", true)
+    dmhub.Schedule(0.05, function()
+        if not mod.unloaded then
+            dmhub.ToggleMaximizeWindow()
+        end
+    end)
+
+    --Swallow the event. The engine's relay treats a NON-swallowed click as
+    --"no Lua listener" and toggles the window itself so the button can never
+    --go dead (LuaInterfaceWindowChrome, the ConsumeMaxButtonClick relay) --
+    --and FireGlobalEvent reports "swallowed" only when a handler returns
+    --true, not merely when one is registered. Since the toggle above is
+    --SCHEDULED rather than immediate, returning nothing let the engine
+    --fallback maximize right away and this handler restore 0.05s later: one
+    --click maximized the window and then animated it straight back down
+    --(observed 2026-08-23). The early mod.unloaded return deliberately stays
+    --falsy so the fallback still works once this handler is dead.
+    return true
+end)

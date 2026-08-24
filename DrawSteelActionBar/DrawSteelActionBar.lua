@@ -3352,7 +3352,10 @@ local function AbilityHeading(args)
     local m_multiBadge = gui.Panel {
         classes = { "overviewMultiBadge", "collapsed" },
         bgimage = "panels/square.png",
-        hover = gui.Tooltip{ text = "Targets more than one creature", valign = "top" },
+        data = { tooltip = "Targets more than one creature" },
+        hover = function(element)
+            gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+        end,
         m_multiIcon1,
         m_multiIcon2,
     }
@@ -3406,10 +3409,11 @@ local function AbilityHeading(args)
             args.overviewPress = overviewPress
         end,
 
-        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip)
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, multiTooltip)
             m_dmgBadge:SetClass("collapsed", dmg ~= true)
             m_dmgBadge.data.tooltip = dmgTooltip or "This ability does high damage"
             m_multiBadge:SetClass("collapsed", multi ~= true)
+            m_multiBadge.data.tooltip = multiTooltip or "Targets more than one creature"
             local tint = multiDamaging and "#E06464" or "#EDEDED"
             m_multiIcon1.selfStyle.bgcolor = tint
             m_multiIcon2.selfStyle.bgcolor = tint
@@ -4337,6 +4341,67 @@ local function OverviewReach(tok, abilities, heroes)
     return { count = count, reach = reach, speed = speed, range = range }
 end
 
+--Field test 26: an Area chip earns the twin-person badge POSITIONALLY -
+--only when the area could catch two or more heroes somewhere the monster
+--can reach this turn. Envelope = speed + cast range + area size; two
+--heroes are catchable together when their mutual distance fits the area's
+--diameter. Chebyshev squares, no walls or line of sight - the same
+--approximation as the reach line. A burst-style ability stores its size
+--in range with no radius, so radius falls back to range with 0 cast range.
+local function OverviewAreaCatch(tok, ability)
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return false
+    end
+    local radius = nil
+    local castRange = 0
+    pcall(function()
+        radius = tonumber(ability:try_get("radius"))
+        castRange = tonumber(ability.range) or 0
+    end)
+    if radius == nil or radius <= 0 then
+        radius = castRange
+        castRange = 0
+    end
+    if radius == nil or radius <= 0 then
+        return false
+    end
+    local speed = 0
+    pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
+    local envelope = speed + castRange + radius
+    local reachable = {}
+    local ok = pcall(function()
+        local locs = tok.locsOccupying
+        if locs == nil or #locs == 0 then
+            locs = { tok.loc }
+        end
+        for _, hero in ipairs(OverviewHeroTokens()) do
+            local hloc = hero.loc
+            local nearest = nil
+            for _, loc in ipairs(locs) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if nearest == nil or d < nearest then
+                    nearest = d
+                end
+            end
+            if nearest ~= nil and nearest <= envelope then
+                reachable[#reachable + 1] = hloc
+            end
+        end
+    end)
+    if not ok or #reachable < 2 then
+        return false
+    end
+    for i = 1, #reachable do
+        for j = i + 1, #reachable do
+            local d = math.max(math.abs(reachable[i].x - reachable[j].x), math.abs(reachable[i].y - reachable[j].y))
+            if d <= radius * 2 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 --"3 heroes in reach" / "1 hero in reach" / "No hero in reach"; short = "3 in
 --reach" for the mini-rows.
 --Zero reads AMBER + bold (field test 4: white "0 in reach" did not steer -
@@ -4627,6 +4692,23 @@ end
 --organization, shown on hover of the footer's role line so the Director can
 --pick which column to read first. Paraphrased play guidance, not rules text.
 --Keys are the lowercase words monster:Role() / monster:Organization() yield.
+--Field test 26: each role takes the colour of its stat block header banner
+--in the Book Two PDF (sampled from Draw_Steel_Monsters_v1.01; the montage is
+--in the brief). Role-less headers (Solo/Leader organizations) are the PDF's
+--neutral grey.
+OVERVIEW.ROLE_COLORS = {
+    ambusher   = "#FBE48C",
+    artillery  = "#D8D4E5",
+    brute      = "#B3C9E6",
+    controller = "#F8ADA9",
+    defender   = "#D6D2B9",
+    harrier    = "#EED0D2",
+    hexer      = "#E2E9D3",
+    mount      = "#CEE6EF",
+    support    = "#F7E2D1",
+}
+OVERVIEW.ROLE_COLOR_DEFAULT = "#D7D9DA"
+
 local OVERVIEW_ROLE_PROSE = {
     ambusher   = "Strikes from hiding, then slips away. Open hidden, pick off an isolated hero.",
     artillery  = "Ranged damage from the back line. Keep line of sight, stay out of melee.",
@@ -4686,13 +4768,15 @@ local function OverviewRoleInfo(tok)
     --"Minion Harrier", or just "Leader".
     local line = plain
     if roleWord ~= nil then
+        local roleColor = OVERVIEW.ROLE_COLORS[string.lower(roleWord)] or OVERVIEW.ROLE_COLOR_DEFAULT
         local roleText = string.upper(string.sub(roleWord, 1, 1)) .. string.sub(roleWord, 2)
-        line = string.format("<color=#C9A86A><b>%s</b></color>", roleText)
+        line = string.format("<b>%s</b>", roleText)
         if orgWord ~= nil then
             line = string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2) .. " " .. line
         end
+        line = string.format("<color=%s>%s</color>", roleColor, line)
     elseif orgWord ~= nil then
-        line = string.format("<color=#C9A86A><b>%s</b></color>", string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2))
+        line = string.format("<color=%s><b>%s</b></color>", OVERVIEW.ROLE_COLOR_DEFAULT, string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2))
     end
 
     local prose = {}
@@ -6034,6 +6118,7 @@ local function ActionSubMenu(args)
                 --under the All / Damage lenses.
                 local dmgBadge = false
                 local dmgTooltip = nil
+                local multiTooltip = nil
                 local multiBadge, multiDamaging, summonBadge = false, false, false
                 if overview then
                     local facets = facetsByAbility[abilities[i]]
@@ -6055,10 +6140,19 @@ local function ActionSubMenu(args)
                             summonBadge = facets.summon == true
                             multiBadge = (not summonBadge) and facets.multiTarget == true
                             multiDamaging = facets.damage == true
+                            --Field test 26: an area ability wears the twins
+                            --only when it can actually catch several heroes
+                            --from here (positional; recomputed every
+                            --populate, so it follows the tokens).
+                            if (not summonBadge) and (not multiBadge) and facets.area == true
+                                and OverviewAreaCatch(m_casterToken, abilities[i]) then
+                                multiBadge = true
+                                multiTooltip = "Can catch more than one hero this turn"
+                            end
                         end
                     end
                 end
-                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip)
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, multiTooltip)
             end
 
             for i = #abilities + 1, #m_chips do

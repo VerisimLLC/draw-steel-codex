@@ -220,10 +220,16 @@ end
 --Unique Abilities menu (saves the trip to the bottom of the screen). Opens
 --only - never closes.
 function DrawSteelActionBar.OpenUniqueMenu()
-    if not GameHud.instance or GameHud.instance.actionBarPanel == nil then
+    if not GameHud.instance then
         return
     end
-    for _, drawer in ipairs(GameHud.instance.actionBarPanel:GetChildrenWithClassRecursive("actionBarDrawer")) do
+    --Mid-rebuild the Hud instance exists but actionBarPanel is not assigned
+    --yet, and reading an unset field on a game-typed instance RAISES.
+    local barPanel = GameHud.instance:try_get("actionBarPanel")
+    if barPanel == nil or not barPanel.valid then
+        return
+    end
+    for _, drawer in ipairs(barPanel:GetChildrenWithClassRecursive("actionBarDrawer")) do
         if drawer.data ~= nil and drawer.data.drawerType == "unique"
             and not drawer:HasClass("collapsed") and not drawer:HasClass("active") then
             drawer:FireEvent("press")
@@ -1734,9 +1740,8 @@ local OVERVIEW_FOOTER_RULES = {
         width = 16,
         height = 16,
         halign = "left",
-        valign = "top",
+        valign = "center",
         rmargin = 3,
-        tmargin = 1,
         bgcolor = "#E06464",
     },
     {

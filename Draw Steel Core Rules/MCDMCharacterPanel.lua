@@ -97,13 +97,24 @@ TacPanelSizes.Fonts = {
     charTitle = 12,
     charValue = 30,
 
-    -- Compact variants, used for monsters. Same boxes and the same press
-    -- handlers -- a monster sheet just wants far less of the panel spent on
-    -- them than a hero sheet does.
-    movePanelTitleCompact = 10,
-    movePanelValueCompact = 14,
-    charTitleCompact = 10,
-    charValueCompact = 15,
+    -- Compact variants for the STATISTICS boxes. Same boxes and the same press
+    -- handlers, just far less of the panel spent on them.
+    --
+    -- The values carry most of the bump and the labels almost none: measured on
+    -- a 504px panel the row already fills ~457px, so there is about 10% of
+    -- width to play with, and the labels ("ntuition") are what eat it. The row
+    -- wraps rather than overflowing if a wider font or a narrower panel pushes
+    -- it over.
+    movePanelTitleCompact = 11,
+    movePanelValueCompact = 18,
+    charTitleCompact = 11,
+    charValueCompact = 20,
+
+    -- The resource strip and the RESOURCES badges were sized against the old
+    -- compact numbers and should not follow them up; they have their own space
+    -- constraints beside the stamina bar.
+    resCompactTitle = 10,
+    resCompactValue = 15,
 
     hrChipValue = 12,
     hrChipEvent = 11,
@@ -161,6 +172,14 @@ local g_testCharPanel = setting{
     description = "Use the reworked hero character panel.",
     default = false,
     storage = "preference",
+    --The style rules resolve against the flag, so toggling has to re-resolve
+    --them. Without this the panel kept whatever it was built with at load and
+    --showed a mix: the reworked tree wearing the classic type scale.
+    onchange = function()
+        if TacPanel.RefreshStyles ~= nil then
+            TacPanel.RefreshStyles()
+        end
+    end,
 }
 
 --- @return boolean
@@ -634,7 +653,7 @@ TacPanelStyles.TokenBox = ThemeEngine.MergeTokens{
         tmargin = 0,
         rmargin = 4,
         textAlignment = "left",
-        fontSize = TacPanelSizes.Fonts.charTitleCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactTitle,
     },
     {
         selectors = {"input", "tokenbox", "value", "parent:compact"},
@@ -642,7 +661,7 @@ TacPanelStyles.TokenBox = ThemeEngine.MergeTokens{
         valign = "center",
         tmargin = 0,
         hmargin = 2,
-        fontSize = TacPanelSizes.Fonts.charValueCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactValue,
     },
     {   -- Shrinks to sit on the line rather than tower over it.
         selectors = {"panel", "icon", "parent:compact"},
@@ -758,12 +777,12 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         halign = "left",
         rmargin = 4,
         textAlignment = "left",
-        fontSize = TacPanelSizes.Fonts.charTitleCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactTitle,
     },
     {
         selectors = {"label", "recovery-value", "parent:compact"},
         valign = "center",
-        fontSize = TacPanelSizes.Fonts.charValueCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactValue,
     },
     {   -- The editable count: this is where you set how many recoveries the
         -- hero has left. minWidth keeps it a target you can click when it is
@@ -773,13 +792,13 @@ TacPanelStyles.Stamina = ThemeEngine.MergeTokens{
         minWidth = 14,
         valign = "center",
         textAlignment = "right",
-        fontSize = TacPanelSizes.Fonts.charValueCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactValue,
     },
     {
         selectors = {"label", "recovery-max", "parent:compact"},
         valign = "center",
         lmargin = 2,
-        fontSize = TacPanelSizes.Fonts.charTitleCompact,
+        fontSize = TacPanelSizes.Fonts.resCompactTitle,
     },
     -- Under the bar, recoveries reads as a key-value line in the same grammar
     -- as the IMMUNITY row below it: a bold muted key, then the values. The row
@@ -1311,7 +1330,9 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         --five characteristics have to be able to fall to a second line at
         --larger font sizes. Heroes' fixed 16% cells never reach the edge.
         wrap = true,
-        vpad = 6,
+        --Stacked, each column already carries its own vertical padding, so 6
+        --here sat on top of it and left the row floating in the section.
+        vpad = cond(TacPanel.UseTestPanel(), 2, 6),
     },
     {
         selectors = {"panel", "characteristic-box"},
@@ -1377,16 +1398,23 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     -- i.e. square, which is what made these so big.
     {
         selectors = {"panel", "characteristic-box", "compact"},
-        width = "auto",
+        --Reworked: one column per characteristic, value over name, five across
+        --the section. 19% leaves the row a little slack so it does not wrap.
+        --Classic-compact runs them inline instead.
+        width = cond(TacPanel.UseTestPanel(), "19%", "auto"),
         height = "auto",
-        flow = "horizontal",
+        flow = cond(TacPanel.UseTestPanel(), "vertical", "horizontal"),
         bgcolor = "clear",
         border = 0,
         cornerRadius = 4,
         hpad = 5,
-        vpad = 3,
+        vpad = cond(TacPanel.UseTestPanel(), 1, 3),
         hmargin = 1,
-        vmargin = 1,
+        vmargin = cond(TacPanel.UseTestPanel(), 0, 1),
+        --Without this the hpad is added ON TOP of the 19%, making each column
+        --10px wider than declared -- five of them then came to ~530px in a
+        --~496px section and Presence wrapped to a second line.
+        borderBox = true,
     },
     {   -- hover wash carries the affordance the frame used to
         selectors = {"panel", "characteristic-box", "compact", "hover"},
@@ -1394,15 +1422,23 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         brightness = 1,
     },
     {
-        --No halign: in a horizontal flow an explicit halign PINS the child to
-        --that edge instead of letting the flow sequence it, so label and value
-        --land on top of each other ("Might0").
+        --No halign in the INLINE variant: in a horizontal flow an explicit
+        --halign pins the child to that edge instead of letting the flow
+        --sequence it, so label and value land on top of each other ("Might0").
+        --Stacked there is no flow to fight, and the rmargin that separated them
+        --side by side would push the name off centre.
         selectors = {"label", "char-title", "parent:compact"},
         width = "auto",
         valign = "center",
         tmargin = 0,
-        rmargin = 4,
+        rmargin = cond(TacPanel.UseTestPanel(), 0, 4),
         fontSize = TacPanelSizes.Fonts.charTitleCompact,
+    },
+    {   -- The letter chip and the rest of the name, centred under the value.
+        selectors = {"panel", "char-title-row", "parent:compact"},
+        width = "auto",
+        halign = "center",
+        valign = "top",
     },
     {
         selectors = {"label", "char-title", "first", "parent:compact"},
@@ -1410,8 +1446,10 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"label", "char-value", "parent:compact"},
-        width = "auto",
+        width = cond(TacPanel.UseTestPanel(), "100%", "auto"),
+        halign = "center",
         valign = "center",
+        textAlignment = cond(TacPanel.UseTestPanel(), "center", "left"),
         fontSize = TacPanelSizes.Fonts.charValueCompact,
     },
 }
@@ -2706,9 +2744,18 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
 
     {
         selectors = {"panel", "res-container"},
-        width = "100%",
+        --The same inset the recoveries strip and the conditions row carry, so
+        --all three key-value lines start on one edge. Classic left this at 0
+        --and let the res-box hpad/hmargin stand in for it, which put these two
+        --lines 2px inside the others.
+        lmargin = cond(TacPanel.UseTestPanel(), 12, 0),
+        width = cond(TacPanel.UseTestPanel(), "100%-12", "100%"),
         height = "auto",
-        flow = "horizontal",
+        --Stacked, so WEAKNESS and IMMUNITIES read as their own lines in the
+        --same column as the recoveries and conditions rows. Side by side they
+        --were two half-width blocks of wrapped text that shared no left edge
+        --with anything around them. Classic keeps the pair.
+        flow = cond(TacPanel.UseTestPanel(), "vertical", "horizontal"),
         halign = "center",
         tmargin = 4,
     },
@@ -2718,7 +2765,9 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         selectors = {"label", "res-box", "weakness"},
         width = "47%",
         height = "auto",
-        halign = "center",
+        --Stacked, each line starts on the column's left edge like IMMUNITY's
+        --neighbours; side by side they centre in their half.
+        halign = cond(TacPanel.UseTestPanel(), "left", "center"),
         fontSize = TacPanelSizes.Fonts.resEntry,
         bold = false,
         color = "@fg",
@@ -2728,12 +2777,13 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         --for nothing.
         border = 0,
         cornerRadius = 4,
-        hpad = 6,
-        --No vertical padding: with the outline gone there is no box for it to
-        --hold off, and 4 each side made a one-line entry 33px tall, which read
-        --as a blank line between this and the conditions row below.
+        --No insets of their own: the row above carries the indent now, and
+        --padding here only pushed these two lines out of step with the rest.
+        hpad = cond(TacPanel.UseTestPanel(), 0, 6),
+        --No vertical padding either: with the outline gone there is no box for
+        --it to hold off, and 4 each side made a one-line entry 33px tall.
         vpad = cond(TacPanel.UseTestPanel(), 0, 4),
-        hmargin = 4,
+        hmargin = cond(TacPanel.UseTestPanel(), 0, 4),
     },
 
     -- Immunity box
@@ -2741,16 +2791,22 @@ TacPanelStyles.Resistances = ThemeEngine.MergeTokens{
         selectors = {"label", "res-box", "immunity"},
         width = "47%",
         height = "auto",
-        halign = "center",
+        --Stacked, each line starts on the column's left edge like IMMUNITY's
+        --neighbours; side by side they centre in their half.
+        halign = cond(TacPanel.UseTestPanel(), "left", "center"),
         fontSize = TacPanelSizes.Fonts.resEntry,
         bold = false,
         color = "@fg",
         bgimage = true,
         border = 0,
         cornerRadius = 4,
-        hpad = 6,
+        --No insets of their own: the row above carries the indent now, and
+        --padding here only pushed these two lines out of step with the rest.
+        hpad = cond(TacPanel.UseTestPanel(), 0, 6),
+        --No vertical padding either: with the outline gone there is no box for
+        --it to hold off, and 4 each side made a one-line entry 33px tall.
         vpad = cond(TacPanel.UseTestPanel(), 0, 4),
-        hmargin = 4,
+        hmargin = cond(TacPanel.UseTestPanel(), 0, 4),
     },
     -- NOTE: a {res-box, <variant>, parent:flush} rule to zero these insets does
     -- NOT win over the two rules above -- a "parent:" selector does not carry
@@ -2840,7 +2896,10 @@ local function RegisterRoot(root)
     return root
 end
 
-ThemeEngine.OnThemeChanged(mod, function()
+--- Rebuild the style tables and push them onto every live tac-panel root.
+--- Shared by the theme hook and the dev:testcharpanel toggle: both change what
+--- the rules resolve to, and neither can wait for the next panel to be built.
+function TacPanel.RefreshStyles()
     TacPanel.BuildStyles()
     local live = {}
     for _, r in ipairs(g_roots) do
@@ -2850,6 +2909,10 @@ ThemeEngine.OnThemeChanged(mod, function()
         end
     end
     g_roots = live
+end
+
+ThemeEngine.OnThemeChanged(mod, function()
+    TacPanel.RefreshStyles()
 end)
 
 -- Big text
@@ -5626,7 +5689,12 @@ function TacPanel.Resistances()
             element:SetClass("collapsed", not hasContent)
 
             if hasContent then
-                local boxWidth = (hasWeak and hasImmune) and "47%" or "94%"
+                --Stacked they each take the full column; side by side they
+                --split it, and a lone entry spans either way.
+                local boxWidth = "94%"
+                if not TacPanel.UseTestPanel() and hasWeak and hasImmune then
+                    boxWidth = "47%"
+                end
                 local children = {}
                 if hasWeak then
                     local weakTitle = #weakParts > 1 and "WEAKNESSES" or "WEAKNESS"
@@ -6097,6 +6165,45 @@ end
 --- @param attrInfo table Information about the attribute
 --- @return Panel
 function TacPanel.CharacteristicBox(attrInfo)
+    --The letter-chip and name, and the modifier, as separate locals: the
+    --reworked panel stacks the value ABOVE the name, and which one comes first
+    --is child order, not something a style rule can express.
+    local titleRow = gui.Panel{
+        classes = {"container", "char-title-row"},
+        halign = "center",
+        valign = "top",
+        flow = "horizontal",
+        gui.Label{
+            classes = {"char-title", "first"},
+            text = attrInfo.description:sub(1,1)
+        },
+        gui.Label{
+            classes = {"char-title"},
+            text = attrInfo.description:sub(2)
+        }
+    }
+
+    local valueLabel = gui.Label{
+        classes = {"char-value"},
+        text = "0",
+        data = {
+            attrId = attrInfo.id,
+        },
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then return end
+            local modifier = token.properties:GetAttribute(attrInfo.id):Modifier()
+            element.text = (modifier == 0) and "0" or string.format("%+d", modifier)
+            element:SetClass("positive", modifier > 0)
+            element:SetClass("negative", modifier < 0)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
     return gui.Panel{
         classes = {"characteristic-box"},
         hoverCursor = "pressbutton",
@@ -6119,40 +6226,8 @@ function TacPanel.CharacteristicBox(attrInfo)
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
         end,
-        gui.Panel{
-            classes = {"container"},
-            halign = "center",
-            valign = "top",
-            flow = "horizontal",
-            gui.Label{
-                classes = {"char-title", "first"},
-                text = attrInfo.description:sub(1,1)
-            },
-            gui.Label{
-                classes = {"char-title"},
-                text = attrInfo.description:sub(2)
-            }
-        },
-        gui.Label{
-            classes = {"char-value"},
-            text = "0",
-            data = {
-                attrId = attrInfo.id,
-            },
-            refreshCharacter = function(element, token)
-                if token == nil or not token.valid or token.properties == nil then return end
-                local modifier = token.properties:GetAttribute(attrInfo.id):Modifier()
-                element.text = (modifier == 0) and "0" or string.format("%+d", modifier)
-                element:SetClass("positive", modifier > 0)
-                element:SetClass("negative", modifier < 0)
-            end,
-            refreshToken = function(element, token)
-                element:FireEvent("refreshCharacter", token)
-            end,
-            setToken = function(element, token)
-                element:FireEvent("refreshCharacter", token)
-            end,
-        }
+        children = cond(TacPanel.UseTestPanel(),
+            {valueLabel, titleRow}, {titleRow, valueLabel}),
     }
 end
 
@@ -8066,13 +8141,13 @@ TacPanel.RegisterHeroicResourceDisplay{
 TacPanel.RegisterHeroicResourceDisplay{
     id = "herotokens",
     create = TacPanel.HeroTokenBox,
-    ord = 2,
+    ord = 3,
 }
 
 TacPanel.RegisterHeroicResourceDisplay{
     id = "surges",
     create = TacPanel.SurgesBox,
-    ord = 3,
+    ord = 2,
 }
 
 --- Put one resource box onto the strip's compact footprint: no frame, label
@@ -13108,10 +13183,16 @@ local TACPANEL_DEFAULT_ORDER_CLASSIC = {
     "notes",
 }
 
---Picked once at load: the flag is a per-user preference, and a section list is
---not something that can change under a panel that is already built.
-local TACPANEL_DEFAULT_ORDER = cond(TacPanel.UseTestPanel(),
-    TACPANEL_DEFAULT_ORDER_TEST, TACPANEL_DEFAULT_ORDER_CLASSIC)
+--- The section list for whichever panel the flag currently selects.
+---
+--- Resolved per call, NOT once at load. Picking at load meant a panel opened
+--- after the flag was toggled still used the list from startup -- which showed
+--- as the reworked panel carrying a FEATURES section it had dropped.
+--- @return string[]
+local function ActiveOrder()
+    return cond(TacPanel.UseTestPanel(),
+        TACPANEL_DEFAULT_ORDER_TEST, TACPANEL_DEFAULT_ORDER_CLASSIC)
+end
 
 local TACPANEL_FACTORIES = {
     statistics = TacPanel.Statistics,
@@ -13146,30 +13227,34 @@ function TacPanel.RegisterSection(id, factory, opts)
     opts = opts or {}
     TACPANEL_FACTORIES[id] = factory
 
-    for i,existing in ipairs(TACPANEL_DEFAULT_ORDER) do
-        if existing == id then
-            table.remove(TACPANEL_DEFAULT_ORDER, i)
-            break
+    --Into BOTH lists: a mod registering a section should get it whichever
+    --panel the flag is on.
+    for _, order in ipairs({TACPANEL_DEFAULT_ORDER_TEST, TACPANEL_DEFAULT_ORDER_CLASSIC}) do
+        for i,existing in ipairs(order) do
+            if existing == id then
+                table.remove(order, i)
+                break
+            end
         end
-    end
 
-    local insertAt = #TACPANEL_DEFAULT_ORDER + 1
-    if opts.after then
-        for i,existing in ipairs(TACPANEL_DEFAULT_ORDER) do
-            if existing == opts.after then
-                insertAt = i + 1
-                break
+        local insertAt = #order + 1
+        if opts.after then
+            for i,existing in ipairs(order) do
+                if existing == opts.after then
+                    insertAt = i + 1
+                    break
+                end
+            end
+        elseif opts.before then
+            for i,existing in ipairs(order) do
+                if existing == opts.before then
+                    insertAt = i
+                    break
+                end
             end
         end
-    elseif opts.before then
-        for i,existing in ipairs(TACPANEL_DEFAULT_ORDER) do
-            if existing == opts.before then
-                insertAt = i
-                break
-            end
-        end
+        table.insert(order, insertAt, id)
     end
-    table.insert(TACPANEL_DEFAULT_ORDER, insertAt, id)
 end
 
 --- Per-user preference key for the saved section order.
@@ -13185,7 +13270,7 @@ function TacPanel.GetOrder()
     local saved = dmhub.GetPref(TacPanel.KeyName())
     if saved == nil or type(saved) ~= "string" then
         local copy = {}
-        for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+        for _, id in ipairs(ActiveOrder()) do
             copy[#copy+1] = id
         end
         return copy
@@ -13199,7 +13284,7 @@ function TacPanel.GetOrder()
     -- Append any sections missing from the saved order (e.g. newly added)
     local present = {}
     for _, id in ipairs(order) do present[id] = true end
-    for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+    for _, id in ipairs(ActiveOrder()) do
         if not present[id] then
             order[#order+1] = id
         end
@@ -13219,7 +13304,7 @@ end
 --- @return Panel
 function TacPanel.SectionsContainer()
     local sectionPanels = {}
-    for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+    for _, id in ipairs(ActiveOrder()) do
         sectionPanels[id] = TACPANEL_FACTORIES[id]()
     end
 
@@ -13250,7 +13335,7 @@ function TacPanel.SectionsContainer()
         events = {
             monitor = function(element)
                 dmhub.SetPref(TacPanel.KeyName(), nil)
-                sortChildren(element, TACPANEL_DEFAULT_ORDER)
+                sortChildren(element, ActiveOrder())
             end,
         },
 

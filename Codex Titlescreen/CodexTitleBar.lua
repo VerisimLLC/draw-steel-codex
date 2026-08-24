@@ -883,6 +883,7 @@ local function CreateCodexMenuItem(args)
             for _,sibling in ipairs(element.parent.children) do
                 if sibling ~= element and sibling.popup ~= nil then
                     sibling.popup = nil
+                    sibling:SetClass("menuOpen", false)
                     element:FireEvent("press")
                     return
                 end
@@ -893,6 +894,7 @@ local function CreateCodexMenuItem(args)
 
            	if element.popup ~= nil then
 				element.popup = nil
+				element:SetClass("menuOpen", false)
 				return
 			end
 
@@ -909,11 +911,20 @@ local function CreateCodexMenuItem(args)
 					entries = menuItems,
 					click = function()
 						element.popup = nil
+						element:SetClass("menuOpen", false)
 					end,
 				}
 			}
+			--the plate holds while the dropdown is open (Venla
+			--2026-08-24, VS Code menu behavior): menuOpen carries the
+			--same raised fill as hover, cleared on every close path --
+			--including click-outside, via the closePopup event below.
+			element:SetClass("menuOpen", true)
 
+		end,
 
+		closePopup = function(element)
+			element:SetClass("menuOpen", false)
 		end,
 	}
 
@@ -6887,7 +6898,10 @@ local function CreateTopBar()
         },
         {
             selectors = {"windowControlIcon"},
-            bgcolor = "@fg",
+            --neutral light grey rather than the theme's parchment @fg:
+            --window chrome should read as OS furniture, not app content
+            --(Venla 2026-08-23). Close still flips to white over the red.
+            bgcolor = "#d4d4d4",
         },
         {
             selectors = {"windowControlIconDanger", "parent:hover"},

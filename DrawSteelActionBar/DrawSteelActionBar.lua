@@ -1786,6 +1786,28 @@ local OVERVIEW_FOOTER_RULES = {
         valign = "center",
         tmargin = 0,
     },
+    --Field test 29: the High-damage / area-window column lines carry the
+    --same glyph as the chip badge that earned them (surge / gold "!") as
+    --an icon bullet, marrying the creature line to the relevant abilities.
+    {
+        selectors = { "overviewRiskIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+    },
+    {
+        selectors = { "overviewRiskIcon", "surge" },
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewRiskIcon", "area" },
+        width = 15,
+        height = 15,
+        rmargin = 4,
+        bgcolor = "#E9B86F",
+    },
     --Field test 22: a member row's name yields the skull's width so the
     --inline skull + ellipsized name never overflow the row.
     {
@@ -1804,11 +1826,14 @@ local OVERVIEW_FOOTER_RULES = {
         textOverflow = "ellipsis",
     },
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
+    --Field test 29: tmargin 1 seats the text a hair lower so it sits level
+    --with the 16px icon bullets (skull / surge / "!") beside it.
     {
         selectors = { "overviewFooterRisk" },
         width = "100%-19",
         height = "auto",
         fontSize = 13,
+        tmargin = 1,
         color = Styles.textColor,
         textAlignment = "left",
         textWrap = true,
@@ -5336,6 +5361,44 @@ local function OverviewColumnFooter()
         riskLabel,
     }
 
+    --Field test 29 (Ricky): High damage dealer and the area window are
+    --their own rows beneath the risk box, each led by the SAME glyph as
+    --the chip badge that earned the line (surge / gold trigger "!") - an
+    --icon bullet that marries the creature line to the relevant abilities.
+    local m_dmgLineTooltip = nil
+    local dmgRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = function(element)
+            if m_dmgLineTooltip ~= nil then
+                gui.Tooltip(m_dmgLineTooltip)(element)
+            end
+        end,
+        gui.Panel {
+            classes = { "overviewRiskIcon", "surge" },
+            bgimage = "game-icons/surge.png",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>High damage dealer</b></color>", g_overviewRisk.red),
+            interactable = false,
+        },
+    }
+    local areaRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "An area ability in this kit could catch several heroes right now", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "area" },
+            bgimage = "e7d55d80-630d-432d-8d3d-33051478bcd9",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>Heroes vulnerable to area abilities</b></color>", g_overviewRisk.red),
+            interactable = false,
+        },
+    }
+
     --P2-a: status strip - the token HUD's status icons for a single-member
     --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
     --hover text). Pooled icon panels + "+N"; collapsed when empty or when the
@@ -5422,6 +5485,8 @@ local function OverviewColumnFooter()
             reachLabel,
             safeLabel,
             riskRow,
+            dmgRow,
+            areaRow,
         },
     }
 
@@ -5970,35 +6035,24 @@ local function OverviewColumnFooter()
             safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
             m_riskTooltip = risk and risk.tooltip or nil
             local riskText = risk and risk.text or nil
-            --"High damage dealer" rides as a bullet under Near Death, or
-            --stands alone in RED when the creature is otherwise safe
-            --(field test 27: gold did not stand out enough).
-            if column.highDamage then
-                if riskText == nil then
-                    riskText = string.format("<color=%s><b>High damage dealer</b></color>", g_overviewRisk.red)
-                    m_riskTooltip = "Highest damage of all selected monsters"
-                else
-                    riskText = riskText .. "\n- High damage dealer"
-                    m_riskTooltip = (m_riskTooltip or "") .. "\nHighest damage of selected monsters near death"
-                end
-            end
-            --Field test 28: when any of this kit's area abilities has a
-            --live window (the gold "!" on the chip), the column says so
-            --beneath the name - the pairing with High damage dealer is
-            --the "use this monster now" cue Ricky described.
-            if column.areaWindow then
-                local windowLine = string.format("<color=%s><b>Heroes vulnerable to area abilities</b></color>", g_overviewRisk.red)
-                if riskText == nil then
-                    riskText = windowLine
-                    m_riskTooltip = "An area ability in this kit could catch several heroes right now"
-                else
-                    riskText = riskText .. "\n" .. windowLine
-                    m_riskTooltip = (m_riskTooltip or "") .. "\nAn area ability in this kit could catch several heroes right now"
-                end
-            end
             riskLabel.text = riskText or ""
             riskLabel:SetClass("collapsed", riskText == nil)
+            riskRow:SetClass("collapsed", riskText == nil)
             riskSkull:SetClass("collapsed", risk == nil or risk.level ~= "red")
+            --Field test 29: "High damage dealer" (red - field test 27:
+            --gold did not stand out enough) and the area-window line are
+            --their own icon-bulleted rows beneath the risk box; together
+            --they are the "use this monster now" cue Ricky described.
+            m_dmgLineTooltip = nil
+            if column.highDamage then
+                if risk == nil then
+                    m_dmgLineTooltip = "Highest damage of all selected monsters"
+                else
+                    m_dmgLineTooltip = "Highest damage of selected monsters near death"
+                end
+            end
+            dmgRow:SetClass("collapsed", not column.highDamage)
+            areaRow:SetClass("collapsed", not column.areaWindow)
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil

@@ -3087,6 +3087,7 @@ end
 --Once-per-session flag so a persistent bad trigger doesn't flood the cloud
 --error log: the action bar re-runs GetActivatedAbilities on every refresh.
 local g_reportedManualTriggerError = false
+local g_reportedBadConsumableError = false
 
 function creature:GetActivatedAbilities(options)
     options = options or {}
@@ -3192,8 +3193,22 @@ function creature:GetActivatedAbilities(options)
     local gearTable = dmhub.GetTable('tbl_Gear')
     for k, info in pairs(self:try_get('inventory', {})) do
         local itemInfo = gearTable[k]
-        if itemInfo ~= nil and itemInfo:has_key("consumable") then
-            ability = itemInfo.consumable:MakeTemporaryClone()
+        -- The type check guards against bad import data leaving `consumable` as
+        -- a boolean flag instead of an embedded ActivatedAbility; one malformed
+        -- item must not error out GetActivatedAbilities for the whole creature.
+        local consumableAbility = nil
+        if itemInfo ~= nil then
+            consumableAbility = itemInfo:try_get("consumable")
+            if consumableAbility ~= nil and type(consumableAbility) ~= "table" then
+                if not g_reportedBadConsumableError then
+                    g_reportedBadConsumableError = true
+                    dmhub.CloudError(string.format("GetActivatedAbilities: gear item %s has a %s in its consumable field instead of an ActivatedAbility; skipping it.", tostring(k), type(consumableAbility)))
+                end
+                consumableAbility = nil
+            end
+        end
+        if consumableAbility ~= nil then
+            ability = consumableAbility:MakeTemporaryClone()
             ability._tmp_boundCaster = self
             result[#result + 1] = ability
         end

@@ -7117,6 +7117,28 @@ local function RailWindowSize(doc)
     return loc.width, loc.height
 end
 
+--Diagnostic for the pinned-window restore shift (RAILGEOM:: in the log):
+--these records live in height-normalized UI units (1080 units = the
+--client height, x uses the SAME ratio), so if the client size differs
+--between the session that recorded a position and the one restoring it,
+--the same x lands at a different spot relative to the window edges.
+--Logging the environment with every record write and restore lets a
+--shifted restore be diagnosed from Player.log alone: compare the
+--"remember" line's dims from the previous run against the "restore"
+--line's dims from this one. On PanelDocument (not a file local) because
+--the file is at Lua's 200-locals-per-chunk limit.
+function PanelDocument.RailGeomEnv()
+    local screen = dmhub.screenDimensions
+    local below = dmhub.screenDimensionsBelowTitlebar
+    local dw, dh = -1, -1
+    if GameHud.instance and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+        dw = GameHud.instance.documentsPanel.renderedWidth
+        dh = GameHud.instance.documentsPanel.renderedHeight
+    end
+    return string.format("screen=%.0fx%.0f below=%.0fx%.0f docpanel=%.1fx%.1f fontsize=%s",
+        screen.x, screen.y, below.x, below.y, dw, dh, tostring(dmhub.GetSettingValue("fontsize")))
+end
+
 --Record (or forget) an open window's placement, so it comes back next
 --time the rails are built. doc (optional) contributes the window's size
 --to the record; a placement with no fresh size to offer -- e.g. keep-open
@@ -7148,6 +7170,9 @@ local function RailRememberWindow(key, x, y, doc)
     end
     windows[key] = record
     SetRailRestoreWindows(windows)
+    print(string.format("RAILGEOM:: remember key=%s x=%s y=%s w=%s h=%s | %s",
+        tostring(key), tostring(record.x), tostring(record.y),
+        tostring(record.width), tostring(record.height), PanelDocument.RailGeomEnv()))
     if g_railTransientKey == key then
         g_railTransientKey = nil
     end
@@ -19195,6 +19220,9 @@ function EnsureIconRail()
             if p.tab ~= nil and PanelDocument.WindowOwner(p.tab) == key then
                 open = p.tab
             end
+            print(string.format("RAILGEOM:: restore key=%s x=%s y=%s w=%s h=%s | %s",
+                tostring(key), tostring(p.x), tostring(p.y),
+                tostring(p.width), tostring(p.height), PanelDocument.RailGeomEnv()))
             OpenIconRailWindow(open, { x = p.x, y = p.y, width = p.width, height = p.height })
         end
     end

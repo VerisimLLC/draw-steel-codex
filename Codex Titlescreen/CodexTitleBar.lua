@@ -161,45 +161,7 @@ local BarFitApply
 --windowMaxButtonClick global events rather than normal gui events.
 local m_maximizeControl = nil
 
---Full-window flat overlay for user-initiated maximize/restore: the DWM
---transition animation composites the window's LIVE framebuffer, and the
---engine's rendering lags a window resize by a frame or two -- so the
---animation showcases mis-laid-out content ("the bar snaps down into the
---window"). A uniform fill has no visible position, so covering the window
---with one during the transition makes the animation scale a clean dark
---pane instead. Deliberately enormous: it covers the window no matter how
---the layout lags the resize.
-local g_transitionOverlay = nil
-local function ShowTransitionOverlay(show)
-    local bar = g_menuBarPanel
-    if bar == nil or not bar.valid then
-        return
-    end
-    if show then
-        if g_transitionOverlay == nil or not g_transitionOverlay.valid then
-            g_transitionOverlay = gui.Panel{
-                --the id is load-bearing: the overlay lives as a CHILD of the
-                --bar, and UpdateTitleBarHitRegions must skip it by id when
-                --walking the bar's children -- a 20000px "exclusion" would
-                --swallow the entire native caption band.
-                id = "titleBarTransitionOverlay",
-                floating = true,
-                x = 0,
-                y = 0,
-                width = 20000,
-                height = 20000,
-                bgimage = true,
-                bgcolor = "#0A0A0B",
-            }
-            bar:AddChild(g_transitionOverlay)
-        end
-        g_transitionOverlay:SetClass("hidden", false)
-    elseif g_transitionOverlay ~= nil and g_transitionOverlay.valid then
-        g_transitionOverlay:SetClass("hidden", true)
-    end
-end
-
-local function StartWindowTransitionGuard(stableSamples, timeout, reason, fullOverlay)
+local function StartWindowTransitionGuard(stableSamples, timeout, reason)
     local bar = g_menuBarPanel
     if bar == nil or not bar.valid or not MergedTitleBarActive() then
         return
@@ -214,9 +176,6 @@ local function StartWindowTransitionGuard(stableSamples, timeout, reason, fullOv
     if not g_transitionActive then
         g_transitionActive = true
         bar:SetClassTree("windowTransition", true)
-    end
-    if fullOverlay then
-        ShowTransitionOverlay(true)
     end
 
     local dims = dmhub.screenDimensions
@@ -252,7 +211,6 @@ local function StartWindowTransitionGuard(stableSamples, timeout, reason, fullOv
         --heartbeat is unaffected: hiding is opacity only, thinks keep running.
         if stable >= stableSamples or dmhub.Time() - started > timeout then
             g_transitionActive = false
-            ShowTransitionOverlay(false)
             bar:SetClassTree("windowTransition", false)
             return
         end
@@ -417,14 +375,13 @@ local function BarFitMenuDropped(element)
 end
 
 --Total width the bar's flow is currently asking for. Floating children (the
---drag surface, the transition overlay) sit outside the flow, and a panel the
---engine has taken out of layout reports enabled == false.
+--drag surface) sit outside the flow, and a panel the engine has taken out of
+--layout reports enabled == false.
 local function BarFitMeasure(bar)
     local total = 0
     for _,child in ipairs(bar.children) do
         if child.valid and child.enabled
-                and child.id ~= "titleBarDragSurface"
-                and child.id ~= "titleBarTransitionOverlay" then
+                and child.id ~= "titleBarDragSurface" then
             total = total + child.renderedWidth
         end
     end
@@ -639,18 +596,21 @@ local function UpdateTitleBarHitRegions()
         end
         local exclusions = {}
         for _,child in ipairs(bar.children) do
-            --skip the drag surface (it IS the draggable emptiness) and the
-            --transition overlay (a 20000px flat pane parked as a hidden
-            --child between transitions); hidden/collapsed children are not
-            --interactive so they must not eat caption either.
+            --skip the drag surface (it IS the draggable emptiness);
+            --hidden/collapsed children are not interactive so they must
+            --not eat caption either.
             if child.valid and child.id ~= "titleBarDragSurface"
-                    and child.id ~= "titleBarTransitionOverlay"
                     and not child:HasClass("collapsed") and not child:HasClass("hidden") then
                 exclusions[#exclusions+1] = child
             end
         end
+        --while fullscreen the maximize control is disabled, so don't hand
+        --it to the engine as the native HTMAXBUTTON zone (no Snap Layouts
+        --flyout, no native click relay); the area stays inside the window
+        --button cluster's exclusion so the gui's gated click handles it.
         local maxControl = nil
-        if m_maximizeControl ~= nil and m_maximizeControl.valid then
+        if m_maximizeControl ~= nil and m_maximizeControl.valid
+                and dmhub.GetSettingValue("fullscreen") ~= true then
             maxControl = m_maximizeControl
         end
         dmhub.SetTitleBarHitRegions{
@@ -672,9 +632,6 @@ local function CreateWindowControl(args)
         width = 42,
         height = "100%",
         valign = "center",
-        --the fullscreen control uses this to stand a little apart from the
-        --native minimize/maximize/close trio
-        rmargin = args.rmargin,
         data = { maximized = nil },
         calculateVisibility = args.calculateVisibility,
         click = args.click,
@@ -692,6 +649,21 @@ local function CreateWindowControl(args)
             end,
         },
     }
+end
+
+--Flips the "fullscreen" user setting; the engine's per-frame enforcer
+--(GameHarness) applies it, exactly like Alt+Enter. Same choreography as
+--the maximize button: hide the bar contents first, resize a beat later,
+--so the hide is on screen before the mode change's mis-laid-out settle
+--frames are. Used by the Fullscreen checkbox in the Codex menus.
+local function ToggleFullscreen()
+    StartWindowTransitionGuard(nil, nil, "fullscreen menu item")
+    dmhub.Schedule(0.05, function()
+        if not mod.unloaded then
+            dmhub.SetSettingValue("fullscreen",
+                not (dmhub.GetSettingValue("fullscreen") == true))
+        end
+    end)
 end
 
 local function TicketHasUnseenResponse(t)
@@ -6257,11 +6229,13 @@ local function CreateTopBar()
                 selectors = {"ingameOnly", "~ingame"},
                 collapsed = 1,
             },
-            --window-transition guard: hide the bar's contents but not the
-            --bar surface itself (the root keeps titleBarSurface, so it is
-            --excluded and the flat strip stays painted).
+            --window-transition guard: hide the ENTIRE bar -- contents and
+            --the root's flat strip alike -- so nothing of the title bar
+            --renders while the window geometry is still settling (the strip
+            --used to stay painted, and its 1-2 mis-laid-out frames read as
+            --the bar flickering down into the window on restore).
             {
-                selectors = {"windowTransition", "~titleBarSurface"},
+                selectors = {"windowTransition"},
                 opacity = 0,
             },
         },
@@ -6354,7 +6328,7 @@ local function CreateTopBar()
                     --hide the bar contents FIRST and resize a beat later, so
                     --the hide is on screen before the resize's mis-laid-out
                     --settle frames are.
-                    StartWindowTransitionGuard(nil, nil, "double-press toggle", true)
+                    StartWindowTransitionGuard(nil, nil, "double-press toggle")
                     dmhub.Schedule(0.05, function()
                         if not mod.unloaded then
                             dmhub.ToggleMaximizeWindow()
@@ -6404,6 +6378,17 @@ local function CreateTopBar()
                             dmhub.ShowPlayerSettings()
                         end,
                     },
+                    --checkbox row: the check mirrors the "fullscreen"
+                    --setting; clicking toggles it (replaces the old
+                    --window-button fullscreen control).
+                    {
+                        text = "Fullscreen",
+                        icon = "phosphor/arrows-out-simple-fill.png",
+                        check = dmhub.GetSettingValue("fullscreen") == true,
+                        click = function()
+                            ToggleFullscreen()
+                        end,
+                    },
                 }
 
                 for _,storeItem in ipairs(GetStoreMenuItems()) do
@@ -6431,6 +6416,15 @@ local function CreateTopBar()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
                 end
+                --same Fullscreen checkbox as the main-menu Codex menu.
+                items[#items+1] = {
+                    text = "Fullscreen",
+                    icon = "phosphor/arrows-out-simple-fill.png",
+                    check = dmhub.GetSettingValue("fullscreen") == true,
+                    click = function()
+                        ToggleFullscreen()
+                    end,
+                }
                 return items
             end,
         },
@@ -6773,39 +6767,8 @@ local function CreateTopBar()
                 --styles live in titleBarStyleExtras below). Presses find no
                 --handler here and no ancestor has one, so the drag surface
                 --(a sibling underneath) never steals the click.
-                --Fullscreen toggle: ours rather than one of the native
-                --caption controls, so it sits a little apart from the trio
-                --(rmargin) and uses phosphor glyphs instead of the caption
-                --geometry. Clicking flips the "fullscreen" user setting;
-                --the engine's per-frame enforcer (GameHarness) applies it,
-                --exactly like Alt+Enter. The glyph swaps expand/contract on
-                --the same broadcast that swaps maximize/restore.
-                CreateWindowControl{
-                    icon = "phosphor/arrows-out-simple-fill.png",
-                    rmargin = 8,
-                    calculateVisibility = function(element)
-                        local fullscreen = dmhub.GetSettingValue("fullscreen") == true
-                        if fullscreen ~= element.data.fullscreen then
-                            element.data.fullscreen = fullscreen
-                            element:FireEventTree("setIcon", cond(fullscreen,
-                                "phosphor/arrows-in-simple-fill.png",
-                                "phosphor/arrows-out-simple-fill.png"))
-                        end
-                    end,
-                    click = function()
-                        --same choreography as the maximize button: hide the
-                        --bar contents first, resize a beat later, so the
-                        --hide is on screen before the mode change's
-                        --mis-laid-out settle frames are.
-                        StartWindowTransitionGuard(nil, nil, "fullscreen button", true)
-                        dmhub.Schedule(0.05, function()
-                            if not mod.unloaded then
-                                dmhub.SetSettingValue("fullscreen",
-                                    not (dmhub.GetSettingValue("fullscreen") == true))
-                            end
-                        end)
-                    end,
-                },
+                --(Fullscreen is no longer a window control here -- it lives
+                --in the Codex menus as a checkbox row, see ToggleFullscreen.)
                 CreateWindowControl{
                     icon = "window-chrome/chrome-minimize.png",
                     click = function()
@@ -6826,6 +6789,15 @@ local function CreateTopBar()
                         --Reading the property on a pre-bridge engine would
                         --raise, so gate first.
                         calculateVisibility = function(element)
+                            --while fullscreen the enforcer owns the window
+                            --geometry, so maximize/restore is meaningless:
+                            --gray the control out (style below) and let the
+                            --click gate ignore presses.
+                            local fullscreen = dmhub.GetSettingValue("fullscreen") == true
+                            if fullscreen ~= element.data.fullscreenDisabled then
+                                element.data.fullscreenDisabled = fullscreen
+                                element:SetClass("windowControlDisabled", fullscreen)
+                            end
                             if not WindowChromeBridgeAvailable() then
                                 return
                             end
@@ -6836,10 +6808,14 @@ local function CreateTopBar()
                             end
                         end,
                         click = function()
+                            --disabled while fullscreen; minimize/close stay live.
+                            if dmhub.GetSettingValue("fullscreen") == true then
+                                return
+                            end
                             --hide the bar contents FIRST and resize a beat later,
                             --so the hide is on screen before the resize's
                             --mis-laid-out settle frames are.
-                            StartWindowTransitionGuard(nil, nil, "maximize button", true)
+                            StartWindowTransitionGuard(nil, nil, "maximize button")
                             dmhub.Schedule(0.05, function()
                                 if not mod.unloaded then
                                     dmhub.ToggleMaximizeWindow()
@@ -6916,6 +6892,17 @@ local function CreateTopBar()
         {
             selectors = {"windowControlIconDanger", "parent:hover"},
             bgcolor = "#ffffff",
+        },
+        -- Disabled state (maximize while fullscreen): no hover/press fill
+        -- and a faded glyph. After the hover/press rules so it wins the
+        -- cascade at equal specificity.
+        {
+            selectors = {"windowControl", "windowControlDisabled"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"windowControlIcon", "parent:windowControlDisabled"},
+            opacity = 0.35,
         },
 
         -- Title-bar search field visibility. (Its LOOK is the canonical
@@ -7277,6 +7264,12 @@ dmhub.RegisterEventHandler("windowMaxButtonState", function()
     if control == nil or not control.valid then
         return
     end
+    --disabled while fullscreen: no hover/press feedback on the dead control.
+    if dmhub.GetSettingValue("fullscreen") == true then
+        control:SetClass("hover", false)
+        control:SetClass("press", false)
+        return
+    end
     local state = "none"
     pcall(function() state = dmhub.windowMaxButtonState end)
     control:SetClass("hover", state == "hover" or state == "pressed")
@@ -7287,10 +7280,15 @@ dmhub.RegisterEventHandler("windowMaxButtonClick", function()
     if mod.unloaded then
         return
     end
+    --disabled while fullscreen. Swallow the click (return true) so the
+    --engine's no-listener fallback doesn't toggle the window itself.
+    if dmhub.GetSettingValue("fullscreen") == true then
+        return true
+    end
     --same flow as the control's gui click handler: hide the bar contents
     --FIRST and resize a beat later, so the hide is on screen before the
     --resize's mis-laid-out settle frames are.
-    StartWindowTransitionGuard(nil, nil, "maximize button", true)
+    StartWindowTransitionGuard(nil, nil, "maximize button")
     dmhub.Schedule(0.05, function()
         if not mod.unloaded then
             dmhub.ToggleMaximizeWindow()

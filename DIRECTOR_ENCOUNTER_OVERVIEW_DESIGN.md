@@ -1107,6 +1107,36 @@ current design's bullets answer "why" ambiently). If ever revisited: two
 states max (present/absent), or skulls encoding something crisper than
 graded risk.
 
+**2026-08-19, nineteenth field test (Ricky killed three "safe" Skeletons in
+three hero turns) - NEAR DEATH v2: best affordable hit, engine-resolved.**
+The signature-only rule failed live for three stacked reasons, each found by
+walking Ricky's kills: (1) I had mislabelled Viscous Fire / Your Allies
+Cannot Save You as heroics - both are SIGNATURES (confirmed in data); (2)
+the raw-text damage parser DROPPED "+R"/"+A" characteristic bonuses (read 5
+from "5 + R fire damage"); (3) surges in hand and affordable heroics were
+ignored. v2 model (commit below):
+- Damage numbers come from the ENGINE's caster-resolved tier text
+  (`ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature`) -
+  characteristic and text bonuses included; never parse raw tiers for hero
+  threat again.
+- Best AFFORDABLE ability: signatures/commons always; heroics when cost <=
+  heroic resource held + 2 (assumed start-of-turn gain, tunable - Ricky's
+  Tactician-focus forecast).
+- Plus held surges: min(2, surges) x HighestCharacteristic().
+- Push flag now rides the best pushing ability (bestPush = resolved + push
+  distance).
+- Tooltip names the ability and terms: "Shadow's I Work Better Alone hits
+  ~9 +4 from surges vs 10 Stamina."
+- ACCEPTED remaining gaps (recorded): roll-time modifiers (Elementalist
+  fire specialization +2 - confirmed live as the source of Ricky's 9 vs the
+  sheet's 7), trait immunities (ARISE saved a skeleton from a knockback
+  kill), crit/tier-3 upside.
+Live D3 verification with real pools: Shadow 9+4=13, Elementalist Flesh-a-
+Crucible 10 (3 essence held), Censor Arrest 11 -> Skeletons (10) NEAR DEATH,
+Zombies (20) quiet, Ghouls (15) quiet. Matches the table reality that
+motivated the change.
+
+
 
 
 

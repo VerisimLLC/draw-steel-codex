@@ -4297,9 +4297,25 @@ local function OverviewHeroProfiles()
     end
     local list = {}
     for _, hero in ipairs(OverviewHeroTokens()) do
-        local profile = { token = hero, speed = 0, range = 1, burst = 0, sigBurst = 0, sigForced = 0, spent = false }
+        --Field test 19 (v2, after Ricky's D3 kills beat the signature-only
+        --rule): the hero's threat is their best AFFORDABLE hit, priced from
+        --the ENGINE's caster-resolved tier text (characteristic and text
+        --bonuses included - raw-text parsing dropped "+R"/"+A"), plus the
+        --surge damage they are actually holding. Heroics count when the
+        --hero could afford them at the start of their turn (held resource
+        --+ SURGE/turn-gain assumptions below). Known accepted gaps:
+        --roll-time modifiers (fire specialization) and trait immunities.
+        local profile = { token = hero, speed = 0, range = 1,
+            bestBurst = 0, bestPush = 0, bestName = nil, pushName = nil,
+            surgeDamage = 0, spent = false }
         pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
         pcall(function()
+            local resources = hero.properties:GetResources() or {}
+            local heroicHeld = resources[CharacterResource.heroicResourceId] or 0
+            local surges = resources[CharacterResource.surgeResourceId] or 0
+            local highest = tonumber(hero.properties:HighestCharacteristic()) or 2
+            profile.surgeDamage = math.min(surges, 2) * highest
+
             local abilities = hero.properties:GetActivatedAbilities { bindCaster = true } or {}
             for _, ability in ipairs(abilities) do
                 local variations = { ability }
@@ -4308,19 +4324,42 @@ local function OverviewHeroProfiles()
                 end
                 for _, variation in ipairs(variations) do
                     local facets = OverviewAbilityFacets(variation)
-                    if facets.damageValue > profile.burst then
-                        profile.burst = facets.damageValue
-                    end
-                    --Field test 18: Near Death is judged by SIGNATURE
-                    --abilities only - the hit the hero always has, no
-                    --resource guessing (Ricky: simple, legible rule).
-                    if variation.categorization == "Signature Ability" then
-                        if facets.damageValue > profile.sigBurst then
-                            profile.sigBurst = facets.damageValue
-                            profile.sigForced = facets.forcedDistance or 0
-                        end
-                    end
                     if facets.damage then
+                        local affordable = true
+                        if variation.categorization == "Heroic Ability" then
+                            local cost = GetHeroicResourceOrMaliceCost(variation) or 0
+                            affordable = cost <= heroicHeld + 2
+                        end
+                        if affordable then
+                            --Resolve the tier-2 line for THIS caster.
+                            local resolved = nil
+                            pcall(function()
+                                for _, behavior in ipairs(variation.behaviors or {}) do
+                                    if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                                        local tiers = behavior:try_get("tiers")
+                                        if tiers ~= nil and tiers[2] ~= nil then
+                                            resolved = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(hero.properties, tiers[2], nil, true)
+                                        end
+                                    end
+                                end
+                            end)
+                            local dmg = facets.damageValue
+                            if type(resolved) == "string" then
+                                local n = tonumber(string.match(string.gsub(resolved, "<[^>]*>", ""), "^%s*(%d+)"))
+                                if n ~= nil then
+                                    dmg = n
+                                end
+                            end
+                            if dmg > profile.bestBurst then
+                                profile.bestBurst = dmg
+                                profile.bestName = variation.name
+                            end
+                            local push = dmg + (facets.forcedDistance or 0)
+                            if facets.forcedDistance ~= nil and facets.forcedDistance > 0 and push > profile.bestPush then
+                                profile.bestPush = push
+                                profile.pushName = variation.name
+                            end
+                        end
                         local tt = variation.targetType
                         if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
                             local r = tonumber(variation:GetRange(hero.properties))
@@ -4330,11 +4369,6 @@ local function OverviewHeroProfiles()
                         end
                     end
                 end
-            end
-            --A hero with no parseable signature still threatens: fall back
-            --to their best hit so they are never counted as harmless.
-            if profile.sigBurst == 0 then
-                profile.sigBurst = profile.burst
             end
         end)
         if q ~= nil then
@@ -4398,12 +4432,13 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
                 end
                 if nearest ~= nil and nearest <= profile.speed + profile.range then
                     anyUnspentInReach = true
-                    if profile.sigBurst > 0 and cur <= profile.sigBurst then
+                    local potential = profile.bestBurst + profile.surgeDamage
+                    local pushPotential = profile.bestPush + profile.surgeDamage
+                    if profile.bestBurst > 0 and cur <= potential then
                         if killer == nil then
                             killer = profile
                         end
-                    elseif profile.sigBurst > 0 and profile.sigForced > 0
-                        and cur <= profile.sigBurst + profile.sigForced then
+                    elseif profile.bestPush > 0 and cur <= pushPotential then
                         if pushKiller == nil then
                             pushKiller = profile
                         end
@@ -4457,16 +4492,21 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
             heroName = threat.token.name
         end
     end)
+    local surgeText = ""
+    if threat.surgeDamage > 0 then
+        surgeText = string.format(" +%d from surges", math.floor(threat.surgeDamage))
+    end
     local tooltipParts = {}
     if killer ~= nil then
         tooltipParts[#tooltipParts + 1] = string.format(
-            "%s's signature hits ~%d vs %d Stamina.", heroName, math.floor(killer.sigBurst), math.floor(cur))
+            "%s's %s hits ~%d%s vs %d Stamina.",
+            heroName, killer.bestName or "best hit", math.floor(killer.bestBurst), surgeText, math.floor(cur))
     else
         tooltipParts[#tooltipParts + 1] = string.format(
-            "%s's signature hits ~%d and pushes %d - a collision could cover the %d Stamina.",
-            heroName, math.floor(pushKiller.sigBurst), math.floor(pushKiller.sigForced), math.floor(cur))
+            "%s's %s hits ~%d%s and pushes - a collision could cover the %d Stamina.",
+            heroName, pushKiller.pushName or "best hit", math.floor(pushKiller.bestPush), surgeText, math.floor(cur))
     end
-    tooltipParts[#tooltipParts + 1] = "Counts only heroes who have not acted, within striking range. Tier-2 signature estimate; crits and other abilities can beat it either way."
+    tooltipParts[#tooltipParts + 1] = "Counts only heroes who have not acted, within striking range: best affordable ability at tier 2 (engine-resolved) plus held surges. Crits and stacked bonuses can beat it either way."
     return {
         level = "red",
         text = table.concat(lines, "\n"),

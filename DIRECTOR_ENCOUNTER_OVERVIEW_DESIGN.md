@@ -1461,7 +1461,35 @@ Voice chips keep it (correctly), zero errors.**
 - **Ricky's decision recorded**: NO debuff bullets on safe creatures for
   now ("There's a lot built in and I may change decision on this at a
   later date") - the red-ringed status glyphs remain the only channel.
-  Revisitable.
+  Revisitable. [REVERSED same day - see field test 31.]
+
+**2026-08-24, thirty-first report (Ricky, reversing the hold above) -
+amber "Likely Target" line (commit 82aa7eed). Live-verified: Subcommander
+shows mark + edge glyphs, Chorogaunt shows judged.**
+- **Amber (not red) "Likely Target"** on a single-actor column whose
+  creature carries hero-applied debuffs, when no red risk box already
+  names them in its bullets (Near Death / Squishy still own that case).
+  The debuff STATUS GLYPHS themselves ride the line as its icon bullets
+  (up to 3, pooled, tinted by the status's own style like the strip) -
+  same icon-bullet grammar as the skull/surge/"!" rows. Hover:
+  "[conditions] make this creature a likely target" (names joined with
+  "and", makes/make by count) - e.g. "Marked and Next Attack Against Has
+  Edge make this creature a likely target". Label is width-auto
+  ("likely" class variant) so several glyphs fit before it.
+- **ENGINE FIX that made it work (TokenUI.CalculateStatusIcons)**: an
+  ongoing effect with NO linked charCondition dropped its casterid even
+  when the instance recorded casterInfo - the Subcommander's "Next
+  Attack Against Has Edge" (cast by Human Talent) was invisible to
+  threat detection. casterid is now set from casterInfo regardless of
+  condition linkage; side effects are all wins - the strip's red ring
+  and the token HUD's hover highlight-line to the caster now work for
+  such effects too.
+- **Flagged for Ricky's eyeball**: on a single-actor column the status
+  strip (under the portrait) and the Likely Target row sit side by side,
+  so the threat glyphs appear twice in close proximity (strip red-ringed
+  + row bullets). Field test 11 locked the strip at ALL statuses, so
+  both channels are by design - but the adjacency is new; his call
+  whether it reads as clutter.
 
 
 

@@ -22,6 +22,8 @@ function RichImage.CreateDisplay(self)
     --image would otherwise never appear until the editor was recreated.
     --Read mode is unchanged: no placeholder, no poll.
     local m_editorMode = false
+    local m_playerView = false
+    local m_shareHandled = false
     local m_lastImage = nil
     local m_applied = false
     local m_halign = nil
@@ -55,6 +57,34 @@ function RichImage.CreateDisplay(self)
         height = "auto",
         autosizeimage = true,
         uiscale = self.uiscale,
+        rightClick = function(element)
+            if not dmhub.isDM or m_editorMode or m_playerView or not self.image then
+                return
+            end
+            m_shareHandled = false
+            element.popup = gui.ContextMenu {
+                entries = {
+                    {
+                        text = "Share to Chat",
+                        click = function()
+                            element.popup = nil
+                            --GetImageInfo can invoke its callback more than once.
+                            dmhub.GetImageInfo(self.image, function(info)
+                                if m_shareHandled or info == nil then
+                                    return
+                                end
+                                m_shareHandled = true
+                                chat.ShareData(ImageDocument.new {
+                                    imageid = self.image,
+                                    width = info.width,
+                                    height = info.height,
+                                })
+                            end)
+                        end,
+                    },
+                },
+            }
+        end,
         refreshTag = function(element, tag, match, token)
             self = tag or self
             UpdateState()
@@ -104,6 +134,9 @@ function RichImage.CreateDisplay(self)
             m_halign = (token ~= nil and token.justification) or (tag or self).halign
             if token ~= nil and token.editor then
                 m_editorMode = true
+            end
+            if token ~= nil then
+                m_playerView = token.player == true
             end
             UpdateState()
         end,

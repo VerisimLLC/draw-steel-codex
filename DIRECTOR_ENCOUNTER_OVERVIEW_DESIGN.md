@@ -1489,7 +1489,30 @@ shows mark + edge glyphs, Chorogaunt shows judged.**
   so the threat glyphs appear twice in close proximity (strip red-ringed
   + row bullets). Field test 11 locked the strip at ALL statuses, so
   both channels are by design - but the adjacency is new; his call
-  whether it reads as clutter.
+  whether it reads as clutter. [He called it: duplication - see 32.]
+
+**2026-08-24, thirty-second report (Ricky: "looks good except the symbols
+are duplicated") - strip de-dup + hoverable Likely glyphs (commit
+c399eda0). Written and luac-clean; the MCP bridge dropped right before
+the reload - NOT yet live-verified; the repo IS the gitfolder so the next
+app launch (or reload) picks it up. VERIFY ON RETURN: Subcommander =
+glyphs ONLY beside Likely Target (none under the portrait), each glyph
+hovers its own debuff text, the label hovers the explainer.**
+- **De-dup rule**: when the Likely Target row is showing, the strip under
+  the portrait drops the threat entries and keeps only the OTHER statuses
+  (fly arrow etc.). When a red risk box shows instead (no Likely row) the
+  strip still carries every status, threats red-ringed - field test 11's
+  twin-channel pairing with the text bullets survives for that case.
+  Mechanism: the single-actor setStatuses call moved BELOW the risk/
+  likely computation and filters entry.threat when likely ~= nil.
+- **Hover**: each Likely glyph is interactable and answers with its own
+  debuff hoverText (the same strings the strip icons used - condition
+  name + caster/description); the amber label and the row's bare ground
+  answer with "[conditions] make this creature a likely target". The
+  dmg/area labels also gained direct hovers (they relied on row-level
+  hover only, unproven). No swallowPress needed on any of them: the
+  footer root swallows presses (its comment: last stop before the drawer
+  toggle).
 
 
 

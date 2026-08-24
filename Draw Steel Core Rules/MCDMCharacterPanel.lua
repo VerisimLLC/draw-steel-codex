@@ -1330,9 +1330,9 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         --five characteristics have to be able to fall to a second line at
         --larger font sizes. Heroes' fixed 16% cells never reach the edge.
         wrap = true,
-        --Stacked, each column already carries its own vertical padding, so 6
-        --here sat on top of it and left the row floating in the section.
-        vpad = cond(TacPanel.UseTestPanel(), 2, 6),
+        --Each column carries its own vertical padding, so 6 here sat on top of
+        --it and left the row floating in the section.
+        vpad = 2,
     },
     {
         selectors = {"panel", "characteristic-box"},
@@ -1398,19 +1398,23 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     -- i.e. square, which is what made these so big.
     {
         selectors = {"panel", "characteristic-box", "compact"},
-        --Reworked: one column per characteristic, value over name, five across
-        --the section. 19% leaves the row a little slack so it does not wrap.
-        --Classic-compact runs them inline instead.
-        width = cond(TacPanel.UseTestPanel(), "19%", "auto"),
+        --One column per characteristic, value over name, five across the
+        --section. 19% leaves the row a little slack so it does not wrap.
+        --
+        --NOT behind dev:testcharpanel: monsters carry the compact footprint
+        --either way, and this look is theirs as much as the reworked hero
+        --panel's. The "compact" class is the gate -- classic heroes never get
+        --it, so they keep the full-size boxes.
+        width = "19%",
         height = "auto",
-        flow = cond(TacPanel.UseTestPanel(), "vertical", "horizontal"),
+        flow = "vertical",
         bgcolor = "clear",
         border = 0,
         cornerRadius = 4,
         hpad = 5,
-        vpad = cond(TacPanel.UseTestPanel(), 1, 3),
+        vpad = 1,
         hmargin = 1,
-        vmargin = cond(TacPanel.UseTestPanel(), 0, 1),
+        vmargin = 0,
         --Without this the hpad is added ON TOP of the 19%, making each column
         --10px wider than declared -- five of them then came to ~530px in a
         --~496px section and Presence wrapped to a second line.
@@ -1422,16 +1426,13 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
         brightness = 1,
     },
     {
-        --No halign in the INLINE variant: in a horizontal flow an explicit
-        --halign pins the child to that edge instead of letting the flow
-        --sequence it, so label and value land on top of each other ("Might0").
-        --Stacked there is no flow to fight, and the rmargin that separated them
-        --side by side would push the name off centre.
+        --Stacked under the value, so no rmargin: the gap that separated label
+        --from value side by side would push the name off centre.
         selectors = {"label", "char-title", "parent:compact"},
         width = "auto",
         valign = "center",
         tmargin = 0,
-        rmargin = cond(TacPanel.UseTestPanel(), 0, 4),
+        rmargin = 0,
         fontSize = TacPanelSizes.Fonts.charTitleCompact,
     },
     {   -- The letter chip and the rest of the name, centred under the value.
@@ -1446,10 +1447,10 @@ TacPanelStyles.CharacteristicsPanel = ThemeEngine.MergeTokens{
     },
     {
         selectors = {"label", "char-value", "parent:compact"},
-        width = cond(TacPanel.UseTestPanel(), "100%", "auto"),
+        width = "100%",
         halign = "center",
         valign = "center",
-        textAlignment = cond(TacPanel.UseTestPanel(), "center", "left"),
+        textAlignment = "center",
         fontSize = TacPanelSizes.Fonts.charValueCompact,
     },
 }
@@ -6110,6 +6111,9 @@ function TacPanel.SetCompactBoxes(element, token)
 
     for _, child in ipairs(element.children) do
         child:SetClass("compact", compact)
+        --Characteristic boxes stack the value above the name when compact. A
+        --no-op on the movement boxes, which have no such handler.
+        child:FireEvent("setCompactOrder", compact)
 
         --SpeedBox wraps its value labels in an inner container so the
         --"hindered" variant can sit beside the base number. "parent:" matches
@@ -6165,9 +6169,10 @@ end
 --- @param attrInfo table Information about the attribute
 --- @return Panel
 function TacPanel.CharacteristicBox(attrInfo)
-    --The letter-chip and name, and the modifier, as separate locals: the
-    --reworked panel stacks the value ABOVE the name, and which one comes first
-    --is child order, not something a style rule can express.
+    --The letter-chip and name, and the modifier, as separate locals. Which one
+    --comes first is child order, not something a style rule can express, and it
+    --follows the COMPACT state rather than the flag: compact stacks the value
+    --above the name, the full-size box keeps the name on top.
     local titleRow = gui.Panel{
         classes = {"container", "char-title-row"},
         halign = "center",
@@ -6207,7 +6212,16 @@ function TacPanel.CharacteristicBox(attrInfo)
     return gui.Panel{
         classes = {"characteristic-box"},
         hoverCursor = "pressbutton",
-        data = { token = nil },
+        data = { token = nil, valueOnTop = false },
+        --Fired by TacPanel.SetCompactBoxes. Reassigns only on an actual flip:
+        --that runs on every refreshCharacter, and rebuilding the child list each
+        --time would churn for nothing.
+        setCompactOrder = function(element, valueOnTop)
+            if element.data.valueOnTop == valueOnTop then return end
+            element.data.valueOnTop = valueOnTop
+            element.children = cond(valueOnTop,
+                {valueLabel, titleRow}, {titleRow, valueLabel})
+        end,
         press = function(element)
             --rolling a characteristic acts as (and broadcasts for) the
             --character, so it counts as touching.
@@ -6226,8 +6240,8 @@ function TacPanel.CharacteristicBox(attrInfo)
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
         end,
-        children = cond(TacPanel.UseTestPanel(),
-            {valueLabel, titleRow}, {titleRow, valueLabel}),
+        --Matches data.valueOnTop above; setCompactOrder flips it from here.
+        children = {titleRow, valueLabel},
     }
 end
 

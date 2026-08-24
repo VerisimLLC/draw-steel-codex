@@ -674,15 +674,38 @@ local function PrunePlayOrder()
 	end
 end
 
+--The category bucket an audio asset really belongs to, or nil for uncategorised.
+--An unset category reads back as nil (never set) OR "" (cleared through the
+--AudioAssetLua setter, which stringifies nil to ""); both mean uncategorised, so
+--they collapse to nil here and callers can test it directly. NB Lua treats "" as
+--truthy, so a bare `asset.category or fallback` misses the empty-string case.
+local function NormalizedAudioCategory(asset)
+	local c = asset.category
+	if c == nil or c == "" then
+		return nil
+	end
+	return c
+end
+
 --All clips currently playing for a category (Music/Ambience/Effects), found by
 --scanning audio.currentlyPlaying. Sorted by play-start order ascending
 --(oldest first) -- stable across loop restarts.
-local function PlayingTracksForCategory(cat)
+--
+--includeUncategorised also picks up clips with no category. Those belonged to no
+--lane at all before, so the dock rendered its idle "Nothing playing" CTA over the
+--top of an audible track (report RXC87T4Y). They ride the music lane rather than a
+--lane of their own so they pick up the hero card's transport and playlist chrome
+--too; the hero subtitle names the real state, since an uncategorised clip is still
+--unrouted engine-side (no Levels fader, no Anthem duck).
+local function PlayingTracksForCategory(cat, includeUncategorised)
 	local list = {}
 	for assetid,_ in pairs(audio.currentlyPlaying) do
 		local a = assets.audioTable[assetid]
-		if a ~= nil and a.category == cat then
-			list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+		if a ~= nil then
+			local c = NormalizedAudioCategory(a)
+			if c == cat or (includeUncategorised and c == nil) then
+				list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+			end
 		end
 	end
 	if #list > 1 then
@@ -1450,7 +1473,9 @@ g_drawSteelAudioBar = {
 	--newest playing music track, else newest playing ambience bed, else nil.
 	PrimaryPlayingName = function()
 		PrunePlayOrder()
-		local list = PlayingTracksForCategory("music")
+		--Same lane rule as the dock: an uncategorised clip is still the thing the
+		--table can hear, so this readout must not report silence over the top of it.
+		local list = PlayingTracksForCategory("music", true)
 		if #list == 0 then
 			list = PlayingTracksForCategory("ambience")
 		end
@@ -1540,7 +1565,10 @@ end
 --live instance from audio.currentlyPlaying at every call site.
 local function MusicChannelInstances()
 	local list = {}
-	local tracks = PlayingTracksForCategory("music")
+	--Uncategorised clips are included because the dock's hero card shows them in the
+	--music lane; without them here the hero's pause button would be a dead control
+	--whenever an uncategorised track is the one playing.
+	local tracks = PlayingTracksForCategory("music", true)
 	for i=1,#tracks do
 		local instance = audio.currentlyPlaying[tracks[i].id]
 		if instance ~= nil then
@@ -3224,16 +3252,10 @@ local m_poolPendingRename = nil    --poolid whose card row should auto-open rena
 local m_poolCueIndex = {}          --per-pool DM-cue cycle index (module-local, session-only)
 local g_poolsCardExpandPool = nil  --function(poolid): expand that pool row + rebuild the card
 
---Normalise the stored category to a dropdown option id. An unset category reads back
---as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
---stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a
---bare `category or "none"` would surface a blank option for the empty-string case.
+--The stored category as a dropdown option id -- uncategorised becomes the "none"
+--option (see NormalizedAudioCategory for what counts as uncategorised).
 local function GetAssetCategoryId(asset)
-	local c = asset.category
-	if c == nil or c == "" then
-		return "none"
-	end
-	return c
+	return NormalizedAudioCategory(asset) or "none"
 end
 
 --Builds the category dropdown for one asset. opts carries only presentation
@@ -4179,7 +4201,11 @@ local function CreatePlayerSoundPanel()
 
 		PrunePlayOrder()
 
-		local musicList = PlayingTracksForCategory("music")
+		--Uncategorised clips ride the music lane (see PlayingTracksForCategory), so a
+		--player sees what the table is actually hearing instead of "Nothing playing".
+		--No "Uncategorised" subtitle on this side: a player cannot set a category, and
+		--the nudge to fix it belongs on the DM's dock.
+		local musicList = PlayingTracksForCategory("music", true)
 		local mid, ma = nil, nil
 		local musicExtrasList = {}
 		if #musicList > 0 then
@@ -4482,6 +4508,9 @@ local function BuildSoundPanelContent()
 	--progress slider's drag-preview math can read it without re-deriving from
 	--audio.currentlyPlaying on every frame. Written only by UpdateNowPlaying.
 	local m_heroPaused = false
+	--True while the hero card is showing a clip with no category, which the subtitle
+	--names and its tooltip explains. Written only by UpdateNowPlaying.
+	local m_heroUncategorised = false
 	--True while the user is actively dragging the progress slider. The 0.5s poll
 	--(UpdateNowPlaying) must not overwrite the slider's value while this is true, or
 	--the tick fights the drag and the thumb stutters back mid-scrub.
@@ -4526,6 +4555,9 @@ local function BuildSoundPanelContent()
 		textWrap = false,
 		textOverflow = "ellipsis",
 	}
+	--Names the hero's lane ("Music", or "Uncategorised" for a clip with no category).
+	--The tooltip only appears in the uncategorised case, and reuses the Studio row
+	--dropdown's wording so both surfaces explain the same gap the same way.
 	local subtitleLabel = gui.Label{
 		classes = {"sizeXs", "fgMuted"},
 		text = "",
@@ -4534,6 +4566,11 @@ local function BuildSoundPanelContent()
 		halign = "left",
 		valign = "center",
 		hmargin = 4,
+		linger = function(element)
+			if m_heroUncategorised then
+				gui.Tooltip("Set a Category. This clip will ignore Levels faders until you set a category.")(element)
+			end
+		end,
 	}
 
 	--Playlist transport lines (H-dock). Both start collapsed -- UpdateNowPlaying
@@ -5108,8 +5145,10 @@ local function BuildSoundPanelContent()
 
 		--Music hero = the most recently STARTED track (starting a new track is
 		--an intentional act, so it takes the big slot); earlier tracks remain
-		--as extra rows in start order.
-		local musicList = PlayingTracksForCategory("music")
+		--as extra rows in start order. The lane includes uncategorised clips, so
+		--one can win the hero slot -- the subtitle below then reads "Uncategorised"
+		--rather than claiming a Music routing the clip does not have.
+		local musicList = PlayingTracksForCategory("music", true)
 		local mid, ma = nil, nil
 		local musicExtrasList = {}
 		if #musicList > 0 then
@@ -5136,7 +5175,12 @@ local function BuildSoundPanelContent()
 			end
 			titleLabel.text = DisplayNameForAsset(ma)
 			titleLabel:SetClass("fgMuted", false)
-			subtitleLabel.text = "Music"
+			m_heroUncategorised = NormalizedAudioCategory(ma) == nil
+			if m_heroUncategorised then
+				subtitleLabel.text = "Uncategorised"
+			else
+				subtitleLabel.text = "Music"
+			end
 			stopButton:SetClass("hidden", false)
 			pauseButton:SetClass("hidden", false)
 			pauseButton.bgimage = paused and "ui-icons/ph-play-fill.png" or "ui-icons/ph-play-pause-fill.png"
@@ -5154,6 +5198,7 @@ local function BuildSoundPanelContent()
 			stopButton:SetClass("hidden", true)
 			pauseButton:SetClass("hidden", true)
 			m_heroPaused = false
+			m_heroUncategorised = false
 			timeCurrent.text = ""
 			timeTotal.text = ""
 			if not m_scrubbing then

@@ -1808,6 +1808,13 @@ local OVERVIEW_FOOTER_RULES = {
         rmargin = 4,
         bgcolor = "#E9B86F",
     },
+    --Field test 31: the amber Likely Target line's label sizes to its text
+    --so several debuff glyphs can ride the line as its icon bullets.
+    {
+        selectors = { "overviewFooterRisk", "likely" },
+        width = "auto",
+        textWrap = false,
+    },
     --Field test 22: a member row's name yields the skull's width so the
     --inline skull + ellipsized name never overflow the row.
     {
@@ -5461,6 +5468,36 @@ local function OverviewColumnFooter()
             interactable = false,
         },
     }
+    --Field test 31 (Ricky, reversing his field-test-29 hold): amber
+    --"Likely Target" when the creature carries hero-applied debuffs (mark,
+    --judged, a granted edge...) and no red risk box already names them.
+    --The debuff glyphs themselves ride the line as its icon bullets;
+    --hover = "[conditions] make this creature a likely target".
+    local m_likelyTooltip = nil
+    local likelyIcons = {}
+    for i = 1, 3 do
+        likelyIcons[i] = gui.Panel {
+            classes = { "overviewRiskIcon", "collapsed" },
+            bgimage = "panels/square.png",
+            interactable = false,
+        }
+    end
+    local likelyRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = function(element)
+            if m_likelyTooltip ~= nil then
+                gui.Tooltip(m_likelyTooltip)(element)
+            end
+        end,
+        likelyIcons[1],
+        likelyIcons[2],
+        likelyIcons[3],
+        gui.Label {
+            classes = { "overviewFooterRisk", "likely" },
+            text = string.format("<color=%s><b>Likely Target</b></color>", g_overviewRisk.amber),
+            interactable = false,
+        },
+    }
 
     --P2-a: status strip - the token HUD's status icons for a single-member
     --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
@@ -5550,6 +5587,7 @@ local function OverviewColumnFooter()
             riskRow,
             dmgRow,
             areaRow,
+            likelyRow,
         },
     }
 
@@ -6116,6 +6154,56 @@ local function OverviewColumnFooter()
             end
             dmgRow:SetClass("collapsed", not column.highDamage)
             areaRow:SetClass("collapsed", not column.areaWindow)
+
+            --Field test 31: amber Likely Target for a single actor with
+            --hero-applied debuffs, unless a red risk box already names
+            --them in its bullets (Near Death / Squishy). The glyphs are
+            --the same status icons as the strip under the portrait.
+            local likely = nil
+            if #members == 1 and risk == nil then
+                local flags = {}
+                for _, entry in ipairs(members[1].statuses or {}) do
+                    if entry.threat then
+                        flags[#flags + 1] = entry
+                    end
+                end
+                if #flags > 0 then
+                    likely = flags
+                end
+            end
+            m_likelyTooltip = nil
+            for i, icon in ipairs(likelyIcons) do
+                local entry = likely ~= nil and likely[i] or nil
+                if entry ~= nil then
+                    icon.bgimage = entry.icon
+                    local bgcolor = "white"
+                    if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                        bgcolor = entry.style.bgcolor
+                    end
+                    icon.selfStyle.bgcolor = bgcolor
+                    icon:SetClass("collapsed", false)
+                else
+                    icon:SetClass("collapsed", true)
+                end
+            end
+            if likely ~= nil then
+                local names = {}
+                for _, entry in ipairs(likely) do
+                    names[#names + 1] = entry.name or "A condition"
+                end
+                local joined = names[1]
+                if #names == 2 then
+                    joined = names[1] .. " and " .. names[2]
+                elseif #names > 2 then
+                    joined = table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+                end
+                local verb = "make"
+                if #names == 1 then
+                    verb = "makes"
+                end
+                m_likelyTooltip = string.format("%s %s this creature a likely target", joined, verb)
+            end
+            likelyRow:SetClass("collapsed", likely == nil)
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil

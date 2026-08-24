@@ -330,6 +330,14 @@ local CalculateStatusIcons = function(token)
                         statusText = condInfo.name
                     end
 
+                    --Effects with no linked condition still know their caster
+                    --(casterInfo is recorded on the instance either way); carry
+                    --the id so the hover highlight-line and threat detection
+                    --(e.g. the Director overview's red rings) work for them too.
+                    if casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) ~= nil then
+                        casterid = casterInfo.tokenid
+                    end
+
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
 						local casterToken = dmhub.GetTokenById(casterInfo.tokenid)
 						if casterToken ~= nil then

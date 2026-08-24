@@ -216,6 +216,21 @@ function DrawSteelActionBar.SelectReadyMonsters()
     return #result
 end
 
+--Field test 21: second click on the initiative bar's "Select All" opens the
+--Unique Abilities menu (saves the trip to the bottom of the screen). Opens
+--only - never closes.
+function DrawSteelActionBar.OpenUniqueMenu()
+    if not GameHud.instance or GameHud.instance.actionBarPanel == nil then
+        return
+    end
+    for _, drawer in ipairs(GameHud.instance.actionBarPanel:GetChildrenWithClassRecursive("actionBarDrawer")) do
+        if drawer.data ~= nil and drawer.data.drawerType == "unique"
+            and not drawer:HasClass("collapsed") and not drawer:HasClass("active") then
+            drawer:FireEvent("press")
+        end
+    end
+end
+
 --Director overview, slice (e): the implicit claim-turn-at-target-confirm.
 --
 --A chip press in an overview column records WHO the cast is for here
@@ -644,8 +659,14 @@ local function OverviewAbilityFacets(ability)
         facets.malice = cost > 0
         facets.maliceCost = cost
     end)
-    pcall(function()
-        for _, behavior in ipairs(ability.behaviors or {}) do
+    --Field test 21 (Ghoul Leap): effects can hide one level down - an
+    --InvokeAbilityBehavior whose customAbility carries the real rule (Leap:
+    --"1 damage; prone" in a nested DrawSteelCommandBehavior). The scanner
+    --recurses one level into invoked custom abilities and parses bare rule
+    --commands with the same tier-text parser.
+    local scanBehaviors
+    scanBehaviors = function(behaviorList, depth)
+        for _, behavior in ipairs(behaviorList or {}) do
             local tn = behavior.typeName or ""
             if tn == "ActivatedAbilityPowerRollBehavior" then
                 local tiers = behavior:try_get("tiers") or {}
@@ -692,6 +713,43 @@ local function OverviewAbilityFacets(ability)
             elseif string.find(tn, "InflictCondition", 1, true) ~= nil
                 or string.find(tn, "ApplyCondition", 1, true) ~= nil then
                 facets.control = true
+            elseif tn == "ActivatedAbilityDrawSteelCommandBehavior" then
+                local rule = behavior:try_get("rule")
+                if type(rule) == "string" and rule ~= "" then
+                    local f = OverviewTierFacets(rule)
+                    if f.damage ~= nil then
+                        facets.damage = true
+                        if facets.damageValue == 0 then
+                            facets.damageValue = f.damage
+                        end
+                    end
+                    if f.forced ~= nil then
+                        facets.forced = true
+                        if f.forced > facets.forcedDistance then
+                            facets.forcedDistance = f.forced
+                            facets.forcedVerb = f.forcedVerb
+                        end
+                    end
+                    if f.control then
+                        facets.control = true
+                        for _, name in ipairs(f.conditions) do
+                            local seen = false
+                            for _, existing in ipairs(facets.conditions) do
+                                if existing == name then
+                                    seen = true
+                                end
+                            end
+                            if not seen then
+                                facets.conditions[#facets.conditions + 1] = name
+                            end
+                        end
+                    end
+                end
+            elseif tn == "ActivatedAbilityInvokeAbilityBehavior" and depth < 3 then
+                local invoked = behavior:try_get("customAbility")
+                if invoked ~= nil then
+                    scanBehaviors(invoked:try_get("behaviors"), depth + 1)
+                end
             elseif string.find(tn, "OngoingEffect", 1, true) ~= nil then
                 --Only an ongoing effect that carries a CONDITION is control;
                 --plain buffs (Defend's edge, Aid Attack) are not.
@@ -718,6 +776,9 @@ local function OverviewAbilityFacets(ability)
                 end
             end
         end
+    end
+    pcall(function()
+        scanBehaviors(ability.behaviors or {}, 1)
     end)
     return facets
 end
@@ -1653,6 +1714,31 @@ local OVERVIEW_FOOTER_RULES = {
         halign = "left",
         valign = "center",
     },
+    --Field test 21: red villain-action skull beside Near Death (16px; the
+    --"small" variant rides member rows on the name line).
+    {
+        selectors = { "overviewRiskRow" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewRiskSkull" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "top",
+        rmargin = 3,
+        tmargin = 1,
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewRiskSkull", "small" },
+        width = 13,
+        height = 13,
+    },
     --Field test 18: the green relatively-safe line (exception only).
     {
         selectors = { "overviewFooterSafe" },
@@ -1667,7 +1753,7 @@ local OVERVIEW_FOOTER_RULES = {
     --P2-e threat-estimate line: allowed to wrap (reasons can be long).
     {
         selectors = { "overviewFooterRisk" },
-        width = "100%",
+        width = "100%-19",
         height = "auto",
         fontSize = 13,
         color = Styles.textColor,
@@ -5000,8 +5086,15 @@ local function OverviewColumnFooter()
         hover = gui.Tooltip{ text = "Relatively safe - no ready hero can strike it before your next turn", valign = "top" },
     }
 
-    --The Near Death box; collapsed when safe. Hover = the arithmetic.
+    --The Near Death box; collapsed when safe. Hover = one plain sentence.
+    --Field test 21: a red skull (the PDF's villain-action glyph, from the
+    --Provided By MCDM library) sits beside the headline.
     local m_riskTooltip = nil
+    local riskSkull = gui.Panel {
+        classes = { "overviewRiskSkull", "collapsed" },
+        bgimage = "e31d918b-16a8-45bb-8c03-be039e0d5236",
+        interactable = false,
+    }
     local riskLabel = gui.Label {
         classes = { "overviewFooterRisk", "collapsed" },
         text = "",
@@ -5010,6 +5103,11 @@ local function OverviewColumnFooter()
                 gui.Tooltip(m_riskTooltip)(element)
             end
         end,
+    }
+    local riskRow = gui.Panel {
+        classes = { "overviewRiskRow" },
+        riskSkull,
+        riskLabel,
     }
 
     --P2-a: status strip - the token HUD's status icons for a single-member
@@ -5097,7 +5195,7 @@ local function OverviewColumnFooter()
             signalLabel,
             reachLabel,
             safeLabel,
-            riskLabel,
+            riskRow,
         },
     }
 
@@ -5134,6 +5232,16 @@ local function OverviewColumnFooter()
             rowLabel,
             rowSignal,
         }
+        local rowSkull = gui.Panel {
+            classes = { "overviewRiskSkull", "small", "collapsed" },
+            bgimage = "e31d918b-16a8-45bb-8c03-be039e0d5236",
+            floating = true,
+            halign = "right",
+            valign = "top",
+            rmargin = 2,
+            tmargin = 2,
+            interactable = false,
+        }
         local row
         row = gui.Panel {
             classes = { "overviewFooterRow", "collapsed" },
@@ -5143,6 +5251,7 @@ local function OverviewColumnFooter()
             data = { member = nil },
             rowPortrait,
             rowText,
+            rowSkull,
 
             press = function(element)
                 local member = element.data.member
@@ -5180,6 +5289,7 @@ local function OverviewColumnFooter()
                 if member == nil then
                     element:SetClass("collapsed", true)
                     element:SetClass("promptOption", false)
+                    rowSkull:SetClass("collapsed", true)
                     return
                 end
                 --The member list is snapshotted into m_signals when the column
@@ -5217,15 +5327,9 @@ local function OverviewColumnFooter()
                         signal = signal .. " - " .. reach
                     end
                 end
-                --Field test 18: rows tag only the exception.
-                if member.risk ~= nil then
-                    local tag = string.format("<color=%s><b>near death</b></color>", g_overviewRisk.red)
-                    if signal == "" then
-                        signal = tag
-                    else
-                        signal = signal .. " - " .. tag
-                    end
-                end
+                --Field test 21: the row wears the skull on the NAME line
+                --instead of a text tag (space; the box above explains).
+                rowSkull:SetClass("collapsed", member.risk == nil)
                 rowSignal.text = signal
                 rowSignal:SetClass("collapsed", signal == "")
             end,
@@ -5643,6 +5747,7 @@ local function OverviewColumnFooter()
             end
             riskLabel.text = riskText or ""
             riskLabel:SetClass("collapsed", riskText == nil)
+            riskSkull:SetClass("collapsed", risk == nil or risk.level ~= "red")
 
             --P2-d: reach line for a single actor (rows carry it otherwise).
             local reachText = nil
@@ -6490,6 +6595,47 @@ ActionMenu = function()
             m_uniqueColumns[i]:FireEvent("setCasterToken", nil, nil)
             m_uniqueColumns[i]:FireEventTree("abilities", nil, "")
         end
+
+        --Field test 21: MANEUVER ROWS ALIGN across columns. Columns are
+        --bottom-anchored and each column's maneuver group sits directly
+        --above its footer, so equal footer heights line the maneuvers up.
+        --Reset now, measure after layout settles, apply the max.
+        for _, submenu in ipairs(m_uniqueColumns) do
+            local footer = submenu:GetChildrenWithClassRecursive("overviewFooter")[1]
+            if footer ~= nil and footer.valid then
+                footer.selfStyle.minHeight = 0
+            end
+        end
+        --Two passes: a first measure can catch the footers mid-layout
+        --(seen live: everything read ~100px one frame after populate), so
+        --re-measure once more after the layout has fully settled and apply
+        --the larger answer.
+        local function EqualizeFooters()
+            if mod.unloaded then
+                return
+            end
+            local footers = {}
+            local maxHeight = 0
+            for _, submenu in ipairs(m_uniqueColumns) do
+                if submenu.valid and not submenu:HasClass("collapsed") then
+                    local footer = submenu:GetChildrenWithClassRecursive("overviewFooter")[1]
+                    if footer ~= nil and footer.valid and not footer:HasClass("collapsed") then
+                        footers[#footers + 1] = footer
+                        local h = footer.renderedHeight
+                        if type(h) == "number" and h > maxHeight then
+                            maxHeight = h
+                        end
+                    end
+                end
+            end
+            if maxHeight > 0 then
+                for _, footer in ipairs(footers) do
+                    footer.selfStyle.minHeight = maxHeight
+                end
+            end
+        end
+        dmhub.Schedule(0.15, EqualizeFooters)
+        dmhub.Schedule(0.5, EqualizeFooters)
         return columns, populated
     end
 

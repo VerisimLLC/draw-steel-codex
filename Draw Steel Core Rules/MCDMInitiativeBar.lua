@@ -4005,8 +4005,30 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					return
 				end
 				local selectAll = rawget(_G, "DrawSteelActionBar")
-				if selectAll ~= nil and selectAll.SelectReadyMonsters ~= nil then
-					selectAll.SelectReadyMonsters()
+				if selectAll == nil or selectAll.SelectReadyMonsters == nil then
+					return
+				end
+				--Snapshot the selection so a SECOND click (selection already
+				--the ready set) opens the Unique Abilities menu instead -
+				--saves the trip to the bottom of the screen.
+				local before = {}
+				local beforeCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					before[tok.charid] = true
+					beforeCount = beforeCount + 1
+				end
+				selectAll.SelectReadyMonsters()
+				local same = true
+				local afterCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					afterCount = afterCount + 1
+					if not before[tok.charid] then
+						same = false
+					end
+				end
+				if same and afterCount == beforeCount and afterCount > 0
+					and selectAll.OpenUniqueMenu ~= nil then
+					selectAll.OpenUniqueMenu()
 				end
 			end,
 		}

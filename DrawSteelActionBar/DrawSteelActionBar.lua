@@ -10763,7 +10763,7 @@ CreateAbilityController = function()
             FreeTargetLineOfSightRays()
 
             --Free any hide-prompt sight-line arrows owned by the cast prompt.
-            if g_filterSightlineOwner == "castPrompt" then
+            if g_filterSightlines.owner == "castPrompt" then
                 ClearFilterSightlineRays()
             end
             element.mapfocus = false
@@ -13178,7 +13178,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             --arrows; cancelCasting clears them.
             if g_currentAbility:try_get("hideSightlines", false) then
                 ShowFilterSightlineRays("castPrompt")
-            elseif g_filterSightlineOwner == "castPrompt" then
+            elseif g_filterSightlines.owner == "castPrompt" then
                 ClearFilterSightlineRays()
             end
 

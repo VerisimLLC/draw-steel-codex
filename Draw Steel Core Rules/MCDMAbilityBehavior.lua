@@ -102,6 +102,12 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, no answer will ever
+                --come. Treat it as cancelled instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 

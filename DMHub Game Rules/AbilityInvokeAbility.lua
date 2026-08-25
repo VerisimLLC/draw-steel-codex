@@ -418,6 +418,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, the prompt is gone and
+                --no answer will ever come. Treat it as cancelled so the
+                --ability can finish instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 

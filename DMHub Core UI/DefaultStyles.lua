@@ -1594,11 +1594,22 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"menuItem", "hover"},
-            --@accentHover, not @fg: the parchment TEXT color as a large
-            --fill sits at ~87% lightness, and floating over warm map art
-            --it read as aged/tea-stained paper (Venla 2026-08-19). The
-            --brighter accent fill keeps the warmth but reads clean.
-            bgcolor = "@accentHover",
+            --The search bar's quiet raised lift, not an inverted accent
+            --fill (Venla 2026-08-24: "use the search field's light grey
+            --hover for the other hovers here too"). Supersedes the
+            --@accentHover fill picked 2026-08-19 -- the whole title bar
+            --now shares one hover language: fill lifts to @bgRaised,
+            --content color stays put.
+            bgcolor = "@bgRaised",
+            transitionTime = 0.15,
+        },
+        {
+            --while the item's dropdown is open the plate HOLDS, hover or
+            --not (Venla 2026-08-24, VS Code menu behavior). The class is
+            --managed by the opener (menuOpen on open, cleared on every
+            --close path incl. the closePopup event).
+            selectors = {"menuItem", "menuOpen"},
+            bgcolor = "@bgRaised",
         },
         {
             selectors = {"menuLabel"},
@@ -1609,34 +1620,41 @@ ThemeEngine.RegisterTheme{
             hmargin = 4,
             color = "@fg",
         },
-        {
-            selectors = {"menuLabel", "parent:hover"},
-            color = "@bg",
-        },
+        --No parent:hover recolor for menuLabel/menuItemIcon: the raised
+        --fill is dark enough that the resting @fg stays readable, same
+        --as typed text in the search bar. (The old @accentHover fill
+        --needed the @bg flip; it left with it, 2026-08-24.)
         {
             selectors = {"menuItemIcon"},
             bgcolor = "@fg",
         },
-        {
-            selectors = {"menuItemIcon", "parent:hover"},
-            bgcolor = "@bg",
-        },
 
         --[[ Context menu ]]
 
-        -- The popup panel itself
+        -- The popup panel itself: frameless flat chrome, VS Code-style
+        -- (Venla 2026-08-24) -- the fill matches the title bar's @bg so a
+        -- menu dropped from the bar reads as the bar continuing, the way
+        -- the search popup continues its field. No border; rounded like
+        -- the rest of the popup family. Supersedes the parchment-framed
+        -- @surfaceLinear look.
         {
             selectors = {"contextMenu"},
             bgimage = true,
-            bgcolor = "white",
-            gradient = "@surfaceLinear",
-            borderColor = "@fg",
-            borderWidth = 2,
+            bgcolor = "@bg",
+            borderWidth = 0,
+            cornerRadius = 7,
+            --breathing room above the first row and below the last, and
+            --it keeps a hovered edge row's square fill inside the
+            --rounded corners (fills do not clip to the radius).
+            vpad = 6,
             flow = "vertical",
         },
 
         -- Rows: transparent at rest so the panel surface paints through;
-        -- hover/press states give them distinct backgrounds.
+        -- hover lifts one surface step, content color stays put (the
+        -- title-bar hover language; the old inverted @accentHover fill
+        -- and its dark-text flips left 2026-08-24). Instant, no fade --
+        -- a fade lags when running the cursor down a list.
         {
             selectors = {"contextMenuItem"},
             bgimage = true,
@@ -1646,11 +1664,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"contextMenuItem", "hover"},
-            --@accentHover, not @fg: the aged-paper hover fix (see
-            --menuItem hover) -- these rows drop down from the very
-            --menu tabs that motivated it.
-            bgcolor = "@accentHover",
-            color = "@bg",
+            bgcolor = "@bgRaised",
         },
         {
             selectors = {"contextMenuItem", "press"},
@@ -1667,10 +1681,6 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuLabel", "disabled"},
             color = "@fgMuted",
         },
-        {
-            selectors = {"contextMenuLabel", "parent:hover"},
-            color = "@bg",
-        },
 
         -- Bind label (keyboard shortcut hint)
         {
@@ -1682,19 +1692,11 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuBind", "disabled"},
             color = "@fgMuted",
         },
-        {
-            selectors = {"contextMenuBind", "parent:hover"},
-            color = "@bg",
-        },
 
         -- Icon glyph (image-tint to text color)
         {
             selectors = {"contextMenuIcon"},
             bgcolor = "@fg",
-        },
-        {
-            selectors = {"contextMenuIcon", "parent:hover"},
-            bgcolor = "@bg",
         },
 
         -- Checkmark glyph
@@ -1702,16 +1704,13 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuCheck"},
             bgcolor = "@fg",
         },
-        {
-            selectors = {"contextMenuCheck", "parent:hover"},
-            bgcolor = "@bg",
-        },
 
-        -- Divider
+        -- Divider: quiet white-alpha hairline (@border), not a parchment
+        -- line -- depth from quiet edges, per the design ladder.
         {
             selectors = {"contextMenuDiv"},
             bgimage = true,
-            bgcolor = "@fg",
+            bgcolor = "@border",
             vmargin = 2,
         },
 

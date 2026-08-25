@@ -1281,8 +1281,23 @@ local function ActionBarDrawer(args)
                 --heading (see the ActionMenu "menu" handler), so this drawer can
                 --stay hidden rather than taking up room on the bar.
                 local inRespite = InRespiteMode()
-                resultPanel:SetClass("hidden", not inRespite)
-                if not inRespite then
+
+                --Even during a respite, a creature with no respite activities
+                --(most monsters) has nothing to put in this drawer, so keep it
+                --hidden for them too. Matches the menu's own filter below.
+                local haveRespiteActivities = false
+                if inRespite then
+                    for _, ability in ipairs(g_abilities) do
+                        if ability.actionResourceId == CharacterResource.respiteActivityId and ability.categorization ~= "Hidden" then
+                            haveRespiteActivities = true
+                            break
+                        end
+                    end
+                end
+
+                local showDrawer = inRespite and haveRespiteActivities
+                resultPanel:SetClass("hidden", not showDrawer)
+                if not showDrawer then
                     return
                 end
 
@@ -1698,6 +1713,7 @@ local function CreateActionBar()
 
     --Respite activities get their own drawer, floating above and centered over
     --the main bar. The drawer hides itself unless the game is in respite mode
+    --AND the selected creature has at least one respite activity to list
     --(see the args.type == "respite" handling in ActionBarDrawer).
     local m_respitePanel = ActionBarDrawer { name = "Respite Activity", type = "respite", panel = {
         floating = true,
@@ -5639,7 +5655,14 @@ CreateAbilityController = function()
         end,
 
         chooseTarget = function(element, options)
-            if g_actionBar == nil then return end
+            if g_actionBar == nil then
+                --No action bar means nobody will ever answer this prompt.
+                --Cancel it so the ability doesn't hang waiting.
+                if options ~= nil and options.cancel ~= nil then
+                    options.cancel()
+                end
+                return
+            end
             ClearRadiusMarkers()
 
             --reasons[charid] = reason string for targets that pass the

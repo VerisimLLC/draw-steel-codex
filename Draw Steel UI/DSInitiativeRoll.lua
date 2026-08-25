@@ -1473,13 +1473,16 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     for i,child in ipairs(children) do
                         local group = child.data.group
                         for _,tok in ipairs(group.tokens) do
-                            local monsterEV = tok.valid and tok.properties:try_get("ev")
-                            if monsterEV == nil then
+                            local authoredEV = tok.valid and tok.properties:try_get("ev")
+                            if authoredEV == nil then
                                 evvalid = false
-                            elseif tok.properties.minion then
-                                ev = ev + monsterEV/GameSystem.minionsPerSquad
                             else
-                                ev = ev + monsterEV
+                                local monsterEV = tok.properties:EV()
+                                if tok.properties.minion then
+                                    ev = ev + monsterEV/GameSystem.minionsPerSquad
+                                else
+                                    ev = ev + monsterEV
+                                end
                             end
                         end
                     end

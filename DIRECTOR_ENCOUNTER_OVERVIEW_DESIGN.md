@@ -1543,6 +1543,35 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-fourth report (Ricky) - risk-box facts bind to their
+owners by SYMBOL (commit 93aa1de3). Code loads clean (reload + zero Lua
+errors) but the staged visual check was interrupted - the app came back
+into use mid-verification (selection replaced under the harness, a test
+mark applied to Warrior 7 was REMOVED again, no residue). VISUAL
+VERIFICATION PENDING: multi-member column w/ one marked member + one
+low-stamina member -> box shows "Near Death / - Low Stamina / [mark
+glyph] Marked by <hero>" and the marked member's mini-row wears the same
+glyph after its name.**
+Ricky's report: the Warrior x8 box read "Near Death - Low Stamina -
+Marked by High Elf Tactician", but the mark was Warrior 8's and the low
+stamina Warrior 2's - one member's box masqueraded as the column's.
+His design: print each fact ONCE in the box, with the condition's SYMBOL
+in place of the "- " for debuffs, and repeat the same symbol on the
+owning member's mini-row.
+- OverviewThreatEstimate now returns risk.headline + risk.bullets
+  (structured: {text, icon, bgcolor, hoverText}; plain bullets like Low
+  Stamina/push have no icon). risk.text is GONE - the footer renders the
+  headline label + up to 4 pooled bullet rows (overviewRiskRow+bullet,
+  lmargin 19 = the headline text indent; glyph 14px or "- " prefix;
+  glyphs hover their own debuff text).
+- The box's bullets are the UNION over every member's risk bullets,
+  deduped by text (was: the single worst member's prebuilt text - the
+  root cause of Ricky's confusion).
+- Mini-rows: up to 2 trailing 13px debuff glyphs (overviewRowStatusIcon)
+  after the name, tinted by the status style, hover = the debuff's own
+  text; rowLabel width now set per populate ("100%-N") to reserve skull
+  + glyph space.
+
 
 
 

@@ -520,20 +520,21 @@ function gui.Button(options)
 					local oldClick = args[clickid]
 					args[clickid] = function(element)
 						gui.ModalMessage{
+							owner = element,
 							title = cfg.title,
 							message = cfg.message,
 							options = {
 								{
 									text = "Cancel",
 									execute = function()
-										gui.CloseModal()
+										gui.CloseModal(element)
 									end,
 								},
 								{
 									text = cfg.actionText,
 									execute = function()
 										oldClick(element)
-										gui.CloseModal()
+										gui.CloseModal(element)
 									end,
 								},
 							},
@@ -842,20 +843,21 @@ function gui.DeleteItemButton(options)
             local oldClick = args[clickid]
             args[clickid] = function(element)
                 gui.ModalMessage{
+                    owner = element,
                     title = "Confirm Delete",
                     message = "Are you sure you want to delete this item?",
                     options = {
                         {
                             text = "Cancel",
                             execute = function()
-                                gui.CloseModal()
+                                gui.CloseModal(element)
                             end,
                         },
                         {
                             text = "Delete",
                             execute = function()
                                 oldClick(element)
-                                gui.CloseModal()
+                                gui.CloseModal(element)
                             end,
                         },
                     },

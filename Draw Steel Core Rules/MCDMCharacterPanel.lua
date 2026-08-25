@@ -9494,7 +9494,7 @@ function TacPanel.StatusEffectTooltipText(entry, info, creature)
     end
     return string.format('<b>%s</b>%s: %s%s%s',
         info.name, stacksText,
-        StringInterpolateGoblinScript(info.description, creature),
+        StringInterpolateGoblinScript(CharacterOngoingEffect.GetDisplayDescription(info), creature),
         casterText, timeText)
 end
 

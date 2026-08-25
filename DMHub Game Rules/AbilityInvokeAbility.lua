@@ -378,26 +378,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
             print("INVOKE:: ChooseTarget:: prompting...")
             targets = nil
-
-            --The chooser's caption. An explicit Prompt When Resolving text wins;
-            --otherwise borrow the invoke's own prompt text (what the chosen
-            --target will be offered, e.g. "Move Speed or Make Free Strike") so
-            --the Director sees what they are picking a target FOR rather than a
-            --bare "Choose Target".
-            local chooserPrompt = self:try_get("promptWhenResolvingText", "")
-            if chooserPrompt == "" then
-                local promptText = self:try_get("promptText", "")
-                if promptText ~= "" then
-                    chooserPrompt = "Choose the next target: " .. StringInterpolateGoblinScript(promptText, casterToken.properties:LookupSymbol{})
-                else
-                    chooserPrompt = "Choose Target"
-                end
-            end
-
             GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
                 sourceToken = casterToken,
                 targets = table.shallow_copy(targetChoices),
-                prompt = chooserPrompt,
+                prompt = self:try_get("promptWhenResolvingText", "Choose Target"),
                 choose = function(targetToken)
                     print("ChooseTarget:: chosen")
                     targets = {

@@ -16,36 +16,6 @@ local function MinionDeathPending(creatureProps)
     return confirmedAt ~= nil and dmhub.Time() - confirmedAt < g_minionDeathPendingTimeout
 end
 
---True while some targeting prompt is offering this token as a pick: the action
---bar (chooseTarget, ability targeting) stamps token.sheet.data.targetInfo on
---every candidate and TokenUI's tokenClick executes it. While that is set, a
---click on the token means "pick this token" -- never "claim its turn". The
---claim-turn swords and the nameplate sit above the token and would otherwise
---swallow the click and SelectTurn the creature (e.g. the Goblin Monarch's
---villain action asks the Director to click each ally; every unmoved ally is
---ActiveAndReady, so each pick claimed that ally's turn and they showed as
---already moved).
-local function TokenIsTargetCandidate(token)
-    if token == nil or not token.valid then
-        return false
-    end
-    local sheet = token.sheet
-    if sheet == nil or not sheet.valid or sheet.data == nil then
-        return false
-    end
-    return sheet.data.targetInfo ~= nil
-end
-
---Route a press to the same path a direct token click takes (TokenUI tokenClick
---executes the pending targetInfo). Returns true if it was routed.
-local function RoutePressToTargetPick(token)
-    if not TokenIsTargetCandidate(token) then
-        return false
-    end
-    token.sheet:FireEvent("tokenClick", false)
-    return true
-end
-
 local g_deadMinionPulseSpeed = 0.5
 local g_deadMinionIconStyles = {
     gui.Style{
@@ -475,9 +445,6 @@ TokenHud.RegisterPanel{
                         element.interactable = token.canControl
                     end,
                     press = function(element)
-                        if RoutePressToTargetPick(token) then
-                            return
-                        end
                         element.parent.parent:GetChildrenWithClassRecursive("nameplate")[1]:FireEvent("press")
                     end,
                     hover = function(element)
@@ -503,18 +470,6 @@ TokenHud.RegisterPanel{
                         element.selfStyle.opacity = element.data.startOpacity*(1-t)
                         return
                     end
-                    --Step aside while the token is a target candidate: the pick
-                    --click must reach the token, and showing a claim affordance
-                    --over a "click this ally" prompt invites the wrong action.
-                    --updateInitiative owns the real show/hide; this only masks
-                    --while targeting is live, and think keeps running (thinkTime
-                    --is still set) so the swords come back when targeting ends.
-                    local targeting = TokenIsTargetCandidate(token)
-                    element:SetClass("hidden", targeting)
-                    if targeting then
-                        return
-                    end
-
                     local r = math.sin(dmhub.Time()*2*math.pi)
                     if element:HasClass("highlight") or element:HasClass("childHover") then
                         r = 1
@@ -620,9 +575,6 @@ TokenHud.RegisterPanel{
                 end,
 
                 press = function(element)
-                    if RoutePressToTargetPick(token) then
-                        return
-                    end
                     if token.canControl then
                         element.data.clickTime = dmhub.Time()
                         audio.FireSoundEvent("Mouse.Click")

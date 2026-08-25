@@ -1316,7 +1316,12 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	-- enemies lose non-Area targeting (including free strikes), while allies
 	-- can still target them normally. Area abilities are unaffected, so a
 	-- hidden creature standing in a swept area is still hit.
-	if (not targetToken.isObject) and (not ability:HasKeyword("Area"))
+	-- Map-wide effects (targetType "map", e.g. goblin malice "Swamp Stink") are
+	-- area effects that carry no keywords in their stat block, so the Area
+	-- keyword alone does not recognise them. They affect everyone on the map
+	-- and target no one in particular, so Hidden must not exempt a creature.
+	local isAreaAbility = ability:HasKeyword("Area") or ability.targetType == "map"
+	if (not targetToken.isObject) and (not isAreaAbility)
 		and (not casterToken:IsFriend(targetToken))
 		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
 		return false

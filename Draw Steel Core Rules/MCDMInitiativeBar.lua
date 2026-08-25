@@ -97,7 +97,9 @@ local function ShowVictoryScreen()
 end
 
 --Prompt the DM before ending combat: present the Victory Screen, end with no
---victory, or cancel. Shared by both initiative-bar "End Combat" menu items.
+--victory, or cancel. Shared by both initiative-bar "End Combat" menu items and
+--the game menu's "End Combat" command (via the g_drawSteelPromptEndCombat
+--export below).
 local function PromptEndCombat()
 	GameHud.instance:ModalMessage{
 		title = "End Combat",
@@ -123,6 +125,10 @@ local function PromptEndCombat()
 		},
 	}
 end
+
+--Exported for MCDMCommands.lua's game-menu "End Combat" command, which loads
+--before this file and resolves the export at click time.
+g_drawSteelPromptEndCombat = PromptEndCombat
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 

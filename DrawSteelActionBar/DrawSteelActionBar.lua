@@ -951,7 +951,8 @@ local g_movementDiagramShown = false
 ---        placement reads "Goblin Runner appears here"). The elevation suffix is
 ---        still appended.
 local function ShowMovementDiagram(token, path, label, alternates, damages, textOverride)
-    if token == nil or path == nil or GameHud.instance == nil then
+    --truthiness check: GameHud.instance is false (not nil) while the hud rebuilds.
+    if token == nil or path == nil or not GameHud.instance then
         return
     end
     local dialog = GameHud.instance.dialog
@@ -982,8 +983,14 @@ local function ShowMovementDiagram(token, path, label, alternates, damages, text
         end
     end
 
+    --Anchor outside the path's bounding box rather than at the destination tile,
+    --which is exactly where the user is aiming. Same placement as the drag-move tooltip.
+    local anchor, halign, valign = GameHud.MovementTooltipPlacement(token, path)
+
     sheet:FireEvent("tiletooltip", {
-        loc = path.destination,
+        loc = anchor,
+        halign = halign,
+        valign = valign,
         text = text,
         movingToken = token,
         movingPath = path,
@@ -998,7 +1005,8 @@ local function ClearMovementDiagram()
         return
     end
     g_movementDiagramShown = false
-    if GameHud.instance ~= nil then
+    --truthiness check: GameHud.instance is false (not nil) while the hud rebuilds.
+    if GameHud.instance then
         GameHud.instance:FinishTokenMoving()
     end
 end

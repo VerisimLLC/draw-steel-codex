@@ -2036,10 +2036,13 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		--look for any resources of this type in the level progression and spend the first one we find.
 		--the common case is for the progression to just be one resource.
-		--Remap heroic resource to the creature's actual resource (e.g. malice for monsters).
+		--Remap heroic resource to the creature's actual resource (e.g. malice for
+		--monsters). Goes through GetHeroicOrMaliceId rather than the raw resourceid
+		--field so summons that share their summoner's heroic resource keep the
+		--heroic cost instead of being remapped to Malice.
 		local effectiveResourceCost = self.resourceCost
-		if effectiveResourceCost == CharacterResource.heroicResourceId and creature.resourceid ~= CharacterResource.heroicResourceId then
-			effectiveResourceCost = creature.resourceid
+		if effectiveResourceCost == CharacterResource.heroicResourceId then
+			effectiveResourceCost = creature:GetHeroicOrMaliceId()
 		end
 		local resourceLevels = CharacterResource.GetLevelProgression(effectiveResourceCost)
 

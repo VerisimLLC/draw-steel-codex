@@ -475,6 +475,33 @@ function character:GetHeroicOrMaliceResources()
     return g_baseCharacterGetHeroicOrMaliceResources(self)
 end
 
+--A summon that shares its summoner's heroic resource surfaces the summoner's
+--heroic/epic quantities in GetResources, so ability costs paid in those
+--resources pass affordability checks (see ActivatedAbility:GetCost). Spends
+--against these keys already route to the summoner in Resource.lua.
+local g_baseMonsterGetResources = monster.GetResources
+function monster:GetResources()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken == nil then
+        return g_baseMonsterGetResources(self)
+    end
+
+    local cached = self:try_get("_tmp_sharedresources")
+    if cached ~= nil and self:try_get("_tmp_sharedresourcesUpdate") == dmhub.ngameupdate then
+        return cached
+    end
+
+    local result = table.shallow_copy(g_baseMonsterGetResources(self))
+    local summonerResources = summonerToken.properties:GetResources()
+    result[CharacterResource.heroicResourceId] = summonerResources[CharacterResource.heroicResourceId]
+    result[CharacterResource.epicResourceId] = summonerResources[CharacterResource.epicResourceId]
+
+    self._tmp_sharedresources = result
+    self._tmp_sharedresourcesUpdate = dmhub.ngameupdate
+
+    return result
+end
+
 --- Returns true if this creature is a summon owned by a hero. Hero-summoned monsters
 --- should not surface villain/malice-cost abilities (malice is a GM resource).
 function creature:IsHeroSummon()
@@ -3021,6 +3048,10 @@ function creature:GetHeroicResourceName()
 end
 
 function monster:GetHeroicResourceName()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetHeroicResourceName()
+    end
     return "Malice"
 end
 
@@ -3055,6 +3086,11 @@ function character:GetHeroicOrMaliceId()
 end
 
 function monster:GetHeroicOrMaliceId()
+    --A summon sharing its summoner's heroic resource pays costs in that
+    --resource, not Malice (same treatment as AnimalCompanion).
+    if self:GetHeroicResourceSharingSummonerToken() ~= nil then
+        return CharacterResource.heroicResourceId
+    end
     return CharacterResource.maliceResourceId
 end
 

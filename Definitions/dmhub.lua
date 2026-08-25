@@ -81,6 +81,7 @@
 --- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
 --- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
 --- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
+--- @field popoutCustomTitleBarSupported boolean (read-only) True when the live Windows popout companion supports borderless normal windows whose title bars are rendered in Lua. Keep custom titlebar UI collapsed until this becomes true; an old companion retains its native frame.
 --- @field supportsPopoutTooltipPlacement boolean (read-only) True on engine builds where popout-panel tooltip placement is mirror-correct: panel.distancesToScreenEdge returns true WINDOW pixels with correct left/right sides for panels in popout windows, and tooltip promote-on-overflow places the child window at visually-correct offsets. Gate SideTooltip-style popout placement (window-edge x offsets) on this AND popoutChildWindowsSupported; on older builds the values are screen-scaled and horizontally mirrored.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
@@ -162,6 +163,10 @@
 --- @field inCoroutine boolean Returns true if we are currently running in a coroutine.
 --- @field PlaceholderNil any A stand-in for nil when we want to put it in a table.
 --- @field debugPropertyOutput string Engine debugging and performance information.
+--- @field mergedTitleBarAvailable boolean True when this platform supports merging the native title bar into the app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
+--- @field titleBarChromeMode string Which merged-title-bar implementation is active: 'nccalcsize' (keep the captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE -- the default) or 'strip' (legacy WS_CAPTION removal). 'unsupported' where merging is unavailable.
+--- @field windowMaxButtonState string Interaction state of the native maximize-button zone registered via SetTitleBarHitRegions: 'none', 'hover' or 'pressed'. The engine fires the 'windowMaxButtonState' global event when this changes; read it there to drive the control's hover/press visuals, since the app's gui never receives mouse events over a native zone.
+--- @field windowMaximized boolean True while the application window is maximized. Use to choose between the maximize and restore glyphs.
 --- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua.
 --- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua.
 dmhub = {}
@@ -1977,127 +1982,6 @@ function dmhub.QuitApplication()
 	-- dummy implementation for documentation purposes only
 end
 
---- True when this platform supports merging the native title bar into the
---- app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
---- @type boolean
-dmhub.mergedTitleBarAvailable = false
-
---- True while the application window is maximized. Use to choose between the
---- maximize and restore glyphs.
---- @type boolean
-dmhub.windowMaximized = false
-
---- Interaction state of the native maximize-button zone registered via
---- SetTitleBarHitRegions: "none", "hover" or "pressed". The engine fires the
---- "windowMaxButtonState" global event when this changes; read it there to
---- drive the control's hover/press visuals, since the app's gui never
---- receives mouse events over a native zone.
---- @type string
-dmhub.windowMaxButtonState = "none"
-
---- SetMergedTitleBar: Strip (true) or restore (false) the native Windows
---- caption bar, merging the app's title bar with the window chrome. The app
---- bar must supply drag and window buttons while merged. No-op where
---- unsupported.
---- @param merged boolean
---- @return nil
-function dmhub.SetMergedTitleBar(merged)
-	-- dummy implementation for documentation purposes only
-end
-
---- BeginWindowDrag: Begin a native window drag, as if the user grabbed the
---- title bar. Call from a press event on the app title bar's empty surface;
---- native snap-to-edge works during the drag.
---- @return nil
-function dmhub.BeginWindowDrag()
-	-- dummy implementation for documentation purposes only
-end
-
---- MinimizeWindow: Minimize the application window.
---- @return nil
-function dmhub.MinimizeWindow()
-	-- dummy implementation for documentation purposes only
-end
-
---- ToggleMaximizeWindow: Toggle the application window between maximized and
---- restored.
---- @return nil
-function dmhub.ToggleMaximizeWindow()
-	-- dummy implementation for documentation purposes only
-end
-
---- CloseWindow: Close the application window through the normal window-close
---- path (same as Alt+F4), running the app's usual shutdown.
---- @return nil
-function dmhub.CloseWindow()
-	-- dummy implementation for documentation purposes only
-end
-
---- WindowChromeHeartbeat: Dead-man heartbeat for the merged title bar: the
---- title bar's think calls this every few hundred ms while merged. If
---- heartbeats stop for ~10s of running frames (a broken/unloaded title bar),
---- the engine restores the native caption so the window is never left
---- without drag or close controls.
---- @return nil
-function dmhub.WindowChromeHeartbeat()
-	-- dummy implementation for documentation purposes only
-end
-
---- Which merged-title-bar implementation is active: "nccalcsize" (keep the
---- captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE --
---- the default) or "strip" (legacy WS_CAPTION removal). "unsupported" where
---- merging is unavailable.
---- @type string
-dmhub.titleBarChromeMode = "unsupported"
-
---- SetTitleBarChromeMode: PROTOTYPE A/B switch between the merged-title-bar
---- implementations: "nccalcsize" (default) or "strip" (legacy). Tears the
---- chrome down to native under the old mode and re-applies under the new one
---- if the merge is active. No-op when unchanged or unsupported.
---- @param mode string
---- @return nil
-function dmhub.SetTitleBarChromeMode(mode)
-	-- dummy implementation for documentation purposes only
-end
-
---- GetWindowMetrics: Diagnostic snapshot of the main window: outer rect,
---- client rect, zoomed/captioned/subclassed flags, Unity's Screen size and
---- fullscreen state, and the active chrome mode. Human-readable, for
---- merged-title-bar testing; the format may change.
---- @return string
-function dmhub.GetWindowMetrics()
-	-- dummy implementation for documentation purposes only
-end
-
---- SetWindowChromeLogging: Enable or disable verbose window-chrome geometry
---- logging (clamp / align / re-assert-cancel lines in the log). Off by
---- default; turn on when diagnosing window sizing or title-bar behavior,
---- alongside the tools/pollwin.ps1 external poller. No-op where unsupported.
---- @param verbose boolean
---- @return nil
-function dmhub.SetWindowChromeLogging(verbose)
-	-- dummy implementation for documentation purposes only
-end
-
---- SetTitleBarHitRegions: Register the merged title bar's exact hit regions
---- from the bar's real layout. args.bar: the bar panel -- its on-screen rect
---- defines the native caption band. args.exclusions: panels that must stay
---- clickable by the app (menu clusters, search, window buttons, ...);
---- everything else in the band becomes native caption (drag / snap /
---- double-click). args.maximizeButton: the maximize control's panel -- it
---- becomes the native HTMAXBUTTON zone, enabling the Windows 11 Snap Layouts
---- hover flyout; its hover/press state and clicks are then relayed back
---- through the "windowMaxButtonState" / "windowMaxButtonClick" global events
---- and the windowMaxButtonState property. Rects are snapshotted at call
---- time: re-send after layout changes (calling from the bar's think is the
---- intended pattern). Pass nil to clear back to the built-in approximate
---- regions. No-op where unsupported.
---- @param args nil|{bar: Panel, exclusions: Panel[], maximizeButton: nil|Panel}
---- @return nil
-function dmhub.SetTitleBarHitRegions(args)
-	-- dummy implementation for documentation purposes only
-end
-
 --- SendRecoverPasswordEmail: Try to recover the user's password to the supplied email address.
 --- @param email string
 --- @return nil
@@ -2164,11 +2048,11 @@ function dmhub.ClearSelectedObjects()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls, and favorTarget to bias the calculation in the target's favor (for hiding checks): the target counts as having cover if ANY sampled sightline from the attacker is obstructed, instead of the attacker getting the best ray.
+--- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls, and favorTarget to bias the calculation in the target's favor (for hiding checks).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
 --- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
---- @param favorTarget boolean? Optional; invert the cover bias in the target's favor (hiding checks).
+--- @param favorTarget boolean? Optional; when true the cover bias is inverted in the target's favor: the target counts as having cover if ANY sampled sightline from the attacker is obstructed (normally the attacker gets the best ray, so one clear line means no cover). Use for hiding checks.
 --- @return {cover: number, coverModifier: number, description: string}
 function dmhub.GetCoverInfo(attacker, target, pierceSurfacesArg, favorTargetArg)
 	-- dummy implementation for documentation purposes only
@@ -2358,6 +2242,70 @@ end
 --- @param enabled boolean
 --- @return nil
 function dmhub.PoolSetEnabled(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMergedTitleBar: Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
+--- @param merged boolean
+--- @return nil
+function dmhub.SetMergedTitleBar(merged)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTitleBarChromeMode: PROTOTYPE A/B switch between the merged-title-bar implementations: 'nccalcsize' (default) or 'strip' (legacy). Tears the chrome down to native under the old mode and re-applies under the new one if the merge is active. No-op when unchanged or unsupported.
+--- @param mode string
+--- @return nil
+function dmhub.SetTitleBarChromeMode(mode)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetWindowMetrics: Diagnostic snapshot of the main window: outer rect, client rect, zoomed/captioned/subclassed flags, Unity's Screen size and fullscreen state, and the active chrome mode. Human-readable, for merged-title-bar testing; the format may change.
+--- string
+function dmhub.GetWindowMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetWindowChromeLogging: Enable or disable verbose window-chrome geometry logging (clamp / align / re-assert-cancel lines in the log). Off by default; turn on when diagnosing window sizing or title-bar behavior, alongside the tools/pollwin.ps1 external poller. No-op where unsupported.
+--- @param verbose boolean
+--- @return nil
+function dmhub.SetWindowChromeLogging(verbose)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTitleBarHitRegions: Register the merged title bar's exact hit regions from the bar's real layout. args.bar: the bar panel -- its on-screen rect defines the native caption band. args.exclusions: panels that must stay clickable by the app (menu clusters, search, window buttons, ...); everything else in the band becomes native caption (drag / snap / double-click). args.maximizeButton: the maximize control's panel -- it becomes the native HTMAXBUTTON zone, enabling the Windows 11 Snap Layouts hover flyout; its hover/press state and clicks are then relayed back through the 'windowMaxButtonState' / 'windowMaxButtonClick' global events and the windowMaxButtonState property. Rects are snapshotted at call time: re-send after layout changes (calling from the bar's think is the intended pattern). Pass nil to clear back to the built-in approximate regions. No-op where unsupported.
+--- @param args nil|{bar: Panel, exclusions: Panel[], maximizeButton: nil|Panel}
+--- @return nil
+function dmhub.SetTitleBarHitRegions(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- WindowChromeHeartbeat: Dead-man heartbeat for the merged title bar: the title bar's think calls this every few hundred ms while merged. If heartbeats stop for ~10s of running frames (a broken/unloaded title bar), the engine restores the native caption so the window is never left without drag or close controls.
+--- @return nil
+function dmhub.WindowChromeHeartbeat()
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginWindowDrag: Begin a native window drag, as if the user grabbed the title bar. Call from a press event on the app title bar's empty surface; native snap-to-edge works during the drag.
+--- @return nil
+function dmhub.BeginWindowDrag()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MinimizeWindow: Minimize the application window.
+--- @return nil
+function dmhub.MinimizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleMaximizeWindow: Toggle the application window between maximized and restored.
+--- @return nil
+function dmhub.ToggleMaximizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseWindow: Close the application window through the normal window-close path (same as Alt+F4), running the app's usual shutdown.
+--- @return nil
+function dmhub.CloseWindow()
 	-- dummy implementation for documentation purposes only
 end
 

@@ -666,6 +666,20 @@ local function ToggleFullscreen()
     end)
 end
 
+--The Fullscreen checkbox row shared by both Codex menus (main-menu and
+--in-game variants). Built fresh per open so the check reflects the current
+--setting. Always the FIRST row of the menu.
+local function FullscreenMenuItem()
+    return {
+        text = "Fullscreen",
+        icon = "phosphor/arrows-out-simple-fill.png",
+        check = dmhub.GetSettingValue("fullscreen") == true,
+        click = function()
+            ToggleFullscreen()
+        end,
+    }
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -6371,22 +6385,12 @@ local function CreateTopBar()
             mainmenu = true,
             menuItems = function()
                 local items = {
+                    FullscreenMenuItem(),
                     {
                         text = "Settings",
                         icon = "panels/hud/gear.png",
                         click = function()
                             dmhub.ShowPlayerSettings()
-                        end,
-                    },
-                    --checkbox row: the check mirrors the "fullscreen"
-                    --setting; clicking toggles it (replaces the old
-                    --window-button fullscreen control).
-                    {
-                        text = "Fullscreen",
-                        icon = "phosphor/arrows-out-simple-fill.png",
-                        check = dmhub.GetSettingValue("fullscreen") == true,
-                        click = function()
-                            ToggleFullscreen()
                         end,
                     },
                 }
@@ -6416,15 +6420,9 @@ local function CreateTopBar()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
                 end
-                --same Fullscreen checkbox as the main-menu Codex menu.
-                items[#items+1] = {
-                    text = "Fullscreen",
-                    icon = "phosphor/arrows-out-simple-fill.png",
-                    check = dmhub.GetSettingValue("fullscreen") == true,
-                    click = function()
-                        ToggleFullscreen()
-                    end,
-                }
+                --inserted AFTER the store rows are prepended so Fullscreen
+                --lands at the very top, matching the main-menu Codex menu.
+                table.insert(items, 1, FullscreenMenuItem())
                 return items
             end,
         },

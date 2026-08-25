@@ -14,6 +14,7 @@
 --- @field root Panel The root panel of the hierarchy this Panel is within.
 --- @field parent Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.
 --- @field siblingIndex number (read-only) Returns the 'sibling index' of this panel. The first child of its parent is 1, the second is 2, and so forth.
+--- @field nativeWindowMaximized boolean (Read-only) True while the native popout window hosting this panel is maximized.
 --- @field children Panel[] A list of the children of this panel. Note that you may set this panel to a new list of children. Any panels that are left orphaned by doing this are automatically destroyed.
 --- @field selfStyle Style|StyleArgs Any style settings that are set directly on this panel. They do not apply to children, only directly to this panel. Note that styles that are set here override any other styling on the panel. Selectors set on this style are ignored.
 --- @field style Style|StyleArgs Style settings set on this panel, and all of its hierarchical children. Styles here are lower priority than those set in @see selfStyle but higher priority than other styles. Selectors set on this style are ignored.
@@ -168,7 +169,7 @@ function Panel:Unparent()
 	-- dummy implementation for documentation purposes only
 end
 
---- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native Windows window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window.
+--- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window. Pass customTitleBar=true to request a borderless normal toplevel whose title bar is rendered by the panel; customTitleBarHeight describes its draggable band in panel units. Pass the right-anchored interactive control row as customTitleBarControls so its live rendered left edge ends the draggable region; customTitleBarInteractiveRight is the fallback width for older layouts. Gate that UI on dmhub.popoutCustomTitleBarSupported.
 --- @param args any
 --- @return nil
 function Panel:MoveToNativeWindow(args)
@@ -178,6 +179,18 @@ end
 --- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), raise that OS window -- or flash its taskbar button when the OS denies the focus steal. Returns false if the panel is not in a native window.
 --- @return boolean
 function Panel:RaiseNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MinimizeNativeWindow: Minimize the native popout window hosting this panel. Returns false when the panel is not in a custom-titlebar normal popout.
+--- @return boolean
+function Panel:MinimizeNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleMaximizeNativeWindow: Toggle the native popout window hosting this panel between maximized and restored. Returns false when the panel is not in a custom-titlebar normal popout.
+--- @return boolean
+function Panel:ToggleMaximizeNativeWindow()
 	-- dummy implementation for documentation purposes only
 end
 

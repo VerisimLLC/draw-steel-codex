@@ -7069,24 +7069,6 @@ end
 --buttons exist (grouping), rebuild the rails.
 local RebuildIconRails
 
---DEV GATE for the entire Panel Library feature: the rail's + button
---and everything only it opens (the library window, community
---spotlight/browser, and the Share Your Buttons dialog). The + shipped
---WITH the library (commit 142fa78e), so gating the button gates the
---whole surface; the rail's right-click menu is older and stays. No
---`editor`, so it appears on no settings screen -- flip it from the
---console: dmhub.SetSettingValue("dev:panellibrary", true).
-setting{
-    id = "dev:panellibrary",
-    storage = "preference",
-    default = false,
-    onchange = function()
-        if RebuildIconRails ~= nil then
-            RebuildIconRails()
-        end
-    end,
-}
-
 --The open-window record (see the "iconrailpins" setting above): which
 --panel windows to restore, and where. Named for what it does, not for
 --the legacy setting id -- "pinned" now means locked in place, which is
@@ -8696,6 +8678,34 @@ local function PopoutWindowStyles()
                 opacity = 0.2,
                 bgcolor = "@fg",
             },
+            {
+                selectors = {"panelPopoutWindowControl"},
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"panelPopoutWindowControl", "hover"},
+                bgcolor = "#ffffff1f",
+            },
+            {
+                selectors = {"panelPopoutWindowControl", "press"},
+                bgcolor = "#ffffff33",
+            },
+            {
+                selectors = {"panelPopoutWindowControlDanger", "hover"},
+                bgcolor = "#c42b1c",
+            },
+            {
+                selectors = {"panelPopoutWindowControlDanger", "press"},
+                bgcolor = "#b3271a",
+            },
+            {
+                selectors = {"panelPopoutWindowControlIcon"},
+                bgcolor = "@fg",
+            },
+            {
+                selectors = {"panelPopoutWindowControlIconDanger", "parent:hover"},
+                bgcolor = "#ffffff",
+            },
         }),
     }
 end
@@ -8808,6 +8818,43 @@ function PanelDocument.PopoutZoomStep(current, dir)
     return nil
 end
 
+--This is a live companion capability rather than a platform check. The
+--helper can attach after Lua builds the panel, so callers poll it uncached.
+function PanelDocument.PopoutCustomTitleBarSupported()
+    local ok, supported = pcall(function()
+        return dmhub.popoutCustomTitleBarSupported
+    end)
+    return ok and supported == true
+end
+
+--A Chromium-style caption button: the full 42px zone owns hover and input,
+--while a centered 16px child paints the glyph.
+function PanelDocument.CreatePopoutWindowControl(args)
+    return gui.Panel{
+        classes = {"panelPopoutWindowControl", cond(args.danger, "panelPopoutWindowControlDanger")},
+        bgimage = true,
+        width = 42,
+        height = "100%",
+        valign = "center",
+        swallowPress = true,
+        data = {maximized = nil},
+        click = args.click,
+
+        gui.Panel{
+            classes = {"panelPopoutWindowControlIcon", cond(args.danger, "panelPopoutWindowControlIconDanger")},
+            bgimage = args.icon,
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            setIcon = function(element, icon)
+                element.bgimage = icon
+            end,
+        },
+    }
+end
+
 --Open the named panel in a native OS popout window. geometry (optional)
 --carries {width=,height=} -- the rail flow passes the in-app window's
 --size so the panel keeps its footprint across the transition -- and,
@@ -8836,28 +8883,22 @@ OpenPanelPopout = function(panelName, geometry)
         return
     end
 
-    --The window's content scale: the Font Size zoom an in-app rail window
-    --gets from setWindowScale, or this panel's own override.
+    --The document content's scale: the Font Size zoom an in-app rail window
+    --gets from setWindowScale, or this panel's own override. Like browser
+    --page zoom, this belongs below the titlebar: native chrome must keep the
+    --same physical size and hit-test boundary while the page gets denser or
+    --sparser underneath it.
     --
-    --A native OS window can only be resized BY the user -- the companion
-    --owns its geometry, and the protocol carries no engine-to-companion
-    --resize. So the scale is applied the way a browser's page zoom is:
-    --the window keeps its pixel footprint and the content re-lays out denser
-    --or sparser inside it. The panel's own size is therefore always
-    --(window pixels / scale), and at creation the reverse holds: the OS
-    --window is born (panel size * scale) pixels, because that is what
-    --MoveToNativeWindow measures.
-    --
-    --geometry.scale is the scale the incoming width/height were measured
-    --at (the rail window's on a pop-out, the recorded one on a restore),
-    --so the pixel footprint carries across even when the two differ.
+    --geometry.scale is the scale the incoming width/height were measured at
+    --(an in-app rail window's on pop-out, or a legacy popout record's on
+    --restore). Convert that pair once to the fixed-scale host's units. New
+    --popout records use scale=1 because later page zoom never resizes the OS
+    --window or its Lua titlebar.
     local scale = PanelDocument.PopoutContentScale(key)
     local sourceScale = (geometry ~= nil and geometry.scale) or scale
-    local width = ((geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth) *
-        sourceScale / scale
+    local width = ((geometry ~= nil and geometry.width) or PanelDocument.DefaultWidth) * sourceScale
     local height = PanelDocument.ClampHeight(panelName,
-        ((geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight) *
-            sourceScale / scale)
+        (geometry ~= nil and geometry.height) or PanelDocument.DefaultHeight) * sourceScale
 
     --a registration can declare its popout window's own default height
     --(popoutHeight, content px like minHeight/maxHeight): a panel whose
@@ -8873,11 +8914,13 @@ OpenPanelPopout = function(panelName, geometry)
         pcall(function() popoutHeight = reg.popoutHeight end)
         if type(popoutHeight) == "number" then
             height = PanelDocument.ClampHeight(panelName,
-                popoutHeight + g_panelDocumentHeaderHeight)
+                popoutHeight + g_panelDocumentHeaderHeight) * scale
         end
     end
 
     local host
+    local popoutMaximizeControl
+    local customChromeControls
 
     --the content wrapper: BuildContentWrapper's essential contract
     --(deferred build, 'refresh' priming for selection-following panels,
@@ -9000,18 +9043,69 @@ OpenPanelPopout = function(panelName, geometry)
         end,
     }
 
+    customChromeControls = gui.Panel{
+        classes = {"panelPopoutWindowControls", "collapsed"},
+        width = "auto",
+        height = "100%",
+        flow = "horizontal",
+        valign = "center",
+
+        PanelDocument.CreatePopoutWindowControl{
+            icon = "window-chrome/chrome-minimize.png",
+            click = function()
+                if host ~= nil and host.valid then
+                    pcall(function() host:MinimizeNativeWindow() end)
+                end
+            end,
+        },
+
+        (function()
+            popoutMaximizeControl = PanelDocument.CreatePopoutWindowControl{
+                icon = "window-chrome/chrome-maximize.png",
+                click = function()
+                    if host ~= nil and host.valid then
+                        pcall(function() host:ToggleMaximizeNativeWindow() end)
+                    end
+                end,
+            }
+            return popoutMaximizeControl
+        end)(),
+
+        PanelDocument.CreatePopoutWindowControl{
+            danger = true,
+            icon = "window-chrome/chrome-close.png",
+            click = function()
+                PopoutForgetWindow(key)
+                if host ~= nil and host.valid then
+                    host:DestroySelf()
+                end
+            end,
+        },
+    }
+
     --One floating right-anchored row for the window's controls, the shape
     --the rail window's header uses: they share a single corner anchor
     --instead of each carrying its own hand-tuned offset.
     local headerControls = gui.Panel{
+        classes = {"panelPopoutHeaderControls"},
         width = "auto",
         height = "auto",
         flow = "horizontal",
         floating = true,
         halign = "right",
         valign = "center",
-        x = -8,
-        children = {zoomOutButton, zoomInButton, popInButton},
+        x = 0,
+        children = {
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                rmargin = 8,
+                children = {zoomOutButton, zoomInButton, popInButton},
+            },
+            customChromeControls,
+        },
     }
 
     local header = gui.Panel{
@@ -9039,11 +9133,27 @@ OpenPanelPopout = function(panelName, geometry)
         bgimage = true,
     }
 
+    --A fixed-size viewport with an inversely-sized, page-scaled child. Its
+    --scaled footprint always fills the viewport, but that transform cannot
+    --reach the header/titlebar siblings above it.
+    local contentScalePercent = string.format("%.6f%%", 100 / scale)
+    local contentScaleRoot = gui.Panel{
+        classes = {"panelPopoutContentScaleRoot"},
+        width = contentScalePercent,
+        height = contentScalePercent,
+        flow = "none",
+        halign = "left",
+        valign = "top",
+        pivot = {x = 0, y = 1},
+        uiscale = scale,
+        wrapper,
+    }
+
     local contentArea = gui.Panel{
         width = "100%",
         height = string.format("100%%-%d", g_panelDocumentHeaderHeight + 1),
         flow = "none",
-        wrapper,
+        contentScaleRoot,
     }
 
     host = gui.Panel{
@@ -9074,21 +9184,20 @@ OpenPanelPopout = function(panelName, geometry)
             --an owner under this root route into the window's own modal
             --layer (Hud.ResolveModalLayer) instead of the main window's.
             nativeWindowRoot = true,
-            --the content scale this window is currently rendering at, so
-            --setPopoutScale can tell what changed and convert between
-            --panel units and the OS window's pixels.
+            --the document content scale currently rendered below the fixed
+            --titlebar; it never changes the host/window geometry.
             popoutScale = scale,
-            --the live geometry record: width/height in panel units at
-            --`scale` (so the OS window is width*scale pixels wide), x/y
-            --in OS screen pixels once the companion reports them.
+            --the live geometry record: fixed-scale host width/height, and
+            --x/y in OS screen pixels once the companion reports them.
             popoutGeometry = {
                 x = geometry ~= nil and geometry.x or nil,
                 y = geometry ~= nil and geometry.y or nil,
                 width = width,
                 height = height,
-                scale = scale,
+                scale = 1,
             },
             popoutSavePending = false,
+            customChromeVisible = false,
             TooltipAlignment = function()
                 --the popout is its own surface; tooltips clamp inside
                 --the window either way, so the side is cosmetic.
@@ -9097,9 +9206,8 @@ OpenPanelPopout = function(panelName, geometry)
         },
 
         --fired by NativeWindowCanvas when the user resizes the OS window.
-        --w/h arrive already divided by the panel's own scale, so they are
-        --panel units at the window's current zoom -- the same space
-        --popoutGeometry records.
+        --The host itself is unscaled, so w/h are already the stable geometry
+        --space popoutGeometry records; page zoom is confined below it.
         resize = function(element, w, h)
             element.selfStyle.width = w
             element.selfStyle.height = h
@@ -9108,41 +9216,49 @@ OpenPanelPopout = function(panelName, geometry)
             element:FireEvent("queuePopoutSave")
         end,
 
-        --Re-apply the window's content scale after a Font Size, rail-mode
-        --or zoom-override change. The OS window keeps its pixel size (the
-        --app cannot resize it), so the panel's own size moves the other
-        --way by the same factor and the content simply gets denser or
-        --sparser inside the same frame -- browser page zoom, not a
-        --window resize.
-        --
-        --No pivot write here, deliberately: the native canvas centres the
-        --panel in the window (SheetPanel.PlaceWithinParent), so a panel
-        --sized (window pixels / scale) fills the window exactly when it
-        --scales about its own centre. Anchoring it to a corner the way
-        --the in-app window does would push the content off-window.
+        --Re-apply page zoom after a Font Size, rail-mode or per-window
+        --override change. Only contentScaleRoot changes: the OS window,
+        --titlebar, title, zoom buttons and caption buttons stay pixel-stable.
         setPopoutScale = function(element)
             local newScale = PanelDocument.PopoutContentScale(key)
             local oldScale = element.data.popoutScale or 1
             if newScale == oldScale then
                 return
             end
-            local geo = element.data.popoutGeometry
-            local w = (geo.width or PanelDocument.DefaultWidth) * oldScale / newScale
-            local h = (geo.height or PanelDocument.DefaultHeight) * oldScale / newScale
             element.data.popoutScale = newScale
-            element.selfStyle.uiscale = newScale
-            element.selfStyle.width = w
-            element.selfStyle.height = h
-            geo.width = w
-            geo.height = h
-            geo.scale = newScale
-            element:FireEvent("queuePopoutSave")
+            local percent = string.format("%.6f%%", 100 / newScale)
+            contentScaleRoot.selfStyle.uiscale = newScale
+            contentScaleRoot.selfStyle.width = percent
+            contentScaleRoot.selfStyle.height = percent
             element:FireEventTree("popoutZoomChanged")
         end,
 
         multimonitor = {"fontsize", "iconrail", "popoutzoom"},
         monitor = function(element)
             element:FireEvent("setPopoutScale")
+        end,
+
+        --The first helper's capability message can arrive after this panel is
+        --built. Poll on the always-active root, reveal the caption buttons when
+        --safe, and keep the maximize/restore glyph in step with native state.
+        thinkTime = 0.1,
+        think = function(element)
+            local visible = PanelDocument.PopoutCustomTitleBarSupported()
+            if visible ~= element.data.customChromeVisible then
+                element.data.customChromeVisible = visible
+                customChromeControls:SetClass("collapsed", not visible)
+            end
+
+            if visible and popoutMaximizeControl ~= nil and popoutMaximizeControl.valid then
+                local maximized = false
+                pcall(function() maximized = element.nativeWindowMaximized == true end)
+                if maximized ~= popoutMaximizeControl.data.maximized then
+                    popoutMaximizeControl.data.maximized = maximized
+                    popoutMaximizeControl:FireEventTree("setIcon", cond(maximized,
+                        "window-chrome/chrome-restore.png",
+                        "window-chrome/chrome-maximize.png"))
+                end
+            end
         end,
 
         --fired by the engine when the OS window moves (and once at
@@ -9227,6 +9343,13 @@ OpenPanelPopout = function(panelName, geometry)
             element:FireEventTree("popout")
             element:MoveToNativeWindow{
                 resizeable = true,
+                customTitleBar = true,
+                customTitleBarHeight = g_panelDocumentHeaderHeight,
+                --The engine tracks this row's live rendered left edge, so
+                --everything visibly blank to its left remains draggable.
+                customTitleBarControls = headerControls,
+                --Compatibility fallback for engines without row tracking.
+                customTitleBarInteractiveRight = 192,
                 title = reg.name or panelName,
                 --a persistence restore reopens the window where it was;
                 --nil lets the OS place it (older engines ignore these).
@@ -9243,14 +9366,6 @@ OpenPanelPopout = function(panelName, geometry)
     GameHud.instance.documentsPanel:AddChild(host)
     g_panelPopouts[key] = host
 
-    --the content scale, applied on the ATTACHED host so it is in the
-    --panel's style before the scheduled move measures the rect: the OS
-    --window is created (width * scale) pixels across. Written through
-    --selfStyle rather than the constructor for the same reason the docks
-    --and the in-app windows do -- a style write takes with the layout
-    --pass that follows it.
-    host.selfStyle.uiscale = scale
-
     --record the popout immediately so it survives a Lua reload that
     --happens before the first move/resize report arrives.
     PopoutRememberWindow(key, {
@@ -9258,7 +9373,7 @@ OpenPanelPopout = function(panelName, geometry)
         y = geometry ~= nil and geometry.y or nil,
         width = width,
         height = height,
-        scale = scale,
+        scale = 1,
     })
 
     wrapper:ScheduleEvent("buildPanelContent", 0.01)
@@ -18480,12 +18595,10 @@ local function CreateIconRail(side, entries)
     --Suppressed in rearrange mode: that is the trash zone's territory, and
     --the two verbs never apply at once.
     --
-    --Suppressed entirely while the dev:panellibrary gate is off: the +
-    --exists to open the Panel Library, so without the feature there is
-    --nothing for it to do. Every later addButton reference is already
-    --nil-guarded (rearrange mode leaves it nil the same way).
+    --Every later addButton reference is nil-guarded anyway, because
+    --rearrange mode leaves it nil the same way.
     local addButton = nil
-    if not g_railRearranging and dmhub.GetSettingValue("dev:panellibrary") then
+    if not g_railRearranging then
         addButton = CreateRailAddButton(side)
         buttons[#buttons + 1] = addButton
     end

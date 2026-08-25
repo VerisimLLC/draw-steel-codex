@@ -6679,6 +6679,16 @@ setting{
     default = {},
 }
 
+--One-time per-game migration marker: set once this game's authored
+--buttons have been pushed up into the account-wide /UserButtons store
+--(see the Account-wide button store section). Set only when every
+--upload lands, so a failed push retries on the next game entry.
+setting{
+    id = "userbuttonsmigrated",
+    storage = "pergamepreference",
+    default = false,
+}
+
 --g_iconRailPanels (the curated panel list) is declared above the
 --PanelDocument interface.
 
@@ -7326,10 +7336,12 @@ end
 --looks up are checked against the creature symbol table. Prose like
 --"Use recovery" merges into one unknown identifier ("userecovery")
 --that matches no creature symbol, so it counts as prose; unparseable
---text ("Flip a coin!") is prose too. Drives both the no-character
---hover text and the no-character disable in ScriptButtonDisabled.
---Rides ToolkitCluster because the main chunk sits at Lua's 200-local
---cap -- same reason the cluster helpers do.
+--text ("Flip a coin!") is prose too. Symbols registered global = true
+--(hero tokens, malice) do NOT count: they read game-wide pools, so a
+--formula built only from them means the same thing with no character.
+--Drives both the no-character hover text and the no-character disable
+--in ScriptButtonDisabled. Rides ToolkitCluster because the main chunk
+--sits at Lua's 200-local cap -- same reason the cluster helpers do.
 ToolkitCluster.formulaReadsCharacterCache = {}
 ToolkitCluster.FormulaReadsCharacter = function(formula)
     if formula == nil then
@@ -7345,7 +7357,7 @@ ToolkitCluster.FormulaReadsCharacter = function(formula)
         local fn = dmhub.CompileGoblinScriptDeterministic(formula, out)
         if fn ~= nil and out.lua ~= nil then
             for name in string.gmatch(out.lua, [[symbols%("([%w_]+)"%)]]) do
-                if creature.lookupSymbols[name] ~= nil then
+                if creature.lookupSymbols[name] ~= nil and not creature.globalSymbols[name] then
                     result = true
                     break
                 end
@@ -7354,6 +7366,31 @@ ToolkitCluster.FormulaReadsCharacter = function(formula)
     end)
     ToolkitCluster.formulaReadsCharacterCache[formula] = result
     return result
+end
+
+--The creature properties a directive formula should evaluate against:
+--the player's current character when one is selected; otherwise, for
+--formulas that only read GLOBAL symbols (hero tokens, malice), a cached
+--blank character -- the global lookups ignore the creature, so any
+--character-shaped context gives the true game-wide value. Formulas that
+--read real character state return nil with no character, and callers
+--keep their existing no-character fallbacks (icon face, disable,
+--"No character selected").
+ToolkitCluster.globalEvalProperties = nil
+ToolkitCluster.DirectiveEvalProperties = function(formula)
+    local token = dmhub.currentToken
+    if token ~= nil and token.properties ~= nil then
+        return token.properties
+    end
+    if formula == nil or ToolkitCluster.FormulaReadsCharacter(formula) then
+        return nil
+    end
+    if ToolkitCluster.globalEvalProperties == nil then
+        pcall(function()
+            ToolkitCluster.globalEvalProperties = character.CreateNew()
+        end)
+    end
+    return ToolkitCluster.globalEvalProperties
 end
 
 --The hover text a script button shows instead of its name: the @tooltip
@@ -7371,14 +7408,14 @@ local function ScriptButtonHoverText(def, fallbackName)
         return string.upper(fallbackName or "")
     end
     local text = nil
-    local token = dmhub.currentToken
-    if token ~= nil and token.properties ~= nil then
+    local props = ToolkitCluster.DirectiveEvalProperties(tip)
+    if props ~= nil then
         pcall(function()
             --defaultValue must be nil, not 0: prose that still parses
             --(one unknown symbol) evaluates to nil, and that nil is what
             --routes it to the raw-text fallback below. A 0 default made
             --every prose tooltip render as "0".
-            local value = ExecuteGoblinScript(tip, token.properties:LookupSymbol{}, nil, "script button tooltip")
+            local value = ExecuteGoblinScript(tip, props:LookupSymbol{}, nil, "script button tooltip")
             if value ~= nil then
                 local n = tonumber(value)
                 if n ~= nil and n == math.floor(n) then
@@ -7407,7 +7444,10 @@ end
 --     such a button cannot mean anything without a character, so it
 --     reads as inert instead of half-working (owner request
 --     2026-08-24). Buttons with no character-reading directives (a
---     coin flip, a chat post) stay live with no character.
+--     coin flip, a chat post, a GLOBAL-symbol formula like Hero
+--     Tokens or Malice) stay live with no character; global-only
+--     @disabled formulas still evaluate, against the blank-character
+--     context from DirectiveEvalProperties.
 --A bad formula WITH a character selected still means ENABLED: an
 --authoring error must never lock a button out. The hover LABEL stays
 --live on a disabled button on purpose: it says WHY ("AT FULL
@@ -7417,17 +7457,23 @@ local function ScriptButtonDisabled(def)
     local style = ScriptButtonStyle(def)
     local token = dmhub.currentToken
     if token == nil or token.properties == nil then
-        return ToolkitCluster.FormulaReadsCharacter(style.label)
+        if ToolkitCluster.FormulaReadsCharacter(style.label)
             or ToolkitCluster.FormulaReadsCharacter(style.tooltip)
-            or ToolkitCluster.FormulaReadsCharacter(style.disabled)
+            or ToolkitCluster.FormulaReadsCharacter(style.disabled) then
+            return true
+        end
     end
     local formula = style.disabled
     if formula == nil then
         return false
     end
+    local props = ToolkitCluster.DirectiveEvalProperties(formula)
+    if props == nil then
+        return false
+    end
     local disabled = false
     pcall(function()
-        local value = ExecuteGoblinScript(formula, token.properties:LookupSymbol{}, 0, "script button disabled")
+        local value = ExecuteGoblinScript(formula, props:LookupSymbol{}, 0, "script button disabled")
         if value == true then
             disabled = true
         else
@@ -8682,7 +8728,7 @@ end
 -- keyboard input beyond basic typing, escape/command routing, and
 -- modals still land in the main window; those are engine work.
 
-local function PopoutWindowStyles()
+function PanelDocument.PopoutWindowStyles()
     return {
         Styles.Default,
         DocumentWindowStyles(),
@@ -8711,7 +8757,7 @@ local function PopoutWindowStyles()
             {
                 selectors = {"label", "panelDocumentTitle"},
                 color = "@fgStrong",
-                fontSize = 12,
+                fontSize = 13,
                 bold = true,
             },
             {
@@ -8768,13 +8814,13 @@ local function PopoutWindowStyles()
 end
 
 --The popout persistence record (see the "popoutwindows" setting above).
-local function PopoutRestoreRecords()
+function PanelDocument.PopoutRestoreRecords()
     return dmhub.GetSettingValue("popoutwindows") or {}
 end
 
 --The stamp marking records written by THIS run of the app; minted on
 --first use, then stable across Lua reloads (transient storage).
-local function PopoutSessionId()
+function PanelDocument.PopoutSessionId()
     local id = dmhub.GetSettingValue("popoutsessionid")
     if id == nil or id == "" then
         id = dmhub.GenerateGuid()
@@ -8783,8 +8829,8 @@ local function PopoutSessionId()
     return id
 end
 
-local function PopoutRememberWindow(key, geometry)
-    local records = PopoutRestoreRecords()
+function PanelDocument.PopoutRememberWindow(key, geometry)
+    local records = PanelDocument.PopoutRestoreRecords()
     local prev = records[key]
     if type(prev) == "table" then
         --a record with no fresh value to offer keeps the recorded one
@@ -8795,13 +8841,13 @@ local function PopoutRememberWindow(key, geometry)
         geometry.height = geometry.height or prev.height
         geometry.scale = geometry.scale or prev.scale
     end
-    geometry.session = PopoutSessionId()
+    geometry.session = PanelDocument.PopoutSessionId()
     records[key] = geometry
     dmhub.SetSettingValue("popoutwindows", records)
 end
 
-local function PopoutForgetWindow(key)
-    local records = PopoutRestoreRecords()
+function PanelDocument.PopoutForgetWindow(key)
+    local records = PanelDocument.PopoutRestoreRecords()
     if records[key] ~= nil then
         records[key] = nil
         dmhub.SetSettingValue("popoutwindows", records)
@@ -9091,7 +9137,7 @@ OpenPanelPopout = function(panelName, geometry)
             --down: destroying the host is what closes the OS window (the
             --engine sweeps native windows whose panel died). The panel
             --is back in the app, so the persistence record goes too.
-            PopoutForgetWindow(key)
+            PanelDocument.PopoutForgetWindow(key)
             OpenIconRailWindow(key)
             if host ~= nil and host.valid then
                 host:DestroySelf()
@@ -9132,7 +9178,7 @@ OpenPanelPopout = function(panelName, geometry)
             danger = true,
             icon = "window-chrome/chrome-close.png",
             click = function()
-                PopoutForgetWindow(key)
+                PanelDocument.PopoutForgetWindow(key)
                 if host ~= nil and host.valid then
                     host:DestroySelf()
                 end
@@ -9220,7 +9266,7 @@ OpenPanelPopout = function(panelName, geometry)
         --data.TooltipAlignment(); the class itself is style-inert --
         --see the rail window's copy of this note).
         classes = {"framedPanel", "popoutWindow", "dock"},
-        styles = PopoutWindowStyles(),
+        styles = PanelDocument.PopoutWindowStyles(),
         bgimage = true,
         width = width,
         height = height,
@@ -9342,7 +9388,7 @@ OpenPanelPopout = function(panelName, geometry)
                 return
             end
             local geo = element.data.popoutGeometry
-            PopoutRememberWindow(key, {
+            PanelDocument.PopoutRememberWindow(key, {
                 x = geo.x, y = geo.y, width = geo.width, height = geo.height,
                 scale = geo.scale,
             })
@@ -9353,7 +9399,7 @@ OpenPanelPopout = function(panelName, geometry)
         --not come back next session. (Teardown paths -- pop-in, reload,
         --app exit -- never fire this.)
         nativeWindowClosed = function(element)
-            PopoutForgetWindow(key)
+            PanelDocument.PopoutForgetWindow(key)
         end,
 
         --Escape pressed IN the popout window deliberately has NO handler
@@ -9371,7 +9417,7 @@ OpenPanelPopout = function(panelName, geometry)
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = PopoutWindowStyles()
+                    element.styles = PanelDocument.PopoutWindowStyles()
                     element:UpdateStyle()
                 end
             end)
@@ -9425,7 +9471,7 @@ OpenPanelPopout = function(panelName, geometry)
 
     --record the popout immediately so it survives a Lua reload that
     --happens before the first move/resize report arrives.
-    PopoutRememberWindow(key, {
+    PanelDocument.PopoutRememberWindow(key, {
         x = geometry ~= nil and geometry.x or nil,
         y = geometry ~= nil and geometry.y or nil,
         width = width,
@@ -12006,6 +12052,212 @@ local function RailWriteToolkits(toolkits)
     dmhub.SetSettingValue("iconrailtoolkits", toolkits)
 end
 
+----------------------------------------------------------------------
+-- Account-wide button store
+-- -------------------------
+-- Button DEFINITIONS live in per-game preferences (local files), so a
+-- button authored in one game used to be invisible everywhere else.
+-- /UserButtons/{userid} (the userbuttons engine bridge) is the
+-- account-wide mirror: every save of an authored button uploads its
+-- definition there (script/command gzip+base64 compressed), and the
+-- surfaces that list "your buttons" -- the Share dialog and the
+-- library's YOUR BUTTONS section -- read it LAZILY, on open, never at
+-- game load. Community-sourced buttons (def.pack set) are someone
+-- else's work and stay out of the store.
+--
+-- Identity: a standalone button's settings KEY is its id everywhere.
+-- Toolkit items are array entries with no key, so they carry a minted
+-- persistent `buttonid` field instead; installing a store button into
+-- another game always lands it as a standalone def keyed by that id.
+----------------------------------------------------------------------
+
+--One namespace table rather than individual locals: the main chunk
+--rides close to Lua's 200-local limit, and this whole feature costs it
+--a single slot. cache: buttonid -> { name, packid, mtime, button =
+--def }, nil until the first fetch; mirror writes keep it current
+--afterwards, so one cloud read per session is the steady state.
+local UserButtons = {
+    cache = nil,
+    migratedGame = nil,
+}
+
+--Lazily fetch the account store. cb(records) -- the cached table when
+--one exists (opts.force re-reads from the cloud); cb(nil) on failure.
+function UserButtons.Fetch(cb, opts)
+    opts = opts or {}
+    if UserButtons.cache ~= nil and not opts.force then
+        cb(UserButtons.cache)
+        return
+    end
+    userbuttons.Query{
+        success = function(records)
+            if mod.unloaded then
+                return
+            end
+            UserButtons.cache = records or {}
+            cb(UserButtons.cache)
+        end,
+        failure = function(err)
+            if mod.unloaded then
+                return
+            end
+            print("UserButtons:: query failed:", err)
+            cb(nil)
+        end,
+    }
+end
+
+--Mirror one authored definition up to the account store, fire and
+--forget: a save should never block or error the editing flow over
+--cloud weather. The session cache is updated eagerly so lazily-opened
+--surfaces see the edit without a re-fetch.
+function UserButtons.Mirror(id, def)
+    if id == nil or type(def) ~= "table" or def.pack ~= nil then
+        return
+    end
+    if UserButtons.cache ~= nil then
+        UserButtons.cache[id] = { name = def.name, packid = def.packid, button = def }
+    end
+    userbuttons.Upload{
+        id = id,
+        button = def,
+        failure = function(err)
+            print("UserButtons:: upload failed:", err)
+        end,
+    }
+end
+
+--Delete a button from the account store. The store only: per-game
+--copies are handled by the caller (deleting a button from one game's
+--rail intentionally does NOT touch the account).
+function UserButtons.Forget(id, onComplete)
+    if UserButtons.cache ~= nil then
+        UserButtons.cache[id] = nil
+    end
+    userbuttons.Delete{
+        id = id,
+        success = function()
+            if mod.unloaded then
+                return
+            end
+            if onComplete ~= nil then
+                onComplete(true)
+            end
+        end,
+        failure = function(err)
+            if mod.unloaded then
+                return
+            end
+            print("UserButtons:: delete failed:", err)
+            if onComplete ~= nil then
+                onComplete(false, err)
+            end
+        end,
+    }
+end
+
+--Every authored button in THIS game as id -> def: standalone defs plus
+--toolkit script items, community-sourced ones excluded. Toolkit items
+--without a buttonid get one minted here (written back to the setting),
+--so they have a stable account identity from then on.
+function UserButtons.LocalAuthored()
+    local result = {}
+    for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
+        if type(def) == "table" and def.type == "script" and def.pack == nil then
+            result[id] = def
+        end
+    end
+    local toolkits = RailToolkits()
+    local minted = false
+    for _, rec in pairs(toolkits) do
+        if type(rec) == "table" and rec.pack == nil then
+            for _, item in ipairs(rec.items or {}) do
+                if type(item) == "table" and item.type == "script" and item.pack == nil then
+                    if item.buttonid == nil then
+                        item.buttonid = string.lower(dmhub.GenerateGuid())
+                        minted = true
+                    end
+                    result[item.buttonid] = item
+                end
+            end
+        end
+    end
+    if minted then
+        RailWriteToolkits(toolkits)
+    end
+    return result
+end
+
+--One-time per game: push this game's authored buttons into the account
+--store so every other game can see them. Reads the store first and
+--only uploads ids it does not already have -- an id already there was
+--pushed by another game (or an earlier partial run) and may be newer
+--than our copy. The migrated flag is set only when every upload lands,
+--so a failed run retries on the next game entry; the session guard is
+--per-game so switching games without a restart still migrates.
+function UserButtons.Migrate()
+    if UserButtons.migratedGame == dmhub.gameid then
+        return
+    end
+    UserButtons.migratedGame = dmhub.gameid
+    if dmhub.GetSettingValue("userbuttonsmigrated") then
+        return
+    end
+    local authored = UserButtons.LocalAuthored()
+    if next(authored) == nil then
+        dmhub.SetSettingValue("userbuttonsmigrated", true)
+        return
+    end
+    UserButtons.Fetch(function(records)
+        if records == nil then
+            --fetch failed; clear the session guard so the next game
+            --entry (or rail rebuild) retries.
+            UserButtons.migratedGame = nil
+            return
+        end
+        local pending = 0
+        local failed = false
+        local dispatched = false
+        local function Done()
+            if not failed then
+                dmhub.SetSettingValue("userbuttonsmigrated", true)
+            end
+        end
+        for id, def in pairs(authored) do
+            if records[id] == nil then
+                dispatched = true
+                pending = pending + 1
+                userbuttons.Upload{
+                    id = id,
+                    button = def,
+                    success = function()
+                        if mod.unloaded then
+                            return
+                        end
+                        if UserButtons.cache ~= nil then
+                            UserButtons.cache[id] = { name = def.name, packid = def.packid, button = def }
+                        end
+                        pending = pending - 1
+                        if pending == 0 then
+                            Done()
+                        end
+                    end,
+                    failure = function(err)
+                        if mod.unloaded then
+                            return
+                        end
+                        print("UserButtons:: migration upload failed:", err)
+                        failed = true
+                    end,
+                }
+            end
+        end
+        if not dispatched then
+            Done()
+        end
+    end)
+end
+
 --the open strips, keyed by toolkit id.
 local g_railToolkitStrips = {}
 
@@ -12322,6 +12574,13 @@ local function RunToolkitScriptButton(item, element)
 
     local chunk, loadErr = load(ScriptButtonCode(item.script or ""), "script-button:" .. (item.name or "button"))
     local ok, err
+    --while the chunk runs, the clicked button's panel is published as the
+    --scriptButtonElement global so a script can anchor UI to its own
+    --button (element.popupPositioning/element.popup). Saved and restored
+    --around the call so a script that triggers another button mid-run
+    --cannot leave a stale element behind.
+    local prevScriptButtonElement = rawget(_G, "scriptButtonElement")
+    scriptButtonElement = element
     if chunk == nil then
         ok, err = false, loadErr
     elseif packid ~= nil then
@@ -12334,6 +12593,7 @@ local function RunToolkitScriptButton(item, element)
     else
         ok, err = pcall(chunk)
     end
+    scriptButtonElement = prevScriptButtonElement
     if ok then
         return
     end
@@ -13499,6 +13759,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
                         if type(def) == "table" then
                             def.script = m_script
                             dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+                            UserButtons.Mirror(sbuttonEditId, def)
                             --directives (@slots/@bgcolor/@label/@tooltip)
                             --may have changed; the rail bakes them in at
                             --build time.
@@ -13511,7 +13772,11 @@ RailScriptButtonDialog = function(toolkitid, idx)
                         local it = rec ~= nil and rec.items ~= nil and rec.items[idx] or nil
                         if it ~= nil and it.type == "script" then
                             it.script = m_script
+                            if rec.pack == nil and it.pack == nil then
+                                it.buttonid = it.buttonid or string.lower(dmhub.GenerateGuid())
+                            end
                             RailWriteToolkits(t)
+                            UserButtons.Mirror(it.buttonid, it)
                             --rebuild the strip in place if it is open, so
                             --face directives and the hover text follow.
                             local strip = g_railToolkitStrips[toolkitid]
@@ -13576,6 +13841,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
             local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
             defs[sbuttonEditId] = item
             dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            UserButtons.Mirror(sbuttonEditId, item)
             RebuildIconRails()
             return { buttonid = sbuttonEditId }
         end
@@ -13592,6 +13858,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
             local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
             defs[id] = item
             dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            UserButtons.Mirror(id, item)
             RailAddPanel("button:" .. id, "left")
             return { buttonid = id }
         end
@@ -13614,15 +13881,22 @@ RailScriptButtonDialog = function(toolkitid, idx)
         local itemIndex
         if idx ~= nil and rec.items[idx] ~= nil then
             --a shared toolkit item keeps its packid through
-            --the rebuild, so Update still targets its pack.
+            --the rebuild, so Update still targets its pack --
+            --and its account identity (buttonid) survives the
+            --same way.
             item.packid = rec.items[idx].packid
+            item.buttonid = rec.items[idx].buttonid
             rec.items[idx] = item
             itemIndex = idx
         else
             rec.items[#rec.items + 1] = item
             itemIndex = #rec.items
         end
+        if rec.pack == nil and item.pack == nil then
+            item.buttonid = item.buttonid or string.lower(dmhub.GenerateGuid())
+        end
         RailWriteToolkits(t)
+        UserButtons.Mirror(item.buttonid, item)
         if toolkitid == nil then
             --from the library: make the result visible. The
             --toolkit gets its rail button (no-op if already
@@ -13661,6 +13935,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
             if type(item) == "table" then
                 item.command = cmd
                 dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+                UserButtons.Mirror(locator.buttonid, item)
             end
         elseif locator.toolkitid ~= nil then
             local t = RailToolkits()
@@ -13671,7 +13946,11 @@ RailScriptButtonDialog = function(toolkitid, idx)
             end
             if type(item) == "table" then
                 item.command = cmd
+                if rec.pack == nil and item.pack == nil then
+                    item.buttonid = item.buttonid or string.lower(dmhub.GenerateGuid())
+                end
                 RailWriteToolkits(t)
+                UserButtons.Mirror(item.buttonid, item)
             end
         end
     end
@@ -14193,6 +14472,10 @@ local function CommunityAddButton(pack, button, side)
         name = button.name,
         icon = button.icon,
         script = button.script,
+        --command-mode buttons: the mode flag and the recorded command
+        --pipe ride along, or the added button silently does nothing.
+        mode = button.mode,
+        command = button.command,
         panel = button.panel,
         description = button.description,
         pack = packid,
@@ -14235,10 +14518,10 @@ local function ScriptButtonFacePanel(def, args)
     --2026-08-20); the icon is the honest fallback.
     local labelText = nil
     if style ~= nil and style.label ~= nil then
-        local token = dmhub.currentToken
-        if token ~= nil and token.properties ~= nil then
+        local props = ToolkitCluster.DirectiveEvalProperties(style.label)
+        if props ~= nil then
             pcall(function()
-                local value = ExecuteGoblinScript(style.label, token.properties:LookupSymbol{}, 0, "rail button label")
+                local value = ExecuteGoblinScript(style.label, props:LookupSymbol{}, 0, "rail button label")
                 if value ~= nil then
                     local n = tonumber(value)
                     if n ~= nil and n == math.floor(n) then
@@ -14474,6 +14757,7 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                 halign = "center",
                 textAlignment = "center",
                 textWrap = false,
+                textOverflow = "ellipsis",
                 tmargin = 6,
                 interactable = false,
             },
@@ -14539,6 +14823,7 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                 halign = "left",
                 textAlignment = "left",
                 textWrap = false,
+                textOverflow = "ellipsis",
                 interactable = false,
             },
             gui.Label{
@@ -14549,6 +14834,7 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                 halign = "left",
                 textAlignment = "left",
                 textWrap = false,
+                textOverflow = "ellipsis",
                 tmargin = 2,
                 interactable = false,
             },
@@ -14560,6 +14846,7 @@ local function CommunityButtonCard(pack, button, packStats, opts)
                 halign = "left",
                 textAlignment = "left",
                 textWrap = false,
+                textOverflow = "ellipsis",
                 tmargin = 2,
                 interactable = false,
             },
@@ -15033,23 +15320,25 @@ local function RailShowCommunityBrowser(side, opts)
     end)
 end
 
---Every button the user can share: their own standalone rail buttons
---plus the script buttons inside their toolkits. Buttons that CAME from
---the community (def.pack set) and legacy materialized pack toolkits
---are excluded -- you share your own work, not someone else's.
-local function ShareableButtons()
+--Every button the user can share: the ACCOUNT-WIDE store (buttons
+--authored in any game), unioned with this game's authored buttons in
+--case a mirror upload has not landed yet. Buttons that CAME from the
+--community (def.pack set) and legacy materialized pack toolkits are
+--excluded -- you share your own work, not someone else's.
+--records: the /UserButtons table from UserButtons.Fetch (may be nil
+--when the fetch failed; the dialog then lists local buttons only).
+local function ShareableButtons(records)
     local entries = {}
-    for id, def in pairs(dmhub.GetSettingValue("iconrailscriptbuttons") or {}) do
-        if type(def) == "table" and def.type == "script" and def.pack == nil then
-            entries[#entries + 1] = { kind = "standalone", id = id, item = def, source = "On the rail" }
-        end
+    local seen = {}
+    local localAuthored = UserButtons.LocalAuthored()
+    for id, def in pairs(localAuthored) do
+        seen[id] = true
+        entries[#entries + 1] = { id = id, item = def, source = "In this game" }
     end
-    for tid, rec in pairs(RailToolkits()) do
-        if type(rec) == "table" and rec.pack == nil then
-            for idx, item in ipairs(rec.items or {}) do
-                if type(item) == "table" and item.type == "script" and item.pack == nil then
-                    entries[#entries + 1] = { kind = "toolkit", toolkitid = tid, idx = idx, item = item, source = rec.name or "Toolkit" }
-                end
+    if records ~= nil then
+        for id, record in pairs(records) do
+            if not seen[id] and type(record) == "table" and type(record.button) == "table" then
+                entries[#entries + 1] = { id = id, item = record.button, source = "From another game" }
             end
         end
     end
@@ -15097,6 +15386,7 @@ local function RailShareButtonsDialog(opts)
     local rowsPanel
     local statusLabel
     local RenderRows
+    local RemoveFromAccount
 
     local function CloseDialog()
         if window ~= nil and window.valid then
@@ -15105,43 +15395,80 @@ local function RailShareButtonsDialog(opts)
         g_shareButtonsDialog = nil
     end
 
-    --write the minted packid back onto the LIVE definition, so the next
-    --share of this button updates the same pack.
-    local function RememberPackid(entry, packid)
-        if entry.kind == "standalone" then
-            local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
-            local def = defs[entry.id]
-            if type(def) == "table" then
-                def.packid = packid
-                dmhub.SetSettingValue("iconrailscriptbuttons", defs)
-            end
-        else
-            local toolkits = RailToolkits()
-            local rec = toolkits[entry.toolkitid]
-            local item = nil
+    --The LIVE definition for a dialog entry: this game's copy when the
+    --button lives here (standalone def keyed by the id, or a toolkit
+    --item carrying it as buttonid), else the account-store copy. The
+    --dialog's snapshot may be stale -- an edit can land while it is
+    --open -- so the actions re-resolve at click time.
+    local function LiveDefinition(id)
+        local def = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[id]
+        if type(def) == "table" then
+            return def
+        end
+        for _, rec in pairs(RailToolkits()) do
             if type(rec) == "table" then
-                item = (rec.items or {})[entry.idx]
-            end
-            if type(item) == "table" then
-                item.packid = packid
-                RailWriteToolkits(toolkits)
+                for _, item in ipairs(rec.items or {}) do
+                    if type(item) == "table" and item.buttonid == id then
+                        return item
+                    end
+                end
             end
         end
+        local record = UserButtons.cache ~= nil and UserButtons.cache[id] or nil
+        if type(record) == "table" and type(record.button) == "table" then
+            return record.button
+        end
+        return nil
+    end
+
+    --write the minted packid back onto every copy of the definition --
+    --this game's standalone def and/or toolkit item, and the account
+    --store -- so the next share of this button updates the same pack
+    --from ANY game.
+    local function RememberPackid(entry, packid)
+        local mirrored = nil
+        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+        local def = defs[entry.id]
+        if type(def) == "table" then
+            def.packid = packid
+            dmhub.SetSettingValue("iconrailscriptbuttons", defs)
+            mirrored = def
+        end
+        local toolkits = RailToolkits()
+        local changed = false
+        for _, rec in pairs(toolkits) do
+            if type(rec) == "table" then
+                for _, item in ipairs(rec.items or {}) do
+                    if type(item) == "table" and item.buttonid == entry.id then
+                        item.packid = packid
+                        changed = true
+                        mirrored = mirrored or item
+                    end
+                end
+            end
+        end
+        if changed then
+            RailWriteToolkits(toolkits)
+        end
+        --no local copy in this game: update the store record directly.
+        if mirrored == nil then
+            local record = UserButtons.cache ~= nil and UserButtons.cache[entry.id] or nil
+            if type(record) == "table" and type(record.button) == "table" then
+                mirrored = record.button
+                mirrored.packid = packid
+            end
+        end
+        if mirrored ~= nil then
+            UserButtons.Mirror(entry.id, mirrored)
+        end
+        entry.item.packid = packid
     end
 
     --publish one button as its own single-button pack. Re-reads the
     --LIVE definition at click time -- the dialog's snapshot may be
     --stale (an edit or delete can land while it is open).
     local function ShareEntry(entry)
-        local item = nil
-        if entry.kind == "standalone" then
-            item = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[entry.id]
-        else
-            local rec = RailToolkits()[entry.toolkitid]
-            if type(rec) == "table" then
-                item = (rec.items or {})[entry.idx]
-            end
-        end
+        local item = LiveDefinition(entry.id)
         if type(item) ~= "table" then
             --the button vanished under us; re-render to match reality.
             RenderRows()
@@ -15161,6 +15488,11 @@ local function RailShareButtonsDialog(opts)
                         name = item.name,
                         icon = item.icon,
                         script = item.script,
+                        --command-mode buttons publish their mode and
+                        --recorded command pipe; without these a shared
+                        --command button arrives inert.
+                        mode = item.mode,
+                        command = item.command,
                         panel = item.panel,
                         description = item.description,
                     },
@@ -15199,15 +15531,7 @@ local function RailShareButtonsDialog(opts)
     --Buttons other players already added keep working; their scripts
     --were copied when they added them.
     local function StopSharing(entry)
-        local item = nil
-        if entry.kind == "standalone" then
-            item = (dmhub.GetSettingValue("iconrailscriptbuttons") or {})[entry.id]
-        else
-            local rec = RailToolkits()[entry.toolkitid]
-            if type(rec) == "table" then
-                item = (rec.items or {})[entry.idx]
-            end
-        end
+        local item = LiveDefinition(entry.id)
         if type(item) ~= "table" or item.packid == nil then
             --the button vanished or is no longer shared; re-render to
             --match reality.
@@ -15314,7 +15638,7 @@ local function RailShareButtonsDialog(opts)
 
             gui.Panel{
                 flow = "vertical",
-                width = "100%-230",
+                width = "100%-254",
                 height = "auto",
                 valign = "center",
                 lmargin = 10,
@@ -15327,6 +15651,7 @@ local function RailShareButtonsDialog(opts)
                     halign = "left",
                     textAlignment = "left",
                     textWrap = false,
+                    textOverflow = "ellipsis",
                     interactable = false,
                 },
                 gui.Label{
@@ -15337,6 +15662,7 @@ local function RailShareButtonsDialog(opts)
                     halign = "left",
                     textAlignment = "left",
                     textWrap = false,
+                    textOverflow = "ellipsis",
                     tmargin = 2,
                     interactable = false,
                 },
@@ -15348,12 +15674,46 @@ local function RailShareButtonsDialog(opts)
                     halign = "left",
                     textAlignment = "left",
                     textWrap = false,
+                    textOverflow = "ellipsis",
                     tmargin = 2,
                     interactable = false,
                 },
             },
 
             sharedMark,
+
+            --account removal, behind a menu so a stray click cannot
+            --destroy a button. Removal takes it out of the account
+            --store and out of this game.
+            gui.Panel{
+                bgimage = "phosphor/trash.png",
+                width = 16,
+                height = 16,
+                halign = "right",
+                valign = "center",
+                rmargin = 8,
+                bgcolor = "#ffffff88",
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        bgcolor = "#ffffff",
+                        transitionTime = 0.1,
+                    },
+                },
+                click = function(element)
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Remove from Account",
+                                click = function()
+                                    element.popup = nil
+                                    RemoveFromAccount(entry)
+                                end,
+                            },
+                        },
+                    }
+                end,
+            },
 
             gui.Panel{
                 classes = {"libShareButton"},
@@ -15387,37 +15747,106 @@ local function RailShareButtonsDialog(opts)
         vscroll = true,
     }
 
+    --Remove a button from the account store, and from THIS game's
+    --copies so an edit here does not immediately mirror it back up.
+    --Copies in OTHER games are unreachable per-game local prefs and
+    --survive; editing one of them there re-creates the account record.
+    RemoveFromAccount = function(entry)
+        UserButtons.Forget(entry.id, function(ok, err)
+            if not ok then
+                gui.ModalMessage{
+                    title = "Could not remove",
+                    message = tostring(err),
+                }
+                return
+            end
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = string.format("%s has been removed from your account.", entry.item.name or "Button")
+            end
+            RenderRows()
+        end)
+        --this game's standalone copy (rail button included)...
+        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+        if defs[entry.id] ~= nil then
+            RailDeleteScriptButton(entry.id)
+        end
+        --...and its toolkit copies, rebuilding any open strips.
+        local toolkits = RailToolkits()
+        local changedTids = {}
+        for tid, rec in pairs(toolkits) do
+            if type(rec) == "table" then
+                local items = rec.items or {}
+                for i = #items, 1, -1 do
+                    local item = items[i]
+                    if type(item) == "table" and item.buttonid == entry.id then
+                        table.remove(items, i)
+                        changedTids[tid] = true
+                    end
+                end
+            end
+        end
+        if next(changedTids) ~= nil then
+            RailWriteToolkits(toolkits)
+            for tid in pairs(changedTids) do
+                local strip = g_railToolkitStrips[tid]
+                if strip ~= nil and strip.valid then
+                    local x, y = strip.x, strip.y
+                    HideToolkitStrip(tid)
+                    ShowToolkitStrip(tid, x, y)
+                end
+            end
+        end
+    end
+
     RenderRows = function()
         if rowsPanel == nil or not rowsPanel.valid then
             return
         end
-        local rows = {}
-        for _, entry in ipairs(ShareableButtons()) do
-            rows[#rows + 1] = ShareRow(entry)
-        end
-        if #rows == 0 then
-            rows = {
+        --lazy account fetch: the store is only read when a surface like
+        --this one actually needs the authored-button list.
+        if UserButtons.cache == nil then
+            rowsPanel.children = {
                 gui.Label{
                     classes = {"libSection"},
-                    text = "No buttons to share yet. Create one from the Panel Library's New button tile.",
+                    text = "Loading your buttons...",
                     width = "100%",
                     height = "auto",
                     tmargin = 8,
                 },
             }
         end
-        --a single auto-height child inside the fixed-height scroll
-        --panel, so the rows stack instead of distributing over it (the
-        --community browser's cardsPanel does the same).
-        rowsPanel.children = {
-            gui.Panel{
-                flow = "vertical",
-                width = "100%",
-                height = "auto",
-                valign = "top",
-                children = rows,
-            },
-        }
+        UserButtons.Fetch(function(records)
+            if rowsPanel == nil or not rowsPanel.valid then
+                return
+            end
+            local rows = {}
+            for _, entry in ipairs(ShareableButtons(records)) do
+                rows[#rows + 1] = ShareRow(entry)
+            end
+            if #rows == 0 then
+                rows = {
+                    gui.Label{
+                        classes = {"libSection"},
+                        text = "No buttons to share yet. Create one from the Panel Library's New button tile.",
+                        width = "100%",
+                        height = "auto",
+                        tmargin = 8,
+                    },
+                }
+            end
+            --a single auto-height child inside the fixed-height scroll
+            --panel, so the rows stack instead of distributing over it (the
+            --community browser's cardsPanel does the same).
+            rowsPanel.children = {
+                gui.Panel{
+                    flow = "vertical",
+                    width = "100%",
+                    height = "auto",
+                    valign = "top",
+                    children = rows,
+                },
+            }
+        end)
     end
 
     statusLabel = gui.Label{
@@ -15950,6 +16379,88 @@ RailShowAddPicker = function(element, side)
                 height = "auto",
                 halign = "left",
                 children = buttonTiles,
+            },
+            --buttons authored in the user's OTHER games, from the
+            --account-wide store: fetched lazily when the library opens
+            --(session-cached), and rendered as install tiles -- a click
+            --copies the definition into this game and puts it on the
+            --rail. Zero-height until the fetch lands, so the library
+            --does not reflow when the account has nothing new.
+            gui.Panel{
+                flow = "horizontal",
+                wrap = true,
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                create = function(accountRow)
+                    UserButtons.Fetch(function(records)
+                        if records == nil or mod.unloaded or not accountRow.valid then
+                            return
+                        end
+                        --already-here filter: standalone defs keyed by
+                        --the id, and toolkit items carrying it as
+                        --buttonid, count as present in this game.
+                        local defs = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+                        local present = {}
+                        for id in pairs(defs) do
+                            present[id] = true
+                        end
+                        for _, rec in pairs(RailToolkits()) do
+                            if type(rec) == "table" then
+                                for _, item in ipairs(rec.items or {}) do
+                                    if type(item) == "table" and item.buttonid ~= nil then
+                                        present[item.buttonid] = true
+                                    end
+                                end
+                            end
+                        end
+                        local remote = {}
+                        for id, record in pairs(records) do
+                            local def = type(record) == "table" and record.button or nil
+                            if type(def) == "table" and not present[id] then
+                                remote[#remote + 1] = { id = id, def = def }
+                            end
+                        end
+                        if #remote == 0 then
+                            return
+                        end
+                        table.sort(remote, function(a, b)
+                            return string.lower(a.def.name or "") < string.lower(b.def.name or "")
+                        end)
+                        local tiles = {}
+                        for _, b in ipairs(remote) do
+                            local def = b.def
+                            tiles[#tiles + 1] = ButtonReplica(def.icon or "phosphor/lightning.png", def.name or "Button", {
+                                def = def,
+                                tooltip = "Made in another of your games. Click to add it to this game.",
+                                click = function()
+                                    --install a clean copy: the known
+                                    --definition fields only, keyed by
+                                    --the button's account id so edits
+                                    --here update the same account
+                                    --record.
+                                    local defsNow = dmhub.GetSettingValue("iconrailscriptbuttons") or {}
+                                    defsNow[b.id] = {
+                                        type = def.type or "script",
+                                        name = def.name,
+                                        icon = def.icon,
+                                        script = def.script,
+                                        mode = def.mode,
+                                        command = def.command,
+                                        panel = def.panel,
+                                        description = def.description,
+                                        packid = def.packid,
+                                    }
+                                    dmhub.SetSettingValue("iconrailscriptbuttons", defsNow)
+                                    RailAddPanel("button:" .. b.id, side)
+                                    RebuildIconRails()
+                                    CloseLibrary()
+                                end,
+                            })
+                        end
+                        accountRow.children = tiles
+                    end)
+                end,
             },
 
             SectionHeader("COMMUNITY SPOTLIGHT"),
@@ -17290,13 +17801,16 @@ local function CreateIconRail(side, entries)
             --change without a rail rebuild.
             local labelFormula = sbuttonStyle.label
             local function LabelText()
-                local token = dmhub.currentToken
-                if token == nil or token.properties == nil then
+                --global-only formulas (hero tokens, malice) get a blank-
+                --character context when nothing is selected; per-character
+                --formulas fall through to nil and the icon face.
+                local props = ToolkitCluster.DirectiveEvalProperties(labelFormula)
+                if props == nil then
                     return nil
                 end
                 local value = nil
                 pcall(function()
-                    value = ExecuteGoblinScript(labelFormula, token.properties:LookupSymbol{}, nil, "rail button label")
+                    value = ExecuteGoblinScript(labelFormula, props:LookupSymbol{}, nil, "rail button label")
                 end)
                 if value == nil then
                     return nil
@@ -19316,6 +19830,10 @@ function EnsureIconRail()
     --call and costs a handful of settings reads once it is clean.
     local renamed = RailMigrateRenamedPanels()
 
+    --push this game's authored buttons into the account-wide store
+    --(one-time per game; a no-op costs one settings read + flag check).
+    UserButtons.Migrate()
+
     local existing = g_iconRails.left
     if existing ~= nil and existing.valid then
         --rails already up: they were built from the pre-rename state, so
@@ -19404,11 +19922,11 @@ function EnsureIconRail()
     --popouts back after a Lua reload (the unload sweep destroys the
     --hosts; the records survive it) without windows from a previous
     --launch reappearing at startup; stale records are pruned.
-    local session = PopoutSessionId()
+    local session = PanelDocument.PopoutSessionId()
     local popouts = DeepCopy(dmhub.GetSettingValue("popoutwindows") or {})
     for key, p in pairs(popouts) do
         if p.session ~= session then
-            PopoutForgetWindow(key)
+            PanelDocument.PopoutForgetWindow(key)
         elseif not PanelDocument.IsPoppedOut(key) then
             OpenPanelPopout(key, {
                 x = p.x, y = p.y, width = p.width, height = p.height,

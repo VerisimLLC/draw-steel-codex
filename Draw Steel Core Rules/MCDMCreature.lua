@@ -1508,6 +1508,9 @@ creature.RegisterMatchString{
 
 creature.RegisterSymbol{
     symbol = "herotokens",
+    --the pool is party-global; global = true lets rail buttons and other
+    --consumers evaluate this with no character selected.
+    global = true,
     lookup = function(c)
         return c:GetHeroTokens()
     end,
@@ -1521,6 +1524,8 @@ creature.RegisterSymbol{
 
 creature.RegisterSymbol{
     symbol = "malice",
+    --game-wide pool; the lookup ignores the creature entirely.
+    global = true,
     lookup = function(c)
         return CharacterResource.GetMalice()
     end,

@@ -555,6 +555,9 @@ local OVERVIEW = {
     GUIDE_COLOR = "#7AC77A",
     FOOTER_ROWS = 3,
     FOOTER_ROW_POOL = 6,
+    --Mini-row name length that still renders without ellipsis at the row
+    --font; longer names drop the monster-band prefix (field test 33).
+    ROW_NAME_CHARS = 22,
     STATUS_ICONS = 2,
     THREAT_COLOR = "#E06464",
     NOREACH_COLOR = "#E0A050",
@@ -5030,8 +5033,18 @@ local function OverviewColumnSignals(column)
     end
     for _, tok in ipairs(column.tokens or {}) do
         if tok ~= nil and tok.valid and tok.properties ~= nil then
+            --Field test 33: squad identity only substitutes for MINIONS.
+            --A non-minion carrying a squad id is that squad's CAPTAIN
+            --(field test 27's rule) - it keeps its own name and row, and
+            --never folds into the squad's member entry (Goblin Warrior 8,
+            --captain of Spinecleaver Squad 4, showed as "Spinecleaver
+            --Squad 4" inside the Warrior column).
             local squad = nil
-            pcall(function() squad = tok.properties:MinionSquad() end)
+            pcall(function()
+                if tok.properties.minion == true then
+                    squad = tok.properties:MinionSquad()
+                end
+            end)
             local key = squad or tok.charid
             local member = byKey[key]
             if member == nil then
@@ -5726,11 +5739,41 @@ local function OverviewColumnFooter()
                     element:SetClass("promptOption", false)
                     return
                 end
+                --Field test 33 (Ricky): when the row text cannot fit
+                --("Goblin Spinecleaver Squad 1" ellipsized the squad
+                --NUMBER - the important bit), drop the monster-band
+                --prefix from the name (the bestiary group: "Goblin ",
+                --"Demon ", "War Dog "...). Solo monsters keep it - the
+                --band usually IS the name there (Arrix).
                 local text = member.name
+                local suffix = ""
                 if #member.tokens > 1 then
-                    text = string.format("%s (%d)", text, #member.tokens)
+                    suffix = string.format(" (%d)", #member.tokens)
                 end
-                rowLabel.text = text
+                if #text + #suffix > OVERVIEW.ROW_NAME_CHARS then
+                    pcall(function()
+                        local props = member.token.properties
+                        local org = string.lower(props:Organization() or "")
+                        if org ~= "solo" then
+                            local group = props:MonsterGroup()
+                            local band = group ~= nil and group.name or nil
+                            if band ~= nil and #band > 0 then
+                                local lowered = string.lower(text)
+                                --try the band as-is, then singular if the
+                                --group name is plural ("Goblins" group vs
+                                --"Goblin Warrior" statblock)
+                                for _, candidate in ipairs({ string.lower(band), (string.lower(band):gsub("s$", "")) }) do
+                                    local prefix = candidate .. " "
+                                    if #candidate > 0 and string.sub(lowered, 1, #prefix) == prefix then
+                                        text = string.sub(text, #prefix + 1)
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+                rowLabel.text = text .. suffix
                 local signal = OverviewSignalText(member, inCombat)
                 local reach = OverviewReachText(member.reach, true)
                 if reach ~= nil then
@@ -5884,6 +5927,28 @@ local function OverviewColumnFooter()
             cap = #rows
         elseif #m_signals.members > 1 then
             list = m_signals.members
+            --Field test 33 (Ricky): a member carrying a note (the
+            --near-death skull) sorts to the top so it is never hidden
+            --behind "+N more" - he wants to SEE which one is dying.
+            --Stable for everyone else; the prompt view keeps its own
+            --fresh-candidate order.
+            local flagged, plain = {}, {}
+            for _, member in ipairs(list) do
+                if member.risk ~= nil and member.risk.squishy ~= true then
+                    flagged[#flagged + 1] = member
+                else
+                    plain[#plain + 1] = member
+                end
+            end
+            if #flagged > 0 then
+                list = {}
+                for _, member in ipairs(flagged) do
+                    list[#list + 1] = member
+                end
+                for _, member in ipairs(plain) do
+                    list[#list + 1] = member
+                end
+            end
         end
 
         if list == nil then

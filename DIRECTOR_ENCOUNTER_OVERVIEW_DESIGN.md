@@ -1513,6 +1513,35 @@ hovers its own debuff text, the label hovers the explainer.**
   hover only, unproven). No swallowPress needed on any of them: the
   footer root swallows presses (its comment: last stop before the drawer
   toggle).
+- LIVE-VERIFIED 2026-08-25 (goblin encounter, staged edge effect on the
+  Bugbear Channeler): glyph appears ONLY beside the amber Likely Target
+  line, none under the portrait. FT32 closed.
+
+**2026-08-25, thirty-third field test (Ricky, goblin/bugbear encounter) -
+mini-row names + itemisation order (commits ef71bbd0). All live-verified
+in one frame: "Spinecleaver Squad 1 (4)" / "Squad 4 (4)" fit, near-death
+Warriors 2 + 8 skull-sorted to the top of the x8 column, Warrior 8 named
+correctly. Zero errors.**
+- **Band prefix dropped when the name cannot fit** ("Goblin Spinecleaver
+  Squad 1" ellipsized the squad NUMBER - the important bit). Rule: when
+  name + "(N)" exceeds OVERVIEW.ROW_NAME_CHARS (22), strip the bestiary
+  monster-group name off the front (props:MonsterGroup().name - "Goblin",
+  "Bugbear"; singular fallback if the group name is plural), EXCEPT when
+  props:Organization() == "solo" (the band usually IS a solo's name -
+  Arrix). Group names verified singular in data; org words lowercase.
+- **Members with a note sort to the top of the mini-rows** (Ricky: "I
+  want to be able to see specifically which monster is Near Death" - the
+  flagged Warrior 8 hid behind "+5 more"). LayoutRows now splits the
+  signals view into flagged (member.risk non-squishy = the skull) then
+  the rest, stable within each; the owner-prompt view keeps its own
+  fresh-candidate order.
+- **DATA FIND + rule fix in OverviewColumnSignals**: Goblin Warriors 7
+  and 8 carry Spinecleaver SQUAD ids - they are squad CAPTAINS. The
+  member key/name rule (name = squad or tok.name) predated field test
+  27's captain rule and displayed Warrior 8 as "Spinecleaver Squad 4"
+  inside the Warrior column. Squad identity now substitutes ONLY for
+  minions (tok.properties.minion == true); a captain keeps its own name
+  and its own member row and never folds into a squad entry.
 
 
 

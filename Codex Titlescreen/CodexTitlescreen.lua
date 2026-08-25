@@ -3427,7 +3427,13 @@ local function MakeGamePanel(gameIndex)
                             -- Hide the gameid copy label for local games; the
                             -- id is a local-only GUID that nobody can join.
                             -- The "Invite Players" button shows in its place.
-                            element:SetClass("hidden", m_game.storage == 3)
+                            -- Must be "collapsed", not "hidden": a hidden
+                            -- panel still occupies its 36px + margins, which
+                            -- stacks with the Invite button and steals two
+                            -- lines from the blurb above (height is
+                            -- "100% available", so it only gets what the
+                            -- bottom controls leave behind).
+                            element:SetClass("collapsed", m_game.storage == 3)
 
                             local gameid = m_game.gameid
                             if g_streamerModeSetting:Get() then

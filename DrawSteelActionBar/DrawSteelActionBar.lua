@@ -1818,6 +1818,28 @@ local OVERVIEW_FOOTER_RULES = {
         width = "auto",
         textWrap = false,
     },
+    --Field test 34: risk-box bullet rows indent to the headline's text
+    --(19 = 16px skull + 3 rmargin); a debuff bullet's glyph is 14px.
+    {
+        selectors = { "overviewRiskRow", "bullet" },
+        lmargin = 19,
+        width = "100%-19",
+    },
+    {
+        selectors = { "overviewRiskIcon", "bullet" },
+        width = 14,
+        height = 14,
+    },
+    --Field test 34: a mini-row's trailing debuff glyphs (13px, after the
+    --name) - the same symbol as the box bullet, binding fact to owner.
+    {
+        selectors = { "overviewRowStatusIcon" },
+        width = 13,
+        height = 13,
+        halign = "left",
+        valign = "center",
+        lmargin = 3,
+    },
     --Field test 22: a member row's name yields the skull's width so the
     --inline skull + ellipsized name never overflow the row.
     {
@@ -4806,6 +4828,41 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
     end
 
     local safeOutside = not anyUnspentInReach
+
+    --Field test 34 (Ricky): debuff facts are STRUCTURED bullets - each
+    --carries the condition's glyph so the footer can render the symbol
+    --instead of a "- " and the member rows can repeat the same symbol to
+    --show WHO it applies to. Plain bullets (Low Stamina, push) have no
+    --glyph. Dedupe by text; cap at `limit` with a "+N more" tail.
+    local function ThreatBullets(limit)
+        local list = {}
+        local seenTag = {}
+        local total = 0
+        for _, entry in ipairs(threats or {}) do
+            local text = entry.name or "Marked"
+            if entry.casterName ~= nil then
+                text = string.format("%s by %s", text, entry.casterName)
+            else
+                text = text .. " by a hero"
+            end
+            if not seenTag[text] then
+                seenTag[text] = true
+                total = total + 1
+                if total <= limit then
+                    local bgcolor = nil
+                    if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                        bgcolor = entry.style.bgcolor
+                    end
+                    list[#list + 1] = { text = text, icon = entry.icon, bgcolor = bgcolor, hoverText = entry.hoverText }
+                end
+            end
+        end
+        if total > limit and #list > 0 then
+            list[#list].text = string.format("%s +%d more", list[#list].text, total - limit)
+        end
+        return list
+    end
+
     if isMinion or (killer == nil and pushKiller == nil) then
         if isMinion then
             --Field test 28 (Ricky): a minion column ALWAYS reads
@@ -4814,31 +4871,11 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
             --recorded as revisitable). squishy does NOT count as dying
             --for DMG badge rule 2 and does NOT put skulls on the squad
             --mini-rows (the headline says it once).
-            local lines = { string.format("<color=%s><b>Squishy</b></color>", g_overviewRisk.red) }
-            local seenTag = {}
-            local shownTags = 0
-            for _, entry in ipairs(threats or {}) do
-                local text = entry.name or "Marked"
-                if entry.casterName ~= nil then
-                    text = string.format("%s by %s", text, entry.casterName)
-                else
-                    text = text .. " by a hero"
-                end
-                if not seenTag[text] then
-                    seenTag[text] = true
-                    if shownTags < 2 then
-                        lines[#lines + 1] = "- " .. text
-                    end
-                    shownTags = shownTags + 1
-                end
-            end
-            if shownTags > 2 then
-                lines[#lines] = string.format("%s +%d more", lines[#lines], shownTags - 2)
-            end
             return {
                 level = "red",
                 squishy = true,
-                text = table.concat(lines, "\n"),
+                headline = "Squishy",
+                bullets = ThreatBullets(2),
                 tooltip = "Even small hits kill minions and cut the squad's damage output.",
             }, safeOutside
         end
@@ -4847,34 +4884,12 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
 
     --Headline + WHY-bullets only (Ricky: no killer names on the chip; the
     --arithmetic and the hero's name live in the tooltip).
-    local bullets = { "Low Stamina" }
-    local seen = {}
-    local shown = 0
-    for _, entry in ipairs(threats or {}) do
-        local text = entry.name or "Marked"
-        if entry.casterName ~= nil then
-            text = string.format("%s by %s", text, entry.casterName)
-        else
-            text = text .. " by a hero"
-        end
-        if not seen[text] then
-            seen[text] = true
-            if shown < 2 then
-                bullets[#bullets + 1] = text
-            end
-            shown = shown + 1
-        end
-    end
-    if shown > 2 then
-        bullets[#bullets] = string.format("%s +%d more", bullets[#bullets], shown - 2)
+    local bullets = { { text = "Low Stamina" } }
+    for _, bullet in ipairs(ThreatBullets(2)) do
+        bullets[#bullets + 1] = bullet
     end
     if killer == nil and pushKiller ~= nil then
-        bullets[#bullets + 1] = "A push could finish it"
-    end
-
-    local lines = { string.format("<color=%s><b>Near Death</b></color>", g_overviewRisk.red) }
-    for _, bullet in ipairs(bullets) do
-        lines[#lines + 1] = "- " .. bullet
+        bullets[#bullets + 1] = { text = "A push could finish it" }
     end
 
     --Field test 20: the tooltip says the CONCLUSION, not the homework
@@ -4888,7 +4903,8 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
     end
     return {
         level = "red",
-        text = table.concat(lines, "\n"),
+        headline = "Near Death",
+        bullets = bullets,
         tooltip = tooltip,
     }, safeOutside
 end
@@ -5443,6 +5459,38 @@ local function OverviewColumnFooter()
         riskSkull,
         riskLabel,
     }
+    --Field test 34 (Ricky): the risk box's bullets are their own pooled
+    --rows. A debuff bullet leads with the CONDITION'S GLYPH instead of a
+    --"- " (the same glyph its owner's mini-row wears, so the fact prints
+    --once and the symbol says who it applies to); plain bullets (Low
+    --Stamina, push) keep the "- ". Glyphs hover their own debuff text.
+    local m_riskBullets = {}
+    for i = 1, 4 do
+        local bulletIcon = gui.Panel {
+            classes = { "overviewRiskIcon", "bullet", "collapsed" },
+            bgimage = "panels/square.png",
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
+        }
+        local bulletLabel = gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = "",
+        }
+        m_riskBullets[i] = {
+            icon = bulletIcon,
+            label = bulletLabel,
+            row = gui.Panel {
+                classes = { "overviewRiskRow", "bullet", "collapsed" },
+                bulletIcon,
+                bulletLabel,
+            },
+        }
+    end
 
     --Field test 29 (Ricky): High damage dealer and the area window are
     --their own rows beneath the risk box, each led by the SAME glyph as
@@ -5615,6 +5663,10 @@ local function OverviewColumnFooter()
             reachLabel,
             safeLabel,
             riskRow,
+            m_riskBullets[1].row,
+            m_riskBullets[2].row,
+            m_riskBullets[3].row,
+            m_riskBullets[4].row,
             dmgRow,
             areaRow,
             likelyRow,
@@ -5655,6 +5707,24 @@ local function OverviewColumnFooter()
             bgimage = "ebc8b529-f450-4bee-9466-86374c26dc13",
             hover = gui.Tooltip{ text = "Near Death", valign = "top" },
         }
+        --Field test 34: trailing debuff glyphs on the name line - the
+        --same symbols as the box's glyph bullets, so the box says the
+        --fact once and the row says who it applies to. Hover = the
+        --debuff's own text.
+        local rowStatusIcons = {}
+        for k = 1, 2 do
+            rowStatusIcons[k] = gui.Panel {
+                classes = { "overviewRowStatusIcon", "collapsed" },
+                bgimage = "panels/square.png",
+                data = { entry = nil },
+                hover = function(element)
+                    local entry = element.data.entry
+                    if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                        gui.Tooltip(entry.hoverText)(element)
+                    end
+                end,
+            }
+        end
         local rowNameLine = gui.Panel {
             width = "100%",
             height = "auto",
@@ -5662,6 +5732,8 @@ local function OverviewColumnFooter()
             halign = "left",
             rowSkull,
             rowLabel,
+            rowStatusIcons[1],
+            rowStatusIcons[2],
         }
         rowText = gui.Panel {
             classes = { "overviewFooterRowText" },
@@ -5716,6 +5788,10 @@ local function OverviewColumnFooter()
                     element:SetClass("promptOption", false)
                     rowSkull:SetClass("collapsed", true)
                     rowLabel:SetClass("withSkull", false)
+                    for _, iconPanel in ipairs(rowStatusIcons) do
+                        iconPanel.data.entry = nil
+                        iconPanel:SetClass("collapsed", true)
+                    end
                     return
                 end
                 --The member list is snapshotted into m_signals when the column
@@ -5788,6 +5864,41 @@ local function OverviewColumnFooter()
                 local rowRed = member.risk ~= nil and member.risk.squishy ~= true
                 rowSkull:SetClass("collapsed", not rowRed)
                 rowLabel:SetClass("withSkull", rowRed)
+                --Field test 34: this member's debuff glyphs trail the
+                --name; the label yields their width so the ellipsis and
+                --the glyphs never collide.
+                local rowThreats = {}
+                for _, status in ipairs(member.statuses or {}) do
+                    if status.threat then
+                        rowThreats[#rowThreats + 1] = status
+                    end
+                end
+                for k, iconPanel in ipairs(rowStatusIcons) do
+                    local entry = rowThreats[k]
+                    iconPanel.data.entry = entry
+                    if entry ~= nil then
+                        iconPanel.bgimage = entry.icon
+                        local bgcolor = "white"
+                        if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                            bgcolor = entry.style.bgcolor
+                        end
+                        iconPanel.selfStyle.bgcolor = bgcolor
+                        iconPanel:SetClass("collapsed", false)
+                    else
+                        iconPanel:SetClass("collapsed", true)
+                    end
+                end
+                local shownGlyphs = math.min(#rowThreats, #rowStatusIcons)
+                local reserve = 0
+                if rowRed then
+                    reserve = reserve + 16
+                end
+                reserve = reserve + shownGlyphs * 16
+                if reserve > 0 then
+                    rowLabel.selfStyle.width = string.format("100%%-%d", reserve)
+                else
+                    rowLabel.selfStyle.width = "100%"
+                end
                 rowSignal.text = signal
                 rowSignal:SetClass("collapsed", signal == "")
             end,
@@ -6216,11 +6327,50 @@ local function OverviewColumnFooter()
             end
             safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
             m_riskTooltip = risk and risk.tooltip or nil
-            local riskText = risk and risk.text or nil
-            riskLabel.text = riskText or ""
-            riskLabel:SetClass("collapsed", riskText == nil)
-            riskRow:SetClass("collapsed", riskText == nil)
+            local headline = risk and risk.headline or nil
+            riskLabel.text = headline ~= nil and string.format("<color=%s><b>%s</b></color>", g_overviewRisk.red, headline) or ""
+            riskLabel:SetClass("collapsed", headline == nil)
+            riskRow:SetClass("collapsed", headline == nil)
             riskSkull:SetClass("collapsed", risk == nil or risk.level ~= "red")
+            --Field test 34: the box's bullets are the UNION over every
+            --member's risk bullets (deduped by text) - one member's mark
+            --and another's Low Stamina both print, once each, and the
+            --debuff glyphs bind each fact to the rows that wear the same
+            --symbol. Plain bullets render "- text"; glyph bullets render
+            --[glyph] text.
+            local bullets = {}
+            if risk ~= nil then
+                local seenBullet = {}
+                for _, member in ipairs(members) do
+                    if member.risk ~= nil then
+                        for _, bullet in ipairs(member.risk.bullets or {}) do
+                            if not seenBullet[bullet.text] then
+                                seenBullet[bullet.text] = true
+                                bullets[#bullets + 1] = bullet
+                            end
+                        end
+                    end
+                end
+            end
+            for i, entry in ipairs(m_riskBullets) do
+                local bullet = bullets[i]
+                if bullet == nil then
+                    entry.row:SetClass("collapsed", true)
+                    entry.icon.data.entry = nil
+                else
+                    entry.row:SetClass("collapsed", false)
+                    entry.icon.data.entry = bullet
+                    if bullet.icon ~= nil then
+                        entry.icon.bgimage = bullet.icon
+                        entry.icon.selfStyle.bgcolor = bullet.bgcolor or "white"
+                        entry.icon:SetClass("collapsed", false)
+                        entry.label.text = bullet.text
+                    else
+                        entry.icon:SetClass("collapsed", true)
+                        entry.label.text = "- " .. bullet.text
+                    end
+                end
+            end
             --Field test 29: "High damage dealer" (red - field test 27:
             --gold did not stand out enough) and the area-window line are
             --their own icon-bulleted rows beneath the risk box; together

@@ -554,7 +554,7 @@ end
 local OVERVIEW = {
     GUIDE_COLOR = "#7AC77A",
     FOOTER_ROWS = 3,
-    FOOTER_ROW_POOL = 6,
+    FOOTER_ROW_POOL = 12,
     --Mini-row name length that still renders without ellipsis at the row
     --font; longer names drop the monster-band prefix (field test 33).
     ROW_NAME_CHARS = 22,
@@ -2020,6 +2020,13 @@ local OVERVIEW_FOOTER_RULES = {
         textAlignment = "left",
         tmargin = 3,
         lmargin = 28,
+    },
+    --Field test 35: "+N more" is pressable (expand/fold the member list);
+    --the hover tint is its affordance.
+    {
+        selectors = { "overviewFooterMore", "hover" },
+        color = "#E9B86F",
+        bold = true,
     },
     --Whole-column acted greying (Decision 50 / F2-7): once every member of a
     --column has acted this round, ALL of its chips grey out - title,
@@ -6014,9 +6021,29 @@ local function OverviewColumnFooter()
         rows[i] = row
     end
 
+    --Field test 35 (Ricky): "+N more" is a CONTROL, not a caption - press
+    --to show every member (each row press already locates its token on
+    --the map), press again to fold back to the first three. Expansion
+    --resets when the footer binds a different column. LayoutRows is
+    --forward-declared because this press handler needs it.
+    local m_rowsExpanded = false
+    local m_rowsColumnKey = nil
+    local LayoutRows
     local moreLabel = gui.Label {
         classes = { "overviewFooterMore", "collapsed" },
         text = "",
+        swallowPress = true,
+        hover = function(element)
+            local text = "Show every member"
+            if m_rowsExpanded then
+                text = "Show fewer"
+            end
+            gui.Tooltip{ text = text, valign = "top" }(element)
+        end,
+        press = function(element)
+            m_rowsExpanded = not m_rowsExpanded
+            LayoutRows()
+        end,
     }
 
     --"Take <Creature>'s turn" and its inline reason when disabled.
@@ -6130,7 +6157,7 @@ local function OverviewColumnFooter()
     --Lay the mini-rows out for the current mode: the signals view (first
     --OVERVIEW.FOOTER_ROWS members, "+N more") or the armed owner prompt
     --(fresh candidates only, whole pool).
-    local function LayoutRows()
+    LayoutRows = function()
         if m_signals == nil then
             for _, row in ipairs(rows) do
                 row:FireEvent("setMember", nil)
@@ -6141,6 +6168,9 @@ local function OverviewColumnFooter()
 
         local list = nil
         local cap = OVERVIEW.FOOTER_ROWS
+        if m_rowsExpanded then
+            cap = #rows
+        end
         if m_prompt ~= nil then
             list = m_prompt.members
             cap = #rows
@@ -6188,6 +6218,10 @@ local function OverviewColumnFooter()
         local overflow = #list - cap
         if overflow > 0 then
             moreLabel.text = string.format("+%d more", overflow)
+            moreLabel:SetClass("collapsed", false)
+        elseif m_prompt == nil and m_rowsExpanded and #list > OVERVIEW.FOOTER_ROWS then
+            --Expanded and everything fits: the same control folds it back.
+            moreLabel.text = "Show fewer"
             moreLabel:SetClass("collapsed", false)
         else
             moreLabel:SetClass("collapsed", true)
@@ -6347,6 +6381,13 @@ local function OverviewColumnFooter()
             m_signals = signals
             m_prompt = nil
             promptLabel:SetClass("collapsed", true)
+            --Pooled footer: fold the member list back down when this
+            --panel starts showing a DIFFERENT column.
+            local columnKey = column ~= nil and (column.name or column.label) or nil
+            if columnKey ~= m_rowsColumnKey then
+                m_rowsColumnKey = columnKey
+                m_rowsExpanded = false
+            end
             if column == nil or signals == nil or column.token == nil or not column.token.valid then
                 element:SetClass("collapsed", true)
                 LayoutRows()

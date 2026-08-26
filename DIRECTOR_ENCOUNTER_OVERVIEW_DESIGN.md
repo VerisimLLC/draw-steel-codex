@@ -1543,6 +1543,26 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-fifth report (Ricky, post-merge testing: only 3 of 7
+warriors visible) - "+N more" is now a control (commit 98d79a75, on the
+MERGED main). Reloaded clean, zero errors; press verified programmatically
+(label read "+4 more", LayoutRows re-ran) but the expanded render was not
+screenshot-verified - Ricky was mid-play (Arixx's turn) and the menu
+closed under the harness. HIS CLICK IS THE VERIFICATION.**
+- Press "+N more" under a multi-member column to show EVERY member row in
+  place (each row press already locates + pulses that token on the map -
+  the find-them-on-the-map ask); press again ("Show fewer") to fold back
+  to the first three. Amber bold on hover is the affordance; tooltips
+  "Show every member" / "Show fewer". Expansion resets when the pooled
+  footer binds a different column; the owner prompt view is unchanged.
+- FOOTER_ROW_POOL raised 6 -> 12 (pooled, collapsed when unused). A
+  column with more than 12 members still tails "+N more" - pressing it
+  folds back (accepted rarity). Chose expand-in-place over pagination or
+  a scrollbar: fewest moving parts, and the equal-footer band alignment
+  is only disturbed while a column is deliberately expanded.
+- LayoutRows became a forward-declared assignment (the press handler
+  closes over it) - the file's standard forward-declare pattern.
+
 **2026-08-25, thirty-fourth report (Ricky) - risk-box facts bind to their
 owners by SYMBOL (commit 93aa1de3). Code loads clean (reload + zero Lua
 errors) but the staged visual check was interrupted - the app came back

@@ -1174,11 +1174,13 @@ local function CompactAbilityHeadBand(rendered)
             return p:HasClass("abilityHeadBand")
         end)
         if band ~= nil then
-            --Repeat the percentage width in this inline style alongside the
-            --smaller padding. borderBox resolves width against the padding in
-            --the same style layer; changing only hpad leaves the band's outer
-            --width 12px short (the difference from the render's 14px padding).
-            band.selfStyle.width = "100%"
+            --Repeat the width in this inline style alongside the smaller
+            --padding. borderBox resolves width against the padding in the same
+            --style layer; changing only hpad leaves the band's outer width 12px
+            --short (the difference from the render's 14px padding). Keep the
+            --2px inset the class rule uses -- the card's 1px border is drawn
+            --inside its rect, so a full-bleed band paints over the outline.
+            band.selfStyle.width = "100%-2"
             band.selfStyle.hpad = 8
             band.selfStyle.vpad = 4
         end

@@ -34,29 +34,20 @@ Commands.Register{
 }
 
 
---end combat command.
+--end combat command. Routes through the initiative bar's confirmation dialog
+--(Victory Screen / no victory / cancel) instead of ending combat immediately.
+--MCDMInitiativeBar.lua loads after this file, so the export is resolved at
+--click time via rawget.
 Commands.Register{
 	name = "End Combat",
     identifier = "endcombat",
     execute = function()
-		if dmhub.initiativeQueue ~= nil then
-			UploadDayNightInfo()
-			dmhub.initiativeQueue.hidden = true
-			dmhub.initiativeQueue.gameMode = "exploration"
-			dmhub:UploadInitiativeQueue()
-
-            CharacterResource.SetMalice(0, "End of Combat")
-
-			--summons don't outlive the encounter.
-			ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
-
-			for initiativeid,_ in pairs(dmhub.initiativeQueue.entries) do
-				local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
-				for _,tok in ipairs(tokens) do
-                    tok.properties:EndCombat()
-					tok.properties:DispatchEvent("endcombat", {})
-				end
-			end
+		if dmhub.initiativeQueue == nil then
+			return
+		end
+		local prompt = rawget(_G, "g_drawSteelPromptEndCombat")
+		if prompt ~= nil then
+			prompt()
 		end
     end,
 	dmonly = true,

@@ -97,7 +97,9 @@ local function ShowVictoryScreen()
 end
 
 --Prompt the DM before ending combat: present the Victory Screen, end with no
---victory, or cancel. Shared by both initiative-bar "End Combat" menu items.
+--victory, or cancel. Shared by both initiative-bar "End Combat" menu items and
+--the game menu's "End Combat" command (via the g_drawSteelPromptEndCombat
+--export below).
 local function PromptEndCombat()
 	GameHud.instance:ModalMessage{
 		title = "End Combat",
@@ -123,6 +125,10 @@ local function PromptEndCombat()
 		},
 	}
 end
+
+--Exported for MCDMCommands.lua's game-menu "End Combat" command, which loads
+--before this file and resolves the export at click time.
+g_drawSteelPromptEndCombat = PromptEndCombat
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
@@ -4037,7 +4043,8 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 		}
 
 		--Notebook button in the monster container's upper-left corner: opens
-		--the Encounter Wrangler window (Director only; see EncounterWrangler.lua).
+		--the Encounter Wrangler window (Director only, and only when the
+		--"dev:encounterwrangler" flag is on; see EncounterWrangler.lua).
 		--A construction-time floating child: the refresh handler must re-include
 		--it (via data.wranglerButton) whenever it reassigns .children, the same
 		--contract m_bar and the label panel rely on.
@@ -4747,9 +4754,13 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--AFTER the cards so it renders above them (children render in list
 			--order; seeding it before the cards buried it under the leftmost
 			--card). Director only.
+			--Gated behind the per-user "dev:encounterwrangler" flag (declared in
+			--EncounterWrangler.lua, deliberately absent from the settings UI;
+			--toggle with "/toggle dev:encounterwrangler" in chat).
 			if monsterContainer.data.wranglerButton ~= nil then
 				monsterChildren[#monsterChildren+1] = monsterContainer.data.wranglerButton
-				monsterContainer.data.wranglerButton:SetClass("hidden", not dmhub.isDM)
+				local wranglerEnabled = dmhub.isDM and dmhub.GetSettingValue("dev:encounterwrangler") == true
+				monsterContainer.data.wranglerButton:SetClass("hidden", not wranglerEnabled)
 			end
 
 			--The anthem speaker icon goes last so it renders above the centered card.

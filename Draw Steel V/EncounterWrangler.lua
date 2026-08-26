@@ -34,6 +34,24 @@ EncounterWrangler = {
     panelName = "Encounter Wrangler",
 }
 
+--The wrangler is experimental: it only surfaces when the per-user
+--"dev:encounterwrangler" flag is on (toggle with "/toggle dev:encounterwrangler"
+--in chat). Deliberately absent from SettingsScreen.lua so it never appears in
+--the settings UI, and the dockable panel it hosts is already filtered out of
+--the panel menus and the icon rail, so the flag gates the ONLY entry point:
+--the notebook button on the monster side of the initiative bar
+--(MCDMInitiativeBar.lua reads the same flag by id).
+EncounterWrangler.enabledSetting = setting{
+    id = "dev:encounterwrangler",
+    default = false,
+    storage = "preference",
+}
+
+--True if the wrangler is available to this user at all.
+function EncounterWrangler.Enabled()
+    return dmhub.GetSettingValue("dev:encounterwrangler") == true
+end
+
 local STATBLOCK_WIDTH = 500
 --borderBox card: statblock width + the card's own padding.
 local CARD_WIDTH = STATBLOCK_WIDTH + 16
@@ -2015,7 +2033,7 @@ DockablePanel.Register{
 
 --Open the wrangler window (or raise it if it is already open somewhere).
 function EncounterWrangler.Open()
-    if not dmhub.isDM then
+    if not dmhub.isDM or not EncounterWrangler.Enabled() then
         return
     end
 

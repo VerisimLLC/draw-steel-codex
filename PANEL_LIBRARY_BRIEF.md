@@ -605,17 +605,18 @@ Remaining design rounds before their steps: publish metadata (before
   "run").
 
 - **2026-08-18 -- The whole Panel Library surface goes behind a dev
-  gate (owner request).** The hidden `dev:panellibrary` setting
-  (preference storage, default false, no editor so it appears on no
-  settings screen) gates creation of the rail's + button -- and with
-  it everything only the + opens: the library window, the community
-  spotlight/browser, and the Share Your Buttons dialog. The rail's
-  older right-click menu (add panel / New Toolkit / Rearrange) stays,
-  as do toolkits and buttons already on the rail. Toggling the setting
-  rebuilds the rails live: enable with
-  `dmhub.SetSettingValue("dev:panellibrary", true)` in the console.
-  VERIFIED live both ways: + absent at default false, back
-  immediately after flipping true.
+  gate (owner request).** SUPERSEDED 2026-08-24, see below. The hidden
+  `dev:panellibrary` setting gated creation of the rail's + button --
+  and with it everything only the + opens: the library window, the
+  community spotlight/browser, and the Share Your Buttons dialog.
+
+- **2026-08-24 -- The dev gate is gone; the Panel Library is on for
+  everyone (owner request).** The `dev:panellibrary` setting is
+  deleted, and the rail's + button is created unconditionally (still
+  suppressed in rearrange mode, which is the trash zone's territory).
+  Nothing else read the setting, so the library window, the community
+  spotlight/browser and the Share Your Buttons dialog all come back
+  with the +.
 
 ### Phase 2/3 viability research (verified against code, 2026-08-17)
 

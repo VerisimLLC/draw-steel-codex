@@ -296,8 +296,8 @@ local g_barFit = {
 --
 --The search box still SHRINKS first (stage 1 of the fit pass), but the whole
 --map cluster is taken away before the box itself is: the search gets used
---constantly, while the map name survives on the cluster's tooltip and the
---full Maps panel.
+--constantly, while the map name survives on the full Maps panel (the
+--cluster's hover tooltip was removed 2026-08-25).
 --
 --No step may be an ANCESTOR of another: both would be credited with the same
 --pixels when the pass reconstructs the bar's natural demand. That is why the
@@ -502,7 +502,7 @@ function BarFitApply()
     end
 
     --Stage 2: then the map name, which ellipsizes as it narrows (the full
-    --string stays available on the cluster's tooltip).
+    --string is only in the Maps panel now -- the cluster tooltip is gone).
     local mapNameLabel = g_barFit.panels.mapName
     if mapNameLabel ~= nil and mapNameLabel.valid and mapNameLabel.enabled then
         local target = BAR_FIT_MAPNAME_FULL
@@ -664,6 +664,20 @@ local function ToggleFullscreen()
                 not (dmhub.GetSettingValue("fullscreen") == true))
         end
     end)
+end
+
+--The Fullscreen checkbox row shared by both Codex menus (main-menu and
+--in-game variants). Built fresh per open so the check reflects the current
+--setting. Always the FIRST row of the menu.
+local function FullscreenMenuItem()
+    return {
+        text = "Fullscreen",
+        icon = "phosphor/arrows-out-simple-fill.png",
+        check = dmhub.GetSettingValue("fullscreen") == true,
+        click = function()
+            ToggleFullscreen()
+        end,
+    }
 end
 
 local function TicketHasUnseenResponse(t)
@@ -1236,22 +1250,8 @@ local function CreateConnectivityPanel()
         bgimage = "phosphor/wifi-high-fill.png",
         bgcolor = "#c8c8c8",
         data = { frame = 0 },
-        linger = function(element)
-            local lines = {}
-            if dmhub.gameServerConnected == false then
-                lines[#lines + 1] = "Disconnected from the game server -- reconnecting..."
-            elseif dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0 then
-                lines[#lines + 1] = string.format("Syncing (%d writes pending)", dmhub.pendingWriteCount)
-            else
-                lines[#lines + 1] = "Synced with the game server"
-            end
-            local seq = dmhub.durableObjectSeq
-            if seq ~= nil and seq > 0 then
-                lines[#lines + 1] = string.format("Server message seq: %d", seq)
-            end
-            lines[#lines + 1] = "Click to open the Heroes panel"
-            gui.Tooltip(table.concat(lines, "\n"))(element)
-        end,
+        --No hover tooltip (Venla 2026-08-25: bar glyphs are self evident;
+        --the glyph itself carries the sync state).
     }
 
     local playersRow = gui.Panel{
@@ -1351,23 +1351,37 @@ local function CreateConnectivityPanel()
                 return
             end
             element.popupsInheritStyles = true
+            --Anchor to the full-bar-height cluster plate rather than the
+            --default mouse position, and use the shared frameless
+            --below-bar rig: sizeless shim + margin standoff + the
+            --dropdowns' x-shift so the popout hangs under the plate's
+            --left edge (see ShowOverlayMenu for the same recipe).
+            element.popupPositioning = "panel"
             element.popup = gui.Panel{
-                --heroesPopout: content inside reaches this wrapper by
-                --class to dismiss the popout (the local-game promote
-                --flow closes it before showing its modal).
-                classes = {"bordered", "bg", "heroesPopout"},
-                width = 440,
-                height = 480,
-                pad = 8,
-                borderBox = true,
-                halign = "left",
+                width = "auto",
+                height = "auto",
+                halign = "right",
                 valign = "bottom",
-                closePopout = function()
-                    if element ~= nil and element.valid then
-                        element.popup = nil
-                    end
-                end,
-                factory(),
+                gui.Panel{
+                    --heroesPopout: content inside reaches this wrapper by
+                    --class to dismiss the popout (the local-game promote
+                    --flow closes it before showing its modal).
+                    classes = {"bg", "heroesPopout"},
+                    cornerRadius = 10,
+                    margin = 4,
+                    x = -element.renderedWidth,
+                    width = 440,
+                    height = 480,
+                    pad = 8,
+                    borderBox = true,
+                    valign = "bottom",
+                    closePopout = function()
+                        if element ~= nil and element.valid then
+                            element.popup = nil
+                        end
+                    end,
+                    factory(),
+                },
             }
         end,
 
@@ -2076,16 +2090,35 @@ function g_tileIndicator.ShowOverlayMenu(element)
         return
     end
     element.popupsInheritStyles = true
+    --Anchor to the full-bar-height cluster plate, not the default mouse
+    --position -- mouse anchoring is what made this menu open on top of
+    --the bar, hanging from wherever the click landed.
+    element.popupPositioning = "panel"
+    --Same treatment as the audio popover: frameless flat chrome matching
+    --the title-bar menus (@bg fill, no border, radius 10), inside a
+    --sizeless shim so the margin stands the panel off below the bar --
+    --margins directly on the popup panel are ignored by popup placement.
     element.popup = gui.Panel{
-        classes = {"bordered", "bg"},
-        width = 280,
+        width = "auto",
         height = "auto",
-        pad = 12,
-        borderBox = true,
-        halign = "left",
+        halign = "right",
         valign = "bottom",
-        flow = "vertical",
-        g_tileIndicator.CreateOverlayMenu(),
+        gui.Panel{
+            classes = {"bg"},
+            cornerRadius = 10,
+            margin = 4,
+            --halign "right" + shifting back by the plate's width hangs the
+            --menu below the plate's left edge, extending right under it --
+            --the same trick the title-bar dropdowns use.
+            x = -element.renderedWidth,
+            width = 280,
+            height = "auto",
+            pad = 12,
+            borderBox = true,
+            valign = "bottom",
+            flow = "vertical",
+            g_tileIndicator.CreateOverlayMenu(),
+        },
     }
 end
 
@@ -2235,22 +2268,10 @@ local function CreateStatusBar()
         valign = "center",
         hpad = 8,
 
-        linger = function(element)
-            local lines = {}
-            local mapText = m_mapNameLabel.data.fullText
-            if mapText ~= nil and mapText ~= "" then
-                lines[#lines+1] = mapText
-            end
-            local tileName = m_tileChip.data.name
-            if tileName ~= nil then
-                lines[#lines+1] = string.format("Tile under cursor: %s", tileName)
-            end
-            if #lines == 0 then
-                return
-            end
-            lines[#lines+1] = "Click to choose which map overlays are shown."
-            gui.Tooltip(table.concat(lines, "\n"))(element)
-        end,
+        --No hover tooltip (Venla 2026-08-25: bar items are self evident).
+        --Note this also drops the untruncated-map-name hover that the
+        --narrow-bar fit pass relied on for ellipsized names, and the
+        --"tile under cursor" readout.
 
         click = function(element)
             g_tileIndicator.ShowOverlayMenu(element)
@@ -3543,8 +3564,8 @@ local function CreateAudioIndicator()
                 gui.Tooltip("Mute (only you)")(element)
             end,
             styles = {
-                { bgimage = "ui-icons/ph-speaker-high-fill.png" },
-                { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                { bgimage = "phosphor/speaker-high-fill.png" },
+                { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
                 { selectors = {"hover"}, brightness = 2 },
             },
             create = function(element)
@@ -3580,12 +3601,12 @@ local function CreateAudioIndicator()
         }
 
         local children = {
-            -- "Now Playing" header (bold, pinned white -- the popover bg is
-            -- known-dark in every scheme) with the track title on its own
-            -- line beneath, mirroring the Studio's Now Playing card.
+            -- "Now Playing" header (bold @fgStrong -- the popover inherits
+            -- themed styles via popupsInheritStyles, so it tracks the theme
+            -- like the menus do) with the track title on its own line
+            -- beneath, mirroring the Studio's Now Playing card.
             gui.Label{
-                classes = {"sizeXs", "bold"},
-                color = "#ffffff",
+                classes = {"sizeXs", "bold", "fgStrong"},
                 width = "100%",
                 height = "auto",
                 text = "Now Playing",
@@ -3617,12 +3638,28 @@ local function CreateAudioIndicator()
         --game-wide controls live here, including the game-wide mute as a
         --labeled control (promoted from the old master-row glyph tooltip).
         if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
-            children[#children+1] = gui.Label{
-                classes = {"sizeXs", "fgMuted"},
+            --Section header per the panel design language: label + full-width
+            --hairline underline. The underline doubles as the seam between
+            --the personal tier above and the broadcast tier below, so no
+            --separate divider (the style guide bans a hairline directly
+            --above a header -- they double up).
+            children[#children+1] = gui.Panel{
+                flow = "vertical",
                 width = "100%",
                 height = "auto",
-                text = "Levels",
-                tmargin = 4,
+                tmargin = 6,
+                gui.Label{
+                    classes = {"sizeXs", "fgMuted"},
+                    width = "100%",
+                    height = "auto",
+                    text = "Levels",
+                    bmargin = 2,
+                },
+                gui.Panel{
+                    classes = {"audioPopoverHairline"},
+                    width = "100%",
+                    height = 1,
+                },
             }
             children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
             children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
@@ -3644,8 +3681,8 @@ local function CreateAudioIndicator()
                     RefreshMutedCause()
                 end,
                 styles = {
-                    { bgimage = "ui-icons/ph-speaker-high-fill.png" },
-                    { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                    { bgimage = "phosphor/speaker-high-fill.png" },
+                    { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
                     { selectors = {"hover"}, brightness = 2 },
                 },
                 create = function(element)
@@ -3705,8 +3742,15 @@ local function CreateAudioIndicator()
             }
         end
 
+        --Frameless flat chrome matching the title bar's context menus
+        --(Venla 2026-08-24 menu rework): @bg fill continuing the bar, no
+        --border, radius 10 like the rest of the popup family. margin 4
+        --is the same standoff the contextMenu class carries -- without
+        --it the popover touches the bar and melts into its fill.
         return gui.Panel{
-            classes = {"bordered", "bg"},
+            classes = {"bg"},
+            cornerRadius = 10,
+            margin = 4,
             flow = "vertical",
             width = 340,
             height = "auto",
@@ -3714,6 +3758,20 @@ local function CreateAudioIndicator()
             borderBox = true,
             halign = "right",
             valign = "bottom",
+            --Muted slider recipe, scoped to this popover: the shared fader
+            --rows ship the app-wide bright track/fill/handle, which is six
+            --loud sliders in a small panel. Quiet them to the border/muted
+            --tokens so the section text reads first. priority beats the
+            --equal-specificity DefaultStyles base rules.
+            styles = ThemeEngine.MergeTokens{
+                --opacity keeps the unfilled track clearly dimmer than the
+                --@fgMuted fill; at full brightness the two grays are close
+                --enough that the fill position stops reading.
+                { selectors = {"sliderNotch"}, bgcolor = "@border", opacity = 0.5, priority = 10 },
+                { selectors = {"sliderFill"}, bgcolor = "@fgMuted", priority = 10 },
+                { selectors = {"sliderHandleInner"}, bgcolor = "@fgMuted", priority = 10 },
+                { selectors = {"audioPopoverHairline"}, bgimage = true, bgcolor = "@border", opacity = 0.35 },
+            },
             children = children,
         }
     end
@@ -3725,15 +3783,38 @@ local function CreateAudioIndicator()
         valign = "center",
         hmargin = 6,
         bgcolor = "white",
-        bgimage = "ui-icons/ph-speaker-high-fill.png",
-
-        linger = function(element)
-            gui.Tooltip("Audio controls")(element)
-        end,
+        bgimage = "phosphor/speaker-high-fill.png",
 
         press = function(element)
+            --Toggle: a second click on the glyph closes the open popover
+            --instead of rebuilding it in place (same guard as the menu
+            --items -- clicking the anchor does not count as click-away).
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
             element.popupsInheritStyles = true
-            element.popup = BuildPopover()
+            --Same two-panel shape as the menu dropdowns: the popup itself
+            --is a sizeless shim, and the visible panel's margin insets it
+            --from the shim's edges. Margin set directly on the popup panel
+            --is ignored by popup placement (verified: the panel sat flush
+            --against the bar), so the standoff below the bar only works
+            --with the margin one level down.
+            local popover = BuildPopover()
+            if popover ~= nil then
+                --halign "right" + shifting back by the anchor's width
+                --left-aligns the popover with the glyph (the dropdowns'
+                --trick). element.parent is the full-bar-height wrapper
+                --the popup anchors to.
+                popover.selfStyle.x = -element.parent.renderedWidth
+                element.popup = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "bottom",
+                    popover,
+                }
+            end
         end,
 
         -- Run the state logic once at construction too: without this the
@@ -3752,19 +3833,31 @@ local function CreateAudioIndicator()
             element.data.audioIndicatorState = state
 
             if state == "muted" then
-                element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+                element.bgimage = "phosphor/speaker-slash-fill.png"
                 element.selfStyle.opacity = 1
             elseif state == "playing" then
-                element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+                element.bgimage = "phosphor/speaker-high-fill.png"
                 element.selfStyle.opacity = 1
             else
-                element.bgimage = "ui-icons/ph-speaker-none-fill.png"
+                element.bgimage = "phosphor/speaker-none-fill.png"
                 element.selfStyle.opacity = 0.4
             end
         end,
     }
 
-    return resultPanel
+    --Full-bar-height anchor for the popover, matching how the menu items
+    --drop their dropdowns: a popup below an anchor that spans the bar
+    --lands below the bar, while one anchored to the 18px glyph (centered
+    --in the bar) opened on top of it.
+    local wrapperPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        resultPanel,
+    }
+    resultPanel.popupPositioning = wrapperPanel
+
+    return wrapperPanel
 end
 
 local g_adventureDocumentsBar
@@ -6382,22 +6475,12 @@ local function CreateTopBar()
             mainmenu = true,
             menuItems = function()
                 local items = {
+                    FullscreenMenuItem(),
                     {
                         text = "Settings",
                         icon = "panels/hud/gear.png",
                         click = function()
                             dmhub.ShowPlayerSettings()
-                        end,
-                    },
-                    --checkbox row: the check mirrors the "fullscreen"
-                    --setting; clicking toggles it (replaces the old
-                    --window-button fullscreen control).
-                    {
-                        text = "Fullscreen",
-                        icon = "phosphor/arrows-out-simple-fill.png",
-                        check = dmhub.GetSettingValue("fullscreen") == true,
-                        click = function()
-                            ToggleFullscreen()
                         end,
                     },
                 }
@@ -6427,15 +6510,9 @@ local function CreateTopBar()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
                 end
-                --same Fullscreen checkbox as the main-menu Codex menu.
-                items[#items+1] = {
-                    text = "Fullscreen",
-                    icon = "phosphor/arrows-out-simple-fill.png",
-                    check = dmhub.GetSettingValue("fullscreen") == true,
-                    click = function()
-                        ToggleFullscreen()
-                    end,
-                }
+                --inserted AFTER the store rows are prepended so Fullscreen
+                --lands at the very top, matching the main-menu Codex menu.
+                table.insert(items, 1, FullscreenMenuItem())
                 return items
             end,
         },

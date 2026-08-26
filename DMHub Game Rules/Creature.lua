@@ -9032,14 +9032,24 @@ function creature.RegisterMatchString(entry)
 	creature.matchStringPredicates[key] = entry.match
 end
 
+--symbols registered with global = true read party/game-wide state (hero
+--tokens, malice) rather than the creature they are evaluated on. Consumers
+--(e.g. rail script buttons) use this to know a formula still means
+--something with no character selected.
+creature.globalSymbols = {}
+
 --mod tool for adding new Goblin Script symbols
 --Use the following fields:
 -- symbol: string symbol name
 -- lookup: function to insert in lookupsymbols, runs in GoblinScript
 -- help: (optional) corresponding helpsymbols input
+-- global: (optional) true if the symbol reads game-wide state, not the creature
 function creature.RegisterSymbol(newSymbol)
 	local key = newSymbol.symbol
 	creature.lookupSymbols[key] = newSymbol.lookup
+	if newSymbol.global then
+		creature.globalSymbols[key] = true
+	end
 	if newSymbol.help ~= nil then
 		creature.helpSymbols[key] = newSymbol.help
 		character.helpSymbols[key] = creature.helpSymbols[key]

@@ -8139,6 +8139,9 @@ Search.RegisterProvider{
         --glossary terms are owned by the dedicated glossary provider below
         --(definition preview, boosted rank, pops the definition card).
         canonical["glossaryTerms"] = nil
+        --inventory items are owned by the treasure-items provider below
+        --(item-card hover preview, boosted rank, opens the item in place).
+        canonical["tbl_Gear"] = nil
         for _,opt in pairs(canonical) do
             local t = dmhub.GetTable(opt.contentType)
             if t ~= nil then
@@ -8210,6 +8213,71 @@ Search.RegisterProvider{
                             }
                         end
                     end,
+                }
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: inventory items (treasures). A row is the canonical
+-- "item:Name" link (see LinkResolution.lua): hovering previews the rendered
+-- item card, activating resolves the link and opens that card in place, and a
+-- secondary chip still deep-links to the Compendium. A strong name match
+-- (exact/prefix) gets +20 so typing a treasure's name puts the item above the
+-- rest of the compendium results (it edges out the glossary's +15 only on an
+-- exact match).
+Search.RegisterProvider{
+    id = "treasure-items",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        local t = dmhub.GetTable("tbl_Gear")
+        if t == nil then
+            return results
+        end
+        local categories = dmhub.GetTable("equipmentCategories") or {}
+        for _,k in ipairs(NameMatchKeysCached("tbl_Gear", needle)) do
+            local item = t[k]
+            local name = (type(item) == "table" and rawget(item, "name")) or nil
+            --only renderable entries: ResolveLink("item:...") returns exactly
+            --these, so anything else would be a dead link.
+            if type(name) == "string" and MarkdownRender.IsRenderable(item) then
+                local score = Search.Score(name, needle)
+                if score >= 75 then
+                    score = score + 20
+                end
+
+                --type chip: the item's own category ("Leveled Treasure",
+                --"Trinket", ...) reads better than a generic "Inventory".
+                local typeLabel = "Item"
+                local cat = categories[item:try_get("equipmentCategory", "")]
+                if cat ~= nil then
+                    pcall(function() typeLabel = cat.name end)
+                end
+
+                local link = "item:" .. name
+                local capturedKey, capturedName = k, name
+                local viewItem = function()
+                    CustomDocument.OpenContent(CustomDocument.ResolveLink(link))
+                end
+                results[#results+1] = {
+                    name = name,
+                    score = score,
+                    typeLabel = typeLabel,
+                    icon = item.iconid,
+                    linkPreview = link,
+                    activate = viewItem,
+                    actions = {
+                        { text = "View item", click = viewItem },
+                        { text = "Open in Compendium", click = function()
+                            Compendium.Open{
+                                contentType = "tbl_Gear",
+                                search = capturedName,
+                                targetKey = capturedKey,
+                            }
+                        end },
+                    },
                 }
             end
         end

@@ -210,7 +210,11 @@ function BubbleDocument:PreviewDescription()
     return string.format("Click to view %s", desc ~= "" and desc or "this bubble")
 end
 
-function CustomDocument.PreviewLink(element, link)
+--options (all optional): halign -- which side of the element the preview
+--tooltip opens on ("right" default; the title-bar search passes "left"
+--because its popup hugs the right screen edge).
+function CustomDocument.PreviewLink(element, link, options)
+    options = options or {}
     if string.starts_with(link, "http://") or string.starts_with(link, "https://") then
         gui.Tooltip("Click to open this link in your web browser")(element)
         return
@@ -246,7 +250,7 @@ function CustomDocument.PreviewLink(element, link)
         if panel ~= nil then
             element.tooltip = gui.TooltipFrame(panel, {
                 interactable = false,
-                halign = "right",
+                halign = options.halign or "right",
                 width = 600,
             })
         end

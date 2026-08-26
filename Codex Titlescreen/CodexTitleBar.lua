@@ -2833,9 +2833,22 @@ local function CreateSearchBar()
             rowChildren[#rowChildren+1] = rightBlock
         end
 
+        -- Hover preview: a result that is canonically a document link stamps
+        -- result.linkPreview ("item:Heelcutter", ...) and gets the same
+        -- rendered-card tooltip a link in a journal shows. Opened to the LEFT
+        -- of the row: the popup hugs the right screen edge, so the default
+        -- right-side placement would push the card offscreen.
+        local hoverPreview = nil
+        if result.linkPreview ~= nil then
+            hoverPreview = function(element)
+                CustomDocument.PreviewLink(element, result.linkPreview, {halign = "left"})
+            end
+        end
+
         return gui.Panel{
             classes = {"searchResultRow"},
             flow = "horizontal",
+            hover = hoverPreview,
             press = function()
                 activate(result.click or result.activate)
             end,

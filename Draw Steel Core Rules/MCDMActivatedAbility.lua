@@ -319,17 +319,25 @@ end
 -- literals, so the name on it is fixed light rather than a theme token.
 SpellRenderStyles[#SpellRenderStyles+1] = {
     selectors = {"panel", "abilityHeadBand"},
-    width = "100%",
+    --Inset by 1px on the left, right and top: the card's own 1px border is drawn
+    --inside its rect, so a full-bleed band paints straight over the outline.
+    width = "100%-2",
     height = "auto",
     flow = "horizontal",
-    halign = "left",
+    halign = "center",
     valign = "top",
+    tmargin = 1,
     bgimage = "panels/square.png",
     bgcolor = "clear",
     hpad = 14,
     vpad = 8,
     --Top corners only, tucked just inside the card's radius-6 border.
     cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+    --Hairline dividing the header from the body. In this framework y1 is the
+    --BOTTOM edge and y2 the top (x1 left, x2 right); always give all four, and
+    --never add a blanket borderWidth -- that overrides the per-edge widths.
+    border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+    borderColor = "@border",
     borderBox = true,
 }
 for _, rule in ipairs(ActivatedAbility.ActionColorKeyStyles("abilityHeadBand")) do
@@ -879,6 +887,36 @@ local function WrapAbilityBodyInScrollFrame(maxHeight, bleedLeft, bodyPanel)
     }
 end
 
+--- A copy of a style rule list with every font size multiplied.
+---
+--- The card's sizes are a fixed pixel ladder tuned for the card floating over
+--- the map; params.cardScale shrinks the whole thing for hosts that embed it in
+--- a narrow panel. The rule lists are shared module state, so this copies rather
+--- than mutating -- the map card and an embedded card render in the same frame.
+--- @param styles table list of plain style rule tables
+--- @param scale number 1 leaves the list untouched
+--- @return table
+local function ScaleStyleFontSizes(styles, scale)
+    if scale == 1 then
+        return styles
+    end
+    local result = {}
+    for i, rule in ipairs(styles) do
+        local copy = {}
+        for k, v in pairs(rule) do
+            copy[k] = v
+        end
+        if type(copy.fontSize) == "number" then
+            copy.fontSize = copy.fontSize * scale
+        end
+        if type(copy.minFontSize) == "number" then
+            copy.minFontSize = copy.minFontSize * scale
+        end
+        result[i] = copy
+    end
+    return result
+end
+
 --- One of the card's gold bookmark tabs, or an inert stand-in.
 ---
 --- The tabs float OUTSIDE the card's left edge (x = -26 to -46), which only
@@ -920,6 +958,20 @@ function ActivatedAbility:Render(options, params)
 
     local hideTabs = params.hideTabs
     params.hideTabs = nil
+
+    --Stripped like the flags above. One knob for the card's whole size ladder:
+    --the floating map card leaves it at 1, a host embedding the card in a narrow
+    --panel passes something smaller so the card stops dwarfing its neighbours.
+    local cardScale = params.cardScale or 1
+    params.cardScale = nil
+
+    --Scale a size from the card's ladder. Rounded, and never below 1px.
+    local function sc(n)
+        if cardScale == 1 then
+            return n
+        end
+        return math.max(1, math.floor(n * cardScale + 0.5))
+    end
 
     --The clip-rect overhang exists only to keep the bookmark tabs visible.
     local scrollBleedLeft = cond(hideTabs, 0, g_abilityScrollBleedLeft)
@@ -1684,7 +1736,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "!",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1695,7 +1747,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1727,7 +1779,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "@",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1738,7 +1790,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1767,7 +1819,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "#",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1778,7 +1830,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1846,7 +1898,7 @@ function ActivatedAbility:Render(options, params)
             classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            fontSize = 14,
+            fontSize = sc(14),
             hpad = 16,
             vpad = 4,
             text = suppressMessage,
@@ -1873,7 +1925,7 @@ function ActivatedAbility:Render(options, params)
                     classes = { cond(reminder.positive, "bgSuccess", "bgDanger") },
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
+                    fontSize = sc(14),
                     hpad = 16,
                     vpad = 4,
                     text = StringInterpolateGoblinScript(reminder.text or "", creatureProperties),
@@ -1902,7 +1954,7 @@ function ActivatedAbility:Render(options, params)
             classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            fontSize = 14,
+            fontSize = sc(14),
             hpad = 16,
             vpad = 4,
             text = footerNote,
@@ -1912,7 +1964,7 @@ function ActivatedAbility:Render(options, params)
     --king panel
     local args = {
         id = 'spellInfo',
-        styles = ThemeEngine.MergeStyles(SpellRenderStyles),
+        styles = ThemeEngine.MergeStyles(ScaleStyleFontSizes(SpellRenderStyles, cardScale)),
         bgimage = "panels/square.png",
         hpad = 0,
         vpad = 0,
@@ -1934,7 +1986,7 @@ function ActivatedAbility:Render(options, params)
                 classes = cond(quietTitleBand,
                     {"abilityName", self:ActionColorKeyClass()},
                     {"abilityName"}),
-                fontSize = 24,
+                fontSize = sc(24),
                 fontFace = "Newzald",
                 minFontSize = 14,
                 fontWeight = "Light",
@@ -2015,10 +2067,12 @@ function ActivatedAbility:Render(options, params)
                         flow = "vertical",
 
                         --Type of ability
+                        --Full width so the implementation chip can pack to the
+                        --right edge while the type name stays on the left.
                         gui.Panel {
 
                             flow = "horizontal",
-                            width = "auto",
+                            width = "100%",
                             height = "auto",
                             halign = "left",
                             tmargin = 4,
@@ -2043,6 +2097,7 @@ function ActivatedAbility:Render(options, params)
                                 height = "auto",
 
                                 flow = "horizontal",
+                                halign = "right",
                                 lmargin = 10,
                                 bgimage = true,
                                 bgcolor = "clear",
@@ -2080,8 +2135,8 @@ function ActivatedAbility:Render(options, params)
                                     classes = { "implementationDiamond" },
                                     rotate = 45,
 
-                                    width = 10,
-                                    height = 10,
+                                    width = sc(10),
+                                    height = sc(10),
                                     bgimage = true,
                                     valign = "center",
 
@@ -2109,7 +2164,6 @@ function ActivatedAbility:Render(options, params)
                                     classes = { "implementationChip" },
                                     text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Not Automated",
                                     create = function(element)
-                                        print("venla:", mod.images.diamond)
                                         local impl = self:try_get("implementation", 1)
                                         -- Set the appropriate class based on implementation status
                                         if impl == 0 then
@@ -2180,7 +2234,7 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = string.format("%s", keywordText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     minFontSize = 8,
                     fontFace = "Newzald",
                     fontWeight = "Light",
@@ -2198,7 +2252,7 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = string.format("%s", actionText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
@@ -2262,7 +2316,7 @@ function ActivatedAbility:Render(options, params)
                         classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
-                        fontSize = 22,
+                        fontSize = sc(22),
                         bold = true,
                         text = "Target",
                         y = -18,
@@ -2273,10 +2327,14 @@ function ActivatedAbility:Render(options, params)
                 } end),
 
 
+                --Same geometry as the target row below: a fixed 24px glyph
+                --column then the text, so the two icon rows share a left edge.
+                --A width="auto" row with no halign centres itself in the card.
                 gui.Panel {
-                    width = "auto",
+                    width = "100%",
                     height = "auto",
                     flow = "horizontal",
+                    halign = "left",
                     gui.Label {
 
                         create = function(element)
@@ -2302,23 +2360,25 @@ function ActivatedAbility:Render(options, params)
                             end
                         end,
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = "auto",
+                        fontSize = sc(20),
+                        width = sc(24),
+                        height = "auto",
                         halign = "right",
                         valign = "center",
-                        lmargin = 5,
+                        lmargin = sc(5),
                     },
 
 
                     gui.Label {
 
                         text = self:DescribeRange(creatureProperties),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "auto",
+                        width = string.format("100%%-%d", sc(33)),
+                        height = "auto",
                         halign = "left",
-                        lmargin = 6,
+                        lmargin = sc(4),
                         valign = "center",
                         markdown = true,
 
@@ -2335,24 +2395,24 @@ function ActivatedAbility:Render(options, params)
 
                         text = "x",
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = 24,
+                        fontSize = sc(20),
+                        width = sc(24),
                         height = "auto",
                         halign = "right",
                         valign = "top",
-                        lmargin = 5,
+                        lmargin = sc(5),
 
                     },
 
                     gui.Label {
 
                         text = string.format("<b></b> <i>%s</i>", self:DescribeTarget(token)),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "100%-33",
+                        width = string.format("100%%-%d", sc(33)),
                         halign = "left",
-                        lmargin = 4,
+                        lmargin = sc(4),
                         valign = "top",
                         markdown = true,
                         textWrap = true,
@@ -2384,7 +2444,7 @@ function ActivatedAbility:Render(options, params)
                         local m_value = capturedEntry.checked
                         local pillPanel
                         pillPanel = gui.Panel{
-                            styles = ThemeEngine.MergeStyles(g_improvementPillStyles),
+                            styles = ThemeEngine.MergeStyles(ScaleStyleFontSizes(g_improvementPillStyles, cardScale)),
                             classes = {"improvementPill"},
                             press = function(el)
                                 m_value = not m_value
@@ -2511,7 +2571,7 @@ function ActivatedAbility:Render(options, params)
             gui.Label {
                 classes = { cond(preDescriptionString == "", "collapsed", nil) },
                 text = string.format("%s", preDescriptionString),
-                fontSize = 18,
+                fontSize = sc(18),
                 fontFace = "Newzald",
                 fontWeight = "Light",
                 width = "100%",
@@ -2559,7 +2619,7 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = self:GetPowerRollDisplay(),
-                    fontSize = 18,
+                    fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
@@ -2624,7 +2684,7 @@ function ActivatedAbility:Render(options, params)
                         classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
-                        fontSize = 22,
+                        fontSize = sc(22),
                         bold = true,
                         text = "Effect",
                         y = -18,
@@ -2641,7 +2701,7 @@ function ActivatedAbility:Render(options, params)
                     height = "auto",
                     halign = "left",
                     bmargin = 4,
-                    fontSize = 14,
+                    fontSize = sc(14),
                 },
             },
 

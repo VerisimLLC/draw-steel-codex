@@ -1989,20 +1989,18 @@ function GameHud.CreateInventoryDialog(self, options)
 					width = '100%',
 					height = 20,
 					editlag = 0.25,
-					events = {
-						edit = function(element)
+					edit = function(element)
+						npage = 1
+						search = element.text
+						resultPanel:FireEventTree('refreshInventory')
+					end,
+					change = function(element)
+						if search ~= element.text then
 							npage = 1
 							search = element.text
 							resultPanel:FireEventTree('refreshInventory')
-						end,
-						change = function(element)
-							if search ~= element.text then
-								npage = 1
-								search = element.text
-								resultPanel:FireEventTree('refreshInventory')
-							end
-						end,
-					},
+						end
+					end,
 				},
 
 			}

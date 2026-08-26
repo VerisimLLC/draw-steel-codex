@@ -2165,7 +2165,7 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         height = "auto",
         flow = "vertical",
         halign = "left",
-        hpad = 10,
+        hpad = 14,
         vpad = 8,
         borderBox = true,
     },
@@ -2181,9 +2181,10 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         color = "@fgStrong",
     },
 
-    -- Header row: name on the left, categorization or cost on the right.
-    -- Drawn as a full-bleed band across the top of the card, color coded by
-    -- the ability's action economy (see the ms-action-* rules below).
+    -- Header strip across the top of a trait / perk / note card. Geometry
+    -- copied from the floating ability card's band (abilityHeadBand) so the
+    -- two card kinds line up when a section shows both; the color key rides on
+    -- the name rather than the strip.
     {
         selectors = {"panel", "ms-head"},
         width = "100%",
@@ -2191,180 +2192,32 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         flow = "horizontal",
         halign = "left",
         bgimage = "panels/square.png",
-        bgcolor = "clear",
-        hpad = 10,
-        vpad = 5,
+        bgcolor = "@bg",
+        hpad = 14,
+        vpad = 8,
         cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
         borderBox = true,
     },
-    -- The action color key (Main Action = red, Maneuver = blue, Triggered =
-    -- green, Move = orange, No Action = black, Traits/Other = purple).
-    -- Defined once on ActivatedAbility (MCDMActivatedAbility.lua, which
-    -- loads before this file) and shared with the ability card header.
-    {
-        selectors = {"panel", "ms-head", "ms-action-main"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-main"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-maneuver"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-maneuver"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-triggered"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-triggered"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-move"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-move"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-none"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-none"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-other"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-other"],
-    },
-    {
-        selectors = {"panel", "ms-head", "ms-action-malice"},
-        bgcolor = ActivatedAbility.actionColorKey["ms-action-malice"],
-    },
+    -- The ability card's title, copied property for property (Newzald at 24,
+    -- Light weight with the name emboldened in markdown, shrinking to 14 before
+    -- it wraps) so a trait card and an ability card read as the same object.
     {
         selectors = {"label", "ms-name"},
         width = "auto",
         height = "auto",
         halign = "left",
         valign = "center",
-        fontSize = 15,
-        bold = true,
+        fontSize = 24,
+        minFontSize = 14,
+        fontFace = "Newzald",
+        fontWeight = "Light",
         color = "@fgStrong",
     },
-    {
-        selectors = {"label", "ms-tag"},
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        fontSize = 10,
-        uppercase = true,
-        color = "@fgMuted",
-    },
-    -- The header bands are fixed dark colors, so the text on them is fixed
-    -- light -- theme fg tokens could go dark-on-dark under a light scheme.
+    -- Fallback for a header with no color-key class. The keyed colors are
+    -- appended after this table (ActionColorKeyTextStyles) and win on priority.
     {
         selectors = {"label", "ms-name", "parent:ms-head"},
-        color = "#FFFFFF",
-    },
-    {
-        selectors = {"label", "ms-tag", "parent:ms-head"},
-        color = "#EDEDED",
-    },
-    -- Resource cost ("2 MALICE") reads as a chip, not as running text.
-    {
-        selectors = {"label", "ms-pill"},
-        width = "auto",
-        height = "auto",
-        halign = "right",
-        valign = "center",
-        fontSize = 10,
-        uppercase = true,
-        bold = true,
-        color = "@fgMuted",
-        bgimage = "panels/square.png",
-        bgcolor = "@bg",
-        border = 1,
-        borderColor = "@border",
-        cornerRadius = 4,
-        hpad = 6,
-        vpad = 2,
-        borderBox = true,
-    },
-
-    -- "Melee, Strike, Weapon - Main action"
-    {
-        selectors = {"label", "ms-sub"},
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        fontSize = 12,
-        italics = true,
-        color = "@fgMuted",
-        tmargin = 2,
-    },
-    -- Distance / target line.
-    {
-        selectors = {"label", "ms-meta"},
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        fontSize = 12,
-        color = "@fg",
-        tmargin = 3,
-    },
-
-    {
-        selectors = {"label", "ms-rollhead"},
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        fontSize = 10,
-        uppercase = true,
-        color = "@fgMuted",
-        tmargin = 6,
-    },
-
-    -- Tier rows: fixed glyph column so the three outcomes align.
-    {
-        selectors = {"panel", "ms-tier"},
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        halign = "left",
-        bgimage = "panels/square.png",
-        bgcolor = "@bg",
-        cornerRadius = 3,
-        hpad = 5,
-        vpad = 3,
-        tmargin = 2,
-        borderBox = true,
-    },
-    -- The book's own tier dingbats (DrawSteelGlyphs: ! @ #). Kept instead of
-    -- the mock's "<=11 / 12-16 / 17+" text because Lua sources here are
-    -- ASCII-only, so the mock's glyphs cannot be literals -- and these are
-    -- what the rest of the Codex already draws.
-    {
-        --The widest dingbat (the middle tier's "12-16") renders wider than the
-        --30 this column used to be, so the outcome text started underneath the
-        --tail of the glyph. The column is sized to the widest glyph and the
-        --rmargin is the gap between the two.
-        selectors = {"label", "ms-tier-k"},
-        width = 40,
-        rmargin = 6,
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        fontFace = "DrawSteelGlyphs",
-        fontSize = 22,
-        color = "@fgMuted",
-    },
-    {
-        selectors = {"label", "ms-tier-v"},
-        width = "100%-46",
-        height = "auto",
-        halign = "left",
-        valign = "center",
-        fontSize = 12,
-        color = "@fg",
-    },
-
-    {
-        selectors = {"label", "ms-effect"},
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        fontSize = 12,
-        color = "@fg",
-        tmargin = 5,
+        color = "@fgStrong",
     },
 
     -- Trait / trigger body prose.
@@ -2373,7 +2226,7 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         width = "100%",
         height = "auto",
         halign = "left",
-        fontSize = 12,
+        fontSize = 14,
         color = "@fg",
         tmargin = 3,
     },
@@ -2458,6 +2311,15 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     },
 
 }
+
+--The action color key (Main Action = red, Maneuver = blue, Triggered = green,
+--Move = orange, No Action = grey, Traits/Other = purple, Malice = malice red)
+--paints the card NAME now rather than a full-bleed band behind it -- same code,
+--far less shouting. Defined once on ActivatedAbility and appended AFTER the
+--merge, since these rules carry literal hex rather than @tokens.
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyTextStyles("ms-name")) do
+    TacPanelStyles.MonsterSheet[#TacPanelStyles.MonsterSheet+1] = rule
+end
 
 TacPanelStyles.Conditions = ThemeEngine.MergeTokens{
     {   -- Visibility-toggle dot tint.
@@ -7323,6 +7185,46 @@ local function IsTraitBoilerplate(name, text)
     return false
 end
 
+--- Drop the builder's pick-one instruction from the front of a perk or trait's
+--- text. Compendium entries often open with one -- "Choose one skill you
+--- already have from the crafting skill group." -- which is written for the
+--- character builder. By the time the entry reaches a play surface the pick has
+--- been made (the panel only lists chosen entries), so the line is a question
+--- the player already answered, sitting above the rules text that matters.
+---
+--- Deliberately narrow: only a LEADING sentence that opens with "Choose", and
+--- only when rules text follows it. An entry whose instruction is all it says
+--- ("Choose one of the following abilities.") is left alone rather than
+--- reduced to a blank card.
+--- @param text string
+--- @return string
+local function StripChoiceInstruction(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    --The instruction ends at its first full stop, which is normally also the
+    --end of the first line.
+    local rest = text:match("^%s*[Cc]hoose[^\n]-%.%s*(.+)$")
+    if rest == nil or rest:match("^%s*$") ~= nil then
+        return text
+    end
+    return rest
+end
+
+--- True when a feature's tags say it renders somewhere OTHER than a trait card:
+--- "Hidden" is plumbing that is never shown, and "Ability" / "Trigger" features
+--- display as an ability card or a trigger row instead. Without this they show
+--- up twice, or show up at all when they were meant to be invisible. The pcall
+--- guards entries that are not CharacterFeatures -- reading a method a type does
+--- not define raises on a game-typed instance.
+--- @param feature any
+--- @return boolean
+local function TraitRendersElsewhere(feature)
+    local kind = "normal"
+    pcall(function() kind = feature:DisplayKind() end)
+    return kind ~= "normal"
+end
+
 local function HeroSheetTraits(props)
     local out = {}
     local seen = {}
@@ -7347,11 +7249,14 @@ local function HeroSheetTraits(props)
 
         if isContent
             and name ~= nil and name ~= "" and text ~= nil and text ~= ""
+            and not TraitRendersElsewhere(feature)
             and not IsTraitBoilerplate(name, text) then
             local key = string.format("%s|%s", name, text)
             if not seen[key] then
                 seen[key] = true
-                out[#out+1] = { name = name, text = text, live = false }
+                --Stripped at emit, so the boilerplate and dedupe tests above
+                --still see the entry's original wording.
+                out[#out+1] = { name = name, text = StripChoiceInstruction(text), live = false }
             end
         end
     end
@@ -7386,10 +7291,14 @@ local function MonsterSheetTraits(props)
     local groupTraits = nil
     pcall(function() groupTraits = props:GetTraitsFromGroup() end)
     for _, feature in ipairs(groupTraits or {}) do
-        add(feature.name, feature.description)
+        if not TraitRendersElsewhere(feature) then
+            add(feature.name, feature.description)
+        end
     end
     for _, feature in ipairs(props:try_get("characterFeatures", {})) do
-        add(feature.name, feature.description)
+        if not TraitRendersElsewhere(feature) then
+            add(feature.name, feature.description)
+        end
     end
     for _, note in ipairs(props:try_get("notes", {})) do
         add(note.title, note.text)
@@ -7402,153 +7311,35 @@ local function MonsterSheetTraits(props)
     return out
 end
 
---- Build one ability card in the monster-sheet grammar.
+--- Tallest an embedded ability card may grow before its body scrolls. A long
+--- villain action would otherwise push the whole section off the panel; Render
+--- puts the overflow in its own scroll frame, keeping the title visible.
+local MS_ABILITY_CARD_MAXHEIGHT = 360
+
+--- One ability card, rendered by the SAME code as the card the action-bar tray
+--- shows on hover (ActivatedAbility:Render) rather than by a local lookalike.
 ---
---- Tier text goes through the same two calls the ability card and the hover
---- statblock use -- DisplayRuleTextForCreature (potency gates, GoblinScript)
---- then ApplyCreatureTierDamage (monster level-scaling damage) -- so the
---- numbers here match the rest of the app rather than being recomputed.
+--- This used to be a hand-built compact card: name band, keyword line, tier
+--- rows. It drifted from the real card and had to re-derive tier text and
+--- monster damage scaling itself. Reusing the renderer means the panel gets
+--- the book layout, the power-roll block, potency gates and level scaling for
+--- free, and cannot drift again.
+---
+--- quietTitleBand is the one deviation: the floating card wears a full-bleed
+--- color band, which is far too loud repeated down a panel, so the band drops
+--- to a palette surface and the action color moves onto the name.
 --- @param ability any
 --- @param token CharacterToken
 --- @return Panel
 local function MonsterSheetAbilityCard(ability, token)
-    local props = token.properties
-    local children = {}
-
-    -- Header: name, then either a resource cost chip or the categorization.
-    local costText = ""
-    if ability:has_key("resourceCost") then
-        local resourceTable = dmhub.GetTable(CharacterResource.tableName)
-        local resourceInfo = resourceTable[ability.resourceCost]
-        if resourceInfo ~= nil then
-            local amount = tonumber(rawget(ability, "resourceNumber") or "1") or 1
-            if amount > 0 then
-                costText = string.format("%d %s", amount, resourceInfo.name)
-            end
-        end
-    end
-
-    local tagLabel
-    local categorization = ability:try_get("categorization", "")
-    if costText ~= "" then
-        tagLabel = gui.Label{ classes = {"ms-pill"}, text = costText }
-    elseif not g_msVillainCategories[categorization] then
-        --A villain action's own section header already says so, and the
-        --numbered "Villain Action 2" still appears on the line below.
-        --"Signature Ability" reads better as just "Signature" at this size.
-        local cat = string.gsub(categorization, " Ability$", "")
-        if cat ~= "" then
-            tagLabel = gui.Label{ classes = {"ms-tag"}, text = cat }
-        end
-    end
-
-    local headPanel = gui.Panel{
-        classes = {"ms-head", ability:ActionColorKeyClass()},
-        gui.Label{ classes = {"ms-name"}, text = ability.name or "" },
-        gui.Panel{ width = "100%", height = 1, bgcolor = "clear" },
-        tagLabel,
-    }
-
-    -- "Melee, Strike, Weapon - Main action"
-    local keywords = {}
-    for k, _ in pairs(ability:try_get("keywords", {})) do
-        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
-    end
-    table.sort(keywords)
-
-    local actionText = ""
-    if ability:has_key("villainAction") then
-        actionText = ability.villainAction
-    else
-        local resourceTable = dmhub.GetTable(CharacterResource.tableName)
-        local resourceInfo = resourceTable[ability:ActionResource()]
-        if resourceInfo == nil then
-            actionText = "Free"
-        else
-            actionText = resourceInfo.name
-        end
-    end
-
-    local subParts = {}
-    if #keywords > 0 then subParts[#subParts+1] = string.join(keywords, ", ") end
-    if actionText ~= "" then subParts[#subParts+1] = actionText end
-    if #subParts > 0 then
-        children[#children+1] = gui.Label{
-            classes = {"ms-sub"},
-            text = string.join(subParts, " - "),
-        }
-    end
-
-    -- Distance / target.
-    local metaParts = {}
-    local range = nil
-    pcall(function() range = ability:DescribeRange(props) end)
-    if range ~= nil and range ~= "" then metaParts[#metaParts+1] = range end
-    local target = nil
-    pcall(function() target = ability:DescribeTarget(token) end)
-    if target ~= nil and target ~= "" then metaParts[#metaParts+1] = target end
-    if #metaParts > 0 then
-        children[#children+1] = gui.Label{
-            classes = {"ms-meta"},
-            text = string.join(metaParts, "  |  "),
-        }
-    end
-
-    -- Power roll + tiers.
-    local powerRoll = nil
-    for _, behavior in ipairs(ability.behaviors) do
-        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
-            powerRoll = behavior
-            break
-        end
-    end
-
-    if powerRoll ~= nil then
-        local rollText = powerRoll:try_get("roll", "")
-        if rollText ~= "" then
-            children[#children+1] = gui.Label{
-                classes = {"ms-rollhead"},
-                text = string.format("Power Roll %s", rollText),
-            }
-        end
-
-        local tiers = {}
-        for i, t in ipairs(powerRoll.tiers) do
-            tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(props, t, nil, true)
-        end
-        --ApplyCreatureTierDamage mutates rollProps.tiers, which IS `tiers`.
-        local rollProps = RollPropertiesPowerTable.new{ tiers = tiers }
-        pcall(function() rollProps:ApplyCreatureTierDamage(props, ability) end)
-
-        --DrawSteelGlyphs codepoints for tiers 1-3.
-        local glyphs = {"!", "@", "#"}
-        for i, text in ipairs(tiers) do
-            children[#children+1] = gui.Panel{
-                classes = {"ms-tier"},
-                gui.Label{ classes = {"ms-tier-k"}, text = glyphs[i] or "" },
-                gui.Label{ classes = {"ms-tier-v"}, text = text },
-            }
-        end
-    end
-
-    -- Effect.
-    local description = ability:try_get("description", "")
-    if description ~= "" then
-        children[#children+1] = gui.Label{
-            classes = {"ms-effect"},
-            text = string.format("<b>Effect:</b> %s",
-                StringInterpolateGoblinScript(description, props)),
-        }
-    end
-
-    return gui.Panel{
-        classes = {"ms-card"},
-        headPanel,
-        gui.Panel{
-            classes = {"ms-card-body"},
-            children = children,
-        },
-    }
+    return ability:Render({
+        width = "100%",
+    }, {
+        token = token,
+        maxHeight = MS_ABILITY_CARD_MAXHEIGHT,
+        quietTitleBand = true,
+        hideTabs = true,
+    })
 end
 
 --- Build one trait / trigger card: bold name over its rules text.
@@ -7599,7 +7390,13 @@ local function MonsterSheetTextCard(name, text, props, live, token)
         classes = classes,
         gui.Panel{
             classes = {"ms-head", "ms-action-other"},
-            gui.Label{ classes = {"ms-name"}, text = name },
+            --Markdown-emboldened rather than bold=true: this is exactly how the
+            --ability card sets its title against the Light-weight Newzald face.
+            gui.Label{
+                classes = {"ms-name"},
+                markdown = true,
+                text = string.format("<b>%s</b>", name),
+            },
         },
         gui.Panel{
             classes = {"ms-card-body"},
@@ -8662,7 +8459,10 @@ end
 --- @param creature any
 --- @return table[] Language table entries
 local function KnownLanguages(creature)
-    local languagesTable = dmhub.GetTable(Language.tableName) or {}
+    --Visible-only: a language the creature knows can have been hidden
+    --(soft-deleted) in the compendium since, and a deleted language should not
+    --keep showing on the panel.
+    local languagesTable = dmhub.GetTableVisible(Language.tableName) or {}
     local languages = {}
     for langid, _ in pairs(creature:LanguagesKnown()) do
         local language = languagesTable[langid]
@@ -8901,7 +8701,7 @@ function TacPanel.Perks()
                                 out[#out+1] = {
                                     guid = guid,
                                     name = featItem.name,
-                                    text = featItem.description,
+                                    text = StripChoiceInstruction(featItem.description),
                                 }
                             end
                         end

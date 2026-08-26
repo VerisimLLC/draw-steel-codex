@@ -244,6 +244,62 @@ function ActivatedAbility:ActionColorKeyClass()
     return "ms-action-other"
 end
 
+--- The key color rendered as TEXT rather than as a band behind white text.
+---
+--- Each key color is picked to sit BEHIND white, so as text it is far too dark:
+--- the traits purple (#5E3A78) scores about 2.2:1 on the near-black panel
+--- surface, under the 3:1 floor even at 15pt bold. This rescales every channel
+--- by the same factor until the brightest one reaches 200 -- a value lift in
+--- HSV terms, so hue and saturation survive and it still reads as the same
+--- color. (Mixing toward white instead washes the purple out to grey-lavender.)
+--- A color already that bright, and a light color scheme, are both left alone.
+--- @param color string "#RRGGBB"
+--- @return string
+function ActivatedAbility.ActionColorKeyAsText(color)
+    local r, g, b = color:match("^#(%x%x)(%x%x)(%x%x)")
+    if r == nil then return color end
+    local bg = tostring(ThemeEngine.ResolveTokens("@bg"))
+    local br, bg2, bb = bg:match("^#(%x%x)(%x%x)(%x%x)")
+    if br ~= nil then
+        --Perceived brightness; exact luminance is more than this needs.
+        local brightness = 0.299 * tonumber(br, 16) + 0.587 * tonumber(bg2, 16)
+            + 0.114 * tonumber(bb, 16)
+        --Light scheme: the key colors are dark, which is what reads there.
+        if brightness >= 128 then return color end
+    end
+    r, g, b = tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
+    local mx = math.max(r, g, b)
+    if mx <= 0 or mx >= 200 then return color end
+    local k = 200 / mx
+    local function scale(c) return math.max(0, math.min(255, math.floor(c * k + 0.5))) end
+    return string.format("#%02X%02X%02X", scale(r), scale(g), scale(b))
+end
+
+--- One NAME-color rule per color-key class: on a quiet header the key that
+--- used to paint the band paints the ability name instead. priority beats the
+--- plain "name on a band" rule.
+---
+--- `scope` says where the key class sits. "parent" (the default) is for a band
+--- that carries the class itself, as the tac panel cards do. "self" is for a
+--- card whose band is class-less when quiet and puts the key on the label --
+--- which is what keeps the LOUD ability card unaffected by these rules.
+--- @param nameClass string The label class carrying the ability name
+--- @param scope? string "parent" (default) or "self"
+--- @return table[]
+function ActivatedAbility.ActionColorKeyTextStyles(nameClass, scope)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = cond(scope == "self",
+                {"label", nameClass, class},
+                {"label", nameClass, "parent:" .. class}),
+            color = ActivatedAbility.ActionColorKeyAsText(color),
+            priority = 5,
+        }
+    end
+    return result
+end
+
 --- One bgcolor rule per color-key class, for panels carrying the given band
 --- class. Append to a style list routed through ThemeEngine.
 --- @param bandClass string
@@ -283,6 +339,20 @@ SpellRenderStyles[#SpellRenderStyles+1] = {
     selectors = {"label", "abilityName", "parent:abilityHeadBand"},
     color = "#FFFFFF",
 }
+
+--The quiet band: same geometry, no color key behind it. Hosts that embed the
+--card in a panel rather than floating it over the map (the tac panel sections)
+--pass params.quietTitleBand, which drops the band to a palette surface and
+--moves the key color onto the name -- where it is applied via the key class on
+--the LABEL, so the loud card above keeps its white-on-color header untouched.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand", "quietBand"},
+    bgcolor = "@bg",
+    priority = 5,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyTextStyles("abilityName", "self")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
 
 -- Themed style rules for the ability-improvement pills (routed through
 -- ThemeEngine.MergeStyles at render time so they track the active scheme).
@@ -760,7 +830,16 @@ local g_abilityScrollBleedLeft = 60
 --inside keeps the card's true bounds. That way the tabs fall inside the mask
 --but nothing else shifts. Returns the body unchanged when not scrolling, so
 --the non-scrolling tooltip path keeps its original single-panel shape.
-local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
+---
+--- bleedLeft is 0 for a card rendered without tabs (params.hideTabs): with
+--- nothing hanging off the left edge the overhang has nothing to protect, and
+--- an invisible raycast target reaching 60px past the card would sit over
+--- whatever the host has drawn there.
+--- @param maxHeight number|nil
+--- @param bleedLeft number
+--- @param bodyPanel Panel
+--- @return Panel
+local function WrapAbilityBodyInScrollFrame(maxHeight, bleedLeft, bodyPanel)
     if maxHeight == nil then
         return bodyPanel
     end
@@ -768,7 +847,7 @@ local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
     return gui.Panel {
         id = "abilityScrollFrame",
         flow = "vertical",
-        width = string.format("100%%+%d", g_abilityScrollBleedLeft),
+        width = cond(bleedLeft > 0, string.format("100%%+%d", bleedLeft), "100%"),
         height = "auto",
         halign = "right",
         valign = "top",
@@ -800,6 +879,28 @@ local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
     }
 end
 
+--- One of the card's gold bookmark tabs, or an inert stand-in.
+---
+--- The tabs float OUTSIDE the card's left edge (x = -26 to -46), which only
+--- works for a card floating over the map. Embedded in a panel they hang over
+--- whatever sits to the card's left, so those hosts pass params.hideTabs.
+---
+--- A stand-in rather than nil: these are positional children, and a nil in the
+--- middle of a table constructor makes the list length ambiguous, which can
+--- silently drop the siblings after it.
+--- @param hide boolean
+--- @param buildArgs fun(): table builds the gui.Panel args for the real tab. A
+--- function, not a table: a table constructor is evaluated before the call, so
+--- it would build the tab's child panels even when hidden, leaving them
+--- orphaned (the engine warns about panels created with no parent).
+--- @return Panel
+local function CardBookmarkTab(hide, buildArgs)
+    if hide then
+        return gui.Panel{ width = 0, height = 0, floating = true }
+    end
+    return gui.Panel(buildArgs())
+end
+
 function ActivatedAbility:Render(options, params)
     params = params or {}
     options = options or {}
@@ -811,6 +912,17 @@ function ActivatedAbility:Render(options, params)
 
     local paramMaxHeight = params.maxHeight
     params.maxHeight = nil
+
+    --Stripped like maxHeight: params is handed down to the behaviors, and a
+    --presentation flag has no business reaching them.
+    local quietTitleBand = params.quietTitleBand
+    params.quietTitleBand = nil
+
+    local hideTabs = params.hideTabs
+    params.hideTabs = nil
+
+    --The clip-rect overhang exists only to keep the bookmark tabs visible.
+    local scrollBleedLeft = cond(hideTabs, 0, g_abilityScrollBleedLeft)
 
     local summary = options.summary
     options.summary = nil
@@ -1809,14 +1921,19 @@ function ActivatedAbility:Render(options, params)
         --outside the padded body (and outside the scroll frame, so a
         --scrolling card keeps its title visible).
         gui.Panel {
-            classes = {"abilityHeadBand", self:ActionColorKeyClass()},
+            classes = cond(quietTitleBand,
+                {"abilityHeadBand", "quietBand"},
+                {"abilityHeadBand", self:ActionColorKeyClass()}),
 
             --name of the ability
             gui.Label {
 
                 width = "auto",
                 id = "spellName",
-                classes = {"abilityName"},
+                --Quiet band: the key rides on the label instead (see above).
+                classes = cond(quietTitleBand,
+                    {"abilityName", self:ActionColorKeyClass()},
+                    {"abilityName"}),
                 fontSize = 24,
                 fontFace = "Newzald",
                 minFontSize = 14,
@@ -1835,7 +1952,7 @@ function ActivatedAbility:Render(options, params)
         --The scrolling/clipping is done by the frame wrapped around this panel,
         --NOT by this panel -- see WrapAbilityBodyInScrollFrame for why the clip
         --rect has to be wider than the body.
-        WrapAbilityBodyInScrollFrame(paramMaxHeight, gui.Panel {
+        WrapAbilityBodyInScrollFrame(paramMaxHeight, scrollBleedLeft, gui.Panel {
 
             id = "headerPanel",
             flow = "vertical",
@@ -1850,7 +1967,8 @@ function ActivatedAbility:Render(options, params)
             --frame's right edge; non-scroll gets a symmetric card inset.
             --borderBox because this framework has no per-side padding and
             --bare hpad is additive to the width.
-            width = cond(paramMaxHeight ~= nil, string.format("100%%-%d", g_abilityScrollBleedLeft), "100%"),
+            width = cond(paramMaxHeight ~= nil and scrollBleedLeft > 0,
+                string.format("100%%-%d", scrollBleedLeft), "100%"),
             halign = cond(paramMaxHeight ~= nil, "right", nil),
             height = "auto",
             bgimage = true,
@@ -2119,7 +2237,7 @@ function ActivatedAbility:Render(options, params)
                 end,
 
                 --tab panel
-                gui.Panel {
+                CardBookmarkTab(hideTabs, function() return {
                     styles = {
                         {
                             selectors = { "tab" },
@@ -2152,7 +2270,7 @@ function ActivatedAbility:Render(options, params)
                         halign = "center",
                         valign = "center",
                     },
-                },
+                } end),
 
 
                 gui.Panel {
@@ -2481,7 +2599,7 @@ function ActivatedAbility:Render(options, params)
                 end,
 
                 --tab panel
-                gui.Panel {
+                CardBookmarkTab(hideTabs, function() return {
                     styles = {
                         {
                             selectors = { "tab" },
@@ -2514,7 +2632,7 @@ function ActivatedAbility:Render(options, params)
                         halign = "center",
                         valign = "center",
                     },
-                },
+                } end),
 
                 gui.Label {
                     text = descriptionString,
@@ -2568,7 +2686,7 @@ function ActivatedAbility:Render(options, params)
         },]]
 
         --tab panel
-        gui.Panel {
+        CardBookmarkTab(hideTabs, function() return {
 
             classes = { "goldTab" },
             floating = true,
@@ -2585,7 +2703,7 @@ function ActivatedAbility:Render(options, params)
             showAbilitySection = function(element, options)
                 element:SetClass("collapsed", true)
             end,
-        },
+        } end),
 
         suppressPanel,
         reminderPanel,

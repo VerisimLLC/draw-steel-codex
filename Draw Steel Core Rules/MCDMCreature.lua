@@ -3610,7 +3610,9 @@ creature.RegisterSymbol {
 }
 
 --The living enemy tokens relevant to this creature: every token on the map
---that is not friendly to this creature's token and is not dead. When an
+--that is not friendly to this creature's token and is not dead. Friendliness
+--uses token:IsFriend, which consults the initiative queue when an encounter
+--is running and otherwise falls back to party allegiance. When an
 --initiative encounter is active (an unhidden initiative queue exists), only
 --enemies participating in the initiative queue count; out of combat, all
 --enemy tokens on the current map count. Neutral (non-friendly) tokens count
@@ -3628,7 +3630,7 @@ function creature:GetRelevantEnemyTokens()
     for _,tok in ipairs(dmhub.allTokens) do
         if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid
                 and (not tok.properties:IsDead())
-                and (not dmhub.TokensAreFriendly(token, tok)) then
+                and (not token:IsFriend(tok)) then
             local include = true
             if combatActive then
                 local initiativeid = InitiativeQueue.GetInitiativeId(tok)

@@ -4119,7 +4119,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
         gui.Label {
             text = doc.description,
-            width = "available",
+            width = "100% available",
             height = "100%",
             fontSize = 14,
             color = "@fg",

@@ -1561,6 +1561,12 @@ on both his examples, visual pending his hover).**
   kit ability heals (column.healer, computed beside areaWindow); hover
   = Ricky's copy "This creature has an ability that can regain and/or
   grant temporary stamina".
+- 41st tweak, same session: Healer's glyph switched OFF the shield (it
+  collided with High Stamina) to the Catch Breath heart-and-cross,
+  asset 9d51a1b8-ebec-48fd-b90e-e71aa5a72fb5 in the ABILITIES image
+  library (found via data/imageLibraries/abilities/ + heal keyword in
+  data/images), still green, both chip badge and footer line. Rule:
+  two distinct green facts get two distinct glyphs.
 - SCOPE TRAP caught pre-reload: the chip loop's `facets` local lives
   inside `if overview then` - the first healBadge computation sat
   outside it and would have raised on an uninitialized global read.

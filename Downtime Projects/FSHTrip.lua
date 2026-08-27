@@ -207,7 +207,17 @@ end
 --- @return boolean recorded True when the cast was stored
 function FSHTrip.AddCast(charid, cast)
     local trip = FSHTrip.Get(charid)
-    if trip == nil or trip.status ~= FSHTrip.STATUS.CASTING.key then
+    if trip == nil then
+        return false
+    end
+
+    --A fish handed over by an event is not a cast the player made: it lands
+    --while the Trip is still settling that event, so it cannot be held to the
+    --casting phase the way a real cast is.
+    local fromEvent = cast.fromEvent == true
+        and trip.status == FSHTrip.STATUS.EVENT.key
+
+    if trip.status ~= FSHTrip.STATUS.CASTING.key and not fromEvent then
         return false
     end
 
@@ -222,12 +232,17 @@ function FSHTrip.AddCast(charid, cast)
     local points = (trip.points or 0) + (cast.points or 0)
 
     --A catch keeps the line in the water; anything else ends casting. A
-    --breakthrough owes an event before the shop can open.
-    local status = FSHTrip.STATUS.CASTING.key
-    if cast.result == FSHTrip.RESULT.BREAKTHROUGH.key then
-        status = FSHTrip.STATUS.EVENT.key
-    elseif cast.result == FSHTrip.RESULT.GOTAWAY.key then
-        status = FSHTrip.STATUS.SHOPPING.key
+    --breakthrough owes an event before the shop can open. An event's own fish
+    --leaves the phase alone: the event is still settling, and resolving it is
+    --what opens the shop.
+    local status = trip.status
+    if not fromEvent then
+        status = FSHTrip.STATUS.CASTING.key
+        if cast.result == FSHTrip.RESULT.BREAKTHROUGH.key then
+            status = FSHTrip.STATUS.EVENT.key
+        elseif cast.result == FSHTrip.RESULT.GOTAWAY.key then
+            status = FSHTrip.STATUS.SHOPPING.key
+        end
     end
 
     FSHTrip._write(charid, function(data)
@@ -235,6 +250,10 @@ function FSHTrip.AddCast(charid, cast)
         data.points = points
         data.status = status
     end)
+
+    if cast.result == FSHTrip.RESULT.CATCH.key then
+        FSHTrip.RecordCatch(charid, cast)
+    end
 
     return true
 end
@@ -435,6 +454,89 @@ function FSHTrip.ResolveEvent(charid, applied, owed)
     FSHTrip._write(charid, function(data)
         data.events = events
     end)
+end
+
+--- The largest catch anyone in the campaign has landed
+--- Counts only the heroes the standings actually list. A bestiary is full of
+--- hero-typed tokens nobody plays, and a record held by one of those would be
+--- unbeatable for a reason no one at the table could see.
+--- @return number points The biggest catch, or zero when nobody has fished
+function FSHTrip.CampaignBestCatch()
+    local best = 0
+
+    for _, token in ipairs(DTBusinessRules.GetAllHeroTokens()) do
+        if token.playerControlled then
+            local fishing = token.properties:GetFishingRecord()
+            local biggest = fishing ~= nil and fishing.biggest or nil
+            if biggest ~= nil and (biggest.points or 0) > best then
+                best = biggest.points
+            end
+        end
+    end
+
+    return best
+end
+
+--- Writes a landed catch into the hero's lifetime record and announces it
+--- Read before written: whether this beat anything can only be told against
+--- the totals as they stood a moment ago.
+--- @param charid string The hero's token id
+--- @param cast table The cast that landed
+function FSHTrip.RecordCatch(charid, cast)
+    local token = dmhub.GetCharacterById(charid)
+    if token == nil or not token.valid then
+        return
+    end
+
+    local trip = FSHTrip.Get(charid)
+    local species = cast.species ~= nil and cast.species.name or "fish"
+    local points = cast.points or 0
+
+    local fishing = token.properties:GetFishingRecord() or {}
+    local previousPersonal = fishing.biggest ~= nil and (fishing.biggest.points or 0) or 0
+    local previousCampaign = FSHTrip.CampaignBestCatch()
+
+    local downtimeInfo = token.properties:GetDowntimeInfo()
+    if downtimeInfo == nil then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Record fishing catch",
+        undoable = false,
+        execute = function()
+            downtimeInfo:RecordFishingCatch(points, species,
+                trip ~= nil and trip.waterName or "")
+        end
+    }
+
+    --One banner per moment: beating the campaign says everything beating your
+    --own would have, so the larger claim wins rather than both firing.
+    if points > previousCampaign and previousCampaign > 0 then
+        FSHTrip.Announce(token, "Campaign Record",
+            string.format("%s landed a %d %s", token.name or "A hero", points, species))
+    elseif points > previousPersonal and previousPersonal > 0 then
+        FSHTrip.Announce(token, "Personal Best",
+            string.format("%s landed a %d %s", token.name or "A hero", points, species))
+    end
+end
+
+--- Puts a moment in front of the whole table
+--- Uses the same banner a critical hit and Hesitation Is Weakness use, so
+--- fishing borrows the table's existing vocabulary rather than inventing one.
+--- @param token any The hero's token
+--- @param text string The headline
+--- @param subtitle string The detail
+function FSHTrip.Announce(token, text, subtitle)
+    if token == nil or not token.valid then
+        return
+    end
+
+    DramaticBanner.Show{
+        tokenid = token.charid,
+        text = text,
+        subtitle = subtitle
+    }
 end
 
 --- Records a purchase and takes its cost out of the Trip's points

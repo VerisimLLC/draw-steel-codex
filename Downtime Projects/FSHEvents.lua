@@ -93,6 +93,30 @@ function FSHEvents.TestRollOptions()
     return options
 end
 
+--- Puts a resolved breakthrough in front of the table
+--- Held until the event is settled rather than fired the moment the dice land:
+--- "Breakthrough!" on its own says nothing, and what actually happened is only
+--- known once the table has been rolled and any question answered.
+--- @param charid string The hero's token id
+--- @param event table The resolved event
+function FSHEvents.Announce(charid, event)
+    local token = dmhub.GetCharacterById(charid)
+    if token == nil or not token.valid then
+        return
+    end
+
+    --The applied line is the specific outcome where there is one; the event's
+    --name covers the results a human runs.
+    local outcome = event.name or "Something else"
+    local applied = event.applied or {}
+    if applied[1] ~= nil then
+        outcome = applied[1]
+    end
+
+    FSHTrip.Announce(token, "Fishing Breakthrough!",
+        string.format("%s -- %s", token.name or "A hero", outcome))
+end
+
 --- Rolls on the events table for a Trip
 --- The roll rides the public pipeline with the hero's token, so the table sees
 --- it happen the same way it sees every other roll.
@@ -182,8 +206,9 @@ function FSHEvents.Apply(charid, roll)
 
     FSHTrip.AddEvent(charid, event)
 
-    --Nothing left to answer means the shop is next.
+    --Nothing left to answer means this is already the whole story.
     if event.resolved then
+        FSHEvents.Announce(charid, event)
         FSHTrip.SetStatus(charid, FSHTrip.STATUS.SHOPPING.key)
     end
 end
@@ -278,6 +303,7 @@ function FSHEvents.Pump(charid)
 
     dmhub.CancelActionRequest(trip.eventActionId)
     FSHTrip.SetEventActionId(charid, nil)
+
     FSHEvents.AnswerAncientFish(charid, info.result or 0)
 end
 
@@ -327,6 +353,15 @@ end
 --- @param owed string[] What a human still owes
 function FSHEvents._resolve(charid, applied, owed)
     FSHTrip.ResolveEvent(charid, applied, owed)
+
+    --Announced from the lines just written rather than re-reading the Trip: a
+    --document write is not visible to a read in the same breath.
+    local trip = FSHTrip.Get(charid)
+    local pending = trip ~= nil and FSHEvents.Pending(trip) or nil
+    FSHEvents.Announce(charid, {
+        name = pending ~= nil and pending.name or nil,
+        applied = applied
+    })
 
     --An event can hand over points, so the shop only opens once it is settled.
     FSHTrip.SetStatus(charid, FSHTrip.STATUS.SHOPPING.key)

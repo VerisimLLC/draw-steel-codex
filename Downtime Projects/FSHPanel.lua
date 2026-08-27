@@ -521,11 +521,14 @@ function FSHPanel.ShopChildren(charid, trip)
         --A tight action line with the description beneath it. The earlier
         --version stacked the description alongside the button, which is what
         --made the rows tall enough to push the table off the window.
+        --Inset from the scroll region so the Buy button clears the scrollbar
+        --gutter instead of being clipped by it.
         children[#children + 1] = gui.Panel{
-            width = "100%",
+            width = "100%-12",
             height = "auto",
             flow = "vertical",
             valign = "top",
+            halign = "left",
             tmargin = 5,
 
             gui.Panel{
@@ -534,9 +537,10 @@ function FSHPanel.ShopChildren(charid, trip)
                 flow = "horizontal",
                 valign = "top",
 
+                --Leaves room for the cost column, its gutter, and the button.
                 gui.Label{
                     classes = { "sizeXs", cond(not affordable, "fgMuted") },
-                    width = "100% available",
+                    width = "100%-112",
                     height = "100%",
                     halign = "left",
                     valign = "center",
@@ -672,12 +676,11 @@ function FSHPanel.CreateTripWindow()
         valign = "top"
     }
 
-    --Takes whatever the buttons leave rather than claiming a share of its own,
-    --so adding a button shrinks the label instead of pushing a button off the
-    --edge of the window.
+    --Sized to its own text rather than claiming a share of the row, so adding a
+    --button never pushes one off the edge of the window.
     local pointsLabel = gui.Label{
         classes = { "sizeL" },
-        width = "100% available",
+        width = "auto",
         height = "auto",
         halign = "left",
         valign = "center",
@@ -718,6 +721,25 @@ function FSHPanel.CreateTripWindow()
         hover = gui.Tooltip("Back to the stringer"),
         click = function()
             m_page = "stringer"
+            m_signature = ""
+        end
+    }
+
+    --A way off the casting loop. Late in a Trip the odds can settle where no
+    --cast can reach tier 1 and a breakthrough is a rounding error, and a player
+    --who reads that should not have to keep casting at a 3% chance to reach the
+    --Tackle table. Ends casting, not the Trip: the points are still theirs to
+    --spend. Small and quiet, so it never competes with Cast.
+    local stopFishingButton = gui.Button{
+        classes = { "withDanger", "collapsed" },
+        icon = "phosphor/toolbox-duotone.png",
+        halign = "right",
+        valign = "center",
+        rmargin = 6,
+        hover = gui.Tooltip("Stop Fishing and head for the Tackle table"),
+        click = function()
+            FSHTrip.SetStatus(charid, FSHTrip.STATUS.SHOPPING.key)
+            m_page = "shop"
             m_signature = ""
         end
     }
@@ -863,17 +885,21 @@ function FSHPanel.CreateTripWindow()
             local finished = trip.status == FSHTrip.STATUS.CLOSED.key
 
             local owned = FSHTrip.IsOwnedByThisClient(charid)
-            local owesEvent = trip.status == FSHTrip.STATUS.EVENT.key
+            local inEvent = trip.status == FSHTrip.STATUS.EVENT.key
+            local owesEvent = inEvent
                 and FSHEvents.Pending(trip) == nil
                 and trip.eventActionId == nil
             local castingOver = not casting and not finished
             local onShop = m_page == "shop"
 
             --The stringer and the Tackle table are separate pages, and the
-            --player walks between them.
+            --player walks between them. An event outranks both: the Tackle
+            --table can buy one, and it has to be rolled and settled where the
+            --player already is rather than on a page they cannot reach.
             stringerPanel:SetClass("collapsed", onShop)
-            eventPanel:SetClass("collapsed", onShop or #(trip.events or {}) == 0)
-            shopPanel:SetClass("collapsed", not onShop)
+            eventPanel:SetClass("collapsed",
+                #(trip.events or {}) == 0 or (onShop and not inEvent))
+            shopPanel:SetClass("collapsed", not onShop or inEvent)
 
             --Whether anything on the table is within reach at all.
             local cheapest = nil
@@ -882,7 +908,11 @@ function FSHPanel.CreateTripWindow()
                     cheapest = reward.cost
                 end
             end
-            local canShop = castingOver and (trip.points or 0) >= (cheapest or 0)
+            --Not while an event is live: it may still hand over points, and
+            --those are meant to be spendable when the table reopens.
+            local canShop = castingOver
+                and not inEvent
+                and (trip.points or 0) >= (cheapest or 0)
 
             if casting then
                 primaryAction = "cast"
@@ -897,18 +927,30 @@ function FSHPanel.CreateTripWindow()
 
             local primaryLive = owned and not waiting and not finished
                 and (casting or owesEvent or canShop)
-            primaryButton:SetClass("collapsed", onShop or not (casting or owesEvent or canShop))
+            primaryButton:SetClass("collapsed",
+                (onShop and not inEvent) or not (casting or owesEvent or canShop))
             primaryButton.interactable = primaryLive
             primaryButton:SetClass("disabled", not primaryLive)
 
             backButton:SetClass("collapsed", not onShop)
 
-            --Close Up is the exit of last resort, so it stays out of the way
-            --while there is still something to do: a breakthrough to roll or a
-            --table worth visiting. It reappears once neither is true.
+            --Shown exactly when Cast is. Those are the states whose only other
+            --move is to cast again, so they are the ones that need a door.
+            local showStop = owned
+                and not finished
+                and not waiting
+                and casting
+            stopFishingButton:SetClass("collapsed", not showStop)
+            stopFishingButton.interactable = showStop
+            stopFishingButton:SetClass("disabled", not showStop)
+
+            --Close Up ends the Trip, and stays the exit of last resort: offered
+            --at the Tackle table and once casting is over with nothing left to
+            --buy. Never mid-event, which owes a result first.
             local showCloseUp = owned
                 and not finished
-                and (onShop or (castingOver and not owesEvent and not canShop))
+                and not inEvent
+                and (onShop or (castingOver and not canShop))
             closeUpButton:SetClass("collapsed", not showCloseUp)
             closeUpButton.interactable = owned
             closeUpButton:SetClass("disabled", not owned)
@@ -1037,6 +1079,7 @@ function FSHPanel.CreateTripWindow()
                 goldenrodButton,
                 primaryButton,
                 backButton,
+                stopFishingButton,
                 closeUpButton
             },
 
@@ -1283,10 +1326,128 @@ CastRow = function(cast)
     }
 end
 
---- Builds one Fishing Log row
+--- Builds the block a finished Trip keeps behind its caret
+--- Every line here is already on the Trip document. An event keeps its verbatim
+--- text next to what the module applied and what a human still owes, so the
+--- whole outing can be read back without a summary being stored anywhere new.
 --- @param trip table The Trip
+--- @return Panel detail The detail block, collapsed
+local function LogDetail(trip)
+    local children = {}
+
+    local summary = trip.summary
+    if summary ~= nil then
+        local parts = { string.format("%d caught", summary.catches or 0) }
+
+        if summary.largest ~= nil then
+            parts[#parts + 1] = string.format("best %d %s",
+                summary.largest.points or 0, summary.largest.species or "fish")
+        end
+
+        if (summary.lost or 0) > 0 then
+            parts[#parts + 1] = string.format("%d points unspent", summary.lost)
+        end
+
+        children[#children + 1] = gui.Label{
+            classes = { "sizeXxs", "fgMuted" },
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            text = table.concat(parts, ", ")
+        }
+    end
+
+    --Titles and items change the character sheet, so they are called out rather
+    --than left to be inferred from the points that went missing.
+    local bought = {}
+    for _, purchase in ipairs(trip.purchases or {}) do
+        bought[#bought + 1] = purchase.name
+    end
+
+    if #bought > 0 then
+        children[#children + 1] = gui.Label{
+            classes = { "sizeXxs" },
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 4,
+            text = string.format("Gained: %s", table.concat(bought, ", "))
+        }
+    end
+
+    for _, event in ipairs(trip.events or {}) do
+        children[#children + 1] = gui.Label{
+            classes = { "sizeXs" },
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 8,
+            text = string.format("Breakthrough %d: %s", event.roll or 0, event.name or "")
+        }
+
+        children[#children + 1] = gui.Label{
+            classes = { "sizeXxs", "fgMuted" },
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 2,
+            text = event.text or ""
+        }
+
+        for _, line in ipairs(event.applied or {}) do
+            children[#children + 1] = gui.Label{
+                classes = { "sizeXxs" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                tmargin = 2,
+                text = string.format("Applied: %s", line)
+            }
+        end
+
+        for _, line in ipairs(event.owed or {}) do
+            children[#children + 1] = gui.Label{
+                classes = { "sizeXxs" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                tmargin = 2,
+                text = string.format("Owed: %s", line)
+            }
+        end
+    end
+
+    if #children == 0 then
+        children[#children + 1] = gui.Label{
+            classes = { "sizeXxs", "fgMuted" },
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            text = "Nothing beyond the casts."
+        }
+    end
+
+    return gui.Panel{
+        classes = { "collapsed" },
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        lmargin = 22,
+        tmargin = 2,
+        children = children
+    }
+end
+
+--- Builds one Fishing Log row
+--- A finished Trip gets a caret: the outing is over, so there is a whole story
+--- to read back. A live one does not, because the detail is still being written
+--- and the fisher's own window is where it is happening.
+--- @param trip table The Trip
+--- @param expanded boolean Whether this row is currently open
+--- @param onToggle function|nil Called with the new open state when the caret is pressed
 --- @return Panel panel The log row
-function FSHPanel.LogRow(trip)
+function FSHPanel.LogRow(trip, expanded, onToggle)
     local catches = 0
     for _, cast in ipairs(trip.casts or {}) do
         if cast.result == FSHTrip.RESULT.CATCH.key then
@@ -1297,12 +1458,12 @@ function FSHPanel.LogRow(trip)
     local live = trip.status ~= FSHTrip.STATUS.CLOSED.key
     local skillText = trip.skill ~= nil and trip.skill.name or "no skill"
 
-    return gui.Panel{
-        width = "100%",
+    --Leaves room for the caret column and its margins.
+    local labels = gui.Panel{
+        width = "100%-22",
         height = "auto",
         flow = "vertical",
-        valign = "top",
-        tmargin = 4,
+        valign = "center",
 
         gui.Label{
             classes = { "sizeXs" },
@@ -1321,6 +1482,81 @@ function FSHPanel.LogRow(trip)
                 skillText, #(trip.casts or {}), catches, trip.points or 0)
         }
     }
+
+    local headerChildren = {}
+
+    if live then
+        --Keeps the two rows' text on the same left edge whether or not there is
+        --a caret to sit in front of it.
+        headerChildren[#headerChildren + 1] = gui.Panel{
+            classes = { "sizeXs" },
+            valign = "center",
+            hmargin = 3
+        }
+        headerChildren[#headerChildren + 1] = labels
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            tmargin = 4,
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                valign = "top",
+                children = headerChildren
+            }
+        }
+    end
+
+    local detail = LogDetail(trip)
+
+    local caret
+    caret = gui.ExpandoArrow{
+        classes = { "sizeXs" },
+        valign = "center",
+        hmargin = 3,
+        press = function(element)
+            expanded = not expanded
+            element:SetClass("expanded", expanded)
+            detail:SetClass("collapsed", not expanded)
+
+            --Handed back so the open rows survive the next rebuild: somebody
+            --else's cast repaints this list and would otherwise shut them all.
+            if onToggle ~= nil then
+                onToggle(expanded)
+            end
+        end
+    }
+    caret:SetClass("expanded", expanded)
+    detail:SetClass("collapsed", not expanded)
+
+    headerChildren[#headerChildren + 1] = caret
+    headerChildren[#headerChildren + 1] = labels
+
+    local header = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        valign = "top",
+        children = headerChildren
+    }
+
+    local row = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+        tmargin = 4,
+
+        header,
+        detail
+    }
+
+    return row
 end
 
 --- Creates the panel
@@ -1328,6 +1564,10 @@ end
 function FSHPanel.Create()
     local m_tab = dmhub.GetPref(string.format("fsh_tab:%s", dmhub.gameid or "default")) or "Fishing"
     local m_signature = ""
+
+    --Which log rows are open, by hero. Held out here rather than in the row so
+    --a rebuild does not collapse everything somebody was reading.
+    local m_expanded = {}
 
     --hover is fixed at construction, so the changing reason is held here and
     --read by the button's linger handler.
@@ -1590,7 +1830,11 @@ function FSHPanel.Create()
                 }
 
                 for _, trip in ipairs(log) do
-                    body[#body + 1] = FSHPanel.LogRow(trip)
+                    local charid = trip.charid or ""
+                    body[#body + 1] = FSHPanel.LogRow(trip, m_expanded[charid] == true,
+                        function(open)
+                            m_expanded[charid] = cond(open, true, nil)
+                        end)
                 end
             end
 

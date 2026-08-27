@@ -2128,6 +2128,21 @@ TacPanelStyles.Routines = ThemeEngine.MergeTokens{
 -- ThemeEngine tokens rather than the mock's literal palette so the sections
 -- track the active colour scheme (see STYLE_GUIDE.md - never hex in panel
 -- code).
+--- How much to shrink a card's font ladder in this panel. The ability card's
+--- sizes are tuned for it floating over the map at full size, and the trait /
+--- perk cards copy that ladder to match it; repeated down a ~400px panel next
+--- to 11-14px panel text they dwarf everything around them. Ability cards get
+--- this through params.cardScale, trait and perk cards through the ms-* rules
+--- below, so the two card kinds stay the same size as each other.
+local MS_CARD_SCALE = 0.8
+
+--- One size off that ladder, scaled. Rounded, and never below 1px.
+--- @param n number
+--- @return number
+local function MSScale(n)
+    return math.max(1, math.floor(n * MS_CARD_SCALE + 0.5))
+end
+
 TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     {
         selectors = {"panel", "ms-stack"},
@@ -2187,16 +2202,30 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
     -- the name rather than the strip.
     {
         selectors = {"panel", "ms-head"},
-        width = "100%",
+        --Inset by 1px on the left, right and top: the card's own 1px border is
+        --drawn inside its rect, so a full-bleed strip paints over the outline.
+        width = "100%-2",
         height = "auto",
         flow = "horizontal",
-        halign = "left",
+        halign = "center",
+        tmargin = 1,
         bgimage = "panels/square.png",
         bgcolor = "@bg",
         hpad = 14,
         vpad = 8,
         cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+        --Hairline dividing the header from the body. In this framework y1 is the
+        --BOTTOM edge and y2 the top (x1 left, x2 right); always give all four,
+        --and never add a blanket borderWidth -- it overrides the per-edge widths.
+        border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+        borderColor = "@border",
         borderBox = true,
+    },
+    --Follow the card outline when a minion's With Captain bonus is live, so the
+    --divider does not read as a stray grey line inside an accented frame.
+    {
+        selectors = {"panel", "ms-head", "parent:captain-live"},
+        borderColor = "@accent",
     },
     -- The ability card's title, copied property for property (Newzald at 24,
     -- Light weight with the name emboldened in markdown, shrinking to 14 before
@@ -2207,8 +2236,8 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         height = "auto",
         halign = "left",
         valign = "center",
-        fontSize = 24,
-        minFontSize = 14,
+        fontSize = MSScale(24),
+        minFontSize = MSScale(14),
         fontFace = "Newzald",
         fontWeight = "Light",
         color = "@fgStrong",
@@ -2226,7 +2255,7 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         width = "100%",
         height = "auto",
         halign = "left",
-        fontSize = 14,
+        fontSize = MSScale(14),
         color = "@fg",
         tmargin = 3,
     },
@@ -2238,7 +2267,7 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         halign = "right",
         tmargin = 4,
         bold = true,
-        fontSize = 11,
+        fontSize = MSScale(11),
         color = "@fgMuted",
     },
     {
@@ -7339,6 +7368,7 @@ local function MonsterSheetAbilityCard(ability, token)
         maxHeight = MS_ABILITY_CARD_MAXHEIGHT,
         quietTitleBand = true,
         hideTabs = true,
+        cardScale = MS_CARD_SCALE,
     })
 end
 

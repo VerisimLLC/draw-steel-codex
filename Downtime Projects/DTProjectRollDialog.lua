@@ -944,8 +944,7 @@ function creature:RequestProjectRoll(casterToken, options)
     if not resultTable.result or resultTable.action == nil then
         return nil
     end
-    print("THC:: RESULT::", json(resultTable))
-    
+
     local action = resultTable.action
     if action.info == nil or action.info.tokens == nil then
         return nil
@@ -957,20 +956,34 @@ function creature:RequestProjectRoll(casterToken, options)
     if tokenResult == nil then
         return nil
     end
+
+    --A cancelled or abandoned request still carries a token entry; it just has
+    --no roll in it. Without this the caller records a roll of nothing, which
+    --then clamps to 1 point of progress the hero never earned.
+    if tokenResult.status ~= "complete" then
+        return nil
+    end
     
     local result = tokenResult.result or 0
     local boons = tokenResult.boons or 0
     local banes = tokenResult.banes or 0
-    print("THC:: ACTION::", json(action.info))
-    
+
     -- Call the callback if provided
     if options.callback then
         options.callback(result, boons, banes)
     end
-    
+
     return {
         boons = boons,
         banes = banes,
         total = result,
+        naturalRoll = tokenResult.naturalRoll or 0,
+        --Breakthrough reads this rather than naturalRoll >= 19: a modifier that
+        --appends a die makes the natural total unreliable, and this is measured
+        --from the highest two faces.
+        isCrit = tokenResult.isCrit == true,
+        dice = tokenResult.dice or {},
+        rollid = tokenResult.rollid or "",
+        modifiersUsed = tokenResult.modifiersUsed or {},
     }
 end

@@ -85,24 +85,12 @@ RollCheck.RegisterCustom{
 }
 
 --- Converts a completed roll into points
---- Project rolls take edges and banes flat and never shift a tier, so a double
---- edge is +4 where the dialog's test math applied none. Corrected from the
---- total rather than rebuilt from the parts, so every modifier the dialog
---- applied survives. The minimum is always 1 regardless of penalties.
+--- The dialog already applies each edge as +2 and each bane as -2, so the total
+--- is taken as given. The minimum is always 1 regardless of penalties.
 --- @param info table The harvested roll
 --- @return number points The size of the fish
 function FSHCast.Points(info)
-    local boons = info.boons or 0
-    local banes = info.banes or 0
-
-    local correction = 0
-    if boons >= 2 and banes == 0 then
-        correction = 4
-    elseif banes >= 2 and boons == 0 then
-        correction = -4
-    end
-
-    return math.max(1, (info.result or 0) + correction)
+    return math.max(1, info.result or 0)
 end
 
 --- Classifies a harvested roll and builds the cast record

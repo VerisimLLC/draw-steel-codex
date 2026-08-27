@@ -3205,6 +3205,22 @@ function GameHud.CreateRollDialog(self)
                         end
                     end
 
+                    --Publish which modifiers the roller actually kept. The dialog
+                    --has always known; it just died with the dialog, leaving a
+                    --caller unable to tell a +2 from Skilled apart from +2 of
+                    --characteristic. Snapshotted here rather than at submission
+                    --because after-roll choices are not settled until now.
+                    if rollInfo ~= nil and rollInfo.properties ~= nil then
+                        local names = {}
+                        for _, modifier in ipairs(DeepCopy(m_activeModifiers)) do
+                            local name = modifier ~= nil and modifier.name or nil
+                            if name ~= nil and name ~= "" then
+                                names[#names + 1] = name
+                            end
+                        end
+                        rollInfo.properties.modifiersUsed = names
+                    end
+
                     if completeRollFn ~= nil then
                         completeRollFn(rollInfo)
                     end

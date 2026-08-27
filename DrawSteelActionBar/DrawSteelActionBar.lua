@@ -5627,7 +5627,7 @@ local function OverviewColumnFooter()
     --the Director's next turn. Green shield = the positive channel.
     local hsRow = gui.Panel {
         classes = { "overviewRiskRow", "collapsed" },
-        hover = gui.Tooltip{ text = "Unlikely to die before the start of your next turn", valign = "top" },
+        hover = gui.Tooltip{ text = "This creature is unlikely to die before the start of your next turn", valign = "top" },
         gui.Panel {
             classes = { "overviewRiskIcon", "hs" },
             bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
@@ -5636,7 +5636,7 @@ local function OverviewColumnFooter()
         gui.Label {
             classes = { "overviewFooterRisk" },
             text = string.format("<color=%s><b>High Stamina</b></color>", OVERVIEW.GUIDE_COLOR),
-            hover = gui.Tooltip{ text = "Unlikely to die before the start of your next turn", valign = "top" },
+            hover = gui.Tooltip{ text = "This creature is unlikely to die before the start of your next turn", valign = "top" },
         },
     }
 

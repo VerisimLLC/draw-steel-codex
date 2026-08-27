@@ -276,6 +276,45 @@ end
 -- Utility namespace for power roll helpers shared across files.
 RollUtils = {}
 
+--- The dice that counted, highest first. Dropped dice are excluded.
+--- @param rollInfo table A completed roll
+--- @return number[] faces The die results, descending
+function RollUtils.SortedDice(rollInfo)
+    local faces = {}
+
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+
+    table.sort(faces, function(a, b) return a > b end)
+
+    return faces
+end
+
+--- Whether a roll is a critical: the two highest dice reading max and max-1 or
+--- better. On the usual two d10s that is exactly a natural 19 or 20; expressed
+--- per-die it stays correct when an effect adds a third die.
+--- @param rollInfo table A completed roll
+--- @return boolean isCrit True when the roll is a critical
+function RollUtils.IsCrit(rollInfo)
+    local faces = RollUtils.SortedDice(rollInfo)
+    if #faces < 2 then
+        return false
+    end
+
+    local maxFace = 10
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.numFaces ~= nil then
+            maxFace = roll.numFaces
+            break
+        end
+    end
+
+    return faces[1] == maxFace and faces[2] >= maxFace - 1
+end
+
 --result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
     -- A game system may define absolute natural-roll outcomes without

@@ -2991,6 +2991,45 @@ function ActivatedAbility:UsesIndividualManeuver(casterToken)
     return self.selfTarget or self.targetType == 'self'
 end
 
+--Minions we have already logged about, so we print once each instead of every refresh.
+local g_reportedSquadSuppression = {}
+
+--True while an invoke is holding this minion's squad coordination off. A flag stamped
+--on an earlier turn is left over from an invoke that never finished, so drop it --
+--otherwise the squad is stuck attacking with one member for the rest of the session.
+local function SquadCoordinationSuppressed(casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return false
+    end
+
+    local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0
+    if depth <= 0 then
+        return false
+    end
+
+    --Never throw here: this runs while the player is picking targets.
+    local invokeBehavior = rawget(_G, "ActivatedAbilityInvokeAbilityBehavior")
+    local turnKeyFunction = invokeBehavior ~= nil and invokeBehavior.SquadSuppressionTurnKey or nil
+
+    local stampedTurn = casterToken.properties:try_get("_tmp_disableSquadCoordinationTurn")
+    local currentTurn = turnKeyFunction ~= nil and turnKeyFunction() or nil
+    if stampedTurn ~= nil and currentTurn ~= nil and stampedTurn ~= currentTurn then
+        print(string.format("SQUADDIAG:: clearing leaked squad-coordination suppression on %s (depth=%d stamped=%s now=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn), tostring(currentTurn)))
+        casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+        casterToken.properties._tmp_disableSquadCoordinationTurn = nil
+        return false
+    end
+
+    if not g_reportedSquadSuppression[casterToken.charid] then
+        g_reportedSquadSuppression[casterToken.charid] = true
+        print(string.format("SQUADDIAG:: squad coordination suppressed on %s by an active invoke (depth=%d turn=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn)))
+    end
+
+    return true
+end
+
 --Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
 function ActivatedAbility:UsesSquadCoordination(casterToken)
     --An invoke that opted out of squad coordination forces this off regardless of the
@@ -3000,8 +3039,7 @@ function ActivatedAbility:UsesSquadCoordination(casterToken)
     if self:try_get("disableSquadCoordination", false) then
         return false
     end
-    if casterToken ~= nil and casterToken.properties ~= nil
-        and (casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0) > 0 then
+    if SquadCoordinationSuppressed(casterToken) then
         return false
     end
     --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast

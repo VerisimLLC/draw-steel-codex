@@ -509,6 +509,15 @@ function ActivatedAbility:GetDisplayedTargetTypeOptions()
         end
     end
 
+    --The departadjacent trigger carries the enemy that was left as a symbol, so
+    --an ability on that trigger can aim straight at it instead of prompting.
+    if self:try_get("trigger", "") == "departadjacent" then
+        result[#result+1] = {
+            id = "departedcreature",
+            text = "The Departed Creature",
+        }
+    end
+
     return result
 end
 

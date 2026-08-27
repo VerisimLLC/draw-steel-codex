@@ -198,6 +198,18 @@ local g_edsSetting = setting{
 -- All TacPanelStyles.* tables live inside BuildStyles so they can be re-resolved
 -- against the active theme/color scheme on an OnThemeChanged event. Called once
 -- at load (below) to populate the tables, and again whenever the theme changes.
+--- How much to shrink a card's font ladder in this panel. The ability card's
+--- sizes are tuned for it floating over the map at full size, and the trait /
+--- perk cards copy that ladder to match it; repeated down a ~400px panel next
+--- to 11-14px panel text they dwarf everything around them. Ability cards get
+--- this through params.cardScale, trait and perk cards through the ms-* rules
+--- inside BuildStyles, so the two card kinds stay the same size as each other.
+---
+--- Must stay OUT here: everything from BuildStyles' "function" line to its "end"
+--- around line 2745 is one function body despite sitting at column 0, so a local
+--- declared among the style tables is not visible to the card builders below.
+local MS_CARD_SCALE = 0.8
+
 function TacPanel.BuildStyles()
 TacPanelStyles.TacPanel = ThemeEngine.MergeTokens{
     {   -- Portrait control icon chip: a clearly-visible rounded button over the
@@ -2128,15 +2140,7 @@ TacPanelStyles.Routines = ThemeEngine.MergeTokens{
 -- ThemeEngine tokens rather than the mock's literal palette so the sections
 -- track the active colour scheme (see STYLE_GUIDE.md - never hex in panel
 -- code).
---- How much to shrink a card's font ladder in this panel. The ability card's
---- sizes are tuned for it floating over the map at full size, and the trait /
---- perk cards copy that ladder to match it; repeated down a ~400px panel next
---- to 11-14px panel text they dwarf everything around them. Ability cards get
---- this through params.cardScale, trait and perk cards through the ms-* rules
---- below, so the two card kinds stay the same size as each other.
-local MS_CARD_SCALE = 0.8
-
---- One size off that ladder, scaled. Rounded, and never below 1px.
+--- One size off the card ladder, scaled. Rounded, and never below 1px.
 --- @param n number
 --- @return number
 local function MSScale(n)
@@ -2180,8 +2184,8 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         height = "auto",
         flow = "vertical",
         halign = "left",
-        hpad = 14,
-        vpad = 8,
+        hpad = MSScale(14),
+        vpad = MSScale(8),
         borderBox = true,
     },
     -- A minion's With Captain bonus only applies while the squad actually
@@ -2211,8 +2215,8 @@ TacPanelStyles.MonsterSheet = ThemeEngine.MergeTokens{
         tmargin = 1,
         bgimage = "panels/square.png",
         bgcolor = "@bg",
-        hpad = 14,
-        vpad = 8,
+        hpad = MSScale(14),
+        vpad = MSScale(8),
         cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
         --Hairline dividing the header from the body. In this framework y1 is the
         --BOTTOM edge and y2 the top (x1 left, x2 right); always give all four,

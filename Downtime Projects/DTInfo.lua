@@ -5,6 +5,7 @@
 --- @field availableRolls number Counter that the Director increments via Grant Rolls to All
 --- @field downtimeProjects DTProject[] The list of DTProject records for the character
 --- @field followerRolls table<string, number> Map of follower GUID to available rolls count
+--- @field fishing table Fishing record: the biggest catch ever and lifetime counts
 DTInfo = RegisterGameType("DTInfo")
 DTInfo.availableRolls = 0
 
@@ -240,6 +241,85 @@ function DTInfo:_maxProjectOrder()
     end
 
     return maxOrder
+end
+
+--- Gets the character's fishing record, creating it on first use
+--- Fishing accumulates nothing across outings except this record, so it rides
+--- the character's downtime storage rather than inventing its own.
+--- @return table fishing The fishing record
+function DTInfo:GetFishing()
+    return self:get_or_add("fishing", {})
+end
+
+--- Gets the character's biggest catch ever
+--- @return table|nil biggest Fields points, species, waterName, when, and serverTime
+function DTInfo:GetBiggestCatch()
+    return self:GetFishing().biggest
+end
+
+--- Gets how many fish this character has landed across every Trip
+--- @return number catches The lifetime catch count
+function DTInfo:GetLifetimeCatches()
+    return self:GetFishing().lifetimeCatches or 0
+end
+
+--- Gets how many Trips this character has completed
+--- @return number trips The lifetime Trip count
+function DTInfo:GetLifetimeTrips()
+    return self:GetFishing().lifetimeTrips or 0
+end
+
+--- Records a landed catch, updating the biggest ever when it is beaten
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param points number The size of the fish
+--- @param speciesName string The species landed
+--- @param waterName string The name of the water it came from
+--- @return boolean beaten True when this catch set a new personal record
+function DTInfo:RecordFishingCatch(points, speciesName, waterName)
+    local fishing = self:GetFishing()
+    fishing.lifetimeCatches = (fishing.lifetimeCatches or 0) + 1
+
+    local biggest = fishing.biggest
+    if biggest ~= nil and (biggest.points or 0) >= points then
+        return false
+    end
+
+    fishing.biggest = {
+        points = points,
+        species = speciesName or "",
+        waterName = waterName or "",
+        when = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        serverTime = dmhub.serverTime
+    }
+
+    return true
+end
+
+--- Records the completion of a Trip
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @return DTInfo self For chaining
+function DTInfo:RecordFishingTrip()
+    local fishing = self:GetFishing()
+    fishing.lifetimeTrips = (fishing.lifetimeTrips or 0) + 1
+    return self
+end
+
+--- Extend creature to read the fishing record without creating storage
+--- GetDowntimeInfo creates and uploads downtime storage when a character has
+--- none, which a standings panel must not do just by rendering. This stays
+--- read-only and simply reports nothing for a character who has never fished.
+--- @return table|nil fishing The fishing record, or nil when there is none
+creature.GetFishingRecord = function(self)
+    local downtimeInfo = self:try_get(DTConstants.CHARACTER_STORAGE_KEY)
+    if downtimeInfo == nil then
+        return nil
+    end
+
+    if type(downtimeInfo.try_get) ~= "function" then
+        return rawget(downtimeInfo, "fishing")
+    end
+
+    return downtimeInfo:try_get("fishing")
 end
 
 --- Extend creature to get Downtime Information

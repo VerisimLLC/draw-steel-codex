@@ -39,6 +39,10 @@ local g_powerRollTypes = {
         text = "Project Roll",
     },
     {
+        id = "fishing_roll",
+        text = "Fishing Roll",
+    },
+    {
         id = "enemy_ability_power_roll",
         text = "Enemy Ability Rolls vs Us",
     },

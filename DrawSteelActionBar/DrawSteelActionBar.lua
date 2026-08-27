@@ -3606,7 +3606,9 @@ local function AbilityHeading(args)
         hover = gui.Tooltip{ text = "This ability can regain and/or grant temporary stamina", valign = "top" },
         gui.Panel {
             classes = { "overviewHealIcon" },
-            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            --The Catch Breath heart-and-cross (abilities library), NOT the
+            --High Stamina shield - two green facts, two glyphs (field test 41).
+            bgimage = "9d51a1b8-ebec-48fd-b90e-e71aa5a72fb5",
             interactable = false,
         },
     }
@@ -5684,7 +5686,7 @@ local function OverviewColumnFooter()
         hover = gui.Tooltip{ text = "This creature has an ability that can regain and/or grant temporary stamina", valign = "top" },
         gui.Panel {
             classes = { "overviewRiskIcon", "hs" },
-            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            bgimage = "9d51a1b8-ebec-48fd-b90e-e71aa5a72fb5",
             interactable = false,
         },
         gui.Label {

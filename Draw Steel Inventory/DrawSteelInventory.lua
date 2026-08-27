@@ -1972,37 +1972,43 @@ function GameHud.CreateInventoryDialog(self, options)
 		searchInput = gui.Panel{
 			style = {
 				width = '80%',
-				fontSize = '30%',
-				height = 20,
+				height = 'auto',
 				halign = 'center',
 				valign = 'top',
 				vmargin = 0,
 			},
 			children = {
-				--the canonical search field; look comes from DefaultStyles'
-				--searchInput rules, borderBox keeps its hpad 24 inside the
-				--width. Height 20 is the minimum for the pill's cornerRadius 9.
+				--The canonical search field. Everything about how it LOOKS --
+				--type size, fill, frame, corner radius -- comes from
+				--DefaultStyles' searchInput rules, which surfaces are told not
+				--to re-style locally. Only layout is set here.
+				--
+				--SearchInput ships hpad = 24 for the magnifier, and that padding
+				--ADDS to the declared width, so the field has to give it back or
+				--it overruns its container by 48.
 				gui.SearchInput{
 					id = 'search-input',
 					placeholderText = 'Search...',
-					borderBox = true,
-					width = '100%',
-					height = 20,
+					width = '60%',
+					height = 24,
 					editlag = 0.25,
-					events = {
-						edit = function(element)
+
+					--Top-level, NOT events = {}: SearchInput installs its own
+					--top-level edit/change (they fire a "search" event this panel
+					--does not listen to), and an events table is dropped, so
+					--handlers nested there never run and typing stops filtering.
+					edit = function(element)
+						npage = 1
+						search = element.text
+						resultPanel:FireEventTree('refreshInventory')
+					end,
+					change = function(element)
+						if search ~= element.text then
 							npage = 1
 							search = element.text
 							resultPanel:FireEventTree('refreshInventory')
-						end,
-						change = function(element)
-							if search ~= element.text then
-								npage = 1
-								search = element.text
-								resultPanel:FireEventTree('refreshInventory')
-							end
-						end,
-					},
+						end
+					end,
 				},
 
 			}

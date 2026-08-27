@@ -5059,23 +5059,28 @@ OVERVIEW.ROLE_COLORS = {
 }
 OVERVIEW.ROLE_COLOR_DEFAULT = "#D7D9DA"
 
+--Field test 36 (Ricky): the earlier prose here was authored play-pattern
+--copy, NOT source text, and it contradicted actual kits (an ambusher
+--with no escape tools "slips away"). These are now the Monster Basics
+--role and organization descriptions from Draw Steel: Monsters (p4-5),
+--lightly trimmed to tooltip length, so the hover always matches the
+--book a Director has open. No invented tactics.
 local OVERVIEW_ROLE_PROSE = {
-    ambusher   = "Strikes from hiding, then slips away. Open hidden, pick off an isolated hero.",
-    artillery  = "Ranged damage from the back line. Keep line of sight, stay out of melee.",
-    brute      = "Tough melee damage. Close in, hit hard, soak what comes back.",
-    controller = "Shapes the fight: forced movement, hazards, conditions. Decide where the heroes stand.",
-    defender   = "Holds the line. Protects allies and punishes heroes who ignore it.",
-    harrier    = "Hit and run. Strike, then reposition; never stay pinned.",
-    hexer      = "Curses and debuffs from mid range. Weaken heroes so allies' hits land harder.",
-    mount      = "Carries a rider. Strongest when ridden; moves allies where they need to be.",
-    skirmisher = "Mobile fighter. Darts in and out of the front line.",
-    support    = "Buffs, heals and enables allies. Stay behind the line, near friends.",
-    leader     = "Commands the battle with villain actions. The others fight better while it stands.",
-    solo       = "Fights alone and acts more than once a round. The encounter IS this creature.",
-    minion     = "Weak alone, acts as a squad sharing one stamina pool. Swarm, then expect losses.",
-    horde      = "Numerous and cheap. Strength in numbers, each one fragile.",
-    platoon    = "The standard monster. A few of them make a fight.",
-    elite      = "Tough and dangerous, worth two standard monsters. Expect it to last.",
+    ambusher   = "Ambushers are melee warriors who can slip by beefier heroes to reach squishier targets in the back lines.",
+    artillery  = "Artillery creatures fight best from afar, and can use their most powerful abilities at great distance.",
+    brute      = "Brutes are hardy creatures who have lots of Stamina and deal lots of damage. Their abilities and traits make them difficult to ignore, hard to get away from, and let them push enemies around.",
+    controller = "Controllers are creatures who change the battlefield, often with magic or psionics. They reposition foes and alter terrain to make it advantageous for their allies. Often on the squishier side, so they need protection.",
+    defender   = "Defenders are tough creatures able to take a lot of damage, and who can force enemies to attack them instead of squishier targets.",
+    harrier    = "Harriers are mobile warriors who make definitive use of hit-and-run tactics. Their traits allow them to make the most of their positioning on the battlefield.",
+    hexer      = "Hexers specialize in debuffing enemies using conditions and other effects. They are generally squishy and rely on others to defend them.",
+    mount      = "Mounts are mobile creatures meant to be ridden in combat, and who make their riders even more dangerous.",
+    support    = "Support creatures specialize in aiding their allies by providing buffs, healing, movement, or action options.",
+    leader     = "A leader is a powerful monster who buffs their allies and grants them additional actions. They utilize villain actions and can stand toe-to-toe with two or more heroes of the same level by themself.",
+    solo       = "A solo creature is an encounter all on their own, and can typically stand toe-to-toe with six heroes of the same level.",
+    minion     = "Minions are weaker enemies who are made to die fast and threaten heroes en masse.",
+    horde      = "Hordes are hardier and work in smaller groups than minions, but it still takes more than one to effectively threaten a single hero of the same level.",
+    platoon    = "Platoons are highly organized and usually self-sufficient armies, well equipped to handle most combat objectives. A single platoon creature is a decent threat to a hero of the same level.",
+    elite      = "Elite creatures are the functional opposite of minions: hardy, and usually able to stand up to two heroes of the same level.",
 }
 
 --The stat block's role for the footer: line = the role line with the ROLE
@@ -5129,12 +5134,13 @@ local function OverviewRoleInfo(tok)
         line = string.format("<color=%s><b>%s</b></color>", OVERVIEW.ROLE_COLOR_DEFAULT, string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2))
     end
 
+    --The book text opens with the role word itself, so no "Role:" prefix.
     local prose = {}
     if roleWord ~= nil and OVERVIEW_ROLE_PROSE[roleWord] ~= nil then
-        prose[#prose + 1] = string.format("%s: %s", string.upper(string.sub(roleWord, 1, 1)) .. string.sub(roleWord, 2), OVERVIEW_ROLE_PROSE[roleWord])
+        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[roleWord]
     end
     if orgWord ~= nil and OVERVIEW_ROLE_PROSE[orgWord] ~= nil then
-        prose[#prose + 1] = string.format("%s: %s", string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2), OVERVIEW_ROLE_PROSE[orgWord])
+        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[orgWord]
     end
 
     return {

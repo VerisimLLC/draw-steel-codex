@@ -1543,6 +1543,27 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-sixth report (Ricky: "where did this text come from?
+is it from the source material?") - role hover prose was INVENTED; now
+book text (commit 2a493b23, reloaded live). This closes the risky half of
+the P2-f copy pass.**
+- The F2-9 OVERVIEW_ROLE_PROSE strings were authored play-pattern copy,
+  not source text - and Ricky caught them contradicting real kits (his
+  Human Scoundrel ambusher has no "slips away" tool; Artillery mismatched
+  too). The table also carried "Skirmisher", which is not a Draw Steel
+  role at all. LESSON, recorded: overview copy that claims to describe
+  the RULES must be sourced, not composed - invented tactics read as
+  authority and mislead at the table.
+- All role AND organization entries are now the Monster Basics
+  descriptions from Draw Steel: Monsters p4-5 (lightly trimmed to
+  tooltip length; Brute/Controller/Solo/Horde/Platoon/Elite compressed
+  without changing meaning; Minion kept to its defining first sentence).
+  Skirmisher removed. The "Role: " prefix in OverviewRoleInfo's prose
+  builder is gone - the book text opens with the role word itself.
+- Source extraction: pdftotext over "Draw Steel Monsters v1.pdf" (iCloud
+  iBooks path recorded in the session log); the Creature Roles section
+  sits near line 930 of the raw text dump.
+
 **2026-08-25, thirty-fifth report (Ricky, post-merge testing: only 3 of 7
 warriors visible) - "+N more" is now a control (commit 98d79a75, on the
 MERGED main). Reloaded clean, zero errors; press verified programmatically

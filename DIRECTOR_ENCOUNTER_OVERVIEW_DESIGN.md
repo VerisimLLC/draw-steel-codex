@@ -1543,6 +1543,23 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-seventh report (Ricky) - hordes are Squishy + role
+hover copy is HIS OWN (commit, reloaded live).**
+- **Horde organization wears the Squishy tag** like minions. Judgment
+  call, flagged to Ricky: a horde member's REAL Near Death still
+  outranks the standing Squishy (minions stay always-Squishy per field
+  test 28) so the per-member skulls and the note-first row sort from
+  field test 33 keep pointing at the one actually dying.
+- **Squishy tooltip is now Ricky's copy**: "Squishies die quickly! Use
+  them before they're gone." NOTE: this deliberately breaks the
+  field-test-21 no-imperatives rule - his own wording, his call.
+- Hover copy replaced with his wording for horde ("more fragile than
+  any other monsters except minions"), elite ("stand up to 2 heroes"),
+  leader (first sentence only), solo ("special set of rules within
+  their stat block"); minion already matched. These diverge from the
+  strict book text of field test 36 where he chose to - the rule stands
+  that the DEFAULTS are sourced; his explicit copy overrides.
+
 **2026-08-25, thirty-sixth report (Ricky: "where did this text come from?
 is it from the source material?") - role hover prose was INVENTED; now
 book text (commit 2a493b23, reloaded live). This closes the risky half of
